@@ -310,6 +310,7 @@ def test_fcn_module_unet_depth_3_channels_3D(n_channels):
     assert y.shape == x.shape
 
 
+@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("tiled", [False, True])
 def test_prediction_callback_during_training(minimum_n2v_configuration, tiled):
     import numpy as np

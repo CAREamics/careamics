@@ -31,7 +31,7 @@ class InMemoryImageStack:
             (
                 sample_idx,  # type: ignore
                 ...,  # type: ignore
-                *[slice(c, c + e) for c, e in zip(coords, patch_size)],  # type: ignore
+                *[slice(c, c + e) for c, e in zip(coords, patch_size, strict=False)],  # type: ignore
             )
         ]
 

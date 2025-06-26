@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     ModelCheckpoint,
@@ -13,6 +14,8 @@ from careamics.lightning import (
     create_train_datamodule,
 )
 from careamics.prediction_utils import convert_outputs
+
+pytestmark = pytest.mark.mps_gh_fail
 
 
 def test_smoke_n2v_2d_array(tmp_path, minimum_n2v_configuration):

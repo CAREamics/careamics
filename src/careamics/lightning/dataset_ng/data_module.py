@@ -1,7 +1,8 @@
 """Next-Generation CAREamics DataModule."""
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional, Union, overload
+from typing import Any, Optional, Union, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -425,9 +426,9 @@ class CareamicsDataModule(L.LightningDataModule):
             A tuple containing lists of file paths for input and target data.
             If target_data is None, the second element will be None.
         """
-        if isinstance(input_data, (str, Path)):
+        if isinstance(input_data, str | Path):
             if target_data is not None:
-                assert isinstance(target_data, (str, Path))
+                assert isinstance(target_data, str | Path)
             input_list, target_list = self._list_files_in_directory(
                 input_data, target_data
             )
@@ -463,15 +464,15 @@ class CareamicsDataModule(L.LightningDataModule):
         """
         if self.image_stack_loader is not None:
             return input_data, target_data
-        elif isinstance(input_data, (str, Path)):
+        elif isinstance(input_data, str | Path):
             if target_data is not None:
-                assert isinstance(target_data, (str, Path))
+                assert isinstance(target_data, str | Path)
             input_list, target_list = self._list_files_in_directory(
                 input_data, target_data
             )
             return input_list, target_list
         elif isinstance(input_data, list):
-            if isinstance(input_data[0], (str, Path)):
+            if isinstance(input_data[0], str | Path):
                 if target_data is not None:
                     assert isinstance(target_data, list)
                 input_list, target_list = self._convert_paths_to_pathlib(
@@ -531,10 +532,10 @@ class CareamicsDataModule(L.LightningDataModule):
                     f"Unsupported input type for {self.data_type}: {type(input_data)}"
                 )
         elif self.data_type in (SupportedData.TIFF, SupportedData.CZI):
-            if isinstance(input_data, (str, Path)):
+            if isinstance(input_data, str | Path):
                 return self._validate_path_input(input_data, target_data)
             elif isinstance(input_data, list):
-                if isinstance(input_data[0], (Path, str)):
+                if isinstance(input_data[0], str | Path):
                     return self._validate_path_input(input_data, target_data)
                 else:
                     raise ValueError(

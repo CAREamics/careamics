@@ -335,6 +335,8 @@ def _calc_n_patches(spatial_shape: Sequence[int], patch_size: Sequence[int]) -> 
             f"spatial dimensions {len(spatial_shape)}, for `patch_size={patch_size}` "
             f"and `spatial_shape={spatial_shape}`."
         )
-    patches_per_dim = [np.ceil(s / p) for s, p in zip(spatial_shape, patch_size)]
+    patches_per_dim = [
+        np.ceil(s / p) for s, p in zip(spatial_shape, patch_size, strict=False)
+    ]
     total_patches = int(np.prod(patches_per_dim))
     return total_patches
