@@ -337,7 +337,9 @@ def median_manipulate_torch(
     for d in range(1, len(batch.shape)):
         coords_expands[d, ...] = coords_expands[d, ...].clamp(0, batch.shape[d] - 1)
 
-    spatial_shape = torch.tensor(batch.shape[1:])[..., None, None]
+    spatial_shape = torch.tensor(batch.shape[1:])[..., None, None].to(
+        coords_expands.device
+    )
     out_of_bounds = torch.logical_or(
         0 > coords_expands_unclamped[1:, :, :],
         coords_expands_unclamped[1:, :, :] > spatial_shape,
