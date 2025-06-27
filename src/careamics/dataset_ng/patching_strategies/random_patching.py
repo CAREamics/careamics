@@ -302,7 +302,7 @@ def _generate_random_coords(
         rng.integers(
             np.zeros(len(patch_size), dtype=int),
             np.array(spatial_shape) - np.array(patch_size),
-            endpoint=False,
+            endpoint=True,
             dtype=int,
         ).tolist()
     )
