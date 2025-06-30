@@ -204,13 +204,14 @@ class UnetDecoder(nn.Module):
         for n in range(depth):
             decoder_blocks.append(upsampling)
             in_channels = (num_channels_init * 2 ** (depth - n)) * groups
+            if (n > 0) and not (n2v2 and (n == depth - 1)):
+                in_channels = in_channels + in_channels // 2
+
             out_channels = in_channels // 2
             decoder_blocks.append(
                 Conv_Block(
                     conv_dim,
-                    in_channels=(
-                        in_channels + in_channels // 2 if n > 0 else in_channels
-                    ),
+                    in_channels=in_channels,
                     out_channels=out_channels,
                     intermediate_channel_multiplier=2,
                     dropout_perc=dropout,
@@ -248,7 +249,8 @@ class UnetDecoder(nn.Module):
                 # divide index by 2 because of upsampling layers
                 skip_connection: torch.Tensor = skip_connections[i // 2]
                 if self.n2v2:
-                    if x.shape != skip_connections[-1].shape:
+                    # if x.shape != skip_connections[-1].shape:
+                    if i // 2 != len(skip_connections) - 1:
                         x = self._interleave(x, skip_connection, self.groups)
                 else:
                     x = self._interleave(x, skip_connection, self.groups)
