@@ -32,13 +32,13 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
         lines = f.readlines()
 
         header = lines[0].strip().split(",")
-        metrics = {value: [] for value in header}
+        metrics: dict[str, list] = {value: [] for value in header}
         print(metrics)
 
         for single_line in lines[1:]:
             values = single_line.strip().split(",")
 
-            for k, v in zip(header, values):
+            for k, v in zip(header, values, strict=False):
                 metrics[k].append(v)
 
     # train and val are not logged on the same row and can have different lengths

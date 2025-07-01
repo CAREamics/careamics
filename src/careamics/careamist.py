@@ -1,7 +1,8 @@
 """A class to train, predict and export models in CAREamics."""
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional, Union, overload
+from typing import Any, Literal, Optional, Union, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -821,7 +822,7 @@ class CAREamist:
             source_path = source.pred_data
             source_data_type = source.data_type
             extension_filter = source.extension_filter
-        elif isinstance(source, (str, Path)):
+        elif isinstance(source, str | Path):
             source_path = source
             source_data_type = data_type or self.cfg.data_config.data_type
             extension_filter = SupportedData.get_extension_pattern(
@@ -834,7 +835,7 @@ class CAREamist:
             raise ValueError(
                 "Predicting to disk is not supported for input type 'array'."
             )
-        assert isinstance(source_path, (Path, str))  # because data_type != "array"
+        assert isinstance(source_path, str | Path)  # because data_type != "array"
         source_path = Path(source_path)
 
         file_paths = list_files(source_path, source_data_type, extension_filter)

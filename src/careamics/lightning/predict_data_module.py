@@ -1,7 +1,8 @@
 """Prediction Lightning data modules."""
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L

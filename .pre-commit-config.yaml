@@ -9,24 +9,24 @@ ci:
 
 repos:
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.23
+    rev: v0.24.1
     hooks:
       - id: validate-pyproject
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+    rev: v0.11.12
     hooks:
       - id: ruff
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^scripts/.*"
-        args: [--fix, --target-version, py39]
+        args: [--fix, --target-version, py310]
 
   - repo: https://github.com/psf/black
-    rev: 24.10.0
+    rev: 25.1.0
     hooks:
       - id: black
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.14.1
+    rev: v1.16.0
     hooks:
       - id: mypy
         files: "^src/"
@@ -43,7 +43,8 @@ repos:
     rev: v1.8.0
     hooks:
       - id: numpydoc-validation
-        exclude: "^src/careamics/dataset_ng/.*|^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*|^scripts/.*"
+        exclude: "^src/careamics/dataset_ng/.*|^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*|^src/careamics/lightning/dataset_ng/data_module.py|^scripts/.*"
+        # regarding src/careamics/lightning/dataset_ng/data_module.py: https://github.com/numpy/numpydoc/issues/559
 
   # # jupyter linting and formatting
   # - repo: https://github.com/nbQA-dev/nbQA

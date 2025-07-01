@@ -12,7 +12,7 @@ from careamics.utils import check_path_exists
 
 
 def load_pretrained(
-    path: Union[Path, str]
+    path: Union[Path, str],
 ) -> tuple[Union[FCNModule, VAEModule], Configuration]:
     """
     Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
@@ -47,7 +47,7 @@ def load_pretrained(
 
 
 def _load_checkpoint(
-    path: Union[Path, str]
+    path: Union[Path, str],
 ) -> tuple[Union[FCNModule, VAEModule], Configuration]:
     """
     Load a model from a checkpoint and return both model and configuration.

@@ -45,7 +45,7 @@ def create_env_text(pytorch_version: str, torchvision_version: str) -> str:
     env = (
         f"name: careamics\n"
         f"dependencies:\n"
-        f"  - python=3.10\n"
+        f"  - python=3.12\n"
         f"  - pip\n"
         f"  - pip:\n"
         f"    - torch=={pytorch_version}\n"

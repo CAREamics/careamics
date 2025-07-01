@@ -45,7 +45,9 @@ def test_whole_image_covered(
         tracking_array = tracking_arrays[patch_spec["data_idx"]]
         spatial_slice = tuple(
             slice(c, c + ps)
-            for c, ps in zip(patch_spec["coords"], patch_spec["patch_size"])
+            for c, ps in zip(
+                patch_spec["coords"], patch_spec["patch_size"], strict=False
+            )
         )
         # set to true where the patches would be sampled from
         tracking_array[(patch_spec["sample_idx"], slice(None), *spatial_slice)] = True

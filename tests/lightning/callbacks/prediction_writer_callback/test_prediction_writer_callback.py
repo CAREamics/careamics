@@ -51,6 +51,7 @@ def prediction_writer_callback(
 # TODO: smoke test with tiff (& example custom save func?)
 
 
+@pytest.mark.mps_gh_fail
 def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     rng = np.random.default_rng(42)
 
@@ -129,6 +130,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     np.testing.assert_array_equal(save_data, predicted_images[0][0], verbose=True)
 
 
+@pytest.mark.mps_gh_fail
 def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
     rng = np.random.default_rng(42)
 

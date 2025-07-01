@@ -127,7 +127,7 @@ def extract_tiles(
         # Rearrange crop coordinates from a list of coordinate pairs per axis to a list
         # grouped by type.
         all_crop_coords, all_stitch_coords, all_overlap_crop_coords = zip(
-            *crop_and_stitch_coords_list
+            *crop_and_stitch_coords_list, strict=False
         )
 
         # Maximum tile index
@@ -139,6 +139,7 @@ def extract_tiles(
                 itertools.product(*all_crop_coords),
                 itertools.product(*all_stitch_coords),
                 itertools.product(*all_overlap_crop_coords),
+                strict=False,
             )
         ):
             # Extract tile from the sample

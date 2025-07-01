@@ -1,5 +1,8 @@
+"""Next-Generation CAREamics DataModule."""
+
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional, Union, overload
+from typing import Any, Optional, Union, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -7,7 +10,7 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 
-from careamics.config.data import DataConfig
+from careamics.config.data.ng_data_model import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import list_files, validate_source_target_files
 from careamics.dataset_ng.dataset import Mode
@@ -18,16 +21,108 @@ from careamics.utils import get_logger
 logger = get_logger(__name__)
 
 ItemType = Union[Path, str, NDArray[Any]]
+"""Type of input items passed to the dataset."""
+
 InputType = Union[ItemType, list[ItemType], None]
+"""Type of input data passed to the dataset."""
 
 
 class CareamicsDataModule(L.LightningDataModule):
-    """Data module for Careamics dataset."""
+    """Data module for Careamics dataset.
 
+    Parameters
+    ----------
+    data_config : DataConfig
+        Pydantic model for CAREamics data configuration.
+    train_data : Optional[InputType]
+        Training data, can be a path to a folder, a list of paths, or a numpy array.
+    train_data_target : Optional[InputType]
+        Training data target, can be a path to a folder,
+        a list of paths, or a numpy array.
+    val_data : Optional[InputType]
+        Validation data, can be a path to a folder,
+        a list of paths, or a numpy array.
+    val_data_target : Optional[InputType]
+        Validation data target, can be a path to a folder,
+        a list of paths, or a numpy array.
+    pred_data : Optional[InputType]
+        Prediction data, can be a path to a folder, a list of paths,
+        or a numpy array.
+    pred_data_target : Optional[InputType]
+        Prediction data target, can be a path to a folder,
+        a list of paths, or a numpy array.
+    read_source_func : Optional[Callable], default=None
+        Function to read the source data. Only used for `custom`
+        data type (see DataModel).
+    read_kwargs : Optional[dict[str, Any]]
+        The kwargs for the read source function.
+    image_stack_loader : Optional[ImageStackLoader]
+        The image stack loader.
+    image_stack_loader_kwargs : Optional[dict[str, Any]]
+        The image stack loader kwargs.
+    extension_filter : str, default=""
+        Filter for file extensions. Only used for `custom` data types
+        (see DataModel).
+    val_percentage : Optional[float]
+        Percentage of the training data to use for validation. Only
+        used if `val_data` is None.
+    val_minimum_split : int, default=5
+        Minimum number of patches or files to split from the training data for
+        validation. Only used if `val_data` is None.
+    use_in_memory : bool
+        Load data in memory dataset if possible, by default True.
+
+
+    Attributes
+    ----------
+    config : DataConfig
+        Pydantic model for CAREamics data configuration.
+    data_type : str
+        Type of data, one of SupportedData.
+    batch_size : int
+        Batch size for the dataloaders.
+    use_in_memory : bool
+        Whether to load data in memory if possible.
+    extension_filter : str
+        Filter for file extensions, by default "".
+    read_source_func : Optional[Callable], default=None
+        Function to read the source data.
+    read_kwargs : Optional[dict[str, Any]], default=None
+        The kwargs for the read source function.
+    val_percentage : Optional[float]
+        Percentage of the training data to use for validation.
+    val_minimum_split : int, default=5
+        Minimum number of patches or files to split from the training data for
+        validation.
+    train_data : Optional[Any]
+        Training data, can be a path to a folder, a list of paths, or a numpy array.
+    train_data_target : Optional[Any]
+        Training data target, can be a path to a folder, a list of paths, or a numpy
+        array.
+    val_data : Optional[Any]
+        Validation data, can be a path to a folder, a list of paths, or a numpy array.
+    val_data_target : Optional[Any]
+        Validation data target, can be a path to a folder, a list of paths, or a numpy
+        array.
+    pred_data : Optional[Any]
+        Prediction data, can be a path to a folder, a list of paths, or a numpy array.
+    pred_data_target : Optional[Any]
+        Prediction data target, can be a path to a folder, a list of paths, or a numpy
+        array.
+
+    Raises
+    ------
+    ValueError
+        If at least one of train_data, val_data or pred_data is not provided.
+    ValueError
+        If input and target data types are not consistent.
+    """
+
+    # standard use
     @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[InputType] = None,
         train_data_target: Optional[InputType] = None,
@@ -41,10 +136,11 @@ class CareamicsDataModule(L.LightningDataModule):
         use_in_memory: bool = True,
     ) -> None: ...
 
+    # custom read function
     @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[InputType] = None,
         train_data_target: Optional[InputType] = None,
@@ -63,7 +159,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[Any] = None,
         train_data_target: Optional[Any] = None,
@@ -81,7 +177,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[Any] = None,
         train_data_target: Optional[Any] = None,
@@ -106,7 +202,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
         Parameters
         ----------
-        data_config : DataConfig
+        data_config : NGDataConfig
             Pydantic model for CAREamics data configuration.
         train_data : Optional[InputType]
             Training data, can be a path to a folder, a list of paths, or a numpy array.
@@ -153,7 +249,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 "At least one of train_data, val_data or pred_data must be provided."
             )
 
-        self.config: DataConfig = data_config
+        self.config: NGDataConfig = data_config
         self.data_type: str = data_config.data_type
         self.batch_size: int = data_config.batch_size
         self.use_in_memory: bool = use_in_memory
@@ -186,7 +282,16 @@ class CareamicsDataModule(L.LightningDataModule):
         input_data: InputType,
         target_data: Optional[InputType],
     ) -> None:
-        """Validate if the input and target data types are consistent."""
+        """Validate if the input and target data types are consistent.
+
+        Parameters
+        ----------
+        input_data : InputType
+            Input data, can be a path to a folder, a list of paths, or a numpy array.
+        target_data : Optional[InputType]
+            Target data, can be None, a path to a folder, a list of paths, or a numpy
+            array.
+        """
         if input_data is not None and target_data is not None:
             if not isinstance(input_data, type(target_data)):
                 raise ValueError(
@@ -210,7 +315,22 @@ class CareamicsDataModule(L.LightningDataModule):
         input_data,
         target_data=None,
     ) -> tuple[list[Path], Optional[list[Path]]]:
-        """List files from input and target directories."""
+        """List files from input and target directories.
+
+        Parameters
+        ----------
+        input_data : InputType
+            Input data, can be a path to a folder, a list of paths, or a numpy array.
+        target_data : Optional[InputType]
+            Target data, can be None, a path to a folder, a list of paths, or a numpy
+            array.
+
+        Returns
+        -------
+        (list[Path], Optional[list[Path]])
+            A tuple containing lists of file paths for input and target data.
+            If target_data is None, the second element will be None.
+        """
         input_data = Path(input_data)
         input_files = list_files(input_data, self.data_type, self.extension_filter)
         if target_data is None:
@@ -228,7 +348,22 @@ class CareamicsDataModule(L.LightningDataModule):
         input_data,
         target_data=None,
     ) -> tuple[list[Path], Optional[list[Path]]]:
-        """Create a list of file paths from the input and target data."""
+        """Create a list of file paths from the input and target data.
+
+        Parameters
+        ----------
+        input_data : InputType
+            Input data, can be a path to a folder, a list of paths, or a numpy array.
+        target_data : Optional[InputType]
+            Target data, can be None, a path to a folder, a list of paths, or a numpy
+            array.
+
+        Returns
+        -------
+        (list[Path], Optional[list[Path]])
+            A tuple containing lists of file paths for input and target data.
+            If target_data is None, the second element will be None.
+        """
         input_files = [
             Path(item) if isinstance(item, str) else item for item in input_data
         ]
@@ -246,7 +381,21 @@ class CareamicsDataModule(L.LightningDataModule):
         input_data: InputType,
         target_data: Optional[InputType],
     ) -> tuple[Any, Any]:
-        """Validate if the input data is a numpy array."""
+        """Validate if the input data is a numpy array.
+
+        Parameters
+        ----------
+        input_data : InputType
+            Input data, can be a path to a folder, a list of paths, or a numpy array.
+        target_data : Optional[InputType]
+            Target data, can be None, a path to a folder, a list of paths, or a numpy
+            array.
+
+        Returns
+        -------
+        (Any, Any)
+            A tuple containing the input and target.
+        """
         if isinstance(input_data, np.ndarray):
             input_array = [input_data]
             target_array = [target_data] if target_data is not None else None
@@ -261,9 +410,25 @@ class CareamicsDataModule(L.LightningDataModule):
     def _validate_path_input(
         self, input_data: InputType, target_data: Optional[InputType]
     ) -> tuple[list[Path], Optional[list[Path]]]:
-        if isinstance(input_data, (str, Path)):
+        """Validate if the input data is a path or a list of paths.
+
+        Parameters
+        ----------
+        input_data : InputType
+            Input data, can be a path to a folder, a list of paths, or a numpy array.
+        target_data : Optional[InputType]
+            Target data, can be None, a path to a folder, a list of paths, or a numpy
+            array.
+
+        Returns
+        -------
+        (list[Path], Optional[list[Path]])
+            A tuple containing lists of file paths for input and target data.
+            If target_data is None, the second element will be None.
+        """
+        if isinstance(input_data, str | Path):
             if target_data is not None:
-                assert isinstance(target_data, (str, Path))
+                assert isinstance(target_data, str | Path)
             input_list, target_list = self._list_files_in_directory(
                 input_data, target_data
             )
@@ -281,17 +446,33 @@ class CareamicsDataModule(L.LightningDataModule):
             )
 
     def _validate_custom_input(self, input_data, target_data) -> tuple[Any, Any]:
+        """Convert custom input data to a list of file paths.
+
+        Parameters
+        ----------
+        input_data : InputType
+            Input data, can be a path to a folder, a list of paths, or a numpy array.
+        target_data : Optional[InputType]
+            Target data, can be None, a path to a folder, a list of paths, or a numpy
+            array.
+
+        Returns
+        -------
+        (Any, Any)
+            A tuple containing lists of file paths for input and target data.
+            If target_data is None, the second element will be None.
+        """
         if self.image_stack_loader is not None:
             return input_data, target_data
-        elif isinstance(input_data, (str, Path)):
+        elif isinstance(input_data, str | Path):
             if target_data is not None:
-                assert isinstance(target_data, (str, Path))
+                assert isinstance(target_data, str | Path)
             input_list, target_list = self._list_files_in_directory(
                 input_data, target_data
             )
             return input_list, target_list
         elif isinstance(input_data, list):
-            if isinstance(input_data[0], (str, Path)):
+            if isinstance(input_data[0], str | Path):
                 if target_data is not None:
                     assert isinstance(target_data, list)
                 input_list, target_list = self._convert_paths_to_pathlib(
@@ -313,13 +494,22 @@ class CareamicsDataModule(L.LightningDataModule):
         """
         Initialize a pair of input and target data.
 
+        Parameters
+        ----------
+        input_data : InputType
+            Input data, can be None, a path to a folder, a list of paths, or a numpy
+            array.
+        target_data : Optional[InputType]
+            Target data, can be None, a path to a folder, a list of paths, or a numpy
+            array.
+
         Returns
         -------
-        tuple[Union[list[NDArray], list[Path]],
-        Optional[Union[list[NDArray], list[Path]]]]
-            A tuple containing the initialized input and target data.
-            For file paths, returns lists of Path objects.
-            For numpy arrays, returns the arrays directly.
+        (list of numpy.ndarray or list of pathlib.Path, None or list of numpy.ndarray or
+        list of pathlib.Path)
+            A tuple containing the initialized input and target data. For file paths,
+            returns lists of Path objects. For numpy arrays, returns the arrays
+            directly.
         """
         if input_data is None:
             return None, None
@@ -342,10 +532,10 @@ class CareamicsDataModule(L.LightningDataModule):
                     f"Unsupported input type for {self.data_type}: {type(input_data)}"
                 )
         elif self.data_type in (SupportedData.TIFF, SupportedData.CZI):
-            if isinstance(input_data, (str, Path)):
+            if isinstance(input_data, str | Path):
                 return self._validate_path_input(input_data, target_data)
             elif isinstance(input_data, list):
-                if isinstance(input_data[0], (Path, str)):
+                if isinstance(input_data[0], str | Path):
                     return self._validate_path_input(input_data, target_data)
                 else:
                     raise ValueError(
@@ -484,5 +674,5 @@ class CareamicsDataModule(L.LightningDataModule):
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
-            # TODO: set appropriate key for params once config changes are merged
+            **self.config.test_dataloader_params,
         )

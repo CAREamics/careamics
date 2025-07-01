@@ -1,4 +1,7 @@
-from typing import Any, Callable, Union
+"""CARE Lightning DataModule."""
+
+from collections.abc import Callable
+from typing import Any, Union
 
 from careamics.config.algorithms.care_algorithm_model import CAREAlgorithm
 from careamics.config.algorithms.n2n_algorithm_model import N2NAlgorithm
@@ -13,12 +16,27 @@ logger = get_logger(__name__)
 
 
 class CAREModule(UnetModule):
-    """CAREamics PyTorch Lightning module for CARE algorithm."""
+    """CAREamics PyTorch Lightning module for CARE algorithm.
+
+    Parameters
+    ----------
+    algorithm_config : CAREAlgorithm or dict
+        Configuration for the CARE algorithm, either as a CAREAlgorithm instance or a
+        dictionary.
+    """
 
     def __init__(self, algorithm_config: Union[CAREAlgorithm, dict]) -> None:
+        """Instantiate CARE DataModule.
+
+        Parameters
+        ----------
+        algorithm_config : CAREAlgorithm or dict
+            Configuration for the CARE algorithm, either as a CAREAlgorithm instance or
+            a dictionary.
+        """
         super().__init__(algorithm_config)
         assert isinstance(
-            algorithm_config, (CAREAlgorithm, N2NAlgorithm)
+            algorithm_config, CAREAlgorithm | N2NAlgorithm
         ), "algorithm_config must be a CAREAlgorithm or a N2NAlgorithm"
         loss = algorithm_config.loss
         if loss == SupportedLoss.MAE:
@@ -33,7 +51,20 @@ class CAREModule(UnetModule):
         batch: tuple[ImageRegionData, ImageRegionData],
         batch_idx: Any,
     ) -> Any:
-        """Training step for CARE module."""
+        """Training step for CARE module.
+
+        Parameters
+        ----------
+        batch : (ImageRegionData, ImageRegionData)
+            A tuple containing the input data and the target data.
+        batch_idx : Any
+            The index of the current batch in the training loop.
+
+        Returns
+        -------
+        Any
+            The loss value computed for the current batch.
+        """
         # TODO: add validation to determine if target is initialized
         x, target = batch[0], batch[1]
 
@@ -49,7 +80,15 @@ class CAREModule(UnetModule):
         batch: tuple[ImageRegionData, ImageRegionData],
         batch_idx: Any,
     ) -> None:
-        """Validation step for CARE module."""
+        """Validation step for CARE module.
+
+        Parameters
+        ----------
+        batch : (ImageRegionData, ImageRegionData)
+            A tuple containing the input data and the target data.
+        batch_idx : Any
+            The index of the current batch in the training loop.
+        """
         x, target = batch[0], batch[1]
 
         prediction = self.model(x.data)

@@ -1,10 +1,13 @@
 import numpy as np
+import pytest
 from bioimageio.spec import load_description
 from torch import Tensor
 
 from careamics import CAREamist
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.model_io.bmz_io import _export_state_dict, _load_state_dict
+
+pytestmark = pytest.mark.mps_gh_fail
 
 
 def test_state_dict_io(tmp_path, ordered_array, pre_trained):

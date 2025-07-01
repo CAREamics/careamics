@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 import pytest
@@ -200,8 +200,17 @@ def minimum_n2v_configuration(
     Returns
     -------
     dict
-        A minumum configuration example.
+        A minimum configuration example.
     """
+    # update masked pixel percentage so config validation will pass
+    if "n2v_config" not in minimum_algorithm_n2v:
+        minimum_algorithm_n2v["n2v_config"] = {}
+    mask_pixel_perc = 100 / np.prod(minimum_data["patch_size"])
+    mask_pixel_perc = np.ceil(mask_pixel_perc * 10) / 10
+    minimum_algorithm_n2v["n2v_config"]["masked_pixel_percentage"] = 100 / np.prod(
+        minimum_data["patch_size"]
+    )
+
     # create dictionary
     configuration = {
         "experiment_name": "LevitatingFrog",
