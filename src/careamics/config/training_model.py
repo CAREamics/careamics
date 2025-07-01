@@ -5,7 +5,7 @@ from __future__ import annotations
 from pprint import pformat
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from .callback_model import CheckpointModel, EarlyStoppingModel
 
@@ -67,4 +67,3 @@ class TrainingConfig(BaseModel):
             Whether the logger is defined or not.
         """
         return self.logger is not None
-
