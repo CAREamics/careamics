@@ -174,7 +174,7 @@ def minimum_training() -> dict:
     """
     # create dictionary
     training = {
-        "num_epochs": 1,
+        "lightning_trainer_config": {"max_epochs": 1},
     }
 
     return training
@@ -291,11 +291,11 @@ def pre_trained(tmp_path, minimum_n2v_configuration):
 
     # create configuration
     config = Configuration(**minimum_n2v_configuration)
-    config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
     config.data_config.data_type = SupportedData.ARRAY.value
     config.data_config.patch_size = (8, 8)
+    config.training_config.lightning_trainer_config = {"max_epochs": 1}
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
