@@ -205,17 +205,20 @@ class UnetDecoder(nn.Module):
         decoder_blocks: list[nn.Module] = []
         for n in range(depth):
             decoder_blocks.append(upsampling)
-            in_channels = (num_channels_init * 2 ** (depth - n)) * groups
-            if (n > 0) and not (n2v2 and (n == depth - 1)):
-                in_channels = in_channels + in_channels // 2
+            # in_channels = (num_channels_init * 2 ** (depth - n)) * groups
+            # if (n > 0) and not (n2v2 and (n == depth - 1)):
+            #     in_channels = in_channels + in_channels // 2
+            in_channels = (num_channels_init * 2 ** (depth - n - 1)) * groups
+            out_channels = in_channels // 2 if n != depth - 1 else in_channels
 
-            out_channels = in_channels // 2
+            if not (n2v2 and (n == depth - 1)):
+                in_channels = in_channels * 2  # accounting for skip connection concat
             decoder_blocks.append(
                 Conv_Block(
                     conv_dim,
                     in_channels=in_channels,
                     out_channels=out_channels,
-                    intermediate_channel_multiplier=2,
+                    intermediate_channel_multiplier=2 if n != depth - 1 else 1,
                     dropout_perc=dropout,
                     activation="ReLU",
                     use_batch_norm=use_batch_norm,
