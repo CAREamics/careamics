@@ -83,7 +83,6 @@ def _get_stratified_coords_torch(
     """
     Generate coordinates of the pixels to mask.
 
-    # TODO add more details
     Randomly selects the coordinates of the pixels to mask in a stratified way, i.e.
     the distance between masked pixels is approximately the same. This is achieved by
     defining a grid and sampling a pixel in each grid square. The grid is defined such
@@ -92,8 +91,7 @@ def _get_stratified_coords_torch(
     Parameters
     ----------
     mask_pixel_perc : float
-        Actual (quasi) percentage of masked pixels across the whole image. Over many
-        iterations the percentage of masked pixels will converge to this value.
+        Expected value for percentage of masked pixels across the whole image.
     shape : tuple[int, ...]
         Shape of the input patch.
     rng : torch.Generator or None
@@ -106,31 +104,35 @@ def _get_stratified_coords_torch(
     """
     # Implementation logic:
     #    find a box size s.t sampling 1 pixel within the box will result in the desired
-    # pixel percentage. Make a grid of these boxes and sample 1 pixel in each. Any
-    # subset of this area will have the same expected masked pixel percentage, therefore
-    # we can filter the masked pixels that lie outside the patch size to have a patch
-    # with the desired masked pixel percentage.
+    # pixel percentage. Make a grid of these boxes that cover the patch (the area of
+    # the grid will be greater than or equal to the area of the patch) and sample 1
+    # pixel in each box. The density of masked pixels is an intensive property therefore
+    # any subset of this area will have the desired expected masked pixel percentage.
+    # We can get our desired patch with our desired expected masked pixel percentage by
+    # simply filtering out masked pixels that lie outside of our patch bounds.
 
     batch_size = shape[0]
     spatial_shape = shape[1:]
 
     n_dims = len(spatial_shape)
     expected_area_per_pixel = 1 / (mask_pixel_perc / 100)
-    # TODO: validate in config that expected_area_per_pixel < prod(patch size)
 
-    grid_size = expected_area_per_pixel**0.5
+    # keep the grid size in floats for a more accurate expected masked pixel percentage
+    grid_size = expected_area_per_pixel ** (1 / n_dims)
     grid_dims = torch.ceil(torch.tensor(spatial_shape) / grid_size).int()
 
-    # coords on a fixed grid
+    # coords on a fixed grid (top left corner)
     coords = torch.stack(
         torch.meshgrid(
             torch.arange(batch_size, dtype=torch.float),
             *[torch.arange(0, grid_dims[i].item()) * grid_size for i in range(n_dims)],
+            indexing="ij",
         ),
         -1,
     ).reshape(-1, n_dims + 1)
 
-    # add random offset
+    # add random offset to get a random coord in each grid box
+    # also keep the offset in floats
     offset = (
         torch.rand((len(coords), n_dims), device=rng.device, generator=rng) * grid_size
     )
@@ -160,7 +162,7 @@ def uniform_manipulate_torch(
 
     # TODO add more details, especially about batch
 
-    Manipulated pixels are selected unformly selected in a subpatch, away from a grid
+    Manipulated pixels are selected uniformly selected in a subpatch, away from a grid
     with an approximate uniform probability to be selected across the whole patch.
     If `struct_params` is not None, an additional structN2V mask is applied to the
     data, replacing the pixels in the mask with random values (excluding the pixel
@@ -278,7 +280,7 @@ def median_manipulate_torch(
     struct_params : StructMaskParameters or None, optional
         Parameters for the structN2V mask (axis and span).
     rng : torch.default_generator or None, optional
-        Random number generato, by default None.
+        Random number generator, by default None.
 
     Returns
     -------
