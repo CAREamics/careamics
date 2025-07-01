@@ -107,6 +107,6 @@ def stitch_prediction_single(
 
         # Insert cropped tile into predicted image using stitch coordinates
         image_slices = (..., *[slice(c[0], c[1]) for c in tile_info.stitch_coords])
-        predicted_image[image_slices] = cropped_tile.astype(np.float32)
+        predicted_image[image_slices] += cropped_tile.astype(np.float32)
 
     return predicted_image
