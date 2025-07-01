@@ -892,7 +892,7 @@ def stitch_predictions_general(predictions, dset):
     # adjust number of channels to match with prediction shape #TODO ugly, refac!
     shapes = []
     for shape in dset.get_data_shapes()[0]:
-        shapes.append((predictions.shape[1],) + shape[1:])
+        shapes.append((predictions.shape[1],) + tuple([d + 32 for d in shape[1:]]))
 
     output = [np.zeros(shape, dtype=predictions.dtype) for shape in shapes]
     # frame_shape = dset.get_data_shape()[:-1]
@@ -936,12 +936,12 @@ def stitch_predictions_general(predictions, dset):
                 # channel dimension for stitched output is relative to model output
                 output[sample_idx][
                     ch_idx,
-                    valid_grid_start[1] : valid_grid_end[1],
-                    valid_grid_start[2] : valid_grid_end[2],
-                ] = predictions[patch_idx][
+                    valid_grid_start[1] - 16 : valid_grid_end[1] + 16,
+                    valid_grid_start[2] -16 : valid_grid_end[2] + 16,
+                ] += predictions[patch_idx][
                     ch_idx,
-                    relative_start[1] : relative_end[1],
-                    relative_start[2] : relative_end[2],
+                    relative_start[1] - 16 : relative_end[1] + 16,
+                    relative_start[2] - 16 : relative_end[2] + 16,
                 ]
             elif len(output[sample_idx].shape) == 4:
                 assert (
@@ -953,7 +953,7 @@ def stitch_predictions_general(predictions, dset):
                     valid_grid_end[1] : valid_grid_end[1],
                     valid_grid_start[2] : valid_grid_end[2],
                     valid_grid_start[3] : valid_grid_end[3],
-                ] = predictions[patch_idx][
+                ] += predictions[patch_idx][
                     ch_idx,
                     relative_start[1] : relative_end[1],
                     relative_start[2] : relative_end[2],
