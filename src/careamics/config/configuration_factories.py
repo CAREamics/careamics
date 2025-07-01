@@ -277,7 +277,7 @@ def _create_data_configuration(
 
 
 def _create_training_configuration(
-    num_epochs: int,
+    trainer_params: dict,
     logger: Literal["wandb", "tensorboard", "none"],
     checkpoint_params: Optional[dict[str, Any]] = None,
 ) -> TrainingConfig:
@@ -286,8 +286,8 @@ def _create_training_configuration(
 
     Parameters
     ----------
-    num_epochs : int
-        Number of epochs.
+    trainer_params : dict
+        Parameters for Lightning Trainer class, see PyTorch Lightning documentation.
     logger : {"wandb", "tensorboard", "none"}
         Logger to use.
     checkpoint_params : dict, default=None
@@ -300,7 +300,7 @@ def _create_training_configuration(
         Training model with the specified parameters.
     """
     return TrainingConfig(
-        num_epochs=num_epochs,
+        lightning_trainer_config=trainer_params,
         logger=None if logger == "none" else logger,
         checkpoint_callback={} if checkpoint_params is None else checkpoint_params,
     )
@@ -314,7 +314,7 @@ def _create_supervised_config_dict(
     axes: str,
     patch_size: list[int],
     batch_size: int,
-    num_epochs: int,
+    trainer_params: Optional[dict] = None,
     augmentations: Optional[list[SPATIAL_TRANSFORMS_UNION]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
@@ -347,8 +347,8 @@ def _create_supervised_config_dict(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of epochs.
+    trainer_params : dict
+        Parameters for the training configuration.
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -440,7 +440,7 @@ def _create_supervised_config_dict(
 
     # training
     training_params = _create_training_configuration(
-        num_epochs=num_epochs,
+        trainer_params=trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
     )
@@ -459,13 +459,13 @@ def create_care_configuration(
     axes: str,
     patch_size: list[int],
     batch_size: int,
-    num_epochs: int,
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: Optional[int] = None,
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
+    trainer_params: Optional[dict] = None,
     model_params: Optional[dict] = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
     optimizer_params: Optional[dict[str, Any]] = None,
@@ -650,13 +650,13 @@ def create_care_configuration(
             axes=axes,
             patch_size=patch_size,
             batch_size=batch_size,
-            num_epochs=num_epochs,
             augmentations=augmentations,
             independent_channels=independent_channels,
             loss=loss,
             n_channels_in=n_channels_in,
             n_channels_out=n_channels_out,
             logger=logger,
+            trainer_params=trainer_params,
             model_params=model_params,
             optimizer=optimizer,
             optimizer_params=optimizer_params,
@@ -675,13 +675,13 @@ def create_n2n_configuration(
     axes: str,
     patch_size: list[int],
     batch_size: int,
-    num_epochs: int,
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: Optional[int] = None,
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
+    trainer_params: Optional[dict] = None,
     model_params: Optional[dict] = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
     optimizer_params: Optional[dict[str, Any]] = None,
@@ -866,7 +866,7 @@ def create_n2n_configuration(
             axes=axes,
             patch_size=patch_size,
             batch_size=batch_size,
-            num_epochs=num_epochs,
+            trainer_params=trainer_params,
             augmentations=augmentations,
             independent_channels=independent_channels,
             loss=loss,
@@ -891,7 +891,6 @@ def create_n2v_configuration(
     axes: str,
     patch_size: list[int],
     batch_size: int,
-    num_epochs: int,
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
@@ -900,6 +899,7 @@ def create_n2v_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
+    trainer_params: Optional[dict] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -963,8 +963,6 @@ def create_n2v_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of epochs.
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -983,6 +981,8 @@ def create_n2v_configuration(
         Axis along which to apply structN2V mask, by default "none".
     struct_n2v_span : int, optional
         Span of the structN2V mask, by default 5.
+    trainer_params : dict, optional
+        Parameters for the trainer, see the relevant documentation.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
     model_params : dict, default=None
@@ -1022,7 +1022,7 @@ def create_n2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100
+    ...     trainer_params={}
     ... )
 
     To disable transforms, simply set `augmentations` to an empty list:
@@ -1032,7 +1032,7 @@ def create_n2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...     trainer_params={},
     ...     augmentations=[]
     ... )
 
@@ -1044,7 +1044,7 @@ def create_n2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...     trainer_params={},
     ...     augmentations=[
     ...         # No rotation and only Y flipping
     ...         XYFlipModel(flip_x = False, flip_y = True)
@@ -1058,7 +1058,7 @@ def create_n2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...     trainer_params={},
     ...     use_n2v2=True
     ... )
 
@@ -1070,7 +1070,7 @@ def create_n2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...     trainer_params={},
     ...     struct_n2v_axis="horizontal",
     ...     struct_n2v_span=7
     ... )
@@ -1083,7 +1083,7 @@ def create_n2v_configuration(
     ...     axes="YXC",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...     trainer_params={},
     ...     n_channels=3
     ... )
 
@@ -1095,7 +1095,7 @@ def create_n2v_configuration(
     ...     axes="YXC",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...     trainer_params={},
     ...     independent_channels=False,
     ...     n_channels=3
     ... )
@@ -1110,7 +1110,7 @@ def create_n2v_configuration(
     ...     axes="SCYX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...     trainer_params={},
     ...     n_channels=1,
     ... )
     >>> config_3d = create_n2v_configuration(
@@ -1119,7 +1119,7 @@ def create_n2v_configuration(
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
-    ...     num_epochs=100,
+    ...     trainer_params={},
     ...     n_channels=1,
     ... )
     """
@@ -1182,7 +1182,7 @@ def create_n2v_configuration(
 
     # training
     training_params = _create_training_configuration(
-        num_epochs=num_epochs,
+        trainer_params=trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
     )
