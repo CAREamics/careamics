@@ -116,7 +116,6 @@ def test_supervised_configuration_passing_transforms():
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         augmentations=[XYFlipModel()],
     )
     config = Configuration(**config_dict)
@@ -169,7 +168,6 @@ def test_create_configuration():
     axes = "CYX"
     patch_size = [128, 128]
     batch_size = 8
-    num_epochs = 100
     transform_list = [XYFlipModel(), XYRandomRotate90Model()]
     independent_channels = False
     loss = "mse"
@@ -207,7 +205,6 @@ def test_create_configuration():
             axes=axes,
             patch_size=patch_size,
             batch_size=batch_size,
-            num_epochs=num_epochs,
             augmentations=transform_list,
             independent_channels=independent_channels,
             loss=loss,
@@ -231,7 +228,6 @@ def test_create_configuration():
     assert config.data_config.axes == axes
     assert config.data_config.patch_size == patch_size
     assert config.data_config.batch_size == batch_size
-    assert config.training_config.num_epochs == num_epochs
     assert config.data_config.transforms == transform_list
     assert config.algorithm_config.model.independent_channels == independent_channels
     assert config.algorithm_config.loss == loss
@@ -262,7 +258,6 @@ def test_supervised_configuration_error_with_channel_axes():
             axes="CYX",
             patch_size=[64, 64],
             batch_size=8,
-            num_epochs=100,
         )
 
 
@@ -276,7 +271,6 @@ def test_supervised_configuration_singleton_channel():
         axes="CYX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         n_channels_in=1,
     )
 
@@ -290,7 +284,6 @@ def test_supervised_configuration_no_channel():
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
     )
 
 
@@ -305,7 +298,6 @@ def test_supervised_configuration_error_without_channel_axes():
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            num_epochs=100,
             n_channels_in=2,
         )
 
@@ -320,7 +312,6 @@ def test_supervised_configuration_channels():
         axes="CYX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         n_channels_in=4,
     )
 
@@ -333,7 +324,6 @@ def test_n2n_configuration():
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         train_dataloader_params={"num_workers": 2},
     )
     assert config.algorithm_config.algorithm == "n2n"
@@ -351,7 +341,6 @@ def test_n2n_configuration_n_channels():
         axes="CYX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         n_channels_in=n_channels_in,
     )
     assert config.algorithm_config.model.in_channels == n_channels_in
@@ -364,7 +353,6 @@ def test_n2n_configuration_n_channels():
         axes="CYX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         n_channels_in=n_channels_in,
         n_channels_out=n_channels_out,
     )
@@ -380,7 +368,6 @@ def test_care_configuration():
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         train_dataloader_params={"num_workers": 2},
     )
     assert config.algorithm_config.algorithm == "care"
@@ -398,7 +385,6 @@ def test_care_configuration_n_channels():
         axes="CYX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         n_channels_in=n_channels_in,
     )
     assert config.algorithm_config.model.in_channels == n_channels_in
@@ -411,7 +397,6 @@ def test_care_configuration_n_channels():
         axes="CYX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         n_channels_in=n_channels_in,
         n_channels_out=n_channels_out,
     )
@@ -427,7 +412,6 @@ def test_n2v_configuration():
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         train_dataloader_params={"num_workers": 2},
     )
     assert isinstance(config.algorithm_config, N2VAlgorithm)
@@ -441,7 +425,6 @@ def test_n2v_configuration_no_aug():
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         augmentations=[],
     )
     assert config.data_config.transforms == []
@@ -461,7 +444,6 @@ def test_n2v_configuration_n2v2_structn2v():
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        num_epochs=100,
         use_n2v2=use_n2v2,  # median strategy
         roi_size=roi_size,
         masked_pixel_percentage=masked_pixel_percentage,

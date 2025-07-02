@@ -1138,7 +1138,7 @@ def test_stop_training(tmp_path: Path, minimum_n2v_configuration: dict):
 
     # create configuration
     config = Configuration(**minimum_n2v_configuration)
-    config.training_config.num_epochs = 1_000
+    config.training_config.lightning_trainer_config = {"max_epochs": 100}
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
     config.data_config.data_type = SupportedData.ARRAY.value
@@ -1165,7 +1165,7 @@ def test_stop_training(tmp_path: Path, minimum_n2v_configuration: dict):
 def test_read_logger(tmp_path, minimum_n2v_configuration):
 
     config = Configuration(**minimum_n2v_configuration)
-    config.training_config.num_epochs = 10
+    config.training_config.lightning_trainer_config = {"max_epochs": 10}
 
     array = np.arange(32 * 32).reshape((32, 32))
 
@@ -1175,7 +1175,10 @@ def test_read_logger(tmp_path, minimum_n2v_configuration):
 
     assert len(losses) == 4
     for key in losses:
-        assert len(losses[key]) == config.training_config.num_epochs
+        assert (
+            len(losses[key])
+            == config.training_config.lightning_trainer_config["max_epochs"]
+        )
 
 
 def test_all_parameters_used(tmp_path, minimum_n2v_configuration):
