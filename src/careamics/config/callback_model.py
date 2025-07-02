@@ -24,7 +24,7 @@ class CheckpointModel(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
-    monitor: Literal["val_loss"] = Field(default="val_loss")
+    monitor: Optional[str] = Field(default=None)
     """Quantity to monitor, currently only `val_loss`."""
 
     verbose: bool = Field(default=False)
@@ -36,7 +36,7 @@ class CheckpointModel(BaseModel):
     save_last: Optional[Literal[True, False, "link"]] = Field(default=True)
     """When `True`, saves a last.ckpt copy whenever a checkpoint file gets saved."""
 
-    save_top_k: int = Field(default=3, ge=-1, le=100)
+    save_top_k: int = Field(default=1, ge=-1, le=100)
     """If `save_top_k == kz, the best k models according to the quantity monitored
     will be saved. If `save_top_k == 0`, no models are saved. if `save_top_k == -1`,
     all models are saved."""
