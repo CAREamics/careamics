@@ -588,8 +588,8 @@ def create_care_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of epochs.
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -651,7 +651,6 @@ def create_care_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
     ...     augmentations=[]
     ... )
 
@@ -664,7 +663,6 @@ def create_care_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
     ...         XYFlipModel(flip_x = False, flip_y = True)
@@ -680,7 +678,6 @@ def create_care_configuration(
     ...     axes="YXC", # channels must be in the axes
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
     ...     n_channels_in=3, # number of input channels
     ...     n_channels_out=1 # if applicable
     ... )
@@ -693,7 +690,6 @@ def create_care_configuration(
     ...     axes="YXC", # channels must be in the axes
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
     ...     independent_channels=False,
     ...     n_channels_in=3,
     ...     n_channels_out=1 # if applicable
@@ -709,7 +705,6 @@ def create_care_configuration(
     ...     axes="SCYX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
     ...     n_channels_in=1,
     ... )
     >>> config_3d = create_care_configuration(
@@ -718,7 +713,6 @@ def create_care_configuration(
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
-    ...     num_epochs=100,
     ...     n_channels_in=1,
     ... )
     """
@@ -804,8 +798,8 @@ def create_n2n_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of epochs.
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -867,7 +861,7 @@ def create_n2n_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...
     ...     augmentations=[]
     ... )
 
@@ -880,7 +874,7 @@ def create_n2n_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...
     ...     augmentations=[
     ...         # No rotation and only Y flipping
     ...         XYFlipModel(flip_x = False, flip_y = True)
@@ -896,7 +890,7 @@ def create_n2n_configuration(
     ...     axes="YXC", # channels must be in the axes
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...
     ...     n_channels_in=3, # number of input channels
     ...     n_channels_out=1 # if applicable
     ... )
@@ -909,7 +903,7 @@ def create_n2n_configuration(
     ...     axes="YXC", # channels must be in the axes
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ...
     ...     independent_channels=False,
     ...     n_channels_in=3,
     ...     n_channels_out=1 # if applicable
@@ -925,7 +919,7 @@ def create_n2n_configuration(
     ...     axes="SCYX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100,
+    ..
     ...     n_channels_in=1,
     ... )
     >>> config_3d = create_n2n_configuration(
@@ -934,7 +928,7 @@ def create_n2n_configuration(
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
-    ...     num_epochs=100,
+    ...
     ...     n_channels_in=1,
     ... )
     """
@@ -1043,6 +1037,8 @@ def create_n2v_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
