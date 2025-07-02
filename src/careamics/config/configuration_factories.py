@@ -861,7 +861,6 @@ def create_n2n_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...
     ...     augmentations=[]
     ... )
 
@@ -874,7 +873,6 @@ def create_n2n_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...
     ...     augmentations=[
     ...         # No rotation and only Y flipping
     ...         XYFlipModel(flip_x = False, flip_y = True)
@@ -890,7 +888,6 @@ def create_n2n_configuration(
     ...     axes="YXC", # channels must be in the axes
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...
     ...     n_channels_in=3, # number of input channels
     ...     n_channels_out=1 # if applicable
     ... )
@@ -903,7 +900,6 @@ def create_n2n_configuration(
     ...     axes="YXC", # channels must be in the axes
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...
     ...     independent_channels=False,
     ...     n_channels_in=3,
     ...     n_channels_out=1 # if applicable
@@ -919,7 +915,6 @@ def create_n2n_configuration(
     ...     axes="SCYX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ..
     ...     n_channels_in=1,
     ... )
     >>> config_3d = create_n2n_configuration(
@@ -928,7 +923,6 @@ def create_n2n_configuration(
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
-    ...
     ...     n_channels_in=1,
     ... )
     """
