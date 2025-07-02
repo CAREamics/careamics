@@ -86,7 +86,6 @@ class Configuration(BaseModel):
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100
     ... )
 
     The configuration can be exported to a dictionary using the model_dump method:
@@ -109,9 +108,6 @@ class Configuration(BaseModel):
     ...             "model": {
     ...                 "architecture": "UNet",
     ...             },
-    ...         },
-    ...         "training_config": {
-    ...             "num_epochs": 200,
     ...         },
     ...         "data_config": {
     ...             "data_type": "tiff",
