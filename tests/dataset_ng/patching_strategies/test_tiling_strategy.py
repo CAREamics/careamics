@@ -58,7 +58,7 @@ def _test_tiling_output(
     stitched_samples = stitch_prediction(tiles, tile_infos)
     samples = [sample for d in data for sample in np.split(d, d.shape[0])]
 
-    for sample, stitched_sample in zip(samples, stitched_samples):
+    for sample, stitched_sample in zip(samples, stitched_samples, strict=False):
         np.testing.assert_array_equal(sample, stitched_sample)
 
 
@@ -116,7 +116,9 @@ def test_whole_image_covered_2d(
         tracking_array = tracking_arrays[patch_spec["data_idx"]]
         spatial_slice = tuple(
             slice(c, c + ps)
-            for c, ps in zip(patch_spec["coords"], patch_spec["patch_size"])
+            for c, ps in zip(
+                patch_spec["coords"], patch_spec["patch_size"], strict=False
+            )
         )
         # set to true where the patches would be sampled from
         tracking_array[(patch_spec["sample_idx"], slice(None), *spatial_slice)] = True
@@ -148,7 +150,9 @@ def test_whole_image_covered_3d(
         tracking_array = tracking_arrays[patch_spec["data_idx"]]
         spatial_slice = tuple(
             slice(c, c + ps)
-            for c, ps in zip(patch_spec["coords"], patch_spec["patch_size"])
+            for c, ps in zip(
+                patch_spec["coords"], patch_spec["patch_size"], strict=False
+            )
         )
         # set to true where the patches would be sampled from
         tracking_array[(patch_spec["sample_idx"], slice(None), *spatial_slice)] = True

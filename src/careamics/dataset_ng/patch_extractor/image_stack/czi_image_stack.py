@@ -209,7 +209,9 @@ class CziImageStack:
         sample_indices = np.unravel_index(sample_idx, sample_shape)
         plane = {
             dimension: int(index)
-            for dimension, index in zip(self._sample_axes.keys(), sample_indices)
+            for dimension, index in zip(
+                self._sample_axes.keys(), sample_indices, strict=False
+            )
         }
 
         # Read XY planes sequentially

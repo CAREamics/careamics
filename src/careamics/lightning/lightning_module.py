@@ -1,6 +1,7 @@
 """CAREamics Lightning module."""
 
-from typing import Any, Callable, Literal, Optional, Union
+from collections.abc import Callable
+from typing import Any, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
