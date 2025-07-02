@@ -109,6 +109,7 @@ class Configuration(BaseModel):
     ...                 "architecture": "UNet",
     ...             },
     ...         },
+    ...         "training_config": {},
     ...         "data_config": {
     ...             "data_type": "tiff",
     ...             "patch_size": [64, 64],
