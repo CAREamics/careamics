@@ -254,7 +254,7 @@ class UnetDecoder(nn.Module):
                 # divide index by 2 because of upsampling layers
                 skip_connection: torch.Tensor = skip_connections[i // 2]
                 if self.n2v2:
-                    # if x.shape != skip_connections[-1].shape:
+                    # top level skip connection not added for n2v2
                     if i // 2 != len(skip_connections) - 1:
                         x = self._interleave(x, skip_connection, self.groups)
                 else:
