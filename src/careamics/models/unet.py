@@ -217,6 +217,9 @@ class UnetDecoder(nn.Module):
                     conv_dim,
                     in_channels=in_channels,
                     out_channels=out_channels,
+                    # TODO: Tensorflow n2v implementation has intermediate channel
+                    #   multiplication for skip_skipone=True but not skip_skipone=False
+                    #   this needs to be benchmarked.
                     # final decoder block doesn't multiply the intermediate features
                     intermediate_channel_multiplier=2 if n != depth - 1 else 1,
                     dropout_perc=dropout,
