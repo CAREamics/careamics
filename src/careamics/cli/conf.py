@@ -174,7 +174,7 @@ def care(  # numpydoc ignore=PR01
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        trainer_params={"max_epochs": max_epochs}, # TODO better way to pass params
+        trainer_params={"max_epochs": max_epochs},  # TODO better way to pass params
         # TODO: fix choosing augmentations
         augmentations=None if use_augmentations else [],
         independent_channels=independent_channels,
@@ -258,7 +258,7 @@ def n2n(  # numpydoc ignore=PR01
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        trainer_params={"max_epochs": max_epochs}, # TODO better way to pass params
+        trainer_params={"max_epochs": max_epochs},  # TODO better way to pass params
         # TODO: fix choosing augmentations
         augmentations=None if use_augmentations else [],
         independent_channels=independent_channels,
@@ -363,7 +363,7 @@ def n2v(  # numpydoc ignore=PR01
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        trainer_params={"max_epochs": max_epochs}, # TODO better way to pass params
+        trainer_params={"max_epochs": max_epochs},  # TODO better way to pass params
         # TODO: fix choosing augmentations
         augmentations=None if use_augmentations else [],
         independent_channels=independent_channels,

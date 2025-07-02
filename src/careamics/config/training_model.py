@@ -67,4 +67,3 @@ class TrainingConfig(BaseModel):
             Whether the logger is defined or not.
         """
         return self.logger is not None
-
