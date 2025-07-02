@@ -65,8 +65,10 @@ def test_n_patches_raises():
     [
         [(1, 1, 19, 37), (8, 8), 11],
         [(1, 1, 19, 37), (8, 5), 18],
+        [(1, 1, 8, 8), (8, 8), 1],
         [(1, 1, 19, 37, 23), (8, 8, 8), 32],
         [(1, 1, 19, 37, 23), (8, 5, 7), 58],
+        [(1, 1, 8, 8, 8), (8, 8, 8), 1],
     ],
 )
 def test_random_coords(data_shape, patch_size, iterations):
@@ -76,7 +78,8 @@ def test_random_coords(data_shape, patch_size, iterations):
         coords = np.array(_generate_random_coords(spatial_shape, patch_size, rng))
         # validate patch is within spatial bounds
         assert (0 <= coords).all()
-        assert (coords + patch_size < np.array(spatial_shape)).all()
+        # less than or equal is correct bec this will be the stop of a slice expression
+        assert (coords + patch_size <= np.array(spatial_shape)).all()
 
 
 def test_random_coords_raises():
