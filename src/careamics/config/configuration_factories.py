@@ -641,7 +641,6 @@ def create_care_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100
     ... )
 
     To disable transforms, simply set `augmentations` to an empty list:
@@ -851,7 +850,6 @@ def create_n2n_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     num_epochs=100
     ... )
 
     To disable transforms, simply set `augmentations` to an empty list:
