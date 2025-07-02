@@ -184,7 +184,9 @@ class UnetDecoder(nn.Module):
         """
         super().__init__()
 
-        upsampling = nn.Upsample(scale_factor=2, mode="nearest")
+        upsampling = nn.Upsample(
+            scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
+        )
         in_channels = out_channels = num_channels_init * groups * (2 ** (depth - 1))
 
         self.n2v2 = n2v2
