@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 import numpy as np
-from bioimageio.spec._internal.io import resolve_and_extract
+from bioimageio.spec._internal.io import extract
 from bioimageio.spec.model.v0_5 import (
     ArchitectureFromLibraryDescr,
     Author,
@@ -12,7 +12,6 @@ from bioimageio.spec.model.v0_5 import (
     AxisId,
     BatchAxis,
     ChannelAxis,
-    EnvironmentFileDescr,
     FileDescr,
     FixedZeroMeanUnitVarianceAlongAxisKwargs,
     FixedZeroMeanUnitVarianceDescr,
@@ -269,7 +268,7 @@ def create_model_description(
             source=weights_path,
             architecture=architecture_descr,
             pytorch_version=Version(torch_version),
-            dependencies=EnvironmentFileDescr(source=env_path),
+            dependencies=FileDescr(source=Path(env_path))
         ),
     )
 
@@ -322,9 +321,13 @@ def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
     """
     if model_desc.weights.pytorch_state_dict is None:
         raise ValueError("No model weights found in model description.")
-    weights_path = resolve_and_extract(
-        model_desc.weights.pytorch_state_dict.source
-    ).path
+
+    # extract the zip model and return the directory
+    model_dir = extract(model_desc.root)
+
+    weights_path = model_dir.joinpath(
+        model_desc.weights.pytorch_state_dict.source.path
+    )
 
     for file in model_desc.attachments:
         file_path = file.source if isinstance(file.source, Path) else file.source.path
@@ -332,7 +335,7 @@ def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
             continue
         file_path = Path(file_path)
         if file_path.name == "careamics.yaml":
-            config_path = resolve_and_extract(file.source).path
+            config_path = model_dir.joinpath(file.source.path)
             break
     else:
         raise ValueError("Configuration file not found.")
