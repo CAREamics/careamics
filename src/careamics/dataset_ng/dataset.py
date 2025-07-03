@@ -4,15 +4,15 @@ from pathlib import Path
 from typing import Any, Generic, Literal, NamedTuple, Optional, Union
 
 import numpy as np
+from config.transformations.normalization_strategies import MeanStdNormModel
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from careamics.config.data.ng_data_model import NGDataConfig
+from careamics.config.data.ng_data_model import NGDataConfig, NormalizationStrategies
 from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
-from careamics.config.transformations import NormalizeModel
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
@@ -116,14 +116,17 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         return patching_strategy
 
     def _initialize_transforms(self) -> Optional[Compose]:
-        normalize = NormalizeModel(
-            image_means=self.input_stats.means,
-            image_stds=self.input_stats.stds,
-            target_means=self.target_stats.means,
-            target_stds=self.target_stats.stds,
-        )
+        if self.config.normalization.name == "mean_std":
+            normalize: NormalizationStrategies = MeanStdNormModel(
+                image_means=self.input_stats.means,
+                image_stds=self.input_stats.stds,
+                target_means=self.target_stats.means,
+                target_stds=self.target_stats.stds,
+            )
+        else:
+            normalize = self.config.normalization
+
         if self.mode == Mode.TRAINING:
-            # TODO: initialize normalization separately depending on configuration
             return Compose(transform_list=[normalize] + list(self.config.transforms))
 
         # TODO: add TTA

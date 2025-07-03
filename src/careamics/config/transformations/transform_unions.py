@@ -4,6 +4,7 @@ from typing import Annotated, Union
 
 from pydantic import Discriminator
 
+from .normalization_strategies import MeanStdNormModel, NoNormModel, QuantileNormModel
 from .normalize_model import NormalizeModel
 from .xy_flip_model import XYFlipModel
 from .xy_random_rotate90_model import XYRandomRotate90Model
@@ -11,6 +12,9 @@ from .xy_random_rotate90_model import XYRandomRotate90Model
 NORM_AND_SPATIAL_UNION = Annotated[
     Union[
         NormalizeModel,
+        NoNormModel,
+        QuantileNormModel,
+        MeanStdNormModel,
         XYFlipModel,
         XYRandomRotate90Model,
     ],

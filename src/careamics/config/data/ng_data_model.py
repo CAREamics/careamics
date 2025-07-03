@@ -19,7 +19,13 @@ from pydantic import (
 )
 from typing_extensions import Self
 
-from ..transformations import XYFlipModel, XYRandomRotate90Model
+from ..transformations import (
+    MeanStdNormModel,
+    NoNormModel,
+    QuantileNormModel,
+    XYFlipModel,
+    XYRandomRotate90Model,
+)
 from ..validators import check_axes_validity
 from .patching_strategies import (
     RandomPatchingModel,
@@ -68,6 +74,13 @@ PatchingStrategies = Union[
 ]
 """Patching strategies."""
 
+NormalizationStrategies = Union[
+    MeanStdNormModel,
+    NoNormModel,
+    QuantileNormModel,
+]
+"""Normalization strategies."""
+
 
 class NGDataConfig(BaseModel):
     """Next-Generation Dataset configuration.
@@ -76,6 +89,9 @@ class NGDataConfig(BaseModel):
     determining how the data is processed. Note that `random` is the only patching
     strategy compatible with training, while `tiled` and `whole` are only used for
     prediction.
+
+    The normalization strategy is set by the `normalization` field, which supports
+    'standard', 'none', and 'quantile' strategies.
 
     If std is specified, mean must be specified as well. Note that setting the std first
     and then the mean (if they were both `None` before) will raise a validation error.
@@ -101,6 +117,11 @@ class NGDataConfig(BaseModel):
     patching: PatchingStrategies = Field(..., discriminator="name")
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
+
+    normalization: NormalizationStrategies = Field(
+        default_factory=MeanStdNormModel, discriminator="name"
+    )
+    """Normalization strategy to use. Supports 'mean_std', 'none', and 'quantile'."""
 
     # Optional fields
     batch_size: int = Field(default=1, ge=1, validate_default=True)
@@ -299,6 +320,22 @@ class NGDataConfig(BaseModel):
                 raise ValueError(
                     f"`patch_size` in `patching` must have 2 dimensions if the data is"
                     f" 3D, got axes {self.axes})."
+                )
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_normalization(self: Self) -> Self:
+        """Validate the normalization strategy."""
+        if self.normalization.name == "quantile":
+            if self.normalization.lower is None or self.normalization.upper is None:
+                raise ValueError(
+                    "Lower and upper quantile values must be specified for quantile "
+                    "normalization."
+                )
+            if self.normalization.lower >= self.normalization.upper:
+                raise ValueError(
+                    "Lower quantile value must be less than upper quantile value."
                 )
 
         return self
