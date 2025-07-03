@@ -1,7 +1,7 @@
 """CAREamics Lightning module."""
 
 from collections.abc import Callable
-from typing import Any, Literal, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -353,7 +353,7 @@ class VAEModule(L.LightningModule):
         )
 
         self.loss_parameters = self.algorithm_config.loss
-        self.loss_func = loss_factory(self.algorithm_config.loss.loss_type)
+        self.loss_func = loss_factory(self.algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
         self.optimizer_name = self.algorithm_config.optimizer.name
@@ -676,9 +676,7 @@ def create_careamics_module(
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
-    use_n2v2: bool = False,
-    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
-    struct_n2v_span: int = 5,
+    algorithm_parameters: Optional[dict] = None,
     model_parameters: Optional[dict] = None,
     optimizer: Union[SupportedOptimizer, str] = "Adam",
     optimizer_parameters: Optional[dict] = None,
@@ -698,12 +696,8 @@ def create_careamics_module(
         Loss function to use for training (see SupportedLoss).
     architecture : SupportedArchitecture or str
         Model architecture to use for training (see SupportedArchitecture).
-    use_n2v2 : bool, default=False
-        Whether to use N2V2 or Noise2Void.
-    struct_n2v_axis : "horizontal", "vertical", or "none", default="none"
-        Axis of the StructN2V mask.
-    struct_n2v_span : int, default=5
-        Span of the StructN2V mask.
+    algorithm_parameters : dict, optional
+        Algorithm parameters to use for training, by default {}. E.g.: use_n2v2,
     model_parameters : dict, optional
         Model parameters to use for training, by default {}. Model parameters are
         defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
@@ -758,11 +752,19 @@ def create_careamics_module(
 
         # if use N2V
         if isinstance(algorithm_cfg, N2VAlgorithm):
-            algorithm_cfg.n2v_config.struct_mask_axis = struct_n2v_axis
-            algorithm_cfg.n2v_config.struct_mask_span = struct_n2v_span
-            algorithm_cfg.set_n2v2(use_n2v2)
+            algorithm_cfg.n2v_config.struct_mask_axis = algorithm_parameters[
+                "struct_mask_axis"
+            ]
+            algorithm_cfg.n2v_config.struct_mask_span = algorithm_parameters[
+                "struct_n2v_span"
+            ]
+            algorithm_cfg.set_n2v2(algorithm_parameters["use_n2v2"])
 
         return FCNModule(algorithm_cfg)
+    elif which_algo in VAEBasedAlgorithm.get_compatible_algorithms():
+        algorithm_cfg = algorithm_factory(algorithm_dict)
+        # TODO add support for MicroSplit
+        return VAEModule(algorithm_cfg)
     else:
         raise NotImplementedError(
             f"Algorithm {which_algo} is not implemented or unknown."

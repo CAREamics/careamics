@@ -12,7 +12,7 @@ from careamics.config.algorithms import (
     N2VAlgorithm,
 )
 from careamics.config.architectures import LVAEModel, UNetModel
-from careamics.config.data import DataConfig
+from careamics.config.data import DataConfig, NGDataConfig
 from careamics.config.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,

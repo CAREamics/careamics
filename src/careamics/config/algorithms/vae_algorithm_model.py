@@ -69,7 +69,7 @@ class VAEBasedAlgorithm(BaseModel):
         """
         # hdn
         if self.algorithm == SupportedAlgorithm.HDN:
-            if self.loss.loss_type != SupportedLoss.HDN:
+            if self.loss != SupportedLoss.HDN:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `hdn`."
                 )
@@ -77,13 +77,13 @@ class VAEBasedAlgorithm(BaseModel):
                 raise ValueError("Algorithm `hdn` does not support multiscale models.")
         # musplit
         if self.algorithm == SupportedAlgorithm.MUSPLIT:
-            if self.loss.loss_type != SupportedLoss.MUSPLIT:
+            if self.loss != SupportedLoss.MUSPLIT:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `musplit`."
                 )
 
         if self.algorithm == SupportedAlgorithm.DENOISPLIT:
-            if self.loss.loss_type not in [
+            if self.loss not in [
                 SupportedLoss.DENOISPLIT,
                 SupportedLoss.DENOISPLIT_MUSPLIT,
             ]:
@@ -92,7 +92,7 @@ class VAEBasedAlgorithm(BaseModel):
                     "or `denoisplit_musplit."
                 )
             if (
-                self.loss.loss_type == SupportedLoss.DENOISPLIT
+                self.loss == SupportedLoss.DENOISPLIT
                 and self.model.predict_logvar is not None
             ):
                 raise ValueError(
@@ -165,3 +165,14 @@ class VAEBasedAlgorithm(BaseModel):
             Pretty string.
         """
         return pformat(self.model_dump())
+
+    @classmethod
+    def get_compatible_algorithms(cls) -> list[str]:
+        """Get the list of compatible algorithms.
+
+        Returns
+        -------
+        list of str
+            List of compatible algorithms.
+        """
+        return ["hdn"]

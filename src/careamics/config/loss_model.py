@@ -56,3 +56,15 @@ class LVAELossConfig(BaseModel):
     """Whether to sample latents and compute KL."""
 
     # TODO what are the correct parameters for HDN ?
+
+
+def HDNLossConfig(LVAELossConfig):
+    """HDN loss configuration.
+
+    Inherits from LVAELossConfig and sets the loss_type to 'hdn'.
+    """
+
+    model_config = ConfigDict(validate_assignment=True, validate_default=True)
+
+    def __init__(self, **data):
+        super().__init__(loss_type="hdn", **data)

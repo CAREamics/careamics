@@ -1,13 +1,13 @@
 """HDN algorithm configuration."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import ConfigDict
 
 from careamics.config.algorithms.vae_algorithm_model import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEModel
-from careamics.config.loss_model import LVAELossConfig
+from careamics.config.loss_model import HDNLossConfig
 
 HDN = "HDN"
 
@@ -27,7 +27,7 @@ class HDNAlgorithm(VAEBasedAlgorithm):
 
     algorithm: Literal["hdn"] = "hdn"
 
-    loss: LVAELossConfig
+    loss: str = "hdn"
 
     model: LVAEModel  # TODO add validators
 
