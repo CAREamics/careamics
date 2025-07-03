@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
+from careamics.dataset_ng.patch_extractor.image_stack import CziImageStack
+
 # skip if fail imports
 pylib = pytest.importorskip("pylibCZIrw")
 
-from pylibCZIrw import czi as pyczi
-
-from careamics.dataset_ng.patch_extractor.image_stack import CziImageStack
+from pylibCZIrw import czi as pyczi  # noqa: E402
 
 T_EXPR = "does not contain a T axis"
 Z_EXPR = "does not contain a Z axis"
