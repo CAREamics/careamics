@@ -268,7 +268,7 @@ def create_model_description(
             source=weights_path,
             architecture=architecture_descr,
             pytorch_version=Version(torch_version),
-            dependencies=FileDescr(source=Path(env_path))
+            dependencies=FileDescr(source=Path(env_path)),
         ),
     )
 
@@ -325,9 +325,7 @@ def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
     # extract the zip model and return the directory
     model_dir = extract(model_desc.root)
 
-    weights_path = model_dir.joinpath(
-        model_desc.weights.pytorch_state_dict.source.path
-    )
+    weights_path = model_dir.joinpath(model_desc.weights.pytorch_state_dict.source.path)
 
     for file in model_desc.attachments:
         file_path = file.source if isinstance(file.source, Path) else file.source.path
