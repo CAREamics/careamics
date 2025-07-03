@@ -87,6 +87,7 @@ def test_train_error_target_unsupervised_algorithm(
         )
 
 
+@pytest.mark.mps_gh_fail
 def test_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained with arrays."""
     # training data
@@ -121,6 +122,7 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: di
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained on arrays."""
     # training data
@@ -155,7 +157,7 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
     )
     assert (tmp_path / "model.zip").exists()
 
-
+@pytest.mark.mps_gh_fail
 @pytest.mark.skip(reason="VAE based models are not supported yet.")
 def test_train_array_vae(tmp_path: Path, minimum_configuration_hdn: dict):
     """Test that CAREamics can be trained on arrays."""
@@ -194,6 +196,7 @@ def test_train_array_vae(tmp_path: Path, minimum_configuration_hdn: dict):
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("independent_channels", [False, True])
 def test_train_array_channel(
     tmp_path: Path, minimum_n2v_configuration: dict, independent_channels: bool
@@ -236,6 +239,7 @@ def test_train_array_channel(
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained on 3D arrays."""
     # training data
@@ -271,6 +275,7 @@ def test_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_train_tiff_files_in_memory_no_val(
     tmp_path: Path, minimum_n2v_configuration: dict
 ):
@@ -311,6 +316,7 @@ def test_train_tiff_files_in_memory_no_val(
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
@@ -353,6 +359,7 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration: d
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained with tiff files by deactivating
     the in memory dataset.
@@ -397,6 +404,7 @@ def test_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_train_array_supervised(tmp_path: Path, minimum_supervised_configuration: dict):
     """Test that CAREamics can be trained with arrays."""
     # training data
@@ -439,6 +447,7 @@ def test_train_array_supervised(tmp_path: Path, minimum_supervised_configuration
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_train_tiff_files_in_memory_supervised(
     tmp_path: Path, minimum_supervised_configuration: dict
 ):
@@ -500,6 +509,7 @@ def test_train_tiff_files_in_memory_supervised(
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_train_tiff_files_supervised(
     tmp_path: Path, minimum_supervised_configuration: dict
 ):
@@ -564,6 +574,7 @@ def test_train_tiff_files_supervised(
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_on_array_tiled(
@@ -609,6 +620,7 @@ def test_predict_on_array_tiled(
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_arrays_no_tiling(
@@ -690,6 +702,7 @@ def test_batched_prediction(tmp_path: Path, minimum_n2v_configuration: dict):
     assert np.array_equal(pred_bs_1, pred_bs_2)
 
 
+@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("independent_channels", [False, True])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_tiled_channel(
@@ -731,6 +744,7 @@ def test_predict_tiled_channel(
     )
 
 
+@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("tiled", [True, False])
 @pytest.mark.parametrize("n_samples", [1, 2])
 @pytest.mark.parametrize("batch_size", [1, 2])
@@ -794,6 +808,7 @@ def test_predict_path(
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
     """Test that CAREamics can be instantiated with a pre-trained network and predict
     on an array."""
@@ -815,6 +830,7 @@ def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
     )
 
 
+@pytest.mark.mps_gh_fail
 def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
     """Test that CAREamics can be instantiated with a BMZ archive and predict."""
     # prediction data
@@ -833,6 +849,7 @@ def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
     )
 
 
+@pytest.mark.mps_gh_fail
 def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
     """Test that CAREamics can be instantiated with a pre-trained network and exported
     to BMZ after prediction.
@@ -860,6 +877,7 @@ def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
     """Test that CAREamics can be instantiated with a pre-trained network and exported
     to BMZ.
@@ -882,6 +900,7 @@ def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
     assert (tmp_path / "model2.zip").exists()
 
 
+@pytest.mark.mps_gh_fail
 def test_predict_to_disk_path_tiff(tmp_path, minimum_n2v_configuration):
     """Test predict_to_disk function with path source and tiff write type."""
 
@@ -915,6 +934,7 @@ def test_predict_to_disk_path_tiff(tmp_path, minimum_n2v_configuration):
         assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
 
 
+@pytest.mark.mps_gh_fail
 def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_n2v_configuration):
     """Test predict_to_disk function with datamodule source and tiff write type."""
 
@@ -956,6 +976,7 @@ def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_n2v_configuration):
         assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
 
 
+@pytest.mark.mps_gh_fail
 def test_predict_to_disk_custom(tmp_path, minimum_n2v_configuration):
     """Test predict_to_disk function with custom write type."""
 
@@ -997,6 +1018,7 @@ def test_predict_to_disk_custom(tmp_path, minimum_n2v_configuration):
         assert (tmp_path / "predictions" / f"image_{i}.npy").is_file()
 
 
+@pytest.mark.mps_gh_fail
 def test_predict_to_disk_custom_raises(tmp_path, minimum_n2v_configuration):
     """
     Test predict_to_disk custom write type raises ValueError.
@@ -1048,6 +1070,7 @@ def test_predict_to_disk_custom_raises(tmp_path, minimum_n2v_configuration):
         )
 
 
+@pytest.mark.mps_gh_fail
 def test_add_custom_callback(tmp_path, minimum_n2v_configuration):
     """Test that custom callback can be added to the CAREamist."""
 
@@ -1093,6 +1116,7 @@ def test_add_custom_callback(tmp_path, minimum_n2v_configuration):
     assert my_callback.has_ended
 
 
+@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("enable_progress_bar", [True, False])
 def test_enable_progress_bar(
     tmp_path: Path, minimum_n2v_configuration: dict, enable_progress_bar: bool
@@ -1197,6 +1221,7 @@ def test_stop_training(tmp_path: Path, minimum_n2v_configuration: dict):
     assert careamist.trainer.should_stop
 
 
+@pytest.mark.mps_gh_fail
 def test_read_logger(tmp_path, minimum_n2v_configuration):
 
     config = Configuration(**minimum_n2v_configuration)

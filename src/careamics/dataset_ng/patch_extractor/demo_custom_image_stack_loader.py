@@ -35,7 +35,7 @@ def create_zarr_array(file_path: Path, data_path: str, data: NDArray):
 
 
 def create_zarr(file_path: Path, data_paths: Sequence[str], data: Sequence[NDArray]):
-    for data_path, array in zip(data_paths, data):
+    for data_path, array in zip(data_paths, data, strict=False):
         create_zarr_array(file_path=file_path, data_path=data_path, data=array)
 
 

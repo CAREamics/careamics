@@ -1,11 +1,25 @@
+from __future__ import annotations
+
 import re
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
-from pylibCZIrw.czi import CziReader, Rectangle, open_czi
+
+try:
+    from pylibCZIrw.czi import CziReader, Rectangle, open_czi
+
+    pyczi_available = True
+except ImportError:
+    pyczi_available = False
+
+if TYPE_CHECKING:
+    try:
+        from pylibCZIrw.czi import CziReader, Rectangle, open_czi
+    except ImportError:
+        CziReader = Rectangle = open_czi = None  # type: ignore
 
 
 class CziImageStack:
@@ -97,6 +111,12 @@ class CziImageStack:
         scene: int | None = None,
         depth_axis: Literal["none", "Z", "T"] = "none",
     ) -> None:
+        if not pyczi_available:
+            raise ImportError(
+                "The CZI image stack requires the `pylibCZIrw` package to be installed."
+                " Please install it with `pip install careamics[czi]`."
+            )
+
         _data_path = Path(data_path)
 
         # Check for scene encoded in filename.
@@ -128,8 +148,9 @@ class CziImageStack:
         self.data_dtype = np.float32
 
     def __del__(self):
-        # Close CZI file
-        self._czi.close()
+        if hasattr(self, "_czi"):
+            # Close CZI file
+            self._czi.close()
 
     def __getstate__(self) -> dict[str, Any]:
         # Remove CziReader object from state to avoid pickling issues
@@ -188,7 +209,9 @@ class CziImageStack:
         sample_indices = np.unravel_index(sample_idx, sample_shape)
         plane = {
             dimension: int(index)
-            for dimension, index in zip(self._sample_axes.keys(), sample_indices)
+            for dimension, index in zip(
+                self._sample_axes.keys(), sample_indices, strict=False
+            )
         }
 
         # Read XY planes sequentially

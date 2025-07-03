@@ -94,7 +94,7 @@ def stitch_prediction_single(
     input_shape = (1, tile_channels, *tile_infos[0].array_shape[1:])
     predicted_image = np.zeros(input_shape, dtype=np.float32)
 
-    for tile, tile_info in zip(tiles, tile_infos):
+    for tile, tile_info in zip(tiles, tile_infos, strict=False):
 
         # Compute coordinates for cropping predicted tile
         crop_slices: tuple[Union[builtins.ellipsis, slice], ...] = (

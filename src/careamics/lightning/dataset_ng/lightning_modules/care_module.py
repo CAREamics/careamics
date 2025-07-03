@@ -1,6 +1,7 @@
 """CARE Lightning DataModule."""
 
-from typing import Any, Callable, Union
+from collections.abc import Callable
+from typing import Any, Union
 
 from careamics.config.algorithms.care_algorithm_model import CAREAlgorithm
 from careamics.config.algorithms.n2n_algorithm_model import N2NAlgorithm
@@ -35,7 +36,7 @@ class CAREModule(UnetModule):
         """
         super().__init__(algorithm_config)
         assert isinstance(
-            algorithm_config, (CAREAlgorithm, N2NAlgorithm)
+            algorithm_config, CAREAlgorithm | N2NAlgorithm
         ), "algorithm_config must be a CAREAlgorithm or a N2NAlgorithm"
         loss = algorithm_config.loss
         if loss == SupportedLoss.MAE:

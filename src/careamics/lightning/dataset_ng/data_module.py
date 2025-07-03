@@ -1,7 +1,8 @@
 """Next-Generation CAREamics DataModule."""
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional, Union, overload
+from typing import Any, Optional, Union, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -9,7 +10,7 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 
-from careamics.config.data import DataConfig
+from careamics.config.data.ng_data_model import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import list_files, validate_source_target_files
 from careamics.dataset_ng.dataset import Mode
@@ -121,7 +122,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[InputType] = None,
         train_data_target: Optional[InputType] = None,
@@ -139,7 +140,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[InputType] = None,
         train_data_target: Optional[InputType] = None,
@@ -155,9 +156,28 @@ class CareamicsDataModule(L.LightningDataModule):
         use_in_memory: bool = True,
     ) -> None: ...
 
+    @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
+        *,
+        train_data: Optional[Any] = None,
+        train_data_target: Optional[Any] = None,
+        val_data: Optional[Any] = None,
+        val_data_target: Optional[Any] = None,
+        pred_data: Optional[Any] = None,
+        pred_data_target: Optional[Any] = None,
+        image_stack_loader: ImageStackLoader,
+        image_stack_loader_kwargs: Optional[dict[str, Any]] = None,
+        extension_filter: str = "",
+        val_percentage: Optional[float] = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[Any] = None,
         train_data_target: Optional[Any] = None,
@@ -182,7 +202,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
         Parameters
         ----------
-        data_config : DataConfig
+        data_config : NGDataConfig
             Pydantic model for CAREamics data configuration.
         train_data : Optional[InputType]
             Training data, can be a path to a folder, a list of paths, or a numpy array.
@@ -229,7 +249,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 "At least one of train_data, val_data or pred_data must be provided."
             )
 
-        self.config: DataConfig = data_config
+        self.config: NGDataConfig = data_config
         self.data_type: str = data_config.data_type
         self.batch_size: int = data_config.batch_size
         self.use_in_memory: bool = use_in_memory
@@ -406,9 +426,9 @@ class CareamicsDataModule(L.LightningDataModule):
             A tuple containing lists of file paths for input and target data.
             If target_data is None, the second element will be None.
         """
-        if isinstance(input_data, (str, Path)):
+        if isinstance(input_data, str | Path):
             if target_data is not None:
-                assert isinstance(target_data, (str, Path))
+                assert isinstance(target_data, str | Path)
             input_list, target_list = self._list_files_in_directory(
                 input_data, target_data
             )
@@ -444,15 +464,15 @@ class CareamicsDataModule(L.LightningDataModule):
         """
         if self.image_stack_loader is not None:
             return input_data, target_data
-        elif isinstance(input_data, (str, Path)):
+        elif isinstance(input_data, str | Path):
             if target_data is not None:
-                assert isinstance(target_data, (str, Path))
+                assert isinstance(target_data, str | Path)
             input_list, target_list = self._list_files_in_directory(
                 input_data, target_data
             )
             return input_list, target_list
         elif isinstance(input_data, list):
-            if isinstance(input_data[0], (str, Path)):
+            if isinstance(input_data[0], str | Path):
                 if target_data is not None:
                     assert isinstance(target_data, list)
                 input_list, target_list = self._convert_paths_to_pathlib(
@@ -512,10 +532,10 @@ class CareamicsDataModule(L.LightningDataModule):
                     f"Unsupported input type for {self.data_type}: {type(input_data)}"
                 )
         elif self.data_type in (SupportedData.TIFF, SupportedData.CZI):
-            if isinstance(input_data, (str, Path)):
+            if isinstance(input_data, str | Path):
                 return self._validate_path_input(input_data, target_data)
             elif isinstance(input_data, list):
-                if isinstance(input_data[0], (Path, str)):
+                if isinstance(input_data[0], str | Path):
                     return self._validate_path_input(input_data, target_data)
                 else:
                     raise ValueError(
@@ -654,5 +674,5 @@ class CareamicsDataModule(L.LightningDataModule):
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
-            # TODO: set appropriate key for params once config changes are merged
+            **self.config.test_dataloader_params,
         )

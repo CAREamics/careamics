@@ -51,7 +51,7 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
             assert all(coord_pair) >= 0
 
             # Check that the coordinates are within the shape of the array
-            assert [c <= s for c, s in zip(coord_pair, shape)]
+            assert [c <= s for c, s in zip(coord_pair, shape, strict=False)]
 
         # Add the 1 to the every coordinate location.
         array[tuple(np.array(coords).T.tolist())] += 1

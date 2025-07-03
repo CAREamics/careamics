@@ -6,8 +6,9 @@ This module contains a factory function for creating loss functions.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Union
+from typing import Union
 
 from torch import Tensor as tensor
 

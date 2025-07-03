@@ -171,7 +171,10 @@ class InferenceConfig(BaseModel):
                     f"{self.axes} (got {self.tile_overlap})."
                 )
 
-            if any((i >= j) for i, j in zip(self.tile_overlap, self.tile_size)):
+            if any(
+                (i >= j)
+                for i, j in zip(self.tile_overlap, self.tile_size, strict=False)
+            ):
                 raise ValueError("Tile overlap must be smaller than tile size.")
 
         return self
