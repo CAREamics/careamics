@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any, Generic, Literal, NamedTuple, Optional, Union
 
 import numpy as np
-from config.transformations.normalization_strategies import MeanStdNormModel
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
@@ -13,6 +12,7 @@ from careamics.config.data.ng_data_model import NGDataConfig, NormalizationStrat
 from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
+from careamics.config.transformations import MeanStdNormModel
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
