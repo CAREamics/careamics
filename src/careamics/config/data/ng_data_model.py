@@ -19,6 +19,8 @@ from pydantic import (
 )
 from typing_extensions import Self
 
+from careamics.config.transformations import NORM_AND_SPATIAL_UNION
+
 from ..transformations import (
     MeanStdNormModel,
     NoNormModel,
@@ -146,7 +148,7 @@ class NGDataConfig(BaseModel):
     """Standard deviations of the target data across channels, used for
     normalization."""
 
-    transforms: Sequence[Union[XYFlipModel, XYRandomRotate90Model]] = Field(
+    transforms: Sequence[NORM_AND_SPATIAL_UNION] = Field(
         default=(
             XYFlipModel(),
             XYRandomRotate90Model(),
@@ -326,7 +328,14 @@ class NGDataConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_normalization(self: Self) -> Self:
-        """Validate the normalization strategy."""
+        """
+        Validate the normalization strategy.
+
+        Returns
+        -------
+        Self
+            Validated data model.
+        """
         if self.normalization.name == "quantile":
             if self.normalization.lower is None or self.normalization.upper is None:
                 raise ValueError(

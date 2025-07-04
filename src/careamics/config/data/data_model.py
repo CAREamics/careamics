@@ -21,6 +21,8 @@ from pydantic import (
 )
 from typing_extensions import Self
 
+from careamics.config.transformations import NORM_AND_SPATIAL_UNION
+
 from ..transformations import XYFlipModel, XYRandomRotate90Model
 from ..validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
@@ -128,7 +130,7 @@ class DataConfig(BaseModel):
     """Standard deviations of the target data across channels, used for
     normalization."""
 
-    transforms: Sequence[Union[XYFlipModel, XYRandomRotate90Model]] = Field(
+    transforms: Sequence[NORM_AND_SPATIAL_UNION] = Field(
         default=[
             XYFlipModel(),
             XYRandomRotate90Model(),

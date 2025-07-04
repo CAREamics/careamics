@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 from careamics.config.transformations import NORM_AND_SPATIAL_UNION
 
 from .normalization import MeanStdNormalization, NoNormalization, QuantileNormalization
+from .normalize import Normalize
 from .transform import Transform
 from .xy_flip import XYFlip
 from .xy_random_rotate90 import XYRandomRotate90
@@ -18,6 +19,7 @@ ALL_TRANSFORMS = {
     "none": NoNormalization,
     "mean_std": MeanStdNormalization,
     "quantile": QuantileNormalization,
+    "Normalize": Normalize,
 }
 
 

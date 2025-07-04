@@ -50,6 +50,8 @@ class MeanStdNormalization(NormalizationProtocol, Transform):
         Target mean value per channel, by default None.
     target_stds : list of float, optional
         Target standard deviation value per channel, by default None.
+    **kwargs : Any
+        Additional keyword arguments.
 
     Attributes
     ----------
@@ -71,12 +73,26 @@ class MeanStdNormalization(NormalizationProtocol, Transform):
         target_stds: list[float] | None = None,
         **kwargs: Any,
     ) -> None:
+        """Initialize the mean std normalization transform.
+
+        Parameters
+        ----------
+        image_means : list of float
+            Mean value per channel.
+        image_stds : list of float
+            Standard deviation value per channel.
+        target_means : list of float, optional
+            Target mean value per channel, by default None.
+        target_stds : list of float, optional
+            Target standard deviation value per channel, by default None.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
+        self.eps = 1e-6
         self.image_means = image_means
         self.image_stds = image_stds
         self.target_means = target_means
         self.target_stds = target_stds
-
-        self.eps = 1e-6
 
     def __call__(
         self,
@@ -204,7 +220,7 @@ class MeanStdNormalization(NormalizationProtocol, Transform):
         Parameters
         ----------
         array : NDArray
-            Image patch, 2D or 3D, shape C(Z)YX.
+            Image patch, 2D or 3D, shape BC(Z)YX.
         mean : NDArray
             Mean values.
         std : NDArray
