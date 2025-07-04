@@ -73,10 +73,10 @@ class QuantileNormalization(NormalizationProtocol, Transform):
 
     # TODO: figure out how to handle channel axis
     def _apply_normalization(
-        self, patch: NDArray, lower: float, upper: float, channel_axis: int = 1
+        self, patch: NDArray, lower: float, upper: float
     ) -> NDArray:
         # Compute percentiles per patch, per channel
-        axes = tuple(i for i in range(patch.ndim) if i != channel_axis)
+        axes = tuple(i for i in range(patch.ndim) if i != 0)
         pmin = np.percentile(patch, lower * 100, axis=axes, keepdims=True)
         pmax = np.percentile(patch, upper * 100, axis=axes, keepdims=True)
         return ((patch - pmin) / (pmax - pmin + self.eps)).astype(np.float32)
