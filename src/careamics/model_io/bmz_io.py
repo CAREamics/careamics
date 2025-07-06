@@ -187,7 +187,7 @@ def export_to_bmz(
 
         # test model description
         test_kwargs = (
-            model_description.config.get("bioimageio", {})
+            model_description.config.bioimageio.model_dump()
             .get("test_kwargs", {})
             .get("pytorch_state_dict", {})
         )
