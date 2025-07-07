@@ -1,6 +1,5 @@
 import itertools
 from collections.abc import Sequence
-from typing import Optional
 
 import numpy as np
 from typing_extensions import ParamSpec
@@ -18,7 +17,7 @@ class SequentialPatchingStrategy:
         self,
         data_shapes: Sequence[Sequence[int]],
         patch_size: Sequence[int],
-        overlaps: Optional[Sequence[int]] = None,
+        overlaps: Sequence[int] | None = None,
     ):
         self.data_shapes = data_shapes
         self.patch_size = patch_size

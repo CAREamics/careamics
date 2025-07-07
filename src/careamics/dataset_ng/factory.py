@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
@@ -48,8 +48,8 @@ class DatasetType(Enum):
 def determine_dataset_type(
     data_type: SupportedData,
     in_memory: bool,
-    read_func: Optional[ReadFunc] = None,
-    image_stack_loader: Optional[ImageStackLoader] = None,
+    read_func: ReadFunc | None = None,
+    image_stack_loader: ImageStackLoader | None = None,
 ) -> DatasetType:
     """Determine what the dataset type should be based on the input arguments.
 
@@ -121,10 +121,10 @@ def create_dataset(
     inputs: Any,
     targets: Any,
     in_memory: bool,
-    read_func: Optional[ReadFunc] = None,
-    read_kwargs: Optional[dict[str, Any]] = None,
-    image_stack_loader: Optional[ImageStackLoader] = None,
-    image_stack_loader_kwargs: Optional[dict[str, Any]] = None,
+    read_func: ReadFunc | None = None,
+    read_kwargs: dict[str, Any] | None = None,
+    image_stack_loader: ImageStackLoader | None = None,
+    image_stack_loader_kwargs: dict[str, Any] | None = None,
 ) -> CareamicsDataset[ImageStack]:
     """
     Convenience function to create the CAREamicsDataset.
@@ -201,7 +201,7 @@ def create_array_dataset(
     config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[NDArray[Any]],
-    targets: Optional[Sequence[NDArray[Any]]],
+    targets: Sequence[NDArray[Any]] | None,
 ) -> CareamicsDataset[InMemoryImageStack]:
     """
     Create a CAREamicsDataset from array data.
@@ -223,7 +223,7 @@ def create_array_dataset(
         A CAREamicsDataset.
     """
     input_extractor = create_array_extractor(source=inputs, axes=config.axes)
-    target_extractor: Optional[PatchExtractor[InMemoryImageStack]]
+    target_extractor: PatchExtractor[InMemoryImageStack] | None
     if targets is not None:
         target_extractor = create_array_extractor(source=targets, axes=config.axes)
     else:
@@ -235,7 +235,7 @@ def create_tiff_dataset(
     config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[Path],
-    targets: Optional[Sequence[Path]],
+    targets: Sequence[Path] | None,
 ) -> CareamicsDataset[InMemoryImageStack]:
     """
     Create a CAREamicsDataset from tiff files that will be all loaded into memory.
@@ -260,7 +260,7 @@ def create_tiff_dataset(
         source=inputs,
         axes=config.axes,
     )
-    target_extractor: Optional[PatchExtractor[InMemoryImageStack]]
+    target_extractor: PatchExtractor[InMemoryImageStack] | None
     if targets is not None:
         target_extractor = create_tiff_extractor(source=targets, axes=config.axes)
     else:
@@ -273,7 +273,7 @@ def create_czi_dataset(
     config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[Path],
-    targets: Optional[Sequence[Path]],
+    targets: Sequence[Path] | None,
 ) -> CareamicsDataset[CziImageStack]:
     """
     Create a dataset from CZI files.
@@ -296,7 +296,7 @@ def create_czi_dataset(
     """
 
     input_extractor = create_czi_extractor(source=inputs, axes=config.axes)
-    target_extractor: Optional[PatchExtractor[CziImageStack]]
+    target_extractor: PatchExtractor[CziImageStack] | None
     if targets is not None:
         target_extractor = create_czi_extractor(source=targets, axes=config.axes)
     else:
@@ -309,7 +309,7 @@ def create_ome_zarr_dataset(
     config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[Path],
-    targets: Optional[Sequence[Path]],
+    targets: Sequence[Path] | None,
 ) -> CareamicsDataset[ZarrImageStack]:
     """
     Create a dataset from OME ZARR files.
@@ -332,7 +332,7 @@ def create_ome_zarr_dataset(
     """
 
     input_extractor = create_ome_zarr_extractor(source=inputs, axes=config.axes)
-    target_extractor: Optional[PatchExtractor[ZarrImageStack]]
+    target_extractor: PatchExtractor[ZarrImageStack] | None
     if targets is not None:
         target_extractor = create_ome_zarr_extractor(source=targets, axes=config.axes)
     else:
@@ -345,7 +345,7 @@ def create_custom_file_dataset(
     config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[Path],
-    targets: Optional[Sequence[Path]],
+    targets: Sequence[Path] | None,
     *,
     read_func: ReadFunc,
     read_kwargs: dict[str, Any],
@@ -378,7 +378,7 @@ def create_custom_file_dataset(
     input_extractor = create_custom_file_extractor(
         source=inputs, axes=config.axes, read_func=read_func, read_kwargs=read_kwargs
     )
-    target_extractor: Optional[PatchExtractor[InMemoryImageStack]]
+    target_extractor: PatchExtractor[InMemoryImageStack] | None
     if targets is not None:
         target_extractor = create_custom_file_extractor(
             source=targets,
@@ -396,7 +396,7 @@ def create_custom_image_stack_dataset(
     config: NGDataConfig,
     mode: Mode,
     inputs: Any,
-    targets: Optional[Any],
+    targets: Any | None,
     image_stack_loader: ImageStackLoader[P, GenericImageStack],
     *args: P.args,
     **kwargs: P.kwargs,
@@ -436,7 +436,7 @@ def create_custom_image_stack_dataset(
         *args,
         **kwargs,
     )
-    target_extractor: Optional[PatchExtractor[GenericImageStack]]
+    target_extractor: PatchExtractor[GenericImageStack] | None
     if targets is not None:
         target_extractor = create_custom_image_stack_extractor(
             targets,

@@ -1,7 +1,6 @@
 """A module for random patching strategies."""
 
 from collections.abc import Sequence
-from typing import Optional
 
 import numpy as np
 
@@ -31,7 +30,7 @@ class RandomPatchingStrategy:
         self,
         data_shapes: Sequence[Sequence[int]],
         patch_size: Sequence[int],
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ):
         """
         A patching strategy for sampling random patches.
@@ -193,7 +192,7 @@ class FixedRandomPatchingStrategy:
         self,
         data_shapes: Sequence[Sequence[int]],
         patch_size: Sequence[int],
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ):
         """A patching strategy for sampling random patches.
 

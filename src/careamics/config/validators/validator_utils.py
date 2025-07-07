@@ -5,7 +5,6 @@ These functions are used to validate dimensions and axes of inputs.
 """
 
 from collections.abc import Sequence
-from typing import Optional
 
 _AXES = "STCZYX"
 
@@ -80,7 +79,7 @@ def value_ge_than_8_power_of_2(
 
 
 def patch_size_ge_than_8_power_of_2(
-    patch_list: Optional[Sequence[int]],
+    patch_list: Sequence[int] | None,
 ) -> None:
     """
     Validate that each entry is greater or equal than 8 and a power of 2.

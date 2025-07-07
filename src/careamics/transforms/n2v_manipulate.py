@@ -1,6 +1,6 @@
 """N2V manipulation transform."""
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -61,7 +61,7 @@ class N2VManipulate(Transform):
         remove_center: bool = True,
         struct_mask_axis: Literal["horizontal", "vertical", "none"] = "none",
         struct_mask_span: int = 5,
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ):
         """Constructor.
 
@@ -88,7 +88,7 @@ class N2VManipulate(Transform):
         self.remove_center = remove_center  # TODO is this ever used?
 
         if struct_mask_axis == SupportedStructAxis.NONE:
-            self.struct_mask: Optional[StructMaskParameters] = None
+            self.struct_mask: StructMaskParameters | None = None
         else:
             self.struct_mask = StructMaskParameters(
                 axis=0 if struct_mask_axis == SupportedStructAxis.HORIZONTAL else 1,

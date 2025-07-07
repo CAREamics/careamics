@@ -1,7 +1,5 @@
 """Normalization and denormalization transforms for image patches."""
 
-from typing import Optional
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -66,8 +64,8 @@ class Normalize(Transform):
         self,
         image_means: list[float],
         image_stds: list[float],
-        target_means: Optional[list[float]] = None,
-        target_stds: Optional[list[float]] = None,
+        target_means: list[float] | None = None,
+        target_stds: list[float] | None = None,
     ):
         """Constructor.
 
@@ -92,9 +90,9 @@ class Normalize(Transform):
     def __call__(
         self,
         patch: np.ndarray,
-        target: Optional[NDArray] = None,
+        target: NDArray | None = None,
         **additional_arrays: NDArray,
-    ) -> tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
+    ) -> tuple[NDArray, NDArray | None, dict[str, NDArray]]:
         """Apply the transform to the source patch and the target (optional).
 
         Parameters

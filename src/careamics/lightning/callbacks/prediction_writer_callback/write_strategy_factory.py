@@ -1,6 +1,6 @@
 """Module containing convenience function to create `WriteStrategy`."""
 
-from typing import Any, Optional
+from typing import Any
 
 from careamics.config.support import SupportedData
 from careamics.file_io import SupportedWriteType, WriteFunc, get_write_func
@@ -11,9 +11,9 @@ from .write_strategy import CacheTiles, WriteImage, WriteStrategy
 def create_write_strategy(
     write_type: SupportedWriteType,
     tiled: bool,
-    write_func: Optional[WriteFunc] = None,
-    write_extension: Optional[str] = None,
-    write_func_kwargs: Optional[dict[str, Any]] = None,
+    write_func: WriteFunc | None = None,
+    write_extension: str | None = None,
+    write_func_kwargs: dict[str, Any] | None = None,
 ) -> WriteStrategy:
     """
     Create a write strategy from convenient parameters.
@@ -78,8 +78,8 @@ def create_write_strategy(
 
 def _create_tiled_write_strategy(
     write_type: SupportedWriteType,
-    write_func: Optional[WriteFunc],
-    write_extension: Optional[str],
+    write_func: WriteFunc | None,
+    write_extension: str | None,
     write_func_kwargs: dict[str, Any],
 ) -> WriteStrategy:
     """
@@ -130,7 +130,7 @@ def _create_tiled_write_strategy(
 
 
 def select_write_func(
-    write_type: SupportedWriteType, write_func: Optional[WriteFunc] = None
+    write_type: SupportedWriteType, write_func: WriteFunc | None = None
 ) -> WriteFunc:
     """
     Return a function to write images.
@@ -177,7 +177,7 @@ def select_write_func(
 
 
 def select_write_extension(
-    write_type: SupportedWriteType, write_extension: Optional[str] = None
+    write_type: SupportedWriteType, write_extension: str | None = None
 ) -> str:
     """
     Return an extension to add to file paths.

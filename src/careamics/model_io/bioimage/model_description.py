@@ -1,7 +1,7 @@
 """Module use to build BMZ model description."""
 
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 import numpy as np
 from bioimageio.spec._internal.io import extract
@@ -35,7 +35,7 @@ from ._readme_factory import readme_factory
 def _create_axes(
     array: np.ndarray,
     data_config: DataConfig,
-    channel_names: Optional[list[str]] = None,
+    channel_names: list[str] | None = None,
     is_input: bool = True,
 ) -> list[AxisBase]:
     """Create axes description.
@@ -104,7 +104,7 @@ def _create_inputs_ouputs(
     data_config: DataConfig,
     input_path: Union[Path, str],
     output_path: Union[Path, str],
-    channel_names: Optional[list[str]] = None,
+    channel_names: list[str] | None = None,
 ) -> tuple[InputTensorDescr, OutputTensorDescr]:
     """Create input and output tensor description.
 
@@ -196,7 +196,7 @@ def create_model_description(
     config_path: Union[Path, str],
     env_path: Union[Path, str],
     covers: list[Union[Path, str]],
-    channel_names: Optional[list[str]] = None,
+    channel_names: list[str] | None = None,
     model_version: str = "0.1.0",
 ) -> ModelDescr:
     """Create model description.

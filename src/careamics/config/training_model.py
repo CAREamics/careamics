@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Literal, Optional, Union
+from typing import Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -41,11 +41,11 @@ class TrainingConfig(BaseModel):
     """Validation step frequency."""
     accumulate_grad_batches: int = Field(default=1, ge=1)
     """Number of batches to accumulate gradients over before stepping the optimizer."""
-    gradient_clip_val: Optional[Union[int, float]] = None
+    gradient_clip_val: Union[int, float] | None = None
     """The value to which to clip the gradient"""
     gradient_clip_algorithm: Literal["value", "norm"] = "norm"
     """The algorithm to use for gradient clipping (see lightning `Trainer`)."""
-    logger: Optional[Literal["wandb", "tensorboard"]] = None
+    logger: Literal["wandb", "tensorboard"] | None = None
     """Logger to use during training. If None, no logger will be used. Available
     loggers are defined in SupportedLogger."""
 
@@ -53,7 +53,7 @@ class TrainingConfig(BaseModel):
     """Checkpoint callback configuration, following PyTorch Lightning Checkpoint
     callback."""
 
-    early_stopping_callback: Optional[EarlyStoppingModel] = Field(
+    early_stopping_callback: EarlyStoppingModel | None = Field(
         default=None, validate_default=True
     )
     """Early stopping callback configuration, following PyTorch Lightning Checkpoint

@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import pytest
@@ -52,7 +52,7 @@ def create_split_lightning_model(
     algorithm: str,
     loss_type: str,
     multiscale_count: int = 1,
-    predict_logvar: Optional[Literal["pixelwise"]] = None,
+    predict_logvar: Literal["pixelwise"] | None = None,
     target_ch: int = 1,
 ) -> VAEModule:
     """Instantiate the muSplit lightining model."""

@@ -1,6 +1,6 @@
 """Module containing pytorch implementations for obtaining predictions from an LVAE."""
 
-from typing import Any, Optional
+from typing import Any
 
 import torch
 
@@ -18,7 +18,7 @@ def lvae_predict_single_sample(
     model: LVAE,
     likelihood_obj: LikelihoodModule,
     input: torch.Tensor,
-) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
+) -> tuple[torch.Tensor, torch.Tensor | None]:
     """
     Generate a single sample prediction from an LVAE model, for a given input.
 
@@ -57,7 +57,7 @@ def lvae_predict_tiled_batch(
     model: LVAE,
     likelihood_obj: LikelihoodModule,
     input: tuple[Any],
-) -> tuple[tuple[Any], Optional[tuple[Any]]]:
+) -> tuple[tuple[Any], tuple[Any] | None]:
     # TODO: fix docstring return types, ... too many output options
     """
     Generate a single sample prediction from an LVAE model, for a given input.
@@ -98,7 +98,7 @@ def lvae_predict_mmse_tiled_batch(
     likelihood_obj: LikelihoodModule,
     input: tuple[Any],
     mmse_count: int,
-) -> tuple[tuple[Any], tuple[Any], Optional[tuple[Any]]]:
+) -> tuple[tuple[Any], tuple[Any], tuple[Any] | None]:
     # TODO: fix docstring return types, ... hard to make readable
     """
     Generate the MMSE (minimum mean squared error) prediction, for a given input.
@@ -137,7 +137,7 @@ def lvae_predict_mmse_tiled_batch(
 
     input_shape = x.shape
     output_shape = (input_shape[0], model.target_ch, *input_shape[2:])
-    log_var: Optional[torch.Tensor] = None
+    log_var: torch.Tensor | None = None
     # pre-declare empty array to fill with individual sample predictions
     sample_predictions = torch.zeros(size=(mmse_count, *output_shape))
     for mmse_idx in range(mmse_count):

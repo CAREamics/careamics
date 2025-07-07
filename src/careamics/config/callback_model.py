@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import (
     BaseModel,
@@ -33,7 +33,7 @@ class CheckpointModel(BaseModel):
     save_weights_only: bool = Field(default=False)
     """When `True`, only the model's weights will be saved (model.save_weights)."""
 
-    save_last: Optional[Literal[True, False, "link"]] = Field(default=True)
+    save_last: Literal[True, False, "link"] | None = Field(default=True)
     """When `True`, saves a last.ckpt copy whenever a checkpoint file gets saved."""
 
     save_top_k: int = Field(default=3, ge=-1, le=100)
@@ -51,13 +51,13 @@ class CheckpointModel(BaseModel):
     auto_insert_metric_name: bool = Field(default=False)
     """When `True`, the checkpoints filenames will contain the metric name."""
 
-    every_n_train_steps: Optional[int] = Field(default=None, ge=1, le=1000)
+    every_n_train_steps: int | None = Field(default=None, ge=1, le=1000)
     """Number of training steps between checkpoints."""
 
-    train_time_interval: Optional[timedelta] = Field(default=None)
+    train_time_interval: timedelta | None = Field(default=None)
     """Checkpoints are monitored at the specified time interval."""
 
-    every_n_epochs: Optional[int] = Field(default=None, ge=1, le=100)
+    every_n_epochs: int | None = Field(default=None, ge=1, le=100)
     """Number of epochs between checkpoints."""
 
 
@@ -96,14 +96,14 @@ class EarlyStoppingModel(BaseModel):
     """When `True`, stops training when the monitored quantity becomes `NaN` or
     `inf`."""
 
-    stopping_threshold: Optional[float] = Field(default=None)
+    stopping_threshold: float | None = Field(default=None)
     """Stop training immediately once the monitored quantity reaches this threshold."""
 
-    divergence_threshold: Optional[float] = Field(default=None)
+    divergence_threshold: float | None = Field(default=None)
     """Stop training as soon as the monitored quantity becomes worse than this
     threshold."""
 
-    check_on_train_epoch_end: Optional[bool] = Field(default=False)
+    check_on_train_epoch_end: bool | None = Field(default=False)
     """Whether to run early stopping at the end of the training epoch. If this is
     `False`, then the check runs at the end of the validation."""
 
