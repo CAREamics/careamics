@@ -3,7 +3,7 @@
 import builtins
 import itertools
 from collections.abc import Generator
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,7 +16,7 @@ def extract_tiles(
     arr: NDArray,
     tile_size: NDArray[np.int_],
     overlaps: NDArray[np.int_],
-    padding_kwargs: Optional[dict[str, Any]] = None,
+    padding_kwargs: dict[str, Any] | None = None,
 ) -> Generator[tuple[NDArray, TileInformation], None, None]:
     """Generate tiles from the input array with specified overlap.
 

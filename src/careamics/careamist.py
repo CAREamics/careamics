@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal, Optional, Union, overload
+from typing import Any, Literal, Union, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -79,8 +79,8 @@ class CAREamist:
     def __init__(  # numpydoc ignore=GL08
         self,
         source: Union[Path, str],
-        work_dir: Optional[Union[Path, str]] = None,
-        callbacks: Optional[list[Callback]] = None,
+        work_dir: Union[Path, str] | None = None,
+        callbacks: list[Callback] | None = None,
         enable_progress_bar: bool = True,
     ) -> None: ...
 
@@ -88,16 +88,16 @@ class CAREamist:
     def __init__(  # numpydoc ignore=GL08
         self,
         source: Configuration,
-        work_dir: Optional[Union[Path, str]] = None,
-        callbacks: Optional[list[Callback]] = None,
+        work_dir: Union[Path, str] | None = None,
+        callbacks: list[Callback] | None = None,
         enable_progress_bar: bool = True,
     ) -> None: ...
 
     def __init__(
         self,
         source: Union[Path, str, Configuration],
-        work_dir: Optional[Union[Path, str]] = None,
-        callbacks: Optional[list[Callback]] = None,
+        work_dir: Union[Path, str] | None = None,
+        callbacks: list[Callback] | None = None,
         enable_progress_bar: bool = True,
     ) -> None:
         """
@@ -222,11 +222,11 @@ class CAREamist:
         )
 
         # place holder for the datamodules
-        self.train_datamodule: Optional[TrainDataModule] = None
-        self.pred_datamodule: Optional[PredictDataModule] = None
+        self.train_datamodule: TrainDataModule | None = None
+        self.pred_datamodule: PredictDataModule | None = None
 
     def _define_callbacks(
-        self, callbacks: Optional[list[Callback]], enable_progress_bar: bool
+        self, callbacks: list[Callback] | None, enable_progress_bar: bool
     ) -> None:
         """Define the callbacks for the training loop.
 
@@ -288,11 +288,11 @@ class CAREamist:
     def train(
         self,
         *,
-        datamodule: Optional[TrainDataModule] = None,
-        train_source: Optional[Union[Path, str, NDArray]] = None,
-        val_source: Optional[Union[Path, str, NDArray]] = None,
-        train_target: Optional[Union[Path, str, NDArray]] = None,
-        val_target: Optional[Union[Path, str, NDArray]] = None,
+        datamodule: TrainDataModule | None = None,
+        train_source: Union[Path, str, NDArray] | None = None,
+        val_source: Union[Path, str, NDArray] | None = None,
+        train_target: Union[Path, str, NDArray] | None = None,
+        val_target: Union[Path, str, NDArray] | None = None,
         use_in_memory: bool = True,
         val_percentage: float = 0.1,
         val_minimum_split: int = 1,
@@ -443,9 +443,9 @@ class CAREamist:
     def _train_on_array(
         self,
         train_data: NDArray,
-        val_data: Optional[NDArray] = None,
-        train_target: Optional[NDArray] = None,
-        val_target: Optional[NDArray] = None,
+        val_data: NDArray | None = None,
+        train_target: NDArray | None = None,
+        val_target: NDArray | None = None,
         val_percentage: float = 0.1,
         val_minimum_split: int = 5,
     ) -> None:
@@ -484,9 +484,9 @@ class CAREamist:
     def _train_on_path(
         self,
         path_to_train_data: Union[Path, str],
-        path_to_val_data: Optional[Union[Path, str]] = None,
-        path_to_train_target: Optional[Union[Path, str]] = None,
-        path_to_val_target: Optional[Union[Path, str]] = None,
+        path_to_val_data: Union[Path, str] | None = None,
+        path_to_train_target: Union[Path, str] | None = None,
+        path_to_val_target: Union[Path, str] | None = None,
         use_in_memory: bool = True,
         val_percentage: float = 0.1,
         val_minimum_split: int = 1,
@@ -549,13 +549,13 @@ class CAREamist:
         source: Union[Path, str],
         *,
         batch_size: int = 1,
-        tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
-        axes: Optional[str] = None,
-        data_type: Optional[Literal["tiff", "custom"]] = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["tiff", "custom"] | None = None,
         tta_transforms: bool = False,
-        dataloader_params: Optional[dict] = None,
-        read_source_func: Optional[Callable] = None,
+        dataloader_params: dict | None = None,
+        read_source_func: Callable | None = None,
         extension_filter: str = "",
     ) -> Union[list[NDArray], NDArray]: ...
 
@@ -565,12 +565,12 @@ class CAREamist:
         source: NDArray,
         *,
         batch_size: int = 1,
-        tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
-        axes: Optional[str] = None,
-        data_type: Optional[Literal["array"]] = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array"] | None = None,
         tta_transforms: bool = False,
-        dataloader_params: Optional[dict] = None,
+        dataloader_params: dict | None = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
     def predict(
@@ -578,13 +578,13 @@ class CAREamist:
         source: Union[PredictDataModule, Path, str, NDArray],
         *,
         batch_size: int = 1,
-        tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
-        axes: Optional[str] = None,
-        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "custom"] | None = None,
         tta_transforms: bool = False,
-        dataloader_params: Optional[dict] = None,
-        read_source_func: Optional[Callable] = None,
+        dataloader_params: dict | None = None,
+        read_source_func: Callable | None = None,
         extension_filter: str = "",
         **kwargs: Any,
     ) -> Union[list[NDArray], NDArray]:
@@ -704,18 +704,18 @@ class CAREamist:
         source: Union[PredictDataModule, Path, str],
         *,
         batch_size: int = 1,
-        tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
-        axes: Optional[str] = None,
-        data_type: Optional[Literal["tiff", "custom"]] = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["tiff", "custom"] | None = None,
         tta_transforms: bool = False,
-        dataloader_params: Optional[dict] = None,
-        read_source_func: Optional[Callable] = None,
+        dataloader_params: dict | None = None,
+        read_source_func: Callable | None = None,
         extension_filter: str = "",
         write_type: Literal["tiff", "custom"] = "tiff",
-        write_extension: Optional[str] = None,
-        write_func: Optional[WriteFunc] = None,
-        write_func_kwargs: Optional[dict[str, Any]] = None,
+        write_extension: str | None = None,
+        write_func: WriteFunc | None = None,
+        write_func_kwargs: dict[str, Any] | None = None,
         prediction_dir: Union[Path, str] = "predictions",
         **kwargs,
     ) -> None:
@@ -885,8 +885,8 @@ class CAREamist:
         authors: list[dict],
         general_description: str,
         data_description: str,
-        covers: Optional[list[Union[Path, str]]] = None,
-        channel_names: Optional[list[str]] = None,
+        covers: list[Union[Path, str]] | None = None,
+        channel_names: list[str] | None = None,
         model_version: str = "0.1.0",
     ) -> None:
         """Export the model to the BioImage Model Zoo format.

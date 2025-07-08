@@ -1,6 +1,6 @@
 """Pydantic model for the XYFlip transform."""
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import ConfigDict, Field
 
@@ -40,4 +40,4 @@ class XYFlipModel(TransformModel):
         ge=0,
         le=1,
     )
-    seed: Optional[int] = None
+    seed: int | None = None

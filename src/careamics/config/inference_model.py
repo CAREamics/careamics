@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
@@ -18,12 +18,10 @@ class InferenceConfig(BaseModel):
     data_type: Literal["array", "tiff", "czi", "custom"]  # As defined in SupportedData
     """Type of input data: numpy.ndarray (array) or path (tiff, czi, or custom)."""
 
-    tile_size: Optional[Union[list[int]]] = Field(
-        default=None, min_length=2, max_length=3
-    )
+    tile_size: Union[list[int]] | None = Field(default=None, min_length=2, max_length=3)
     """Tile size of prediction, only effective if `tile_overlap` is specified."""
 
-    tile_overlap: Optional[Union[list[int]]] = Field(
+    tile_overlap: Union[list[int]] | None = Field(
         default=None, min_length=2, max_length=3
     )
     """Overlap between tiles, only effective if `tile_size` is specified."""
@@ -48,8 +46,8 @@ class InferenceConfig(BaseModel):
     @field_validator("tile_overlap")
     @classmethod
     def all_elements_non_zero_even(
-        cls, tile_overlap: Optional[list[int]]
-    ) -> Optional[list[int]]:
+        cls, tile_overlap: list[int] | None
+    ) -> list[int] | None:
         """
         Validate tile overlap.
 
@@ -86,9 +84,7 @@ class InferenceConfig(BaseModel):
 
     @field_validator("tile_size")
     @classmethod
-    def tile_min_8_power_of_2(
-        cls, tile_list: Optional[list[int]]
-    ) -> Optional[list[int]]:
+    def tile_min_8_power_of_2(cls, tile_list: list[int] | None) -> list[int] | None:
         """
         Validate that each entry is greater or equal than 8 and a power of 2.
 

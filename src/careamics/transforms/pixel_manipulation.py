@@ -5,8 +5,6 @@ Pixel manipulation is used in N2V and similar algorithm to replace the value of
 masked pixels.
 """
 
-from typing import Optional
-
 import numpy as np
 
 from .struct_mask_parameters import StructMaskParameters
@@ -16,7 +14,7 @@ def _apply_struct_mask(
     patch: np.ndarray,
     coords: np.ndarray,
     struct_params: StructMaskParameters,
-    rng: Optional[np.random.Generator] = None,
+    rng: np.random.Generator | None = None,
 ) -> np.ndarray:
     """Apply structN2V masks to patch.
 
@@ -108,7 +106,7 @@ def _odd_jitter_func(step: float, rng: np.random.Generator) -> np.ndarray:
 def _get_stratified_coords(
     mask_pixel_perc: float,
     shape: tuple[int, ...],
-    rng: Optional[np.random.Generator] = None,
+    rng: np.random.Generator | None = None,
 ) -> np.ndarray:
     """
     Generate coordinates of the pixels to mask.
@@ -241,8 +239,8 @@ def uniform_manipulate(
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
     remove_center: bool = True,
-    struct_params: Optional[StructMaskParameters] = None,
-    rng: Optional[np.random.Generator] = None,
+    struct_params: StructMaskParameters | None = None,
+    rng: np.random.Generator | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Manipulate pixels by replacing them with a neighbor values.
@@ -321,8 +319,8 @@ def median_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
-    struct_params: Optional[StructMaskParameters] = None,
-    rng: Optional[np.random.Generator] = None,
+    struct_params: StructMaskParameters | None = None,
+    rng: np.random.Generator | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Manipulate pixels by replacing them with the median of their surrounding subpatch.

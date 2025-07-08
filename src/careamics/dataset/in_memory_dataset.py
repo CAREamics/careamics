@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -49,7 +49,7 @@ class InMemoryDataset(Dataset):
         self,
         data_config: DataConfig,
         inputs: Union[np.ndarray, list[Path]],
-        input_target: Optional[Union[np.ndarray, list[Path]]] = None,
+        input_target: Union[np.ndarray, list[Path]] | None = None,
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:

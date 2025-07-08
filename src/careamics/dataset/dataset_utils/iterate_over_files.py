@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 from numpy.typing import NDArray
 from torch.utils.data import get_worker_info
@@ -21,9 +21,9 @@ logger = get_logger(__name__)
 def iterate_over_files(
     data_config: Union[DataConfig, InferenceConfig],
     data_files: list[Path],
-    target_files: Optional[list[Path]] = None,
+    target_files: list[Path] | None = None,
     read_source_func: Callable = read_tiff,
-) -> Generator[tuple[NDArray, Optional[NDArray]], None, None]:
+) -> Generator[tuple[NDArray, NDArray | None], None, None]:
     """Iterate over data source and yield whole reshaped images.
 
     Parameters

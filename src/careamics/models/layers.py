@@ -4,7 +4,7 @@ Layer module.
 This submodule contains layers used in the CAREamics models.
 """
 
-from typing import Optional, Union
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -207,8 +207,8 @@ def get_pascal_kernel_1d(
     kernel_size: int,
     norm: bool = False,
     *,
-    device: Optional[torch.device] = None,
-    dtype: Optional[torch.dtype] = None,
+    device: torch.device | None = None,
+    dtype: torch.dtype | None = None,
 ) -> torch.Tensor:
     """Generate Yang Hui triangle (Pascal's triangle) for a given number.
 
@@ -270,8 +270,8 @@ def _get_pascal_kernel_nd(
     norm: bool = True,
     dim: int = 2,
     *,
-    device: Optional[torch.device] = None,
-    dtype: Optional[torch.dtype] = None,
+    device: torch.device | None = None,
+    dtype: torch.dtype | None = None,
 ) -> torch.Tensor:
     """Generate pascal filter kernel by kernel size.
 
