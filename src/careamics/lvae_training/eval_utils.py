@@ -665,7 +665,8 @@ def get_single_file_mmse(
         stitch_func = stitch_predictions_general
     else:
         stitch_func = stitch_predictions_new
-    stitched_predictions = stitch_func(tiles_arr, dset)
+        slide = 32 if mmse_count == 1 else 0 # TODO very temporary !
+    stitched_predictions = stitch_func(tiles_arr, dset, slide)
     stitched_stds = stitch_func(tile_stds, dset)
     return stitched_predictions, stitched_stds
 
@@ -801,7 +802,7 @@ def stitch_predictions(predictions, dset, smoothening_pixelcount=0):
 
 
 # from disentangle.analysis.stitch_prediction import *
-def stitch_predictions_new(predictions, dset):
+def stitch_predictions_new(predictions, dset, slide: int = 0):
     """
     Args:
         smoothening_pixelcount: number of pixels which can be interpolated
@@ -823,6 +824,8 @@ def stitch_predictions_new(predictions, dset):
     # if there are more channels, use all of them.
     shape = list(dset.get_data_shape())
     shape[-1] = max(shape[-1], predictions.shape[1])
+    shape[1] = shape[1] + slide  # TODO ugly, refac! to match with prediction shape
+    shape[2] = shape[2] + slide  # TODO ugly, refac! to match with prediction shape
 
     output = np.zeros(shape, dtype=predictions.dtype)
     # frame_shape = dset.get_data_shape()[:-1]
@@ -867,9 +870,16 @@ def stitch_predictions_new(predictions, dset):
         for ch_idx in range(predictions.shape[1]):
             if len(output.shape) == 4:
                 # channel dimension is the last one.
-                output[vgs[0] : vge[0], vgs[1] : vge[1], vgs[2] : vge[2], ch_idx] = (
-                    predictions[dset_idx][ch_idx, rs[1] : re[1], rs[2] : re[2]]
-                )
+                output[
+                    vgs[0] : vge[0],
+                    vgs[1] - slide // 2 : vge[1] + slide // 2,
+                    vgs[2] - slide // 2 : vge[2] + slide // 2,
+                    ch_idx,
+                ] = predictions[dset_idx][
+                    ch_idx,
+                    rs[1] - slide // 2 : re[1] + slide // 2,
+                    rs[2] - slide // 2 : re[2] + slide // 2,
+                ]
             elif len(output.shape) == 5:
                 # channel dimension is the last one.
                 assert vge[0] - vgs[0] == 1, "Only one frame is supported"
@@ -884,7 +894,7 @@ def stitch_predictions_new(predictions, dset):
     return output
 
 
-def stitch_predictions_general(predictions, dset):
+def stitch_predictions_general(predictions, dset, slide: int = 0):
     """Stitching for the dataset with multiple files of different shape."""
     mng = dset.idx_manager
 
@@ -892,7 +902,7 @@ def stitch_predictions_general(predictions, dset):
     # adjust number of channels to match with prediction shape #TODO ugly, refac!
     shapes = []
     for shape in dset.get_data_shapes()[0]:
-        shapes.append((predictions.shape[1],) + tuple([d + 32 for d in shape[1:]]))
+        shapes.append((predictions.shape[1],) + tuple([d + slide for d in shape[1:]]))
 
     output = [np.zeros(shape, dtype=predictions.dtype) for shape in shapes]
     # frame_shape = dset.get_data_shape()[:-1]
@@ -936,12 +946,12 @@ def stitch_predictions_general(predictions, dset):
                 # channel dimension for stitched output is relative to model output
                 output[sample_idx][
                     ch_idx,
-                    valid_grid_start[1] - 16 : valid_grid_end[1] + 16,
-                    valid_grid_start[2] -16 : valid_grid_end[2] + 16,
+                    valid_grid_start[1] - slide // 2 : valid_grid_end[1] + slide // 2,
+                    valid_grid_start[2] - slide // 2 : valid_grid_end[2] + slide // 2,
                 ] += predictions[patch_idx][
                     ch_idx,
-                    relative_start[1] - 16 : relative_end[1] + 16,
-                    relative_start[2] - 16 : relative_end[2] + 16,
+                    relative_start[1] - slide // 2 : relative_end[1] + slide // 2,
+                    relative_start[2] - slide // 2 : relative_end[2] + slide // 2,
                 ]
             elif len(output[sample_idx].shape) == 4:
                 assert (
