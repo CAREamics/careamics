@@ -1,7 +1,7 @@
 """CAREamics Lightning module."""
 
 from collections.abc import Callable
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -628,12 +628,12 @@ def create_unet_based_module(
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
-    algorithm_parameters: Optional[dict] = None,
-    model_parameters: Optional[dict] = None,
+    algorithm_parameters: dict | None = None,
+    model_parameters: dict | None = None,
     optimizer: Union[SupportedOptimizer, str] = "Adam",
-    optimizer_parameters: Optional[dict] = None,
+    optimizer_parameters: dict | None = None,
     lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
-    lr_scheduler_parameters: Optional[dict] = None,
+    lr_scheduler_parameters: dict | None = None,
 ) -> Union[FCNModule, VAEModule]:
     """Create a CAREamics Lightning module.
 
@@ -729,12 +729,12 @@ def create_vae_based_module(
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
-    algorithm_parameters: Optional[dict] = None,
-    model_parameters: Optional[dict] = None,
+    algorithm_parameters: dict | None = None,
+    model_parameters: dict | None = None,
     optimizer: Union[SupportedOptimizer, str] = "Adam",
-    optimizer_parameters: Optional[dict] = None,
+    optimizer_parameters: dict | None = None,
     lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
-    lr_scheduler_parameters: Optional[dict] = None,
+    lr_scheduler_parameters: dict | None = None,
 ) -> Union[FCNModule, VAEModule]:
     """Create a CAREamics Lightning module.
 
