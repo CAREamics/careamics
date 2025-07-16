@@ -671,8 +671,7 @@ class VAEModule(L.LightningModule):
         return psnr
 
 
-# TODO: make this LVAE compatible (?)
-def create_careamics_module(
+def create_unet_based_module(
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
@@ -727,6 +726,7 @@ def create_careamics_module(
         optimizer_parameters = {}
     if model_parameters is None:
         model_parameters = {}
+
     algorithm_dict: dict[str, Any] = {
         "algorithm": algorithm,
         "loss": loss,
@@ -752,16 +752,102 @@ def create_careamics_module(
 
         # if use N2V
         if isinstance(algorithm_cfg, N2VAlgorithm):
-            algorithm_cfg.n2v_config.struct_mask_axis = algorithm_parameters[
-                "struct_mask_axis"
-            ]
-            algorithm_cfg.n2v_config.struct_mask_span = algorithm_parameters[
-                "struct_n2v_span"
-            ]
-            algorithm_cfg.set_n2v2(algorithm_parameters["use_n2v2"])
+            algorithm_cfg.n2v_config.struct_mask_axis = (
+                algorithm_parameters["struct_mask_axis"]
+                if algorithm_parameters
+                else "none"
+            )
+            algorithm_cfg.n2v_config.struct_mask_span = (
+                algorithm_parameters["struct_n2v_span"] if algorithm_parameters else 5
+            )
+            use_n2v2 = (
+                algorithm_parameters["use_n2v2"] if algorithm_parameters else False
+            )
+            algorithm_cfg.set_n2v2(use_n2v2)
 
         return FCNModule(algorithm_cfg)
-    elif which_algo in VAEBasedAlgorithm.get_compatible_algorithms():
+    else:
+        raise NotImplementedError(
+            f"Algorithm {which_algo} is not implemented or unknown."
+        )
+
+
+def create_vae_based_module(
+    algorithm: Union[SupportedAlgorithm, str],
+    loss: Union[SupportedLoss, str],
+    architecture: Union[SupportedArchitecture, str],
+    algorithm_parameters: Optional[dict] = None,
+    model_parameters: Optional[dict] = None,
+    optimizer: Union[SupportedOptimizer, str] = "Adam",
+    optimizer_parameters: Optional[dict] = None,
+    lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
+    lr_scheduler_parameters: Optional[dict] = None,
+) -> Union[FCNModule, VAEModule]:
+    """Create a CAREamics Lightning module.
+
+    This function exposes parameters used to create an AlgorithmModel instance,
+    triggering parameters validation.
+
+    Parameters
+    ----------
+    algorithm : SupportedAlgorithm or str
+        Algorithm to use for training (see SupportedAlgorithm).
+    loss : SupportedLoss or str
+        Loss function to use for training (see SupportedLoss).
+    architecture : SupportedArchitecture or str
+        Model architecture to use for training (see SupportedArchitecture).
+    algorithm_parameters : dict, optional
+        Algorithm parameters to use for training, by default {}. e.g. likelihood module
+    model_parameters : dict, optional
+        Model parameters to use for training, by default {}. Model parameters are
+        defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
+        `careamics.config.architectures`).
+    optimizer : SupportedOptimizer or str, optional
+        Optimizer to use for training, by default "Adam" (see SupportedOptimizer).
+    optimizer_parameters : dict, optional
+        Optimizer parameters to use for training, as defined in `torch.optim`, by
+        default {}.
+    lr_scheduler : SupportedScheduler or str, optional
+        Learning rate scheduler to use for training, by default "ReduceLROnPlateau"
+        (see SupportedScheduler).
+    lr_scheduler_parameters : dict, optional
+        Learning rate scheduler parameters to use for training, as defined in
+        `torch.optim`, by default {}.
+
+    Returns
+    -------
+    CAREamicsModule
+        CAREamics Lightning module.
+    """
+    # TODO should use the same functions are in configuration_factory.py
+    # create an AlgorithmModel compatible dictionary
+    if lr_scheduler_parameters is None:
+        lr_scheduler_parameters = {}
+    if optimizer_parameters is None:
+        optimizer_parameters = {}
+    if model_parameters is None:
+        model_parameters = {}
+    algorithm_dict: dict[str, Any] = {
+        "algorithm": algorithm,
+        "loss": loss,
+        "optimizer": {
+            "name": optimizer,
+            "parameters": optimizer_parameters,
+        },
+        "lr_scheduler": {
+            "name": lr_scheduler,
+            "parameters": lr_scheduler_parameters,
+        },
+    }
+
+    model_dict = {"architecture": architecture}
+    model_dict.update(model_parameters)
+
+    # add model parameters to algorithm configuration
+    algorithm_dict["model"] = model_dict
+
+    which_algo = algorithm_dict["algorithm"]
+    if which_algo in VAEBasedAlgorithm.get_compatible_algorithms():
         algorithm_cfg = algorithm_factory(algorithm_dict)
         # TODO add support for MicroSplit
         return VAEModule(algorithm_cfg)

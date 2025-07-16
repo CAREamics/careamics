@@ -1,13 +1,12 @@
 """HDN algorithm configuration."""
 
-from typing import Annotated, Literal
+from typing import Literal
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import ConfigDict
 
 from careamics.config.algorithms.vae_algorithm_model import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEModel
-from careamics.config.loss_model import HDNLossConfig
 
 HDN = "HDN"
 

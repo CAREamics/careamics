@@ -47,7 +47,7 @@ class VAEBasedAlgorithm(BaseModel):
     model: LVAEModel
     noise_model: Optional[MultiChannelNMConfig] = None
     noise_model_likelihood: Optional[NMLikelihoodConfig] = None
-    gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None
+    gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None # TODO change to str
 
     mmse_count: int = 1
     is_supervised: bool = False
