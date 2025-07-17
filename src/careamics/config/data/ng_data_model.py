@@ -22,13 +22,11 @@ from typing_extensions import Self
 from careamics.config.transformations import NORM_AND_SPATIAL_UNION
 
 from ..transformations import (
-    MeanStdNormModel,
-    NoNormModel,
-    QuantileNormModel,
     XYFlipModel,
     XYRandomRotate90Model,
 )
 from ..validators import check_axes_validity
+from .normalization import MeanStdNormModel, NormalizationStrategies
 from .patching_strategies import (
     RandomPatchingModel,
     TiledPatchingModel,
@@ -75,13 +73,6 @@ PatchingStrategies = Union[
     WholePatchingModel,
 ]
 """Patching strategies."""
-
-NormalizationStrategies = Union[
-    MeanStdNormModel,
-    NoNormModel,
-    QuantileNormModel,
-]
-"""Normalization strategies."""
 
 
 class NGDataConfig(BaseModel):
@@ -322,29 +313,6 @@ class NGDataConfig(BaseModel):
                 raise ValueError(
                     f"`patch_size` in `patching` must have 2 dimensions if the data is"
                     f" 3D, got axes {self.axes})."
-                )
-
-        return self
-
-    @model_validator(mode="after")
-    def validate_normalization(self: Self) -> Self:
-        """
-        Validate the normalization strategy.
-
-        Returns
-        -------
-        Self
-            Validated data model.
-        """
-        if self.normalization.name == "quantile":
-            if self.normalization.lower is None or self.normalization.upper is None:
-                raise ValueError(
-                    "Lower and upper quantile values must be specified for quantile "
-                    "normalization."
-                )
-            if self.normalization.lower >= self.normalization.upper:
-                raise ValueError(
-                    "Lower quantile value must be less than upper quantile value."
                 )
 
         return self
