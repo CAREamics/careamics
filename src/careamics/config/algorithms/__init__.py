@@ -2,9 +2,9 @@
 
 __all__ = [
     "CAREAlgorithm",
+    "HDNAlgorithm",
     "N2NAlgorithm",
     "N2VAlgorithm",
-    "HDNAlgorithm",
     "UNetBasedAlgorithm",
     "VAEBasedAlgorithm",
 ]

@@ -33,7 +33,6 @@ class HDNAlgorithm(VAEBasedAlgorithm):
 
     is_supervised: bool = False
 
-
     def get_algorithm_friendly_name(self) -> str:
         """
         Get the algorithm friendly name.

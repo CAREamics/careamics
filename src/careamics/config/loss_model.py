@@ -56,4 +56,3 @@ class LVAELossConfig(BaseModel):
     """Whether to sample latents and compute KL."""
 
     # TODO what are the correct parameters for HDN ?
-
