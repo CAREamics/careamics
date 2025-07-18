@@ -1,7 +1,7 @@
 """CAREamics Lightning module."""
 
 from collections.abc import Callable
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -92,7 +92,7 @@ class FCNModule(L.LightningModule):
         # create preprocessing, model and loss function
         if isinstance(algorithm_config, N2VAlgorithm):
             self.use_n2v = True
-            self.n2v_preprocess: Optional[N2VManipulateTorch] = N2VManipulateTorch(
+            self.n2v_preprocess: N2VManipulateTorch | None = N2VManipulateTorch(
                 n2v_manipulate_config=algorithm_config.n2v_config
             )
         else:
@@ -337,18 +337,18 @@ class VAEModule(L.LightningModule):
         # supervised_mode
         self.supervised_mode = self.algorithm_config.is_supervised
         # create loss function
-        self.noise_model: Optional[NoiseModel] = noise_model_factory(
+        self.noise_model: NoiseModel | None = noise_model_factory(
             self.algorithm_config.noise_model
         )
 
-        self.noise_model_likelihood: Optional[NoiseModelLikelihood] = (
+        self.noise_model_likelihood: NoiseModelLikelihood | None = (
             likelihood_factory(
                 config=self.algorithm_config.noise_model_likelihood,
                 noise_model=self.noise_model,
             )
         )
 
-        self.gaussian_likelihood: Optional[GaussianLikelihood] = likelihood_factory(
+        self.gaussian_likelihood: GaussianLikelihood | None = likelihood_factory(
             self.algorithm_config.gaussian_likelihood
         )
 
@@ -384,7 +384,7 @@ class VAEModule(L.LightningModule):
 
     def training_step(
         self, batch: tuple[Tensor, Tensor], batch_idx: Any
-    ) -> Optional[dict[str, Tensor]]:
+    ) -> dict[str, Tensor] | None:
         """Training step.
 
         Parameters
@@ -648,7 +648,7 @@ class VAEModule(L.LightningModule):
             for i in range(out_channels)
         ]
 
-    def reduce_running_psnr(self) -> Optional[float]:
+    def reduce_running_psnr(self) -> float | None:
         """Reduce the running PSNR statistics and reset the running PSNR.
 
         Returns
