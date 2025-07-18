@@ -17,6 +17,7 @@ __all__ = [
     "MultiChannelNMConfig",
     "N2NAlgorithm",
     "N2VAlgorithm",
+    "HDNAlgorithm",
     "TrainingConfig",
     "UNetBasedAlgorithm",
     "VAEBasedAlgorithm",
@@ -24,12 +25,14 @@ __all__ = [
     "create_care_configuration",
     "create_n2n_configuration",
     "create_n2v_configuration",
+    "create_hdn_configuration",
     "load_configuration",
     "save_configuration",
 ]
 
 from .algorithms import (
     CAREAlgorithm,
+    HDNAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
     UNetBasedAlgorithm,
@@ -40,6 +43,7 @@ from .configuration import Configuration
 from .configuration_factories import (
     algorithm_factory,
     create_care_configuration,
+    create_hdn_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )

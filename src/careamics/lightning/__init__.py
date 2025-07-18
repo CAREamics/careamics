@@ -7,18 +7,12 @@ __all__ = [
     "ProgressBarCallback",
     "TrainDataModule",
     "VAEModule",
-    "create_unet_based_module",
-    "create_vae_based_module",
+    "create_careamics_module",
     "create_predict_datamodule",
     "create_train_datamodule",
 ]
 
 from .callbacks import HyperParametersCallback, ProgressBarCallback
-from .lightning_module import (
-    FCNModule,
-    VAEModule,
-    create_unet_based_module,
-    create_vae_based_module,
-)
+from .lightning_module import FCNModule, VAEModule, create_careamics_module
 from .predict_data_module import PredictDataModule, create_predict_datamodule
 from .train_data_module import TrainDataModule, create_train_datamodule

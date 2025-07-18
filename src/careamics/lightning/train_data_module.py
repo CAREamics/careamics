@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Any, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -121,10 +121,10 @@ class TrainDataModule(L.LightningDataModule):
         self,
         data_config: DataConfig,
         train_data: Union[Path, str, NDArray],
-        val_data: Union[Path, str, NDArray] | None = None,
-        train_data_target: Union[Path, str, NDArray] | None = None,
-        val_data_target: Union[Path, str, NDArray] | None = None,
-        read_source_func: Callable | None = None,
+        val_data: Optional[Union[Path, str, NDArray]] = None,
+        train_data_target: Optional[Union[Path, str, NDArray]] = None,
+        val_data_target: Optional[Union[Path, str, NDArray]] = None,
+        read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         val_percentage: float = 0.1,
         val_minimum_split: int = 5,
@@ -477,15 +477,16 @@ def create_train_datamodule(
     patch_size: list[int],
     axes: str,
     batch_size: int,
-    val_data: Union[str, Path, NDArray] | None = None,
-    transforms: list[TransformModel] | None = None,
-    train_target_data: Union[str, Path, NDArray] | None = None,
-    val_target_data: Union[str, Path, NDArray] | None = None,
-    read_source_func: Callable | None = None,
+    val_data: Optional[Union[str, Path, NDArray]] = None,
+    transforms: Optional[list[TransformModel]] = None,
+    train_target_data: Optional[Union[str, Path, NDArray]] = None,
+    val_target_data: Optional[Union[str, Path, NDArray]] = None,
+    read_source_func: Optional[Callable] = None,
     extension_filter: str = "",
     val_percentage: float = 0.1,
     val_minimum_patches: int = 5,
-    dataloader_params: dict | None = None,
+    train_dataloader_params: Optional[dict] = None,
+    val_dataloader_params: Optional[dict] = None,
     use_in_memory: bool = True,
 ) -> TrainDataModule:
     """Create a TrainDataModule.
@@ -617,8 +618,11 @@ def create_train_datamodule(
     ...     transforms=my_transforms,
     ... )
     """
-    if dataloader_params is None:
-        dataloader_params = {}
+    if train_dataloader_params is None:
+        train_dataloader_params = {}
+
+    if val_dataloader_params is None:
+        val_dataloader_params = {}
 
     data_dict: dict[str, Any] = {
         "mode": "train",
@@ -626,7 +630,8 @@ def create_train_datamodule(
         "patch_size": patch_size,
         "axes": axes,
         "batch_size": batch_size,
-        "dataloader_params": dataloader_params,
+        "train_dataloader_params": train_dataloader_params,
+        "val_dataloader_params": val_dataloader_params,
     }
 
     # if transforms are passed (otherwise it will use the default ones)
@@ -637,9 +642,13 @@ def create_train_datamodule(
     data_config = DataConfig(**data_dict)
 
     # sanity check on the dataloader parameters
-    if "batch_size" in dataloader_params:
+    if "batch_size" in train_dataloader_params:
         # remove it
-        del dataloader_params["batch_size"]
+        del train_dataloader_params["batch_size"]
+
+    if "batch_size" in val_dataloader_params:
+        # remove it
+        del val_dataloader_params["batch_size"]
 
     return TrainDataModule(
         data_config=data_config,

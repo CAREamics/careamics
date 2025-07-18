@@ -1,4 +1,4 @@
-"""N2V Algorithm configuration."""
+""""N2V Algorithm configuration."""
 
 from typing import Annotated, Literal
 

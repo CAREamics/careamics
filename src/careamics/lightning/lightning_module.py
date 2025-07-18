@@ -1,11 +1,11 @@
 """CAREamics Lightning module."""
 
 from collections.abc import Callable
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
-from torch import Tensor, nn
+from torch import Tensor, nn, stack
 
 from careamics.config import (
     N2VAlgorithm,
@@ -71,7 +71,9 @@ class FCNModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: Union[UNetBasedAlgorithm, dict]) -> None:
+    def __init__(
+        self, algorithm_config: Union[UNetBasedAlgorithm, VAEBasedAlgorithm, dict]
+    ) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
@@ -90,7 +92,7 @@ class FCNModule(L.LightningModule):
         # create preprocessing, model and loss function
         if isinstance(algorithm_config, N2VAlgorithm):
             self.use_n2v = True
-            self.n2v_preprocess: N2VManipulateTorch | None = N2VManipulateTorch(
+            self.n2v_preprocess: Optional[N2VManipulateTorch] = N2VManipulateTorch(
                 n2v_manipulate_config=algorithm_config.n2v_config
             )
         else:
@@ -332,17 +334,21 @@ class VAEModule(L.LightningModule):
         # create model
         self.model: nn.Module = model_factory(self.algorithm_config.model)
 
+        # supervised_mode
+        self.supervised_mode = self.algorithm_config.is_supervised
         # create loss function
-        self.noise_model: NoiseModel | None = noise_model_factory(
+        self.noise_model: Optional[NoiseModel] = noise_model_factory(
             self.algorithm_config.noise_model
         )
 
-        self.noise_model_likelihood: NoiseModelLikelihood | None = likelihood_factory(
-            config=self.algorithm_config.noise_model_likelihood,
-            noise_model=self.noise_model,
+        self.noise_model_likelihood: Optional[NoiseModelLikelihood] = (
+            likelihood_factory(
+                config=self.algorithm_config.noise_model_likelihood,
+                noise_model=self.noise_model,
+            )
         )
 
-        self.gaussian_likelihood: GaussianLikelihood | None = likelihood_factory(
+        self.gaussian_likelihood: Optional[GaussianLikelihood] = likelihood_factory(
             self.algorithm_config.gaussian_likelihood
         )
 
@@ -378,7 +384,7 @@ class VAEModule(L.LightningModule):
 
     def training_step(
         self, batch: tuple[Tensor, Tensor], batch_idx: Any
-    ) -> dict[str, Tensor] | None:
+    ) -> Optional[dict[str, Tensor]]:
         """Training step.
 
         Parameters
@@ -397,10 +403,16 @@ class VAEModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, target = batch
+        x, *target = batch
 
         # Forward pass
         out = self.model(x)
+        if not self.supervised_mode:
+            target = x
+        else:
+            target = target[
+                0
+            ]  # hacky way to unpack. #TODO maybe should be fixed on the dataset level
 
         # Update loss parameters
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
@@ -417,7 +429,16 @@ class VAEModule(L.LightningModule):
         # Logging
         # TODO: implement a separate logging method?
         self.log_dict(loss, on_step=True, on_epoch=True)
-        # self.log("lr", self, on_epoch=True)
+
+        try:
+            optimizer = self.optimizers()
+            current_lr = optimizer.param_groups[0]["lr"]
+            self.log(
+                "learning_rate", current_lr, on_step=False, on_epoch=True, logger=True
+            )
+        except RuntimeError:
+            # This happens when the module is not attached to a trainer, e.g., in tests
+            pass
         return loss
 
     def validation_step(self, batch: tuple[Tensor, Tensor], batch_idx: Any) -> None:
@@ -434,11 +455,16 @@ class VAEModule(L.LightningModule):
         batch_idx : Any
             Batch index.
         """
-        x, target = batch
+        x, *target = batch
 
         # Forward pass
         out = self.model(x)
-
+        if not self.supervised_mode:
+            target = x
+        else:
+            target = target[
+                0
+            ]  # hacky way to unpack. #TODO maybe should be fixed on the datasel level
         # Compute loss
         loss = self.loss_func(
             model_outputs=out,
@@ -480,35 +506,55 @@ class VAEModule(L.LightningModule):
             Model output.
         """
         if self._trainer.datamodule.tiled:
+            # TODO tile_size should match model input size
             x, *aux = batch
+            x = (
+                x[0] if isinstance(x, list | tuple) else x
+            )  # TODO ugly, so far i don't know why x might be a list
+            self.model.reset_for_inference(x.shape)  # TODO should it be here ?
         else:
-            x = batch
+            x = batch[0] if isinstance(batch, list | tuple) else batch
             aux = []
+            self.model.reset_for_inference(x.shape)
 
-        # apply test-time augmentation if available
-        # TODO: probably wont work with batch size > 1
-        if self._trainer.datamodule.prediction_config.tta_transforms:
-            tta = ImageRestorationTTA()
-            augmented_batch = tta.forward(x)  # list of augmented tensors
-            augmented_output = []
-            for augmented in augmented_batch:
-                augmented_pred = self.model(augmented)
-                augmented_output.append(augmented_pred)
-            output = tta.backward(augmented_output)
-        else:
-            output = self.model(x)
+        mmse_list = []
+        for _ in range(self.algorithm_config.mmse_count):
+            # apply test-time augmentation if available
+            if self._trainer.datamodule.prediction_config.tta_transforms:
+                tta = ImageRestorationTTA()
+                augmented_batch = tta.forward(x)  # list of augmented tensors
+                augmented_output = []
+                for augmented in augmented_batch:
+                    augmented_pred = self.model(augmented)
+                    augmented_output.append(augmented_pred)
+                output = tta.backward(augmented_output)
+            else:
+                output = self.model(x)
 
+            # taking the 1st element of the output, 2nd is std if
+            # predict_logvar=="pixelwise"
+            output = (
+                output[0]
+                if self.model.predict_logvar is None
+                else output[0][:, 0:1, ...]
+            )
+            mmse_list.append(output)
+
+        mmse = stack(mmse_list).mean(0)
+        std = stack(mmse_list).std(0)  # TODO why?
+        # TODO better way to unpack if pred logvar
         # Denormalize the output
         denorm = Denormalize(
             image_means=self._trainer.datamodule.predict_dataset.image_means,
             image_stds=self._trainer.datamodule.predict_dataset.image_stds,
         )
-        denormalized_output = denorm(patch=output.cpu().numpy())
+
+        denormalized_output = denorm(patch=mmse.cpu().numpy())
 
         if len(aux) > 0:  # aux can be tiling information
-            return denormalized_output, *aux
+            return denormalized_output, std, *aux
         else:
-            return denormalized_output
+            return denormalized_output, std
 
     def configure_optimizers(self) -> Any:
         """Configure optimizers and learning rate schedulers.
@@ -581,6 +627,7 @@ class VAEModule(L.LightningModule):
         list[float]
             PSNR for each channel in the current batch.
         """
+        # TODO check this! Related to is_supervised which is also wacky
         out_channels = target.shape[1]
 
         # get the reconstructed image
@@ -601,7 +648,7 @@ class VAEModule(L.LightningModule):
             for i in range(out_channels)
         ]
 
-    def reduce_running_psnr(self) -> float | None:
+    def reduce_running_psnr(self) -> Optional[float]:
         """Reduce the running PSNR statistics and reset the running PSNR.
 
         Returns
@@ -624,16 +671,19 @@ class VAEModule(L.LightningModule):
         return psnr
 
 
-def create_unet_based_module(
+# TODO: make this LVAE compatible (?)
+def create_careamics_module(
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
-    algorithm_parameters: Optional[dict] = None,
-    model_parameters: Optional[dict] = None,
+    use_n2v2: bool = False,
+    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
+    struct_n2v_span: int = 5,
+    model_parameters: dict | None = None,
     optimizer: Union[SupportedOptimizer, str] = "Adam",
-    optimizer_parameters: Optional[dict] = None,
+    optimizer_parameters: dict | None = None,
     lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
-    lr_scheduler_parameters: Optional[dict] = None,
+    lr_scheduler_parameters: dict | None = None,
 ) -> Union[FCNModule, VAEModule]:
     """Create a CAREamics Lightning module.
 
@@ -648,8 +698,12 @@ def create_unet_based_module(
         Loss function to use for training (see SupportedLoss).
     architecture : SupportedArchitecture or str
         Model architecture to use for training (see SupportedArchitecture).
-    algorithm_parameters : dict, optional
-        Algorithm parameters to use for training, by default {}. E.g.: use_n2v2,
+    use_n2v2 : bool, default=False
+        Whether to use N2V2 or Noise2Void.
+    struct_n2v_axis : "horizontal", "vertical", or "none", default="none"
+        Axis of the StructN2V mask.
+    struct_n2v_span : int, default=5
+        Span of the StructN2V mask.
     model_parameters : dict, optional
         Model parameters to use for training, by default {}. Model parameters are
         defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
@@ -679,7 +733,6 @@ def create_unet_based_module(
         optimizer_parameters = {}
     if model_parameters is None:
         model_parameters = {}
-
     algorithm_dict: dict[str, Any] = {
         "algorithm": algorithm,
         "loss": loss,
@@ -705,105 +758,11 @@ def create_unet_based_module(
 
         # if use N2V
         if isinstance(algorithm_cfg, N2VAlgorithm):
-            algorithm_cfg.n2v_config.struct_mask_axis = (
-                algorithm_parameters["struct_mask_axis"]
-                if algorithm_parameters
-                else "none"
-            )
-            algorithm_cfg.n2v_config.struct_mask_span = (
-                algorithm_parameters["struct_n2v_span"] if algorithm_parameters else 5
-            )
-            use_n2v2 = (
-                algorithm_parameters["use_n2v2"] if algorithm_parameters else False
-            )
+            algorithm_cfg.n2v_config.struct_mask_axis = struct_n2v_axis
+            algorithm_cfg.n2v_config.struct_mask_span = struct_n2v_span
             algorithm_cfg.set_n2v2(use_n2v2)
 
         return FCNModule(algorithm_cfg)
-    else:
-        raise NotImplementedError(
-            f"Algorithm {which_algo} is not implemented or unknown."
-        )
-
-
-def create_vae_based_module(
-    algorithm: Union[SupportedAlgorithm, str],
-    loss: Union[SupportedLoss, str],
-    architecture: Union[SupportedArchitecture, str],
-    algorithm_parameters: Optional[dict] = None,
-    model_parameters: Optional[dict] = None,
-    optimizer: Union[SupportedOptimizer, str] = "Adam",
-    optimizer_parameters: Optional[dict] = None,
-    lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
-    lr_scheduler_parameters: Optional[dict] = None,
-) -> Union[FCNModule, VAEModule]:
-    """Create a CAREamics Lightning module.
-
-    This function exposes parameters used to create an AlgorithmModel instance,
-    triggering parameters validation.
-
-    Parameters
-    ----------
-    algorithm : SupportedAlgorithm or str
-        Algorithm to use for training (see SupportedAlgorithm).
-    loss : SupportedLoss or str
-        Loss function to use for training (see SupportedLoss).
-    architecture : SupportedArchitecture or str
-        Model architecture to use for training (see SupportedArchitecture).
-    algorithm_parameters : dict, optional
-        Algorithm parameters to use for training, by default {}. #TODO which ones?
-    model_parameters : dict, optional
-        Model parameters to use for training, by default {}. Model parameters are
-        defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
-        `careamics.config.architectures`).
-    optimizer : SupportedOptimizer or str, optional
-        Optimizer to use for training, by default "Adam" (see SupportedOptimizer).
-    optimizer_parameters : dict, optional
-        Optimizer parameters to use for training, as defined in `torch.optim`, by
-        default {}.
-    lr_scheduler : SupportedScheduler or str, optional
-        Learning rate scheduler to use for training, by default "ReduceLROnPlateau"
-        (see SupportedScheduler).
-    lr_scheduler_parameters : dict, optional
-        Learning rate scheduler parameters to use for training, as defined in
-        `torch.optim`, by default {}.
-
-    Returns
-    -------
-    CAREamicsModule
-        CAREamics Lightning module.
-    """
-    # TODO should use the same functions are in configuration_factory.py
-    # create an AlgorithmModel compatible dictionary
-    if lr_scheduler_parameters is None:
-        lr_scheduler_parameters = {}
-    if optimizer_parameters is None:
-        optimizer_parameters = {}
-    if model_parameters is None:
-        model_parameters = {}
-    algorithm_dict: dict[str, Any] = {
-        "algorithm": algorithm,
-        "loss": loss,
-        "optimizer": {
-            "name": optimizer,
-            "parameters": optimizer_parameters,
-        },
-        "lr_scheduler": {
-            "name": lr_scheduler,
-            "parameters": lr_scheduler_parameters,
-        },
-    }
-
-    model_dict = {"architecture": architecture}
-    model_dict.update(model_parameters)
-
-    # add model parameters to algorithm configuration
-    algorithm_dict["model"] = model_dict
-
-    which_algo = algorithm_dict["algorithm"]
-    if which_algo in VAEBasedAlgorithm.get_compatible_algorithms():
-        algorithm_cfg = algorithm_factory(algorithm_dict)
-        # TODO add support for MicroSplit
-        return VAEModule(algorithm_cfg)
     else:
         raise NotImplementedError(
             f"Algorithm {which_algo} is not implemented or unknown."
