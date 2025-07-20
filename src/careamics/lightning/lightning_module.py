@@ -2,7 +2,6 @@
 
 from collections.abc import Callable
 from typing import Any, Literal, Union
-from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -342,11 +341,9 @@ class VAEModule(L.LightningModule):
             self.algorithm_config.noise_model
         )
 
-        self.noise_model_likelihood: NoiseModelLikelihood | None = (
-            likelihood_factory(
-                config=self.algorithm_config.noise_model_likelihood,
-                noise_model=self.noise_model,
-            )
+        self.noise_model_likelihood: NoiseModelLikelihood | None = likelihood_factory(
+            config=self.algorithm_config.noise_model_likelihood,
+            noise_model=self.noise_model,
         )
 
         self.gaussian_likelihood: GaussianLikelihood | None = likelihood_factory(
