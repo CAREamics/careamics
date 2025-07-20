@@ -619,10 +619,10 @@ def create_train_datamodule(
     ... )
     """
     if train_dataloader_params is None:
-        train_dataloader_params = {}
+        train_dataloader_params = {"shuffle": True}
 
     if val_dataloader_params is None:
-        val_dataloader_params = {}
+        val_dataloader_params = {"shuffle": False}
 
     data_dict: dict[str, Any] = {
         "mode": "train",

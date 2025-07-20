@@ -4,7 +4,7 @@ import torch
 from careamics.config import UNetBasedAlgorithm
 from careamics.lightning.lightning_module import (
     FCNModule,
-    create_unet_based_module,
+    create_careamics_module,
 )
 
 # TODO: rename to test_FCN_lightining_module.py
@@ -19,7 +19,7 @@ def test_careamics_module(minimum_algorithm_n2v):
     model_parameters = algo_config.model.model_dump(exclude_none=True)
 
     # instantiate FCNModule
-    create_unet_based_module(
+    create_careamics_module(
         algorithm=algo_config.algorithm,
         loss=algo_config.loss,
         architecture=algo_config.model.architecture,

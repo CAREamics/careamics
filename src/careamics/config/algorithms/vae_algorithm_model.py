@@ -50,6 +50,7 @@ class VAEBasedAlgorithm(BaseModel):
     gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None # TODO change to str
 
     mmse_count: int = 1
+    is_supervised: bool = False
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()

@@ -16,9 +16,9 @@ from careamics.config import Configuration
 from careamics.config.support import SupportedData
 from careamics.dataset import IterablePredDataset
 from careamics.lightning import (
+    create_careamics_module,
     create_predict_datamodule,
     create_train_datamodule,
-    create_unet_based_module,
 )
 from careamics.lightning.callbacks import PredictionWriterCallback
 from careamics.lightning.callbacks.prediction_writer_callback import (
@@ -69,7 +69,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     cfg = Configuration(**minimum_n2v_configuration)
 
     # create lightning module
-    model = create_unet_based_module(
+    model = create_careamics_module(
         algorithm=cfg.algorithm_config.algorithm,
         loss=cfg.algorithm_config.loss,
         architecture=cfg.algorithm_config.model.architecture,
@@ -148,7 +148,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
     cfg = Configuration(**minimum_n2v_configuration)
 
     # create lightning module
-    model = create_unet_based_module(
+    model = create_careamics_module(
         algorithm=cfg.algorithm_config.algorithm,
         loss=cfg.algorithm_config.loss,
         architecture=cfg.algorithm_config.model.architecture,
