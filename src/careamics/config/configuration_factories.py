@@ -1,7 +1,7 @@
 """Convenience functions to create configurations for training and inference."""
 
 from collections.abc import Sequence
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import Field, TypeAdapter
 
@@ -1300,7 +1300,7 @@ def _create_vae_configuration(
     ],
     predict_logvar: Literal[None, "pixelwise"],
     analytical_kl: bool,
-    model_params: Optional[dict[str, Any]] = None,
+    model_params: dict[str, Any] | None = None,
 ) -> LVAEModel:
     """Create a dictionary with the parameters of the vae based algorithm model.
 
@@ -1381,9 +1381,9 @@ def _create_vae_based_algorithm(
     ],
     predict_logvar: Literal[None, "pixelwise"],
     analytical_kl: bool,
-    gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None,
-    nm_likelihood: Optional[NMLikelihoodConfig] = None,
-    model_params: Optional[dict[str, Any]] = None,
+    gaussian_likelihood: GaussianLikelihoodConfig | None = None,
+    nm_likelihood: NMLikelihoodConfig | None = None,
+    model_params: dict[str, Any] | None = None,
 ) -> dict:
     """
     Create a dictionary with the parameters of the VAE-based algorithm model.
@@ -1480,13 +1480,13 @@ def create_hdn_configuration(
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = "ReLU",
     analytical_kl: bool = False,
-    predict_logvar: Optional[Literal["pixelwise"]] = None,
+    predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_params: Optional[dict] = None,
-    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
-    train_dataloader_params: Optional[dict[str, Any]] = None,
-    val_dataloader_params: Optional[dict[str, Any]] = None,
+    model_params: dict | None = None,
+    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
 ) -> Configuration:
     """
     Create a configuration for training HDN.
