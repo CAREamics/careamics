@@ -34,9 +34,9 @@ from careamics.models.lvae.noise_models import (
 )
 from careamics.models.model_factory import model_factory
 from careamics.transforms import (
-    Denormalize,
     ImageRestorationTTA,
     N2VManipulateTorch,
+    Standardize,
 )
 from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
@@ -239,7 +239,7 @@ class FCNModule(L.LightningModule):
 
         # Denormalize the output
         # TODO incompatible API between predict and train datasets
-        denorm = Denormalize(
+        normalization = Standardize(
             image_means=(
                 self._trainer.datamodule.predict_dataset.image_means
                 if from_prediction
@@ -251,7 +251,7 @@ class FCNModule(L.LightningModule):
                 else self._trainer.datamodule.train_dataset.image_stats.stds
             ),
         )
-        denormalized_output = denorm(patch=output.cpu().numpy())
+        denormalized_output = normalization.denormalize(patch=output.cpu().numpy())
 
         if len(aux) > 0:  # aux can be tiling information
             return denormalized_output, *aux
@@ -501,11 +501,11 @@ class VAEModule(L.LightningModule):
             output = self.model(x)
 
         # Denormalize the output
-        denorm = Denormalize(
+        normalization = Standardize(
             image_means=self._trainer.datamodule.predict_dataset.image_means,
             image_stds=self._trainer.datamodule.predict_dataset.image_stds,
         )
-        denormalized_output = denorm(patch=output.cpu().numpy())
+        denormalized_output = normalization.denormalize(patch=output.cpu().numpy())
 
         if len(aux) > 0:  # aux can be tiling information
             return denormalized_output, *aux

@@ -11,7 +11,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from careamics.config import DataConfig
-from careamics.config.transformations import NormalizeModel
+from careamics.config.transformations import StandardizeModel
 from careamics.dataset.patching.patching import (
     PatchedOutput,
     Stats,
@@ -117,7 +117,7 @@ class InMemoryDataset(Dataset):
         # get transforms
         self.patch_transform = Compose(
             transform_list=[
-                NormalizeModel(
+                StandardizeModel(
                     image_means=self.image_stats.means,
                     image_stds=self.image_stats.stds,
                     target_means=self.target_stats.means,

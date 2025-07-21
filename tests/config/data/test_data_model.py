@@ -6,7 +6,7 @@ from careamics.config.data.data_model import DataConfig
 from careamics.config.support import (
     SupportedTransform,
 )
-from careamics.config.transformations import NormalizeModel
+from careamics.config.transformations import StandardizeModel
 from careamics.transforms import get_all_transforms
 
 
@@ -84,7 +84,7 @@ def test_normalize_not_accepted(minimum_data: dict):
     minimum_data["image_means"] = [10.4]
     minimum_data["image_stds"] = [3.2]
     minimum_data["transforms"] = [
-        NormalizeModel(image_means=[0.485], image_stds=[0.229])
+        StandardizeModel(image_means=[0.485], image_stds=[0.229])
     ]
 
     with pytest.raises(ValueError):

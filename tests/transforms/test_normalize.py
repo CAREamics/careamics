@@ -3,8 +3,8 @@ import pytest
 
 from careamics.dataset.dataset_utils.running_stats import compute_normalization_stats
 from careamics.dataset.patching.patching import Stats
-from careamics.transforms import Denormalize, Normalize
-from careamics.transforms.normalize import _reshape_stats
+from careamics.transforms import NoNormalization, Standardize
+from careamics.transforms.normalization.standardization import _reshape_stats
 
 
 @pytest.mark.parametrize("ndim", [3, 4])
@@ -51,7 +51,7 @@ def test_normalize_denormalize(channels):
     means, stds = compute_normalization_stats(image=array)
 
     # Create the transform
-    norm = Normalize(
+    norm = Standardize(
         image_means=means,
         image_stds=stds,
     )
@@ -61,14 +61,10 @@ def test_normalize_denormalize(channels):
     assert np.abs(normalized.mean()) < 0.02
     assert np.abs(normalized.std() - 1) < 0.2
 
-    # Create the denormalize transform
-    denorm = Denormalize(
-        image_means=means,
-        image_stds=stds,
-    )
-
     # Apply the denormalize transform
-    denormalized = denorm(patch=normalized[np.newaxis, ...])  # need to add batch dim
+    denormalized = norm.denormalize(
+        patch=normalized[np.newaxis, ...]
+    )  # need to add batch dim
     assert np.isclose(denormalized, array, atol=1e-6).all()
 
 
@@ -84,7 +80,7 @@ def test_transform_additional_arrays_not_implemented(ordered_array):
     means, stds = compute_normalization_stats(image=array)
 
     # Create the transform
-    norm = Normalize(
+    norm = Standardize(
         image_means=means,
         image_stds=stds,
     )
@@ -100,7 +96,7 @@ def test_normalize_empty_stats():
     target_stats = Stats((), ())
 
     with pytest.raises(ValueError):
-        norm = Normalize(
+        norm = Standardize(
             image_means=input_stats.means,
             image_stds=input_stats.stds,
             target_means=target_stats.means,
@@ -109,10 +105,20 @@ def test_normalize_empty_stats():
         norm(input_array, target_array)
 
     with pytest.raises(ValueError):
-        norm = Normalize(
+        norm = Standardize(
             image_means=input_stats.means,
             image_stds=input_stats.stds,
             target_means=None,
             target_stds=None,
         )
         norm(input_array, target_array)
+
+
+@pytest.mark.parametrize("channels", [1, 2])
+def test_no_normalization(channels):
+    array = np.arange(100 * channels).reshape((1, channels, 10, 10))
+    no_norm = NoNormalization()
+    normalized, *_ = no_norm(patch=array[0])
+    assert np.isclose(normalized, array).all()
+    denormalized_patch = no_norm.denormalize(patch=normalized[None,])
+    assert np.isclose(denormalized_patch, array).all()

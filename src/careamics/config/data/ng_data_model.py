@@ -19,14 +19,14 @@ from pydantic import (
 )
 from typing_extensions import Self
 
-from careamics.config.transformations import NORM_AND_SPATIAL_UNION
-
 from ..transformations import (
+    NORM_AND_SPATIAL_UNION,
+    NORMALIZATION_UNION,
+    StandardizeModel,
     XYFlipModel,
     XYRandomRotate90Model,
 )
 from ..validators import check_axes_validity
-from .normalization import MeanStdNormModel, NormalizationStrategies
 from .patching_strategies import (
     RandomPatchingModel,
     TiledPatchingModel,
@@ -111,10 +111,8 @@ class NGDataConfig(BaseModel):
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
 
-    normalization: NormalizationStrategies = Field(
-        default_factory=MeanStdNormModel, discriminator="name"
-    )
-    """Normalization strategy to use. Supports 'mean_std', 'none', and 'quantile'."""
+    normalization: NORMALIZATION_UNION = Field(..., discriminator="name")
+    """Normalization strategy to use. Supports 'standard' and 'none'."""
 
     # Optional fields
     batch_size: int = Field(default=1, ge=1, validate_default=True)
@@ -279,6 +277,22 @@ class NGDataConfig(BaseModel):
                     "target channel."
                 )
 
+        return self
+
+    @model_validator(mode="after")
+    def set_default_normalization(self: Self) -> Self:
+        """
+        Set default normalization if not provided.
+
+        Returns
+        -------
+        Self
+            Validated data model.
+        """
+        if self.normalization is None:
+            self.normalization = StandardizeModel(
+                self.image_means, self.image_stds, self.target_means, self.target_stds
+            )
         return self
 
     @model_validator(mode="after")

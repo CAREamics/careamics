@@ -11,7 +11,7 @@ import numpy as np
 from torch.utils.data import IterableDataset
 
 from careamics.config import DataConfig
-from careamics.config.transformations import NormalizeModel
+from careamics.config.transformations import StandardizeModel
 from careamics.file_io.read import read_tiff
 from careamics.transforms import Compose
 
@@ -108,7 +108,7 @@ class PathIterableDataset(IterableDataset):
         # create transform composed of normalization and other transforms
         self.patch_transform = Compose(
             transform_list=[
-                NormalizeModel(
+                StandardizeModel(
                     image_means=self.image_stats.means,
                     image_stds=self.image_stats.stds,
                     target_means=self.target_stats.means,

@@ -5,7 +5,8 @@ from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.transforms.transform import Transform
+from ..transform import Transform
+from .normalization_protocol import NormalizationProtocol
 
 
 def _reshape_stats(stats: list[float], ndim: int) -> NDArray:
@@ -29,7 +30,7 @@ def _reshape_stats(stats: list[float], ndim: int) -> NDArray:
     return np.array(stats)[(..., *[np.newaxis] * (ndim - 1))]
 
 
-class Normalize(Transform):
+class Standardize(NormalizationProtocol, Transform):
     """
     Normalize an image or image patch.
 
@@ -126,7 +127,7 @@ class Normalize(Transform):
         # reshape mean and std and apply the normalization to the patch
         means = _reshape_stats(self.image_means, patch.ndim)
         stds = _reshape_stats(self.image_stds, patch.ndim)
-        norm_patch = self._apply(patch, means, stds)
+        norm_patch = self._apply_normalization(patch, means, stds)
 
         # same for the target patch
         if target is None:
@@ -149,11 +150,13 @@ class Normalize(Transform):
                 )
             target_means = _reshape_stats(self.target_means, target.ndim)
             target_stds = _reshape_stats(self.target_stds, target.ndim)
-            norm_target = self._apply(target, target_means, target_stds)
+            norm_target = self._apply_normalization(target, target_means, target_stds)
 
         return norm_patch, norm_target, additional_arrays
 
-    def _apply(self, patch: NDArray, mean: NDArray, std: NDArray) -> NDArray:
+    def _apply_normalization(
+        self, patch: NDArray, mean: NDArray, std: NDArray
+    ) -> NDArray:
         """
         Apply the transform to the image.
 
@@ -173,47 +176,29 @@ class Normalize(Transform):
         """
         return ((patch - mean) / (std + self.eps)).astype(np.float32)
 
-
-class Denormalize:
-    """
-    Denormalize an image.
-
-    Denormalization is performed expecting a zero mean and unit variance input. This
-    transform expects C(Z)YX dimensions.
-
-    Note that an epsilon value of 1e-6 is added to the standard deviation to avoid
-    division by zero during the normalization step, which is taken into account during
-    denormalization.
-
-    Parameters
-    ----------
-    image_means : list or tuple of float
-        Mean value per channel.
-    image_stds : list or tuple of float
-        Standard deviation value per channel.
-
-    """
-
-    def __init__(
-        self,
-        image_means: list[float],
-        image_stds: list[float],
-    ):
-        """Constructor.
+    def _apply_denormalization(
+        self, array: NDArray, mean: NDArray, std: NDArray
+    ) -> NDArray:
+        """
+        Apply the transform to the image.
 
         Parameters
         ----------
-        image_means : list of float
-            Mean value per channel.
-        image_stds : list of float
-            Standard deviation value per channel.
+        array : NDArray
+            Image patch, 2D or 3D, shape BC(Z)YX.
+        mean : NDArray
+            Mean values.
+        std : NDArray
+            Standard deviations.
+
+        Returns
+        -------
+        NDArray
+            Denormalized image array.
         """
-        self.image_means = image_means
-        self.image_stds = image_stds
+        return array * (std + self.eps) + mean
 
-        self.eps = 1e-6
-
-    def __call__(self, patch: NDArray) -> NDArray:
+    def denormalize(self, patch: NDArray) -> NDArray:
         """Reverse the normalization operation for a batch of patches.
 
         Parameters
@@ -236,30 +221,10 @@ class Denormalize:
         means = _reshape_stats(self.image_means, patch.ndim)
         stds = _reshape_stats(self.image_stds, patch.ndim)
 
-        denorm_array = self._apply(
+        denorm_array = self._apply_denormalization(
             patch,
             np.swapaxes(means, 0, 1),  # swap axes as C channel is axis 1
             np.swapaxes(stds, 0, 1),
         )
 
         return denorm_array.astype(np.float32)
-
-    def _apply(self, array: NDArray, mean: NDArray, std: NDArray) -> NDArray:
-        """
-        Apply the transform to the image.
-
-        Parameters
-        ----------
-        array : NDArray
-            Image patch, 2D or 3D, shape C(Z)YX.
-        mean : NDArray
-            Mean values.
-        std : NDArray
-            Standard deviations.
-
-        Returns
-        -------
-        NDArray
-            Denormalized image array.
-        """
-        return array * (std + self.eps) + mean

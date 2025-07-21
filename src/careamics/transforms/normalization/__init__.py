@@ -1,11 +1,11 @@
 """Normalization types."""
 
 __all__ = [
-    "MeanStdNormalization",
     "NoNormalization",
-    "QuantileNormalization",
+    "Standardize",
+    "build_normalization_transform",
 ]
 
-from .mean_std_normalization import MeanStdNormalization
+from .factory import build_normalization_transform
 from .no_normalization import NoNormalization
-from .quantile_normalization import QuantileNormalization
+from .standardization import Standardize

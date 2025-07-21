@@ -12,7 +12,7 @@ from careamics.config import algorithm_factory
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.models.unet import UNet
-from careamics.transforms import Denormalize
+from careamics.transforms.normalization import build_normalization_transform
 from careamics.utils.logging import get_logger
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
@@ -171,13 +171,19 @@ class UnetModule(L.LightningModule):
         # TODO: add TTA
         prediction = self.model(x.data).cpu().numpy()
 
-        means = self._trainer.datamodule.stats.means
-        stds = self._trainer.datamodule.stats.stds
-        denormalize = Denormalize(
-            image_means=means,
-            image_stds=stds,
-        )
-        denormalized_output = denormalize(prediction)
+        normalization_config = None
+        if hasattr(self._trainer, "datamodule"):
+            if hasattr(self._trainer.datamodule, "train_dataset"):
+                normalization_config = (
+                    self._trainer.datamodule.train_dataset.normalization_config
+                )
+            elif hasattr(self._trainer.datamodule, "predict_dataset"):
+                normalization_config = (
+                    self._trainer.datamodule.predict_dataset.normalization_config
+                )
+
+        normalization_transform = build_normalization_transform(normalization_config)
+        denormalized_output = normalization_transform.denormalize(prediction)
 
         output_batch = ImageRegionData(
             data=denormalized_output,

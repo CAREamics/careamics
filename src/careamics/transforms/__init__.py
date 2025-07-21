@@ -2,11 +2,11 @@
 
 __all__ = [
     "Compose",
-    "Denormalize",
     "ImageRestorationTTA",
     "N2VManipulate",
     "N2VManipulateTorch",
-    "Normalize",
+    "NoNormalization",
+    "Standardize",
     "XYFlip",
     "XYRandomRotate90",
     "get_all_transforms",
@@ -15,7 +15,7 @@ __all__ = [
 from .compose import Compose, get_all_transforms
 from .n2v_manipulate import N2VManipulate
 from .n2v_manipulate_torch import N2VManipulateTorch
-from .normalize import Denormalize, Normalize
+from .normalization import NoNormalization, Standardize
 from .tta import ImageRestorationTTA
 from .xy_flip import XYFlip
 from .xy_random_rotate90 import XYRandomRotate90

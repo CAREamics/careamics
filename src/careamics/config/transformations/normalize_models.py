@@ -8,7 +8,7 @@ from typing_extensions import Self
 from .transform_model import TransformModel
 
 
-class NormalizeModel(TransformModel):
+class StandardizeModel(TransformModel):
     """
     Pydantic model used to represent Normalize transformation.
 
@@ -28,7 +28,7 @@ class NormalizeModel(TransformModel):
         validate_assignment=True,
     )
 
-    name: Literal["Normalize"] = "Normalize"
+    name: Literal["standard"] = "standard"
     image_means: list = Field(..., min_length=0, max_length=32)
     image_stds: list = Field(..., min_length=0, max_length=32)
     target_means: Optional[list] = Field(default=None, min_length=0, max_length=32)
@@ -58,3 +58,9 @@ class NormalizeModel(TransformModel):
                 )
 
         return self
+
+
+class NoNormModel(TransformModel):
+    """Pydantic model used to represent no normalization."""
+
+    name: Literal["none"] = "none"
