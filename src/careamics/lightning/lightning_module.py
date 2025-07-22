@@ -341,10 +341,12 @@ class VAEModule(L.LightningModule):
             self.algorithm_config.noise_model
         )
 
-        self.noise_model_likelihood: NoiseModelLikelihood | None = likelihood_factory(
-            config=self.algorithm_config.noise_model_likelihood,
-            noise_model=self.noise_model,
-        )
+        self.noise_model_likelihood: NoiseModelLikelihood | None = None
+        if self.algorithm_config.noise_model_likelihood is not None:
+            self.noise_model_likelihood = likelihood_factory(
+                config=self.algorithm_config.noise_model_likelihood,
+                noise_model=self.noise_model,
+            )
 
         self.gaussian_likelihood: GaussianLikelihood | None = likelihood_factory(
             self.algorithm_config.gaussian_likelihood
@@ -379,6 +381,11 @@ class VAEModule(L.LightningModule):
             A tuple with the output tensor and additional data from the top-down pass.
         """
         return self.model(x)  # TODO Different model can have more than one output
+
+    def set_data_stats(self, data_mean, data_std):
+        """Set data mean and std for the noise model likelihood."""
+        if self.noise_model_likelihood is not None:
+            self.noise_model_likelihood.set_data_stats(data_mean, data_std)
 
     def training_step(
         self, batch: tuple[Tensor, Tensor], batch_idx: Any
@@ -416,6 +423,9 @@ class VAEModule(L.LightningModule):
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
 
         # Compute loss
+        if self.noise_model_likelihood is not None:
+            if self.noise_model_likelihood.data_mean is None or self.noise_model_likelihood.data_std is None:
+                raise RuntimeError("NoiseModelLikelihood: data_mean and data_std must be set before training.")
         loss = self.loss_func(
             model_outputs=out,
             targets=target,

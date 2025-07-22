@@ -1465,7 +1465,6 @@ def get_likelihood_config(
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: float = -5.0,
     nm_paths: list[str] | None = None,
-    data_stats: tuple[float, float] | None = None,
 ) -> tuple[
     GaussianLikelihoodConfig | None,
     MultiChannelNMConfig | None,
@@ -1485,9 +1484,6 @@ def get_likelihood_config(
         Used when loss_type is "musplit" or "denoisplit_musplit".
     nm_paths : list[str] | None, optional
         Paths to the noise model files, by default None.
-        Required when loss_type is "denoisplit" or "denoisplit_musplit".
-    data_stats : tuple[float, float] | None, optional
-        Data statistics (mean, std), by default None.
         Required when loss_type is "denoisplit" or "denoisplit_musplit".
 
     Returns
@@ -1517,9 +1513,6 @@ def get_likelihood_config(
     if loss_type in ["denoisplit", "denoisplit_musplit"]:
         if nm_paths is None:
             raise ValueError(f"nm_paths is required for loss_type '{loss_type}'")
-        if data_stats is None:
-            raise ValueError(f"data_stats is required for loss_type '{loss_type}'")
-
         gmm_list = []
         for NM_path in nm_paths:
             gmm_list.append(
@@ -1530,8 +1523,8 @@ def get_likelihood_config(
             )
         noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
         nm_lik_config = NMLikelihoodConfig(
-            data_mean=data_stats[0],
-            data_std=data_stats[1],
+            data_mean=None,
+            data_std=None,
         )
     else:
         noise_model_config = None
@@ -1733,7 +1726,6 @@ def create_microsplit_configuration(
     model_params: dict | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     nm_paths: list[str] | None = None,
-    data_stats: tuple[float, float] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
 ):
@@ -1799,7 +1791,6 @@ def create_microsplit_configuration(
             predict_logvar=predict_logvar,
             logvar_lowerbound=logvar_lowerbound,
             nm_paths=nm_paths,
-            data_stats=data_stats,
         )
     )
 
