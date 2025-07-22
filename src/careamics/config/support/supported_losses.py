@@ -23,6 +23,7 @@ class SupportedLoss(str, BaseEnum):
     # PN2V = "pn2v"
     HDN = "hdn"
     MUSPLIT = "musplit"
+    MICROSPLIT = "microsplit"
     DENOISPLIT = "denoisplit"
     DENOISPLIT_MUSPLIT = "denoisplit_musplit"
     # CE = "ce"
