@@ -965,6 +965,8 @@ def create_n2v_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
+    num_epochs: Optional[int] = None,
+    nun_steps: Optional[int] = None,
     trainer_params: Optional[dict] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
@@ -1029,8 +1031,15 @@ def create_n2v_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    num_epochs : int, optional
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    nun_steps : int, optional
+        Number of steps to train for. If provided, this will be added to trainer_params.
     trainer_params : dict, optional
-        Parameters for the trainer class, see PyTorch Lightning documentation
+        Parameters for the trainer class, see PyTorch Lightning documentation.
+        If num_epochs or nun_steps are provided, they will override any values in this
+        dict.
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -1249,8 +1258,17 @@ def create_n2v_configuration(
     )
 
     # training
+    # Handle trainer parameters with num_epochs and nun_steps
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    # Add num_epochs and nun_steps if provided
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if nun_steps is not None:
+        final_trainer_params["max_steps"] = nun_steps
+
     training_params = _create_training_configuration(
-        trainer_params=trainer_params,
+        trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
     )
