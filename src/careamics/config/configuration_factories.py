@@ -7,6 +7,7 @@ from pydantic import Field, TypeAdapter
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
+    MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
 )
@@ -17,6 +18,7 @@ from careamics.config.likelihood_model import (
     NMLikelihoodConfig,
 )
 from careamics.config.loss_model import LVAELossConfig
+from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
@@ -1458,6 +1460,86 @@ def _create_vae_based_algorithm(
     }
 
 
+def get_likelihood_config(
+    loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"],
+    predict_logvar: Literal["pixelwise"] | None = None,
+    logvar_lowerbound: float = -5.0,
+    nm_paths: list[str] | None = None,
+    data_stats: tuple[float, float] | None = None,
+) -> tuple[
+    GaussianLikelihoodConfig | None,
+    MultiChannelNMConfig | None,
+    NMLikelihoodConfig | None,
+]:
+    """Get the likelihood configuration for split models.
+
+    Parameters
+    ----------
+    loss_type : Literal["musplit", "denoisplit", "denoisplit_musplit"]
+        The type of loss function to use.
+    predict_logvar : Literal["pixelwise"] | None, optional
+        Type of log variance prediction, by default None.
+        Required when loss_type is "musplit" or "denoisplit_musplit".
+    logvar_lowerbound : float, optional
+        Lower bound for the log variance, by default -5.0.
+        Used when loss_type is "musplit" or "denoisplit_musplit".
+    nm_paths : list[str] | None, optional
+        Paths to the noise model files, by default None.
+        Required when loss_type is "denoisplit" or "denoisplit_musplit".
+    data_stats : tuple[float, float] | None, optional
+        Data statistics (mean, std), by default None.
+        Required when loss_type is "denoisplit" or "denoisplit_musplit".
+
+    Returns
+    -------
+    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None,
+    NMLikelihoodConfig | None]
+        The likelihoods and noise models configurations.
+
+    Raises
+    ------
+    ValueError
+        If required parameters are missing for the specified loss_type.
+    """
+    # gaussian likelihood
+    if loss_type in ["musplit", "denoisplit_musplit"]:
+        if predict_logvar is None:
+            raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
+
+        gaussian_lik_config = GaussianLikelihoodConfig(
+            predict_logvar=predict_logvar,
+            logvar_lowerbound=logvar_lowerbound,
+        )
+    else:
+        gaussian_lik_config = None
+
+    # noise model likelihood
+    if loss_type in ["denoisplit", "denoisplit_musplit"]:
+        if nm_paths is None:
+            raise ValueError(f"nm_paths is required for loss_type '{loss_type}'")
+        if data_stats is None:
+            raise ValueError(f"data_stats is required for loss_type '{loss_type}'")
+
+        gmm_list = []
+        for NM_path in nm_paths:
+            gmm_list.append(
+                GaussianMixtureNMConfig(
+                    model_type="GaussianMixtureNoiseModel",
+                    path=NM_path,
+                )
+            )
+        noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
+        nm_lik_config = NMLikelihoodConfig(
+            data_mean=data_stats[0],
+            data_std=data_stats[1],
+        )
+    else:
+        noise_model_config = None
+        nm_lik_config = None
+
+    return gaussian_lik_config, noise_model_config, nm_lik_config
+
+
 # TODO wrap parameters into model, loss etc
 # TODO refac likelihood configs to make it 1. Can it be done ?
 def create_hdn_configuration(
@@ -1620,6 +1702,157 @@ def create_hdn_configuration(
     return Configuration(
         experiment_name=experiment_name,
         algorithm_config=algorithm_params,
+        data_config=data_params,
+        training_config=training_params,
+    )
+
+
+def create_microsplit_configuration(
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: Sequence[int],
+    batch_size: int,
+    num_epochs: int,
+    encoder_conv_strides: tuple[int, ...] = (2, 2),
+    decoder_conv_strides: tuple[int, ...] = (2, 2),
+    multiscale_count: int = 1,
+    z_dims: tuple[int, ...] = (128, 128),
+    output_channels: int = 1,
+    encoder_n_filters: int = 32,
+    decoder_n_filters: int = 32,
+    encoder_dropout: float = 0.0,
+    decoder_dropout: float = 0.0,
+    nonlinearity: Literal[
+        "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
+    ] = "ReLU",
+    analytical_kl: bool = False,
+    predict_logvar: Literal["pixelwise"] | None = None,
+    logvar_lowerbound: Union[float, None] = None,
+    logger: Literal["wandb", "tensorboard", "none"] = "none",
+    model_params: dict | None = None,
+    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    nm_paths: list[str] | None = None,
+    data_stats: tuple[float, float] | None = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
+):
+    """
+    Create_microsplit_configuration.
+
+    Parameters
+    ----------
+    input_shape : tuple, default=(1, 64, 64)
+        Shape of the input patch (channels, Y, X) or (channels, Z, Y, X) for 3D.
+    z_dims : tuple, default=(128, 128, 128, 128)
+        List of latent dimensions for each hierarchy level in the LVAE.
+    encoder_conv_strides : tuple, default=(2, 2)
+        Strides for the encoder convolutional layers.
+    decoder_conv_strides : tuple, default=(2, 2)
+        Strides for the decoder convolutional layers.
+    multiscale_count : int, default=0
+        Number of multiscale levels (0 disables multiscale).
+    output_channels : int, default=1
+        Number of output channels for the model.
+    encoder_n_filters : int, default=64
+        Number of filters in the encoder.
+    decoder_n_filters : int, default=64
+        Number of filters in the decoder.
+    encoder_dropout : float, default=0.1
+        Dropout rate for the encoder.
+    decoder_dropout : float, default=0.1
+        Dropout rate for the decoder.
+    nonlinearity : str, default="ELU"
+        Nonlinearity to use in the model (e.g., "ELU", "ReLU").
+    predict_logvar : str, default="pixelwise"
+        Type of log-variance prediction ("pixelwise" or None).
+    analytical_kl : bool, default=False
+        Whether to use analytical KL divergence.
+    optimizer : str, default="Adam"
+        Optimizer to use for training.
+    optimizer_params : dict, optional
+        Parameters for the optimizer.
+    lr_scheduler : str, default="ReduceLROnPlateau"
+        Learning rate scheduler to use.
+    lr_scheduler_params : dict, optional
+        Parameters for the learning rate scheduler.
+    loss_weights : dict, optional
+        Weights for different loss components.
+    **kwargs : dict
+        Additional keyword arguments for the configuration.
+
+    Returns
+    -------
+    Configuration
+        A configuration object for the microsplit algorithm.
+    """
+    transform_list = _list_spatial_augmentations(augmentations)
+
+    loss_config = LVAELossConfig(
+        loss_type="denoisplit_musplit", denoisplit_weight=0.9, musplit_weight=0.1
+    )  # TODO losses need to be refactored! This is just for example
+
+    # Create likelihood configurations
+    gaussian_likelihood_config, noise_model_config, nm_likelihood_config = (
+        get_likelihood_config(
+            loss_type="denoisplit_musplit",
+            predict_logvar=predict_logvar,
+            logvar_lowerbound=logvar_lowerbound,
+            nm_paths=nm_paths,
+            data_stats=data_stats,
+        )
+    )
+
+    # Create the LVAE model
+    network_model = _create_vae_configuration(
+        input_shape=patch_size,
+        encoder_conv_strides=encoder_conv_strides,
+        decoder_conv_strides=decoder_conv_strides,
+        multiscale_count=multiscale_count,
+        z_dims=z_dims,
+        output_channels=output_channels,
+        encoder_n_filters=encoder_n_filters,
+        decoder_n_filters=decoder_n_filters,
+        encoder_dropout=encoder_dropout,
+        decoder_dropout=decoder_dropout,
+        nonlinearity=nonlinearity,
+        predict_logvar=predict_logvar,
+        analytical_kl=analytical_kl,
+        model_params=model_params,
+    )
+
+    # Create the MicroSplit algorithm configuration
+    algorithm_params = {
+        "algorithm": "microsplit",
+        "loss": loss_config,
+        "model": network_model,
+        "gaussian_likelihood": gaussian_likelihood_config,
+        "noise_model_likelihood": nm_likelihood_config,
+    }
+
+    # Convert to MicroSplitAlgorithm instance
+    algorithm_config = MicroSplitAlgorithm(**algorithm_params)
+
+    # data
+    data_params = _create_data_configuration(
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        augmentations=transform_list,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
+    )
+
+    # training
+    training_params = _create_training_configuration(
+        num_epochs=num_epochs,
+        logger=logger,
+    )
+
+    return Configuration(
+        experiment_name=experiment_name,
+        algorithm_config=algorithm_config,
         data_config=data_params,
         training_config=training_params,
     )

@@ -35,7 +35,7 @@ class LVAELossConfig(BaseModel):
         validate_assignment=True, validate_default=True, arbitrary_types_allowed=True
     )
 
-    loss_type: Literal["hdn", "musplit", "denoisplit", "denoisplit_musplit"]
+    loss_type: Literal["hdn", "microsplit", "musplit", "denoisplit", "denoisplit_musplit"]
     """Type of loss to use for LVAE."""
 
     reconstruction_weight: float = 1.0
