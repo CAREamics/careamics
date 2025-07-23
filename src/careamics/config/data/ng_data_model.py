@@ -20,8 +20,8 @@ from pydantic import (
 from typing_extensions import Self
 
 from ..transformations import (
-    NORM_AND_SPATIAL_UNION,
     NORMALIZATION_UNION,
+    SPATIAL_TRANSFORMS_UNION,
     StandardizeModel,
     XYFlipModel,
     XYRandomRotate90Model,
@@ -111,7 +111,10 @@ class NGDataConfig(BaseModel):
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
 
-    normalization: NORMALIZATION_UNION = Field(..., discriminator="name")
+    normalization: NORMALIZATION_UNION = Field(
+        default=StandardizeModel(image_means=[], image_stds=[]),
+        discriminator="name",
+    )
     """Normalization strategy to use. Supports 'standard' and 'none'."""
 
     # Optional fields
@@ -137,7 +140,7 @@ class NGDataConfig(BaseModel):
     """Standard deviations of the target data across channels, used for
     normalization."""
 
-    transforms: Sequence[NORM_AND_SPATIAL_UNION] = Field(
+    transforms: Sequence[SPATIAL_TRANSFORMS_UNION] = Field(
         default=(
             XYFlipModel(),
             XYRandomRotate90Model(),
@@ -291,7 +294,10 @@ class NGDataConfig(BaseModel):
         """
         if self.normalization is None:
             self.normalization = StandardizeModel(
-                self.image_means, self.image_stds, self.target_means, self.target_stds
+                image_means=self.image_means,
+                image_stds=self.image_stds,
+                target_means=self.target_means,
+                targettarget_stds_std=self.target_stds,
             )
         return self
 
@@ -394,6 +400,16 @@ class NGDataConfig(BaseModel):
             target_means=target_means,
             target_stds=target_stds,
         )
+
+        if self.normalization.name == "standard":
+            self._update(
+                normalization=StandardizeModel(
+                    image_means=image_means,
+                    image_stds=image_stds,
+                    target_means=target_means,
+                    target_stds=target_stds,
+                )
+            )
 
     # def set_3D(self, axes: str, patch_size: list[int]) -> None:
     #     """

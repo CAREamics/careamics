@@ -1,5 +1,6 @@
 """A class chaining transforms together."""
 
+from collections.abc import Sequence
 from typing import Optional, Union, cast
 
 from numpy.typing import NDArray
@@ -47,7 +48,7 @@ class Compose:
         A callable that applies the transforms to the input data.
     """
 
-    def __init__(self, transform_list: list[NORM_AND_SPATIAL_UNION]) -> None:
+    def __init__(self, transform_list: Sequence[NORM_AND_SPATIAL_UNION]) -> None:
         """Instantiate a Compose object.
 
         Parameters

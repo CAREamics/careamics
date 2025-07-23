@@ -13,7 +13,6 @@ def test_dataset_mean_std_normalization_and_denormalization():
         data_type="array",
         axes="YX",
         patching={"name": "whole"},
-        normalization={"name": "mean_std"},
         batch_size=1,
         seed=42,
     )

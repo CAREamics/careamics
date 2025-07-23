@@ -19,7 +19,7 @@ def build_normalization_transform(norm_model) -> NormalizationProtocol:
     NormalizationProtocol
         The normalization transform.
     """
-    if norm_model.name == "Normalize":
+    if norm_model.name == "standard":
         return Standardize(
             image_means=norm_model.image_means,
             image_stds=norm_model.image_stds,
