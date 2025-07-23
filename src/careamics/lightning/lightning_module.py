@@ -424,8 +424,13 @@ class VAEModule(L.LightningModule):
 
         # Compute loss
         if self.noise_model_likelihood is not None:
-            if self.noise_model_likelihood.data_mean is None or self.noise_model_likelihood.data_std is None:
-                raise RuntimeError("NoiseModelLikelihood: data_mean and data_std must be set before training.")
+            if (
+                self.noise_model_likelihood.data_mean is None
+                or self.noise_model_likelihood.data_std is None
+            ):
+                raise RuntimeError(
+                    "NoiseModelLikelihood: data_mean and data_std must be set before training."
+                )
         loss = self.loss_func(
             model_outputs=out,
             targets=target,
