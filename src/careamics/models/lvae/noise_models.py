@@ -3,10 +3,10 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Optional
 
-from numpy.typing import NDArray
 import numpy as np
 import torch
 import torch.nn as nn
+from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from careamics.config import GaussianMixtureNMConfig, MultiChannelNMConfig

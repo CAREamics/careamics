@@ -1,12 +1,17 @@
+from pathlib import Path
+
+import numpy as np
 import pytest
 
 from careamics.config import (
     CAREAlgorithm,
     Configuration,
+    MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
     algorithm_factory,
     create_care_configuration,
+    create_microsplit_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )
@@ -479,3 +484,25 @@ def test_n2v_configuration_n2v2_structn2v():
     )
     assert config.algorithm_config.n2v_config.struct_mask_axis == struct_mask_axis
     assert config.algorithm_config.n2v_config.struct_mask_span == struct_n2v_span
+
+
+def test_microsplit_configuration(tmp_path: Path, create_dummy_noise_model):
+    """Test that MicroSplit configuration can be created."""
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    config = create_microsplit_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        predict_logvar="pixelwise",
+        nm_paths=[tmp_path / "dummy_noise_model.npz"],
+        data_stats=[0, 0],
+        train_dataloader_params={"num_workers": 0},
+    )
+    assert config.algorithm_config.algorithm == "microsplit"
+    assert isinstance(config.algorithm_config, MicroSplitAlgorithm)
+    assert config.algorithm_config.model.architecture == "LVAE"
+    assert config.algorithm_config.noise_model_likelihood is not None
