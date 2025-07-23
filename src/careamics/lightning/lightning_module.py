@@ -344,9 +344,9 @@ class VAEModule(L.LightningModule):
         self.noise_model_likelihood: NoiseModelLikelihood | None = None
         if self.algorithm_config.noise_model_likelihood is not None:
             self.noise_model_likelihood = likelihood_factory(
-                config=self.algorithm_config.noise_model_likelihood,
-                noise_model=self.noise_model,
-            )
+            config=self.algorithm_config.noise_model_likelihood,
+            noise_model=self.noise_model,
+        )
 
         self.gaussian_likelihood: GaussianLikelihood | None = likelihood_factory(
             self.algorithm_config.gaussian_likelihood
