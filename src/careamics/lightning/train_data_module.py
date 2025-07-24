@@ -24,18 +24,14 @@ from careamics.dataset.iterable_dataset import (
     PathIterableDataset,
 )
 from careamics.file_io.read import get_read_func
-from careamics.utils import get_logger, get_ram_size
 from careamics.lvae_training.dataset import (
-    LCMultiChDloader,
-    MultiChDloader,
-    MultiChDloaderRef,
-    MultiFileDset,
-    MultiCropDset,
-    DataType,
     DataSplitType,
+    DataType,
+    LCMultiChDloader,
 )
 from careamics.lvae_training.dataset.config import DatasetConfig
-from careamics.lvae_training.dataset.types import DataType, DataSplitType, TilingMode
+from careamics.lvae_training.dataset.types import DataSplitType, DataType, TilingMode
+from careamics.utils import get_logger, get_ram_size
 
 DatasetType = Union[InMemoryDataset, PathIterableDataset]
 
@@ -488,6 +484,7 @@ class MicroSplitDataModule(L.LightningDataModule):
     Matches the interface of TrainDataModule, but internally uses microSplit dataset logic.
     Computes and stores data statistics as an attribute.
     """
+
     def __init__(
         self,
         data_config,  # Should be compatible with microSplit DatasetConfig
@@ -503,25 +500,14 @@ class MicroSplitDataModule(L.LightningDataModule):
     ):
         super().__init__()
         # Dataset selection logic (adapted from create_train_val_datasets)
-        train_config = data_config if hasattr(data_config, 'data_type') else None
-        val_config = data_config if hasattr(data_config, 'data_type') else None
-        test_config = data_config if hasattr(data_config, 'data_type') else None
+        train_config = data_config if hasattr(data_config, "data_type") else None
+        val_config = data_config if hasattr(data_config, "data_type") else None
+        test_config = data_config if hasattr(data_config, "data_type") else None
         datapath = train_data
         load_data_func = read_source_func
-        if train_config.data_type in [
-            DataType.TavernaSox2Golgi,
-            DataType.Dao3Channel,
-            DataType.Dao3ChannelWithInput,
-            DataType.ExpMicroscopyV2,
-            DataType.TavernaSox2GolgiV2,
-        ]:
-            dataset_class = MultiFileDset
-        elif getattr(train_config, 'multiscale_lowres_count', 0) > 1:
-            dataset_class = LCMultiChDloader
-        elif train_config.data_type in [DataType.HTH23BData]:
-            dataset_class = MultiChDloaderRef
-        else:
-            dataset_class = MultiChDloader
+
+        dataset_class = LCMultiChDloader  # TODO hardcoded for now
+
         # Create datasets
         self.train_dataset = dataset_class(
             train_config,
@@ -556,6 +542,7 @@ class MicroSplitDataModule(L.LightningDataModule):
         self.test_dataset.set_mean_std(mean_val, std_val)
         data_stats = self.train_dataset.get_mean_std()
         import torch
+
         self.data_stats = (
             torch.tensor(data_stats[0]["target"]),
             torch.tensor(data_stats[1]["target"]),
@@ -563,12 +550,62 @@ class MicroSplitDataModule(L.LightningDataModule):
 
     def train_dataloader(self):
         from torch.utils.data import DataLoader
+
         return DataLoader(self.train_dataset)
 
     def val_dataloader(self):
         from torch.utils.data import DataLoader
+
         return DataLoader(self.val_dataset)
 
+
+def get_datasplit_tuples(val_fraction, test_fraction, data_length):
+    """Get train/val/test indices for data splitting."""
+    indices = np.arange(data_length)
+    np.random.shuffle(indices)
+
+    if val_fraction is None:
+        val_fraction = 0.0
+    if test_fraction is None:
+        test_fraction = 0.0
+
+    val_size = int(data_length * val_fraction)
+    test_size = int(data_length * test_fraction)
+    train_size = data_length - val_size - test_size
+
+    train_idx = indices[:train_size]
+    val_idx = indices[train_size:train_size + val_size]
+    test_idx = indices[train_size + val_size:]
+
+    return train_idx, val_idx, test_idx
+
+def get_train_val_data(
+    data_config,
+    datadir,
+    datasplit_type: DataSplitType,
+    val_fraction=None,
+    test_fraction=None,
+    allow_generation=None,
+    **kwargs,
+):
+    """Load and split data according to configuration."""
+    data = np.load(datadir)  # TODO: replace with your actual data loading logic
+    train_idx, val_idx, test_idx = get_datasplit_tuples(
+        val_fraction, test_fraction, len(data)
+    )
+
+    if datasplit_type == DataSplitType.All:
+        data = data.astype(np.float64)
+    elif datasplit_type == DataSplitType.Train:
+        data = data[train_idx].astype(np.float64)
+    elif datasplit_type == DataSplitType.Val:
+        data = data[val_idx].astype(np.float64)
+    elif datasplit_type == DataSplitType.Test:
+        data = data[test_idx].astype(np.float64)
+    else:
+        raise Exception("invalid datasplit")
+
+    return data
 
 def create_train_datamodule(
     train_data: Union[str, Path, NDArray],
@@ -764,9 +801,11 @@ def create_train_datamodule(
 
 
 def create_microsplit_train_datamodule(
-    data_type: DataType,
-    image_size: tuple,
     train_data: str,
+    patch_size: tuple,
+    data_type: DataType,
+    axes: str,
+    batch_size: int,
     val_data: str = None,
     num_channels: int = 2,
     depth3D: int = 1,
@@ -778,23 +817,28 @@ def create_microsplit_train_datamodule(
     val_percentage: float = 0.1,
     val_minimum_split: int = 5,
     use_in_memory: bool = True,
-    **kwargs
+    transforms: list = None,
+    train_dataloader_params: dict = None,
+    val_dataloader_params: dict = None,
+    **dataset_kwargs,
 ) -> MicroSplitDataModule:
     """
     Create a MicroSplitDataModule for microSplit-style datasets, including config creation.
 
     Parameters
     ----------
-    data_type : DataType
-        Type of the dataset.
-    image_size : tuple
-        Size of one patch of data.
     train_data : str
         Path to training data.
+    patch_size : tuple
+        Size of one patch of data.
+    data_type : DataType
+        Type of the dataset (must be a DataType enum value).
+    axes : str
+        Axes of the data (e.g., 'SYX').
+    batch_size : int
+        Batch size for dataloaders.
     val_data : str, optional
         Path to validation data.
-    test_data : str, optional
-        Path to test data.
     num_channels : int, default=2
         Number of channels in the input.
     depth3D : int, default=1
@@ -815,45 +859,52 @@ def create_microsplit_train_datamodule(
         Minimum number of patches/files for validation split.
     use_in_memory : bool, default=True
         Use in-memory dataset if possible.
-    **kwargs :
-        Any additional DatasetConfig fields.
+    transforms : list, optional
+        List of transforms to apply.
+    train_dataloader_params : dict, optional
+        Parameters for training dataloader.
+    val_dataloader_params : dict, optional
+        Parameters for validation dataloader.
+    **dataset_kwargs :
+        Additional arguments passed to DatasetConfig.
 
     Returns
     -------
     MicroSplitDataModule
         Configured MicroSplitDataModule instance.
-
-    Example
-    -------
-    >>> datamodule = create_microsplit_train_datamodule(
-    ...     data_type=DataType.TavernaSox2GolgiV2,
-    ...     image_size=(64, 64),
-    ...     train_data="/path/to/train",
-    ...     num_channels=2
-    ... )
     """
+    # Create dataset configs with only valid parameters
+    dataset_config_params = {
+        "data_type": data_type,
+        "image_size": patch_size,
+        "num_channels": num_channels,
+        "depth3D": depth3D,
+        "grid_size": grid_size,
+        "multiscale_lowres_count": multiscale_lowres_count,
+        "tiling_mode": tiling_mode,
+        **dataset_kwargs
+    }
+
     train_config = DatasetConfig(
-        data_type=data_type,
-        image_size=image_size,
+        **dataset_config_params,
         datasplit_type=DataSplitType.Train,
-        num_channels=num_channels,
-        depth3D=depth3D,
-        grid_size=grid_size,
-        multiscale_lowres_count=multiscale_lowres_count,
-        tiling_mode=tiling_mode,
-        **kwargs
     )
     val_config = DatasetConfig(
-        data_type=data_type,
-        image_size=image_size,
+        **dataset_config_params,
         datasplit_type=DataSplitType.Val,
-        num_channels=num_channels,
-        depth3D=depth3D,
-        grid_size=grid_size,
-        multiscale_lowres_count=multiscale_lowres_count,
-        tiling_mode=tiling_mode,
-        **kwargs
     )
+
+    # Create a closure over get_train_val_data with the right config
+    def load_data_func(config, datadir, datasplit_type, val_fraction=None, test_fraction=None, allow_generation=None, **kwargs):
+        return get_train_val_data(
+            data_config=config,  # Use the passed config
+            datadir=datadir,
+            datasplit_type=datasplit_type,
+            val_fraction=val_fraction,
+            test_fraction=test_fraction,
+            allow_generation=allow_generation,
+            **kwargs
+        )
 
     return MicroSplitDataModule(
         data_config=train_config,
@@ -861,7 +912,7 @@ def create_microsplit_train_datamodule(
         val_data=val_data or train_data,
         train_data_target=None,
         val_data_target=None,
-        read_source_func=read_source_func,
+        read_source_func=load_data_func,  # Use our wrapped function
         extension_filter=extension_filter,
         val_percentage=val_percentage,
         val_minimum_split=val_minimum_split,

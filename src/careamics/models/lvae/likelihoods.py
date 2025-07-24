@@ -54,8 +54,6 @@ def likelihood_factory(
         )
     elif isinstance(config, NMLikelihoodConfig):
         return NoiseModelLikelihood(
-            data_mean=config.data_mean,
-            data_std=config.data_std,
             noise_model=noise_model,
         )
     else:
