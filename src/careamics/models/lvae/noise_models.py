@@ -355,22 +355,30 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         Parameters
         ----------
-        x: Tensor
-            Observations
-        mean: Tensor
-            Mean
-        std: Tensor
-            Standard-deviation
+        x: torch.Tensor
+            The ground-truth tensor. Shape is (batch, 1, dim1, dim2).
+        mean: torch.Tensor
+            The inferred mean of distribution. Shape is (batch, 1, dim1, dim2).
+        std: torch.Tensor
+            The inferred standard deviation of distribution. Shape is (batch, 1, dim1, dim2).
 
         Returns
         -------
-        tmp: Tensor
+        tmp: torch.Tensor
             Normal probability density of `x` given `mean` and `std`
         """
+        # Ensure all tensors have the same shape for broadcasting
+        x = x.view(x.shape[0], 1, -1)  # (batch, 1, dim1*dim2)
+        mean = mean.view(mean.shape[0], 1, -1)  # (batch, 1, dim1*dim2)
+        std = std.view(std.shape[0], 1, -1)  # (batch, 1, dim1*dim2)
+
         tmp = -((x - mean) ** 2)
         tmp = tmp / (2.0 * std * std)
         tmp = torch.exp(tmp)
         tmp = tmp / torch.sqrt((2.0 * np.pi) * std * std)
+        
+        # Restore original shape
+        tmp = tmp.view(x.shape[0], 1, *x.shape[2:])
         return tmp
 
     def likelihood(
@@ -382,9 +390,9 @@ class GaussianMixtureNoiseModel(nn.Module):
         Parameters
         ----------
         observations : Tensor
-            Noisy observations
+            Noisy observations. Shape is (batch, 1, dim1, dim2).
         signals : Tensor
-            Underlying signals
+            Underlying signals. Shape is (batch, 1, dim1, dim2).
 
         Returns
         -------
@@ -392,15 +400,21 @@ class GaussianMixtureNoiseModel(nn.Module):
             Likelihood of observations given the signals and the GMM noise model
         """
         gaussian_parameters: list[torch.Tensor] = self.get_gaussian_parameters(signals)
-        p = 0
+        p = torch.zeros_like(observations)
         for gaussian in range(self.n_gaussian):
+            # Ensure all tensors have compatible shapes
+            mean = gaussian_parameters[gaussian]
+            std = gaussian_parameters[self.n_gaussian + gaussian]
+            weight = gaussian_parameters[2 * self.n_gaussian + gaussian]
+            
+            # Compute normal density
             p += (
                 self.normal_density(
                     observations,
-                    gaussian_parameters[gaussian],
-                    gaussian_parameters[self.n_gaussian + gaussian],
+                    mean,
+                    std,
                 )
-                * gaussian_parameters[2 * self.n_gaussian + gaussian]
+                * weight
             )
         return p + self.tolerance
 

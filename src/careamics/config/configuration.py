@@ -22,6 +22,7 @@ from careamics.config.algorithms import (
 )
 from careamics.config.data import DataConfig
 from careamics.config.training_model import TrainingConfig
+from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 ALGORITHMS = Union[
     CAREAlgorithm,
@@ -144,7 +145,7 @@ class Configuration(BaseModel):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: DataConfig
+    data_config: DataConfig | MicroSplitDataConfig
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 

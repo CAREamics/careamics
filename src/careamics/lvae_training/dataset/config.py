@@ -6,8 +6,8 @@ from .types import DataSplitType, DataType, TilingMode
 
 
 # TODO: check if any bool logic can be removed
-class DatasetConfig(BaseModel):
-    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+class MicroSplitDataConfig(BaseModel):
+    model_config = ConfigDict(validate_assignment=True, extra="allow")
 
     data_type: Union[DataType, str] | None
     """Type of the dataset, should be one of DataType"""
@@ -120,7 +120,7 @@ class DatasetConfig(BaseModel):
 
     random_flip_z_3D: bool | None = False
 
-    padding_kwargs: dict | None = None
+    padding_kwargs: dict = {"mode": "reflect"} # TODO remove !!
 
     def __init__(self, **data):
         # Convert string data_type to enum if needed
