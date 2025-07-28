@@ -4,7 +4,7 @@ from typing import Callable, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from .config import DatasetConfig
+from .config import MicroSplitDataConfig
 from .lc_dataset import LCMultiChDloader
 from .multich_dataset import MultiChDloader
 from .types import DataSplitType
@@ -82,7 +82,7 @@ class SingleFileLCDset(LCMultiChDloader):
     def __init__(
         self,
         preloaded_data: NDArray,
-        data_config: DatasetConfig,
+        data_config: MicroSplitDataConfig,
         fpath: str,
         load_data_fn: Callable,
         val_fraction=None,
@@ -106,7 +106,7 @@ class SingleFileLCDset(LCMultiChDloader):
 
     def load_data(
         self,
-        data_config: DatasetConfig,
+        data_config: MicroSplitDataConfig,
         datasplit_type: DataSplitType,
         load_data_fn: Callable,
         val_fraction=None,
@@ -124,7 +124,7 @@ class SingleFileDset(MultiChDloader):
     def __init__(
         self,
         preloaded_data: NDArray,
-        data_config: DatasetConfig,
+        data_config: MicroSplitDataConfig,
         fpath: str,
         load_data_fn: Callable,
         val_fraction=None,
@@ -148,7 +148,7 @@ class SingleFileDset(MultiChDloader):
 
     def load_data(
         self,
-        data_config: DatasetConfig,
+        data_config: MicroSplitDataConfig,
         datasplit_type: DataSplitType,
         load_data_fn: Callable[..., NDArray],
         val_fraction=None,
@@ -175,7 +175,7 @@ class MultiFileDset:
 
     def __init__(
         self,
-        data_config: DatasetConfig,
+        data_config: MicroSplitDataConfig,
         fpath: str,
         load_data_fn: Callable[..., Union[TwoChannelData, MultiChannelData]],
         val_fraction=None,

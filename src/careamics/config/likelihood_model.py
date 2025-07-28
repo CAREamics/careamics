@@ -50,11 +50,11 @@ class NMLikelihoodConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
     # TODO remove and use as parameters to the likelihood functions?
-    data_mean: Tensor = torch.zeros(1)
+    data_mean: Tensor | None = None
     """The mean of the data, used to unnormalize data for noise model evaluation.
     Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
 
     # TODO remove and use as parameters to the likelihood functions?
-    data_std: Tensor = torch.ones(1)
+    data_std: Tensor | None = None
     """The standard deviation of the data, used to unnormalize data for noise
     model evaluation. Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""

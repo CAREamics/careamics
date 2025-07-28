@@ -11,7 +11,9 @@ from pydantic import (
     Field,
     PlainSerializer,
     PlainValidator,
+    model_validator,
 )
+from typing_extensions import Self
 
 from careamics.utils.serializers import _array_to_json, _to_numpy
 
@@ -85,6 +87,30 @@ class GaussianMixtureNMConfig(BaseModel):
 
     tol: float = Field(default=1e-10)
     """Tolerance used in the computation of the noise model likelihood."""
+
+    @model_validator(mode="after")
+    def validate_path(self: Self) -> Self:
+        """Validate that the path points to a valid .npz file if provided.
+
+        Returns
+        -------
+        Self
+            Returns itself.
+
+        Raises
+        ------
+        ValueError
+            If the path is provided but does not point to a valid .npz file.
+        """
+        if self.path is not None:
+            path = Path(self.path)
+            if not path.exists():
+                raise ValueError(f"Path {path} does not exist.")
+            if path.suffix != ".npz":
+                raise ValueError(f"Path {path} must point to a .npz file.")
+            if not path.is_file():
+                raise ValueError(f"Path {path} must point to a file.")
+        return self
 
     # @model_validator(mode="after")
     # def validate_path_to_pretrained_vs_training_data(self: Self) -> Self:

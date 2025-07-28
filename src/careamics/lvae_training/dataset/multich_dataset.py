@@ -2,29 +2,35 @@
 A place for Datasets and Dataloaders.
 """
 
-from typing import Tuple, Union, Callable
+from pathlib import Path
+from typing import Any, Callable, Optional, Union
 
 import numpy as np
+import torch
+from torch.utils.data import Dataset
 
 from .utils.empty_patch_fetcher import EmptyPatchFetcher
 from .utils.index_manager import GridIndexManager
 from .utils.index_switcher import IndexSwitcher
-from .config import DatasetConfig
+from .config import MicroSplitDataConfig
 from .types import DataSplitType, TilingMode
 
 
-class MultiChDloader:
+class MultiChDloader(Dataset):
+    """Multi-channel dataset loader."""
+
     def __init__(
         self,
-        data_config: DatasetConfig,
-        fpath: str,
-        load_data_fn: Callable,
-        val_fraction: float = None,
-        test_fraction: float = None,
+        data_config: MicroSplitDataConfig,
+        datapath: Union[str, Path],
+        load_data_fn: Optional[Callable] = None,
+        val_fraction: float = 0.1,
+        test_fraction: float = 0.1,
+        allow_generation: bool = False,
     ):
         """ """
         self._data_type = data_config.data_type
-        self._fpath = fpath
+        self._fpath = datapath
         self._data = self._noise_data = None
         self.Z = 1
         self._5Ddata = False
@@ -395,7 +401,7 @@ class MultiChDloader:
         )
 
     def get_idx_manager_shapes(
-        self, patch_size: int, grid_size: Union[int, Tuple[int, int, int]]
+        self, patch_size: int, grid_size: Union[int, tuple[int, int, int]]
     ):
         numC = self._data.shape[-1]
         if self._5Ddata:
@@ -415,7 +421,7 @@ class MultiChDloader:
 
         return patch_shape, grid_shape
 
-    def set_img_sz(self, image_size, grid_size: Union[int, Tuple[int, int, int]]):
+    def set_img_sz(self, image_size, grid_size: Union[int, tuple[int, int, int]]):
         """
         If one wants to change the image size on the go, then this can be used.
         Args:
@@ -519,7 +525,7 @@ class MultiChDloader:
             },
         )
 
-    def _crop_img(self, img: np.ndarray, patch_start_loc: Tuple):
+    def _crop_img(self, img: np.ndarray, patch_start_loc: tuple):
         if self._tiling_mode in [TilingMode.TrimBoundary, TilingMode.ShiftBoundary]:
             # In training, this is used.
             # NOTE: It is my opinion that if I just use self._crop_img_with_padding, it will work perfectly fine.
@@ -600,7 +606,7 @@ class MultiChDloader:
         return new_img
 
     def _crop_flip_img(
-        self, img: np.ndarray, patch_start_loc: Tuple, h_flip: bool, w_flip: bool
+        self, img: np.ndarray, patch_start_loc: tuple, h_flip: bool, w_flip: bool
     ):
         new_img = self._crop_img(img, patch_start_loc)
         if h_flip:
@@ -611,8 +617,8 @@ class MultiChDloader:
         return new_img.astype(np.float32)
 
     def _load_img(
-        self, index: Union[int, Tuple[int, int]]
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, index: Union[int, tuple[int, int]]
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Returns the channels and also the respective noise channels.
         """
@@ -806,7 +812,7 @@ class MultiChDloader:
             w_start = 0
         return h_start, w_start
 
-    def _get_img(self, index: Union[int, Tuple[int, int]]):
+    def _get_img(self, index: Union[int, tuple[int, int]]):
         """
         Loads an image.
         Crops the image such that cropped image has content.
@@ -1056,8 +1062,8 @@ class MultiChDloader:
         return img_tuples, noise_tuples
 
     def __getitem__(
-        self, index: Union[int, Tuple[int, int]]
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, index: Union[int, tuple[int, int]]
+    ) -> tuple[np.ndarray, np.ndarray]:
         # Vera: input can be both real microscopic image and two separate channels that are summed in the code
 
         if self._train_index_switcher is not None:
