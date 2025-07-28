@@ -376,7 +376,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         tmp = tmp / (2.0 * std * std)
         tmp = torch.exp(tmp)
         tmp = tmp / torch.sqrt((2.0 * np.pi) * std * std)
-        
+
         # Restore original shape
         tmp = tmp.view(x.shape[0], 1, *x.shape[2:])
         return tmp
@@ -406,7 +406,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             mean = gaussian_parameters[gaussian]
             std = gaussian_parameters[self.n_gaussian + gaussian]
             weight = gaussian_parameters[2 * self.n_gaussian + gaussian]
-            
+
             # Compute normal density
             p += (
                 self.normal_density(

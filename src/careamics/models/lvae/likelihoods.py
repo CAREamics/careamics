@@ -300,7 +300,11 @@ class NoiseModelLikelihood(LikelihoodModule):
         self.data_std = None
         self.noiseModel = noise_model
 
-    def set_data_stats(self, data_mean: Union[np.ndarray, torch.Tensor], data_std: Union[np.ndarray, torch.Tensor]) -> None:
+    def set_data_stats(
+        self,
+        data_mean: Union[np.ndarray, torch.Tensor],
+        data_std: Union[np.ndarray, torch.Tensor],
+    ) -> None:
         """Set the data mean and std for denormalization.
         # TODO check this !!
         Parameters
@@ -313,14 +317,14 @@ class NoiseModelLikelihood(LikelihoodModule):
         # Convert to tensor if needed
         data_mean = torch.as_tensor(data_mean, dtype=torch.float32)
         data_std = torch.as_tensor(data_std, dtype=torch.float32)
-        
+
         # Reshape to (1, C, 1, 1, 1) for proper broadcasting
         # This assumes the input tensors will be (B, C, [Z], Y, X)
         while len(data_mean.shape) < 5:
             data_mean = data_mean.unsqueeze(-1)
         while len(data_std.shape) < 5:
             data_std = data_std.unsqueeze(-1)
-            
+
         self.data_mean = data_mean
         self.data_std = data_std
 
@@ -334,7 +338,10 @@ class NoiseModelLikelihood(LikelihoodModule):
         correct_device_tensor: torch.Tensor
             The tensor whose device is used to set the parameters.
         """
-        if self.data_mean is not None and self.data_mean.device != correct_device_tensor.device:
+        if (
+            self.data_mean is not None
+            and self.data_mean.device != correct_device_tensor.device
+        ):
             self.data_mean = self.data_mean.to(correct_device_tensor.device)
             self.data_std = self.data_std.to(correct_device_tensor.device)
         if correct_device_tensor.device != self.noiseModel.device:
@@ -381,7 +388,9 @@ class NoiseModelLikelihood(LikelihoodModule):
             The log-likelihood tensor. Shape is (B, C, [Z], Y, X).
         """
         if self.data_mean is None or self.data_std is None:
-            raise RuntimeError("NoiseModelLikelihood: data_mean and data_std must be set before calling log_likelihood.")
+            raise RuntimeError(
+                "NoiseModelLikelihood: data_mean and data_std must be set before calling log_likelihood."
+            )
         self._set_params_to_same_device_as(x)
         predicted_s_denormalized = params["mean"] * self.data_std + self.data_mean
         x_denormalized = x * self.data_std + self.data_mean

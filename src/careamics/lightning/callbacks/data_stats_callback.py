@@ -19,6 +19,5 @@ class DataStatsCallback(Callback):
 
             # Set data statistics in the model's likelihood module
             module.noise_model_likelihood.set_data_stats(
-                data_mean=data_mean["target"],
-                data_std=data_std["target"]
-            ) 
+                data_mean=data_mean["target"], data_std=data_std["target"]
+            )
