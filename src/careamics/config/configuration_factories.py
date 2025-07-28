@@ -409,6 +409,8 @@ def _create_supervised_config_dict(
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
     checkpoint_params: Optional[dict[str, Any]] = None,
+    num_epochs: Optional[int] = None,
+    num_steps: Optional[int] = None,
 ) -> dict:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -518,9 +520,18 @@ def _create_supervised_config_dict(
         val_dataloader_params=val_dataloader_params,
     )
 
+    # Handle trainer parameters with num_epochs and num_steps
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    # Add num_epochs and num_steps if provided
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["max_steps"] = num_steps
+
     # training
     training_params = _create_training_configuration(
-        trainer_params=trainer_params,
+        trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
     )
@@ -545,6 +556,8 @@ def create_care_configuration(
     n_channels_in: Optional[int] = None,
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
+    num_epochs: Optional[int] = None,
+    num_steps: Optional[int] = None,
     trainer_params: Optional[dict] = None,
     model_params: Optional[dict] = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -604,6 +617,11 @@ def create_care_configuration(
         Number of channels out.
     logger : Literal["wandb", "tensorboard", "none"], default="none"
         Logger to use.
+    num_epochs : int, optional
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of steps to train for. If provided, this will be added to trainer_params.
     model_params : dict, default=None
         UNetModel parameters.
     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
@@ -653,8 +671,7 @@ def create_care_configuration(
     ...     augmentations=[]
     ... )
 
-    A list of transforms can be passed to the `augmentations` parameter to replace the
-    default augmentations:
+    A list of transforms can be passed to the `augmentations` parameter:
     >>> from careamics.config.transformations import XYFlipModel
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
@@ -738,6 +755,8 @@ def create_care_configuration(
             train_dataloader_params=train_dataloader_params,
             val_dataloader_params=val_dataloader_params,
             checkpoint_params=checkpoint_params,
+            num_epochs=num_epochs,
+            num_steps=num_steps,
         )
     )
 
@@ -754,6 +773,8 @@ def create_n2n_configuration(
     n_channels_in: Optional[int] = None,
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
+    num_epochs: Optional[int] = None,
+    num_steps: Optional[int] = None,
     trainer_params: Optional[dict] = None,
     model_params: Optional[dict] = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -813,6 +834,11 @@ def create_n2n_configuration(
         Number of channels out.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
+    num_epochs : int, optional
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of steps to train for. If provided, this will be added to trainer_params.
     model_params : dict, default=None
         UNetModel parameters.
     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
@@ -862,8 +888,7 @@ def create_n2n_configuration(
     ...     augmentations=[]
     ... )
 
-    A list of transforms can be passed to the `augmentations` parameter to replace the
-    default augmentations:
+    A list of transforms can be passed to the `augmentations` parameter:
     >>> from careamics.config.transformations import XYFlipModel
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
@@ -947,6 +972,8 @@ def create_n2n_configuration(
             train_dataloader_params=train_dataloader_params,
             val_dataloader_params=val_dataloader_params,
             checkpoint_params=checkpoint_params,
+            num_epochs=num_epochs,
+            num_steps=num_steps,
         )
     )
 
@@ -960,13 +987,13 @@ def create_n2v_configuration(
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
-    n_channels: Optional[int] = None,
+    n_channels: int | None = None,
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
     num_epochs: Optional[int] = None,
-    nun_steps: Optional[int] = None,
+    num_steps: Optional[int] = None,
     trainer_params: Optional[dict] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
@@ -1264,8 +1291,8 @@ def create_n2v_configuration(
     # Add num_epochs and nun_steps if provided
     if num_epochs is not None:
         final_trainer_params["max_epochs"] = num_epochs
-    if nun_steps is not None:
-        final_trainer_params["max_steps"] = nun_steps
+    if num_steps is not None:
+        final_trainer_params["max_steps"] = num_steps
 
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,

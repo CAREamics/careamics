@@ -186,11 +186,11 @@ def export_to_bmz(
         )
 
         # test model description
-        test_kwargs = (
-            model_description.config.get("bioimageio", {})
-            .get("test_kwargs", {})
-            .get("pytorch_state_dict", {})
-        )
+        test_kwargs = {}
+        if hasattr(model_description, "config") and isinstance(model_description.config, dict):
+            bioimageio_config = model_description.config.get("bioimageio", {})
+            test_kwargs = bioimageio_config.get("test_kwargs", {}).get("pytorch_state_dict", {})
+
         summary: ValidationSummary = test_model(model_description, **test_kwargs)
         if summary.status == "failed":
             raise ValueError(f"Model description test failed: {summary}")
