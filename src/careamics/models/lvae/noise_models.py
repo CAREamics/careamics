@@ -367,18 +367,10 @@ class GaussianMixtureNoiseModel(nn.Module):
         tmp: torch.Tensor
             Normal probability density of `x` given `mean` and `std`
         """
-        # Ensure all tensors have the same shape for broadcasting
-        x = x.view(x.shape[0], 1, -1)  # (batch, 1, dim1*dim2)
-        mean = mean.view(mean.shape[0], 1, -1)  # (batch, 1, dim1*dim2)
-        std = std.view(std.shape[0], 1, -1)  # (batch, 1, dim1*dim2)
-
         tmp = -((x - mean) ** 2)
         tmp = tmp / (2.0 * std * std)
         tmp = torch.exp(tmp)
         tmp = tmp / torch.sqrt((2.0 * np.pi) * std * std)
-        
-        # Restore original shape
-        tmp = tmp.view(x.shape[0], 1, *x.shape[2:])
         return tmp
 
     def likelihood(

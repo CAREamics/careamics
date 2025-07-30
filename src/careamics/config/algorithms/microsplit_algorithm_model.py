@@ -34,7 +34,7 @@ class MicroSplitAlgorithm(VAEBasedAlgorithm):
 
     model: LVAEModel  # TODO add validators
 
-    is_supervised: bool = False
+    is_supervised: bool = True
 
     def get_algorithm_friendly_name(self) -> str:
         """

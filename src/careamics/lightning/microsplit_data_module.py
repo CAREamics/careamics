@@ -186,14 +186,10 @@ class MicroSplitDataModule(L.LightningDataModule):
         data_stats = self.train_dataset.get_mean_std()
 
         # Store data statistics
-        self.data_mean = {
-            "input": torch.tensor(data_stats[0]["input"]),
-            "target": torch.tensor(data_stats[0]["target"]),
-        }
-        self.data_std = {
-            "input": torch.tensor(data_stats[1]["input"]),
-            "target": torch.tensor(data_stats[1]["target"]),
-        }
+        self.data_stats = (
+        torch.tensor(data_stats[0]["target"]),
+        torch.tensor(data_stats[1]["target"]),
+    ) # TODO repeats old logic, revisit
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset)
@@ -211,7 +207,7 @@ class MicroSplitDataModule(L.LightningDataModule):
             - data_mean: mean values for input and target
             - data_std: standard deviation values for input and target
         """
-        return self.data_mean, self.data_std
+        return self.data_stats
 
 
 def create_microsplit_train_datamodule(
