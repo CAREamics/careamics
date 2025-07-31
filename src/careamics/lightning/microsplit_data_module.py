@@ -143,9 +143,10 @@ class MicroSplitDataModule(L.LightningDataModule):
     ):
         super().__init__()
         # Dataset selection logic (adapted from create_train_val_datasets)
-        train_config = data_config if hasattr(data_config, "data_type") else None
-        val_config = data_config if hasattr(data_config, "data_type") else None
-        test_config = data_config if hasattr(data_config, "data_type") else None
+        self.train_config = data_config  # SHould configs be separated?
+        self.val_config = data_config 
+        self.test_config = data_config
+
         datapath = train_data
         load_data_func = read_source_func
 
@@ -153,27 +154,27 @@ class MicroSplitDataModule(L.LightningDataModule):
 
         # Create datasets
         self.train_dataset = dataset_class(
-            train_config,
+            self.train_config,
             datapath,
             load_data_fn=load_data_func,
             val_fraction=val_percentage,
             test_fraction=0.1,
         )
         max_val = self.train_dataset.get_max_val()
-        val_config.max_val = max_val
-        if train_config.datasplit_type == DataSplitType.All:
-            val_config.datasplit_type = DataSplitType.All
-            test_config.datasplit_type = DataSplitType.All
+        self.val_config.max_val = max_val
+        if self.train_config.datasplit_type == DataSplitType.All:
+            self.val_config.datasplit_type = DataSplitType.All
+            self.test_config.datasplit_type = DataSplitType.All
         self.val_dataset = dataset_class(
-            val_config,
+            self.val_config,
             datapath,
             load_data_fn=load_data_func,
             val_fraction=val_percentage,
             test_fraction=0.1,
         )
-        test_config.max_val = max_val
+        self.test_config.max_val = max_val
         self.test_dataset = dataset_class(
-            test_config,
+            self.test_config,
             datapath,
             load_data_fn=load_data_func,
             val_fraction=val_percentage,
@@ -187,15 +188,23 @@ class MicroSplitDataModule(L.LightningDataModule):
 
         # Store data statistics
         self.data_stats = (
-        torch.tensor(data_stats[0]["target"]),
-        torch.tensor(data_stats[1]["target"]),
-    ) # TODO repeats old logic, revisit
+            torch.tensor(data_stats[0]["target"]),
+            torch.tensor(data_stats[1]["target"]),
+        )  # TODO repeats old logic, revisit
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset)
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.train_config.batch_size, # TODO should be inside dataloader params?
+            **self.train_config.train_dataloader_params,
+        )
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset)
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.train_config.batch_size,
+            **self.val_config.val_dataloader_params, # TODO duplicated 
+        )
 
     def get_data_stats(self):
         """Get data statistics.
@@ -214,7 +223,7 @@ def create_microsplit_train_datamodule(
     train_data: str,
     patch_size: tuple,
     data_type: DataType,
-    axes: str,
+    axes: str,  # TODO should be there after refactoring
     batch_size: int,
     val_data: str = None,
     num_channels: int = 2,
@@ -222,7 +231,7 @@ def create_microsplit_train_datamodule(
     grid_size: tuple = None,
     multiscale_count: int = None,
     tiling_mode: TilingMode = TilingMode.ShiftBoundary,
-    read_source_func: Callable = None,
+    read_source_func: Callable = None,  # TODO should be there after refactoring
     extension_filter: str = "",
     val_percentage: float = 0.1,
     val_minimum_split: int = 5,
