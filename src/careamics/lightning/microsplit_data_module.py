@@ -2,12 +2,14 @@
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 import pytorch_lightning as L
 import tifffile
 import torch
 from torch.utils.data import DataLoader
+from numpy.typing import NDArray
 
 from careamics.lvae_training.dataset import (
     DataSplitType,
@@ -328,4 +330,182 @@ def create_microsplit_train_datamodule(
         val_percentage=val_percentage,
         val_minimum_split=val_minimum_split,
         use_in_memory=use_in_memory,
+    )
+
+
+class MicroSplitPredictDataModule(L.LightningDataModule):
+    """Lightning DataModule for MicroSplit-style prediction datasets.
+    
+    Matches the interface of PredictDataModule, but internally uses MicroSplit
+    dataset logic for prediction.
+    """
+
+    def __init__(
+        self,
+        pred_config: MicroSplitDataConfig,
+        pred_data: Union[str, Path, NDArray],
+        read_source_func: Callable | None = None,
+        extension_filter: str = "",
+        dataloader_params: dict | None = None,
+    ) -> None:
+        """
+        Constructor for MicroSplit prediction data module.
+        
+        Parameters
+        ----------
+        pred_config : MicroSplitDataConfig
+            Configuration for MicroSplit prediction.
+        pred_data : str or Path or numpy.ndarray
+            Prediction data, can be a path to a folder, a file or a numpy array.
+        read_source_func : Callable, optional
+            Function to read custom types, by default None.
+        extension_filter : str, optional
+            Filter to filter file extensions for custom types, by default "".
+        dataloader_params : dict, optional
+            Dataloader parameters, by default {}.
+        """
+        super().__init__()
+        
+        if dataloader_params is None:
+            dataloader_params = {}
+            
+        self.pred_config = pred_config
+        self.pred_data = pred_data
+        self.read_source_func = read_source_func or get_train_val_data
+        self.extension_filter = extension_filter
+        self.dataloader_params = dataloader_params
+        
+        # Set to prediction mode
+        self.pred_config.datasplit_type = DataSplitType.All
+
+    def prepare_data(self) -> None:
+        """Hook used to prepare the data before calling `setup`."""
+        # For MicroSplit, data preparation is handled in dataset creation
+        pass
+
+    def setup(self, stage: str | None = None) -> None:
+        """
+        Hook called at the beginning of predict.
+        
+        Parameters
+        ----------
+        stage : Optional[str], optional
+            Stage, by default None.
+        """
+        # Create prediction dataset using LCMultiChDloader
+        self.predict_dataset = LCMultiChDloader(
+            self.pred_config,
+            self.pred_data,
+            load_data_fn=self.read_source_func,
+            val_fraction=0.0,  # No validation split for prediction
+            test_fraction=0.0,  # No test split for prediction
+        )
+        
+        # Set normalization if available
+        if hasattr(self.predict_dataset, 'set_mean_std'):
+            # For prediction, we might want to use pre-computed stats
+            # or compute them from the prediction data
+            mean_val, std_val = self.predict_dataset.compute_mean_std()
+            self.predict_dataset.set_mean_std(mean_val, std_val)
+
+    def predict_dataloader(self) -> DataLoader:
+        """
+        Create a dataloader for prediction.
+        
+        Returns
+        -------
+        DataLoader
+            Prediction dataloader.
+        """
+        return DataLoader(
+            self.predict_dataset,
+            batch_size=self.pred_config.batch_size,
+            **self.dataloader_params,
+        )
+
+
+def create_microsplit_predict_datamodule(
+    pred_data: Union[str, Path, NDArray],
+    tile_size: tuple,
+    data_type: DataType,
+    axes: str,
+    batch_size: int = 1,
+    num_channels: int = 2,
+    depth3D: int = 1,
+    grid_size: tuple = None,
+    multiscale_count: int = None,
+    tiling_mode: TilingMode = TilingMode.ShiftBoundary,
+    read_source_func: Callable = None,
+    extension_filter: str = "",
+    dataloader_params: dict = None,
+    **dataset_kwargs,
+) -> MicroSplitPredictDataModule:
+    """
+    Create a MicroSplitPredictDataModule for microSplit-style prediction datasets.
+
+    Parameters
+    ----------
+    pred_data : str or Path or numpy.ndarray
+        Prediction data, can be a path to a folder, a file or a numpy array.
+    patch_size : tuple
+        Size of one patch of data.
+    data_type : DataType
+        Type of the dataset (must be a DataType enum value).
+    axes : str
+        Axes of the data (e.g., 'SYX').
+    batch_size : int, default=1
+        Batch size for prediction dataloader.
+    num_channels : int, default=2
+        Number of channels in the input.
+    depth3D : int, default=1
+        Number of slices in 3D.
+    grid_size : tuple, optional
+        Grid size for patch extraction.
+    multiscale_count : int, optional
+        Number of LC scales.
+    tiling_mode : TilingMode, default=ShiftBoundary
+        Tiling mode for patch extraction.
+    read_source_func : Callable, optional
+        Function to read the source data.
+    extension_filter : str, optional
+        File extension filter.
+    dataloader_params : dict, optional
+        Parameters for prediction dataloader.
+    **dataset_kwargs :
+        Additional arguments passed to MicroSplitDataConfig.
+
+    Returns
+    -------
+    MicroSplitPredictDataModule
+        Configured MicroSplitPredictDataModule instance.
+    """
+    if dataloader_params is None:
+        dataloader_params = {}
+    
+    # Create prediction config with only valid parameters
+    prediction_config_params = {
+        "data_type": data_type,
+        "image_size": tile_size,
+        "num_channels": num_channels,
+        "depth3D": depth3D,
+        "grid_size": grid_size,
+        "multiscale_lowres_count": multiscale_count,
+        "tiling_mode": tiling_mode,
+        "batch_size": batch_size,
+        "datasplit_type": DataSplitType.All,  # For prediction, use all data
+        **dataset_kwargs,
+    }
+    
+    pred_config = MicroSplitDataConfig(**prediction_config_params)
+    
+    # Remove batch_size from dataloader_params if present
+    if "batch_size" in dataloader_params:
+        del dataloader_params["batch_size"]
+    
+    return MicroSplitPredictDataModule(
+        pred_config=pred_config,
+        pred_data=pred_data,
+        read_source_func=read_source_func or get_train_val_data,
+        extension_filter=extension_filter,
+        dataloader_params=dataloader_params,
     )
