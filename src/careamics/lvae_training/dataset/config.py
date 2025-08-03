@@ -120,7 +120,7 @@ class MicroSplitDataConfig(BaseModel):
 
     random_flip_z_3D: bool | None = False
 
-    padding_kwargs: dict = {"mode": "reflect"} # TODO remove !!
+    padding_kwargs: dict = {"mode": "reflect"}  # TODO remove !!
 
     def __init__(self, **data):
         # Convert string data_type to enum if needed

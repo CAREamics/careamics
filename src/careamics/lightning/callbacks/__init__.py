@@ -1,10 +1,10 @@
 """Callbacks module."""
 
 __all__ = [
+    "DataStatsCallback",
     "HyperParametersCallback",
     "PredictionWriterCallback",
     "ProgressBarCallback",
-    "DataStatsCallback",
 ]
 
 from .data_stats_callback import DataStatsCallback

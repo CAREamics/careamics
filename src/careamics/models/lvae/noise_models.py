@@ -398,7 +398,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             mean = gaussian_parameters[gaussian]
             std = gaussian_parameters[self.n_gaussian + gaussian]
             weight = gaussian_parameters[2 * self.n_gaussian + gaussian]
-            
+
             # Compute normal density
             p += (
                 self.normal_density(
