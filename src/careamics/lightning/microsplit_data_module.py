@@ -116,6 +116,7 @@ def get_train_val_data(
     elif datasplit_type == DataSplitType.Val:
         data = data[val_idx].astype(np.float64)
     elif datasplit_type == DataSplitType.Test:
+        # TODO this is only used for prediction, and only because old dataset uses it
         data = data[test_idx].astype(np.float64)
     else:
         raise Exception("invalid datasplit")
@@ -190,8 +191,8 @@ class MicroSplitDataModule(L.LightningDataModule):
 
         # Store data statistics
         self.data_stats = (
-            torch.tensor(data_stats[0]["target"]),
-            torch.tensor(data_stats[1]["target"]),
+            data_stats[0],
+            data_stats[1],
         )  # TODO repeats old logic, revisit
 
     def train_dataloader(self):
@@ -218,7 +219,7 @@ class MicroSplitDataModule(L.LightningDataModule):
             - data_mean: mean values for input and target
             - data_std: standard deviation values for input and target
         """
-        return self.data_stats
+        return self.data_stats, self.val_config.max_val # TODO should be in the config?
 
 
 def create_microsplit_train_datamodule(
@@ -368,19 +369,15 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
         
         if dataloader_params is None:
             dataloader_params = {}
-            
         self.pred_config = pred_config
         self.pred_data = pred_data
         self.read_source_func = read_source_func or get_train_val_data
         self.extension_filter = extension_filter
         self.dataloader_params = dataloader_params
         
-        # Set to prediction mode
-        self.pred_config.datasplit_type = DataSplitType.All
-
     def prepare_data(self) -> None:
         """Hook used to prepare the data before calling `setup`."""
-        # For MicroSplit, data preparation is handled in dataset creation
+        # # TODO currently data preparation is handled in dataset creation, revisit!
         pass
 
     def setup(self, stage: str | None = None) -> None:
@@ -398,16 +395,10 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
             self.pred_data,
             load_data_fn=self.read_source_func,
             val_fraction=0.0,  # No validation split for prediction
-            test_fraction=0.0,  # No test split for prediction
+            test_fraction=1.0,  # No test split for prediction
         )
+        self.predict_dataset.set_mean_std(*self.pred_config.data_stats)
         
-        # Set normalization if available
-        if hasattr(self.predict_dataset, 'set_mean_std'):
-            # For prediction, we might want to use pre-computed stats
-            # or compute them from the prediction data
-            mean_val, std_val = self.predict_dataset.compute_mean_std()
-            self.predict_dataset.set_mean_std(mean_val, std_val)
-
     def predict_dataloader(self) -> DataLoader:
         """
         Create a dataloader for prediction.
@@ -432,8 +423,9 @@ def create_microsplit_predict_datamodule(
     batch_size: int = 1,
     num_channels: int = 2,
     depth3D: int = 1,
-    grid_size: tuple = None,
+    grid_size: int = None,
     multiscale_count: int = None,
+    data_stats: tuple = None,
     tiling_mode: TilingMode = TilingMode.ShiftBoundary,
     read_source_func: Callable = None,
     extension_filter: str = "",
@@ -465,6 +457,8 @@ def create_microsplit_predict_datamodule(
         Number of LC scales.
     tiling_mode : TilingMode, default=ShiftBoundary
         Tiling mode for patch extraction.
+    data_stats : tuple, optional
+        Data statistics, by default None.
     read_source_func : Callable, optional
         Function to read the source data.
     extension_filter : str, optional
@@ -490,9 +484,10 @@ def create_microsplit_predict_datamodule(
         "depth3D": depth3D,
         "grid_size": grid_size,
         "multiscale_lowres_count": multiscale_count,
+        "data_stats": data_stats,
         "tiling_mode": tiling_mode,
         "batch_size": batch_size,
-        "datasplit_type": DataSplitType.All,  # For prediction, use all data
+        "datasplit_type": DataSplitType.Test,  # For prediction, use all data
         **dataset_kwargs,
     }
     

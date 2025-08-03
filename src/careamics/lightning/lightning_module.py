@@ -1,11 +1,14 @@
 """CAREamics Lightning module."""
 
 from collections.abc import Callable
-from typing import Any, Literal, Union
+from typing import Any, Literal, Union, Optional
 
 import numpy as np
 import pytorch_lightning as L
+import torch
 from torch import Tensor, nn, stack
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from careamics.config import (
     N2VAlgorithm,
@@ -513,56 +516,83 @@ class VAEModule(L.LightningModule):
         Any
             Model output.
         """
-        if self._trainer.datamodule.tiled:
-            # TODO tile_size should match model input size
-            x, *aux = batch
-            x = (
-                x[0] if isinstance(x, list | tuple) else x
-            )  # TODO ugly, so far i don't know why x might be a list
-            self.model.reset_for_inference(x.shape)  # TODO should it be here ?
-        else:
-            x = batch[0] if isinstance(batch, list | tuple) else batch
-            aux = []
-            self.model.reset_for_inference(x.shape)
+        # Check if this is microsplit algorithm and if dataset-level prediction is requested
+        if self.algorithm_config.algorithm == "microsplit":
 
-        mmse_list = []
-        for _ in range(self.algorithm_config.mmse_count):
-            # apply test-time augmentation if available
-            if self._trainer.datamodule.prediction_config.tta_transforms:
-                tta = ImageRestorationTTA()
-                augmented_batch = tta.forward(x)  # list of augmented tensors
-                augmented_output = []
-                for augmented in augmented_batch:
-                    augmented_pred = self.model(augmented)
-                    augmented_output.append(augmented_pred)
-                output = tta.backward(augmented_output)
-            else:
-                output = self.model(x)
+            dataset = self._trainer.datamodule.predict_dataset
+            batch_size = self._trainer.datamodule.predict_dataloader().batch_size
+            num_workers = self._trainer.datamodule.predict_dataloader().num_workers
 
-            # taking the 1st element of the output, 2nd is std if
-            # predict_logvar=="pixelwise"
-            output = (
-                output[0]
-                if self.model.predict_logvar is None
-                else output[0][:, 0:1, ...]
+            stitched_predictions, stitched_stds = self._predict_microsplit_dataset(
+                dataset, batch_size, num_workers
             )
-            mmse_list.append(output)
 
-        mmse = stack(mmse_list).mean(0)
-        std = stack(mmse_list).std(0)  # TODO why?
-        # TODO better way to unpack if pred logvar
-        # Denormalize the output
-        denorm = Denormalize(
-            image_means=self._trainer.datamodule.predict_dataset.image_means,
-            image_stds=self._trainer.datamodule.predict_dataset.image_stds,
-        )
+            # Denormalize the output
+            denorm = Denormalize(
+                image_means=dataset.image_means,
+                image_stds=dataset.image_stds,
+            )
+            denormalized_output = denorm(patch=stitched_predictions)
 
-        denormalized_output = denorm(patch=mmse.cpu().numpy())
+            # Return in a format compatible with existing expectations
+            return {
+                'stitched_predictions': denormalized_output,
+                'stitched_stds': stitched_stds,
+                'algorithm': 'microsplit'
+            }
 
-        if len(aux) > 0:  # aux can be tiling information
-            return denormalized_output, std, *aux
         else:
-            return denormalized_output, std
+            # Regular prediction logic (unchanged for all algorithms including microsplit fallback)
+            if self._trainer.datamodule.tiled:
+                # TODO tile_size should match model input size
+                x, *aux = batch
+                x = (
+                    x[0] if isinstance(x, list | tuple) else x
+                )  # TODO ugly, so far i don't know why x might be a list
+                self.model.reset_for_inference(x.shape)  # TODO should it be here ?
+            else:
+                x = batch[0] if isinstance(batch, list | tuple) else batch
+                aux = []
+                self.model.reset_for_inference(x.shape)
+
+            mmse_list = []
+            for _ in range(self.algorithm_config.mmse_count):
+                # apply test-time augmentation if available
+                if self._trainer.datamodule.prediction_config.tta_transforms:
+                    tta = ImageRestorationTTA()
+                    augmented_batch = tta.forward(x)  # list of augmented tensors
+                    augmented_output = []
+                    for augmented in augmented_batch:
+                        augmented_pred = self.model(augmented)
+                        augmented_output.append(augmented_pred)
+                    output = tta.backward(augmented_output)
+                else:
+                    output = self.model(x)
+
+                # taking the 1st element of the output, 2nd is std if
+                # predict_logvar=="pixelwise"
+                output = (
+                    output[0]
+                    if self.model.predict_logvar is None
+                    else output[0][:, 0:1, ...]
+                )
+                mmse_list.append(output)
+
+            mmse = stack(mmse_list).mean(0)
+            std = stack(mmse_list).std(0)  # TODO why?
+            # TODO better way to unpack if pred logvar
+            # Denormalize the output
+            denorm = Denormalize(
+                image_means=self._trainer.datamodule.predict_dataset.image_means,
+                image_stds=self._trainer.datamodule.predict_dataset.image_stds,
+            )
+
+            denormalized_output = denorm(patch=mmse.cpu().numpy())
+
+            if len(aux) > 0:  # aux can be tiling information
+                return denormalized_output, std, *aux
+            else:
+                return denormalized_output, std
 
     def configure_optimizers(self) -> Any:
         """Configure optimizers and learning rate schedulers.
@@ -677,6 +707,124 @@ class VAEModule(L.LightningModule):
         if psnr_arr is not None:
             psnr = np.mean(psnr_arr)
         return psnr
+
+    def _get_device(self):
+        """Get the appropriate device for computation."""
+        if torch.cuda.is_available():
+            return "cuda"
+        elif torch.backends.mps.is_available():
+            return "mps"
+        else:
+            return "cpu"
+
+    def _stitch_predictions_simple(self, predictions, dset):
+        """
+        Simple stitching function for microsplit predictions.
+        Adapted from stitch_predictions_new in eval_utils.py
+        """
+        if not hasattr(dset, 'idx_manager'):
+            # If no idx_manager, return predictions as-is
+            return predictions
+        
+        mng = dset.idx_manager
+        
+        # if there are more channels, use all of them.
+        shape = list(dset.get_data_shape())
+        shape[-1] = max(shape[-1], predictions.shape[1])
+        
+        output = np.zeros(shape, dtype=predictions.dtype)
+        
+        for dset_idx in range(predictions.shape[0]):
+            # grid start, grid end
+            gs = np.array(mng.get_location_from_dataset_idx(dset_idx), dtype=int)
+            ge = gs + mng.grid_shape
+            
+            # patch start, patch end
+            ps = gs - mng.patch_offset()
+            pe = ps + mng.patch_shape
+            
+            # valid grid start, valid grid end
+            vgs = np.array([max(0, x) for x in gs], dtype=int)
+            vge = np.array([min(x, y) for x, y in zip(ge, mng.data_shape)], dtype=int)
+            
+            # relative start, relative end. This will be used on pred_tiled
+            rs = vgs - ps
+            re = rs + (vge - vgs)
+            
+            for ch_idx in range(predictions.shape[1]):
+                if len(output.shape) == 4:
+                    # channel dimension is the last one.
+                    output[vgs[0] : vge[0], vgs[1] : vge[1], vgs[2] : vge[2], ch_idx] = (
+                        predictions[dset_idx][ch_idx, rs[1] : re[1], rs[2] : re[2]]
+                    )
+                elif len(output.shape) == 5:
+                    # channel dimension is the last one.
+                    assert vge[0] - vgs[0] == 1, "Only one frame is supported"
+                    output[
+                        vgs[0], vgs[1] : vge[1], vgs[2] : vge[2], vgs[3] : vge[3], ch_idx
+                    ] = predictions[dset_idx][
+                        ch_idx, rs[1] : re[1], rs[2] : re[2], rs[3] : re[3]
+                    ]
+                else:
+                    raise ValueError(f"Unsupported shape {output.shape}")
+        
+        return output
+
+    def _predict_microsplit_dataset(self, dataset, batch_size: int = 1, num_workers: int = 0):
+        """
+        Predict on entire dataset for microsplit with stitching.
+        Adapted from get_single_file_mmse in eval_utils.py
+        """
+        device = self._get_device()
+        
+        dloader = DataLoader(
+            dataset,
+            pin_memory=False,
+            num_workers=num_workers,
+            shuffle=False,
+            batch_size=batch_size,
+        )
+        
+        self.eval()
+        self.to(device)
+        
+        tile_mmse = []
+        tile_stds = []
+        
+        with torch.no_grad():
+            for batch in tqdm(dloader, desc="Predicting tiles for microsplit"):
+                inp, tar = batch
+                inp = inp.to(device)
+                tar = tar.to(device)
+                
+                rec_img_list = []
+                for _ in range(self.algorithm_config.mmse_count):
+                    # get model output
+                    rec, _ = self.model(inp)
+                    
+                    # get reconstructed img
+                    if self.model.predict_logvar is None:
+                        rec_img = rec
+                    else:
+                        rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
+                    rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
+                
+                # aggregate results
+                samples = torch.cat(rec_img_list, dim=0)
+                mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
+                std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
+                
+                tile_mmse.append(mmse_imgs.cpu().numpy())
+                tile_stds.append(std_imgs.cpu().numpy())
+        
+        tiles_arr = np.concatenate(tile_mmse, axis=0)
+        tile_stds_arr = np.concatenate(tile_stds, axis=0)
+        
+        # Stitch predictions
+        stitched_predictions = self._stitch_predictions_simple(tiles_arr, dataset)
+        stitched_stds = self._stitch_predictions_simple(tile_stds_arr, dataset)
+        
+        return stitched_predictions, stitched_stds
 
 
 # TODO: make this LVAE compatible (?)
