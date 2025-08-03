@@ -7,9 +7,8 @@ from typing import Union
 import numpy as np
 import pytorch_lightning as L
 import tifffile
-import torch
-from torch.utils.data import DataLoader
 from numpy.typing import NDArray
+from torch.utils.data import DataLoader
 
 from careamics.dataset.dataset_utils.dataset_utils import reshape_array
 from careamics.lvae_training.dataset import (
@@ -147,7 +146,7 @@ class MicroSplitDataModule(L.LightningDataModule):
         super().__init__()
         # Dataset selection logic (adapted from create_train_val_datasets)
         self.train_config = data_config  # SHould configs be separated?
-        self.val_config = data_config 
+        self.val_config = data_config
         self.test_config = data_config
 
         datapath = train_data
@@ -198,7 +197,7 @@ class MicroSplitDataModule(L.LightningDataModule):
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset,
-            batch_size=self.train_config.batch_size, # TODO should be inside dataloader params?
+            batch_size=self.train_config.batch_size,  # TODO should be inside dataloader params?
             **self.train_config.train_dataloader_params,
         )
 
@@ -206,7 +205,7 @@ class MicroSplitDataModule(L.LightningDataModule):
         return DataLoader(
             self.val_dataset,
             batch_size=self.train_config.batch_size,
-            **self.val_config.val_dataloader_params, # TODO duplicated 
+            **self.val_config.val_dataloader_params,  # TODO duplicated
         )
 
     def get_data_stats(self):
@@ -219,7 +218,7 @@ class MicroSplitDataModule(L.LightningDataModule):
             - data_mean: mean values for input and target
             - data_std: standard deviation values for input and target
         """
-        return self.data_stats, self.val_config.max_val # TODO should be in the config?
+        return self.data_stats, self.val_config.max_val  # TODO should be in the config?
 
 
 def create_microsplit_train_datamodule(
@@ -336,7 +335,7 @@ def create_microsplit_train_datamodule(
 
 class MicroSplitPredictDataModule(L.LightningDataModule):
     """Lightning DataModule for MicroSplit-style prediction datasets.
-    
+
     Matches the interface of PredictDataModule, but internally uses MicroSplit
     dataset logic for prediction.
     """
@@ -351,7 +350,7 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
     ) -> None:
         """
         Constructor for MicroSplit prediction data module.
-        
+
         Parameters
         ----------
         pred_config : MicroSplitDataConfig
@@ -366,7 +365,7 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
             Dataloader parameters, by default {}.
         """
         super().__init__()
-        
+
         if dataloader_params is None:
             dataloader_params = {}
         self.pred_config = pred_config
@@ -374,7 +373,7 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
         self.read_source_func = read_source_func or get_train_val_data
         self.extension_filter = extension_filter
         self.dataloader_params = dataloader_params
-        
+
     def prepare_data(self) -> None:
         """Hook used to prepare the data before calling `setup`."""
         # # TODO currently data preparation is handled in dataset creation, revisit!
@@ -383,7 +382,7 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
     def setup(self, stage: str | None = None) -> None:
         """
         Hook called at the beginning of predict.
-        
+
         Parameters
         ----------
         stage : Optional[str], optional
@@ -398,11 +397,11 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
             test_fraction=1.0,  # No test split for prediction
         )
         self.predict_dataset.set_mean_std(*self.pred_config.data_stats)
-        
+
     def predict_dataloader(self) -> DataLoader:
         """
         Create a dataloader for prediction.
-        
+
         Returns
         -------
         DataLoader
@@ -475,7 +474,7 @@ def create_microsplit_predict_datamodule(
     """
     if dataloader_params is None:
         dataloader_params = {}
-    
+
     # Create prediction config with only valid parameters
     prediction_config_params = {
         "data_type": data_type,
@@ -490,13 +489,13 @@ def create_microsplit_predict_datamodule(
         "datasplit_type": DataSplitType.Test,  # For prediction, use all data
         **dataset_kwargs,
     }
-    
+
     pred_config = MicroSplitDataConfig(**prediction_config_params)
-    
+
     # Remove batch_size from dataloader_params if present
     if "batch_size" in dataloader_params:
         del dataloader_params["batch_size"]
-    
+
     return MicroSplitPredictDataModule(
         pred_config=pred_config,
         pred_data=pred_data,

@@ -317,7 +317,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         # Convert to tensor if needed
         self.data_mean = torch.as_tensor(data_mean, dtype=torch.float32)
         self.data_std = torch.as_tensor(data_std, dtype=torch.float32)
-        
+
         # TODO add extra dim for 3D ?
 
     def _set_params_to_same_device_as(

@@ -1,7 +1,7 @@
 """CAREamics Lightning module."""
 
 from collections.abc import Callable
-from typing import Any, Literal, Union, Optional
+from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -541,9 +541,9 @@ class VAEModule(L.LightningModule):
 
             # Return in a format compatible with existing expectations
             return {
-                'stitched_predictions': denormalized_output,
-                'stitched_stds': stitched_stds,
-                'algorithm': 'microsplit'
+                "stitched_predictions": denormalized_output,
+                "stitched_stds": stitched_stds,
+                "algorithm": "microsplit",
             }
 
         else:
@@ -727,61 +727,69 @@ class VAEModule(L.LightningModule):
         Simple stitching function for microsplit predictions.
         Adapted from stitch_predictions_new in eval_utils.py
         """
-        if not hasattr(dset, 'idx_manager'):
+        if not hasattr(dset, "idx_manager"):
             # If no idx_manager, return predictions as-is
             return predictions
-        
+
         mng = dset.idx_manager
-        
+
         # if there are more channels, use all of them.
         shape = list(dset.get_data_shape())
         shape[-1] = max(shape[-1], predictions.shape[1])
-        
+
         output = np.zeros(shape, dtype=predictions.dtype)
-        
+
         for dset_idx in range(predictions.shape[0]):
             # grid start, grid end
             gs = np.array(mng.get_location_from_dataset_idx(dset_idx), dtype=int)
             ge = gs + mng.grid_shape
-            
+
             # patch start, patch end
             ps = gs - mng.patch_offset()
             pe = ps + mng.patch_shape
-            
+
             # valid grid start, valid grid end
             vgs = np.array([max(0, x) for x in gs], dtype=int)
-            vge = np.array([min(x, y) for x, y in zip(ge, mng.data_shape)], dtype=int)
-            
+            vge = np.array(
+                [min(x, y) for x, y in zip(ge, mng.data_shape, strict=False)], dtype=int
+            )
+
             # relative start, relative end. This will be used on pred_tiled
             rs = vgs - ps
             re = rs + (vge - vgs)
-            
+
             for ch_idx in range(predictions.shape[1]):
                 if len(output.shape) == 4:
                     # channel dimension is the last one.
-                    output[vgs[0] : vge[0], vgs[1] : vge[1], vgs[2] : vge[2], ch_idx] = (
-                        predictions[dset_idx][ch_idx, rs[1] : re[1], rs[2] : re[2]]
-                    )
+                    output[
+                        vgs[0] : vge[0], vgs[1] : vge[1], vgs[2] : vge[2], ch_idx
+                    ] = predictions[dset_idx][ch_idx, rs[1] : re[1], rs[2] : re[2]]
                 elif len(output.shape) == 5:
                     # channel dimension is the last one.
                     assert vge[0] - vgs[0] == 1, "Only one frame is supported"
                     output[
-                        vgs[0], vgs[1] : vge[1], vgs[2] : vge[2], vgs[3] : vge[3], ch_idx
+                        vgs[0],
+                        vgs[1] : vge[1],
+                        vgs[2] : vge[2],
+                        vgs[3] : vge[3],
+                        ch_idx,
                     ] = predictions[dset_idx][
                         ch_idx, rs[1] : re[1], rs[2] : re[2], rs[3] : re[3]
                     ]
                 else:
                     raise ValueError(f"Unsupported shape {output.shape}")
-        
+
         return output
 
-    def _predict_microsplit_dataset(self, dataset, batch_size: int = 1, num_workers: int = 0):
+    def _predict_microsplit_dataset(
+        self, dataset, batch_size: int = 1, num_workers: int = 0
+    ):
         """
         Predict on entire dataset for microsplit with stitching.
         Adapted from get_single_file_mmse in eval_utils.py
         """
         device = self._get_device()
-        
+
         dloader = DataLoader(
             dataset,
             pin_memory=False,
@@ -789,46 +797,46 @@ class VAEModule(L.LightningModule):
             shuffle=False,
             batch_size=batch_size,
         )
-        
+
         self.eval()
         self.to(device)
-        
+
         tile_mmse = []
         tile_stds = []
-        
+
         with torch.no_grad():
             for batch in tqdm(dloader, desc="Predicting tiles for microsplit"):
                 inp, tar = batch
                 inp = inp.to(device)
                 tar = tar.to(device)
-                
+
                 rec_img_list = []
                 for _ in range(self.algorithm_config.mmse_count):
                     # get model output
                     rec, _ = self.model(inp)
-                    
+
                     # get reconstructed img
                     if self.model.predict_logvar is None:
                         rec_img = rec
                     else:
                         rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
                     rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
-                
+
                 # aggregate results
                 samples = torch.cat(rec_img_list, dim=0)
                 mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
                 std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
-                
+
                 tile_mmse.append(mmse_imgs.cpu().numpy())
                 tile_stds.append(std_imgs.cpu().numpy())
-        
+
         tiles_arr = np.concatenate(tile_mmse, axis=0)
         tile_stds_arr = np.concatenate(tile_stds, axis=0)
-        
+
         # Stitch predictions
         stitched_predictions = self._stitch_predictions_simple(tiles_arr, dataset)
         stitched_stds = self._stitch_predictions_simple(tile_stds_arr, dataset)
-        
+
         return stitched_predictions, stitched_stds
 
 
