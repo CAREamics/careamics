@@ -7,8 +7,6 @@ import numpy as np
 import pytorch_lightning as L
 import torch
 from torch import Tensor, nn, stack
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from careamics.config import (
     N2VAlgorithm,
