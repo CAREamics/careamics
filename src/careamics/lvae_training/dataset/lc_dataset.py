@@ -2,23 +2,29 @@
 A place for Datasets and Dataloaders.
 """
 
-from typing import Tuple, Union, Callable
+import logging
+import math
+from pathlib import Path
+from typing import Any, Callable, Optional, Union
 
 import numpy as np
 from skimage.transform import resize
 
-from .config import DatasetConfig
+from .config import MicroSplitDataConfig
 from .multich_dataset import MultiChDloader
 
 
 class LCMultiChDloader(MultiChDloader):
+    """Multi-channel dataset loader for LC-style datasets."""
+
     def __init__(
         self,
-        data_config: DatasetConfig,
-        fpath: str,
-        load_data_fn: Callable,
-        val_fraction=None,
-        test_fraction=None,
+        data_config: MicroSplitDataConfig,
+        datapath: Union[str, Path],
+        load_data_fn: Optional[Callable] = None,
+        val_fraction: float = 0.1,
+        test_fraction: float = 0.1,
+        allow_generation: bool = False,
     ):
         self._padding_kwargs = (
             data_config.padding_kwargs  # mode=padding_mode, constant_values=constant_value
@@ -27,7 +33,7 @@ class LCMultiChDloader(MultiChDloader):
 
         super().__init__(
             data_config,
-            fpath,
+            datapath,
             load_data_fn=load_data_fn,
             val_fraction=val_fraction,
             test_fraction=test_fraction,
@@ -111,8 +117,8 @@ class LCMultiChDloader(MultiChDloader):
         return msg
 
     def _load_scaled_img(
-        self, scaled_index, index: Union[int, Tuple[int, int]]
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, scaled_index, index: Union[int, tuple[int, int]]
+    ) -> tuple[np.ndarray, np.ndarray]:
         if isinstance(index, int):
             idx = index
         else:
@@ -131,7 +137,7 @@ class LCMultiChDloader(MultiChDloader):
             imgs = tuple([img + noise[0] * factor for img in imgs])
         return imgs
 
-    def _crop_img(self, img: np.ndarray, patch_start_loc: Tuple):
+    def _crop_img(self, img: np.ndarray, patch_start_loc: tuple):
         """
         Here, h_start, w_start could be negative. That simply means we need to pick the content from 0. So,
         the cropped image will be smaller than self._img_sz * self._img_sz
@@ -202,7 +208,7 @@ class LCMultiChDloader(MultiChDloader):
         )
         return output_img_tuples, cropped_noise_tuples
 
-    def __getitem__(self, index: Union[int, Tuple[int, int]]):
+    def __getitem__(self, index: Union[int, tuple[int, int]]):
         img_tuples, noise_tuples = self._get_img(index)
         if self._uncorrelated_channels:
             assert (

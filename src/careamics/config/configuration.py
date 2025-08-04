@@ -15,14 +15,19 @@ from typing_extensions import Self
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
+    HDNAlgorithm,
+    MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
 )
 from careamics.config.data import DataConfig
 from careamics.config.training_model import TrainingConfig
+from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 ALGORITHMS = Union[
     CAREAlgorithm,
+    HDNAlgorithm,
+    MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
 ]
@@ -140,7 +145,7 @@ class Configuration(BaseModel):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: DataConfig
+    data_config: DataConfig | MicroSplitDataConfig
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
@@ -185,7 +190,7 @@ class Configuration(BaseModel):
 
         return name
 
-    @model_validator(mode="after")
+    @model_validator(mode="after")  # TODO move to n2v configs or remove
     def validate_n2v_mask_pixel_perc(self: Self) -> Self:
         """
         Validate that there will always be at least one blind-spot pixel in every patch.

@@ -10,7 +10,7 @@ from typing import Callable, Union
 import numpy as np
 from skimage.transform import resize
 
-from .config import DatasetConfig
+from .config import MicroSplitDataConfig
 from .types import DataSplitType, TilingMode
 from .utils.empty_patch_fetcher import EmptyPatchFetcher
 from .utils.index_manager import GridIndexManagerRef
@@ -19,7 +19,7 @@ from .utils.index_manager import GridIndexManagerRef
 class MultiChDloaderRef:
     def __init__(
         self,
-        data_config: DatasetConfig,
+        data_config: MicroSplitDataConfig,
         fpath: str,
         load_data_fn: Callable,
         val_fraction: float = None,
@@ -171,8 +171,8 @@ class MultiChDloaderRef:
 
     def load_data(
         self,
-        data_config,
-        datasplit_type,
+        data_config: MicroSplitDataConfig,
+        datasplit_type: DataSplitType,
         load_data_fn: Callable,
         val_fraction=None,
         test_fraction=None,
@@ -813,7 +813,7 @@ class MultiChDloaderRef:
 class LCMultiChDloaderRef(MultiChDloaderRef):
     def __init__(
         self,
-        data_config: DatasetConfig,
+        data_config: MicroSplitDataConfig,
         fpath: str,
         load_data_fn: Callable,
         val_fraction=None,

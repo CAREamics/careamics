@@ -5,7 +5,8 @@ from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
-from torch import Tensor, nn
+import torch
+from torch import Tensor, nn, stack
 
 from careamics.config import (
     N2VAlgorithm,
@@ -71,7 +72,9 @@ class FCNModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: Union[UNetBasedAlgorithm, dict]) -> None:
+    def __init__(
+        self, algorithm_config: Union[UNetBasedAlgorithm, VAEBasedAlgorithm, dict]
+    ) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
@@ -332,15 +335,19 @@ class VAEModule(L.LightningModule):
         # create model
         self.model: nn.Module = model_factory(self.algorithm_config.model)
 
+        # supervised_mode
+        self.supervised_mode = self.algorithm_config.is_supervised
         # create loss function
         self.noise_model: NoiseModel | None = noise_model_factory(
             self.algorithm_config.noise_model
         )
 
-        self.noise_model_likelihood: NoiseModelLikelihood | None = likelihood_factory(
-            config=self.algorithm_config.noise_model_likelihood,
-            noise_model=self.noise_model,
-        )
+        self.noise_model_likelihood: NoiseModelLikelihood | None = None
+        if self.algorithm_config.noise_model_likelihood is not None:
+            self.noise_model_likelihood = likelihood_factory(
+                config=self.algorithm_config.noise_model_likelihood,
+                noise_model=self.noise_model,
+            )
 
         self.gaussian_likelihood: GaussianLikelihood | None = likelihood_factory(
             self.algorithm_config.gaussian_likelihood
@@ -376,6 +383,11 @@ class VAEModule(L.LightningModule):
         """
         return self.model(x)  # TODO Different model can have more than one output
 
+    def set_data_stats(self, data_mean, data_std):
+        """Set data mean and std for the noise model likelihood."""
+        if self.noise_model_likelihood is not None:
+            self.noise_model_likelihood.set_data_stats(data_mean, data_std)
+
     def training_step(
         self, batch: tuple[Tensor, Tensor], batch_idx: Any
     ) -> dict[str, Tensor] | None:
@@ -397,15 +409,29 @@ class VAEModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, target = batch
+        x, *target = batch
 
         # Forward pass
         out = self.model(x)
+        if not self.supervised_mode:
+            target = x
+        else:
+            target = target[
+                0
+            ]  # hacky way to unpack. #TODO maybe should be fixed on the dataset level
 
         # Update loss parameters
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
 
         # Compute loss
+        if self.noise_model_likelihood is not None:
+            if (
+                self.noise_model_likelihood.data_mean is None
+                or self.noise_model_likelihood.data_std is None
+            ):
+                raise RuntimeError(
+                    "NoiseModelLikelihood: data_mean and data_std must be set before training."
+                )
         loss = self.loss_func(
             model_outputs=out,
             targets=target,
@@ -417,7 +443,16 @@ class VAEModule(L.LightningModule):
         # Logging
         # TODO: implement a separate logging method?
         self.log_dict(loss, on_step=True, on_epoch=True)
-        # self.log("lr", self, on_epoch=True)
+
+        try:
+            optimizer = self.optimizers()
+            current_lr = optimizer.param_groups[0]["lr"]
+            self.log(
+                "learning_rate", current_lr, on_step=False, on_epoch=True, logger=True
+            )
+        except RuntimeError:
+            # This happens when the module is not attached to a trainer, e.g., in tests
+            pass
         return loss
 
     def validation_step(self, batch: tuple[Tensor, Tensor], batch_idx: Any) -> None:
@@ -434,11 +469,16 @@ class VAEModule(L.LightningModule):
         batch_idx : Any
             Batch index.
         """
-        x, target = batch
+        x, *target = batch
 
         # Forward pass
         out = self.model(x)
-
+        if not self.supervised_mode:
+            target = x
+        else:
+            target = target[
+                0
+            ]  # hacky way to unpack. #TODO maybe should be fixed on the datasel level
         # Compute loss
         loss = self.loss_func(
             model_outputs=out,
@@ -479,36 +519,86 @@ class VAEModule(L.LightningModule):
         Any
             Model output.
         """
-        if self._trainer.datamodule.tiled:
+        if self.algorithm_config.algorithm == "microsplit":
             x, *aux = batch
-        else:
-            x = batch
-            aux = []
+            # Reset model for inference with spatial dimensions only (H, W)
+            self.model.reset_for_inference(x.shape[-2:])
 
-        # apply test-time augmentation if available
-        # TODO: probably wont work with batch size > 1
-        if self._trainer.datamodule.prediction_config.tta_transforms:
-            tta = ImageRestorationTTA()
-            augmented_batch = tta.forward(x)  # list of augmented tensors
-            augmented_output = []
-            for augmented in augmented_batch:
-                augmented_pred = self.model(augmented)
-                augmented_output.append(augmented_pred)
-            output = tta.backward(augmented_output)
-        else:
-            output = self.model(x)
+            rec_img_list = []
+            for _ in range(self.algorithm_config.mmse_count):
+                # get model output
+                rec, _ = self.model(x)
 
-        # Denormalize the output
-        denorm = Denormalize(
-            image_means=self._trainer.datamodule.predict_dataset.image_means,
-            image_stds=self._trainer.datamodule.predict_dataset.image_stds,
-        )
-        denormalized_output = denorm(patch=output.cpu().numpy())
+                # get reconstructed img
+                if self.model.predict_logvar is None:
+                    rec_img = rec
+                    logvar = torch.tensor([-1])
+                else:
+                    rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
+                rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
 
-        if len(aux) > 0:  # aux can be tiling information
-            return denormalized_output, *aux
+            # aggregate results
+            samples = torch.cat(rec_img_list, dim=0)
+            mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
+            std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
+
+            tile_prediction = mmse_imgs.cpu().numpy()
+            tile_std = std_imgs.cpu().numpy()
+
+            return tile_prediction, tile_std
+
         else:
-            return denormalized_output
+            # Regular prediction logic
+            if self._trainer.datamodule.tiled:
+                # TODO tile_size should match model input size
+                x, *aux = batch
+                x = (
+                    x[0] if isinstance(x, list | tuple) else x
+                )  # TODO ugly, so far i don't know why x might be a list
+                self.model.reset_for_inference(x.shape)  # TODO should it be here ?
+            else:
+                x = batch[0] if isinstance(batch, list | tuple) else batch
+                aux = []
+                self.model.reset_for_inference(x.shape)
+
+            mmse_list = []
+            for _ in range(self.algorithm_config.mmse_count):
+                # apply test-time augmentation if available
+                if self._trainer.datamodule.prediction_config.tta_transforms:
+                    tta = ImageRestorationTTA()
+                    augmented_batch = tta.forward(x)  # list of augmented tensors
+                    augmented_output = []
+                    for augmented in augmented_batch:
+                        augmented_pred = self.model(augmented)
+                        augmented_output.append(augmented_pred)
+                    output = tta.backward(augmented_output)
+                else:
+                    output = self.model(x)
+
+                # taking the 1st element of the output, 2nd is std if
+                # predict_logvar=="pixelwise"
+                output = (
+                    output[0]
+                    if self.model.predict_logvar is None
+                    else output[0][:, 0:1, ...]
+                )
+                mmse_list.append(output)
+
+            mmse = stack(mmse_list).mean(0)
+            std = stack(mmse_list).std(0)  # TODO why?
+            # TODO better way to unpack if pred logvar
+            # Denormalize the output
+            denorm = Denormalize(
+                image_means=self._trainer.datamodule.predict_dataset.image_means,
+                image_stds=self._trainer.datamodule.predict_dataset.image_stds,
+            )
+
+            denormalized_output = denorm(patch=mmse.cpu().numpy())
+
+            if len(aux) > 0:  # aux can be tiling information
+                return denormalized_output, std, *aux
+            else:
+                return denormalized_output, std
 
     def configure_optimizers(self) -> Any:
         """Configure optimizers and learning rate schedulers.
@@ -581,6 +671,7 @@ class VAEModule(L.LightningModule):
         list[float]
             PSNR for each channel in the current batch.
         """
+        # TODO check this! Related to is_supervised which is also wacky
         out_channels = target.shape[1]
 
         # get the reconstructed image
@@ -622,6 +713,15 @@ class VAEModule(L.LightningModule):
         if psnr_arr is not None:
             psnr = np.mean(psnr_arr)
         return psnr
+
+    def _get_device(self):
+        """Get the appropriate device for computation."""
+        if torch.cuda.is_available():
+            return "cuda"
+        elif torch.backends.mps.is_available():
+            return "mps"
+        else:
+            return "cpu"
 
 
 # TODO: make this LVAE compatible (?)
