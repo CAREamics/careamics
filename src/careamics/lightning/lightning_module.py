@@ -523,28 +523,38 @@ class VAEModule(L.LightningModule):
         """
         # Check if this is microsplit algorithm and if dataset-level prediction is requested
         if self.algorithm_config.algorithm == "microsplit":
+            # For microsplit, process the current batch using Lightning's model
+            # Microsplit batch structure is (inp, tar)
+            x, *aux = batch
+            # Reset model for inference with spatial dimensions only (H, W)
+            self.model.reset_for_inference(x.shape[-2:])
 
-            dataset = self._trainer.datamodule.predict_dataset
-            batch_size = self._trainer.datamodule.predict_dataloader().batch_size
-            num_workers = self._trainer.datamodule.predict_dataloader().num_workers
+            # Process MMSE exactly like get_single_file_mmse
+            rec_img_list = []
+            for _ in range(self.algorithm_config.mmse_count):
+                # get model output
+                rec, _ = self.model(x)
 
-            stitched_predictions, stitched_stds = self._predict_microsplit_dataset(
-                dataset, batch_size, num_workers
-            )
+                # get reconstructed img
+                if self.model.predict_logvar is None:
+                    rec_img = rec
+                    logvar = torch.tensor([-1])
+                else:
+                    rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
+                rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
 
-            # Denormalize the output
-            denorm = Denormalize(
-                image_means=dataset.image_means,
-                image_stds=dataset.image_stds,
-            )
-            denormalized_output = denorm(patch=stitched_predictions)
+            # aggregate results
+            samples = torch.cat(rec_img_list, dim=0)
+            mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
+            std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
 
-            # Return in a format compatible with existing expectations
-            return {
-                'stitched_predictions': denormalized_output,
-                'stitched_stds': stitched_stds,
-                'algorithm': 'microsplit'
-            }
+            # Return raw predictions as numpy arrays (no denormalization yet)
+            # This matches the format from get_single_file_mmse: tile_mmse.append(mmse_imgs.cpu().numpy())
+            tile_prediction = mmse_imgs.cpu().numpy()
+            tile_std = std_imgs.cpu().numpy()
+
+            # For microsplit, no auxiliary data - return only tile predictions and std
+            return tile_prediction, tile_std
 
         else:
             # Regular prediction logic (unchanged for all algorithms including microsplit fallback)
@@ -775,20 +785,12 @@ class VAEModule(L.LightningModule):
         
         return output
 
-    def _predict_microsplit_dataset(self, dataset, batch_size: int = 1, num_workers: int = 0):
+    def _predict_microsplit_dataset(self):
         """
         Predict on entire dataset for microsplit with stitching.
         Adapted from get_single_file_mmse in eval_utils.py
         """
         device = self._get_device()
-        
-        dloader = DataLoader(
-            dataset,
-            pin_memory=False,
-            num_workers=num_workers,
-            shuffle=False,
-            batch_size=batch_size,
-        )
         
         self.eval()
         self.to(device)
@@ -797,7 +799,7 @@ class VAEModule(L.LightningModule):
         tile_stds = []
         
         with torch.no_grad():
-            for batch in tqdm(dloader, desc="Predicting tiles for microsplit"):
+            for batch in tqdm(self._trainer.datamodule.predict_dataloader(), desc="Predicting tiles for microsplit"):
                 inp, tar = batch
                 inp = inp.to(device)
                 tar = tar.to(device)
@@ -826,8 +828,8 @@ class VAEModule(L.LightningModule):
         tile_stds_arr = np.concatenate(tile_stds, axis=0)
         
         # Stitch predictions
-        stitched_predictions = self._stitch_predictions_simple(tiles_arr, dataset)
-        stitched_stds = self._stitch_predictions_simple(tile_stds_arr, dataset)
+        stitched_predictions = self._stitch_predictions_simple(tiles_arr, self._trainer.datamodule.predict_dataloader.dataset)
+        stitched_stds = self._stitch_predictions_simple(tile_stds_arr, self._trainer.datamodule.predict_dataloader.dataset)
         
         return stitched_predictions, stitched_stds
 
