@@ -7,8 +7,6 @@ import numpy as np
 import pytorch_lightning as L
 import torch
 from torch import Tensor, nn, stack
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from careamics.config import (
     N2VAlgorithm,
@@ -521,15 +519,11 @@ class VAEModule(L.LightningModule):
         Any
             Model output.
         """
-        # Check if this is microsplit algorithm and if dataset-level prediction is requested
         if self.algorithm_config.algorithm == "microsplit":
-            # For microsplit, process the current batch using Lightning's model
-            # Microsplit batch structure is (inp, tar)
             x, *aux = batch
             # Reset model for inference with spatial dimensions only (H, W)
             self.model.reset_for_inference(x.shape[-2:])
 
-            # Process MMSE exactly like get_single_file_mmse
             rec_img_list = []
             for _ in range(self.algorithm_config.mmse_count):
                 # get model output
@@ -548,16 +542,13 @@ class VAEModule(L.LightningModule):
             mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
             std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
 
-            # Return raw predictions as numpy arrays (no denormalization yet)
-            # This matches the format from get_single_file_mmse: tile_mmse.append(mmse_imgs.cpu().numpy())
             tile_prediction = mmse_imgs.cpu().numpy()
             tile_std = std_imgs.cpu().numpy()
 
-            # For microsplit, no auxiliary data - return only tile predictions and std
             return tile_prediction, tile_std
 
         else:
-            # Regular prediction logic (unchanged for all algorithms including microsplit fallback)
+            # Regular prediction logic
             if self._trainer.datamodule.tiled:
                 # TODO tile_size should match model input size
                 x, *aux = batch
