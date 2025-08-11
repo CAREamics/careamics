@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import (
     BaseModel,
@@ -24,7 +24,7 @@ class CheckpointModel(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
-    monitor: Optional[str] = Field(default=None)
+    monitor: str | None = Field(default=None)
     """Quantity to monitor, currently only `val_loss`."""
 
     verbose: bool = Field(default=False)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -29,11 +29,11 @@ class TrainingConfig(BaseModel):
     model_config = ConfigDict(
         validate_assignment=True,
     )
-    lightning_trainer_config: Optional[dict] = None
+    lightning_trainer_config: dict | None = None
     """Configuration for the PyTorch Lightning Trainer, following PyTorch Lightning
     Trainer class"""
 
-    logger: Optional[Literal["wandb", "tensorboard"]] = None
+    logger: Literal["wandb", "tensorboard"] | None = None
     """Logger to use during training. If None, no logger will be used. Available
     loggers are defined in SupportedLogger."""
 
