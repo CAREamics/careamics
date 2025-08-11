@@ -217,11 +217,18 @@ class PredictDataModule(L.LightningDataModule):
         DataLoader
             Prediction dataloader.
         """
+        # For tiled predictions, we need to ensure tiles are processed in order
+        # to avoid stitching artifacts. Multi-worker processing can return batches
+        # out of order, so we disable it for tiled predictions.
+        dataloader_params = self.dataloader_params.copy()
+        if self.tiled:
+            dataloader_params["num_workers"] = 0
+            
         return DataLoader(
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=collate_tiles if self.tiled else None,
-            **self.dataloader_params,
+            **dataloader_params,
         )
 
 

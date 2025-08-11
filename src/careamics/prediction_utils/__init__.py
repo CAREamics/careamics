@@ -5,7 +5,8 @@ __all__ = [
     "convert_outputs_microsplit",
     "stitch_prediction",
     "stitch_prediction_single",
+    "stitch_predictions_new",
 ]
 
 from .prediction_outputs import convert_outputs, convert_outputs_microsplit
-from .stitch_prediction import stitch_prediction, stitch_prediction_single
+from .stitch_prediction import stitch_prediction, stitch_prediction_single, stitch_predictions_new
