@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import (
     BaseModel,
