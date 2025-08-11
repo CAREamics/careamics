@@ -5,7 +5,6 @@ from __future__ import annotations
 import copy
 from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 from torch.utils.data import IterableDataset
@@ -51,7 +50,7 @@ class PathIterableDataset(IterableDataset):
         self,
         data_config: DataConfig,
         src_files: list[Path],
-        target_files: Optional[list[Path]] = None,
+        target_files: list[Path] | None = None,
         read_source_func: Callable = read_tiff,
     ) -> None:
         """Constructors.

@@ -6,7 +6,7 @@ import os
 import sys
 from collections.abc import Sequence
 from pprint import pformat
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Union
 from warnings import warn
 
 import numpy as np
@@ -109,22 +109,16 @@ class DataConfig(BaseModel):
     """Batch size for training."""
 
     # Optional fields
-    image_means: Optional[list[Float]] = Field(
-        default=None, min_length=0, max_length=32
-    )
+    image_means: list[Float] | None = Field(default=None, min_length=0, max_length=32)
     """Means of the data across channels, used for normalization."""
 
-    image_stds: Optional[list[Float]] = Field(default=None, min_length=0, max_length=32)
+    image_stds: list[Float] | None = Field(default=None, min_length=0, max_length=32)
     """Standard deviations of the data across channels, used for normalization."""
 
-    target_means: Optional[list[Float]] = Field(
-        default=None, min_length=0, max_length=32
-    )
+    target_means: list[Float] | None = Field(default=None, min_length=0, max_length=32)
     """Means of the target data across channels, used for normalization."""
 
-    target_stds: Optional[list[Float]] = Field(
-        default=None, min_length=0, max_length=32
-    )
+    target_stds: list[Float] | None = Field(default=None, min_length=0, max_length=32)
     """Standard deviations of the target data across channels, used for
     normalization."""
 
@@ -388,8 +382,8 @@ class DataConfig(BaseModel):
         self,
         image_means: Union[NDArray, tuple, list, None],
         image_stds: Union[NDArray, tuple, list, None],
-        target_means: Optional[Union[NDArray, tuple, list, None]] = None,
-        target_stds: Optional[Union[NDArray, tuple, list, None]] = None,
+        target_means: Union[NDArray, tuple, list, None] | None = None,
+        target_stds: Union[NDArray, tuple, list, None] | None = None,
     ) -> None:
         """
         Set mean and standard deviation of the data across channels.

@@ -7,7 +7,7 @@ its implementation is contained in the conf.py file.
 """
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import click
 import typer
@@ -47,7 +47,7 @@ def train(  # numpydoc ignore=PR01
         ),
     ],
     train_target: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--train-target",
             "-tt",
@@ -58,7 +58,7 @@ def train(  # numpydoc ignore=PR01
         ),
     ] = None,
     val_source: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--val-source",
             "-vs",
@@ -69,7 +69,7 @@ def train(  # numpydoc ignore=PR01
         ),
     ] = None,
     val_target: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--val-target",
             "-vt",
@@ -96,7 +96,7 @@ def train(  # numpydoc ignore=PR01
         typer.Option(help="Minimum number of files to use for validation,"),
     ] = 1,
     work_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--work-dir",
             "-wd",
@@ -142,7 +142,7 @@ def predict(  # numpydoc ignore=PR01
     ],
     batch_size: Annotated[int, typer.Option(help="Batch size.")] = 1,
     tile_size: Annotated[
-        Optional[click.Tuple],
+        click.Tuple | None,
         typer.Option(
             help=(
                 "Size of the tiles to use for prediction, (if the data "
@@ -164,7 +164,7 @@ def predict(  # numpydoc ignore=PR01
         ),
     ] = (48, 48, -1),
     axes: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help="Axes of the input data. If unused the data is assumed to have the "
             "same axes as the original training data."
@@ -190,7 +190,7 @@ def predict(  # numpydoc ignore=PR01
     ] = "tiff",
     # TODO: could make dataloader_params as json, necessary?
     work_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--work-dir",
             "-wd",

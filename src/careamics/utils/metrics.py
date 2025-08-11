@@ -5,7 +5,7 @@ This module contains various metrics and a metrics tracking class.
 """
 
 from collections.abc import Callable
-from typing import Optional, Union
+from typing import Union
 
 import numpy as np
 import torch
@@ -210,7 +210,7 @@ class RunningPSNR:
         self.mse_sum += torch.nansum(elementwise_mse)
         self.N += len(elementwise_mse) - torch.sum(torch.isnan(elementwise_mse))
 
-    def get(self) -> Optional[torch.Tensor]:
+    def get(self) -> torch.Tensor | None:
         """Get the actual PSNR value given the running statistics.
 
         Returns

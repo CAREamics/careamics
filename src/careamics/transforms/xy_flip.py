@@ -1,7 +1,5 @@
 """XY flip transform."""
 
-from typing import Optional
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -43,7 +41,7 @@ class XYFlip(Transform):
         flip_x: bool = True,
         flip_y: bool = True,
         p: float = 0.5,
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ) -> None:
         """Constructor.
 
@@ -81,9 +79,9 @@ class XYFlip(Transform):
     def __call__(
         self,
         patch: NDArray,
-        target: Optional[NDArray] = None,
+        target: NDArray | None = None,
         **additional_arrays: NDArray,
-    ) -> tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
+    ) -> tuple[NDArray, NDArray | None, dict[str, NDArray]]:
         """Apply the transform to the source patch and the target (optional).
 
         Parameters

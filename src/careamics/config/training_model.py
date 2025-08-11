@@ -42,7 +42,7 @@ class TrainingConfig(BaseModel):
     """Checkpoint callback configuration, following PyTorch Lightning Checkpoint
     callback."""
 
-    early_stopping_callback: Optional[EarlyStoppingModel] = Field(
+    early_stopping_callback: EarlyStoppingModel | None = Field(
         default=None, validate_default=True
     )
     """Early stopping callback configuration, following PyTorch Lightning Checkpoint

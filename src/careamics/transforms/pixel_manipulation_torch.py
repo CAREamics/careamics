@@ -1,7 +1,5 @@
 """N2V manipulation functions for PyTorch."""
 
-from typing import Optional
-
 import torch
 
 from .struct_mask_parameters import StructMaskParameters
@@ -11,7 +9,7 @@ def _apply_struct_mask_torch(
     patch: torch.Tensor,
     coords: torch.Tensor,
     struct_params: StructMaskParameters,
-    rng: Optional[torch.Generator] = None,
+    rng: torch.Generator | None = None,
 ) -> torch.Tensor:
     """Apply structN2V masks to patch.
 
@@ -154,8 +152,8 @@ def uniform_manipulate_torch(
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
     remove_center: bool = True,
-    struct_params: Optional[StructMaskParameters] = None,
-    rng: Optional[torch.Generator] = None,
+    struct_params: StructMaskParameters | None = None,
+    rng: torch.Generator | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Manipulate pixels by replacing them with a neighbor values.
@@ -256,8 +254,8 @@ def median_manipulate_torch(
     batch: torch.Tensor,
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
-    struct_params: Optional[StructMaskParameters] = None,
-    rng: Optional[torch.Generator] = None,
+    struct_params: StructMaskParameters | None = None,
+    rng: torch.Generator | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Manipulate pixels by replacing them with the median of their surrounding subpatch.

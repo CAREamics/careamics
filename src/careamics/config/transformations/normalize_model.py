@@ -1,6 +1,6 @@
 """Pydantic model for the Normalize transform."""
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import ConfigDict, Field, model_validator
 from typing_extensions import Self
@@ -31,8 +31,8 @@ class NormalizeModel(TransformModel):
     name: Literal["Normalize"] = "Normalize"
     image_means: list = Field(..., min_length=0, max_length=32)
     image_stds: list = Field(..., min_length=0, max_length=32)
-    target_means: Optional[list] = Field(default=None, min_length=0, max_length=32)
-    target_stds: Optional[list] = Field(default=None, min_length=0, max_length=32)
+    target_means: list | None = Field(default=None, min_length=0, max_length=32)
+    target_stds: list | None = Field(default=None, min_length=0, max_length=32)
 
     @model_validator(mode="after")
     def validate_means_stds(self: Self) -> Self:

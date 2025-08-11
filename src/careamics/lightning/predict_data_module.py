@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -65,9 +65,9 @@ class PredictDataModule(L.LightningDataModule):
         self,
         pred_config: InferenceConfig,
         pred_data: Union[Path, str, NDArray],
-        read_source_func: Optional[Callable] = None,
+        read_source_func: Callable | None = None,
         extension_filter: str = "",
-        dataloader_params: Optional[dict] = None,
+        dataloader_params: dict | None = None,
     ) -> None:
         """
         Constructor.
@@ -173,7 +173,7 @@ class PredictDataModule(L.LightningDataModule):
                 self.pred_data, self.data_type, self.extension_filter
             )
 
-    def setup(self, stage: Optional[str] = None) -> None:
+    def setup(self, stage: str | None = None) -> None:
         """
         Hook called at the beginning of predict.
 
@@ -231,13 +231,13 @@ def create_predict_datamodule(
     axes: str,
     image_means: list[float],
     image_stds: list[float],
-    tile_size: Optional[tuple[int, ...]] = None,
-    tile_overlap: Optional[tuple[int, ...]] = None,
+    tile_size: tuple[int, ...] | None = None,
+    tile_overlap: tuple[int, ...] | None = None,
     batch_size: int = 1,
     tta_transforms: bool = True,
-    read_source_func: Optional[Callable] = None,
+    read_source_func: Callable | None = None,
     extension_filter: str = "",
-    dataloader_params: Optional[dict] = None,
+    dataloader_params: dict | None = None,
 ) -> PredictDataModule:
     """Create a CAREamics prediction Lightning datamodule.
 

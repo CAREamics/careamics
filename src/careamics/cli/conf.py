@@ -3,7 +3,7 @@
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import click
 import typer
@@ -135,10 +135,10 @@ def care(  # numpydoc ignore=PR01
         ),
     ] = "mae",
     n_channels_in: Annotated[
-        Optional[int], typer.Option(help="Number of channels in")
+        int | None, typer.Option(help="Number of channels in")
     ] = None,
     n_channels_out: Annotated[
-        Optional[int], typer.Option(help="Number of channels out")
+        int | None, typer.Option(help="Number of channels out")
     ] = None,
     logger: Annotated[
         click.Choice,
@@ -222,10 +222,10 @@ def n2n(  # numpydoc ignore=PR01
         ),
     ] = "mae",
     n_channels_in: Annotated[
-        Optional[int], typer.Option(help="Number of channels in")
+        int | None, typer.Option(help="Number of channels in")
     ] = None,
     n_channels_out: Annotated[
-        Optional[int], typer.Option(help="Number of channels out")
+        int | None, typer.Option(help="Number of channels out")
     ] = None,
     logger: Annotated[
         click.Choice,
@@ -300,7 +300,7 @@ def n2v(  # numpydoc ignore=PR01
     ] = True,
     use_n2v2: Annotated[bool, typer.Option(help="Whether to use N2V2")] = False,
     n_channels: Annotated[
-        Optional[int], typer.Option(help="Number of channels (in and out)")
+        int | None, typer.Option(help="Number of channels (in and out)")
     ] = None,
     roi_size: Annotated[int, typer.Option(help="N2V pixel manipulation area.")] = 11,
     masked_pixel_percentage: Annotated[

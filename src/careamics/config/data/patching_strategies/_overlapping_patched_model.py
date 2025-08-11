@@ -1,7 +1,6 @@
 """Sequential patching Pydantic model."""
 
 from collections.abc import Sequence
-from typing import Optional
 
 from pydantic import Field, ValidationInfo, field_validator
 
@@ -24,7 +23,7 @@ class _OverlappingPatchedModel(_PatchedModel):
         dimension, and the number of dimensions be either 2 or 3.
     """
 
-    overlaps: Optional[Sequence[int]] = Field(
+    overlaps: Sequence[int] | None = Field(
         default=None,
         min_length=2,
         max_length=3,
@@ -37,8 +36,8 @@ class _OverlappingPatchedModel(_PatchedModel):
     @field_validator("overlaps")
     @classmethod
     def overlap_smaller_than_patch_size(
-        cls, overlaps: Optional[Sequence[int]], values: ValidationInfo
-    ) -> Optional[Sequence[int]]:
+        cls, overlaps: Sequence[int] | None, values: ValidationInfo
+    ) -> Sequence[int] | None:
         """
         Validate overlap.
 
@@ -78,7 +77,7 @@ class _OverlappingPatchedModel(_PatchedModel):
 
     @field_validator("overlaps")
     @classmethod
-    def overlap_even(cls, overlaps: Optional[Sequence[int]]) -> Optional[Sequence[int]]:
+    def overlap_even(cls, overlaps: Sequence[int] | None) -> Sequence[int] | None:
         """
         Validate overlaps.
 

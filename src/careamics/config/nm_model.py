@@ -1,7 +1,7 @@
 """Noise models config."""
 
 from pathlib import Path
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Literal, Union
 
 import numpy as np
 import torch
@@ -42,21 +42,19 @@ class GaussianMixtureNMConfig(BaseModel):
     # model type
     model_type: Literal["GaussianMixtureNoiseModel"]
 
-    path: Optional[Union[Path, str]] = None
+    path: Union[Path, str] | None = None
     """Path to the directory where the trained noise model (*.npz) is saved in the
     `train` method."""
 
     # TODO remove and use as parameters to the NM functions?
-    signal: Optional[Union[str, Path, np.ndarray]] = Field(default=None, exclude=True)
+    signal: Union[str, Path, np.ndarray] | None = Field(default=None, exclude=True)
     """Path to the file containing signal or respective numpy array."""
 
     # TODO remove and use as parameters to the NM functions?
-    observation: Optional[Union[str, Path, np.ndarray]] = Field(
-        default=None, exclude=True
-    )
+    observation: Union[str, Path, np.ndarray] | None = Field(default=None, exclude=True)
     """Path to the file containing observation or respective numpy array."""
 
-    weight: Optional[Array] = None
+    weight: Array | None = None
     """A [3*n_gaussian, n_coeff] sized array containing the values of the weights
     describing the GMM noise model, with each row corresponding to one
     parameter of each gaussian, namely [mean, standard deviation and weight].

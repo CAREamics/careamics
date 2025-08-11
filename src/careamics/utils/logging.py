@@ -9,7 +9,7 @@ import sys
 import time
 from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 LOGGERS: dict = {}
 
@@ -17,7 +17,7 @@ LOGGERS: dict = {}
 def get_logger(
     name: str,
     log_level: int = logging.INFO,
-    log_path: Optional[Union[str, Path]] = None,
+    log_path: Union[str, Path] | None = None,
 ) -> logging.Logger:
     """
     Create a python logger instance with configured handlers.
@@ -97,10 +97,10 @@ class ProgressBar:
 
     def __init__(
         self,
-        max_value: Optional[int] = None,
-        epoch: Optional[int] = None,
-        num_epochs: Optional[int] = None,
-        stateful_metrics: Optional[list] = None,
+        max_value: int | None = None,
+        epoch: int | None = None,
+        num_epochs: int | None = None,
+        stateful_metrics: list | None = None,
         always_stateful: bool = False,
         mode: str = "train",
     ) -> None:
@@ -159,7 +159,7 @@ class ProgressBar:
             self.message = "Denoising"
 
     def update(
-        self, current_step: int, batch_size: int = 1, values: Optional[list] = None
+        self, current_step: int, batch_size: int = 1, values: list | None = None
     ) -> None:
         """
         Update the progress bar.
@@ -264,7 +264,7 @@ class ProgressBar:
 
         self._last_update = now
 
-    def add(self, n: int, values: Optional[list] = None) -> None:
+    def add(self, n: int, values: list | None = None) -> None:
         """
         Update the progress bar by n steps.
 
