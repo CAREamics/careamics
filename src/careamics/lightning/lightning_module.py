@@ -353,7 +353,7 @@ class VAEModule(L.LightningModule):
         )
 
         self.loss_parameters = self.algorithm_config.loss
-        self.loss_func = loss_factory(self.algorithm_config.loss)
+        self.loss_func = loss_factory(self.algorithm_config.loss.loss_type)
 
         # save optimizer and lr_scheduler names and parameters
         self.optimizer_name = self.algorithm_config.optimizer.name

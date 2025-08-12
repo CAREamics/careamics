@@ -69,7 +69,7 @@ class VAEBasedAlgorithm(BaseModel):
         """
         # hdn
         if self.algorithm == SupportedAlgorithm.HDN:
-            if self.loss != SupportedLoss.HDN:
+            if self.loss.loss_type != SupportedLoss.HDN:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `hdn`."
                 )
@@ -77,13 +77,13 @@ class VAEBasedAlgorithm(BaseModel):
                 raise ValueError("Algorithm `hdn` does not support multiscale models.")
         # musplit
         if self.algorithm == SupportedAlgorithm.MUSPLIT:
-            if self.loss != SupportedLoss.MUSPLIT:
+            if self.loss.loss_type != SupportedLoss.MUSPLIT:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `musplit`."
                 )
 
         if self.algorithm == SupportedAlgorithm.DENOISPLIT:
-            if self.loss not in [
+            if self.loss.loss_type not in [
                 SupportedLoss.DENOISPLIT,
                 SupportedLoss.DENOISPLIT_MUSPLIT,
             ]:
@@ -92,7 +92,7 @@ class VAEBasedAlgorithm(BaseModel):
                     "or `denoisplit_musplit."
                 )
             if (
-                self.loss == SupportedLoss.DENOISPLIT
+                self.loss.loss_type == SupportedLoss.DENOISPLIT
                 and self.model.predict_logvar is not None
             ):
                 raise ValueError(
