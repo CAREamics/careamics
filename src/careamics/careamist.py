@@ -822,7 +822,7 @@ class CAREamist:
             source_path = source.pred_data
             source_data_type = source.data_type
             extension_filter = source.extension_filter
-        elif isinstance(source, (str, Path)):
+        elif isinstance(source, (str | Path)):
             source_path = source
             source_data_type = data_type or self.cfg.data_config.data_type
             extension_filter = SupportedData.get_extension_pattern(
@@ -835,7 +835,7 @@ class CAREamist:
             raise ValueError(
                 "Predicting to disk is not supported for input type 'array'."
             )
-        assert isinstance(source_path, (Path, str))  # because data_type != "array"
+        assert isinstance(source_path, (Path | str))  # because data_type != "array"
         source_path = Path(source_path)
 
         file_paths = list_files(source_path, source_data_type, extension_filter)
@@ -873,7 +873,7 @@ class CAREamist:
 
     def export_to_bmz(
         self,
-        path_to_archive: Union[Path, str],
+        path_to_archive: Union[Path | str],
         friendly_model_name: str,
         input_array: NDArray,
         authors: list[dict],

@@ -411,6 +411,7 @@ def _create_supervised_config_dict(
     checkpoint_params: dict[str, Any] | None = None,
     num_epochs: int | None = None,
     num_steps: int | None = None,
+    limit_train_batches: int | float | None = None,
 ) -> dict:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -463,6 +464,10 @@ def _create_supervised_config_dict(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    limit_train_batches : int, float or None, default=None
+        Limits the number of training batches per epoch. If int, limits to that many batches.
+        If float, limits to that fraction of total batches. See PyTorch Lightning documentation
+        for more details.
 
     Returns
     -------
@@ -528,6 +533,8 @@ def _create_supervised_config_dict(
         final_trainer_params["max_epochs"] = num_epochs
     if num_steps is not None:
         final_trainer_params["max_steps"] = num_steps
+    if limit_train_batches is not None:
+        final_trainer_params["limit_train_batches"] = limit_train_batches
 
     # training
     training_params = _create_training_configuration(
@@ -558,6 +565,7 @@ def create_care_configuration(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     num_epochs: int | None = None,
     num_steps: int | None = None,
+    limit_train_batches: int | float | None = None,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -622,6 +630,10 @@ def create_care_configuration(
         trainer_params.
     num_steps : int, optional
         Number of steps to train for. If provided, this will be added to trainer_params.
+    limit_train_batches : int, float or None, default=None
+        Limits the number of training batches per epoch. If int, limits to that many batches.
+        If float, limits to that fraction of total batches. See PyTorch Lightning documentation
+        for more details.
     model_params : dict, default=None
         UNetModel parameters.
     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
@@ -757,6 +769,7 @@ def create_care_configuration(
             checkpoint_params=checkpoint_params,
             num_epochs=num_epochs,
             num_steps=num_steps,
+            limit_train_batches=limit_train_batches,
         )
     )
 
@@ -775,6 +788,7 @@ def create_n2n_configuration(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     num_epochs: int | None = None,
     num_steps: int | None = None,
+    limit_train_batches: int | float | None = None,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -839,6 +853,10 @@ def create_n2n_configuration(
         trainer_params.
     num_steps : int, optional
         Number of steps to train for. If provided, this will be added to trainer_params.
+    limit_train_batches : int, float or None, default=None
+        Limits the number of training batches per epoch. If int, limits to that many batches.
+        If float, limits to that fraction of total batches. See PyTorch Lightning documentation
+        for more details.
     model_params : dict, default=None
         UNetModel parameters.
     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
@@ -974,6 +992,7 @@ def create_n2n_configuration(
             checkpoint_params=checkpoint_params,
             num_epochs=num_epochs,
             num_steps=num_steps,
+            limit_train_batches=limit_train_batches,
         )
     )
 
@@ -994,6 +1013,7 @@ def create_n2v_configuration(
     struct_n2v_span: int = 5,
     num_epochs: int | None = None,
     num_steps: int | None = None,
+    limit_train_batches: int | float | None = None,
     trainer_params: dict | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: dict | None = None,
@@ -1062,7 +1082,11 @@ def create_n2v_configuration(
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
     nun_steps : int, optional
-        Number of steps to train for. If provided, this will be added to trainer_params.
+        Max number of steps to train for. If provided, this will be added to trainer_params.
+    limit_train_batches : int, float or None, default=None
+        Limits the number of training batches per epoch. If int, limits to that many batches.
+        If float, limits to that fraction of total batches. See PyTorch Lightning documentation
+        for more details.
     trainer_params : dict, optional
         Parameters for the trainer class, see PyTorch Lightning documentation.
         If num_epochs or nun_steps are provided, they will override any values in this
@@ -1293,6 +1317,8 @@ def create_n2v_configuration(
         final_trainer_params["max_epochs"] = num_epochs
     if num_steps is not None:
         final_trainer_params["max_steps"] = num_steps
+    if limit_train_batches is not None:
+        final_trainer_params["limit_train_batches"] = limit_train_batches
 
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
