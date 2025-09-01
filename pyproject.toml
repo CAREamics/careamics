@@ -54,7 +54,7 @@ dependencies = [
     'scikit-image<=0.25.2',
     'zarr<3.0.0',
     'pillow<=11.2.1',
-    'matplotlib<=3.10.3',
+    'matplotlib<=3.10.6',
 ]
 
 [project.optional-dependencies]
