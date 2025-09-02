@@ -559,8 +559,7 @@ def _create_training_configuration(
     )
 
 
-# TODO reconsider naming once we officially support LVAE approaches
-def _create_supervised_config_dict(
+def _create_unet_based_config_dict(
     algorithm: Literal["care", "n2n"],
     experiment_name: str,
     data_type: Literal["array", "tiff", "czi", "custom"],
@@ -896,7 +895,7 @@ def create_care_configuration(
     ... )
     """
     return Configuration(
-        **_create_supervised_config_dict(
+        **_create_unet_based_config_dict(
             algorithm="care",
             experiment_name=experiment_name,
             data_type=data_type,
@@ -1112,7 +1111,7 @@ def create_n2n_configuration(
     ... )
     """
     return Configuration(
-        **_create_supervised_config_dict(
+        **_create_unet_based_config_dict(
             algorithm="n2n",
             experiment_name=experiment_name,
             data_type=data_type,

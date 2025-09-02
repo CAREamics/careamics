@@ -13,7 +13,7 @@ from careamics.config import (
 )
 from careamics.config.configuration_factories import (
     _create_data_configuration,
-    _create_supervised_config_dict,
+    _create_unet_based_config_dict,
     _create_unet_configuration,
     _list_spatial_augmentations,
 )
@@ -110,7 +110,7 @@ def test_create_data_configuration_train_dataloader_params(minimum_data):
 
 def test_supervised_configuration_passing_transforms():
     """Test that transforms can be passed to the configuration."""
-    config_dict = _create_supervised_config_dict(
+    config_dict = _create_unet_based_config_dict(
         algorithm="n2n",
         experiment_name="test",
         data_type="tiff",
@@ -201,7 +201,7 @@ def test_create_configuration():
 
     # instantiate config
     config = Configuration(
-        **_create_supervised_config_dict(
+        **_create_unet_based_config_dict(
             algorithm=algorithm,
             experiment_name=experiment_name,
             data_type=data_type,
@@ -256,7 +256,7 @@ def test_supervised_configuration_error_with_channel_axes():
     """Test that an error is raised if channels are in axes, but the input channel
     number is not specified."""
     with pytest.raises(ValueError):
-        _create_supervised_config_dict(
+        _create_unet_based_config_dict(
             algorithm="n2n",
             experiment_name="test",
             data_type="tiff",
@@ -270,7 +270,7 @@ def test_supervised_configuration_error_with_channel_axes():
 def test_supervised_configuration_singleton_channel():
     """Test that no error is raised if channels are in axes, and the input channel is
     1."""
-    _create_supervised_config_dict(
+    _create_unet_based_config_dict(
         algorithm="n2n",
         experiment_name="test",
         data_type="tiff",
@@ -284,7 +284,7 @@ def test_supervised_configuration_singleton_channel():
 
 def test_supervised_configuration_no_channel():
     """Test that no error is raised without channel and number of inputs."""
-    _create_supervised_config_dict(
+    _create_unet_based_config_dict(
         algorithm="n2n",
         experiment_name="test",
         data_type="tiff",
@@ -299,7 +299,7 @@ def test_supervised_configuration_error_without_channel_axes():
     """Test that an error is raised if channels are not in axes, but the input channel
     number is specified and greater than 1."""
     with pytest.raises(ValueError):
-        _create_supervised_config_dict(
+        _create_unet_based_config_dict(
             algorithm="n2n",
             experiment_name="test",
             data_type="tiff",
@@ -314,7 +314,7 @@ def test_supervised_configuration_error_without_channel_axes():
 def test_supervised_configuration_channels():
     """Test that no error is raised if channels are in axes and the input channel
     are specified."""
-    _create_supervised_config_dict(
+    _create_unet_based_config_dict(
         algorithm="n2n",
         experiment_name="test",
         data_type="tiff",
