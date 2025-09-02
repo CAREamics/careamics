@@ -1,7 +1,7 @@
 """CAREamics Lightning module."""
 
 from collections.abc import Callable
-from typing import Any, Union
+from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -667,13 +667,14 @@ class VAEModule(L.LightningModule):
         return psnr
 
 
-# TODO explicit N2V model for its parameters?
+# Explicit parameters for N2V are kept here because some users currently depend on it
 def create_unet_based_module(
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
-    algorithm_parameters: dict | None = None,  # TODO explicit parameters?
-    # TODO otherwise we need to explain what this dict is and what it should contain
+    use_n2v2: bool = False,
+    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
+    struct_n2v_span: int = 5,
     model_parameters: dict | None = None,
     # TODO here as well, need to explain where this comes from
     optimizer: Union[SupportedOptimizer, str] = "Adam",
@@ -691,8 +692,12 @@ def create_unet_based_module(
         Loss function to use for training (see SupportedLoss).
     architecture : SupportedArchitecture or str
         Model architecture to use for training (see SupportedArchitecture).
-    algorithm_parameters : dict, optional
-        Algorithm parameters to use for training, by default {}. E.g.: use_n2v2.
+    use_n2v2 : bool, default=False
+        Whether to use N2V2 or Noise2Void.
+    struct_n2v_axis : "horizontal", "vertical", or "none", default="none"
+        Axis of the StructN2V mask.
+    struct_n2v_span : int, default=5
+        Span of the StructN2V mask.
     model_parameters : dict, optional
         Model parameters to use for training, by default {}. Model parameters are
         defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
@@ -714,7 +719,7 @@ def create_unet_based_module(
     CAREamicsModule
         CAREamics Lightning module.
     """
-    # TODO should use the same functions are in configuration_factory.py
+    # TODO should use the same functions as in configuration_factory.py
     # create an AlgorithmModel compatible dictionary
     if lr_scheduler_parameters is None:
         lr_scheduler_parameters = {}
@@ -746,19 +751,9 @@ def create_unet_based_module(
     if which_algo in UNetBasedAlgorithm.get_compatible_algorithms():
         algorithm_cfg = algorithm_factory(algorithm_dict)
 
-        # if use N2V
         if isinstance(algorithm_cfg, N2VAlgorithm):
-            algorithm_cfg.n2v_config.struct_mask_axis = (
-                algorithm_parameters["struct_mask_axis"]
-                if algorithm_parameters
-                else "none"
-            )
-            algorithm_cfg.n2v_config.struct_mask_span = (
-                algorithm_parameters["struct_n2v_span"] if algorithm_parameters else 5
-            )
-            use_n2v2 = (
-                algorithm_parameters["use_n2v2"] if algorithm_parameters else False
-            )
+            algorithm_cfg.n2v_config.struct_mask_axis = struct_n2v_axis
+            algorithm_cfg.n2v_config.struct_mask_span = struct_n2v_span
             algorithm_cfg.set_n2v2(use_n2v2)
 
         return FCNModule(algorithm_cfg)
