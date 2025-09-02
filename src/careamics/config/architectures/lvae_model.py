@@ -41,6 +41,7 @@ class LVAEModel(ArchitectureModel):
         default="ELU",
     )  # TODO in practice, do we ever change that?
 
+    # TODO rather use bool
     predict_logvar: Literal[None, "pixelwise"] = "pixelwise"
     analytical_kl: bool = Field(default=False)
 
