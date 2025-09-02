@@ -131,7 +131,7 @@ def _create_unet_configuration(
     independent_channels : bool
         Whether to train all channels independently.
     use_n2v2 : bool
-        Whether to use N2V2.
+        Whether to use N2V2 UNet model modifications.
     model_params : dict
         UNetModel parameters.
 
@@ -368,7 +368,15 @@ def _create_vae_based_algorithm(
     -------
     dict
         A dictionary with the parameters of the VAE-based algorithm model.
+
+    Raises
+    ------
+    ValueError
+        If neither a Gaussian likelihood nor a noise model likelihood is provided.
     """
+    if not gaussian_likelihood and not nm_likelihood:
+        raise ValueError("Likelihood model must be specified")
+
     network_model = _create_vae_configuration(
         input_shape=input_shape,
         encoder_conv_strides=encoder_conv_strides,
@@ -384,7 +392,7 @@ def _create_vae_based_algorithm(
         predict_logvar=predict_logvar,
         analytical_kl=analytical_kl,
     )
-    assert gaussian_likelihood or nm_likelihood, "Likelihood model must be specified"
+
     return {
         "algorithm": algorithm,
         "loss": loss,
