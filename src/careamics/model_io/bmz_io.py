@@ -129,7 +129,7 @@ def export_to_bmz(
         Model version.
     """
     if isinstance(model, VAEModule):
-        raise ValueError("Export of VAE models is not supported.")
+        raise NotImplementedError("Export of VAE models is currently not supported.")
 
     path_to_archive = Path(path_to_archive)
 

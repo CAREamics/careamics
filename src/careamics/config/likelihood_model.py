@@ -31,6 +31,7 @@ class GaussianLikelihoodConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
+    # TODO change to bool
     predict_logvar: Literal["pixelwise"] | None = None
     """If `pixelwise`, log-variance is computed for each pixel, else log-variance
     is not computed."""
