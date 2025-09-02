@@ -59,7 +59,14 @@ class LVAEModel(ArchitectureModel):
         Raises
         ------
         ValueError
-            If the dimension of strides is not 2 or 3.
+            If the strides dimension is not 2 or 3.
+        ValueError
+            If the number of input dimensions is not equal to the number of encoder conv
+            strides.
+        ValueError
+            If the decoder is 3D when the encoder is 2D.
+        ValueError
+            If any stride is less than 1.
         """
         if len(self.encoder_conv_strides) < 2 or len(self.encoder_conv_strides) > 3:
             raise ValueError(
@@ -80,7 +87,7 @@ class LVAEModel(ArchitectureModel):
 
         if len(self.encoder_conv_strides) < len(self.decoder_conv_strides):
             raise ValueError(
-                f"Decoder can't be 3D when encoder is 2D (got"
+                f"Decoder cannot be 3D when encoder is 2D (got"
                 f" {len(self.encoder_conv_strides)} and"
                 f"{len(self.decoder_conv_strides)})."
             )
@@ -114,7 +121,11 @@ class LVAEModel(ArchitectureModel):
         Raises
         ------
         ValueError
-            If the number of dimensions is not 3 or 4.
+            If the number of dimensions is not 3 or 3.
+        ValueError
+            If any dimension is less than 1.
+        ValueError
+            If any of the XY dimensions is less than 64.
         """
         if len(input_shape) < 2 or len(input_shape) > 3:
             raise ValueError(
@@ -136,65 +147,35 @@ class LVAEModel(ArchitectureModel):
 
         return input_shape
 
-    @field_validator("encoder_n_filters")
+    @field_validator("encoder_n_filters, decoder_n_filters")
     @classmethod
-    def validate_encoder_even(cls, encoder_n_filters: int) -> int:
+    def validate_encoder_even(cls, val: int) -> int:
         """
         Validate that num_channels_init is even.
 
         Parameters
         ----------
-        encoder_n_filters : int
-            Number of channels.
+        val : int
+            Number of filters in encoder or decoder.
 
         Returns
         -------
         int
-            Validated number of channels.
+            Validated number of filters.
 
         Raises
         ------
         ValueError
-            If the number of channels is odd.
+            If the number of filters is odd.
         """
         # if odd
-        if encoder_n_filters % 2 != 0:
+        if val % 2 != 0:
             raise ValueError(
-                f"Number of channels for the bottom layer must be even"
-                f" (got {encoder_n_filters})."
+                f"Number of filters for the encoder/decoder must be even"
+                f" (got {val})."
             )
 
-        return encoder_n_filters
-
-    @field_validator("decoder_n_filters")
-    @classmethod
-    def validate_decoder_even(cls, decoder_n_filters: int) -> int:
-        """
-        Validate that num_channels_init is even.
-
-        Parameters
-        ----------
-        decoder_n_filters : int
-            Number of channels.
-
-        Returns
-        -------
-        int
-            Validated number of channels.
-
-        Raises
-        ------
-        ValueError
-            If the number of channels is odd.
-        """
-        # if odd
-        if decoder_n_filters % 2 != 0:
-            raise ValueError(
-                f"Number of channels for the bottom layer must be even"
-                f" (got {decoder_n_filters})."
-            )
-
-        return decoder_n_filters
+        return val
 
     @field_validator("z_dims")
     def validate_z_dims(cls, z_dims: tuple) -> tuple:
@@ -214,7 +195,7 @@ class LVAEModel(ArchitectureModel):
         Raises
         ------
         ValueError
-            If the number of z dimensions is not 4.
+            If the number of z dimensions is not smaller than 2.
         """
         if len(z_dims) < 2:
             raise ValueError(
@@ -233,6 +214,8 @@ class LVAEModel(ArchitectureModel):
         Self
             The validated model.
         """
+        # TODO this is not checking whether LC is off, as opposed to what the error
+        # message pretends
         if self.multiscale_count < 1 or self.multiscale_count > len(self.z_dims) + 1:
             raise ValueError(
                 f"Multiscale count must be 1 for LC off or less or equal to the number"
@@ -242,17 +225,18 @@ class LVAEModel(ArchitectureModel):
 
     def set_3D(self, is_3D: bool) -> None:
         """
-        Set 3D model by setting the `conv_dims` parameters.
+        Not implemented.
 
         Parameters
         ----------
         is_3D : bool
             Whether the algorithm is 3D or not.
         """
-        if is_3D:
-            self.conv_dims = 3
-        else:
-            self.conv_dims = 2
+        if is_3D != self.is_3D():
+            raise NotImplementedError(
+                "This functionnality is not implemented for LVAE models. Change the "
+                "dimensions of `input_shape` manually or create a new configuration."
+            )
 
     def is_3D(self) -> bool:
         """
