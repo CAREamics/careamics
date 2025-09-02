@@ -7,10 +7,10 @@ __all__ = [
     "ProgressBarCallback",
     "TrainDataModule",
     "VAEModule",
-    "create_vae_based_module",
-    "create_unet_based_module",
     "create_predict_datamodule",
     "create_train_datamodule",
+    "create_unet_based_module",
+    "create_vae_based_module",
 ]
 
 from .callbacks import HyperParametersCallback, ProgressBarCallback
