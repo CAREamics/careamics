@@ -300,13 +300,22 @@ def hdn_loss(
     output : Optional[dict[str, torch.Tensor]]
         A dictionary containing the overall loss `["loss"]`, the reconstruction loss
         `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
+
+    Raises
+    ------
+    ValueError
+        If both `gaussian_likelihood` and `noise_model_likelihood` are `None`.
     """
     if gaussian_likelihood is not None:
         likelihood = gaussian_likelihood
     elif noise_model_likelihood is not None:
         likelihood = noise_model_likelihood
     else:
-        raise ValueError("Invalid likelihood object.")
+        raise ValueError(
+            "`gaussian_likelihood` and `noise_model_likelihood` cannot be both `None`, "
+            "please provide one of them."
+        )
+
     # TODO refactor loss signature
     predictions, td_data = model_outputs
 
