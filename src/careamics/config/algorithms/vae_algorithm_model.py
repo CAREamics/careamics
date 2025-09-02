@@ -108,7 +108,7 @@ class VAEBasedAlgorithm(BaseModel):
 
     @model_validator(mode="after")
     def output_channels_validation(self: Self) -> Self:
-        """Validate the consistency between number of out channels and noise models.
+        """Validate the consistency between number of output channels and noise models.
 
         Returns
         -------
@@ -131,21 +131,27 @@ class VAEBasedAlgorithm(BaseModel):
 
     @model_validator(mode="after")
     def predict_logvar_validation(self: Self) -> Self:
-        """Validate the consistency of `predict_logvar` throughout the model.
+        """Validate the consistency of `predict_logvar` between the VAE and the noise
+        models.
 
         Returns
         -------
         Self
             The validated model.
+
+        Raises
+        ------
+        ValueError
+            If the `predict_logvar` of the model and that of the Gaussian likelihood do
+            not match.
         """
         if self.gaussian_likelihood is not None:
-            assert (
-                self.model.predict_logvar == self.gaussian_likelihood.predict_logvar
-            ), (
-                f"Model `predict_logvar` ({self.model.predict_logvar}) must match "
-                "Gaussian likelihood model `predict_logvar` "
-                f"({self.gaussian_likelihood.predict_logvar}).",
-            )
+            if self.model.predict_logvar != self.gaussian_likelihood.predict_logvar:
+                raise ValueError(
+                    f"Model `predict_logvar` ({self.model.predict_logvar}) must match "
+                    "Gaussian likelihood model `predict_logvar` "
+                    f"({self.gaussian_likelihood.predict_logvar}).",
+                )
         # if self.algorithm == SupportedAlgorithm.HDN:
         #     assert (
         #         self.model.predict_logvar is None
@@ -177,4 +183,4 @@ class VAEBasedAlgorithm(BaseModel):
         list of str
             List of compatible algorithms.
         """
-        return ["hdn"]
+        return ["hdn", "musplit", "denoisplit"]

@@ -10,7 +10,7 @@ from .architecture_model import ArchitectureModel
 
 # TODO: it is quite confusing to call this LVAEModel, as it is basically a config
 class LVAEModel(ArchitectureModel):
-    """LVAE model."""
+    """LVAE Pydantic model."""
 
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
@@ -18,6 +18,7 @@ class LVAEModel(ArchitectureModel):
 
     input_shape: tuple[int, ...] = Field(default=(64, 64), validate_default=True)
     """Shape of the input patch (Z, Y, X) or (Y, X) if the data is 2D."""
+
     encoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
 
     # TODO make this per hierarchy step ?
@@ -56,7 +57,7 @@ class LVAEModel(ArchitectureModel):
         Raises
         ------
         ValueError
-            If the number of strides is not 2.
+            If the dimension of strides is not 2 or 3.
         """
         if len(self.encoder_conv_strides) < 2 or len(self.encoder_conv_strides) > 3:
             raise ValueError(
