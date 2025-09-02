@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Optional, Union, overload
+from typing import Any, Union, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -124,14 +124,14 @@ class CareamicsDataModule(L.LightningDataModule):
         self,
         data_config: NGDataConfig,
         *,
-        train_data: Optional[InputType] = None,
-        train_data_target: Optional[InputType] = None,
-        val_data: Optional[InputType] = None,
-        val_data_target: Optional[InputType] = None,
-        pred_data: Optional[InputType] = None,
-        pred_data_target: Optional[InputType] = None,
+        train_data: InputType | None = None,
+        train_data_target: InputType | None = None,
+        val_data: InputType | None = None,
+        val_data_target: InputType | None = None,
+        pred_data: InputType | None = None,
+        pred_data_target: InputType | None = None,
         extension_filter: str = "",
-        val_percentage: Optional[float] = None,
+        val_percentage: float | None = None,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
     ) -> None: ...
@@ -142,16 +142,16 @@ class CareamicsDataModule(L.LightningDataModule):
         self,
         data_config: NGDataConfig,
         *,
-        train_data: Optional[InputType] = None,
-        train_data_target: Optional[InputType] = None,
-        val_data: Optional[InputType] = None,
-        val_data_target: Optional[InputType] = None,
-        pred_data: Optional[InputType] = None,
-        pred_data_target: Optional[InputType] = None,
+        train_data: InputType | None = None,
+        train_data_target: InputType | None = None,
+        val_data: InputType | None = None,
+        val_data_target: InputType | None = None,
+        pred_data: InputType | None = None,
+        pred_data_target: InputType | None = None,
         read_source_func: Callable,
-        read_kwargs: Optional[dict[str, Any]] = None,
+        read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-        val_percentage: Optional[float] = None,
+        val_percentage: float | None = None,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
     ) -> None: ...
@@ -161,16 +161,16 @@ class CareamicsDataModule(L.LightningDataModule):
         self,
         data_config: NGDataConfig,
         *,
-        train_data: Optional[Any] = None,
-        train_data_target: Optional[Any] = None,
-        val_data: Optional[Any] = None,
-        val_data_target: Optional[Any] = None,
-        pred_data: Optional[Any] = None,
-        pred_data_target: Optional[Any] = None,
+        train_data: Any | None = None,
+        train_data_target: Any | None = None,
+        val_data: Any | None = None,
+        val_data_target: Any | None = None,
+        pred_data: Any | None = None,
+        pred_data_target: Any | None = None,
         image_stack_loader: ImageStackLoader,
-        image_stack_loader_kwargs: Optional[dict[str, Any]] = None,
+        image_stack_loader_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-        val_percentage: Optional[float] = None,
+        val_percentage: float | None = None,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
     ) -> None: ...
@@ -179,18 +179,18 @@ class CareamicsDataModule(L.LightningDataModule):
         self,
         data_config: NGDataConfig,
         *,
-        train_data: Optional[Any] = None,
-        train_data_target: Optional[Any] = None,
-        val_data: Optional[Any] = None,
-        val_data_target: Optional[Any] = None,
-        pred_data: Optional[Any] = None,
-        pred_data_target: Optional[Any] = None,
-        read_source_func: Optional[Callable] = None,
-        read_kwargs: Optional[dict[str, Any]] = None,
-        image_stack_loader: Optional[ImageStackLoader] = None,
-        image_stack_loader_kwargs: Optional[dict[str, Any]] = None,
+        train_data: Any | None = None,
+        train_data_target: Any | None = None,
+        val_data: Any | None = None,
+        val_data_target: Any | None = None,
+        pred_data: Any | None = None,
+        pred_data_target: Any | None = None,
+        read_source_func: Callable | None = None,
+        read_kwargs: dict[str, Any] | None = None,
+        image_stack_loader: ImageStackLoader | None = None,
+        image_stack_loader_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-        val_percentage: Optional[float] = None,
+        val_percentage: float | None = None,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
     ) -> None:
@@ -280,7 +280,7 @@ class CareamicsDataModule(L.LightningDataModule):
     def _validate_input_target_type_consistency(
         self,
         input_data: InputType,
-        target_data: Optional[InputType],
+        target_data: InputType | None,
     ) -> None:
         """Validate if the input and target data types are consistent.
 
@@ -314,7 +314,7 @@ class CareamicsDataModule(L.LightningDataModule):
         self,
         input_data,
         target_data=None,
-    ) -> tuple[list[Path], Optional[list[Path]]]:
+    ) -> tuple[list[Path], list[Path] | None]:
         """List files from input and target directories.
 
         Parameters
@@ -347,7 +347,7 @@ class CareamicsDataModule(L.LightningDataModule):
         self,
         input_data,
         target_data=None,
-    ) -> tuple[list[Path], Optional[list[Path]]]:
+    ) -> tuple[list[Path], list[Path] | None]:
         """Create a list of file paths from the input and target data.
 
         Parameters
@@ -379,7 +379,7 @@ class CareamicsDataModule(L.LightningDataModule):
     def _validate_array_input(
         self,
         input_data: InputType,
-        target_data: Optional[InputType],
+        target_data: InputType | None,
     ) -> tuple[Any, Any]:
         """Validate if the input data is a numpy array.
 
@@ -408,8 +408,8 @@ class CareamicsDataModule(L.LightningDataModule):
             )
 
     def _validate_path_input(
-        self, input_data: InputType, target_data: Optional[InputType]
-    ) -> tuple[list[Path], Optional[list[Path]]]:
+        self, input_data: InputType, target_data: InputType | None
+    ) -> tuple[list[Path], list[Path] | None]:
         """Validate if the input data is a path or a list of paths.
 
         Parameters
@@ -488,8 +488,8 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def _initialize_data_pair(
         self,
-        input_data: Optional[InputType],
-        target_data: Optional[InputType],
+        input_data: InputType | None,
+        target_data: InputType | None,
     ) -> tuple[Any, Any]:
         """
         Initialize a pair of input and target data.

@@ -1,7 +1,5 @@
 """Patch transform applying XY random 90 degrees rotations."""
 
-from typing import Optional
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -30,7 +28,7 @@ class XYRandomRotate90(Transform):
         Random seed, by default None.
     """
 
-    def __init__(self, p: float = 0.5, seed: Optional[int] = None):
+    def __init__(self, p: float = 0.5, seed: int | None = None):
         """Constructor.
 
         Parameters
@@ -52,9 +50,9 @@ class XYRandomRotate90(Transform):
     def __call__(
         self,
         patch: NDArray,
-        target: Optional[NDArray] = None,
+        target: NDArray | None = None,
         **additional_arrays: NDArray,
-    ) -> tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
+    ) -> tuple[NDArray, NDArray | None, dict[str, NDArray]]:
         """Apply the transform to the source patch and the target (optional).
 
         Parameters

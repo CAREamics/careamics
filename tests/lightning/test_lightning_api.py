@@ -9,9 +9,9 @@ from pytorch_lightning.callbacks import (
 
 from careamics.config import Configuration
 from careamics.lightning import (
-    create_careamics_module,
     create_predict_datamodule,
     create_train_datamodule,
+    create_unet_based_module,
 )
 from careamics.prediction_utils import convert_outputs
 
@@ -29,7 +29,7 @@ def test_smoke_n2v_2d_array(tmp_path, minimum_n2v_configuration):
     cfg = Configuration(**minimum_n2v_configuration)
 
     # create lightning module
-    model = create_careamics_module(
+    model = create_unet_based_module(
         algorithm=cfg.algorithm_config.algorithm,
         loss=cfg.algorithm_config.loss,
         architecture=cfg.algorithm_config.model.architecture,
@@ -86,7 +86,7 @@ def test_smoke_n2v_2d_tiling(tmp_path, minimum_n2v_configuration):
     cfg = Configuration(**minimum_n2v_configuration)
 
     # create lightning module
-    model = create_careamics_module(
+    model = create_unet_based_module(
         algorithm=cfg.algorithm_config.algorithm,
         loss=cfg.algorithm_config.loss,
         architecture=cfg.algorithm_config.model.architecture,

@@ -1,7 +1,7 @@
 """Convenience functions to create configurations for training and inference."""
 
 from collections.abc import Sequence
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import Field, TypeAdapter
 
@@ -35,7 +35,7 @@ from .configuration import Configuration
 
 
 def algorithm_factory(
-    algorithm: dict[str, Any]
+    algorithm: dict[str, Any],
 ) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, HDNAlgorithm]:
     """
     Create an algorithm model for training CAREamics.
@@ -60,7 +60,7 @@ def algorithm_factory(
 
 
 def _list_spatial_augmentations(
-    augmentations: Optional[list[SPATIAL_TRANSFORMS_UNION]] = None,
+    augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
 ) -> list[SPATIAL_TRANSFORMS_UNION]:
     """
     List the augmentations to apply.
@@ -115,7 +115,7 @@ def _create_unet_configuration(
     n_channels_out: int,
     independent_channels: bool,
     use_n2v2: bool,
-    model_params: Optional[dict[str, Any]] = None,
+    model_params: dict[str, Any] | None = None,
 ) -> UNetModel:
     """
     Create a dictionary with the parameters of the UNet model.
@@ -171,7 +171,7 @@ def _create_vae_configuration(
     ],
     predict_logvar: Literal[None, "pixelwise"],
     analytical_kl: bool,
-    model_params: Optional[dict[str, Any]] = None,
+    model_params: dict[str, Any] | None = None,
 ) -> LVAEModel:
     """Create a dictionary with the parameters of the vae based algorithm model.
 
@@ -242,11 +242,11 @@ def _create_unet_based_algorithm(
     n_channels_in: int,
     n_channels_out: int,
     use_n2v2: bool = False,
-    model_params: Optional[dict] = None,
+    model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
-    optimizer_params: Optional[dict[str, Any]] = None,
+    optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
-    lr_scheduler_params: Optional[dict[str, Any]] = None,
+    lr_scheduler_params: dict[str, Any] | None = None,
 ) -> dict:
     """
     Create a dictionary with the parameters of the unet based algorithm model.
@@ -328,9 +328,9 @@ def _create_vae_based_algorithm(
     ],
     predict_logvar: Literal[None, "pixelwise"],
     analytical_kl: bool,
-    gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None,
-    nm_likelihood: Optional[NMLikelihoodConfig] = None,
-    model_params: Optional[dict[str, Any]] = None,
+    gaussian_likelihood: GaussianLikelihoodConfig | None = None,
+    nm_likelihood: NMLikelihoodConfig | None = None,
+    model_params: dict[str, Any] | None = None,
 ) -> dict:
     """
     Create a dictionary with the parameters of the VAE-based algorithm model.
@@ -411,8 +411,8 @@ def _create_data_configuration(
     patch_size: tuple[int, ...],
     batch_size: int,
     augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
-    train_dataloader_params: Optional[dict[str, Any]] = None,
-    val_dataloader_params: Optional[dict[str, Any]] = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
 ) -> DataConfig:
     """
     Create a dictionary with the parameters of the data model.
@@ -467,11 +467,11 @@ def _create_ng_data_configuration(
     patch_size: Sequence[int],
     batch_size: int,
     augmentations: list[SPATIAL_TRANSFORMS_UNION],
-    patch_overlaps: Optional[Sequence[int]] = None,
-    train_dataloader_params: Optional[dict[str, Any]] = None,
-    val_dataloader_params: Optional[dict[str, Any]] = None,
-    test_dataloader_params: Optional[dict[str, Any]] = None,
-    seed: Optional[int] = None,
+    patch_overlaps: Sequence[int] | None = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
+    test_dataloader_params: dict[str, Any] | None = None,
+    seed: int | None = None,
 ) -> NGDataConfig:
     """
     Create a dictionary with the parameters of the data model.
@@ -543,7 +543,7 @@ def _create_ng_data_configuration(
 def _create_training_configuration(
     num_epochs: int,
     logger: Literal["wandb", "tensorboard", "none"],
-    checkpoint_params: Optional[dict[str, Any]] = None,
+    checkpoint_params: dict[str, Any] | None = None,
 ) -> TrainingConfig:
     """
     Create a dictionary with the parameters of the training model.
@@ -579,20 +579,20 @@ def _create_supervised_config_dict(
     patch_size: tuple[int, ...],
     batch_size: int,
     num_epochs: int,
-    augmentations: Optional[list[SPATIAL_TRANSFORMS_UNION]] = None,
+    augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels_in: Optional[int] = None,
-    n_channels_out: Optional[int] = None,
+    n_channels_in: int | None = None,
+    n_channels_out: int | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_params: Optional[dict] = None,
+    model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
-    optimizer_params: Optional[dict[str, Any]] = None,
+    optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
-    lr_scheduler_params: Optional[dict[str, Any]] = None,
-    train_dataloader_params: Optional[dict[str, Any]] = None,
-    val_dataloader_params: Optional[dict[str, Any]] = None,
-    checkpoint_params: Optional[dict[str, Any]] = None,
+    lr_scheduler_params: dict[str, Any] | None = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
+    checkpoint_params: dict[str, Any] | None = None,
 ) -> dict:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -724,20 +724,20 @@ def create_care_configuration(
     patch_size: tuple[int, ...],
     batch_size: int,
     num_epochs: int,
-    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
+    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels_in: Optional[int] = None,
-    n_channels_out: Optional[int] = None,
+    n_channels_in: int | None = None,
+    n_channels_out: int | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_params: Optional[dict] = None,
+    model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
-    optimizer_params: Optional[dict[str, Any]] = None,
+    optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
-    lr_scheduler_params: Optional[dict[str, Any]] = None,
-    train_dataloader_params: Optional[dict[str, Any]] = None,
-    val_dataloader_params: Optional[dict[str, Any]] = None,
-    checkpoint_params: Optional[dict[str, Any]] = None,
+    lr_scheduler_params: dict[str, Any] | None = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
+    checkpoint_params: dict[str, Any] | None = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE.
@@ -940,20 +940,20 @@ def create_n2n_configuration(
     patch_size: tuple[int, ...],
     batch_size: int,
     num_epochs: int,
-    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
+    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels_in: Optional[int] = None,
-    n_channels_out: Optional[int] = None,
+    n_channels_in: int | None = None,
+    n_channels_out: int | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_params: Optional[dict] = None,
+    model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
-    optimizer_params: Optional[dict[str, Any]] = None,
+    optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
-    lr_scheduler_params: Optional[dict[str, Any]] = None,
-    train_dataloader_params: Optional[dict[str, Any]] = None,
-    val_dataloader_params: Optional[dict[str, Any]] = None,
-    checkpoint_params: Optional[dict[str, Any]] = None,
+    lr_scheduler_params: dict[str, Any] | None = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
+    checkpoint_params: dict[str, Any] | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Noise.
@@ -1156,23 +1156,23 @@ def create_n2v_configuration(
     patch_size: tuple[int, ...],
     batch_size: int,
     num_epochs: int,
-    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
+    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
-    n_channels: Optional[int] = None,
+    n_channels: int | None = None,
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_params: Optional[dict] = None,
+    model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
-    optimizer_params: Optional[dict[str, Any]] = None,
+    optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
-    lr_scheduler_params: Optional[dict[str, Any]] = None,
-    train_dataloader_params: Optional[dict[str, Any]] = None,
-    val_dataloader_params: Optional[dict[str, Any]] = None,
-    checkpoint_params: Optional[dict[str, Any]] = None,
+    lr_scheduler_params: dict[str, Any] | None = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
+    checkpoint_params: dict[str, Any] | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Void.
@@ -1481,13 +1481,13 @@ def create_hdn_configuration(
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = "ReLU",
     analytical_kl: bool = False,
-    predict_logvar: Optional[Literal["pixelwise"]] = None,
+    predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_params: Optional[dict] = None,
-    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
-    train_dataloader_params: Optional[dict[str, Any]] = None,
-    val_dataloader_params: Optional[dict[str, Any]] = None,
+    model_params: dict | None = None,
+    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
 ) -> Configuration:
     """
     Create a configuration for training HDN.

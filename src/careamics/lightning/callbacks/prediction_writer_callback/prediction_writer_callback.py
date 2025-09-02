@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import BasePredictionWriter
@@ -84,9 +84,9 @@ class PredictionWriterCallback(BasePredictionWriter):
         cls,
         write_type: SupportedWriteType,
         tiled: bool,
-        write_func: Optional[WriteFunc] = None,
-        write_extension: Optional[str] = None,
-        write_func_kwargs: Optional[dict[str, Any]] = None,
+        write_func: WriteFunc | None = None,
+        write_extension: str | None = None,
+        write_func_kwargs: dict[str, Any] | None = None,
         dirpath: Union[Path, str] = "predictions",
     ) -> PredictionWriterCallback:  # TODO: change type hint to self (find out how)
         """
@@ -172,7 +172,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         trainer: Trainer,
         pl_module: LightningModule,
         prediction: Any,  # TODO: change to expected type
-        batch_indices: Optional[Sequence[int]],
+        batch_indices: Sequence[int] | None,
         batch: Any,  # TODO: change to expected type
         batch_idx: int,
         dataloader_idx: int,

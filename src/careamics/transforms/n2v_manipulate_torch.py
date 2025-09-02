@@ -1,7 +1,7 @@
 """N2V manipulation transform for PyTorch."""
 
 import platform
-from typing import Any, Optional
+from typing import Any
 
 import torch
 
@@ -49,8 +49,8 @@ class N2VManipulateTorch:
     def __init__(
         self,
         n2v_manipulate_config: N2VManipulateModel,
-        seed: Optional[int] = None,
-        device: Optional[str] = None,
+        seed: int | None = None,
+        device: str | None = None,
     ):
         """Constructor.
 
@@ -69,7 +69,7 @@ class N2VManipulateTorch:
         self.remove_center = n2v_manipulate_config.remove_center
 
         if n2v_manipulate_config.struct_mask_axis == SupportedStructAxis.NONE:
-            self.struct_mask: Optional[StructMaskParameters] = None
+            self.struct_mask: StructMaskParameters | None = None
         else:
             self.struct_mask = StructMaskParameters(
                 axis=(
@@ -94,6 +94,7 @@ class N2VManipulateTorch:
             else:
                 device = "cpu"
 
+        self.device = device
         self.seed = seed
 
     def __call__(

@@ -1,7 +1,7 @@
 """CAREamics Lightning module."""
 
 from collections.abc import Callable
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -92,7 +92,7 @@ class FCNModule(L.LightningModule):
         # create preprocessing, model and loss function
         if isinstance(algorithm_config, N2VAlgorithm):
             self.use_n2v = True
-            self.n2v_preprocess: Optional[N2VManipulateTorch] = N2VManipulateTorch(
+            self.n2v_preprocess: N2VManipulateTorch | None = N2VManipulateTorch(
                 n2v_manipulate_config=algorithm_config.n2v_config
             )
         else:
@@ -337,18 +337,16 @@ class VAEModule(L.LightningModule):
         # supervised_mode
         self.supervised_mode = self.algorithm_config.is_supervised
         # create loss function
-        self.noise_model: Optional[NoiseModel] = noise_model_factory(
+        self.noise_model: NoiseModel | None = noise_model_factory(
             self.algorithm_config.noise_model
         )
 
-        self.noise_model_likelihood: Optional[NoiseModelLikelihood] = (
-            likelihood_factory(
-                config=self.algorithm_config.noise_model_likelihood,
-                noise_model=self.noise_model,
-            )
+        self.noise_model_likelihood: NoiseModelLikelihood | None = likelihood_factory(
+            config=self.algorithm_config.noise_model_likelihood,
+            noise_model=self.noise_model,
         )
 
-        self.gaussian_likelihood: Optional[GaussianLikelihood] = likelihood_factory(
+        self.gaussian_likelihood: GaussianLikelihood | None = likelihood_factory(
             self.algorithm_config.gaussian_likelihood
         )
 
@@ -384,7 +382,7 @@ class VAEModule(L.LightningModule):
 
     def training_step(
         self, batch: tuple[Tensor, Tensor], batch_idx: Any
-    ) -> Optional[dict[str, Tensor]]:
+    ) -> dict[str, Tensor] | None:
         """Training step.
 
         Parameters
@@ -410,9 +408,8 @@ class VAEModule(L.LightningModule):
         if not self.supervised_mode:
             target = x
         else:
-            target = target[
-                0
-            ]  # hacky way to unpack. #TODO probably should be fixed on the datasel level
+            target = target[0]  # hacky way to unpack.
+            # TODO probably should be fixed on the datasel level
 
         # Update loss parameters
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
@@ -462,9 +459,8 @@ class VAEModule(L.LightningModule):
         if not self.supervised_mode:
             target = x
         else:
-            target = target[
-                0
-            ]  # hacky way to unpack. #TODO probably should be fixed on the datasel level
+            target = target[0]  # hacky way to unpack.
+            # TODO probably should be fixed on the datasel level
         # Compute loss
         loss = self.loss_func(
             model_outputs=out,
@@ -509,11 +505,11 @@ class VAEModule(L.LightningModule):
             # TODO tile_size should match model input size
             x, *aux = batch
             x = (
-                x[0] if isinstance(x, (list, tuple)) else x
+                x[0] if isinstance(x, list | tuple) else x
             )  # TODO ugly, so far i don't know why x might be a list
             self.model.reset_for_inference(x.shape)  # TODO should it be here ?
         else:
-            x = batch[0] if isinstance(batch, (list, tuple)) else batch
+            x = batch[0] if isinstance(batch, list | tuple) else batch
             aux = []
             self.model.reset_for_inference(x.shape)
 
@@ -648,7 +644,7 @@ class VAEModule(L.LightningModule):
             for i in range(out_channels)
         ]
 
-    def reduce_running_psnr(self) -> Optional[float]:
+    def reduce_running_psnr(self) -> float | None:
         """Reduce the running PSNR statistics and reset the running PSNR.
 
         Returns
@@ -671,21 +667,21 @@ class VAEModule(L.LightningModule):
         return psnr
 
 
+# TODO explicit N2V model for its parameters?
 def create_unet_based_module(
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
-    algorithm_parameters: Optional[dict] = None,
-    model_parameters: Optional[dict] = None,
+    algorithm_parameters: dict | None = None,  # TODO explicit parameters?
+    # TODO otherwise we need to explain what this dict is and what it should contain
+    model_parameters: dict | None = None,
+    # TODO here as well, need to explain where this comes from
     optimizer: Union[SupportedOptimizer, str] = "Adam",
-    optimizer_parameters: Optional[dict] = None,
+    optimizer_parameters: dict | None = None,
     lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
-    lr_scheduler_parameters: Optional[dict] = None,
-) -> Union[FCNModule, VAEModule]:
+    lr_scheduler_parameters: dict | None = None,
+) -> FCNModule:
     """Create a CAREamics Lightning module.
-
-    This function exposes parameters used to create an AlgorithmModel instance,
-    triggering parameters validation.
 
     Parameters
     ----------
@@ -696,7 +692,7 @@ def create_unet_based_module(
     architecture : SupportedArchitecture or str
         Model architecture to use for training (see SupportedArchitecture).
     algorithm_parameters : dict, optional
-        Algorithm parameters to use for training, by default {}. E.g.: use_n2v2,
+        Algorithm parameters to use for training, by default {}. E.g.: use_n2v2.
     model_parameters : dict, optional
         Model parameters to use for training, by default {}. Model parameters are
         defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
@@ -776,13 +772,13 @@ def create_vae_based_module(
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
-    algorithm_parameters: Optional[dict] = None,
-    model_parameters: Optional[dict] = None,
+    algorithm_parameters: dict | None = None,  # TODO unused
+    model_parameters: dict | None = None,
     optimizer: Union[SupportedOptimizer, str] = "Adam",
-    optimizer_parameters: Optional[dict] = None,
+    optimizer_parameters: dict | None = None,
     lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
-    lr_scheduler_parameters: Optional[dict] = None,
-) -> Union[FCNModule, VAEModule]:
+    lr_scheduler_parameters: dict | None = None,
+) -> VAEModule:
     """Create a CAREamics Lightning module.
 
     This function exposes parameters used to create an AlgorithmModel instance,
@@ -797,7 +793,7 @@ def create_vae_based_module(
     architecture : SupportedArchitecture or str
         Model architecture to use for training (see SupportedArchitecture).
     algorithm_parameters : dict, optional
-        Algorithm parameters to use for training, by default {}. e.g. likelihood module
+        Algorithm parameters to use for training, by default {}. e.g. likelihood module.
     model_parameters : dict, optional
         Model parameters to use for training, by default {}. Model parameters are
         defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
@@ -827,6 +823,8 @@ def create_vae_based_module(
         optimizer_parameters = {}
     if model_parameters is None:
         model_parameters = {}
+
+    # TODO not using the algorithm_parameters passed in the function
     algorithm_dict: dict[str, Any] = {
         "algorithm": algorithm,
         "loss": loss,
@@ -849,6 +847,8 @@ def create_vae_based_module(
     which_algo = algorithm_dict["algorithm"]
     if which_algo in VAEBasedAlgorithm.get_compatible_algorithms():
         algorithm_cfg = algorithm_factory(algorithm_dict)
+        assert isinstance(algorithm_cfg, VAEBasedAlgorithm)
+
         # TODO add support for MicroSplit
         return VAEModule(algorithm_cfg)
     else:

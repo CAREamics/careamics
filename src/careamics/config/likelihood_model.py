@@ -1,6 +1,6 @@
 """Likelihood model."""
 
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Literal, Union
 
 import numpy as np
 import torch
@@ -31,7 +31,7 @@ class GaussianLikelihoodConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
-    predict_logvar: Optional[Literal["pixelwise"]] = "pixelwise"
+    predict_logvar: Literal["pixelwise"] | None = None
     """If `pixelwise`, log-variance is computed for each pixel, else log-variance
     is not computed."""
 

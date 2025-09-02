@@ -1,7 +1,5 @@
 """Plotting utilities."""
 
-from typing import Optional
-
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -14,7 +12,7 @@ def plot_noise_model_probability_distribution(
     noise_model: GaussianMixtureNoiseModel,
     signalBinIndex: int,
     histogram: NDArray,
-    channel: Optional[str] = None,
+    channel: str | None = None,
     number_of_bins: int = 100,
 ) -> None:
     """Plot probability distribution P(x|s) for a certain ground truth signal.

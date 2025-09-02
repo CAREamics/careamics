@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Generic, Literal, NamedTuple, Optional, Union
+from typing import Any, Generic, Literal, NamedTuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -51,7 +51,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         data_config: NGDataConfig,
         mode: Mode,
         input_extractor: PatchExtractor[GenericImageStack],
-        target_extractor: Optional[PatchExtractor[GenericImageStack]] = None,
+        target_extractor: PatchExtractor[GenericImageStack] | None = None,
     ):
         self.config = data_config
         self.mode = mode
@@ -115,7 +115,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         return patching_strategy
 
-    def _initialize_transforms(self) -> Optional[Compose]:
+    def _initialize_transforms(self) -> Compose | None:
         normalize = NormalizeModel(
             image_means=self.input_stats.means,
             image_stds=self.input_stats.stds,

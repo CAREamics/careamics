@@ -1,6 +1,6 @@
 """Sequential patching functions."""
 
-from typing import Optional, Union
+from typing import Union
 
 import numpy as np
 from skimage.util import view_as_windows
@@ -110,7 +110,7 @@ def _compute_patch_views(
     window_shape: list[int],
     step: tuple[int, ...],
     output_shape: list[int],
-    target: Optional[np.ndarray] = None,
+    target: np.ndarray | None = None,
 ) -> np.ndarray:
     """
     Compute views of an array corresponding to patches.
@@ -151,8 +151,8 @@ def _compute_patch_views(
 def extract_patches_sequential(
     arr: np.ndarray,
     patch_size: Union[list[int], tuple[int, ...]],
-    target: Optional[np.ndarray] = None,
-) -> tuple[np.ndarray, Optional[np.ndarray]]:
+    target: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray | None]:
     """
     Generate patches from an array in a sequential manner.
 
