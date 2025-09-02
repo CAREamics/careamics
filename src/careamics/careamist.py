@@ -666,8 +666,8 @@ class CAREamist:
             or self.cfg.data_config.image_stds is None
         ):
             raise ValueError(
-                "Mean and std must be provided in the configuration. \n Likely reason "
-                "is that model was not trained."
+                "Mean and std must be provided in the configuration. \n Has the model "
+                "is that the model was not trained."
             )
 
         # tile size for UNets
