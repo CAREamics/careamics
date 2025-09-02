@@ -147,7 +147,7 @@ class LVAEModel(ArchitectureModel):
 
         return input_shape
 
-    @field_validator("encoder_n_filters, decoder_n_filters")
+    @field_validator("encoder_n_filters", "decoder_n_filters")
     @classmethod
     def validate_encoder_even(cls, val: int) -> int:
         """
