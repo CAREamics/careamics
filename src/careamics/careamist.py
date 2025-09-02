@@ -34,7 +34,6 @@ from careamics.lightning import (
     PredictDataModule,
     ProgressBarCallback,
     TrainDataModule,
-    VAEModule,
     create_predict_datamodule,
 )
 from careamics.model_io import export_to_bmz, load_pretrained
@@ -158,10 +157,13 @@ class CAREamist:
                     algorithm_config=self.cfg.algorithm_config,
                 )
             elif isinstance(self.cfg.algorithm_config, VAEBasedAlgorithm):
-                self.model = VAEModule(
-                    algorithm_config=self.cfg.algorithm_config,
+                # self.model = VAEModule(
+                #     algorithm_config=self.cfg.algorithm_config,
+                # )
+                raise NotImplementedError(
+                    "VAE based algorithms are not yet available with the CAREamist API."
+                    " Use the Lightning API for these algorithms (see documentation)."
                 )
-                # raise NotImplementedError("VAE based algorithms are not implemented.")
             else:
                 raise NotImplementedError("Architecture not supported.")
 
