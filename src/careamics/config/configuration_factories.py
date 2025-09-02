@@ -228,8 +228,8 @@ def _create_vae_configuration(
 
 def _create_unet_based_algorithm(
     axes: str,
-    algorithm: Literal["n2v", "care", "n2n", "hdn"],
-    loss: Literal["n2v", "mae", "mse", "hdn"],
+    algorithm: Literal["n2v", "care", "n2n"],
+    loss: Literal["n2v", "mae", "mse"],
     independent_channels: bool,
     n_channels_in: int,
     n_channels_out: int,
@@ -247,9 +247,9 @@ def _create_unet_based_algorithm(
     ----------
     axes : str
         Axes of the data.
-    algorithm : {"n2v", "care", "n2n", "hdn"}
+    algorithm : {"n2v", "care", "n2n"}
         Algorithm to use.
-    loss : {"n2v", "mae", "mse", "hdn"}
+    loss : {"n2v", "mae", "mse"}
         Loss function to use.
     independent_channels : bool
         Whether to train all channels independently.
@@ -302,6 +302,7 @@ def _create_unet_based_algorithm(
     }
 
 
+# TODO expand to other VAE-based algorithms
 def _create_vae_based_algorithm(
     algorithm: Literal["hdn"],
     loss: LVAELossConfig,

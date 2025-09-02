@@ -38,7 +38,7 @@ class LVAEModel(ArchitectureModel):
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = Field(
         default="ELU",
-    )
+    )  # TODO in practice, do we ever change that?
 
     predict_logvar: Literal[None, "pixelwise"] = "pixelwise"
     analytical_kl: bool = Field(default=False)
