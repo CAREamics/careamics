@@ -67,6 +67,7 @@ class VAEBasedAlgorithm(BaseModel):
         Self
             The validated model.
         """
+        # TODO move these validations to child classes
         # hdn
         if self.algorithm == SupportedAlgorithm.HDN:
             if self.loss.loss_type != SupportedLoss.HDN:
@@ -121,6 +122,7 @@ class VAEBasedAlgorithm(BaseModel):
             )
 
         if self.algorithm == SupportedAlgorithm.HDN:
+            # TODO make HDN support multi-channel
             assert self.model.output_channels == 1, (
                 f"Number of output channels ({self.model.output_channels}) must be 1 "
                 "for algorithm `hdn`."

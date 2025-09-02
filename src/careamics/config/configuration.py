@@ -285,6 +285,8 @@ class Configuration(BaseModel):
         """
         Get the algorithm name.
 
+        This method is used to generate the README of the BioImage Model Zoo export.
+
         Returns
         -------
         str

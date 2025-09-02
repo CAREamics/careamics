@@ -9,9 +9,13 @@ from careamics.config.algorithms.vae_algorithm_model import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEModel
 from careamics.config.loss_model import LVAELossConfig
 
-HDN = "HDN"
+HDN = "Hierarchical DivNoising"
 
-HDN_DESCRIPTION = ""
+HDN_DESCRIPTION = (
+    "HDN leverages a hierarchical VAE to perform image "
+    "restoration. It is designed to be interpretable and unsupervised, "
+    "making it suitable for a wide range of microscopy images."
+)
 HDN_REF = CiteEntry(
     text='Prakash, M., Delbracio, M., Milanfar, P., Jug, F. 2022. "Interpretable '
     'Unsupervised Diversity Denoising and Artefact Removal." The International '
