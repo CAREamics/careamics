@@ -208,11 +208,17 @@ class CAREamist:
 
         # instantiate trainer
         self.trainer = Trainer(
+            max_epochs=self.cfg.training_config.num_epochs,
+            precision=self.cfg.training_config.precision,
+            max_steps=self.cfg.training_config.max_steps,
+            check_val_every_n_epoch=self.cfg.training_config.check_val_every_n_epoch,
             enable_progress_bar=enable_progress_bar,
+            accumulate_grad_batches=self.cfg.training_config.accumulate_grad_batches,
+            gradient_clip_val=self.cfg.training_config.gradient_clip_val,
+            gradient_clip_algorithm=self.cfg.training_config.gradient_clip_algorithm,
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
             logger=experiment_logger,
-            **self.cfg.training_config.lightning_trainer_config or {},
         )
 
         # place holder for the datamodules
@@ -258,7 +264,7 @@ class CAREamist:
                 HyperParametersCallback(self.cfg),
                 ModelCheckpoint(
                     dirpath=self.work_dir / Path("checkpoints"),
-                    filename=f"{self.cfg.experiment_name}_{{epoch:02d}}_step_{{step}}",
+                    filename=self.cfg.experiment_name,
                     **self.cfg.training_config.checkpoint_callback.model_dump(),
                 ),
             ]
@@ -817,12 +823,12 @@ class CAREamist:
 
         # extract file names
         source_path: Union[Path, str, NDArray]
-        source_data_type: Literal["array", "tiff", "custom"]
+        source_data_type: Literal["array", "tiff", "czi", "custom"]
         if isinstance(source, PredictDataModule):
             source_path = source.pred_data
             source_data_type = source.data_type
             extension_filter = source.extension_filter
-        elif isinstance(source, (str | Path)):
+        elif isinstance(source, str | Path):
             source_path = source
             source_data_type = data_type or self.cfg.data_config.data_type
             extension_filter = SupportedData.get_extension_pattern(
@@ -835,7 +841,7 @@ class CAREamist:
             raise ValueError(
                 "Predicting to disk is not supported for input type 'array'."
             )
-        assert isinstance(source_path, (Path | str))  # because data_type != "array"
+        assert isinstance(source_path, str | Path)  # because data_type != "array"
         source_path = Path(source_path)
 
         file_paths = list_files(source_path, source_data_type, extension_filter)
@@ -873,7 +879,7 @@ class CAREamist:
 
     def export_to_bmz(
         self,
-        path_to_archive: Union[Path | str],
+        path_to_archive: Union[Path, str],
         friendly_model_name: str,
         input_array: NDArray,
         authors: list[dict],

@@ -1300,7 +1300,6 @@ def _create_vae_configuration(
     ],
     predict_logvar: Literal[None, "pixelwise"],
     analytical_kl: bool,
-    model_params: dict[str, Any] | None = None,
 ) -> LVAEModel:
     """Create a dictionary with the parameters of the vae based algorithm model.
 
@@ -1332,34 +1331,27 @@ def _create_vae_configuration(
         _description_.
     analytical_kl : bool # TODO needs clarification
         _description_.
-    model_params : Optional[dict[str, Any]], optional
-        Additional model parameters, by default None.
 
     Returns
     -------
     LVAEModel
         LVAE model with the specified parameters.
     """
-    if model_params is None:
-        model_params = {}
-
-    model_params["input_shape"] = input_shape
-    model_params["encoder_conv_strides"] = encoder_conv_strides
-    model_params["decoder_conv_strides"] = decoder_conv_strides
-    model_params["multiscale_count"] = multiscale_count
-    model_params["z_dims"] = z_dims
-    model_params["output_channels"] = output_channels
-    model_params["encoder_n_filters"] = encoder_n_filters
-    model_params["decoder_n_filters"] = decoder_n_filters
-    model_params["encoder_dropout"] = encoder_dropout
-    model_params["decoder_dropout"] = decoder_dropout
-    model_params["nonlinearity"] = nonlinearity
-    model_params["predict_logvar"] = predict_logvar
-    model_params["analytical_kl"] = analytical_kl
-
     return LVAEModel(
         architecture=SupportedArchitecture.LVAE.value,
-        **model_params,
+        input_shape=input_shape,
+        encoder_conv_strides=encoder_conv_strides,
+        decoder_conv_strides=decoder_conv_strides,
+        multiscale_count=multiscale_count,
+        z_dims=z_dims,
+        output_channels=output_channels,
+        encoder_n_filters=encoder_n_filters,
+        decoder_n_filters=decoder_n_filters,
+        encoder_dropout=encoder_dropout,
+        decoder_dropout=decoder_dropout,
+        nonlinearity=nonlinearity,
+        predict_logvar=predict_logvar,
+        analytical_kl=analytical_kl,
     )
 
 
@@ -1383,7 +1375,6 @@ def _create_vae_based_algorithm(
     analytical_kl: bool,
     gaussian_likelihood: GaussianLikelihoodConfig | None = None,
     nm_likelihood: NMLikelihoodConfig | None = None,
-    model_params: dict[str, Any] | None = None,
 ) -> dict:
     """
     Create a dictionary with the parameters of the VAE-based algorithm model.
@@ -1424,8 +1415,6 @@ def _create_vae_based_algorithm(
         The Gaussian likelihood model, by default None.
     nm_likelihood : Optional[NMLikelihoodConfig], optional
         The noise model likelihood model, by default None.
-    model_params : Optional[dict[str, Any]], optional
-        Additional model parameters, by default None.
 
     Returns
     -------
@@ -1446,7 +1435,6 @@ def _create_vae_based_algorithm(
         nonlinearity=nonlinearity,
         predict_logvar=predict_logvar,
         analytical_kl=analytical_kl,
-        model_params=model_params,
     )
     assert gaussian_likelihood or nm_likelihood, "Likelihood model must be specified"
     return {
@@ -1483,7 +1471,6 @@ def create_hdn_configuration(
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_params: dict | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
@@ -1509,8 +1496,7 @@ def create_hdn_configuration(
     transforms, a list of transforms can be passed to the `augmentations` parameter. To
     disable the transforms, simply pass an empty list.
 
-    The parameters of the UNet can be specified in the `model_params` (passed as a
-    parameter-value dictionary).
+    # TODO revisit the necessity of model_params
 
     Parameters
     ----------
@@ -1554,8 +1540,6 @@ def create_hdn_configuration(
         Lower bound for the log variance, by default None.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use for training, by default "none".
-    model_params : Optional[dict], optional
-        Parameters for the UNet model, by default None.
     augmentations : Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]], optional
         List of augmentations to apply, by default None.
     train_dataloader_params : Optional[dict[str, Any]], optional
@@ -1597,7 +1581,6 @@ def create_hdn_configuration(
         analytical_kl=analytical_kl,
         gaussian_likelihood=gaussian_likelihood,
         nm_likelihood=None,
-        model_params=model_params,
     )
 
     # data
