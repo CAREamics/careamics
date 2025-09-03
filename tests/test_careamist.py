@@ -1195,3 +1195,89 @@ def test_all_parameters_used(tmp_path, minimum_n2v_configuration):
     assert careamist.cfg.data_config.batch_size == 2
     assert all(i == 16 for i in careamist.cfg.data_config.patch_size)
     assert careamist.cfg.data_config.val_dataloader_params["num_workers"] == 2
+
+
+@pytest.mark.mps_gh_fail
+def test_trainer_parameters_passed_correctly(
+    tmp_path: Path, minimum_n2v_configuration: dict
+):
+    """Test that limit_train_batches and num_epochs are correctly passed to Lightning trainer."""
+    # training data
+    train_array = random_array((32, 32))
+
+    # Test limit_train_batches parameter
+    limit_train_batches = 5
+
+    # create configuration with limit_train_batches
+    config = Configuration(**minimum_n2v_configuration)
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+    config.training_config.lightning_trainer_config = {
+        "max_epochs": 3,
+        "limit_train_batches": limit_train_batches,
+    }
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # Verify parameters are in the configuration
+    assert (
+        careamist.cfg.training_config.lightning_trainer_config["limit_train_batches"]
+        == limit_train_batches
+    )
+    assert careamist.cfg.training_config.lightning_trainer_config["max_epochs"] == 3
+
+    # train CAREamist (this will create the actual trainer)
+    careamist.train(train_source=train_array)
+
+    # Verify parameters were passed to the actual Lightning trainer
+    assert careamist.trainer.limit_train_batches == limit_train_batches
+    assert careamist.trainer.max_epochs == 3
+
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+
+
+@pytest.mark.mps_gh_fail
+def test_trainer_parameters_with_factory_functions(tmp_path: Path):
+    """Test that limit_train_batches and num_epochs work with configuration factory functions."""
+    from careamics.config import create_n2v_configuration
+
+    # training data
+    train_array = random_array((32, 32))
+
+    # Test with create_n2v_configuration factory function
+    limit_train_batches = 8
+    num_epochs = 4
+
+    config = create_n2v_configuration(
+        experiment_name="test_trainer_params",
+        data_type="array",
+        axes="YX",
+        patch_size=[8, 8],
+        batch_size=2,
+        num_epochs=num_epochs,
+        limit_train_batches=limit_train_batches,
+    )
+
+    # Verify parameters are in the configuration
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == limit_train_batches
+    )
+    assert config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # Verify parameters were passed to the actual Lightning trainer
+    assert careamist.trainer.limit_train_batches == limit_train_batches
+    assert careamist.trainer.max_epochs == num_epochs
+
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()

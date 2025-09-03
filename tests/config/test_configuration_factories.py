@@ -360,6 +360,43 @@ def test_n2n_configuration_n_channels():
     assert config.algorithm_config.model.num_classes == n_channels_out
 
 
+def test_n2n_configuration_limit_train_batches():
+    """Test that limit_train_batches parameter is correctly passed to trainer config."""
+    limit_train_batches = 15
+    
+    config = create_n2n_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        limit_train_batches=limit_train_batches,
+    )
+    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches
+
+    # Test with float value
+    limit_train_batches_float = 0.3
+    config = create_n2n_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        limit_train_batches=limit_train_batches_float,
+    )
+    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches_float
+
+    # Test without limit_train_batches (should not be in config)
+    config = create_n2n_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+    )
+    assert "limit_train_batches" not in config.training_config.lightning_trainer_config
+
+
 def test_care_configuration():
     """Test that CARE configuration can be created."""
     config = create_care_configuration(
@@ -402,6 +439,43 @@ def test_care_configuration_n_channels():
     )
     assert config.algorithm_config.model.in_channels == n_channels_in
     assert config.algorithm_config.model.num_classes == n_channels_out
+
+
+def test_care_configuration_limit_train_batches():
+    """Test that limit_train_batches parameter is correctly passed to trainer config."""
+    limit_train_batches = 10
+    
+    config = create_care_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        limit_train_batches=limit_train_batches,
+    )
+    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches
+
+    # Test with float value
+    limit_train_batches_float = 0.5
+    config = create_care_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        limit_train_batches=limit_train_batches_float,
+    )
+    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches_float
+
+    # Test without limit_train_batches (should not be in config)
+    config = create_care_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+    )
+    assert "limit_train_batches" not in config.training_config.lightning_trainer_config
 
 
 def test_n2v_configuration():
@@ -461,3 +535,40 @@ def test_n2v_configuration_n2v2_structn2v():
     )
     assert config.algorithm_config.n2v_config.struct_mask_axis == struct_mask_axis
     assert config.algorithm_config.n2v_config.struct_mask_span == struct_n2v_span
+
+
+def test_n2v_configuration_limit_train_batches():
+    """Test that limit_train_batches parameter is correctly passed to trainer config."""
+    limit_train_batches = 20
+    
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        limit_train_batches=limit_train_batches,
+    )
+    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches
+
+    # Test with float value
+    limit_train_batches_float = 0.7
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        limit_train_batches=limit_train_batches_float,
+    )
+    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches_float
+
+    # Test without limit_train_batches (should not be in config)
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+    )
+    assert "limit_train_batches" not in config.training_config.lightning_trainer_config
