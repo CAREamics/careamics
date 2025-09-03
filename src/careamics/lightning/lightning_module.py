@@ -71,9 +71,7 @@ class FCNModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(
-        self, algorithm_config: Union[UNetBasedAlgorithm, VAEBasedAlgorithm, dict]
-    ) -> None:
+    def __init__(self, algorithm_config: Union[UNetBasedAlgorithm, dict]) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,

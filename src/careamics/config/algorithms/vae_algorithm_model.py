@@ -68,6 +68,7 @@ class VAEBasedAlgorithm(BaseModel):
             The validated model.
         """
         # hdn
+        # TODO move to designated configurations
         if self.algorithm == SupportedAlgorithm.HDN:
             if self.loss.loss_type != SupportedLoss.HDN:
                 raise ValueError(
@@ -175,4 +176,5 @@ class VAEBasedAlgorithm(BaseModel):
         list of str
             List of compatible algorithms.
         """
+        # TODO revisit after there's more clarity with VAE algorithms structure
         return ["hdn"]
