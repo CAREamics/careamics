@@ -2,6 +2,8 @@
 
 __all__ = [
     "CAREAlgorithm",
+    "HDNAlgorithm",
+    "MicroSplitAlgorithm",
     "N2NAlgorithm",
     "N2VAlgorithm",
     "UNetBasedAlgorithm",
@@ -9,6 +11,8 @@ __all__ = [
 ]
 
 from .care_algorithm_model import CAREAlgorithm
+from .hdn_algorithm_model import HDNAlgorithm
+from .microsplit_algorithm_model import MicroSplitAlgorithm
 from .n2n_algorithm_model import N2NAlgorithm
 from .n2v_algorithm_model import N2VAlgorithm
 from .unet_algorithm_model import UNetBasedAlgorithm
