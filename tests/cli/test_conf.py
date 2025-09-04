@@ -28,7 +28,7 @@ def test_conf(tmp_path: Path, algorithm: str):
             "-1",
             "--batch-size",
             "1",
-            "--max-epochs",
+            "--num-epochs",
             "1",
         ],
     )

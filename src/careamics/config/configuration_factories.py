@@ -557,14 +557,14 @@ def create_care_configuration(
     axes: str,
     patch_size: list[int],
     batch_size: int,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    num_epochs: int | None = None,
-    num_steps: int | None = None,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -608,6 +608,13 @@ def create_care_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -622,13 +629,6 @@ def create_care_configuration(
         Number of channels out.
     logger : Literal["wandb", "tensorboard", "none"], default="none"
         Logger to use.
-    num_epochs : int, optional
-        Number of epochs to train for. If provided, this will be added to
-        trainer_params.
-    num_steps : int, optional
-        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
-        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
-        documentation for more details.
     trainer_params : dict, optional
         Parameters for the trainer class, see PyTorch Lightning documentation.
     model_params : dict, default=None
@@ -794,14 +794,14 @@ def create_n2n_configuration(
     axes: str,
     patch_size: list[int],
     batch_size: int,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    num_epochs: int | None = None,
-    num_steps: int | None = None,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -845,6 +845,13 @@ def create_n2n_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -859,13 +866,6 @@ def create_n2n_configuration(
         Number of channels out.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
-    num_epochs : int, optional
-        Number of epochs to train for. If provided, this will be added to
-        trainer_params.
-    num_steps : int, optional
-        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
-        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
-        documentation for more details.
     trainer_params : dict, optional
         Parameters for the trainer class, see PyTorch Lightning documentation.
     model_params : dict, default=None
@@ -1030,7 +1030,7 @@ def create_n2v_configuration(
     axes: str,
     patch_size: list[int],
     batch_size: int,
-    num_epochs: int | None = None,
+    num_epochs: int = 100,
     num_steps: int | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
@@ -1104,7 +1104,7 @@ def create_n2v_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int, optional
+    num_epochs : int, default=100
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
     num_steps : int, optional

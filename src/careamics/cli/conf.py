@@ -116,7 +116,11 @@ def care(  # numpydoc ignore=PR01
         ),
     ],
     batch_size: Annotated[int, typer.Option(help="Batch size.")],
-    max_epochs: Annotated[int, typer.Option(help="Number of epochs.")],
+    num_epochs: Annotated[int, typer.Option(help="Number of epochs.")] = 100,
+    num_steps: Annotated[
+        int | None,
+        typer.Option(help="Number of batches per epoch (limit_train_batches)."),
+    ] = None,
     data_type: Annotated[
         click.Choice,
         typer.Option(click_type=click.Choice(["tiff"]), help="Type of the data."),
@@ -174,7 +178,8 @@ def care(  # numpydoc ignore=PR01
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        trainer_params={"max_epochs": max_epochs},  # TODO better way to pass params
+        num_epochs=num_epochs,
+        num_steps=num_steps,
         # TODO: fix choosing augmentations
         augmentations=None if use_augmentations else [],
         independent_channels=independent_channels,
@@ -203,7 +208,11 @@ def n2n(  # numpydoc ignore=PR01
         ),
     ],
     batch_size: Annotated[int, typer.Option(help="Batch size.")],
-    max_epochs: Annotated[int, typer.Option(help="Number of epochs.")],
+    num_epochs: Annotated[int, typer.Option(help="Number of epochs.")] = 100,
+    num_steps: Annotated[
+        int | None,
+        typer.Option(help="Number of batches per epoch (limit_train_batches)."),
+    ] = None,
     data_type: Annotated[
         click.Choice,
         typer.Option(click_type=click.Choice(["tiff"]), help="Type of the data."),
@@ -258,7 +267,8 @@ def n2n(  # numpydoc ignore=PR01
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        trainer_params={"max_epochs": max_epochs},  # TODO better way to pass params
+        num_epochs=num_epochs,
+        num_steps=num_steps,
         # TODO: fix choosing augmentations
         augmentations=None if use_augmentations else [],
         independent_channels=independent_channels,
@@ -287,7 +297,11 @@ def n2v(  # numpydoc ignore=PR01
         ),
     ],
     batch_size: Annotated[int, typer.Option(help="Batch size.")],
-    max_epochs: Annotated[int, typer.Option(help="Number of epochs.")],
+    num_epochs: Annotated[int, typer.Option(help="Number of epochs.")] = 100,
+    num_steps: Annotated[
+        int | None,
+        typer.Option(help="Number of batches per epoch (limit_train_batches)."),
+    ] = None,
     data_type: Annotated[
         click.Choice,
         typer.Option(click_type=click.Choice(["tiff"]), help="Type of the data."),
@@ -363,7 +377,8 @@ def n2v(  # numpydoc ignore=PR01
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        trainer_params={"max_epochs": max_epochs},  # TODO better way to pass params
+        num_epochs=num_epochs,
+        num_steps=num_steps,
         # TODO: fix choosing augmentations
         augmentations=None if use_augmentations else [],
         independent_channels=independent_channels,

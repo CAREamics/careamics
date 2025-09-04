@@ -665,13 +665,14 @@ def test_n2v_configuration_num_epochs():
     )
     assert config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
 
-    # Test without num_epochs (should not be in config)
+    # Test with num_epochs=None (should not be in config)
     config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
+        num_epochs=None,
     )
     assert "max_epochs" not in config.training_config.lightning_trainer_config
 
@@ -911,6 +912,7 @@ def test_n2v_configuration_empty_trainer_params():
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
+        num_epochs=None,
         trainer_params={},
     )
 
@@ -926,6 +928,7 @@ def test_n2v_configuration_trainer_params_none():
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
+        num_epochs=None,
         trainer_params=None,
     )
 
