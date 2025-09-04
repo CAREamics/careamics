@@ -48,13 +48,13 @@ dependencies = [
     'tifffile<=2025.5.10',
     'psutil<=7.0.0',
     'pydantic>=2.11,<=2.12',
-    'pytorch_lightning>=2.2,<=2.5.2',
+    'pytorch_lightning>=2.2,<=2.5.4',
     'pyyaml<=6.0.2,!=6.0.0',
     'typer>=0.12.3,<=0.16.0',
     'scikit-image<=0.25.2',
     'zarr<3.0.0',
     'pillow<=11.2.1',
-    'matplotlib<=3.10.3',
+    'matplotlib<=3.10.6',
 ]
 
 [project.optional-dependencies]
