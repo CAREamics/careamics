@@ -205,16 +205,23 @@ class UnetDecoder(nn.Module):
         decoder_blocks: list[nn.Module] = []
         for n in range(depth):
             decoder_blocks.append(upsampling)
-            in_channels = (num_channels_init * 2 ** (depth - n)) * groups
-            out_channels = in_channels // 2
+
+            in_channels = (num_channels_init * 2 ** (depth - n - 1)) * groups
+            # final decoder block has the same number in and out features
+            out_channels = in_channels // 2 if n != depth - 1 else in_channels
+            if not (n2v2 and (n == depth - 1)):
+                in_channels = in_channels * 2  # accounting for skip connection concat
+
             decoder_blocks.append(
                 Conv_Block(
                     conv_dim,
-                    in_channels=(
-                        in_channels + in_channels // 2 if n > 0 else in_channels
-                    ),
+                    in_channels=in_channels,
                     out_channels=out_channels,
-                    intermediate_channel_multiplier=2,
+                    # TODO: Tensorflow n2v implementation has intermediate channel
+                    #   multiplication for skip_skipone=True but not skip_skipone=False
+                    #   this needs to be benchmarked.
+                    # final decoder block doesn't multiply the intermediate features
+                    intermediate_channel_multiplier=2 if n != depth - 1 else 1,
                     dropout_perc=dropout,
                     activation="ReLU",
                     use_batch_norm=use_batch_norm,
@@ -241,6 +248,7 @@ class UnetDecoder(nn.Module):
         """
         x: torch.Tensor = features[0]
         skip_connections: tuple[torch.Tensor, ...] = features[-1:0:-1]
+        depth = len(skip_connections)
 
         x = self.bottleneck(x)
 
@@ -249,10 +257,8 @@ class UnetDecoder(nn.Module):
             if isinstance(module, nn.Upsample):
                 # divide index by 2 because of upsampling layers
                 skip_connection: torch.Tensor = skip_connections[i // 2]
-                if self.n2v2:
-                    if x.shape != skip_connections[-1].shape:
-                        x = self._interleave(x, skip_connection, self.groups)
-                else:
+                # top level skip connection not added for n2v2
+                if (not self.n2v2) or (self.n2v2 and (i // 2 < depth - 1)):
                     x = self._interleave(x, skip_connection, self.groups)
         return x
 

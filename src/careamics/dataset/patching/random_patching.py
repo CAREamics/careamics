@@ -1,7 +1,7 @@
 """Random patching utilities."""
 
 from collections.abc import Generator
-from typing import Optional, Union
+from typing import Union
 
 import numpy as np
 import zarr
@@ -13,9 +13,9 @@ from .validate_patch_dimension import validate_patch_dimensions
 def extract_patches_random(
     arr: np.ndarray,
     patch_size: Union[list[int], tuple[int, ...]],
-    target: Optional[np.ndarray] = None,
-    seed: Optional[int] = None,
-) -> Generator[tuple[np.ndarray, Optional[np.ndarray]], None, None]:
+    target: np.ndarray | None = None,
+    seed: int | None = None,
+) -> Generator[tuple[np.ndarray, np.ndarray | None], None, None]:
     """
     Generate patches from an array in a random manner.
 
@@ -115,8 +115,8 @@ def extract_patches_random_from_chunks(
     arr: zarr.Array,
     patch_size: Union[list[int], tuple[int, ...]],
     chunk_size: Union[list[int], tuple[int, ...]],
-    chunk_limit: Optional[int] = None,
-    seed: Optional[int] = None,
+    chunk_limit: int | None = None,
+    seed: int | None = None,
 ) -> Generator[np.ndarray, None, None]:
     """
     Generate patches from an array in a random manner.

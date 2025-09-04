@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Protocol, Union
+from typing import Any, Protocol, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -25,7 +25,7 @@ class WriteStrategy(Protocol):
         trainer: Trainer,
         pl_module: LightningModule,
         prediction: Any,  # TODO: change to expected type
-        batch_indices: Optional[Sequence[int]],
+        batch_indices: Sequence[int] | None,
         batch: Any,  # TODO: change to expected type
         batch_idx: int,
         dataloader_idx: int,
@@ -133,7 +133,7 @@ class CacheTiles(WriteStrategy):
         trainer: Trainer,
         pl_module: LightningModule,
         prediction: tuple[NDArray, list[TileInformation]],
-        batch_indices: Optional[Sequence[int]],
+        batch_indices: Sequence[int] | None,
         batch: tuple[NDArray, list[TileInformation]],
         batch_idx: int,
         dataloader_idx: int,
@@ -259,7 +259,7 @@ class WriteTilesZarr(WriteStrategy):
         trainer: Trainer,
         pl_module: LightningModule,
         prediction: Any,
-        batch_indices: Optional[Sequence[int]],
+        batch_indices: Sequence[int] | None,
         batch: Any,
         batch_idx: int,
         dataloader_idx: int,
@@ -346,7 +346,7 @@ class WriteImage(WriteStrategy):
         trainer: Trainer,
         pl_module: LightningModule,
         prediction: NDArray,
-        batch_indices: Optional[Sequence[int]],
+        batch_indices: Sequence[int] | None,
         batch: NDArray,
         batch_idx: int,
         dataloader_idx: int,

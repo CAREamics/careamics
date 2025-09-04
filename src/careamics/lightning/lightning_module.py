@@ -1,7 +1,7 @@
 """CAREamics Lightning module."""
 
 from collections.abc import Callable
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -90,7 +90,7 @@ class FCNModule(L.LightningModule):
         # create preprocessing, model and loss function
         if isinstance(algorithm_config, N2VAlgorithm):
             self.use_n2v = True
-            self.n2v_preprocess: Optional[N2VManipulateTorch] = N2VManipulateTorch(
+            self.n2v_preprocess: N2VManipulateTorch | None = N2VManipulateTorch(
                 n2v_manipulate_config=algorithm_config.n2v_config
             )
         else:
@@ -333,18 +333,16 @@ class VAEModule(L.LightningModule):
         self.model: nn.Module = model_factory(self.algorithm_config.model)
 
         # create loss function
-        self.noise_model: Optional[NoiseModel] = noise_model_factory(
+        self.noise_model: NoiseModel | None = noise_model_factory(
             self.algorithm_config.noise_model
         )
 
-        self.noise_model_likelihood: Optional[NoiseModelLikelihood] = (
-            likelihood_factory(
-                config=self.algorithm_config.noise_model_likelihood,
-                noise_model=self.noise_model,
-            )
+        self.noise_model_likelihood: NoiseModelLikelihood | None = likelihood_factory(
+            config=self.algorithm_config.noise_model_likelihood,
+            noise_model=self.noise_model,
         )
 
-        self.gaussian_likelihood: Optional[GaussianLikelihood] = likelihood_factory(
+        self.gaussian_likelihood: GaussianLikelihood | None = likelihood_factory(
             self.algorithm_config.gaussian_likelihood
         )
 
@@ -380,7 +378,7 @@ class VAEModule(L.LightningModule):
 
     def training_step(
         self, batch: tuple[Tensor, Tensor], batch_idx: Any
-    ) -> Optional[dict[str, Tensor]]:
+    ) -> dict[str, Tensor] | None:
         """Training step.
 
         Parameters
@@ -603,7 +601,7 @@ class VAEModule(L.LightningModule):
             for i in range(out_channels)
         ]
 
-    def reduce_running_psnr(self) -> Optional[float]:
+    def reduce_running_psnr(self) -> float | None:
         """Reduce the running PSNR statistics and reset the running PSNR.
 
         Returns
@@ -634,11 +632,11 @@ def create_careamics_module(
     use_n2v2: bool = False,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
-    model_parameters: Optional[dict] = None,
+    model_parameters: dict | None = None,
     optimizer: Union[SupportedOptimizer, str] = "Adam",
-    optimizer_parameters: Optional[dict] = None,
+    optimizer_parameters: dict | None = None,
     lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
-    lr_scheduler_parameters: Optional[dict] = None,
+    lr_scheduler_parameters: dict | None = None,
 ) -> Union[FCNModule, VAEModule]:
     """Create a CAREamics Lightning module.
 

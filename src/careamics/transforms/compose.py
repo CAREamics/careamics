@@ -1,6 +1,6 @@
 """A class chaining transforms together."""
 
-from typing import Optional, Union, cast
+from typing import Union, cast
 
 from numpy.typing import NDArray
 
@@ -64,8 +64,8 @@ class Compose:
         ]
 
     def _chain_transforms(
-        self, patch: NDArray, target: Optional[NDArray]
-    ) -> tuple[Optional[NDArray], ...]:
+        self, patch: NDArray, target: NDArray | None
+    ) -> tuple[NDArray | None, ...]:
         """Chain transforms on the input data.
 
         Parameters
@@ -80,7 +80,7 @@ class Compose:
         tuple[np.ndarray, Optional[np.ndarray]]
             The output of the transformations.
         """
-        params: Union[tuple[NDArray, Optional[NDArray]],] = (patch, target)
+        params: Union[tuple[NDArray, NDArray | None],] = (patch, target)
 
         for t in self.transforms:
             *params, _ = t(*params)  # ignore additional_arrays dict
@@ -92,9 +92,9 @@ class Compose:
     def _chain_transforms_additional_arrays(
         self,
         patch: NDArray,
-        target: Optional[NDArray],
+        target: NDArray | None,
         **additional_arrays: NDArray,
-    ) -> tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
+    ) -> tuple[NDArray, NDArray | None, dict[str, NDArray]]:
         """Chain transforms on the input data, with additional arrays.
 
         Parameters
@@ -121,7 +121,7 @@ class Compose:
         return patch, target, additional_arrays
 
     def __call__(
-        self, patch: NDArray, target: Optional[NDArray] = None
+        self, patch: NDArray, target: NDArray | None = None
     ) -> tuple[NDArray, ...]:
         """Apply the transforms to the input data.
 
@@ -143,9 +143,9 @@ class Compose:
     def transform_with_additional_arrays(
         self,
         patch: NDArray,
-        target: Optional[NDArray] = None,
+        target: NDArray | None = None,
         **additional_arrays: NDArray,
-    ) -> tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
+    ) -> tuple[NDArray, NDArray | None, dict[str, NDArray]]:
         """Apply the transforms to the input data, including additional arrays.
 
         Parameters

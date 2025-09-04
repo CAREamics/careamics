@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 import numpy as np
 import torch
@@ -112,7 +112,7 @@ def get_kl_divergence_loss(
     rescaling: Literal["latent_dim", "image_dim"],
     aggregation: Literal["mean", "sum"],
     free_bits_coeff: float,
-    img_shape: Optional[tuple[int]] = None,
+    img_shape: tuple[int] | None = None,
 ) -> torch.Tensor:
     """Compute the KL divergence loss.
 
@@ -273,9 +273,9 @@ def musplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
     config: LVAELossConfig,
-    gaussian_likelihood: Optional[GaussianLikelihood],
-    noise_model_likelihood: Optional[NoiseModelLikelihood] = None,  # TODO: ugly
-) -> Optional[dict[str, torch.Tensor]]:
+    gaussian_likelihood: GaussianLikelihood | None,
+    noise_model_likelihood: NoiseModelLikelihood | None = None,  # TODO: ugly
+) -> dict[str, torch.Tensor] | None:
     """Loss function for muSplit.
 
     Parameters
@@ -351,9 +351,9 @@ def denoisplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
     config: LVAELossConfig,
-    gaussian_likelihood: Optional[GaussianLikelihood] = None,
-    noise_model_likelihood: Optional[NoiseModelLikelihood] = None,
-) -> Optional[dict[str, torch.Tensor]]:
+    gaussian_likelihood: GaussianLikelihood | None = None,
+    noise_model_likelihood: NoiseModelLikelihood | None = None,
+) -> dict[str, torch.Tensor] | None:
     """Loss function for DenoiSplit.
 
     Parameters
@@ -430,7 +430,7 @@ def denoisplit_musplit_loss(
     config: LVAELossConfig,
     gaussian_likelihood: GaussianLikelihood,
     noise_model_likelihood: NoiseModelLikelihood,
-) -> Optional[dict[str, torch.Tensor]]:
+) -> dict[str, torch.Tensor] | None:
     """Loss function for DenoiSplit.
 
     Parameters

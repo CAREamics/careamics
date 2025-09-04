@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -121,10 +121,10 @@ class TrainDataModule(L.LightningDataModule):
         self,
         data_config: DataConfig,
         train_data: Union[Path, str, NDArray],
-        val_data: Optional[Union[Path, str, NDArray]] = None,
-        train_data_target: Optional[Union[Path, str, NDArray]] = None,
-        val_data_target: Optional[Union[Path, str, NDArray]] = None,
-        read_source_func: Optional[Callable] = None,
+        val_data: Union[Path, str, NDArray] | None = None,
+        train_data_target: Union[Path, str, NDArray] | None = None,
+        val_data_target: Union[Path, str, NDArray] | None = None,
+        read_source_func: Callable | None = None,
         extension_filter: str = "",
         val_percentage: float = 0.1,
         val_minimum_split: int = 5,
@@ -477,15 +477,15 @@ def create_train_datamodule(
     patch_size: list[int],
     axes: str,
     batch_size: int,
-    val_data: Optional[Union[str, Path, NDArray]] = None,
-    transforms: Optional[list[TransformModel]] = None,
-    train_target_data: Optional[Union[str, Path, NDArray]] = None,
-    val_target_data: Optional[Union[str, Path, NDArray]] = None,
-    read_source_func: Optional[Callable] = None,
+    val_data: Union[str, Path, NDArray] | None = None,
+    transforms: list[TransformModel] | None = None,
+    train_target_data: Union[str, Path, NDArray] | None = None,
+    val_target_data: Union[str, Path, NDArray] | None = None,
+    read_source_func: Callable | None = None,
     extension_filter: str = "",
     val_percentage: float = 0.1,
     val_minimum_patches: int = 5,
-    dataloader_params: Optional[dict] = None,
+    dataloader_params: dict | None = None,
     use_in_memory: bool = True,
 ) -> TrainDataModule:
     """Create a TrainDataModule.

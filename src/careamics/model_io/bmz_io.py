@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 import numpy as np
 from bioimageio.core import load_model_description, test_model
@@ -90,8 +90,8 @@ def export_to_bmz(
     authors: list[dict],
     input_array: np.ndarray,
     output_array: np.ndarray,
-    covers: Optional[list[Union[Path, str]]] = None,
-    channel_names: Optional[list[str]] = None,
+    covers: list[Union[Path, str]] | None = None,
+    channel_names: list[str] | None = None,
     model_version: str = "0.1.0",
 ) -> None:
     """Export the model to BioImage Model Zoo format.
@@ -187,7 +187,7 @@ def export_to_bmz(
 
         # test model description
         test_kwargs = (
-            model_description.config.get("bioimageio", {})
+            model_description.config.bioimageio.model_dump()
             .get("test_kwargs", {})
             .get("pytorch_state_dict", {})
         )
