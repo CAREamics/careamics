@@ -361,32 +361,38 @@ def test_n2n_configuration_n_channels():
 
 
 def test_n2n_configuration_limit_train_batches():
-    """Test that limit_train_batches parameter is correctly passed to trainer config."""
-    limit_train_batches = 15
-    
+    """Num_steps parameter is passed to trainer config as limit_train_batches."""
+    num_steps = 15
+
     config = create_n2n_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        limit_train_batches=limit_train_batches,
+        num_steps=num_steps,
     )
-    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps
+    )
 
     # Test with float value
-    limit_train_batches_float = 0.3
+    num_steps_float = 0.3
     config = create_n2n_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        limit_train_batches=limit_train_batches_float,
+        num_steps=num_steps_float,
     )
-    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches_float
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps_float
+    )
 
-    # Test without limit_train_batches (should not be in config)
+    # Test without num_steps (should not be in config)
     config = create_n2n_configuration(
         experiment_name="test",
         data_type="tiff",
@@ -442,32 +448,38 @@ def test_care_configuration_n_channels():
 
 
 def test_care_configuration_limit_train_batches():
-    """Test that limit_train_batches parameter is correctly passed to trainer config."""
-    limit_train_batches = 10
-    
+    """Num_steps parameter is passed to trainer config as limit_train_batches."""
+    num_steps = 10
+
     config = create_care_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        limit_train_batches=limit_train_batches,
+        num_steps=num_steps,
     )
-    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps
+    )
 
     # Test with float value
-    limit_train_batches_float = 0.5
+    num_steps_float = 0.5
     config = create_care_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        limit_train_batches=limit_train_batches_float,
+        num_steps=num_steps_float,
     )
-    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches_float
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps_float
+    )
 
-    # Test without limit_train_batches (should not be in config)
+    # Test without num_steps (should not be in config)
     config = create_care_configuration(
         experiment_name="test",
         data_type="tiff",
@@ -476,6 +488,65 @@ def test_care_configuration_limit_train_batches():
         batch_size=8,
     )
     assert "limit_train_batches" not in config.training_config.lightning_trainer_config
+
+
+def test_care_configuration_trainer_params():
+    """Test that trainer_params are correctly passed to CARE trainer config."""
+    num_epochs = 40
+    trainer_params = {
+        "accelerator": "gpu",
+        "devices": 1,
+        "precision": "16-mixed",
+        "gradient_clip_val": 0.8,
+        "check_val_every_n_epoch": 3,
+        "deterministic": True,
+    }
+
+    config = create_care_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=num_epochs,
+        trainer_params=trainer_params,
+    )
+
+    assert config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
+    for key, value in trainer_params.items():
+        assert config.training_config.lightning_trainer_config[key] == value
+
+
+def test_care_configuration_trainer_params_override():
+    """Test that explicit parameters override trainer_params in CARE configuration."""
+    num_epochs = 35
+    num_steps = 750
+
+    trainer_params = {
+        "max_epochs": 200,
+        "limit_train_batches": 3000,
+        "precision": "32-true",
+    }
+
+    config = create_care_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+        trainer_params=trainer_params,
+    )
+
+    # Explicit parameters should override
+    assert config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps
+    )
+    # Non-conflicting should be preserved
+    assert config.training_config.lightning_trainer_config["precision"] == "32-true"
 
 
 def test_n2v_configuration():
@@ -538,32 +609,38 @@ def test_n2v_configuration_n2v2_structn2v():
 
 
 def test_n2v_configuration_limit_train_batches():
-    """Test that limit_train_batches parameter is correctly passed to trainer config."""
-    limit_train_batches = 20
-    
+    """Num_steps parameter is passed to trainer config as limit_train_batches."""
+    num_steps = 20
+
     config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        limit_train_batches=limit_train_batches,
+        num_steps=num_steps,
     )
-    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps
+    )
 
     # Test with float value
-    limit_train_batches_float = 0.7
+    num_steps_float = 0.7
     config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        limit_train_batches=limit_train_batches_float,
+        num_steps=num_steps_float,
     )
-    assert config.training_config.lightning_trainer_config["limit_train_batches"] == limit_train_batches_float
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps_float
+    )
 
-    # Test without limit_train_batches (should not be in config)
+    # Test without num_steps (should not be in config)
     config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
@@ -572,3 +649,472 @@ def test_n2v_configuration_limit_train_batches():
         batch_size=8,
     )
     assert "limit_train_batches" not in config.training_config.lightning_trainer_config
+
+
+def test_n2v_configuration_num_epochs():
+    """Test that num_epochs parameter is correctly passed to trainer config."""
+    num_epochs = 50
+
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=num_epochs,
+    )
+    assert config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
+
+    # Test without num_epochs (should not be in config)
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+    )
+    assert "max_epochs" not in config.training_config.lightning_trainer_config
+
+
+def test_n2v_configuration_num_steps():
+    """Test that num_steps parameter is correctly passed to trainer config."""
+    num_steps = 1000
+
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_steps=num_steps,
+    )
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps
+    )
+
+    # Test without num_steps (should not be in config)
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+    )
+    assert "limit_train_batches" not in config.training_config.lightning_trainer_config
+
+
+def test_n2v_configuration_num_epochs_and_num_steps():
+    """Test that both num_epochs and num_steps can be set simultaneously."""
+    num_epochs = 25
+    num_steps = 500
+
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
+    assert config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps
+    )
+
+
+def test_n2v_configuration_trainer_params():
+    """Test that various trainer_params are correctly passed to trainer config."""
+    trainer_params = {
+        "accelerator": "gpu",
+        "devices": 2,
+        "precision": 16,
+        "gradient_clip_val": 0.5,
+        "accumulate_grad_batches": 4,
+        "check_val_every_n_epoch": 5,
+        "log_every_n_steps": 10,
+        "enable_checkpointing": True,
+        "enable_progress_bar": False,
+        "enable_model_summary": True,
+    }
+
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        trainer_params=trainer_params,
+    )
+
+    for key, value in trainer_params.items():
+        assert config.training_config.lightning_trainer_config[key] == value
+
+
+def test_n2v_configuration_trainer_params_with_timing():
+    """Test trainer_params with timing-related parameters."""
+    trainer_params = {
+        "min_epochs": 5,
+        "min_steps": 100,
+        "max_time": "00:01:00:00",  # 1 hour
+        "val_check_interval": 0.25,
+    }
+
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        trainer_params=trainer_params,
+    )
+
+    for key, value in trainer_params.items():
+        assert config.training_config.lightning_trainer_config[key] == value
+
+
+def test_n2v_configuration_trainer_params_override():
+    """Test that explicit parameters override trainer_params."""
+    num_epochs = 30
+    num_steps = 800
+
+    # trainer_params has conflicting values
+    trainer_params = {
+        "max_epochs": 100,
+        "limit_train_batches": 0.5,
+        "accelerator": "cpu",
+    }
+
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+        trainer_params=trainer_params,
+    )
+
+    # Explicit parameters should override trainer_params
+    assert config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps
+    )
+
+    # Non-conflicting trainer_params should be preserved
+    assert config.training_config.lightning_trainer_config["accelerator"] == "cpu"
+
+
+def test_n2v_configuration_trainer_params_profiler():
+    """Test trainer_params with profiler settings."""
+    trainer_params = {
+        "profiler": "simple",
+        "detect_anomaly": True,
+        "benchmark": False,
+        "deterministic": True,
+    }
+
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        trainer_params=trainer_params,
+    )
+
+    for key, value in trainer_params.items():
+        assert config.training_config.lightning_trainer_config[key] == value
+
+
+def test_n2v_configuration_trainer_params_distributed():
+    """Test trainer_params with distributed training settings."""
+    trainer_params = {
+        "strategy": "ddp",
+        "num_nodes": 2,
+        "sync_batchnorm": True,
+        "use_distributed_sampler": True,
+    }
+
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        trainer_params=trainer_params,
+    )
+
+    for key, value in trainer_params.items():
+        assert config.training_config.lightning_trainer_config[key] == value
+
+
+def test_n2v_configuration_all_trainer_combinations():
+    """Test comprehensive combination of all trainer parameters."""
+    num_epochs = 15
+    num_steps = 300
+
+    trainer_params = {
+        "accelerator": "auto",
+        "devices": "auto",
+        "precision": "32-true",
+        "gradient_clip_val": 1.0,
+        "gradient_clip_algorithm": "norm",
+        "accumulate_grad_batches": 2,
+        "check_val_every_n_epoch": 2,
+        "val_check_interval": 1.0,
+        "log_every_n_steps": 50,
+        "enable_checkpointing": True,
+        "enable_progress_bar": True,
+        "enable_model_summary": True,
+        "deterministic": False,
+        "benchmark": True,
+        "inference_mode": True,
+        "use_distributed_sampler": True,
+        "detect_anomaly": False,
+        "barebones": False,
+        "reload_dataloaders_every_n_epochs": 0,
+    }
+
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+        trainer_params=trainer_params,
+    )
+
+    # Check explicit parameters
+    assert config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps
+    )
+
+    # Check trainer_params
+    for key, value in trainer_params.items():
+        assert config.training_config.lightning_trainer_config[key] == value
+
+
+def test_n2v_configuration_empty_trainer_params():
+    """Test that empty trainer_params dict works correctly."""
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        trainer_params={},
+    )
+
+    # Should have empty dict (no trainer params)
+    assert config.training_config.lightning_trainer_config == {}
+
+
+def test_n2v_configuration_trainer_params_none():
+    """Test that trainer_params=None works correctly (default behavior)."""
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        trainer_params=None,
+    )
+
+    # Should have empty dict when trainer_params is None
+    assert config.training_config.lightning_trainer_config == {}
+
+
+def test_checkpoint_model_save_top_k_default():
+    """CheckpointModel's default save_top_k=3 doesn't conflict with trainer params."""
+    from careamics.config.callback_model import CheckpointModel
+
+    # Test default save_top_k value
+    checkpoint_model = CheckpointModel()
+    assert checkpoint_model.save_top_k == 3
+
+    # Test that default works with standard trainer configuration
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=10,
+        checkpoint_params={"save_top_k": 3},  # explicit default
+    )
+
+    assert config.training_config.checkpoint_callback.save_top_k == 3
+
+
+def test_checkpoint_model_comprehensive_checkpoint_params():
+    """Test comprehensive checkpoint parameters with save_top_k=3 default."""
+    checkpoint_params = {
+        "save_top_k": 3,  # explicit default
+        "monitor": "val_loss",
+        "mode": "min",
+        "save_weights_only": False,
+        "save_last": True,
+        "every_n_epochs": 1,
+        "verbose": True,
+    }
+
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=10,
+        checkpoint_params=checkpoint_params,
+    )
+
+    # Verify all checkpoint parameters are set correctly
+    checkpoint_callback = config.training_config.checkpoint_callback
+    assert checkpoint_callback.save_top_k == 3
+    assert checkpoint_callback.monitor == "val_loss"
+    assert checkpoint_callback.mode == "min"
+    assert checkpoint_callback.save_weights_only is False
+    assert checkpoint_callback.save_last is True
+    assert checkpoint_callback.every_n_epochs == 1
+    assert checkpoint_callback.verbose is True
+
+
+def test_checkpoint_model_save_top_k_with_resource_constraints():
+    """Test checkpoint save_top_k behavior with resource constraint scenarios."""
+    # Test with limited training steps - checkpointing should still work
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_steps=50,
+        checkpoint_params={"save_top_k": 3, "every_n_train_steps": 10},
+    )
+
+    assert config.training_config.lightning_trainer_config["limit_train_batches"] == 50
+    assert config.training_config.checkpoint_callback.save_top_k == 3
+    assert config.training_config.checkpoint_callback.every_n_train_steps == 10
+
+
+def test_checkpoint_model_save_top_k_edge_cases():
+    """Test edge cases for save_top_k parameter."""
+    import pytest
+
+    from careamics.config.callback_model import CheckpointModel
+
+    # Test that save_top_k accepts valid range (-1 to 100)
+    checkpoint_model = CheckpointModel(save_top_k=-1)  # Save all
+    assert checkpoint_model.save_top_k == -1
+
+    checkpoint_model = CheckpointModel(save_top_k=0)  # Save none
+    assert checkpoint_model.save_top_k == 0
+
+    checkpoint_model = CheckpointModel(save_top_k=100)  # Maximum allowed
+    assert checkpoint_model.save_top_k == 100
+
+    # Test that invalid values are rejected (assuming validation exists)
+    # This depends on the Pydantic field constraints
+    with pytest.raises(ValueError):
+        CheckpointModel(save_top_k=101)  # Above maximum
+
+    with pytest.raises(ValueError):
+        CheckpointModel(save_top_k=-2)  # Below minimum
+
+
+def test_checkpoint_model_save_top_k_with_development_modes():
+    """Test checkpoint save_top_k with various development and debugging modes."""
+    # Test with overfit_batches (overfitting mode)
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        trainer_params={"overfit_batches": 1},
+        checkpoint_params={"save_top_k": 3},
+    )
+    assert config.training_config.lightning_trainer_config["overfit_batches"] == 1
+    assert config.training_config.checkpoint_callback.save_top_k == 3
+
+    # Test with limit_val_batches
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        trainer_params={"limit_val_batches": 0.1},
+        checkpoint_params={"save_top_k": 3},
+    )
+    assert config.training_config.lightning_trainer_config["limit_val_batches"] == 0.1
+    assert config.training_config.checkpoint_callback.save_top_k == 3
+
+    # Test with num_sanity_val_steps=0 (disable sanity checks)
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        trainer_params={"num_sanity_val_steps": 0},
+        checkpoint_params={"save_top_k": 3},
+    )
+    assert config.training_config.lightning_trainer_config["num_sanity_val_steps"] == 0
+    assert config.training_config.checkpoint_callback.save_top_k == 3
+
+
+def test_checkpoint_model_save_top_k_cross_algorithm_consistency():
+    """Test that save_top_k behavior is consistent across all three algorithms."""
+    checkpoint_params = {"save_top_k": 5, "monitor": "val_loss"}
+
+    # Test N2V
+    n2v_config = create_n2v_configuration(
+        experiment_name="test_n2v",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=10,
+        checkpoint_params=checkpoint_params,
+    )
+
+    # Test CARE
+    care_config = create_care_configuration(
+        experiment_name="test_care",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=10,
+        checkpoint_params=checkpoint_params,
+    )
+
+    # Test N2N
+    n2n_config = create_n2n_configuration(
+        experiment_name="test_n2n",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=10,
+        checkpoint_params=checkpoint_params,
+    )
+
+    # All should have the same checkpoint configuration
+    assert n2v_config.training_config.checkpoint_callback.save_top_k == 5
+    assert care_config.training_config.checkpoint_callback.save_top_k == 5
+    assert n2n_config.training_config.checkpoint_callback.save_top_k == 5
+
+    assert n2v_config.training_config.checkpoint_callback.monitor == "val_loss"
+    assert care_config.training_config.checkpoint_callback.monitor == "val_loss"
+    assert n2n_config.training_config.checkpoint_callback.monitor == "val_loss"

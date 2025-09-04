@@ -135,6 +135,16 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
     config.data_config.data_type = SupportedData.ARRAY.value
     config.data_config.patch_size = (8, 8)
 
+    # Test save_top_k=2 functionality
+    config.training_config.lightning_trainer_config = {"max_epochs": 6}
+    config.training_config.checkpoint_callback = {
+        "save_top_k": 2,
+        "monitor": "val_loss",
+        "mode": "min",
+        "save_last": True,
+        "every_n_epochs": 1,
+    }
+
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
 
@@ -143,6 +153,23 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
 
     # check that it trained
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+
+    # check save_top_k=2 functionality
+    # Should have: 2 best checkpoints + 1 last.ckpt = 3 total files
+    checkpoint_files = list((tmp_path / "checkpoints").glob("*.ckpt"))
+    assert (
+        len(checkpoint_files) == 3
+    ), f"Expected 3 checkpoint files (2 best + last), found {len(checkpoint_files)}"
+
+    # Verify last.ckpt exists
+    last_ckpt_exists = any(f.name == "last.ckpt" for f in checkpoint_files)
+    assert last_ckpt_exists, "last.ckpt should exist when save_last=True"
+
+    # Verify we have exactly 2 non-last checkpoint files
+    non_last_checkpoints = [f for f in checkpoint_files if f.name != "last.ckpt"]
+    assert (
+        len(non_last_checkpoints) == 2
+    ), f"Expected exactly 2 best checkpoints, found {len(non_last_checkpoints)}"
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -1201,7 +1228,7 @@ def test_all_parameters_used(tmp_path, minimum_n2v_configuration):
 def test_trainer_parameters_passed_correctly(
     tmp_path: Path, minimum_n2v_configuration: dict
 ):
-    """Test that limit_train_batches and num_epochs are correctly passed to Lightning trainer."""
+    """Limit_train_batches and num_epochs are passed to Lightning trainer."""
     # training data
     train_array = random_array((32, 32))
 
@@ -1235,49 +1262,6 @@ def test_trainer_parameters_passed_correctly(
     # Verify parameters were passed to the actual Lightning trainer
     assert careamist.trainer.limit_train_batches == limit_train_batches
     assert careamist.trainer.max_epochs == 3
-
-    # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
-
-
-@pytest.mark.mps_gh_fail
-def test_trainer_parameters_with_factory_functions(tmp_path: Path):
-    """Test that limit_train_batches and num_epochs work with configuration factory functions."""
-    from careamics.config import create_n2v_configuration
-
-    # training data
-    train_array = random_array((32, 32))
-
-    # Test with create_n2v_configuration factory function
-    limit_train_batches = 8
-    num_epochs = 4
-
-    config = create_n2v_configuration(
-        experiment_name="test_trainer_params",
-        data_type="array",
-        axes="YX",
-        patch_size=[8, 8],
-        batch_size=2,
-        num_epochs=num_epochs,
-        limit_train_batches=limit_train_batches,
-    )
-
-    # Verify parameters are in the configuration
-    assert (
-        config.training_config.lightning_trainer_config["limit_train_batches"]
-        == limit_train_batches
-    )
-    assert config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
-
-    # train CAREamist
-    careamist.train(train_source=train_array)
-
-    # Verify parameters were passed to the actual Lightning trainer
-    assert careamist.trainer.limit_train_batches == limit_train_batches
-    assert careamist.trainer.max_epochs == num_epochs
 
     # check that it trained
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()

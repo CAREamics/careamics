@@ -411,7 +411,6 @@ def _create_supervised_config_dict(
     checkpoint_params: dict[str, Any] | None = None,
     num_epochs: int | None = None,
     num_steps: int | None = None,
-    limit_train_batches: int | float | None = None,
 ) -> dict:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -464,10 +463,13 @@ def _create_supervised_config_dict(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
-    limit_train_batches : int, float or None, default=None
-        Limits the number of training batches per epoch. If int, limits to that many batches.
-        If float, limits to that fraction of total batches. See PyTorch Lightning documentation
-        for more details.
+    num_epochs : int or None, default=None
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int or None, default=None
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
 
     Returns
     -------
@@ -532,9 +534,7 @@ def _create_supervised_config_dict(
     if num_epochs is not None:
         final_trainer_params["max_epochs"] = num_epochs
     if num_steps is not None:
-        final_trainer_params["max_steps"] = num_steps
-    if limit_train_batches is not None:
-        final_trainer_params["limit_train_batches"] = limit_train_batches
+        final_trainer_params["limit_train_batches"] = num_steps
 
     # training
     training_params = _create_training_configuration(
@@ -565,7 +565,6 @@ def create_care_configuration(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     num_epochs: int | None = None,
     num_steps: int | None = None,
-    limit_train_batches: int | float | None = None,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -609,8 +608,6 @@ def create_care_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    trainer_params : dict, optional
-        Parameters for the trainer class, see PyTorch Lightning documentation
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -629,11 +626,11 @@ def create_care_configuration(
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
     num_steps : int, optional
-        Number of steps to train for. If provided, this will be added to trainer_params.
-    limit_train_batches : int, float or None, default=None
-        Limits the number of training batches per epoch. If int, limits to that many batches.
-        If float, limits to that fraction of total batches. See PyTorch Lightning documentation
-        for more details.
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation.
     model_params : dict, default=None
         UNetModel parameters.
     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
@@ -671,6 +668,17 @@ def create_care_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100
+    ... )
+
+    You can also limit the number of batches per epoch:
+    >>> config = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_steps=100  # limit to 100 batches per epoch
     ... )
 
     To disable transforms, simply set `augmentations` to an empty list:
@@ -680,10 +688,12 @@ def create_care_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100,
     ...     augmentations=[]
     ... )
 
-    A list of transforms can be passed to the `augmentations` parameter:
+    A list of transforms can be passed to the `augmentations` parameter to replace the
+    default augmentations:
     >>> from careamics.config.transformations import XYFlipModel
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
@@ -691,6 +701,7 @@ def create_care_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
     ...         XYFlipModel(flip_x = False, flip_y = True)
@@ -706,6 +717,7 @@ def create_care_configuration(
     ...     axes="YXC", # channels must be in the axes
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100,
     ...     n_channels_in=3, # number of input channels
     ...     n_channels_out=1 # if applicable
     ... )
@@ -718,6 +730,7 @@ def create_care_configuration(
     ...     axes="YXC", # channels must be in the axes
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100,
     ...     independent_channels=False,
     ...     n_channels_in=3,
     ...     n_channels_out=1 # if applicable
@@ -733,6 +746,7 @@ def create_care_configuration(
     ...     axes="SCYX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100,
     ...     n_channels_in=1,
     ... )
     >>> config_3d = create_care_configuration(
@@ -741,6 +755,7 @@ def create_care_configuration(
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
+    ...     num_epochs=100,
     ...     n_channels_in=1,
     ... )
     """
@@ -769,7 +784,6 @@ def create_care_configuration(
             checkpoint_params=checkpoint_params,
             num_epochs=num_epochs,
             num_steps=num_steps,
-            limit_train_batches=limit_train_batches,
         )
     )
 
@@ -788,7 +802,6 @@ def create_n2n_configuration(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     num_epochs: int | None = None,
     num_steps: int | None = None,
-    limit_train_batches: int | float | None = None,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -832,8 +845,6 @@ def create_n2n_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    trainer_params : dict, optional
-        Parameters for the trainer class, see PyTorch Lightning documentation
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -852,11 +863,11 @@ def create_n2n_configuration(
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
     num_steps : int, optional
-        Number of steps to train for. If provided, this will be added to trainer_params.
-    limit_train_batches : int, float or None, default=None
-        Limits the number of training batches per epoch. If int, limits to that many batches.
-        If float, limits to that fraction of total batches. See PyTorch Lightning documentation
-        for more details.
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation.
     model_params : dict, default=None
         UNetModel parameters.
     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
@@ -894,6 +905,17 @@ def create_n2n_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100
+    ... )
+
+    You can also limit the number of batches per epoch:
+    >>> config = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_steps=100  # limit to 100 batches per epoch
     ... )
 
     To disable transforms, simply set `augmentations` to an empty list:
@@ -903,6 +925,7 @@ def create_n2n_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100,
     ...     augmentations=[]
     ... )
 
@@ -914,6 +937,7 @@ def create_n2n_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
     ...         XYFlipModel(flip_x = False, flip_y = True)
@@ -929,6 +953,7 @@ def create_n2n_configuration(
     ...     axes="YXC", # channels must be in the axes
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100,
     ...     n_channels_in=3, # number of input channels
     ...     n_channels_out=1 # if applicable
     ... )
@@ -941,6 +966,7 @@ def create_n2n_configuration(
     ...     axes="YXC", # channels must be in the axes
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100,
     ...     independent_channels=False,
     ...     n_channels_in=3,
     ...     n_channels_out=1 # if applicable
@@ -956,6 +982,7 @@ def create_n2n_configuration(
     ...     axes="SCYX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
+    ...     num_epochs=100,
     ...     n_channels_in=1,
     ... )
     >>> config_3d = create_n2n_configuration(
@@ -964,6 +991,7 @@ def create_n2n_configuration(
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
+    ...     num_epochs=100,
     ...     n_channels_in=1,
     ... )
     """
@@ -992,7 +1020,6 @@ def create_n2n_configuration(
             checkpoint_params=checkpoint_params,
             num_epochs=num_epochs,
             num_steps=num_steps,
-            limit_train_batches=limit_train_batches,
         )
     )
 
@@ -1003,6 +1030,8 @@ def create_n2v_configuration(
     axes: str,
     patch_size: list[int],
     batch_size: int,
+    num_epochs: int | None = None,
+    num_steps: int | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
@@ -1011,9 +1040,6 @@ def create_n2v_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
-    num_epochs: int | None = None,
-    num_steps: int | None = None,
-    limit_train_batches: int | float | None = None,
     trainer_params: dict | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: dict | None = None,
@@ -1081,16 +1107,10 @@ def create_n2v_configuration(
     num_epochs : int, optional
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
-    nun_steps : int, optional
-        Max number of steps to train for. If provided, this will be added to trainer_params.
-    limit_train_batches : int, float or None, default=None
-        Limits the number of training batches per epoch. If int, limits to that many batches.
-        If float, limits to that fraction of total batches. See PyTorch Lightning documentation
-        for more details.
-    trainer_params : dict, optional
-        Parameters for the trainer class, see PyTorch Lightning documentation.
-        If num_epochs or nun_steps are provided, they will override any values in this
-        dict.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -1150,7 +1170,17 @@ def create_n2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     trainer_params={}
+    ...     num_epochs=100
+    ... )
+
+    You can also limit the number of batches per epoch:
+    >>> config = create_n2v_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_steps=100  # limit to 100 batches per epoch
     ... )
 
     To disable transforms, simply set `augmentations` to an empty list:
@@ -1160,7 +1190,7 @@ def create_n2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     trainer_params={},
+    ...     num_epochs=100,
     ...     augmentations=[]
     ... )
 
@@ -1172,7 +1202,7 @@ def create_n2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     trainer_params={},
+    ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
     ...         XYFlipModel(flip_x = False, flip_y = True)
@@ -1186,7 +1216,7 @@ def create_n2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     trainer_params={},
+    ...     num_epochs=100,
     ...     use_n2v2=True
     ... )
 
@@ -1198,7 +1228,7 @@ def create_n2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     trainer_params={},
+    ...     num_epochs=100,
     ...     struct_n2v_axis="horizontal",
     ...     struct_n2v_span=7
     ... )
@@ -1211,7 +1241,7 @@ def create_n2v_configuration(
     ...     axes="YXC",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     trainer_params={},
+    ...     num_epochs=100,
     ...     n_channels=3
     ... )
 
@@ -1223,7 +1253,7 @@ def create_n2v_configuration(
     ...     axes="YXC",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     trainer_params={},
+    ...     num_epochs=100,
     ...     independent_channels=False,
     ...     n_channels=3
     ... )
@@ -1238,7 +1268,7 @@ def create_n2v_configuration(
     ...     axes="SCYX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     trainer_params={},
+    ...     num_epochs=100,
     ...     n_channels=1,
     ... )
     >>> config_3d = create_n2v_configuration(
@@ -1247,7 +1277,7 @@ def create_n2v_configuration(
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
-    ...     trainer_params={},
+    ...     num_epochs=100,
     ...     n_channels=1,
     ... )
     """
@@ -1316,9 +1346,7 @@ def create_n2v_configuration(
     if num_epochs is not None:
         final_trainer_params["max_epochs"] = num_epochs
     if num_steps is not None:
-        final_trainer_params["max_steps"] = num_steps
-    if limit_train_batches is not None:
-        final_trainer_params["limit_train_batches"] = limit_train_batches
+        final_trainer_params["limit_train_batches"] = num_steps
 
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
