@@ -24,6 +24,7 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_ome_zarr_extractor,
     create_tiff_extractor,
 )
+from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterProtocol
 from careamics.file_io.read import ReadFunc
 
 from .dataset import CareamicsDataset, Mode
@@ -202,6 +203,8 @@ def create_array_dataset(
     mode: Mode,
     inputs: Sequence[NDArray[Any]],
     targets: Sequence[NDArray[Any]] | None,
+    filter: PatchFilterProtocol | None = None,
+    filter_patience: int = 10,
 ) -> CareamicsDataset[InMemoryImageStack]:
     """
     Create a CAREamicsDataset from array data.
@@ -216,6 +219,11 @@ def create_array_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
+    filter : PatchFilterProtocol, optional
+        A patch filtering strategy to use.
+    filter_patience : int, default=10
+        The number of attempts to make to find a non-filtered patch before giving up
+        and returning the last sampled patch anyway.
 
     Returns
     -------
@@ -228,7 +236,9 @@ def create_array_dataset(
         target_extractor = create_array_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    return CareamicsDataset(config, mode, input_extractor, target_extractor)
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, filter, filter_patience
+    )
 
 
 def create_tiff_dataset(
@@ -236,9 +246,11 @@ def create_tiff_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
+    filter: PatchFilterProtocol | None = None,
+    filter_patience: int = 10,
 ) -> CareamicsDataset[InMemoryImageStack]:
     """
-    Create a CAREamicsDataset from tiff files that will be all loaded into memory.
+    Create a CAREamicsDataset from tiff files that will be loaded into memory.
 
     Parameters
     ----------
@@ -250,6 +262,11 @@ def create_tiff_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
+    filter : PatchFilterProtocol, optional
+        A patch filtering strategy to use.
+    filter_patience : int, default=10
+        The number of attempts to make to find a non-filtered patch before giving up
+        and returning the last sampled patch anyway.
 
     Returns
     -------
@@ -265,8 +282,10 @@ def create_tiff_dataset(
         target_extractor = create_tiff_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, filter, filter_patience
+    )
 
 
 def create_czi_dataset(
@@ -274,6 +293,8 @@ def create_czi_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
+    filter: PatchFilterProtocol | None = None,
+    filter_patience: int = 10,
 ) -> CareamicsDataset[CziImageStack]:
     """
     Create a dataset from CZI files.
@@ -288,6 +309,11 @@ def create_czi_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
+    filter : PatchFilterProtocol, optional
+        A patch filtering strategy to use.
+    filter_patience : int, default=10
+        The number of attempts to make to find a non-filtered patch before giving up
+        and returning the last sampled patch anyway.
 
     Returns
     -------
@@ -301,8 +327,10 @@ def create_czi_dataset(
         target_extractor = create_czi_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, filter, filter_patience
+    )
 
 
 def create_ome_zarr_dataset(
@@ -310,6 +338,8 @@ def create_ome_zarr_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
+    filter: PatchFilterProtocol | None = None,
+    filter_patience: int = 10,
 ) -> CareamicsDataset[ZarrImageStack]:
     """
     Create a dataset from OME ZARR files.
@@ -324,6 +354,11 @@ def create_ome_zarr_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
+    filter : PatchFilterProtocol, optional
+        A patch filtering strategy to use.
+    filter_patience : int, default=10
+        The number of attempts to make to find a non-filtered patch before giving up
+        and returning the last sampled patch anyway.
 
     Returns
     -------
@@ -337,8 +372,10 @@ def create_ome_zarr_dataset(
         target_extractor = create_ome_zarr_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, filter, filter_patience
+    )
 
 
 def create_custom_file_dataset(
@@ -346,6 +383,8 @@ def create_custom_file_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
+    filter: PatchFilterProtocol | None = None,
+    filter_patience: int = 10,
     *,
     read_func: ReadFunc,
     read_kwargs: dict[str, Any],
@@ -363,6 +402,11 @@ def create_custom_file_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
+    filter : PatchFilterProtocol, optional
+        A patch filtering strategy to use.
+    filter_patience : int, default=10
+        The number of attempts to make to find a non-filtered patch before giving up
+        and returning the last sampled patch anyway.
     read_func : Optional[ReadFunc], optional
         A function that can that can be used to load custom data. This argument is
         ignored unless the `data_type` is "custom".
@@ -388,8 +432,10 @@ def create_custom_file_dataset(
         )
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, filter, filter_patience
+    )
 
 
 def create_custom_image_stack_dataset(
@@ -398,6 +444,8 @@ def create_custom_image_stack_dataset(
     inputs: Any,
     targets: Any | None,
     image_stack_loader: ImageStackLoader[P, GenericImageStack],
+    filter: PatchFilterProtocol | None = None,
+    filter_patience: int = 10,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> CareamicsDataset[GenericImageStack]:
@@ -419,6 +467,11 @@ def create_custom_image_stack_dataset(
     image_stack_loader : ImageStackLoader
         A function for custom image stack loading. This argument is ignored unless the
         `data_type` is "custom".
+    filter : PatchFilterProtocol, optional
+        A patch filtering strategy to use.
+    filter_patience : int, default=10
+        The number of attempts to make to find a non-filtered patch before giving up
+        and returning the last sampled patch anyway.
     *args : Any
         Positional arguments to pass to the `image_stack_loader`.
     **kwargs : Any
@@ -447,5 +500,7 @@ def create_custom_image_stack_dataset(
         )
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, filter, filter_patience
+    )

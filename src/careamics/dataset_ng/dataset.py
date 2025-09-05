@@ -16,6 +16,7 @@ from careamics.config.transformations import NormalizeModel
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
+from careamics.dataset_ng.patch_filter import PatchFilterProtocol
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -25,6 +26,8 @@ from careamics.dataset_ng.patching_strategies import (
     WholeSamplePatchingStrategy,
 )
 from careamics.transforms import Compose
+
+# TODO need a strategy for preprocessing mask to detect empty patches
 
 
 class Mode(str, Enum):
@@ -52,12 +55,17 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         mode: Mode,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
+        patch_filter: PatchFilterProtocol | None = None,
+        patch_filter_patience: int = 10,
     ):
         self.config = data_config
         self.mode = mode
 
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
+
+        self.patch_filter = patch_filter
+        self.patch_filter_patience = patch_filter_patience
 
         self.patching_strategy = self._initialize_patching_strategy()
 
@@ -186,24 +194,38 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __getitem__(
         self, index: int
     ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
-        patch_spec = self.patching_strategy.get_patch_spec(index)
-        input_patch = self.input_extractor.extract_patch(
-            data_idx=patch_spec["data_idx"],
-            sample_idx=patch_spec["sample_idx"],
-            coords=patch_spec["coords"],
-            patch_size=patch_spec["patch_size"],
-        )
 
-        target_patch = (
-            self.target_extractor.extract_patch(
+        should_filter = self.patch_filter is not None
+        empty_patch = True
+
+        patch_filter_patience = self.patch_filter_patience
+        while empty_patch and patch_filter_patience > 0:
+            patch_spec = self.patching_strategy.get_patch_spec(index)
+            input_patch = self.input_extractor.extract_patch(
                 data_idx=patch_spec["data_idx"],
                 sample_idx=patch_spec["sample_idx"],
                 coords=patch_spec["coords"],
                 patch_size=patch_spec["patch_size"],
             )
-            if self.target_extractor is not None
-            else None
-        )
+
+            target_patch = (
+                self.target_extractor.extract_patch(
+                    data_idx=patch_spec["data_idx"],
+                    sample_idx=patch_spec["sample_idx"],
+                    coords=patch_spec["coords"],
+                    patch_size=patch_spec["patch_size"],
+                )
+                if self.target_extractor is not None
+                else None
+            )
+
+            if should_filter:
+                assert self.patch_filter is not None  # mypy
+
+                empty_patch = self.patch_filter.filter_out(input_patch)
+                patch_filter_patience -= 1  # decrease patience to escape infinite loop
+            else:
+                empty_patch = False
 
         if self.transforms is not None:
             if self.target_extractor is not None:
