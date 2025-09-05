@@ -485,7 +485,8 @@ def create_train_datamodule(
     extension_filter: str = "",
     val_percentage: float = 0.1,
     val_minimum_patches: int = 5,
-    dataloader_params: dict | None = None,
+    train_dataloader_params: dict | None = None,
+    val_dataloader_params: dict | None = None,
     use_in_memory: bool = True,
 ) -> TrainDataModule:
     """Create a TrainDataModule.
@@ -556,8 +557,10 @@ def create_train_datamodule(
     val_minimum_patches : int, optional
         Minimum number of patches to split from the training data for validation if
         no validation data is given, by default 5.
-    dataloader_params : dict, optional
-        Pytorch dataloader parameters, by default {}.
+    train_dataloader_params : dict, optional
+        Pytorch dataloader parameters for the training data, by default {}.
+    val_dataloader_params : dict, optional
+        Pytorch dataloader parameters for the validation data, by default {}.
     use_in_memory : bool, optional
         Use in memory dataset if possible, by default True.
 
@@ -617,8 +620,11 @@ def create_train_datamodule(
     ...     transforms=my_transforms,
     ... )
     """
-    if dataloader_params is None:
-        dataloader_params = {}
+    if train_dataloader_params is None:
+        train_dataloader_params = {"shuffle": True}
+
+    if val_dataloader_params is None:
+        val_dataloader_params = {"shuffle": False}
 
     data_dict: dict[str, Any] = {
         "mode": "train",
@@ -626,7 +632,8 @@ def create_train_datamodule(
         "patch_size": patch_size,
         "axes": axes,
         "batch_size": batch_size,
-        "dataloader_params": dataloader_params,
+        "train_dataloader_params": train_dataloader_params,
+        "val_dataloader_params": val_dataloader_params,
     }
 
     # if transforms are passed (otherwise it will use the default ones)
@@ -637,9 +644,13 @@ def create_train_datamodule(
     data_config = DataConfig(**data_dict)
 
     # sanity check on the dataloader parameters
-    if "batch_size" in dataloader_params:
+    if "batch_size" in train_dataloader_params:
         # remove it
-        del dataloader_params["batch_size"]
+        del train_dataloader_params["batch_size"]
+
+    if "batch_size" in val_dataloader_params:
+        # remove it
+        del val_dataloader_params["batch_size"]
 
     return TrainDataModule(
         data_config=data_config,

@@ -29,6 +29,5 @@ class SupportedAlgorithm(str, BaseEnum):
     DENOISPLIT = "denoisplit"
     """An image splitting and denoising approach based on ladder VAE architectures."""
 
-    # PN2V = "pn2v"
-    # HDN = "hdn"
-    # SEG = "segmentation"
+    HDN = "hdn"
+    """Hierarchical Denoising Network, an unsupervised denoising algorithm"""
