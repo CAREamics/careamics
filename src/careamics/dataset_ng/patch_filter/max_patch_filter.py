@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 import numpy as np
-from skimage.measure import shannon_entropy
+from scipy.ndimage import maximum_filter
 from tqdm import tqdm
 
 from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
@@ -11,14 +11,16 @@ from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterP
 from careamics.dataset_ng.patching_strategies import TilingStrategy
 
 
-class ShannonEntropyFilter(PatchFilterProtocol):
+class MaxPatchFilter(PatchFilterProtocol):
     """
-    Filter patches based on Shannon entropy threshold.
+    A patch filter based on thresholding the maximum filter of the patch.
+
+    Inspired by the CSBDeep approach.
 
     Attributes
     ----------
     threshold : float
-        Threshold for the Shannon entropy of the patch.
+        Threshold for the maximum filter of the patch.
     p : float
         Probability of applying the filter to a patch.
     rng : np.random.Generator
@@ -26,56 +28,28 @@ class ShannonEntropyFilter(PatchFilterProtocol):
     """
 
     def __init__(
-        self, threshold: float, p: float = 1.0, seed: int | None = None
+        self,
+        max_value: float,
+        weight: float = 0.4,
+        p: float = 1.0,
+        seed: int | None = None,
     ) -> None:
-        """
-        Create a ShannonEntropyFilter.
 
-        This filter removes patches whose Shannon entropy is below a specified
-        threshold.
+        if not (0 <= weight <= 100):
+            raise ValueError("Weight must be between 0 and 1.")
 
-        Parameters
-        ----------
-        threshold : float
-            Threshold for the Shannon entropy of the patch.
-        p : float, default=1
-            Probability of applying the filter to a patch. Must be between 0 and 1.
-        seed : int | None, default=None
-            Seed for the random number generator for reproducibility.
-
-        Raises
-        ------
-        ValueError
-            If threshold is negative.
-        ValueError
-            If p is not between 0 and 1.
-        """
-        if threshold < 0:
-            raise ValueError("Threshold must be non-negative.")
-        if not (0 <= p <= 1):
-            raise ValueError("Probability p must be between 0 and 1.")
-
-        self.threshold = threshold
+        self.threshold = max_value * weight
 
         self.p = p
         self.rng = np.random.default_rng(seed)
 
     def filter_out(self, patch: np.ndarray) -> bool:
-        """
-        Determine whether to filter out a patch based on its Shannon entropy.
-
-        Parameters
-        ----------
-        patch : numpy.NDArray
-            The patch to evaluate.
-
-        Returns
-        -------
-        bool
-            True if the patch should be filtered out, False otherwise.
-        """
         if self.rng.uniform(0, 1) < self.p:
-            return shannon_entropy(patch) < self.threshold
+
+            patch_shape = [(p // 2 if p > 1 else 1) for p in patch.shape]
+            filtered = maximum_filter(patch, patch_shape, mode="constant")
+
+            return (filtered < self.threshold).any()
         return False
 
     @staticmethod
@@ -84,23 +58,23 @@ class ShannonEntropyFilter(PatchFilterProtocol):
         patch_size: Sequence[int],
     ) -> np.ndarray:
         """
-        Compute the Shannon entropy map of an image.
+        Compute the maximum map of an image.
 
-        The entropy is computed over non-overlapping patches. This method can be used
-        to assess a useful threshold for the Shannon entropy filter.
+        The map is computed over non-overlapping patches. This method can be used
+        to assess a useful threshold for the MaxPatchFilter filter.
 
         Parameters
         ----------
         image : numpy.NDArray
-            The image for which to compute the entropy map, must be 2D or 3D.
+            The image for which to compute the map, must be 2D or 3D.
         patch_size : Sequence[int]
-            The size of the patches to compute the entropy over. Must be a sequence
+            The size of the patches to compute the map over. Must be a sequence
             of two integers.
 
         Returns
         -------
         numpy.NDArray
-            The Shannon entropy map of the patch.
+            The max map of the patch.
 
         Raises
         ------
@@ -115,16 +89,16 @@ class ShannonEntropyFilter(PatchFilterProtocol):
         of the map.
         >>> import numpy as np
         >>> from matplotlib import pyplot as plt
-        >>> from careamics.dataset_ng.patch_filter import ShannonEntropyFilter
+        >>> from careamics.dataset_ng.patch_filter import MaxPatchFilter
         >>> rng = np.random.default_rng(42)
         >>> image = rng.binomial(20, 0.1, (256, 256)).astype(np.float32)
         >>> image[64:192, 64:192] += rng.normal(50, 5, (128, 128))
         >>> image[96:160, 96:160] = rng.poisson(image[96:160, 96:160])
         >>> patch_size = (16, 16)
-        >>> entropy_map = ShannonEntropyFilter.filter_map(image, patch_size)
+        >>> max_filtered = MaxPatchFilter.filter_map(image, patch_size)
         >>> fig, ax = plt.subplots(1, 5, figsize=(20, 5))
-        >>> for i, thresh in enumerate([2 + 1.5 * i for i in range(5)]):
-        ... ax[i].imshow(entropy_map > thresh, cmap="gray")
+        >>> for i, thresh in enumerate([50 + i*5 for i in range(5)]):
+        ... ax[i].imshow(max_filtered > thresh, cmap="gray")
         ... ax[i].set_title(f"Threshold: {thresh}")
         >>> plt.show()
         """
@@ -133,7 +107,7 @@ class ShannonEntropyFilter(PatchFilterProtocol):
 
         axes = "YX" if len(patch_size) == 2 else "ZYX"
 
-        shannon_img = np.zeros_like(image, dtype=float)
+        max_filtered = np.zeros_like(image, dtype=float)
 
         extractor = create_array_extractor(source=[image], axes=axes)
         tiling = TilingStrategy(
@@ -141,8 +115,9 @@ class ShannonEntropyFilter(PatchFilterProtocol):
             tile_size=patch_size,
             overlaps=(0,) * len(patch_size),  # no overlap
         )
+        max_patch_size = [p // 2 for p in patch_size]
 
-        for idx in tqdm(range(tiling.n_patches), desc="Computing Shannon Entropy map"):
+        for idx in tqdm(range(tiling.n_patches), desc="Computing max map"):
             patch_spec = tiling.get_patch_spec(idx)
             patch = extractor.extract_patch(
                 data_idx=0,
@@ -155,6 +130,8 @@ class ShannonEntropyFilter(PatchFilterProtocol):
                 slice(patch_spec["coords"][i], patch_spec["coords"][i] + p)
                 for i, p in enumerate(patch_size)
             )
-            shannon_img[coordinates] = shannon_entropy(patch)
+            max_filtered[coordinates] = maximum_filter(
+                patch.squeeze(), max_patch_size, mode="constant"
+            )
 
-        return shannon_img
+        return max_filtered
