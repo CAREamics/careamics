@@ -57,7 +57,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
         patch_filter: PatchFilterProtocol | None = None,
         patch_filter_patience: int = 10,
-    ):
+    ) -> None:
         self.config = data_config
         self.mode = mode
 
@@ -195,11 +195,13 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, index: int
     ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
 
-        should_filter = self.patch_filter is not None
+        # assumed only random patching strategy is used
+        should_filter = self.patch_filter is not None and self.mode == Mode.TRAINING
         empty_patch = True
 
-        patch_filter_patience = self.patch_filter_patience
+        patch_filter_patience = self.patch_filter_patience # reset patience
         while empty_patch and patch_filter_patience > 0:
+            # query patches
             patch_spec = self.patching_strategy.get_patch_spec(index)
             input_patch = self.input_extractor.extract_patch(
                 data_idx=patch_spec["data_idx"],
@@ -219,6 +221,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 else None
             )
 
+            # filter if needed
             if should_filter:
                 assert self.patch_filter is not None  # mypy
 
@@ -227,6 +230,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             else:
                 empty_patch = False
 
+        # apply transforms
         if self.transforms is not None:
             if self.target_extractor is not None:
                 input_patch, target_patch = self.transforms(input_patch, target_patch)
