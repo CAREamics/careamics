@@ -1,63 +1,70 @@
 """In-memory tiled prediction dataset."""
 
-from __future__ import annotations
+from pathlib import Path
+from typing import Union
 
+import numpy as np
+import torch
 from numpy.typing import NDArray
-from torch.utils.data import Dataset
 
+from careamics.config.inference_model import InferenceConfig
+from careamics.config.tile_information import TileInformation
+from careamics.config.transformations import NormalizeModel
+from careamics.dataset.dataset_utils import reshape_array
+from careamics.dataset.tiling.tiled_patching import extract_tiles
 from careamics.transforms import Compose
 
-from ..config import InferenceConfig
-from ..config.data.tile_information import TileInformation
-from ..config.transformations import NormalizeConfig
-from .dataset_utils import reshape_array
-from .tiling import extract_tiles
 
-
-class InMemoryTiledPredDataset(Dataset):
-    """Prediction dataset storing data in memory and returning tiles of each image.
+class InMemoryTiledPredDataset:
+    """
+    In-memory prediction dataset for tiled prediction.
 
     Parameters
     ----------
     prediction_config : InferenceConfig
         Prediction configuration.
-    inputs : NDArray
-        Input data.
+    inputs : Union[str, Path, NDArray]
+        Path to the folder containing the images or numpy array.
     """
 
     def __init__(
         self,
         prediction_config: InferenceConfig,
-        inputs: NDArray,
+        inputs: Union[str, Path, NDArray],
     ) -> None:
-        """Constructor.
+        """
+        Constructor.
 
         Parameters
         ----------
         prediction_config : InferenceConfig
             Prediction configuration.
-        inputs : NDArray
-            Input data.
+        inputs : Union[str, Path, NDArray]
+            Path to the folder containing the images or numpy array.
 
         Raises
         ------
         ValueError
             If data_path is not a directory.
         """
-        if (
-            prediction_config.tile_size is None
-            or prediction_config.tile_overlap is None
-        ):
-            raise ValueError(
-                "Tile size and overlap must be provided to use the tiled prediction "
-                "dataset."
-            )
-
+        # config
         self.pred_config = prediction_config
-        self.input_array = inputs
-        self.axes = self.pred_config.axes
-        self.tile_size = prediction_config.tile_size
-        self.tile_overlap = prediction_config.tile_overlap
+
+        # Save original data before reshaping for stitching
+        self.original_data = inputs
+
+        # data
+        reshaped_data = reshape_array(
+            inputs,
+            self.pred_config.axes,  
+        )
+        self.reshaped_data = reshaped_data
+
+        # Tile size and overlap
+        self.tile_size = self.pred_config.tile_size
+        self.tile_overlap = self.pred_config.tile_overlap
+
+        # Mean and std
         self.image_means = self.pred_config.image_means
         self.image_stds = self.pred_config.image_stds
 
@@ -75,57 +82,75 @@ class InMemoryTiledPredDataset(Dataset):
 
     def _prepare_tiles(self) -> list[tuple[NDArray, TileInformation]]:
         """
-        Iterate over data source and create an array of patches.
+        Prepare tiles for prediction.
 
         Returns
         -------
         list of tuples of NDArray and TileInformation
-            List of tiles and tile information.
+            List of tuples containing the tiles and their information.
         """
-        # reshape array
-        reshaped_sample = reshape_array(self.input_array, self.axes)
+        # iterate over all samples
+        reshaped_sample = self.reshaped_data
 
         # generate patches, which returns a generator
         patch_generator = extract_tiles(
             arr=reshaped_sample,
             tile_size=self.tile_size,
             overlaps=self.tile_overlap,
+            axes=self.pred_config.axes,
         )
         patches_list = list(patch_generator)
 
         if len(patches_list) == 0:
-            raise ValueError("No tiles generated, ")
+            raise ValueError("No tiles generated")
 
         return patches_list
 
     def __len__(self) -> int:
         """
-        Return the length of the dataset.
+        Return the number of samples in the dataset.
 
         Returns
         -------
         int
-            Length of the dataset.
+            Number of samples.
         """
         return len(self.data)
 
     def __getitem__(self, index: int) -> tuple[tuple[NDArray, ...], TileInformation]:
         """
-        Return the patch corresponding to the provided index.
+        Return a sample from the dataset.
 
         Parameters
         ----------
         index : int
-            Index of the patch to return.
+            Index of the sample.
 
         Returns
         -------
         tuple of NDArray and TileInformation
-            Transformed patch.
+            Sample and tile information.
         """
-        tile_array, tile_info = self.data[index]
+        sample, tile_info = self.data[index]
 
-        # Apply transforms
-        transformed_tile = self.patch_transform(patch=tile_array)
+        # Ensure the sample is a tensor with correct dtype before transformation
+        if isinstance(sample, np.ndarray):
+            sample = torch.from_numpy(sample).float()
+        elif isinstance(sample, torch.Tensor):
+            sample = sample.float()
 
-        return transformed_tile, tile_info
+        # Apply normalization transform - wrap in tuple as expected by transform
+        if self.patch_transform is not None:
+            # The transform expects a tuple of tensors
+            transformed_result = self.patch_transform((sample,))
+            # Extract the transformed tensor from the result
+            if isinstance(transformed_result, tuple):
+                sample = transformed_result[0]
+            else:
+                sample = transformed_result
+    
+        # Ensure sample has correct shape for 1D data: (C, X)
+        if len(sample.shape) != 2:
+            raise ValueError(f"Expected 2D tensor (C, X) for 1D data, got shape {sample.shape}")
+
+        return (sample,), tile_info

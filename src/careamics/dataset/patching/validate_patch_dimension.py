@@ -4,7 +4,6 @@ from typing import Union
 
 import numpy as np
 
-
 def validate_patch_dimensions(
     arr: np.ndarray,
     patch_size: Union[list[int], tuple[int, ...]],
@@ -14,14 +13,7 @@ def validate_patch_dimensions(
     """
     Check patch size and array compatibility for 1D, 2D, and 3D data.
 
-    This method validates the patch sizes with respect to the array dimensions:
-
-    - Patch must have correct dimensions based on spatial axes
-    - Patch sizes are smaller than the corresponding array dimensions
-
-    If one of these conditions is not met, a ValueError is raised.
-
-    This method should be called after inputs have been resized.
+    This method validates the patch sizes with respect to the array dimensions.
 
     Parameters
     ----------
@@ -32,7 +24,7 @@ def validate_patch_dimensions(
     is_3d_patch : bool
         Whether the patch is 3D or not.
     axes : str, optional
-        Axes string describing array dimensions. If None, infers from array shape.
+        Axes string describing array dimensions.
 
     Raises
     ------
@@ -45,21 +37,38 @@ def validate_patch_dimensions(
     if isinstance(patch_size, tuple):
         patch_size = list(patch_size)
     
-    # Determine spatial dimensions based on axes or fallback logic
-    if axes is not None:
+    # Only print debug for the first call to avoid spam
+    if not hasattr(validate_patch_dimensions, '_debug_printed'):
+        print(f"DEBUG validate_patch_dimensions: arr.shape={arr.shape}, patch_size={patch_size}, axes={axes}")
+        validate_patch_dimensions._debug_printed = True
+    
+    # For 1D spectroscopic data, find the spatial dimension
+    if axes == "SX" and len(patch_size) == 1:
+        # Special handling for 1D spectroscopic data
+        # Find the longest dimension (should be the spectral dimension)
+        spatial_shape = (max(arr.shape),)
+        n_spatial_dims = 1
+        
+    elif axes is not None:
         # Count spatial dimensions from axes
         spatial_axes = [ax for ax in axes if ax in 'XYZ']
         n_spatial_dims = len(spatial_axes)
         
-        # Get spatial shape based on number of spatial dimensions
+        # Get spatial shape based on axes and array dimensions
         if n_spatial_dims == 1:
-            # For 1D: last 1 dimension is spatial (e.g., shape (samples, X))
-            spatial_shape = arr.shape[-1:]
+            # For 1D: find the spatial dimension
+            if 'X' in axes:
+                # Find the X dimension - it should be the largest dimension
+                max_dim_idx = np.argmax(arr.shape)
+                spatial_shape = (arr.shape[max_dim_idx],)
+            else:
+                # Fallback: assume last dimension is spatial
+                spatial_shape = arr.shape[-1:]
         elif n_spatial_dims == 2:
-            # For 2D: last 2 dimensions are spatial (e.g., shape (samples, Y, X))
+            # For 2D: last 2 dimensions are typically spatial
             spatial_shape = arr.shape[-2:]
         elif n_spatial_dims == 3:
-            # For 3D: last 3 dimensions are spatial (e.g., shape (samples, Z, Y, X))
+            # For 3D: last 3 dimensions are typically spatial
             spatial_shape = arr.shape[-3:]
         else:
             raise ValueError(f"Unsupported number of spatial dimensions: {n_spatial_dims}")
@@ -72,24 +81,16 @@ def validate_patch_dimensions(
             )
         
         if is_3d_patch:
-            if len(arr.shape) < 3:
-                raise ValueError(
-                    f"Array must have at least 3 dimensions for 3D patches, got {len(arr.shape)}"
-                )
             spatial_shape = arr.shape[-3:]
             n_spatial_dims = 3
         else:
-            # Handle 1D case: if array is 2D and patch_size has 1 element
-            if len(arr.shape) == 2 and len(patch_size) == 1:
-                # 1D spatial data: (samples, X)
-                spatial_shape = arr.shape[-1:]
+            # Handle 1D case: if patch_size has 1 element, treat as 1D
+            if len(patch_size) == 1:
+                # 1D spatial data: find the largest dimension
+                spatial_shape = (max(arr.shape),)
                 n_spatial_dims = 1
             else:
-                # 2D spatial data: assume last 2 dimensions are spatial
-                if len(arr.shape) < 2:
-                    raise ValueError(
-                        f"Array must have at least 2 dimensions for 2D patches, got {len(arr.shape)}"
-                    )
+                # 2D spatial data: last 2 dimensions are spatial
                 spatial_shape = arr.shape[-2:]
                 n_spatial_dims = 2
 
@@ -98,7 +99,7 @@ def validate_patch_dimensions(
         raise ValueError(
             f"There must be a patch size for each spatial dimension "
             f"(got {len(patch_size)} patch dimensions for {n_spatial_dims} spatial dims). "
-            f"Array shape: {arr.shape}, spatial shape: {spatial_shape}. "
+            f"Array shape: {arr.shape}, spatial shape: {spatial_shape}, axes: {axes}. "
             f"Check the axes order."
         )
 
@@ -120,5 +121,5 @@ def validate_patch_dimensions(
             raise ValueError(
                 f"{dim_name} patch size is inconsistent with image shape "
                 f"(got {patch_dim} patch size for {img_dim} image dimension). "
-                f"Spatial shape: {spatial_shape}. Check the axes order."
+                f"Spatial shape: {spatial_shape}, axes: {axes}. Check the axes order."
             )
