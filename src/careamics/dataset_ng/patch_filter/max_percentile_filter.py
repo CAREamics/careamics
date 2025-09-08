@@ -28,5 +28,5 @@ class MaxPercentilePatchFilter(PatchFilterProtocol):
             patch_shape = [(p // 2 if p > 1 else 1) for p in patch.shape]
             filtered = maximum_filter(patch, patch_shape, mode="constant")
 
-            return (filtered > self.threshold).all()
+            return (filtered < self.threshold).all()
         return False

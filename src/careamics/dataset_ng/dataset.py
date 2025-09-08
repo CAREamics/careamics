@@ -16,7 +16,10 @@ from careamics.config.transformations import NormalizeModel
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
-from careamics.dataset_ng.patch_filter import PatchFilterProtocol
+from careamics.dataset_ng.patch_filter import (
+    CoordinateFilterProtocol,
+    PatchFilterProtocol,
+)
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -55,9 +58,16 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         mode: Mode,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
+        coord_filter: CoordinateFilterProtocol | None = None,
         patch_filter: PatchFilterProtocol | None = None,
         patch_filter_patience: int = 10,
     ) -> None:
+        if patch_filter_patience < 1:
+            raise ValueError(
+                f"`patch_filter_patience` must be at least 1, got "
+                f"{patch_filter_patience}."
+            )
+
         self.config = data_config
         self.mode = mode
 
@@ -65,6 +75,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self.target_extractor = target_extractor
 
         self.patch_filter = patch_filter
+        self.coord_filter = coord_filter
         self.patch_filter_patience = patch_filter_patience
 
         self.patching_strategy = self._initialize_patching_strategy()
@@ -196,13 +207,23 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
 
         # assumed only random patching strategy is used
-        should_filter = self.patch_filter is not None and self.mode == Mode.TRAINING
+        should_filter = self.mode == Mode.TRAINING and (
+            self.patch_filter is not None or self.coord_filter is not None
+        )
         empty_patch = True
 
-        patch_filter_patience = self.patch_filter_patience # reset patience
+        patch_filter_patience = self.patch_filter_patience  # reset patience
         while empty_patch and patch_filter_patience > 0:
             # query patches
             patch_spec = self.patching_strategy.get_patch_spec(index)
+
+            # filter patch based on coordinates if needed
+            if should_filter and self.coord_filter is not None:
+                if self.coord_filter.filter_out(patch_spec):
+                    empty_patch = True
+                    patch_filter_patience -= 1
+                    continue
+
             input_patch = self.input_extractor.extract_patch(
                 data_idx=patch_spec["data_idx"],
                 sample_idx=patch_spec["sample_idx"],
@@ -221,12 +242,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 else None
             )
 
-            # filter if needed
-            if should_filter:
-                assert self.patch_filter is not None  # mypy
-
+            # filter patch based on values if needed
+            if should_filter and self.patch_filter is not None:
                 empty_patch = self.patch_filter.filter_out(input_patch)
-                patch_filter_patience -= 1  # decrease patience to escape infinite loop
+                patch_filter_patience -= 1  # decrease patience
             else:
                 empty_patch = False
 

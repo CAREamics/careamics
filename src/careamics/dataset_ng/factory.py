@@ -24,7 +24,10 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_ome_zarr_extractor,
     create_tiff_extractor,
 )
-from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterProtocol
+from careamics.dataset_ng.patch_filter import (
+    CoordinateFilterProtocol,
+    PatchFilterProtocol,
+)
 from careamics.file_io.read import ReadFunc
 
 from .dataset import CareamicsDataset, Mode
@@ -122,6 +125,9 @@ def create_dataset(
     inputs: Any,
     targets: Any,
     in_memory: bool,
+    coordinate_filter: CoordinateFilterProtocol | None = None,
+    patch_filter: PatchFilterProtocol | None = None,
+    filter_patience: int = 10,
     read_func: ReadFunc | None = None,
     read_kwargs: dict[str, Any] | None = None,
     image_stack_loader: ImageStackLoader | None = None,
@@ -143,6 +149,13 @@ def create_dataset(
     in_memory : bool
         Whether all the data should be loaded into memory. This is argument is ignored
         unless the `data_type` in `config` is "tiff" or "custom".
+    coordinate_filter : CoordinateFilterProtocol, default=None
+        A coordinate filtering strategy to use.
+    patch_filter : PatchFilterProtocol, default=None
+        A patch filtering strategy to use.
+    filter_patience : int, default=10
+        The number of attempts to make to find a non-filtered patch before giving up
+        and returning the last sampled patch anyway.
     read_func : ReadFunc, optional
         A function that can that can be used to load custom data. This argument is
         ignored unless the `data_type` in the `config` is "custom".
@@ -169,18 +182,50 @@ def create_dataset(
         data_type, in_memory, read_func, image_stack_loader
     )
     if dataset_type == DatasetType.ARRAY:
-        return create_array_dataset(config, mode, inputs, targets)
+        return create_array_dataset(
+            config,
+            mode,
+            inputs,
+            targets,
+            coordinate_filter=coordinate_filter,
+            patch_filter=patch_filter,
+            filter_patience=filter_patience,
+        )
     elif dataset_type == DatasetType.IN_MEM_TIFF:
-        return create_tiff_dataset(config, mode, inputs, targets)
+        return create_tiff_dataset(
+            config,
+            mode,
+            inputs,
+            targets,
+            coordinate_filter=coordinate_filter,
+            patch_filter=patch_filter,
+            filter_patience=filter_patience,
+        )
     # TODO: Lazy tiff
     elif dataset_type == DatasetType.CZI:
-        return create_czi_dataset(config, mode, inputs, targets)
+        return create_czi_dataset(
+            config,
+            mode,
+            inputs,
+            targets,
+            coordinate_filter=coordinate_filter,
+            patch_filter=patch_filter,
+            filter_patience=filter_patience,
+        )
     elif dataset_type == DatasetType.IN_MEM_CUSTOM_FILE:
         if read_kwargs is None:
             read_kwargs = {}
         assert read_func is not None  # should be true from `determine_dataset_type`
         return create_custom_file_dataset(
-            config, mode, inputs, targets, read_func=read_func, read_kwargs=read_kwargs
+            config,
+            mode,
+            inputs,
+            targets,
+            coordinate_filter=coordinate_filter,
+            patch_filter=patch_filter,
+            filter_patience=filter_patience,
+            read_func=read_func,
+            read_kwargs=read_kwargs,
         )
     elif dataset_type == DatasetType.CUSTOM_IMAGE_STACK:
         if image_stack_loader_kwargs is None:
@@ -192,6 +237,9 @@ def create_dataset(
             inputs,
             targets,
             image_stack_loader,
+            coordinate_filter=coordinate_filter,
+            patch_filter=patch_filter,
+            filter_patience=filter_patience,
             **image_stack_loader_kwargs,
         )
     else:
@@ -203,7 +251,8 @@ def create_array_dataset(
     mode: Mode,
     inputs: Sequence[NDArray[Any]],
     targets: Sequence[NDArray[Any]] | None,
-    filter: PatchFilterProtocol | None = None,
+    coordinate_filter: CoordinateFilterProtocol | None = None,
+    patch_filter: PatchFilterProtocol | None = None,
     filter_patience: int = 10,
 ) -> CareamicsDataset[InMemoryImageStack]:
     """
@@ -219,7 +268,9 @@ def create_array_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
-    filter : PatchFilterProtocol, optional
+    coordinate_filter : CoordinateFilterProtocol, optional
+        A coordinate filtering strategy to use.
+    patch_filter : PatchFilterProtocol, optional
         A patch filtering strategy to use.
     filter_patience : int, default=10
         The number of attempts to make to find a non-filtered patch before giving up
@@ -237,7 +288,13 @@ def create_array_dataset(
     else:
         target_extractor = None
     return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, filter, filter_patience
+        config,
+        mode,
+        input_extractor,
+        target_extractor,
+        coordinate_filter,
+        patch_filter,
+        filter_patience,
     )
 
 
@@ -246,7 +303,8 @@ def create_tiff_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
-    filter: PatchFilterProtocol | None = None,
+    coordinate_filter: CoordinateFilterProtocol | None = None,
+    patch_filter: PatchFilterProtocol | None = None,
     filter_patience: int = 10,
 ) -> CareamicsDataset[InMemoryImageStack]:
     """
@@ -262,7 +320,9 @@ def create_tiff_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
-    filter : PatchFilterProtocol, optional
+    coordinate_filter : CoordinateFilterProtocol, optional
+        A coordinate filtering strategy to use.
+    patch_filter : PatchFilterProtocol, optional
         A patch filtering strategy to use.
     filter_patience : int, default=10
         The number of attempts to make to find a non-filtered patch before giving up
@@ -284,7 +344,13 @@ def create_tiff_dataset(
         target_extractor = None
 
     return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, filter, filter_patience
+        config,
+        mode,
+        input_extractor,
+        target_extractor,
+        coordinate_filter,
+        patch_filter,
+        filter_patience,
     )
 
 
@@ -293,7 +359,8 @@ def create_czi_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
-    filter: PatchFilterProtocol | None = None,
+    coordinate_filter: CoordinateFilterProtocol | None = None,
+    patch_filter: PatchFilterProtocol | None = None,
     filter_patience: int = 10,
 ) -> CareamicsDataset[CziImageStack]:
     """
@@ -309,7 +376,9 @@ def create_czi_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
-    filter : PatchFilterProtocol, optional
+    coordinate_filter : CoordinateFilterProtocol, optional
+        A coordinate filtering strategy to use.
+    patch_filter : PatchFilterProtocol, optional
         A patch filtering strategy to use.
     filter_patience : int, default=10
         The number of attempts to make to find a non-filtered patch before giving up
@@ -329,7 +398,13 @@ def create_czi_dataset(
         target_extractor = None
 
     return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, filter, filter_patience
+        config,
+        mode,
+        input_extractor,
+        target_extractor,
+        coordinate_filter,
+        patch_filter,
+        filter_patience,
     )
 
 
@@ -338,7 +413,8 @@ def create_ome_zarr_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
-    filter: PatchFilterProtocol | None = None,
+    coordinate_filter: CoordinateFilterProtocol | None = None,
+    patch_filter: PatchFilterProtocol | None = None,
     filter_patience: int = 10,
 ) -> CareamicsDataset[ZarrImageStack]:
     """
@@ -354,7 +430,9 @@ def create_ome_zarr_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
-    filter : PatchFilterProtocol, optional
+    coordinate_filter : CoordinateFilterProtocol, optional
+        A coordinate filtering strategy to use.
+    patch_filter : PatchFilterProtocol, optional
         A patch filtering strategy to use.
     filter_patience : int, default=10
         The number of attempts to make to find a non-filtered patch before giving up
@@ -374,7 +452,13 @@ def create_ome_zarr_dataset(
         target_extractor = None
 
     return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, filter, filter_patience
+        config,
+        mode,
+        input_extractor,
+        target_extractor,
+        coordinate_filter,
+        patch_filter,
+        filter_patience,
     )
 
 
@@ -383,7 +467,8 @@ def create_custom_file_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
-    filter: PatchFilterProtocol | None = None,
+    coordinate_filter: CoordinateFilterProtocol | None = None,
+    patch_filter: PatchFilterProtocol | None = None,
     filter_patience: int = 10,
     *,
     read_func: ReadFunc,
@@ -402,7 +487,9 @@ def create_custom_file_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
-    filter : PatchFilterProtocol, optional
+    coordinate_filter : CoordinateFilterProtocol, optional
+        A coordinate filtering strategy to use.
+    patch_filter : PatchFilterProtocol, optional
         A patch filtering strategy to use.
     filter_patience : int, default=10
         The number of attempts to make to find a non-filtered patch before giving up
@@ -434,7 +521,13 @@ def create_custom_file_dataset(
         target_extractor = None
 
     return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, filter, filter_patience
+        config,
+        mode,
+        input_extractor,
+        target_extractor,
+        coordinate_filter,
+        patch_filter,
+        filter_patience,
     )
 
 
@@ -444,7 +537,8 @@ def create_custom_image_stack_dataset(
     inputs: Any,
     targets: Any | None,
     image_stack_loader: ImageStackLoader[P, GenericImageStack],
-    filter: PatchFilterProtocol | None = None,
+    coordinate_filter: CoordinateFilterProtocol | None = None,
+    patch_filter: PatchFilterProtocol | None = None,
     filter_patience: int = 10,
     *args: P.args,
     **kwargs: P.kwargs,
@@ -467,7 +561,9 @@ def create_custom_image_stack_dataset(
     image_stack_loader : ImageStackLoader
         A function for custom image stack loading. This argument is ignored unless the
         `data_type` is "custom".
-    filter : PatchFilterProtocol, optional
+    coordinate_filter : CoordinateFilterProtocol, optional
+        A coordinate filtering strategy to use.
+    patch_filter : PatchFilterProtocol, optional
         A patch filtering strategy to use.
     filter_patience : int, default=10
         The number of attempts to make to find a non-filtered patch before giving up
@@ -502,5 +598,11 @@ def create_custom_image_stack_dataset(
         target_extractor = None
 
     return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, filter, filter_patience
+        config,
+        mode,
+        input_extractor,
+        target_extractor,
+        coordinate_filter,
+        patch_filter,
+        filter_patience,
     )
