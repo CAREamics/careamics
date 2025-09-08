@@ -7,6 +7,62 @@ from skimage.util import view_as_windows
 
 from .validate_patch_dimension import validate_patch_dimensions
 
+def extract_patches_sequential(
+    arr: np.ndarray, 
+    patch_size: Union[list[int], tuple[int, ...]], 
+    target: np.ndarray = None,
+    axes: str = None
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Extract patches from a single image sequentially with support for 1D, 2D, and 3D data.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        Input array.
+    patch_size : Union[list[int], tuple[int, ...]]
+        Patch size.
+    target : np.ndarray, optional
+        Target array, by default None.
+    axes : str, optional
+        Axes string describing array dimensions.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        Patches and targets (if provided).
+    """
+    # Convert patch_size to list for consistency
+    if isinstance(patch_size, tuple):
+        patch_size = list(patch_size)
+    
+    # Determine if this is 3D based on patch_size length (legacy behavior)
+    is_3d_patch = len(patch_size) == 3
+    
+    # Validate patch dimensions with axes support
+    validate_patch_dimensions(arr, patch_size, is_3d_patch, axes)
+    
+    # Determine spatial dimensions
+    if axes is not None:
+        spatial_axes = [ax for ax in axes if ax in 'XYZ']
+        n_spatial_dims = len(spatial_axes)
+    else:
+        # Infer from patch_size length and array shape
+        if len(patch_size) == 1 and len(arr.shape) == 2:
+            n_spatial_dims = 1  # 1D case: (samples, X)
+        else:
+            n_spatial_dims = len(patch_size)
+    
+    # Route to appropriate patching function
+    if n_spatial_dims == 1:
+        return _extract_patches_1d(arr, patch_size[0], target)
+    elif n_spatial_dims == 2:
+        return _extract_patches_2d(arr, patch_size, target)
+    elif n_spatial_dims == 3:
+        return _extract_patches_3d(arr, patch_size, target)
+    else:
+        raise ValueError(f"Unsupported number of spatial dimensions: {n_spatial_dims}")
+
 
 def _compute_number_of_patches(
     arr_shape: tuple[int, ...], patch_sizes: Union[list[int], tuple[int, ...]]
@@ -147,66 +203,85 @@ def _compute_patch_views(
     rng.shuffle(patches, axis=0)
     return patches
 
-
-def extract_patches_sequential(
-    arr: np.ndarray,
-    patch_size: Union[list[int], tuple[int, ...]],
-    target: np.ndarray | None = None,
-) -> tuple[np.ndarray, np.ndarray | None]:
+def _extract_patches_1d(
+    arr: np.ndarray, 
+    patch_size: int, 
+    target: np.ndarray = None
+) -> tuple[np.ndarray, np.ndarray]:
     """
-    Generate patches from an array in a sequential manner.
-
-    Array dimensions should be SC(Z)YX, where S and C can be singleton dimensions. The
-    patches are generated sequentially and cover the whole array.
-
+    Extract 1D patches sequentially.
+    
     Parameters
     ----------
     arr : np.ndarray
-        Input image array.
-    patch_size : tuple[int]
-        Patch sizes in each dimension.
-    target : Optional[np.ndarray], optional
-        Target array, by default None.
-
+        Input array with shape (samples, length).
+    patch_size : int
+        Size of patches along spatial dimension.
+    target : np.ndarray, optional
+        Target array with same shape as arr.
+        
     Returns
     -------
-    tuple[np.ndarray, Optional[np.ndarray]]
-        Patches.
+    tuple[np.ndarray, np.ndarray]
+        Patches and target patches.
     """
-    is_3d_patch = len(patch_size) == 3
+    if arr.ndim != 2:
+        raise ValueError(f"Expected 2D array for 1D patching (samples, length), got {arr.ndim}D")
+    
+    n_samples, length = arr.shape
+    
+    if patch_size > length:
+        raise ValueError(f"Patch size {patch_size} exceeds sequence length {length}")
+    
+    # Calculate number of patches per sample
+    n_patches_per_sample = length - patch_size + 1
+    
+    if n_patches_per_sample <= 0:
+        raise ValueError(f"Cannot extract patches: patch_size={patch_size}, length={length}")
+    
+    # Extract patches
+    patches = []
+    target_patches = [] if target is not None else None
+    
+    for sample_idx in range(n_samples):
+        for start_idx in range(n_patches_per_sample):
+            # Extract patch from input
+            patch = arr[sample_idx, start_idx:start_idx + patch_size]
+            patches.append(patch)
+            
+            # Extract corresponding target patch if target provided
+            if target is not None:
+                target_patch = target[sample_idx, start_idx:start_idx + patch_size]
+                target_patches.append(target_patch)
+    
+    patches_array = np.array(patches)
+    target_patches_array = np.array(target_patches) if target_patches is not None else None
+    
+    return patches_array, target_patches_array
 
-    # Patches sanity check
-    validate_patch_dimensions(arr, patch_size, is_3d_patch)
+def _extract_patches_2d(
+    arr: np.ndarray, 
+    patch_size: Union[list[int], tuple[int, ...]], 
+    target: np.ndarray = None
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Extract 2D patches sequentially.
+    
+    This function needs to be implemented based on the existing 2D logic.
+    For now, it's a placeholder that raises NotImplementedError.
+    """
+    raise NotImplementedError("2D sequential patching implementation needed")
 
-    # Update patch size to encompass S and C dimensions
-    patch_size = [1, arr.shape[1], *patch_size]
 
-    # Compute overlap
-    overlaps = _compute_overlap(arr_shape=arr.shape, patch_sizes=patch_size)
-
-    # Create view window and overlaps
-    window_steps = _compute_patch_steps(patch_sizes=patch_size, overlaps=overlaps)
-
-    output_shape = [
-        -1,
-    ] + patch_size[1:]
-
-    # Generate a view of the input array containing pre-calculated number of patches
-    # in each dimension with overlap.
-    # Resulting array is resized to (n_patches, C, Z, Y, X) or (n_patches, C, Y, X)
-    patches = _compute_patch_views(
-        arr,
-        window_shape=patch_size,
-        step=window_steps,
-        output_shape=output_shape,
-        target=target,
-    )
-
-    if target is not None:
-        # target was concatenated to patches in _compute_reshaped_view
-        return (
-            patches[:, 0, ...],
-            patches[:, 1, ...],
-        )  # TODO  in _compute_reshaped_view?
-    else:
-        return patches, None
+def _extract_patches_3d(
+    arr: np.ndarray, 
+    patch_size: Union[list[int], tuple[int, ...]], 
+    target: np.ndarray = None
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Extract 3D patches sequentially.
+    
+    This function needs to be implemented based on the existing 3D logic.
+    For now, it's a placeholder that raises NotImplementedError.
+    """
+    raise NotImplementedError("3D sequential patching implementation needed")

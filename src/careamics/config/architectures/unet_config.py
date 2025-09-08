@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from .architecture_config import ArchitectureConfig
 
@@ -15,6 +15,8 @@ class UNetConfig(ArchitectureConfig):
     """
     Pydantic model for a N2V(2)-compatible UNet.
 
+    Supports 1D, 2D, and 3D convolutions for different data types.
+
     Attributes
     ----------
     depth : int
@@ -22,6 +24,8 @@ class UNetConfig(ArchitectureConfig):
     num_channels_init : int
         Number of filters of the first level of the network, should be even
         and minimum 8 (default 96).
+    conv_dims : Literal[1, 2, 3]
+        Dimensions (1D, 2D or 3D) of the convolutional layers.
     """
 
     # pydantic model config
@@ -33,8 +37,8 @@ class UNetConfig(ArchitectureConfig):
 
     # parameters
     # validate_defaults allow ignoring default values in the dump if they were not set
-    conv_dims: Literal[2, 3] = Field(default=2, validate_default=True)
-    """Dimensions (2D or 3D) of the convolutional layers."""
+    conv_dims: Literal[1, 2, 3] = Field(default=2, validate_default=True)  # Added 1D support
+    """Dimensions (1D, 2D or 3D) of the convolutional layers."""
 
     num_classes: int = Field(default=1, ge=1, validate_default=True)
     """Number of classes or channels in the model output."""
@@ -96,6 +100,68 @@ class UNetConfig(ArchitectureConfig):
 
         return num_channels_init
 
+    @model_validator(mode="after")
+    def validate_dimensionality_constraints(self) -> "UNetModel":
+        """
+        Validate constraints specific to different dimensionalities.
+
+        Returns
+        -------
+        UNetModel
+            Validated model.
+
+        Raises
+        ------
+        ValueError
+            If parameters are incompatible with the specified dimensionality.
+        """
+        # 1D-specific validations
+        if self.conv_dims == 1:
+            # For 1D, recommend smaller depth to avoid over-downsampling
+            if self.depth > 4:
+                import warnings
+                warnings.warn(
+                    f"Depth of {self.depth} may be too large for 1D data. "
+                    f"Consider using depth <= 4 for better performance.",
+                    UserWarning
+                )
+
+            # N2V2 with 1D may not be optimal
+            if self.n2v2:
+                import warnings
+                warnings.warn(
+                    "N2V2 blur-pool layers may not be optimal for 1D data. "
+                    "Consider using standard N2V (n2v2=False) for 1D applications.",
+                    UserWarning
+                )
+
+        # 3D-specific validations (existing)
+        elif self.conv_dims == 3:
+            if self.depth > 4:
+                import warnings
+                warnings.warn(
+                    f"Depth of {self.depth} may be too large for 3D data. "
+                    f"Consider using depth <= 4 to manage memory usage.",
+                    UserWarning
+                )
+
+        return self
+
+    def set_1D(self, is_1D: bool = True) -> None:
+        """
+        Set 1D model by setting the `conv_dims` parameters.
+
+        Parameters
+        ----------
+        is_1D : bool, optional
+            Whether the algorithm is 1D or not, by default True.
+        """
+        if is_1D:
+            self.conv_dims = 1
+        else:
+            # Default back to 2D if not 1D
+            self.conv_dims = 2
+
     def set_3D(self, is_3D: bool) -> None:
         """
         Set 3D model by setting the `conv_dims` parameters.
@@ -110,6 +176,28 @@ class UNetConfig(ArchitectureConfig):
         else:
             self.conv_dims = 2
 
+    def is_1D(self) -> bool:
+        """
+        Return whether the model is 1D or not.
+
+        Returns
+        -------
+        bool
+            Whether the model is 1D or not.
+        """
+        return self.conv_dims == 1
+
+    def is_2D(self) -> bool:
+        """
+        Return whether the model is 2D or not.
+
+        Returns
+        -------
+        bool
+            Whether the model is 2D or not.
+        """
+        return self.conv_dims == 2
+
     def is_3D(self) -> bool:
         """
         Return whether the model is 3D or not.
@@ -120,3 +208,14 @@ class UNetConfig(ArchitectureConfig):
             Whether the model is 3D or not.
         """
         return self.conv_dims == 3
+
+    def get_spatial_dims(self) -> int:
+        """
+        Get the number of spatial dimensions.
+
+        Returns
+        -------
+        int
+            Number of spatial dimensions (1, 2, or 3).
+        """
+        return self.conv_dims

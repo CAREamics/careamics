@@ -184,9 +184,16 @@ class UnetDecoder(nn.Module):
         """
         super().__init__()
 
-        upsampling = nn.Upsample(
-            scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
-        )
+        # Fix upsampling mode based on conv_dim
+        if conv_dim == 1:
+            upsampling = nn.Upsample(scale_factor=2, mode="linear")
+        elif conv_dim == 2:
+            upsampling = nn.Upsample(scale_factor=2, mode="bilinear")
+        elif conv_dim == 3:
+            upsampling = nn.Upsample(scale_factor=2, mode="trilinear")
+        else:
+            raise ValueError(f"Unsupported conv_dim: {conv_dim}")
+
         in_channels = out_channels = num_channels_init * groups * (2 ** (depth - 1))
 
         self.n2v2 = n2v2
@@ -289,6 +296,27 @@ class UnetDecoder(nn.Module):
         ValueError:
             If either of `A` or `B`'s channel axis is not divisible by `groups`.
         """
+        # Handle size mismatches between decoder features and skip connections
+        # This can occur with non-power-of-2 input sizes due to pooling/upsampling
+        if A.shape != B.shape:
+            # Get spatial dimensions (everything after batch and channel dims)
+            A_spatial = A.shape[2:]
+            B_spatial = B.shape[2:]
+            
+            # Calculate minimum size for each spatial dimension
+            min_spatial = tuple(min(a, b) for a, b in zip(A_spatial, B_spatial))
+            
+            # Crop both tensors to the minimum size
+            if len(min_spatial) == 1:  # 1D case
+                A = A[:, :, :min_spatial[0]]
+                B = B[:, :, :min_spatial[0]]
+            elif len(min_spatial) == 2:  # 2D case
+                A = A[:, :, :min_spatial[0], :min_spatial[1]]
+                B = B[:, :, :min_spatial[0], :min_spatial[1]]
+            elif len(min_spatial) == 3:  # 3D case
+                A = A[:, :, :min_spatial[0], :min_spatial[1], :min_spatial[2]]
+                B = B[:, :, :min_spatial[0], :min_spatial[1], :min_spatial[2]]
+
         if (A.shape[1] % groups != 0) or (B.shape[1] % groups != 0):
             raise ValueError(f"Number of channels not divisible by {groups} groups.")
 

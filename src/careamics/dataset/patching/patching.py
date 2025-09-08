@@ -57,7 +57,6 @@ class PatchedOutput:
     """Statistics of the target patches."""
 
 
-# called by in memory dataset
 def prepare_patches_supervised(
     train_files: list[Path],
     target_files: list[Path],
@@ -85,8 +84,8 @@ def prepare_patches_supervised(
 
     Returns
     -------
-    np.ndarray
-        Array of patches.
+    PatchedOutput
+        Patched output with supervised patches and targets.
     """
     means, stds, num_samples = 0, 0, 0
     all_patches, all_targets = [], []
@@ -102,25 +101,21 @@ def prepare_patches_supervised(
             sample = reshape_array(sample, axes)
             target = reshape_array(target, axes)
 
-            # generate patches, return a generator
+            # generate patches with axes parameter
             patches, targets = extract_patches_sequential(
-                sample, patch_size=patch_size, target=target
+                sample, patch_size=patch_size, target=target, axes=axes
             )
 
-            # convert generator to list and add to all_patches
             all_patches.append(patches)
 
-            # ensure targets are not None (type checking)
             if targets is not None:
                 all_targets.append(targets)
             else:
                 raise ValueError(f"No target found for {target_filename}.")
 
         except Exception as e:
-            # emit warning and continue
             logger.error(f"Failed to read {train_filename} or {target_filename}: {e}")
 
-    # raise error if no valid samples found
     if num_samples == 0 or len(all_patches) == 0:
         raise ValueError(
             f"No valid samples found in the input data: {train_files} and "
@@ -142,7 +137,6 @@ def prepare_patches_supervised(
     )
 
 
-# called by in_memory_dataset
 def prepare_patches_unsupervised(
     train_files: list[Path],
     axes: str,
@@ -181,16 +175,15 @@ def prepare_patches_unsupervised(
             # reshape array
             sample = reshape_array(sample, axes)
 
-            # generate patches, return a generator
-            patches, _ = extract_patches_sequential(sample, patch_size=patch_size)
+            # generate patches with axes parameter
+            patches, _ = extract_patches_sequential(
+                sample, patch_size=patch_size, axes=axes
+            )
 
-            # convert generator to list and add to all_patches
             all_patches.append(patches)
         except Exception as e:
-            # emit warning and continue
             logger.error(f"Failed to read {filename}: {e}")
 
-    # raise error if no valid samples found
     if num_samples == 0:
         raise ValueError(f"No valid samples found in the input data: {train_files}.")
 
@@ -204,97 +197,101 @@ def prepare_patches_unsupervised(
     )
 
 
-# called on arrays by in memory dataset
 def prepare_patches_supervised_array(
     data: NDArray,
     axes: str,
     data_target: NDArray,
     patch_size: Union[list[int], tuple[int]],
 ) -> PatchedOutput:
-    """Iterate over data source and create an array of patches.
-
-    This method expects an array of shape SC(Z)YX, where S and C can be singleton
-    dimensions.
-
-    Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
+    """
+    Prepare patches for supervised training from arrays.
+    
+    Updated to support 1D, 2D, and 3D data through axes parameter.
 
     Parameters
     ----------
-    data : numpy.ndarray
-        Input data array.
+    data : NDArray
+        Input data.
     axes : str
-        Axes of the data.
-    data_target : numpy.ndarray
-        Target data array.
-    patch_size : list or tuple of int
-        Size of the patches.
+        Axes string describing data dimensions.
+    data_target : NDArray
+        Target data.
+    patch_size : Union[list[int], tuple[int]]
+        Patch size for spatial dimensions.
 
     Returns
     -------
     PatchedOutput
-        Dataclass holding the source and target patches, with their statistics.
+        Patched output with supervised patches and targets.
     """
-    # reshape array
+    # reshape the data
     reshaped_sample = reshape_array(data, axes)
     reshaped_target = reshape_array(data_target, axes)
 
-    # compute statistics
-    image_means, image_stds = compute_normalization_stats(reshaped_sample)
-    target_means, target_stds = compute_normalization_stats(reshaped_target)
-
-    # generate patches, return a generator
-    patches, patch_targets = extract_patches_sequential(
-        reshaped_sample, patch_size=patch_size, target=reshaped_target
+    # extract patches with axes parameter
+    patches, targets = extract_patches_sequential(
+        reshaped_sample, 
+        patch_size=patch_size,
+        target=reshaped_target,
+        axes=axes
     )
 
-    if patch_targets is None:
-        raise ValueError("No target extracted.")
+    # compute statistics
+    means, stds = compute_normalization_stats(patches)
+    target_means, target_stds = compute_normalization_stats(targets)
 
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
 
     return PatchedOutput(
-        patches,
-        patch_targets,
-        Stats(image_means, image_stds),
-        Stats(target_means, target_stds),
+        patches=patches,
+        targets=targets,
+        image_stats=Stats(means=means, stds=stds),
+        target_stats=Stats(means=target_means, stds=target_stds),
     )
 
 
-# called by in memory dataset
 def prepare_patches_unsupervised_array(
     data: NDArray,
     axes: str,
     patch_size: Union[list[int], tuple[int]],
 ) -> PatchedOutput:
     """
-    Iterate over data source and create an array of patches.
-
-    This method expects an array of shape SC(Z)YX, where S and C can be singleton
-    dimensions.
-
-    Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
+    Prepare patches for unsupervised training from arrays.
+    
+    Updated to support 1D, 2D, and 3D data through axes parameter.
 
     Parameters
     ----------
-    data : numpy.ndarray
-        Input data array.
+    data : NDArray
+        Input data.
     axes : str
-        Axes of the data.
-    patch_size : list or tuple of int
-        Size of the patches.
+        Axes string describing data dimensions.
+    patch_size : Union[list[int], tuple[int]]
+        Patch size for spatial dimensions.
 
     Returns
     -------
     PatchedOutput
-        Dataclass holding the patches and their statistics.
+        Patched output for unsupervised learning (targets same as patches).
     """
-    # reshape array
+    # reshape the data
     reshaped_sample = reshape_array(data, axes)
 
-    # calculate mean and std
-    means, stds = compute_normalization_stats(reshaped_sample)
+    # extract patches with axes parameter
+    patches, _ = extract_patches_sequential(
+        reshaped_sample, 
+        patch_size=patch_size,
+        axes=axes
+    )
 
-    # generate patches, return a generator
-    patches, _ = extract_patches_sequential(reshaped_sample, patch_size=patch_size)
+    # compute statistics
+    means, stds = compute_normalization_stats(patches)
 
-    return PatchedOutput(patches, None, Stats(means, stds), Stats((), ()))
+    logger.info(f"Extracted {patches.shape[0]} patches from input array.")
+
+    return PatchedOutput(
+        patches=patches,
+        targets=patches,  # For unsupervised (N2V), targets are same as patches
+        image_stats=Stats(means=means, stds=stds),
+        target_stats=Stats(means=means, stds=stds),
+    )

@@ -101,7 +101,7 @@ class DataConfig(BaseModel):
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
-    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
+    patch_size: Union[list[int]] = Field(..., min_length=1, max_length=3)
     """Patch size, as used during training."""
 
     batch_size: int = Field(default=1, ge=1, validate_default=True)
@@ -200,11 +200,21 @@ class DataConfig(BaseModel):
         ValueError
             If axes are not valid.
         """
-        # Validate axes
-        check_axes_validity(axes)
-
+        from ..validators import check_axes_validity, check_axes_validity_1d 
+        # Modified validation to support 1D
+        # Count spatial dimensions
+        spatial_axes = [ax for ax in axes if ax in 'XYZ']
+        print(f"Spatial axes: {spatial_axes}") 
+        # Allow 1D data with single spatial axis
+            # Allow 1D data with single spatial axis
+        if len(spatial_axes) == 1:
+            check_axes_validity_1d(axes)
+        else:
+            # For 2D+, use existing validation
+            check_axes_validity(axes)
+            
         return axes
-
+    
     @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
     @classmethod
     def set_default_pin_memory(
@@ -378,19 +388,34 @@ class DataConfig(BaseModel):
         ValueError
             If the transforms are not valid.
         """
-        if "Z" in self.axes:
-            if len(self.patch_size) != 3:
-                raise ValueError(
-                    f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({self.axes})."
-                )
+        # Count spatial dimensions
+        spatial_axes = [ax for ax in self.axes if ax in 'XYZ']
+        n_spatial_dims = len(spatial_axes)
+        
+        # Validate patch size matches spatial dimensions
+        if len(self.patch_size) != n_spatial_dims:
+            raise ValueError(
+                f"Patch size must have {n_spatial_dims} dimensions to match "
+                f"spatial axes in '{self.axes}' (got {len(self.patch_size)})."
+            )
 
-        else:
-            if len(self.patch_size) != 2:
-                raise ValueError(
-                    f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({self.axes})."
+        # For 1D data, disable 2D transforms
+        if n_spatial_dims == 1:
+            # Check if any 2D transforms are present
+            has_2d_transforms = any(
+                isinstance(transform, (XYFlipModel, XYRandomRotate90Model))
+                for transform in self.transforms
+            )
+            if has_2d_transforms:
+                # Warn and filter out 2D transforms
+                import warnings
+                warnings.warn(
+                    "2D transforms (XYFlip, XYRandomRotate90) are not compatible "
+                    "with 1D data. These transforms will be ignored.",
+                    UserWarning
                 )
+                # Filter out 2D transforms
+                self.transforms = []
 
         return self
 
@@ -468,5 +493,18 @@ class DataConfig(BaseModel):
             Axes.
         patch_size : list of int
             Patch size.
+        """
+        self._update(axes=axes, patch_size=patch_size)
+        
+    def set_1D(self, axes: str, patch_size: list[int]) -> None:
+        """
+        Set 1D parameters.
+
+        Parameters
+        ----------
+        axes : str
+            Axes (should be single spatial axis like 'X', 'Y', or 'Z').
+        patch_size : list of int
+            Patch size (should be single element list).
         """
         self._update(axes=axes, patch_size=patch_size)

@@ -2,6 +2,7 @@
 
 __all__ = [
     "check_axes_validity",
+    "check_axes_validity_1d",
     "check_czi_axes_validity",
     "model_matching_in_out_channels",
     "model_without_final_activation",
@@ -9,7 +10,7 @@ __all__ = [
     "patch_size_ge_than_8_power_of_2",
 ]
 
-from .axes_validators import check_axes_validity, check_czi_axes_validity
+from .axes_validators import check_axes_validity, check_axes_validity_1d, check_czi_axes_validity
 from .model_validators import (
     model_matching_in_out_channels,
     model_without_final_activation,
