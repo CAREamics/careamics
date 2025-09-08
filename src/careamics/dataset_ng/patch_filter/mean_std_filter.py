@@ -89,7 +89,7 @@ class MeanStdPatchFilter(PatchFilterProtocol):
             patch_mean = np.mean(patch)
             patch_std = np.std(patch)
 
-            return (patch_mean < self.mean_threshold) and (
-                self.std_threshold is None or patch_std < self.std_threshold
+            return (patch_mean < self.mean_threshold) or (
+                self.std_threshold is not None and patch_std < self.std_threshold
             )
         return False

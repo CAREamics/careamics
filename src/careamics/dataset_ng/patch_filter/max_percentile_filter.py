@@ -5,6 +5,20 @@ from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterP
 
 
 class MaxPercentilePatchFilter(PatchFilterProtocol):
+    """
+    A patch filter based on thresholding the maximum filter of the patch.
+
+    Inspired by CSBDeep approach.
+
+    Attributes
+    ----------
+    threshold : float
+        Threshold for the maximum filter of the patch.
+    p : float
+        Probability of applying the filter to a patch.
+    rng : np.random.Generator
+        Random number generator for stochastic filtering.
+    """
 
     def __init__(
         self,
@@ -28,5 +42,5 @@ class MaxPercentilePatchFilter(PatchFilterProtocol):
             patch_shape = [(p // 2 if p > 1 else 1) for p in patch.shape]
             filtered = maximum_filter(patch, patch_shape, mode="constant")
 
-            return (filtered < self.threshold).all()
+            return (filtered < self.threshold).any()
         return False
