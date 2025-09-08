@@ -3,7 +3,7 @@ import numpy as np
 from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_array_extractor,
 )
-from careamics.dataset_ng.patch_filter import MaskPatchFilter
+from careamics.dataset_ng.patch_filter import MaskCoordFilter
 from careamics.dataset_ng.patching_strategies import PatchSpecs
 
 # TODO test probability of application
@@ -15,9 +15,9 @@ def test_filter():
     mask = np.zeros((size, size))
     mask[size // 4 : -size // 4, size // 4 : -size // 4] = 1
 
-    mask_filter = MaskPatchFilter(
+    mask_filter = MaskCoordFilter(
         mask_extractor=create_array_extractor(source=[mask], axes="YX"),
-        coverage_perc=0.50,
+        coverage=0.50,
     )
     assert mask_filter.filter_out(
         PatchSpecs(data_idx=0, sample_idx=0, coords=[0, 0], patch_size=[4, 4])

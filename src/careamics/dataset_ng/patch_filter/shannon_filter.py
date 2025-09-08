@@ -1,3 +1,5 @@
+"""Filter patches based on Shannon entropy threshold."""
+
 from collections.abc import Sequence
 
 import numpy as np
@@ -11,7 +13,7 @@ from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterP
 from careamics.dataset_ng.patching_strategies import TilingStrategy
 
 
-class ShannonEntropyFilter(PatchFilterProtocol):
+class ShannonPatchFilter(PatchFilterProtocol):
     """
     Filter patches based on Shannon entropy threshold.
 

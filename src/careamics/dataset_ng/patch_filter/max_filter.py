@@ -1,3 +1,5 @@
+"""Filter patch using a maximum filter."""
+
 from collections.abc import Sequence
 
 import numpy as np
@@ -29,16 +31,12 @@ class MaxPatchFilter(PatchFilterProtocol):
 
     def __init__(
         self,
-        max_value: float,
-        weight: float = 0.4,
+        threshold: float,
         p: float = 1.0,
         seed: int | None = None,
     ) -> None:
 
-        if not (0 <= weight <= 100):
-            raise ValueError("Weight must be between 0 and 1.")
-
-        self.threshold = max_value * weight
+        self.threshold = threshold
 
         self.p = p
         self.rng = np.random.default_rng(seed)

@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.measure import shannon_entropy
 
-from careamics.dataset_ng.patch_filter import ShannonEntropyFilter
+from careamics.dataset_ng.patch_filter import ShannonPatchFilter
 
 
 def test_shannon_filter():
@@ -14,7 +14,7 @@ def test_shannon_filter():
 
     corner_entropy = shannon_entropy(img[size // 2 :, size // 2 :])
 
-    shannon_filter = ShannonEntropyFilter(threshold=corner_entropy / 2)
+    shannon_filter = ShannonPatchFilter(threshold=corner_entropy / 2)
 
     # exclude border
     assert shannon_filter.filter_out(img[0:4, 0:4])  # corner, no entropy

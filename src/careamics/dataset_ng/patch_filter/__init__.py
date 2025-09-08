@@ -2,21 +2,19 @@
 
 __all__ = [
     "CoordinateFilterProtocol",
-    "MaskPatchFilter",
+    "MaskCoordFilter",
     "MaxPatchFilter",
     "MeanStdPatchFilter",
     "PatchFilterProtocol",
-    "ShannonEntropyFilter",
+    "ShannonPatchFilter",
+    "create_coord_filter",
+    "create_patch_filter",
 ]
 
 from .coordinate_filter_protocol import CoordinateFilterProtocol
-from .mask_filter import MaskPatchFilter
-from .max_patch_filter import MaxPatchFilter
+from .filter_factory import create_coord_filter, create_patch_filter
+from .mask_filter import MaskCoordFilter
+from .max_filter import MaxPatchFilter
 from .mean_std_filter import MeanStdPatchFilter
 from .patch_filter_protocol import PatchFilterProtocol
-from .shannon_entropy_filter import ShannonEntropyFilter
-
-
-# TODO:
-# - Add config entries + all the way to careamics dataloader
-# - Entry point for mask
+from .shannon_filter import ShannonPatchFilter

@@ -200,3 +200,77 @@ def test_from_custom_data_type(patch_size, data_shape):
     sample, target = output
     assert sample.data.shape == (1, *patch_size)
     assert target.data.shape == (1, *patch_size)
+
+
+def test_array_coordinate_filtering():
+    """Test that coordinate filtering is applied correctly when creating a dataset from
+    an array."""
+    size = 16
+    img = np.zeros((size, size))
+    mask = np.zeros((size, size))
+
+    # create a square and mask it
+    coords = tuple(slice(4, 8), slice(4, 8))
+    mask[coords] = 1
+    img[coords] = 255
+
+    train_data_config = _create_ng_data_configuration(
+        data_type="array",
+        axes="YX",
+        patch_size=(4, 4),
+        batch_size=1,
+        augmentations=[],
+        seed=42,
+    )
+
+    train_data_config.coord_filter = {
+        "name": "mask",
+        "coverage": 100,
+    }
+
+    train_dataset = create_array_dataset(
+        config=train_data_config,
+        mode=Mode.TRAINING,
+        inputs=[img],
+        masks=[mask],
+    )
+
+    # check that we only get the full 255 patch
+    for i in range(10):
+        (sample,) = train_dataset[i]
+        assert (sample.data > 200).all()
+
+
+def test_array_patch_filtering():
+    """Test that patch filtering is applied correctly when creating a dataset from
+    an array."""
+    size = 16
+    img = np.zeros((size, size))
+
+    # create a square
+    coords = tuple(slice(4, 8), slice(4, 8))
+    img[coords] = 255
+
+    train_data_config = _create_ng_data_configuration(
+        data_type="array",
+        axes="YX",
+        patch_size=(4, 4),
+        batch_size=1,
+        augmentations=[],
+        seed=42,
+    )
+    train_data_config.patch_filter = {
+        "name": "max",
+        "threshold": 200,
+    }
+
+    train_dataset = create_array_dataset(
+        config=train_data_config,
+        mode=Mode.TRAINING,
+        inputs=[img],
+    )
+
+    # check that we only get the full 255 patch
+    for i in range(10):
+        (sample,) = train_dataset[i]
+        assert (sample.data > 200).all()
