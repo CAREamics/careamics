@@ -110,9 +110,10 @@ class MaxPatchFilter(PatchFilterProtocol):
         >>> max_filtered = MaxPatchFilter.filter_map(image, patch_size)
         >>> fig, ax = plt.subplots(1, 5, figsize=(20, 5))
         >>> for i, thresh in enumerate([50 + i*5 for i in range(5)]):
-        ...     ax[i].imshow(max_filtered >= thresh, cmap="gray")
-        ...     ax[i].set_title(f"Threshold: {thresh}")
+        ...     ax[i].imshow(max_filtered >= thresh, cmap="gray") #doctest: +SKIP
+        ...     ax[i].set_title(f"Threshold: {thresh}") #doctest: +SKIP
         >>> plt.show()
+        >>> plt.close()
         """
         if len(image.shape) < 2 or len(image.shape) > 3:
             raise ValueError("Image must be 2D or 3D.")

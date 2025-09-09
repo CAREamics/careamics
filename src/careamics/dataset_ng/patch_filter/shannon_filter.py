@@ -117,18 +117,19 @@ class ShannonPatchFilter(PatchFilterProtocol):
         of the map.
         >>> import numpy as np
         >>> from matplotlib import pyplot as plt
-        >>> from careamics.dataset_ng.patch_filter import ShannonEntropyFilter
+        >>> from careamics.dataset_ng.patch_filter import ShannonPatchFilter
         >>> rng = np.random.default_rng(42)
         >>> image = rng.binomial(20, 0.1, (256, 256)).astype(np.float32)
         >>> image[64:192, 64:192] += rng.normal(50, 5, (128, 128))
         >>> image[96:160, 96:160] = rng.poisson(image[96:160, 96:160])
         >>> patch_size = (16, 16)
-        >>> entropy_map = ShannonEntropyFilter.filter_map(image, patch_size)
+        >>> entropy_map = ShannonPatchFilter.filter_map(image, patch_size)
         >>> fig, ax = plt.subplots(1, 5, figsize=(20, 5))
         >>> for i, thresh in enumerate([2 + 1.5 * i for i in range(5)]):
-        ...     ax[i].imshow(entropy_map >= thresh, cmap="gray")
-        ...     ax[i].set_title(f"Threshold: {thresh}")
+        ...     ax[i].imshow(entropy_map >= thresh, cmap="gray") #doctest: +SKIP
+        ...     ax[i].set_title(f"Threshold: {thresh}") #doctest: +SKIP
         >>> plt.show()
+        >>> plt.close()
         """
         if len(image.shape) < 2 or len(image.shape) > 3:
             raise ValueError("Image must be 2D or 3D.")

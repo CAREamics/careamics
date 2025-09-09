@@ -143,13 +143,15 @@ class MeanStdPatchFilter(PatchFilterProtocol):
         >>> for i, mean_thresh in enumerate([48 + i for i in range(3)]):
         ...     for j, std_thresh in enumerate([5 + i for i in range(3)]):
         ...         ax[i, j].imshow(
-        ...         (
         ...             (meanstd_map[0, ...] > mean_thresh)
         ...             & (meanstd_map[1, ...] > std_thresh),
-        ...         cmap="gray", vmin=0, vmax=1
-        ...         )
-        ...         ax[i, j].set_title(f"Mean: {mean_thresh}, Std: {std_thresh}")
+        ...             cmap="gray", vmin=0, vmax=1
+        ...         ) #doctest: +SKIP
+        ...         ax[i, j].set_title(
+        ...             f"Mean: {mean_thresh}, Std: {std_thresh}"
+        ...         ) #doctest: +SKIP
         >>> plt.show()
+        >>> plt.close()
         """
         if len(image.shape) < 2 or len(image.shape) > 3:
             raise ValueError("Image must be 2D or 3D.")
