@@ -79,7 +79,7 @@ class InMemoryTiledPredDataset:
                 )
             ],
         )
-
+        
     def _prepare_tiles(self) -> list[tuple[NDArray, TileInformation]]:
         """
         Prepare tiles for prediction.
@@ -97,7 +97,7 @@ class InMemoryTiledPredDataset:
             arr=reshaped_sample,
             tile_size=self.tile_size,
             overlaps=self.tile_overlap,
-            axes=self.pred_config.axes,
+            # Remove axes parameter - extract_tiles doesn't accept it
         )
         patches_list = list(patch_generator)
 
@@ -133,17 +133,20 @@ class InMemoryTiledPredDataset:
         """
         sample, tile_info = self.data[index]
 
-        # Ensure the sample is a tensor with correct dtype before transformation
-        if isinstance(sample, np.ndarray):
-            sample = torch.from_numpy(sample).float()
-        elif isinstance(sample, torch.Tensor):
-            sample = sample.float()
-
-        # Apply normalization transform - wrap in tuple as expected by transform
+        # Keep sample as numpy array for transform compatibility
+        # The transforms expect numpy arrays and handle tensor conversion internally
+        if isinstance(sample, torch.Tensor):
+            sample = sample.numpy()
+        
+        # Ensure it's a numpy array with correct dtype
+        if not isinstance(sample, np.ndarray):
+            sample = np.array(sample)
+        
+        # Apply normalization transform - keep as numpy array
         if self.patch_transform is not None:
-            # The transform expects a tuple of tensors
-            transformed_result = self.patch_transform((sample,))
-            # Extract the transformed tensor from the result
+            # Call transform with patch keyword argument
+            transformed_result = self.patch_transform(patch=sample)
+            # Extract the transformed result from the tuple
             if isinstance(transformed_result, tuple):
                 sample = transformed_result[0]
             else:
