@@ -126,8 +126,8 @@ class ShannonPatchFilter(PatchFilterProtocol):
         >>> entropy_map = ShannonEntropyFilter.filter_map(image, patch_size)
         >>> fig, ax = plt.subplots(1, 5, figsize=(20, 5))
         >>> for i, thresh in enumerate([2 + 1.5 * i for i in range(5)]):
-        ... ax[i].imshow(entropy_map > thresh, cmap="gray")
-        ... ax[i].set_title(f"Threshold: {thresh}")
+        ...     ax[i].imshow(entropy_map >= thresh, cmap="gray")
+        ...     ax[i].set_title(f"Threshold: {thresh}")
         >>> plt.show()
         """
         if len(image.shape) < 2 or len(image.shape) > 3:
@@ -160,3 +160,29 @@ class ShannonPatchFilter(PatchFilterProtocol):
             shannon_img[coordinates] = shannon_entropy(patch)
 
         return shannon_img
+
+    @staticmethod
+    def apply_filter(
+        filter_map: np.ndarray,
+        threshold: float,
+    ) -> np.ndarray:
+        """
+        Apply the Shannon entropy filter to a precomputed filter map.
+
+        The filter map is the output of the `filter_map` method.
+
+        Parameters
+        ----------
+        filter_map : numpy.NDArray
+            The precomputed Shannon entropy map of the image.
+        threshold : float
+            The Shannon entropy threshold for filtering.
+
+        Returns
+        -------
+        numpy.NDArray
+            A boolean array where True indicates that the patch should be kept
+            (not filtered out) and False indicates that the patch should be filtered
+            out.
+        """
+        return filter_map >= threshold

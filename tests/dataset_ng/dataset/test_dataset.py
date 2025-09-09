@@ -210,67 +210,77 @@ def test_array_coordinate_filtering():
     mask = np.zeros((size, size))
 
     # create a square and mask it
-    coords = tuple(slice(4, 8), slice(4, 8))
+    coords = (slice(8, 24), slice(8, 24))
     mask[coords] = 1
     img[coords] = 255
 
     train_data_config = _create_ng_data_configuration(
         data_type="array",
         axes="YX",
-        patch_size=(4, 4),
+        patch_size=(8, 8),
         batch_size=1,
         augmentations=[],
         seed=42,
     )
 
+    train_data_config.patch_filter_patience = 100
     train_data_config.coord_filter = {
         "name": "mask",
-        "coverage": 100,
+        "coverage": 0.5,
     }
 
     train_dataset = create_array_dataset(
         config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[img],
+        targets=None,
         masks=[mask],
     )
 
-    # check that we only get the full 255 patch
-    for i in range(10):
+    # check that we only get patches with at least half of 255 pixels
+    threshold = 255 // 2
+    stats = train_dataset.input_stats
+    normed_thresh = (threshold - stats.means[0]) / stats.stds[0]
+    for i in range(len(train_dataset)):
         (sample,) = train_dataset[i]
-        assert (sample.data > 200).all()
+        assert sample.data.mean() > normed_thresh
 
 
 def test_array_patch_filtering():
     """Test that patch filtering is applied correctly when creating a dataset from
     an array."""
-    size = 16
+    size = 32
     img = np.zeros((size, size))
 
     # create a square
-    coords = tuple(slice(4, 8), slice(4, 8))
+    coords = (slice(8, 24), slice(8, 24))
     img[coords] = 255
 
     train_data_config = _create_ng_data_configuration(
         data_type="array",
         axes="YX",
-        patch_size=(4, 4),
+        patch_size=(8, 8),
         batch_size=1,
         augmentations=[],
         seed=42,
     )
+    threshold = 255 // 2
+    train_data_config.patch_filter_patience = 10
     train_data_config.patch_filter = {
-        "name": "max",
-        "threshold": 200,
+        "name": "mean_std",
+        "mean_threshold": threshold,
     }
 
     train_dataset = create_array_dataset(
         config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[img],
+        targets=None,
     )
 
-    # check that we only get the full 255 patch
-    for i in range(10):
+    # check that we only get the full 255 patch (in normalized units)
+    stats = train_dataset.input_stats
+    normed_thresh = (threshold - stats.means[0]) / stats.stds[0]
+    for i in range(len(train_dataset)):
         (sample,) = train_dataset[i]
-        assert (sample.data > 200).all()
+        assert sample.data.mean() >= normed_thresh

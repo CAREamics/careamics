@@ -35,7 +35,21 @@ class MaxPatchFilter(PatchFilterProtocol):
         p: float = 1.0,
         seed: int | None = None,
     ) -> None:
+        """
+        Create a MaxPatchFilter.
 
+        This filter removes patches whose maximum filter valuepixels are below a
+        specified threshold.
+
+        Parameters
+        ----------
+        threshold : float
+            Threshold for the maximum filter of the patch.
+        p : float, default=1
+            Probability of applying the filter to a patch. Must be between 0 and 1.
+        seed : int | None, default=None
+            Seed for the random number generator for reproducibility.
+        """
         self.threshold = threshold
 
         self.p = p
@@ -96,8 +110,8 @@ class MaxPatchFilter(PatchFilterProtocol):
         >>> max_filtered = MaxPatchFilter.filter_map(image, patch_size)
         >>> fig, ax = plt.subplots(1, 5, figsize=(20, 5))
         >>> for i, thresh in enumerate([50 + i*5 for i in range(5)]):
-        ... ax[i].imshow(max_filtered > thresh, cmap="gray")
-        ... ax[i].set_title(f"Threshold: {thresh}")
+        ...     ax[i].imshow(max_filtered >= thresh, cmap="gray")
+        ...     ax[i].set_title(f"Threshold: {thresh}")
         >>> plt.show()
         """
         if len(image.shape) < 2 or len(image.shape) > 3:
@@ -133,3 +147,29 @@ class MaxPatchFilter(PatchFilterProtocol):
             )
 
         return max_filtered
+
+    @staticmethod
+    def apply_filter(
+        filter_map: np.ndarray,
+        threshold: float,
+    ) -> np.ndarray:
+        """
+        Apply the max filter to a filter map.
+
+        The filter map is the output of the `filter_map` method.
+
+        Parameters
+        ----------
+        filter_map : numpy.NDArray
+            The max filter map of the image.
+        threshold : float
+            The threshold to apply to the filter map.
+
+        Returns
+        -------
+        numpy.NDArray
+            A boolean array where True indicates that the patch should be kept
+            (not filtered out) and False indicates that the patch should be filtered
+            out.
+        """
+        return filter_map >= threshold

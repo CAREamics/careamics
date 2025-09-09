@@ -183,3 +183,35 @@ class MeanStdPatchFilter(PatchFilterProtocol):
             std[coordinates] = np.std(patch)
 
         return np.stack([mean, std], axis=0)
+
+    @staticmethod
+    def apply_filter(
+        filter_map: np.ndarray,
+        mean_threshold: float,
+        std_threshold: float | None = None,
+    ) -> np.ndarray:
+        """
+        Apply mean and std thresholds to a filter map.
+
+        The filter map is the output of the `filter_map` method.
+
+        Parameters
+        ----------
+        filter_map : np.ndarray
+            Stacked mean and std maps of the image.
+        mean_threshold : float
+            Threshold for the mean of the patch.
+        std_threshold : float | None, default=None
+            Threshold for the standard deviation of the patch. If None, then no
+            standard deviation filtering is applied.
+
+        Returns
+        -------
+        np.ndarray
+            A binary map where True indicates patches that pass the filter.
+        """
+        if std_threshold is not None:
+            return (filter_map[0, ...] > mean_threshold) & (
+                filter_map[1, ...] > std_threshold
+            )
+        return filter_map[0, ...] > mean_threshold

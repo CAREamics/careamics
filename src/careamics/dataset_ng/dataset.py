@@ -61,12 +61,16 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
 
-        if self.config.patch_filter is not None:
-            self.patch_filter = create_patch_filter(self.config.patch_filter)
-        if self.config.coord_filter is not None and mask_extractor is not None:
-            self.coord_filter = create_coord_filter(
-                self.config.coord_filter, mask=mask_extractor
-            )
+        self.patch_filter = (
+            create_patch_filter(self.config.patch_filter)
+            if self.config.patch_filter is not None
+            else None
+        )
+        self.coord_filter = (
+            create_coord_filter(self.config.coord_filter, mask=mask_extractor)
+            if self.config.coord_filter is not None and mask_extractor is not None
+            else None
+        )
         self.patch_filter_patience = self.config.patch_filter_patience
 
         self.patching_strategy = self._initialize_patching_strategy()
