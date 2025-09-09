@@ -107,10 +107,10 @@ def _combine_tiled_batches(
     """
     # turn list of lists into single list
     tile_infos = [
-        tile_info for _, tile_info_list in predictions for tile_info in tile_info_list
+        tile_info for *_, tile_info_list in predictions for tile_info in tile_info_list
     ]
     prediction_tiles: list[NDArray] = _combine_array_batches(
-        [preds for preds, _ in predictions]
+        [preds for preds, *_ in predictions]
     )
     return prediction_tiles, tile_infos
 
