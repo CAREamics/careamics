@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+import itertools
 from pathlib import Path
 from typing import Union
 
@@ -256,38 +257,38 @@ def prepare_patches_unsupervised_array(
     patch_size: Union[list[int], tuple[int]],
 ) -> PatchedOutput:
     """
-    Prepare patches for unsupervised training from arrays.
-    
-    Updated to use random patching for memory efficiency with 1D data.
+    Prepare patches from array for unsupervised training.
 
     Parameters
     ----------
     data : NDArray
-        Input data.
+        Input array.
     axes : str
-        Axes string describing data dimensions.
-    patch_size : Union[list[int], tuple[int]]
-        Patch size for spatial dimensions.
+        Axes description.
+    patch_size : list of int or tuple of int
+        Patch size.
 
     Returns
     -------
     PatchedOutput
-        Patched output for unsupervised learning (targets same as patches).
+        Patches output.
     """
     from .random_patching import extract_patches_random
     
-    # reshape the data
     reshaped_sample = reshape_array(data, axes)
+    n_samples = reshaped_sample.shape[0]
 
-    # For 1D spectroscopic data, estimate memory usage and decide on approach
-    if axes == "SX" and len(patch_size) == 1:
-        n_samples = reshaped_sample.shape[0]
-        # Find spatial dimension (largest dimension)
+    # Determine number of spatial dimensions
+    spatial_axes = [ax for ax in axes if ax in 'XYZ']
+    n_spatial_dims = len(spatial_axes)
+
+    # For 1D data, check if we need to use random or sequential patching
+    if n_spatial_dims == 1:
         spatial_size = max(reshaped_sample.shape[1:])
         total_possible_patches = n_samples * (spatial_size - patch_size[0] + 1)
         
         # If more than 1M patches, use random patching
-        if total_possible_patches > 1_000_000:
+        if total_possible_patches > 2_000_000:
             logger.info(f"Large 1D dataset detected ({total_possible_patches:,} possible patches). "
                        f"Using random patching for memory efficiency.")
             
@@ -301,20 +302,11 @@ def prepare_patches_unsupervised_array(
                     target=None
                 )
                 # Extract limited number of patches per sample
-                patches_from_sample = []
-                max_patches_per_sample = max(10, 1_000_000 // n_samples)
-                
-                for i, (patch, _) in enumerate(patch_generator):
-                    if i >= max_patches_per_sample:
-                        break
-                    patches_from_sample.append(patch)
-                
-                if patches_from_sample:
-                    all_patches.extend(patches_from_sample)
+                sample_patches = list(itertools.islice(patch_generator, 1000))  # Limit patches per sample
+                all_patches.extend([patch for patch, _ in sample_patches])
             
-            patches = np.array(all_patches)
+            patches = all_patches
             logger.info(f"Extracted {len(patches):,} patches using random sampling.")
-            
         else:
             # Use sequential patching for smaller datasets
             patches, _ = extract_patches_sequential(
@@ -322,6 +314,10 @@ def prepare_patches_unsupervised_array(
                 patch_size=patch_size,
                 axes=axes
             )
+            
+            # Convert list of patches to numpy array if needed
+            if isinstance(patches, list):
+                patches = np.array(patches)
     else:
         # Use sequential patching for 2D/3D data
         patches, _ = extract_patches_sequential(
@@ -329,6 +325,14 @@ def prepare_patches_unsupervised_array(
             patch_size=patch_size,
             axes=axes
         )
+        
+        # Convert list of patches to numpy array if needed
+        if isinstance(patches, list):
+            patches = np.array(patches)
+
+    # Ensure patches is a numpy array for stats computation
+    if isinstance(patches, list):
+        patches = np.array(patches)
 
     # compute statistics
     means, stds = compute_normalization_stats(patches)

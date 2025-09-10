@@ -140,7 +140,7 @@ def stitch_prediction_single(
     Stitch tiles back together to form a full image.
 
     Tiles are of dimensions SC(Z)YX, where C is the number of channels and can be a
-    singleton dimension.
+    singleton dimension. For 1D data, tiles are of dimensions SCX.
 
     Parameters
     ----------
@@ -153,7 +153,7 @@ def stitch_prediction_single(
     Returns
     -------
     numpy.ndarray
-        Full image, with dimensions SC(Z)YX.
+        Full image, with dimensions SC(Z)YX for 2D/3D data or SCX for 1D data.
     """
     # TODO: this is hacky... need a better way to deal with when input channels and
     #   target channels do not match
@@ -163,6 +163,9 @@ def stitch_prediction_single(
     elif len(tile_infos[0].array_shape) == 3:
         # 3 dimensions => 2 spatial dimensions so -3 is channel dimension
         tile_channels = tiles[0].shape[-3]
+    elif len(tile_infos[0].array_shape) == 2:
+        # 2 dimensions => 1 spatial dimension (1D data) so -2 is channel dimension
+        tile_channels = tiles[0].shape[-2]
     else:
         # Note pretty sure this is unreachable because array shape is already
         #   validated by TileInformation
