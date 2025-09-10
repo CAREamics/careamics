@@ -1358,7 +1358,7 @@ def _create_vae_configuration(
 
 
 def _create_vae_based_algorithm(
-    algorithm: Literal["hdn"],
+    algorithm: Literal["hdn", "microsplit"],
     loss: LVAELossConfig,
     input_shape: Sequence[int],
     encoder_conv_strides: tuple[int, ...],
@@ -1450,6 +1450,7 @@ def _create_vae_based_algorithm(
 
 def get_likelihood_config(
     loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"],
+    # TODO remove different microsplit loss types, refac
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: float = -5.0,
     nm_paths: list[str] | None = None,
@@ -1801,7 +1802,6 @@ def create_microsplit_configuration(
         nonlinearity=nonlinearity,
         predict_logvar=predict_logvar,
         analytical_kl=analytical_kl,
-        model_params=model_params,
     )
 
     # Create the MicroSplit algorithm configuration
