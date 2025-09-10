@@ -1714,13 +1714,12 @@ def create_microsplit_configuration(
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_params: dict | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     nm_paths: list[str] | None = None,
     data_stats: tuple[float, float] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
-):
+):  # TODO loss selection shouldn't be done here. Loss will become just microsplit
     """
     Create_microsplit_configuration.
 
@@ -1774,7 +1773,7 @@ def create_microsplit_configuration(
 
     loss_config = LVAELossConfig(
         loss_type="denoisplit_musplit", denoisplit_weight=0.9, musplit_weight=0.1
-    )  # TODO losses need to be refactored! This is just for example
+    )  # TODO losses need to be refactored! just for example. Add validator if sum to 1
 
     # Create likelihood configurations
     gaussian_likelihood_config, noise_model_config, nm_likelihood_config = (
