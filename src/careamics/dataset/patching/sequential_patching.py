@@ -13,7 +13,7 @@ def extract_patches_sequential(
     patch_size: Union[list[int], tuple[int, ...]], 
     target: np.ndarray = None,
     axes: str = None
-) -> tuple[np.ndarray, np.ndarray | None]:  # Updated return type
+) -> tuple[np.ndarray, np.ndarray | None]:
     """
     Extract patches from a single image sequentially with support for 1D, 2D, and 3D data.
 
@@ -49,10 +49,7 @@ def extract_patches_sequential(
         n_spatial_dims = len(spatial_axes)
     else:
         # Infer from patch_size length and array shape
-        if len(patch_size) == 1 and len(arr.shape) == 2:
-            n_spatial_dims = 1  # 1D case: (samples, X)
-        else:
-            n_spatial_dims = len(patch_size)
+        n_spatial_dims = len(patch_size)
     
     # Route to appropriate patching function
     if n_spatial_dims == 1:
@@ -161,7 +158,6 @@ def _compute_patch_steps(
     return tuple(steps)
 
 
-# TODO why stack the target here and not on a different dimension before this function?
 def _compute_patch_views(
     arr: np.ndarray,
     window_shape: list[int],
@@ -277,25 +273,94 @@ def _extract_patches_2d(
     arr: np.ndarray, 
     patch_size: Union[list[int], tuple[int, ...]], 
     target: np.ndarray = None
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray | None]:
     """
-    Extract 2D patches sequentially.
+    Extract 2D patches sequentially using the original algorithm.
     
-    This function needs to be implemented based on the existing 2D logic.
-    For now, it's a placeholder that raises NotImplementedError.
+    Parameters
+    ----------
+    arr : np.ndarray
+        Input array with shape (S, C, Y, X) for 2D data.
+    patch_size : Union[list[int], tuple[int, ...]]
+        Patch size [Y, X].
+    target : np.ndarray, optional
+        Target array, by default None.
+        
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray | None]
+        Patches and target patches as numpy arrays.
     """
-    raise NotImplementedError("2D sequential patching implementation needed")
+    # Update patch size to encompass S and C dimensions
+    full_patch_size = [1, arr.shape[1], *patch_size]
 
+    # Compute overlap
+    overlaps = _compute_overlap(arr_shape=arr.shape, patch_sizes=full_patch_size)
+
+    # Create view window and overlaps
+    window_steps = _compute_patch_steps(patch_sizes=full_patch_size, overlaps=overlaps)
+
+    output_shape = [-1] + full_patch_size[1:]
+
+    # Generate patches using view_as_windows
+    patches = _compute_patch_views(
+        arr,
+        window_shape=full_patch_size,
+        step=window_steps,
+        output_shape=output_shape,
+        target=target,
+    )
+
+    if target is not None:
+        # target was concatenated to patches in _compute_patch_views
+        return patches[:, 0, ...], patches[:, 1, ...]
+    else:
+        return patches, None
 
 def _extract_patches_3d(
     arr: np.ndarray, 
     patch_size: Union[list[int], tuple[int, ...]], 
     target: np.ndarray = None
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray | None]:
     """
-    Extract 3D patches sequentially.
+    Extract 3D patches sequentially using the original algorithm.
     
-    This function needs to be implemented based on the existing 3D logic.
-    For now, it's a placeholder that raises NotImplementedError.
+    Parameters
+    ----------
+    arr : np.ndarray
+        Input array with shape (S, C, Z, Y, X) for 3D data.
+    patch_size : Union[list[int], tuple[int, ...]]
+        Patch size [Z, Y, X].
+    target : np.ndarray, optional
+        Target array, by default None.
+        
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray | None]
+        Patches and target patches as numpy arrays.
     """
-    raise NotImplementedError("3D sequential patching implementation needed")
+    # Update patch size to encompass S and C dimensions
+    full_patch_size = [1, arr.shape[1], *patch_size]
+
+    # Compute overlap
+    overlaps = _compute_overlap(arr_shape=arr.shape, patch_sizes=full_patch_size)
+
+    # Create view window and overlaps
+    window_steps = _compute_patch_steps(patch_sizes=full_patch_size, overlaps=overlaps)
+
+    output_shape = [-1] + full_patch_size[1:]
+
+    # Generate patches using view_as_windows
+    patches = _compute_patch_views(
+        arr,
+        window_shape=full_patch_size,
+        step=window_steps,
+        output_shape=output_shape,
+        target=target,
+    )
+
+    if target is not None:
+        # target was concatenated to patches in _compute_patch_views
+        return patches[:, 0, ...], patches[:, 1, ...]
+    else:
+        return patches, None

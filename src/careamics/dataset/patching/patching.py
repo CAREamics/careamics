@@ -176,7 +176,7 @@ def prepare_patches_unsupervised(
             # reshape array
             sample = reshape_array(sample, axes)
 
-            # generate patches with axes parameter
+            # generate patches - use axes parameter for 1D compatibility
             patches, _ = extract_patches_sequential(
                 sample, patch_size=patch_size, axes=axes
             )
@@ -196,7 +196,6 @@ def prepare_patches_unsupervised(
     return PatchedOutput(
         patch_array, None, Stats(image_means, image_stds), Stats((), ())
     )
-
 
 def prepare_patches_supervised_array(
     data: NDArray,
