@@ -26,6 +26,9 @@ class SupportedAlgorithm(str, BaseEnum):
     MUSPLIT = "musplit"
     """An image splitting approach based on ladder VAE architectures."""
 
+    MICROSPLIT = "microsplit"
+    """A micro-level image splitting approach based on ladder VAE architectures."""
+
     DENOISPLIT = "denoisplit"
     """An image splitting and denoising approach based on ladder VAE architectures."""
 
