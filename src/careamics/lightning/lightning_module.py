@@ -383,7 +383,15 @@ class VAEModule(L.LightningModule):
         return self.model(x)  # TODO Different model can have more than one output
 
     def set_data_stats(self, data_mean, data_std):
-        """Set data mean and std for the noise model likelihood."""
+        """Set data mean and std for the noise model likelihood.
+
+        Parameters
+        ----------
+        data_mean : float
+            Mean of the data.
+        data_std : float
+            Standard deviation of the data.
+        """
         if self.noise_model_likelihood is not None:
             self.noise_model_likelihood.set_data_stats(data_mean, data_std)
 
@@ -429,7 +437,8 @@ class VAEModule(L.LightningModule):
                 or self.noise_model_likelihood.data_std is None
             ):
                 raise RuntimeError(
-                    "NoiseModelLikelihood: data_mean and data_std must be set before training."
+                    "NoiseModelLikelihood: data_mean and data_std must be set before "
+                    "training."
                 )
         loss = self.loss_func(
             model_outputs=out,
