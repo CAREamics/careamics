@@ -354,6 +354,12 @@ def test_hdn_training_step(
         multiscale_count=1,
         target_ch=1,
     )
+
+    if ll_type == "nm":
+        data_mean = torch.zeros(1, 1, 1, 1)
+        data_std = torch.zeros(1, 1, 1, 1)
+        lightning_model.set_data_stats(data_mean, data_std)
+
     batch = next(iter(dloader))
     train_loss = lightning_model.training_step(batch=batch, batch_idx=0)
 
@@ -387,6 +393,12 @@ def test_hdn_validation_step(
         multiscale_count=1,
         target_ch=1,
     )
+
+    if ll_type == "nm":
+        data_mean = torch.zeros(1, 1, 1, 1)
+        data_std = torch.zeros(1, 1, 1, 1)
+        lightning_model.set_data_stats(data_mean, data_std)
+
     batch = next(iter(dloader))
     lightning_model.validation_step(batch=batch, batch_idx=0)
 
@@ -443,6 +455,12 @@ def test_microsplit_training_step(
         multiscale_count=multiscale_count,
         target_ch=target_ch,
     )
+
+    if loss_type in ["denoisplit", "denoisplit_musplit"]:
+        data_mean = torch.zeros(1, target_ch, 1, 1)
+        data_std = torch.zeros(1, target_ch, 1, 1)
+        lightning_model.set_data_stats(data_mean, data_std)
+
     batch = next(iter(dloader))
     train_loss = lightning_model.training_step(batch=batch, batch_idx=0)
 
@@ -506,6 +524,12 @@ def test_microsplit_validation_step(
         multiscale_count=multiscale_count,
         target_ch=target_ch,
     )
+
+    if loss_type in ["denoisplit", "denoisplit_musplit"]:
+        data_mean = torch.zeros(1, target_ch, 1, 1)
+        data_std = torch.zeros(1, target_ch, 1, 1)
+        lightning_model.set_data_stats(data_mean, data_std)
+
     batch = next(iter(dloader))
     lightning_model.validation_step(batch=batch, batch_idx=0)
     # NOTE: `validation_step` does not return anything...
@@ -594,6 +618,12 @@ def test_training_loop_microsplit(
         multiscale_count=multiscale_count,
         target_ch=target_ch,
     )
+
+    if loss_type in ["denoisplit", "denoisplit_musplit"]:
+        data_mean = torch.zeros(1, target_ch, 1, 1)
+        data_std = torch.zeros(1, target_ch, 1, 1)
+        lightning_model.set_data_stats(data_mean, data_std)
+
     trainer = Trainer(accelerator="cpu", max_epochs=2, logger=False, callbacks=[])
 
     try:

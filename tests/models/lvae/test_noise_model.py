@@ -228,8 +228,8 @@ def test_noise_model_in_likelihood_call():
         model_type="GaussianMixtureNoiseModel", n_gaussian=1
     )
     noise_model = GaussianMixtureNoiseModel(nm_config)
-    likelihood = NoiseModelLikelihood(
-        data_mean=test_input.mean(), data_std=test_input.std(), noise_model=noise_model
-    )
+    likelihood = NoiseModelLikelihood(noise_model=noise_model)
+    likelihood.set_data_stats(test_input.mean(), test_input.std())
+
     log_likelihood, _ = likelihood(test_input, test_target)
     assert log_likelihood is not None
