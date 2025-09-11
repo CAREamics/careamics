@@ -557,8 +557,10 @@ def create_train_datamodule(
     val_minimum_patches : int, optional
         Minimum number of patches to split from the training data for validation if
         no validation data is given, by default 5.
-    dataloader_params : dict, optional
-        Pytorch dataloader parameters, by default {}.
+    train_dataloader_params : dict, optional
+        Pytorch dataloader parameters for the training data, by default {}.
+    val_dataloader_params : dict, optional
+        Pytorch dataloader parameters for the validation data, by default {}.
     use_in_memory : bool, optional
         Use in memory dataset if possible, by default True.
 

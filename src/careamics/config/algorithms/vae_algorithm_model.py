@@ -68,8 +68,17 @@ class VAEBasedAlgorithm(BaseModel):
             The validated model.
         """
         # hdn
+        # TODO move to designated configurations
         if self.algorithm == SupportedAlgorithm.HDN:
             if self.loss.loss_type != SupportedLoss.HDN:
+                raise ValueError(
+                    f"Algorithm {self.algorithm} only supports loss `hdn`."
+                )
+            if self.model.multiscale_count > 1:
+                raise ValueError("Algorithm `hdn` does not support multiscale models.")
+        # musplit
+        if self.algorithm == SupportedAlgorithm.MUSPLIT:
+            if self.loss.loss_type != SupportedLoss.MUSPLIT:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `hdn`."
                 )
@@ -172,4 +181,5 @@ class VAEBasedAlgorithm(BaseModel):
         list of str
             List of compatible algorithms.
         """
-        return ["hdn", "microsplit"]
+        # TODO revisit after there's more clarity with VAE algorithms structure
+        return ["hdn"]

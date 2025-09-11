@@ -13,6 +13,7 @@ __all__ = [
     "DataConfig",
     "GaussianMixtureNMConfig",
     "HDNAlgorithm",
+    "HDNAlgorithm",
     "InferenceConfig",
     "LVAELossConfig",
     "MicroSplitAlgorithm",
