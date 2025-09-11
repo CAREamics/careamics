@@ -12,8 +12,12 @@ from careamics.config.loss_model import LVAELossConfig
 MICROSPLIT = "MicroSplit"
 
 MICROSPLIT_DESCRIPTION = """MicroSplit is a self-supervised deep learning method for
-microscopy image restoration that combines the strengths of both denoising and
-representation learning approaches."""
+microscopy image splitting that combines the strengths of both denoising and
+representation learning approaches.
+
+It is a VAE-based algorithm that uses a UNet-like architecture to learn the
+representation of the data.
+"""
 
 MICROSPLIT_REF = CiteEntry(
     text='Prakash, M., Delbracio, M., Milanfar, P., Jug, F. 2022. "Interpretable '

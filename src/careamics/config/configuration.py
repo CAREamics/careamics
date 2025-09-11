@@ -29,7 +29,6 @@ ALGORITHMS = Union[
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
-    HDNAlgorithm,
 ]
 
 

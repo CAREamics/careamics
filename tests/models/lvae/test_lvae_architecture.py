@@ -37,7 +37,7 @@ def create_LVAE_model(
 
     config = VAEBasedAlgorithm(
         algorithm_type="vae",
-        algorithm="musplit",
+        algorithm="microsplit",
         loss=LVAELossConfig(loss_type="musplit"),
         model=lvae_model_config,
         gaussian_likelihood=GaussianLikelihoodConfig(
