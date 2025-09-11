@@ -8,7 +8,6 @@ from pydantic import Field, TypeAdapter
 from careamics.config.algorithms import (
     CAREAlgorithm,
     MicroSplitAlgorithm,
-    MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
 )
