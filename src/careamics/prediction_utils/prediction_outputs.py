@@ -41,7 +41,9 @@ def convert_outputs(predictions: list[Any], tiled: bool) -> list[NDArray]:
     return predictions_output
 
 
-def convert_outputs_microsplit(predictions: list[tuple[NDArray, NDArray]], dataset) -> tuple[NDArray, NDArray]:
+def convert_outputs_microsplit(
+    predictions: list[tuple[NDArray, NDArray]], dataset
+) -> tuple[NDArray, NDArray]:
     """
     Convert microsplit Lightning trainer outputs using eval_utils stitching functions.
 
