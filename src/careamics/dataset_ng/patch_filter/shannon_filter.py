@@ -124,12 +124,11 @@ class ShannonPatchFilter(PatchFilterProtocol):
         >>> image[96:160, 96:160] = rng.poisson(image[96:160, 96:160])
         >>> patch_size = (16, 16)
         >>> entropy_map = ShannonPatchFilter.filter_map(image, patch_size)
-        >>> fig, ax = plt.subplots(1, 5, figsize=(20, 5))
+        >>> fig, ax = plt.subplots(1, 5, figsize=(20, 5)) # doctest: +SKIP
         >>> for i, thresh in enumerate([2 + 1.5 * i for i in range(5)]):
         ...     ax[i].imshow(entropy_map >= thresh, cmap="gray") #doctest: +SKIP
         ...     ax[i].set_title(f"Threshold: {thresh}") #doctest: +SKIP
-        >>> plt.show()
-        >>> plt.close()
+        >>> plt.show() # doctest: +SKIP
         """
         if len(image.shape) < 2 or len(image.shape) > 3:
             raise ValueError("Image must be 2D or 3D.")

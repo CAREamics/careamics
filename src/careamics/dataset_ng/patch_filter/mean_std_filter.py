@@ -139,19 +139,18 @@ class MeanStdPatchFilter(PatchFilterProtocol):
         >>> image[96:160, 96:160] = rng.poisson(image[96:160, 96:160])
         >>> patch_size = (16, 16)
         >>> meanstd_map = MeanStdPatchFilter.filter_map(image, patch_size)
-        >>> fig, ax = plt.subplots(3, 3, figsize=(10, 10))
+        >>> fig, ax = plt.subplots(3, 3, figsize=(10, 10)) # doctest: +SKIP
         >>> for i, mean_thresh in enumerate([48 + i for i in range(3)]):
         ...     for j, std_thresh in enumerate([5 + i for i in range(3)]):
         ...         ax[i, j].imshow(
         ...             (meanstd_map[0, ...] > mean_thresh)
         ...             & (meanstd_map[1, ...] > std_thresh),
         ...             cmap="gray", vmin=0, vmax=1
-        ...         ) #doctest: +SKIP
+        ...         ) # doctest: +SKIP
         ...         ax[i, j].set_title(
         ...             f"Mean: {mean_thresh}, Std: {std_thresh}"
-        ...         ) #doctest: +SKIP
-        >>> plt.show()
-        >>> plt.close()
+        ...         ) # doctest: +SKIP
+        >>> plt.show() # doctest: +SKIP
         """
         if len(image.shape) < 2 or len(image.shape) > 3:
             raise ValueError("Image must be 2D or 3D.")
