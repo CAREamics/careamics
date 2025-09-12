@@ -25,6 +25,8 @@ class SupportedLoss(str, BaseEnum):
     MUSPLIT = "musplit"
     MICROSPLIT = "microsplit"
     DENOISPLIT = "denoisplit"
-    DENOISPLIT_MUSPLIT = "denoisplit_musplit"
+    DENOISPLIT_MUSPLIT = (
+        "denoisplit_musplit"  # TODO refac losses, leave only microsplit
+    )
     # CE = "ce"
     # DICE = "dice"

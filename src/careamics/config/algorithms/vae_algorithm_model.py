@@ -40,7 +40,7 @@ class VAEBasedAlgorithm(BaseModel):
     # defined in SupportedAlgorithm
     # TODO: Use supported Enum classes for typing?
     #   - values can still be passed as strings and they will be cast to Enum
-    algorithm: Literal["hdn", "microsplit", "musplit", "denoisplit"]
+    algorithm: Literal["hdn", "microsplit"]
 
     # NOTE: these are all configs (pydantic models)
     loss: LVAELossConfig
@@ -87,6 +87,7 @@ class VAEBasedAlgorithm(BaseModel):
             The validated model.
         """
         # hdn
+        # TODO move to designated configurations
         if self.algorithm == SupportedAlgorithm.HDN:
             if self.loss.loss_type != SupportedLoss.HDN:
                 raise ValueError(
@@ -100,7 +101,7 @@ class VAEBasedAlgorithm(BaseModel):
                 SupportedLoss.MUSPLIT,
                 SupportedLoss.DENOISPLIT,
                 SupportedLoss.DENOISPLIT_MUSPLIT,
-            ]:
+            ]:  # TODO Update losses configs, make loss just microsplit
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `microsplit`."
                 )  # TODO Update losses configs

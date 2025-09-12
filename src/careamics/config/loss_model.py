@@ -52,7 +52,7 @@ class LVAELossConfig(BaseModel):
     """Weight for the denoiSplit loss (used in the muSplit-deonoiSplit loss)."""
     kl_params: KLLossConfig = KLLossConfig()
     """KL loss configuration."""
-
+    # TODO revisit weights for the losses
     # TODO: remove?
     non_stochastic: bool = False
     """Whether to sample latents and compute KL."""

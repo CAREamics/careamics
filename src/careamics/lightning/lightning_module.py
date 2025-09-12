@@ -5,7 +5,6 @@ from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
-import torch
 from torch import Tensor, nn, stack
 
 from careamics.config import (

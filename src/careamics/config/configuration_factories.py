@@ -1363,7 +1363,6 @@ def _create_vae_configuration(
     ],
     predict_logvar: Literal[None, "pixelwise"],
     analytical_kl: bool,
-    model_params: dict[str, Any] | None = None,
 ) -> LVAEModel:
     """Create a dictionary with the parameters of the vae based algorithm model.
 
@@ -1395,39 +1394,32 @@ def _create_vae_configuration(
         _description_.
     analytical_kl : bool # TODO needs clarification
         _description_.
-    model_params : Optional[dict[str, Any]], optional
-        Additional model parameters, by default None.
 
     Returns
     -------
     LVAEModel
         LVAE model with the specified parameters.
     """
-    if model_params is None:
-        model_params = {}
-
-    model_params["input_shape"] = input_shape
-    model_params["encoder_conv_strides"] = encoder_conv_strides
-    model_params["decoder_conv_strides"] = decoder_conv_strides
-    model_params["multiscale_count"] = multiscale_count
-    model_params["z_dims"] = z_dims
-    model_params["output_channels"] = output_channels
-    model_params["encoder_n_filters"] = encoder_n_filters
-    model_params["decoder_n_filters"] = decoder_n_filters
-    model_params["encoder_dropout"] = encoder_dropout
-    model_params["decoder_dropout"] = decoder_dropout
-    model_params["nonlinearity"] = nonlinearity
-    model_params["predict_logvar"] = predict_logvar
-    model_params["analytical_kl"] = analytical_kl
-
     return LVAEModel(
         architecture=SupportedArchitecture.LVAE.value,
-        **model_params,
+        input_shape=input_shape,
+        encoder_conv_strides=encoder_conv_strides,
+        decoder_conv_strides=decoder_conv_strides,
+        multiscale_count=multiscale_count,
+        z_dims=z_dims,
+        output_channels=output_channels,
+        encoder_n_filters=encoder_n_filters,
+        decoder_n_filters=decoder_n_filters,
+        encoder_dropout=encoder_dropout,
+        decoder_dropout=decoder_dropout,
+        nonlinearity=nonlinearity,
+        predict_logvar=predict_logvar,
+        analytical_kl=analytical_kl,
     )
 
 
 def _create_vae_based_algorithm(
-    algorithm: Literal["hdn"],
+    algorithm: Literal["hdn", "microsplit"],
     loss: LVAELossConfig,
     input_shape: Sequence[int],
     encoder_conv_strides: tuple[int, ...],
@@ -1446,7 +1438,6 @@ def _create_vae_based_algorithm(
     analytical_kl: bool,
     gaussian_likelihood: GaussianLikelihoodConfig | None = None,
     nm_likelihood: NMLikelihoodConfig | None = None,
-    model_params: dict[str, Any] | None = None,
 ) -> dict:
     """
     Create a dictionary with the parameters of the VAE-based algorithm model.
@@ -1487,8 +1478,6 @@ def _create_vae_based_algorithm(
         The Gaussian likelihood model, by default None.
     nm_likelihood : Optional[NMLikelihoodConfig], optional
         The noise model likelihood model, by default None.
-    model_params : Optional[dict[str, Any]], optional
-        Additional model parameters, by default None.
 
     Returns
     -------
@@ -1509,7 +1498,6 @@ def _create_vae_based_algorithm(
         nonlinearity=nonlinearity,
         predict_logvar=predict_logvar,
         analytical_kl=analytical_kl,
-        model_params=model_params,
     )
     assert gaussian_likelihood or nm_likelihood, "Likelihood model must be specified"
     return {
@@ -1523,9 +1511,11 @@ def _create_vae_based_algorithm(
 
 def get_likelihood_config(
     loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"],
+    # TODO remove different microsplit loss types, refac
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: float = -5.0,
     nm_paths: list[str] | None = None,
+    data_stats: tuple[float, float] | None = None,
 ) -> tuple[
     GaussianLikelihoodConfig | None,
     MultiChannelNMConfig | None,
@@ -1545,6 +1535,9 @@ def get_likelihood_config(
         Used when loss_type is "musplit" or "denoisplit_musplit".
     nm_paths : list[str] | None, optional
         Paths to the noise model files, by default None.
+        Required when loss_type is "denoisplit" or "denoisplit_musplit".
+    data_stats : tuple[float, float] | None, optional
+        Data statistics (mean, std), by default None.
         Required when loss_type is "denoisplit" or "denoisplit_musplit".
 
     Returns
@@ -1574,6 +1567,9 @@ def get_likelihood_config(
     if loss_type in ["denoisplit", "denoisplit_musplit"]:
         if nm_paths is None:
             raise ValueError(f"nm_paths is required for loss_type '{loss_type}'")
+        if data_stats is None:
+            raise ValueError(f"data_stats is required for loss_type '{loss_type}'")
+
         gmm_list = []
         for NM_path in nm_paths:
             gmm_list.append(
@@ -1584,8 +1580,8 @@ def get_likelihood_config(
             )
         noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
         nm_lik_config = NMLikelihoodConfig(
-            data_mean=None,
-            data_std=None,
+            data_mean=data_stats[0],
+            data_std=data_stats[1],
         )
     else:
         noise_model_config = None
@@ -1619,7 +1615,6 @@ def create_hdn_configuration(
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_params: dict | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
@@ -1645,8 +1640,7 @@ def create_hdn_configuration(
     transforms, a list of transforms can be passed to the `augmentations` parameter. To
     disable the transforms, simply pass an empty list.
 
-    The parameters of the UNet can be specified in the `model_params` (passed as a
-    parameter-value dictionary).
+    # TODO revisit the necessity of model_params
 
     Parameters
     ----------
@@ -1690,8 +1684,6 @@ def create_hdn_configuration(
         Lower bound for the log variance, by default None.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use for training, by default "none".
-    model_params : Optional[dict], optional
-        Parameters for the UNet model, by default None.
     augmentations : Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]], optional
         List of augmentations to apply, by default None.
     train_dataloader_params : Optional[dict[str, Any]], optional
@@ -1733,7 +1725,6 @@ def create_hdn_configuration(
         analytical_kl=analytical_kl,
         gaussian_likelihood=gaussian_likelihood,
         nm_likelihood=None,
-        model_params=model_params,
     )
 
     # data
@@ -1766,7 +1757,6 @@ def create_microsplit_configuration(
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
     patch_size: Sequence[int],
-    grid_size: int,
     batch_size: int,
     num_epochs: int,
     encoder_conv_strides: tuple[int, ...] = (2, 2),
@@ -1785,12 +1775,12 @@ def create_microsplit_configuration(
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_params: dict | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     nm_paths: list[str] | None = None,
+    data_stats: tuple[float, float] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
-):
+):  # TODO loss selection shouldn't be done here. Loss will become just microsplit
     """
     Create_microsplit_configuration.
 
@@ -1844,7 +1834,7 @@ def create_microsplit_configuration(
 
     loss_config = LVAELossConfig(
         loss_type="denoisplit_musplit", denoisplit_weight=0.9, musplit_weight=0.1
-    )  # TODO losses need to be refactored! This is just for example
+    )  # TODO losses need to be refactored! just for example. Add validator if sum to 1
 
     # Create likelihood configurations
     gaussian_likelihood_config, noise_model_config, nm_likelihood_config = (
@@ -1853,6 +1843,7 @@ def create_microsplit_configuration(
             predict_logvar=predict_logvar,
             logvar_lowerbound=logvar_lowerbound,
             nm_paths=nm_paths,
+            data_stats=data_stats,
         )
     )
 
@@ -1871,7 +1862,6 @@ def create_microsplit_configuration(
         nonlinearity=nonlinearity,
         predict_logvar=predict_logvar,
         analytical_kl=analytical_kl,
-        model_params=model_params,
     )
 
     # Create the MicroSplit algorithm configuration
@@ -1880,7 +1870,6 @@ def create_microsplit_configuration(
         "loss": loss_config,
         "model": network_model,
         "gaussian_likelihood": gaussian_likelihood_config,
-        "noise_model": noise_model_config,
         "noise_model_likelihood": nm_likelihood_config,
     }
 
@@ -1888,12 +1877,10 @@ def create_microsplit_configuration(
     algorithm_config = MicroSplitAlgorithm(**algorithm_params)
 
     # data
-    data_params = _create_microsplit_data_configuration(
+    data_params = _create_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
-        grid_size=grid_size,
-        multiscale_count=multiscale_count,
         batch_size=batch_size,
         augmentations=transform_list,
         train_dataloader_params=train_dataloader_params,

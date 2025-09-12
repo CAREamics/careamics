@@ -279,7 +279,7 @@ def hdn_loss(
     gaussian_likelihood: GaussianLikelihood | None,
     noise_model_likelihood: NoiseModelLikelihood | None,
 ) -> dict[str, torch.Tensor] | None:
-    """Loss function for DenoiSplit.
+    """Loss function for HDN.
 
     Parameters
     ----------
