@@ -40,7 +40,7 @@ class VAEBasedAlgorithm(BaseModel):
     # defined in SupportedAlgorithm
     # TODO: Use supported Enum classes for typing?
     #   - values can still be passed as strings and they will be cast to Enum
-    algorithm: Literal["hdn", "musplit", "denoisplit"]
+    algorithm: Literal["hdn", "microsplit"]
 
     # NOTE: these are all configs (pydantic models)
     loss: LVAELossConfig
@@ -77,21 +77,16 @@ class VAEBasedAlgorithm(BaseModel):
             if self.model.multiscale_count > 1:
                 raise ValueError("Algorithm `hdn` does not support multiscale models.")
         # musplit
-        if self.algorithm == SupportedAlgorithm.MUSPLIT:
-            if self.loss.loss_type != SupportedLoss.MUSPLIT:
-                raise ValueError(
-                    f"Algorithm {self.algorithm} only supports loss `musplit`."
-                )
-
-        if self.algorithm == SupportedAlgorithm.DENOISPLIT:
+        if self.algorithm == SupportedAlgorithm.MICROSPLIT:
             if self.loss.loss_type not in [
+                SupportedLoss.MUSPLIT,
                 SupportedLoss.DENOISPLIT,
                 SupportedLoss.DENOISPLIT_MUSPLIT,
-            ]:
+            ]:  # TODO Update losses configs, make loss just microsplit
                 raise ValueError(
-                    f"Algorithm {self.algorithm} only supports loss `denoisplit` "
-                    "or `denoisplit_musplit."
-                )
+                    f"Algorithm {self.algorithm} only supports loss `microsplit`."
+                )  # TODO Update losses configs
+
             if (
                 self.loss.loss_type == SupportedLoss.DENOISPLIT
                 and self.model.predict_logvar is not None
@@ -100,8 +95,10 @@ class VAEBasedAlgorithm(BaseModel):
                     "Algorithm `denoisplit` with loss `denoisplit` only supports "
                     "`predict_logvar` as `None`."
                 )
-
-            if self.noise_model is None:
+            if (
+                self.loss.loss_type == SupportedLoss.DENOISPLIT
+                and self.noise_model is None
+            ):
                 raise ValueError("Algorithm `denoisplit` requires a noise model.")
         # TODO: what if algorithm is not musplit or denoisplit
         return self
@@ -176,5 +173,4 @@ class VAEBasedAlgorithm(BaseModel):
         list of str
             List of compatible algorithms.
         """
-        # TODO revisit after there's more clarity with VAE algorithms structure
-        return ["hdn"]
+        return ["hdn", "microsplit"]

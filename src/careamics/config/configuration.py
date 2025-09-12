@@ -16,6 +16,7 @@ from typing_extensions import Self
 from careamics.config.algorithms import (
     CAREAlgorithm,
     HDNAlgorithm,
+    MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
 )
@@ -24,9 +25,10 @@ from careamics.config.training_model import TrainingConfig
 
 ALGORITHMS = Union[
     CAREAlgorithm,
+    HDNAlgorithm,
+    MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
-    HDNAlgorithm,
 ]
 
 

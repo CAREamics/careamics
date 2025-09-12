@@ -126,6 +126,33 @@ def minimum_algorithm_denoisplit() -> dict:
 
 
 @pytest.fixture
+def minimum_algorithm_microsplit() -> dict:
+    """Create a minimum MicroSplit algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum MicroSplit algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "microsplit",
+        "loss": "microsplit",
+        "model": {
+            "architecture": "LVAE",
+            "z_dims": (128, 128, 128),
+            "multiscale_count": 2,
+            "predict_logvar": "pixelwise",
+        },
+        "likelihood": {
+            "type": "GaussianLikelihoodConfig",
+        },
+    }
+
+    return algorithm
+
+
+@pytest.fixture
 def minimum_data() -> dict:
     """Create a minimum data dictionary.
 
