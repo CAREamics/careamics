@@ -21,6 +21,12 @@ from typing_extensions import Self
 
 from ..transformations import XYFlipModel, XYRandomRotate90Model
 from ..validators import check_axes_validity
+from .patch_filter import (
+    MaskFilterModel,
+    MaxFilterModel,
+    MeanSTDFilterModel,
+    ShannonFilterModel,
+)
 from .patching_strategies import (
     RandomPatchingModel,
     TiledPatchingModel,
@@ -68,6 +74,16 @@ PatchingStrategies = Union[
 ]
 """Patching strategies."""
 
+PatchFilters = Union[
+    MaxFilterModel,
+    MeanSTDFilterModel,
+    ShannonFilterModel,
+]
+"""Patch filters."""
+
+CoordFilters = Union[MaskFilterModel]  # add more here as needed
+"""Coordinate filters."""
+
 
 class NGDataConfig(BaseModel):
     """Next-Generation Dataset configuration.
@@ -105,6 +121,18 @@ class NGDataConfig(BaseModel):
     # Optional fields
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
+
+    patch_filter: PatchFilters | None = Field(default=None, discriminator="name")
+    """Patch filter to apply when using random patching. Only available during
+    training."""
+
+    coord_filter: CoordFilters | None = Field(default=None, discriminator="name")
+    """Coordinate filter to apply when using random patching. Only available during
+    training."""
+
+    patch_filter_patience: int = Field(default=10, ge=1)
+    """Number of consecutive patches not passing the filter before accepting the next
+    patch."""
 
     image_means: list[Float] | None = Field(default=None, min_length=0, max_length=32)
     """Means of the data across channels, used for normalization."""

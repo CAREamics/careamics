@@ -16,6 +16,7 @@ from careamics.config.transformations import NormalizeModel
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
+from careamics.dataset_ng.patch_filter import create_coord_filter, create_patch_filter
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -52,12 +53,25 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         mode: Mode,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
-    ):
+        mask_extractor: PatchExtractor[GenericImageStack] | None = None,
+    ) -> None:
         self.config = data_config
         self.mode = mode
 
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
+
+        self.patch_filter = (
+            create_patch_filter(self.config.patch_filter)
+            if self.config.patch_filter is not None
+            else None
+        )
+        self.coord_filter = (
+            create_coord_filter(self.config.coord_filter, mask=mask_extractor)
+            if self.config.coord_filter is not None and mask_extractor is not None
+            else None
+        )
+        self.patch_filter_patience = self.config.patch_filter_patience
 
         self.patching_strategy = self._initialize_patching_strategy()
 
@@ -186,25 +200,51 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __getitem__(
         self, index: int
     ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
-        patch_spec = self.patching_strategy.get_patch_spec(index)
-        input_patch = self.input_extractor.extract_patch(
-            data_idx=patch_spec["data_idx"],
-            sample_idx=patch_spec["sample_idx"],
-            coords=patch_spec["coords"],
-            patch_size=patch_spec["patch_size"],
-        )
 
-        target_patch = (
-            self.target_extractor.extract_patch(
+        # assumed only random patching strategy is used
+        should_filter = self.mode == Mode.TRAINING and (
+            self.patch_filter is not None or self.coord_filter is not None
+        )
+        empty_patch = True
+
+        patch_filter_patience = self.patch_filter_patience  # reset patience
+        while empty_patch and patch_filter_patience > 0:
+            # query patches
+            patch_spec = self.patching_strategy.get_patch_spec(index)
+
+            # filter patch based on coordinates if needed
+            if should_filter and self.coord_filter is not None:
+                if self.coord_filter.filter_out(patch_spec):
+                    empty_patch = True
+                    patch_filter_patience -= 1
+                    continue
+
+            input_patch = self.input_extractor.extract_patch(
                 data_idx=patch_spec["data_idx"],
                 sample_idx=patch_spec["sample_idx"],
                 coords=patch_spec["coords"],
                 patch_size=patch_spec["patch_size"],
             )
-            if self.target_extractor is not None
-            else None
-        )
 
+            target_patch = (
+                self.target_extractor.extract_patch(
+                    data_idx=patch_spec["data_idx"],
+                    sample_idx=patch_spec["sample_idx"],
+                    coords=patch_spec["coords"],
+                    patch_size=patch_spec["patch_size"],
+                )
+                if self.target_extractor is not None
+                else None
+            )
+
+            # filter patch based on values if needed
+            if should_filter and self.patch_filter is not None:
+                empty_patch = self.patch_filter.filter_out(input_patch)
+                patch_filter_patience -= 1  # decrease patience
+            else:
+                empty_patch = False
+
+        # apply transforms
         if self.transforms is not None:
             if self.target_extractor is not None:
                 input_patch, target_patch = self.transforms(input_patch, target_patch)
