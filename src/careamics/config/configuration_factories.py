@@ -1780,50 +1780,62 @@ def create_microsplit_configuration(
     data_stats: tuple[float, float] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
-):  # TODO loss selection shouldn't be done here. Loss will become just microsplit
+) -> Configuration:
     """
-    Create_microsplit_configuration.
+    Create a configuration for training MicroSplit.
 
     Parameters
     ----------
-    input_shape : tuple, default=(1, 64, 64)
-        Shape of the input patch (channels, Y, X) or (channels, Z, Y, X) for 3D.
-    z_dims : tuple, default=(128, 128, 128, 128)
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : Sequence[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    num_epochs : int
+        Number of training epochs.
+    encoder_conv_strides : tuple[int, ...], optional
+        Strides for the encoder convolutional layers, by default (2, 2).
+    decoder_conv_strides : tuple[int, ...], optional
+        Strides for the decoder convolutional layers, by default (2, 2).
+    multiscale_count : int, optional
+        Number of multiscale levels, by default 1.
+    z_dims : tuple[int, ...], optional
         List of latent dimensions for each hierarchy level in the LVAE.
-    encoder_conv_strides : tuple, default=(2, 2)
-        Strides for the encoder convolutional layers.
-    decoder_conv_strides : tuple, default=(2, 2)
-        Strides for the decoder convolutional layers.
-    multiscale_count : int, default=0
-        Number of multiscale levels (0 disables multiscale).
-    output_channels : int, default=1
-        Number of output channels for the model.
-    encoder_n_filters : int, default=64
-        Number of filters in the encoder.
-    decoder_n_filters : int, default=64
-        Number of filters in the decoder.
-    encoder_dropout : float, default=0.1
-        Dropout rate for the encoder.
-    decoder_dropout : float, default=0.1
-        Dropout rate for the decoder.
-    nonlinearity : str, default="ELU"
-        Nonlinearity to use in the model (e.g., "ELU", "ReLU").
-    predict_logvar : str, default="pixelwise"
-        Type of log-variance prediction ("pixelwise" or None).
-    analytical_kl : bool, default=False
-        Whether to use analytical KL divergence.
-    optimizer : str, default="Adam"
-        Optimizer to use for training.
-    optimizer_params : dict, optional
-        Parameters for the optimizer.
-    lr_scheduler : str, default="ReduceLROnPlateau"
-        Learning rate scheduler to use.
-    lr_scheduler_params : dict, optional
-        Parameters for the learning rate scheduler.
-    loss_weights : dict, optional
-        Weights for different loss components.
-    **kwargs : dict
-        Additional keyword arguments for the configuration.
+    output_channels : int, optional
+        Number of output channels for the model, by default 1.
+    encoder_n_filters : int, optional
+        Number of filters in the encoder, by default 32.
+    decoder_n_filters : int, optional
+        Number of filters in the decoder, by default 32.
+    encoder_dropout : float, optional
+        Dropout rate for the encoder, by default 0.0.
+    decoder_dropout : float, optional
+        Dropout rate for the decoder, by default 0.0.
+    nonlinearity : Literal, optional
+        Nonlinearity to use in the model, by default "ReLU".
+    analytical_kl : bool, optional
+        Whether to use analytical KL divergence, by default False.
+    predict_logvar : Literal["pixelwise"] | None, optional
+        Type of log-variance prediction, by default None.
+    logvar_lowerbound : float, optional
+        Lower bound for the log variance, by default -5.0.
+    logger : Literal["wandb", "tensorboard", "none"], optional
+        Logger to use for training, by default "none".
+    augmentations : list[Union[XYFlipModel, XYRandomRotate90Model]] | None, optional
+        List of augmentations to apply, by default None.
+    nm_paths : list[str] | None, optional
+        Paths to the noise model files, by default None.
+    data_stats : tuple[float, float] | None, optional
+        Data statistics (mean, std), by default None.
+    train_dataloader_params : dict[str, Any] | None, optional
+        Parameters for the training dataloader, by default None.
+    val_dataloader_params : dict[str, Any] | None, optional
+        Parameters for the validation dataloader, by default None.
 
     Returns
     -------

@@ -131,11 +131,13 @@ def test_reconstruction_loss(
         nm = init_noise_model(tmp_path, target_ch)
         data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
         data_std = target.std(dim=(0, 2, 3), keepdim=True)
-        config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std)
+        config = NMLikelihoodConfig()
+        likelihood = likelihood_factory(config, noise_model=nm)
+        likelihood.set_data_stats(data_mean, data_std)
     else:
         nm = None
         config = GaussianLikelihoodConfig(predict_logvar=predict_logvar)
-    likelihood = likelihood_factory(config, noise_model=nm)
+        likelihood = likelihood_factory(config, noise_model=nm)
 
     # compute the loss
     rec_loss = get_reconstruction_loss(
@@ -167,8 +169,9 @@ def test_reconstruction_loss_musplit_denoisplit(
     nm = init_noise_model(tmp_path, target_ch)
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
-    nm_config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std)
+    nm_config = NMLikelihoodConfig()
     nm_likelihood = likelihood_factory(nm_config, noise_model=nm)
+    nm_likelihood.set_data_stats(data_mean, data_std)
     gaussian_config = GaussianLikelihoodConfig(predict_logvar=predict_logvar)
     gaussian_likelihood = likelihood_factory(gaussian_config)
 
@@ -310,8 +313,9 @@ def test_denoisplit_loss(
     nm = init_noise_model(tmp_path, target_ch)
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
-    nm_config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std)
+    nm_config = NMLikelihoodConfig()
     likelihood = likelihood_factory(nm_config, noise_model=nm)
+    likelihood.set_data_stats(data_mean, data_std)
 
     # compute the loss
     kl_params = KLLossConfig(loss_type=kl_type)
@@ -368,8 +372,9 @@ def test_denoisplit_musplit_loss(
     nm = init_noise_model(tmp_path, target_ch)
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
-    nm_config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std)
+    nm_config = NMLikelihoodConfig()
     nm_likelihood = likelihood_factory(nm_config, noise_model=nm)
+    nm_likelihood.set_data_stats(data_mean, data_std)
     gaussian_config = GaussianLikelihoodConfig(predict_logvar=predict_logvar)
     gaussian_likelihood = likelihood_factory(gaussian_config)
 

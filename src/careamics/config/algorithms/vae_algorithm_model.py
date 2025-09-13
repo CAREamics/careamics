@@ -59,25 +59,6 @@ class VAEBasedAlgorithm(BaseModel):
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
 
     @model_validator(mode="after")
-    def noise_model_validation(self: Self) -> Self:
-        """Validate that noise model and noise model likelihood are properly configured.
-
-        Returns
-        -------
-        Self
-            The validated model.
-        """
-        if self.noise_model is not None and self.noise_model_likelihood is None:
-            raise ValueError(
-                "When noise_model is provided, noise_model_likelihood must also be provided."
-            )
-        if self.noise_model is None and self.noise_model_likelihood is not None:
-            raise ValueError(
-                "When noise_model_likelihood is provided, noise_model must also be provided."
-            )
-        return self
-
-    @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:
         """Validate the algorithm model based on `algorithm`.
 
