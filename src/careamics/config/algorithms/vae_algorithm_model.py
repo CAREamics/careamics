@@ -40,14 +40,17 @@ class VAEBasedAlgorithm(BaseModel):
     # defined in SupportedAlgorithm
     # TODO: Use supported Enum classes for typing?
     #   - values can still be passed as strings and they will be cast to Enum
-    algorithm: Literal["musplit", "denoisplit"]
+    algorithm: Literal["hdn", "microsplit"]
 
     # NOTE: these are all configs (pydantic models)
     loss: LVAELossConfig
     model: LVAEModel
     noise_model: MultiChannelNMConfig | None = None
     noise_model_likelihood: NMLikelihoodConfig | None = None
-    gaussian_likelihood: GaussianLikelihoodConfig | None = None
+    gaussian_likelihood: GaussianLikelihoodConfig | None = None  # TODO change to str
+
+    mmse_count: int = 1
+    is_supervised: bool = False
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
@@ -64,22 +67,26 @@ class VAEBasedAlgorithm(BaseModel):
         Self
             The validated model.
         """
-        # musplit
-        if self.algorithm == SupportedAlgorithm.MUSPLIT:
-            if self.loss.loss_type != SupportedLoss.MUSPLIT:
+        # hdn
+        # TODO move to designated configurations
+        if self.algorithm == SupportedAlgorithm.HDN:
+            if self.loss.loss_type != SupportedLoss.HDN:
                 raise ValueError(
-                    f"Algorithm {self.algorithm} only supports loss `musplit`."
+                    f"Algorithm {self.algorithm} only supports loss `hdn`."
                 )
-
-        if self.algorithm == SupportedAlgorithm.DENOISPLIT:
+            if self.model.multiscale_count > 1:
+                raise ValueError("Algorithm `hdn` does not support multiscale models.")
+        # musplit
+        if self.algorithm == SupportedAlgorithm.MICROSPLIT:
             if self.loss.loss_type not in [
+                SupportedLoss.MUSPLIT,
                 SupportedLoss.DENOISPLIT,
                 SupportedLoss.DENOISPLIT_MUSPLIT,
-            ]:
+            ]:  # TODO Update losses configs, make loss just microsplit
                 raise ValueError(
-                    f"Algorithm {self.algorithm} only supports loss `denoisplit` "
-                    "or `denoisplit_musplit."
-                )
+                    f"Algorithm {self.algorithm} only supports loss `microsplit`."
+                )  # TODO Update losses configs
+
             if (
                 self.loss.loss_type == SupportedLoss.DENOISPLIT
                 and self.model.predict_logvar is not None
@@ -88,8 +95,10 @@ class VAEBasedAlgorithm(BaseModel):
                     "Algorithm `denoisplit` with loss `denoisplit` only supports "
                     "`predict_logvar` as `None`."
                 )
-
-            if self.noise_model is None:
+            if (
+                self.loss.loss_type == SupportedLoss.DENOISPLIT
+                and self.noise_model is None
+            ):
                 raise ValueError("Algorithm `denoisplit` requires a noise model.")
         # TODO: what if algorithm is not musplit or denoisplit
         return self
@@ -107,6 +116,12 @@ class VAEBasedAlgorithm(BaseModel):
             assert self.model.output_channels == len(self.noise_model.noise_models), (
                 f"Number of output channels ({self.model.output_channels}) must match "
                 f"the number of noise models ({len(self.noise_model.noise_models)})."
+            )
+
+        if self.algorithm == SupportedAlgorithm.HDN:
+            assert self.model.output_channels == 1, (
+                f"Number of output channels ({self.model.output_channels}) must be 1 "
+                "for algorithm `hdn`."
             )
         return self
 
@@ -127,6 +142,16 @@ class VAEBasedAlgorithm(BaseModel):
                 "Gaussian likelihood model `predict_logvar` "
                 f"({self.gaussian_likelihood.predict_logvar}).",
             )
+        # if self.algorithm == SupportedAlgorithm.HDN:
+        #     assert (
+        #         self.model.predict_logvar is None
+        #     ), "Model `predict_logvar` must be `None` for algorithm `hdn`."
+        #     if self.gaussian_likelihood is not None:
+        #         assert self.gaussian_likelihood.predict_logvar is None, (
+        #             "Gaussian likelihood model `predict_logvar` must be `None` "
+        #             "for algorithm `hdn`."
+        #         )
+        # TODO check this
         return self
 
     def __str__(self) -> str:
@@ -138,3 +163,14 @@ class VAEBasedAlgorithm(BaseModel):
             Pretty string.
         """
         return pformat(self.model_dump())
+
+    @classmethod
+    def get_compatible_algorithms(cls) -> list[str]:
+        """Get the list of compatible algorithms.
+
+        Returns
+        -------
+        list of str
+            List of compatible algorithms.
+        """
+        return ["hdn", "microsplit"]

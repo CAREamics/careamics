@@ -35,7 +35,9 @@ class LVAELossConfig(BaseModel):
         validate_assignment=True, validate_default=True, arbitrary_types_allowed=True
     )
 
-    loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"]
+    loss_type: Literal[
+        "hdn", "microsplit", "musplit", "denoisplit", "denoisplit_musplit"
+    ]
     """Type of loss to use for LVAE."""
 
     reconstruction_weight: float = 1.0
@@ -50,7 +52,9 @@ class LVAELossConfig(BaseModel):
     """Weight for the denoiSplit loss (used in the muSplit-deonoiSplit loss)."""
     kl_params: KLLossConfig = KLLossConfig()
     """KL loss configuration."""
-
+    # TODO revisit weights for the losses
     # TODO: remove?
     non_stochastic: bool = False
     """Whether to sample latents and compute KL."""
+
+    # TODO what are the correct parameters for HDN ?

@@ -817,7 +817,7 @@ class CAREamist:
 
         # extract file names
         source_path: Union[Path, str, NDArray]
-        source_data_type: Literal["array", "tiff", "custom"]
+        source_data_type: Literal["array", "tiff", "czi", "custom"]
         if isinstance(source, PredictDataModule):
             source_path = source.pred_data
             source_data_type = source.data_type
