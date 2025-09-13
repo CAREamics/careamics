@@ -1629,11 +1629,14 @@ def get_likelihood_config(
 
     Returns
     -------
-    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None, NMLikelihoodConfig | None]
-        A tuple containing the likelihood and noise model configurations for the specified loss type.
+    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None,
+    NMLikelihoodConfig | None]
+        A tuple containing the likelihood and noise model configurations for the
+        specified loss type.
 
         - GaussianLikelihoodConfig: Gaussian likelihood configuration for musplit losses
-        - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit losses
+        - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit
+        losses
         - NMLikelihoodConfig: Noise model likelihood configuration for denoisplit losses
 
     Raises
