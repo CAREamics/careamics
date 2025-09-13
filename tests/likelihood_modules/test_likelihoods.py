@@ -76,8 +76,9 @@ def test_noise_model_likelihood(
     # NOTE: `input_` is actually the output of LVAE decoder
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
-    config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std)
+    config = NMLikelihoodConfig()
     likelihood = likelihood_factory(config, noise_model=nm)
+    likelihood.set_data_stats(data_mean, data_std)
 
     out, data = likelihood(reconstruction, target)
     exp_out_shape = inp_shape

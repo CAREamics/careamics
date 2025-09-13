@@ -1539,7 +1539,7 @@ def get_likelihood_config(
     loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"],
     # TODO remove different microsplit loss types, refac
     predict_logvar: Literal["pixelwise"] | None = None,
-    logvar_lowerbound: float = -5.0,
+    logvar_lowerbound: float | None = -5.0,
     nm_paths: list[str] | None = None,
     data_stats: tuple[float, float] | None = None,
 ) -> tuple[
@@ -1556,7 +1556,7 @@ def get_likelihood_config(
     predict_logvar : Literal["pixelwise"] | None, optional
         Type of log variance prediction, by default None.
         Required when loss_type is "musplit" or "denoisplit_musplit".
-    logvar_lowerbound : float, optional
+    logvar_lowerbound : float | None, optional
         Lower bound for the log variance, by default -5.0.
         Used when loss_type is "musplit" or "denoisplit_musplit".
     nm_paths : list[str] | None, optional
@@ -1568,9 +1568,12 @@ def get_likelihood_config(
 
     Returns
     -------
-    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None,
-    NMLikelihoodConfig | None]
-        The likelihoods and noise models configurations.
+    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None, NMLikelihoodConfig | None]
+        A tuple containing the likelihood and noise model configurations for the specified loss type.
+
+        - GaussianLikelihoodConfig: Gaussian likelihood configuration for musplit losses
+        - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit losses
+        - NMLikelihoodConfig: Noise model likelihood configuration for denoisplit losses
 
     Raises
     ------
@@ -1848,7 +1851,7 @@ def create_microsplit_configuration(
     data_stats: tuple[float, float] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
-):  # TODO loss selection shouldn't be done here. Loss will become just microsplit
+) -> Configuration:
     """
     Create a configuration for training MicroSplit.
 
