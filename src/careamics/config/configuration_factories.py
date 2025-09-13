@@ -1579,9 +1579,9 @@ def get_likelihood_config(
     """
     # gaussian likelihood
     if loss_type in ["musplit", "denoisplit_musplit"]:
-        if predict_logvar is None:
-            raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
-
+        # if predict_logvar is None:
+        #     raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
+    # TODO validators should be in pydantic models
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
             logvar_lowerbound=logvar_lowerbound,
@@ -1591,11 +1591,11 @@ def get_likelihood_config(
 
     # noise model likelihood
     if loss_type in ["denoisplit", "denoisplit_musplit"]:
-        if nm_paths is None:
-            raise ValueError(f"nm_paths is required for loss_type '{loss_type}'")
-        if data_stats is None:
-            raise ValueError(f"data_stats is required for loss_type '{loss_type}'")
-
+        # if nm_paths is None:
+        #     raise ValueError(f"nm_paths is required for loss_type '{loss_type}'")
+        # if data_stats is None:
+        #     raise ValueError(f"data_stats is required for loss_type '{loss_type}'")
+    # TODO validators should be in pydantic models
         gmm_list = []
         for NM_path in nm_paths:
             gmm_list.append(
@@ -1839,7 +1839,7 @@ def create_microsplit_configuration(
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = "ReLU",
     analytical_kl: bool = False,
-    predict_logvar: Literal["pixelwise"] | None = None,
+    predict_logvar: Literal["pixelwise"] = "pixelwise",
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     trainer_params: dict | None = None,
@@ -1920,24 +1920,25 @@ def create_microsplit_configuration(
     Examples
     --------
     Minimum example:
-    >>> config = create_microsplit_configuration(
-    ...     experiment_name="microsplit_experiment",
-    ...     data_type="array",
-    ...     axes="YX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     num_epochs=100
-    ... )
+    # >>> config = create_microsplit_configuration(
+    # ...     experiment_name="microsplit_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     num_epochs=100
+    
+    # ... )
 
-    You can also limit the number of batches per epoch:
-    >>> config = create_microsplit_configuration(
-    ...     experiment_name="microsplit_experiment",
-    ...     data_type="array",
-    ...     axes="YX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     num_steps=100  # limit to 100 batches per epoch
-    ... )
+    # You can also limit the number of batches per epoch:
+    # >>> config = create_microsplit_configuration(
+    # ...     experiment_name="microsplit_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     num_steps=100  # limit to 100 batches per epoch
+    # ... )
     """
     transform_list = _list_spatial_augmentations(augmentations)
 
