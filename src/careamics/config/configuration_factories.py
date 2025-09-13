@@ -1581,7 +1581,7 @@ def get_likelihood_config(
     if loss_type in ["musplit", "denoisplit_musplit"]:
         # if predict_logvar is None:
         #     raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
-    # TODO validators should be in pydantic models
+        # TODO validators should be in pydantic models
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
             logvar_lowerbound=logvar_lowerbound,
@@ -1595,7 +1595,7 @@ def get_likelihood_config(
         #     raise ValueError(f"nm_paths is required for loss_type '{loss_type}'")
         # if data_stats is None:
         #     raise ValueError(f"data_stats is required for loss_type '{loss_type}'")
-    # TODO validators should be in pydantic models
+        # TODO validators should be in pydantic models
         gmm_list = []
         for NM_path in nm_paths:
             gmm_list.append(
@@ -1927,7 +1927,7 @@ def create_microsplit_configuration(
     # ...     patch_size=[64, 64],
     # ...     batch_size=32,
     # ...     num_epochs=100
-    
+
     # ... )
 
     # You can also limit the number of batches per epoch:
