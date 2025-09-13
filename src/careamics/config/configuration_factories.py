@@ -429,7 +429,7 @@ def _create_ng_data_configuration(
 
 
 def _create_training_configuration(
-    num_epochs: int,
+    trainer_params: dict,
     logger: Literal["wandb", "tensorboard", "none"],
     checkpoint_params: dict[str, Any] | None = None,
 ) -> TrainingConfig:
@@ -438,8 +438,8 @@ def _create_training_configuration(
 
     Parameters
     ----------
-    num_epochs : int
-        Number of epochs.
+    trainer_params : dict
+        Parameters for Lightning Trainer class, see PyTorch Lightning documentation.
     logger : {"wandb", "tensorboard", "none"}
         Logger to use.
     checkpoint_params : dict, default=None
@@ -452,7 +452,7 @@ def _create_training_configuration(
         Training model with the specified parameters.
     """
     return TrainingConfig(
-        num_epochs=num_epochs,
+        lightning_trainer_config=trainer_params,
         logger=None if logger == "none" else logger,
         checkpoint_callback={} if checkpoint_params is None else checkpoint_params,
     )
@@ -466,7 +466,7 @@ def _create_supervised_config_dict(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    num_epochs: int,
+    trainer_params: dict | None = None,
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
@@ -481,6 +481,8 @@ def _create_supervised_config_dict(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    num_epochs: int | None = None,
+    num_steps: int | None = None,
 ) -> dict:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -499,8 +501,8 @@ def _create_supervised_config_dict(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of epochs.
+    trainer_params : dict
+        Parameters for the training configuration.
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -533,6 +535,13 @@ def _create_supervised_config_dict(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    num_epochs : int or None, default=None
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int or None, default=None
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
 
     Returns
     -------
@@ -590,9 +599,18 @@ def _create_supervised_config_dict(
         val_dataloader_params=val_dataloader_params,
     )
 
+    # Handle trainer parameters with num_epochs and num_steps
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    # Add num_epochs and num_steps if provided
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["limit_train_batches"] = num_steps
+
     # training
     training_params = _create_training_configuration(
-        num_epochs=num_epochs,
+        trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
     )
@@ -611,13 +629,15 @@ def create_care_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    num_epochs: int,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
+    trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
     optimizer_params: dict[str, Any] | None = None,
@@ -660,8 +680,13 @@ def create_care_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of epochs.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -676,6 +701,8 @@ def create_care_configuration(
         Number of channels out.
     logger : Literal["wandb", "tensorboard", "none"], default="none"
         Logger to use.
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation.
     model_params : dict, default=None
         UNetModel parameters.
     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
@@ -714,6 +741,16 @@ def create_care_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100
+    ... )
+
+    You can also limit the number of batches per epoch:
+    >>> config = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_steps=100  # limit to 100 batches per epoch
     ... )
 
     To disable transforms, simply set `augmentations` to an empty list:
@@ -802,13 +839,13 @@ def create_care_configuration(
             axes=axes,
             patch_size=patch_size,
             batch_size=batch_size,
-            num_epochs=num_epochs,
             augmentations=augmentations,
             independent_channels=independent_channels,
             loss=loss,
             n_channels_in=n_channels_in,
             n_channels_out=n_channels_out,
             logger=logger,
+            trainer_params=trainer_params,
             model_params=model_params,
             optimizer=optimizer,
             optimizer_params=optimizer_params,
@@ -817,6 +854,8 @@ def create_care_configuration(
             train_dataloader_params=train_dataloader_params,
             val_dataloader_params=val_dataloader_params,
             checkpoint_params=checkpoint_params,
+            num_epochs=num_epochs,
+            num_steps=num_steps,
         )
     )
 
@@ -827,13 +866,15 @@ def create_n2n_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    num_epochs: int,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
+    trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
     optimizer_params: dict[str, Any] | None = None,
@@ -876,8 +917,13 @@ def create_n2n_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of epochs.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -892,6 +938,8 @@ def create_n2n_configuration(
         Number of channels out.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation.
     model_params : dict, default=None
         UNetModel parameters.
     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
@@ -932,6 +980,16 @@ def create_n2n_configuration(
     ...     num_epochs=100
     ... )
 
+    You can also limit the number of batches per epoch:
+    >>> config = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_steps=100  # limit to 100 batches per epoch
+    ... )
+
     To disable transforms, simply set `augmentations` to an empty list:
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
@@ -943,8 +1001,7 @@ def create_n2n_configuration(
     ...     augmentations=[]
     ... )
 
-    A list of transforms can be passed to the `augmentations` parameter to replace the
-    default augmentations:
+    A list of transforms can be passed to the `augmentations` parameter:
     >>> from careamics.config.transformations import XYFlipModel
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
@@ -1018,7 +1075,7 @@ def create_n2n_configuration(
             axes=axes,
             patch_size=patch_size,
             batch_size=batch_size,
-            num_epochs=num_epochs,
+            trainer_params=trainer_params,
             augmentations=augmentations,
             independent_channels=independent_channels,
             loss=loss,
@@ -1033,6 +1090,8 @@ def create_n2n_configuration(
             train_dataloader_params=train_dataloader_params,
             val_dataloader_params=val_dataloader_params,
             checkpoint_params=checkpoint_params,
+            num_epochs=num_epochs,
+            num_steps=num_steps,
         )
     )
 
@@ -1043,7 +1102,8 @@ def create_n2v_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    num_epochs: int,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
@@ -1052,6 +1112,7 @@ def create_n2v_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
+    trainer_params: dict | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -1115,8 +1176,13 @@ def create_n2v_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of epochs.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
     augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
@@ -1135,6 +1201,8 @@ def create_n2v_configuration(
         Axis along which to apply structN2V mask, by default "none".
     struct_n2v_span : int, optional
         Span of the structN2V mask, by default 5.
+    trainer_params : dict, optional
+        Parameters for the trainer, see the relevant documentation.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
     model_params : dict, default=None
@@ -1175,6 +1243,16 @@ def create_n2v_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100
+    ... )
+
+    You can also limit the number of batches per epoch:
+    >>> config = create_n2v_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_steps=100  # limit to 100 batches per epoch
     ... )
 
     To disable transforms, simply set `augmentations` to an empty list:
@@ -1333,8 +1411,17 @@ def create_n2v_configuration(
     )
 
     # training
+    # Handle trainer parameters with num_epochs and nun_steps
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    # Add num_epochs and nun_steps if provided
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["limit_train_batches"] = num_steps
+
     training_params = _create_training_configuration(
-        num_epochs=num_epochs,
+        trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
     )
@@ -1513,7 +1600,7 @@ def get_likelihood_config(
     loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"],
     # TODO remove different microsplit loss types, refac
     predict_logvar: Literal["pixelwise"] | None = None,
-    logvar_lowerbound: float = -5.0,
+    logvar_lowerbound: float | None = -5.0,
     nm_paths: list[str] | None = None,
     data_stats: tuple[float, float] | None = None,
 ) -> tuple[
@@ -1530,7 +1617,7 @@ def get_likelihood_config(
     predict_logvar : Literal["pixelwise"] | None, optional
         Type of log variance prediction, by default None.
         Required when loss_type is "musplit" or "denoisplit_musplit".
-    logvar_lowerbound : float, optional
+    logvar_lowerbound : float | None, optional
         Lower bound for the log variance, by default -5.0.
         Used when loss_type is "musplit" or "denoisplit_musplit".
     nm_paths : list[str] | None, optional
@@ -1542,9 +1629,12 @@ def get_likelihood_config(
 
     Returns
     -------
-    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None,
-    NMLikelihoodConfig | None]
-        The likelihoods and noise models configurations.
+    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None, NMLikelihoodConfig | None]
+        A tuple containing the likelihood and noise model configurations for the specified loss type.
+
+        - GaussianLikelihoodConfig: Gaussian likelihood configuration for musplit losses
+        - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit losses
+        - NMLikelihoodConfig: Noise model likelihood configuration for denoisplit losses
 
     Raises
     ------
@@ -1553,9 +1643,9 @@ def get_likelihood_config(
     """
     # gaussian likelihood
     if loss_type in ["musplit", "denoisplit_musplit"]:
-        if predict_logvar is None:
-            raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
-
+        # if predict_logvar is None:
+        #     raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
+        # TODO validators should be in pydantic models
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
             logvar_lowerbound=logvar_lowerbound,
@@ -1565,11 +1655,11 @@ def get_likelihood_config(
 
     # noise model likelihood
     if loss_type in ["denoisplit", "denoisplit_musplit"]:
-        if nm_paths is None:
-            raise ValueError(f"nm_paths is required for loss_type '{loss_type}'")
-        if data_stats is None:
-            raise ValueError(f"data_stats is required for loss_type '{loss_type}'")
-
+        # if nm_paths is None:
+        #     raise ValueError(f"nm_paths is required for loss_type '{loss_type}'")
+        # if data_stats is None:
+        #     raise ValueError(f"data_stats is required for loss_type '{loss_type}'")
+        # TODO validators should be in pydantic models
         gmm_list = []
         for NM_path in nm_paths:
             gmm_list.append(
@@ -1598,7 +1688,8 @@ def create_hdn_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    num_epochs: int,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
     encoder_conv_strides: tuple[int, ...] = (2, 2),
     decoder_conv_strides: tuple[int, ...] = (2, 2),
     multiscale_count: int = 1,
@@ -1615,6 +1706,7 @@ def create_hdn_configuration(
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
+    trainer_params: dict | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
@@ -1654,8 +1746,13 @@ def create_hdn_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of training epochs.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
     encoder_conv_strides : tuple[int, ...], optional
         Strides for the encoder convolutional layers, by default (2, 2).
     decoder_conv_strides : tuple[int, ...], optional
@@ -1684,6 +1781,8 @@ def create_hdn_configuration(
         Lower bound for the log variance, by default None.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use for training, by default "none".
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation.
     augmentations : Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]], optional
         List of augmentations to apply, by default None.
     train_dataloader_params : Optional[dict[str, Any]], optional
@@ -1695,6 +1794,28 @@ def create_hdn_configuration(
     -------
     Configuration
         The configuration object for training HDN.
+
+    Examples
+    --------
+    Minimum example:
+    >>> config = create_hdn_configuration(
+    ...     experiment_name="hdn_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100
+    ... )
+
+    You can also limit the number of batches per epoch:
+    >>> config = create_hdn_configuration(
+    ...     experiment_name="hdn_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_steps=100  # limit to 100 batches per epoch
+    ... )
     """
     transform_list = _list_spatial_augmentations(augmentations)
 
@@ -1738,9 +1859,18 @@ def create_hdn_configuration(
         val_dataloader_params=val_dataloader_params,
     )
 
+    # Handle trainer parameters with num_epochs and num_steps
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    # Add num_epochs and num_steps if provided
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["limit_train_batches"] = num_steps
+
     # training
     training_params = _create_training_configuration(
-        num_epochs=num_epochs,
+        trainer_params=final_trainer_params,
         logger=logger,
     )
 
@@ -1758,7 +1888,8 @@ def create_microsplit_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    num_epochs: int,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
     encoder_conv_strides: tuple[int, ...] = (2, 2),
     decoder_conv_strides: tuple[int, ...] = (2, 2),
     multiscale_count: int = 1,
@@ -1772,9 +1903,10 @@ def create_microsplit_configuration(
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = "ReLU",
     analytical_kl: bool = False,
-    predict_logvar: Literal["pixelwise"] | None = None,
+    predict_logvar: Literal["pixelwise"] = "pixelwise",
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
+    trainer_params: dict | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     nm_paths: list[str] | None = None,
     data_stats: tuple[float, float] | None = None,
@@ -1796,8 +1928,13 @@ def create_microsplit_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of training epochs.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
     encoder_conv_strides : tuple[int, ...], optional
         Strides for the encoder convolutional layers, by default (2, 2).
     decoder_conv_strides : tuple[int, ...], optional
@@ -1805,7 +1942,7 @@ def create_microsplit_configuration(
     multiscale_count : int, optional
         Number of multiscale levels, by default 1.
     z_dims : tuple[int, ...], optional
-        List of latent dimensions for each hierarchy level in the LVAE.
+        List of latent dimensions for each hierarchy level in the LVAE, by default (128, 128).
     output_channels : int, optional
         Number of output channels for the model, by default 1.
     encoder_n_filters : int, optional
@@ -1822,10 +1959,12 @@ def create_microsplit_configuration(
         Whether to use analytical KL divergence, by default False.
     predict_logvar : Literal["pixelwise"] | None, optional
         Type of log-variance prediction, by default None.
-    logvar_lowerbound : float, optional
-        Lower bound for the log variance, by default -5.0.
+    logvar_lowerbound : Union[float, None], optional
+        Lower bound for the log variance, by default None.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use for training, by default "none".
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation.
     augmentations : list[Union[XYFlipModel, XYRandomRotate90Model]] | None, optional
         List of augmentations to apply, by default None.
     nm_paths : list[str] | None, optional
@@ -1841,6 +1980,29 @@ def create_microsplit_configuration(
     -------
     Configuration
         A configuration object for the microsplit algorithm.
+
+    Examples
+    --------
+    Minimum example:
+    # >>> config = create_microsplit_configuration(
+    # ...     experiment_name="microsplit_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     num_epochs=100
+
+    # ... )
+
+    # You can also limit the number of batches per epoch:
+    # >>> config = create_microsplit_configuration(
+    # ...     experiment_name="microsplit_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     num_steps=100  # limit to 100 batches per epoch
+    # ... )
     """
     transform_list = _list_spatial_augmentations(augmentations)
 
@@ -1899,9 +2061,18 @@ def create_microsplit_configuration(
         val_dataloader_params=val_dataloader_params,
     )
 
+    # Handle trainer parameters with num_epochs and num_steps
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    # Add num_epochs and num_steps if provided
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["limit_train_batches"] = num_steps
+
     # training
     training_params = _create_training_configuration(
-        num_epochs=num_epochs,
+        trainer_params=final_trainer_params,
         logger=logger,
     )
 

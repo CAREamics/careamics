@@ -11,7 +11,7 @@ from careamics.config.loss_model import LVAELossConfig
 
 HDN = "Hierarchical DivNoising"
 
-HDN_DESCRIPTION = HDN_DESCRIPTION = (
+HDN_DESCRIPTION = (
     "HDN leverages a hierarchical VAE to perform image "
     "restoration. It is designed to be interpretable and unsupervised, "
     "making it suitable for a wide range of microscopy images."
