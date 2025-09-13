@@ -1624,7 +1624,8 @@ def create_hdn_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    num_epochs: int,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
     encoder_conv_strides: tuple[int, ...] = (2, 2),
     decoder_conv_strides: tuple[int, ...] = (2, 2),
     multiscale_count: int = 1,
@@ -1641,6 +1642,7 @@ def create_hdn_configuration(
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
+    trainer_params: dict | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
@@ -1680,8 +1682,13 @@ def create_hdn_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int
-        Number of training epochs.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
     encoder_conv_strides : tuple[int, ...], optional
         Strides for the encoder convolutional layers, by default (2, 2).
     decoder_conv_strides : tuple[int, ...], optional
@@ -1710,6 +1717,8 @@ def create_hdn_configuration(
         Lower bound for the log variance, by default None.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use for training, by default "none".
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation.
     augmentations : Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]], optional
         List of augmentations to apply, by default None.
     train_dataloader_params : Optional[dict[str, Any]], optional
@@ -1721,6 +1730,28 @@ def create_hdn_configuration(
     -------
     Configuration
         The configuration object for training HDN.
+
+    Examples
+    --------
+    Minimum example:
+    >>> config = create_hdn_configuration(
+    ...     experiment_name="hdn_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100
+    ... )
+
+    You can also limit the number of batches per epoch:
+    >>> config = create_hdn_configuration(
+    ...     experiment_name="hdn_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_steps=100  # limit to 100 batches per epoch
+    ... )
     """
     transform_list = _list_spatial_augmentations(augmentations)
 
@@ -1764,9 +1795,18 @@ def create_hdn_configuration(
         val_dataloader_params=val_dataloader_params,
     )
 
+    # Handle trainer parameters with num_epochs and num_steps
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    # Add num_epochs and num_steps if provided
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["limit_train_batches"] = num_steps
+
     # training
     training_params = _create_training_configuration(
-        num_epochs=num_epochs,
+        trainer_params=final_trainer_params,
         logger=logger,
     )
 
@@ -1784,7 +1824,8 @@ def create_microsplit_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    num_epochs: int,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
     encoder_conv_strides: tuple[int, ...] = (2, 2),
     decoder_conv_strides: tuple[int, ...] = (2, 2),
     multiscale_count: int = 1,
@@ -1801,6 +1842,7 @@ def create_microsplit_configuration(
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
+    trainer_params: dict | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     nm_paths: list[str] | None = None,
     data_stats: tuple[float, float] | None = None,
@@ -1808,53 +1850,94 @@ def create_microsplit_configuration(
     val_dataloader_params: dict[str, Any] | None = None,
 ):  # TODO loss selection shouldn't be done here. Loss will become just microsplit
     """
-    Create_microsplit_configuration.
+    Create a configuration for training MicroSplit.
 
     Parameters
     ----------
-    input_shape : tuple, default=(1, 64, 64)
-        Shape of the input patch (channels, Y, X) or (channels, Z, Y, X) for 3D.
-    z_dims : tuple, default=(128, 128, 128, 128)
-        List of latent dimensions for each hierarchy level in the LVAE.
-    encoder_conv_strides : tuple, default=(2, 2)
-        Strides for the encoder convolutional layers.
-    decoder_conv_strides : tuple, default=(2, 2)
-        Strides for the decoder convolutional layers.
-    multiscale_count : int, default=0
-        Number of multiscale levels (0 disables multiscale).
-    output_channels : int, default=1
-        Number of output channels for the model.
-    encoder_n_filters : int, default=64
-        Number of filters in the encoder.
-    decoder_n_filters : int, default=64
-        Number of filters in the decoder.
-    encoder_dropout : float, default=0.1
-        Dropout rate for the encoder.
-    decoder_dropout : float, default=0.1
-        Dropout rate for the decoder.
-    nonlinearity : str, default="ELU"
-        Nonlinearity to use in the model (e.g., "ELU", "ReLU").
-    predict_logvar : str, default="pixelwise"
-        Type of log-variance prediction ("pixelwise" or None).
-    analytical_kl : bool, default=False
-        Whether to use analytical KL divergence.
-    optimizer : str, default="Adam"
-        Optimizer to use for training.
-    optimizer_params : dict, optional
-        Parameters for the optimizer.
-    lr_scheduler : str, default="ReduceLROnPlateau"
-        Learning rate scheduler to use.
-    lr_scheduler_params : dict, optional
-        Parameters for the learning rate scheduler.
-    loss_weights : dict, optional
-        Weights for different loss components.
-    **kwargs : dict
-        Additional keyword arguments for the configuration.
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : Sequence[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
+    encoder_conv_strides : tuple[int, ...], optional
+        Strides for the encoder convolutional layers, by default (2, 2).
+    decoder_conv_strides : tuple[int, ...], optional
+        Strides for the decoder convolutional layers, by default (2, 2).
+    multiscale_count : int, optional
+        Number of multiscale levels, by default 1.
+    z_dims : tuple[int, ...], optional
+        List of latent dimensions for each hierarchy level in the LVAE, by default (128, 128).
+    output_channels : int, optional
+        Number of output channels for the model, by default 1.
+    encoder_n_filters : int, optional
+        Number of filters in the encoder, by default 32.
+    decoder_n_filters : int, optional
+        Number of filters in the decoder, by default 32.
+    encoder_dropout : float, optional
+        Dropout rate for the encoder, by default 0.0.
+    decoder_dropout : float, optional
+        Dropout rate for the decoder, by default 0.0.
+    nonlinearity : Literal, optional
+        Nonlinearity to use in the model, by default "ReLU".
+    analytical_kl : bool, optional
+        Whether to use analytical KL divergence, by default False.
+    predict_logvar : Literal["pixelwise"] | None, optional
+        Type of log-variance prediction, by default None.
+    logvar_lowerbound : Union[float, None], optional
+        Lower bound for the log variance, by default None.
+    logger : Literal["wandb", "tensorboard", "none"], optional
+        Logger to use for training, by default "none".
+    trainer_params : dict, optional
+        Parameters for the trainer class, see PyTorch Lightning documentation.
+    augmentations : list[Union[XYFlipModel, XYRandomRotate90Model]] | None, optional
+        List of augmentations to apply, by default None.
+    nm_paths : list[str] | None, optional
+        Paths to the noise model files, by default None.
+    data_stats : tuple[float, float] | None, optional
+        Data statistics (mean, std), by default None.
+    train_dataloader_params : dict[str, Any] | None, optional
+        Parameters for the training dataloader, by default None.
+    val_dataloader_params : dict[str, Any] | None, optional
+        Parameters for the validation dataloader, by default None.
 
     Returns
     -------
     Configuration
         A configuration object for the microsplit algorithm.
+
+    Examples
+    --------
+    Minimum example:
+    >>> config = create_microsplit_configuration(
+    ...     experiment_name="microsplit_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100
+    ... )
+
+    You can also limit the number of batches per epoch:
+    >>> config = create_microsplit_configuration(
+    ...     experiment_name="microsplit_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_steps=100  # limit to 100 batches per epoch
+    ... )
     """
     transform_list = _list_spatial_augmentations(augmentations)
 
@@ -1913,9 +1996,18 @@ def create_microsplit_configuration(
         val_dataloader_params=val_dataloader_params,
     )
 
+    # Handle trainer parameters with num_epochs and num_steps
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    # Add num_epochs and num_steps if provided
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["limit_train_batches"] = num_steps
+
     # training
     training_params = _create_training_configuration(
-        num_epochs=num_epochs,
+        trainer_params=final_trainer_params,
         logger=logger,
     )
 
