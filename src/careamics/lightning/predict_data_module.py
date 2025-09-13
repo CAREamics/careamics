@@ -223,7 +223,7 @@ class PredictDataModule(L.LightningDataModule):
         dataloader_params = self.dataloader_params.copy()
         if self.tiled:
             dataloader_params["num_workers"] = 0
-            
+
         return DataLoader(
             self.predict_dataset,
             batch_size=self.batch_size,
