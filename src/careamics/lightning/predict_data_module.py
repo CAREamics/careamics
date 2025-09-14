@@ -234,7 +234,7 @@ class PredictDataModule(L.LightningDataModule):
 
 def create_predict_datamodule(
     pred_data: Union[str, Path, NDArray],
-    data_type: Union[Literal["array", "tiff", "czi", "custom"], SupportedData],
+    data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
     axes: str,
     image_means: list[float],
     image_stds: list[float],
