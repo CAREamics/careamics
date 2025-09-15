@@ -55,6 +55,7 @@ dependencies = [
     'zarr>=3.0.0a0,<4.0.0', # zarr v3 requires Python >3.10
     'pillow<=11.3.0',
     'matplotlib<=3.10.6',
+    'validators<=0.35.0'
 ]
 
 [project.optional-dependencies]

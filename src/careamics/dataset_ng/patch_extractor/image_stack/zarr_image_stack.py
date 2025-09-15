@@ -2,9 +2,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Self, Union
 
+import validators
 import zarr
-import zarr.storage
 from numpy.typing import NDArray
+from zarr.storage import FsspecStore, LocalStore
 
 from careamics.dataset.dataset_utils import reshape_array
 
@@ -16,7 +17,7 @@ class ZarrImageStack:
 
     # TODO: keeping store type narrow so that it has the path attribute
     #   base zarr store is zarr.storage.Store, includes MemoryStore
-    def __init__(self, store: zarr.storage.FsspecStore, data_path: str, axes: str):
+    def __init__(self, store: LocalStore | FsspecStore, data_path: str, axes: str):
         self._store = store
         self._array = zarr.open_array(store=self._store, path=data_path, mode="r")
         # TODO: validate axes
@@ -45,8 +46,33 @@ class ZarrImageStack:
         Assumes the path only contains 1 image.
 
         Path can be to a local file, or it can be a URL to a zarr stored in the cloud.
+
+        Parameters
+        ----------
+        path : Union[Path, str]
+            Path to the root of the OME-Zarr, local file or url.
+
+        Returns
+        -------
+        ZarrImageStack
+            Initialised ZarrImageStack.
+
+        Raises
+        ------
+        ValueError
+            If the path does not exist or is not a valid URL.
+        ValueError
+            If the OME-Zarr at the path does not contain the attribute 'multiscales'.
         """
-        store = zarr.storage.FsspecStore.from_url(url=path)
+        if Path(path).is_file():
+            store = zarr.storage.LocalStore(root=Path(path).resolve())
+        elif validators.url(path):
+            store = zarr.storage.FsspecStore.from_url(url=path)
+        else:
+            raise ValueError(
+                f"Path '{path}' is neither an existing file nor a valid URL."
+            )
+
         group = zarr.open_group(store=store, mode="r")
         if "multiscales" not in group.attrs:
             raise ValueError(
