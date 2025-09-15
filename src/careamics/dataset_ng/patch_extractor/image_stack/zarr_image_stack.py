@@ -1,11 +1,10 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Union
+from typing import Self, Union
 
 import zarr
 import zarr.storage
 from numpy.typing import NDArray
-from typing_extensions import Self
 
 from careamics.dataset.dataset_utils import reshape_array
 

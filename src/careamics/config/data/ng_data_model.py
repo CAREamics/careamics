@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pprint import pformat
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Any, Literal, Self, Union
 from warnings import warn
 
 import numpy as np
@@ -17,7 +17,6 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from typing_extensions import Self
 
 from ..transformations import XYFlipModel, XYRandomRotate90Model
 from ..validators import check_axes_validity

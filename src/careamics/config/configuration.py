@@ -5,13 +5,12 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from pprint import pformat
-from typing import Any, Literal, Union
+from typing import Any, Literal, Self, Union
 
 import numpy as np
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.main import IncEx
-from typing_extensions import Self
 
 from careamics.config.algorithms import (
     CAREAlgorithm,

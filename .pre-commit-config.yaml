@@ -33,7 +33,7 @@ repos:
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py"
         args: ["--config-file", "mypy.ini"]
         additional_dependencies:
-          - numpy
+          - numpy<2.0.0
           - pydantic
           - types-PyYAML
           - types-setuptools
