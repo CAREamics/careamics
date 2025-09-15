@@ -383,7 +383,15 @@ class VAEModule(L.LightningModule):
         return self.model(x)  # TODO Different model can have more than one output
 
     def set_data_stats(self, data_mean, data_std):
-        """Set data mean and std for the noise model likelihood."""
+        """Set data mean and std for the noise model likelihood.
+
+        Parameters
+        ----------
+        data_mean : float
+            Mean of the data.
+        data_std : float
+            Standard deviation of the data.
+        """
         if self.noise_model_likelihood is not None:
             self.noise_model_likelihood.set_data_stats(data_mean, data_std)
 
@@ -712,15 +720,6 @@ class VAEModule(L.LightningModule):
         if psnr_arr is not None:
             psnr = np.mean(psnr_arr)
         return psnr
-
-    def _get_device(self):
-        """Get the appropriate device for computation."""
-        if torch.cuda.is_available():
-            return "cuda"
-        elif torch.backends.mps.is_available():
-            return "mps"
-        else:
-            return "cpu"
 
 
 # TODO: make this LVAE compatible (?)

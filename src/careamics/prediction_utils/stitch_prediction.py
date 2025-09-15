@@ -19,7 +19,7 @@ class TilingMode:
     ShiftBoundary = 2
 
 
-def stitch_predictions_new(predictions, dset):
+def stitch_prediction_vae(predictions, dset):
     """
     Stitch predictions back together using dataset's index manager.
     

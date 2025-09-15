@@ -28,41 +28,6 @@ def test_convert_outputs_tiled(ordered_array, batch_size, n_samples):
     assert np.array_equal(np.stack(predictions, axis=0).squeeze(), arr.squeeze())
 
 
-def test_combine_tiled_batches_out_of_order(ordered_array):
-    """Test that tile ordering is preserved even when batches come back out of order"""
-    # Create a simple 2x2 tile case
-    tile_size = (4, 4)
-    overlaps = (2, 2)
-    arr = ordered_array((1, 1, 8, 8))  # Small array that creates 4 tiles (2x2 grid)
-    all_tiles = list(extract_tiles(arr, tile_size, overlaps))
-    
-    # Create batches normally
-    batch1_tiles = np.concatenate([all_tiles[0][0][np.newaxis], all_tiles[1][0][np.newaxis]], axis=0)
-    batch1_infos = [all_tiles[0][1], all_tiles[1][1]]
-    
-    batch2_tiles = np.concatenate([all_tiles[2][0][np.newaxis], all_tiles[3][0][np.newaxis]], axis=0)
-    batch2_infos = [all_tiles[2][1], all_tiles[3][1]]
-    
-    # Simulate out-of-order processing by swapping batch order
-    predictions_out_of_order = [(batch2_tiles, batch2_infos), (batch1_tiles, batch1_infos)]
-    
-    # Test that _combine_tiled_batches correctly reorders
-    prediction_tiles, tile_infos = _combine_tiled_batches(predictions_out_of_order)
-    
-    # Verify that tiles are in correct order by checking stitch coordinates
-    for i in range(len(tile_infos) - 1):
-        current_coords = tile_infos[i].stitch_coords
-        next_coords = tile_infos[i+1].stitch_coords
-        
-        # For a 2x2 grid, tiles should be ordered: (0,0), (0,X), (Y,0), (Y,X)
-        # where the first coordinate is Y and second is X
-        current_key = (current_coords[0][0], current_coords[1][0])  # (Y_start, X_start)
-        next_key = (next_coords[0][0], next_coords[1][0])
-        
-        # Should be in row-major order
-        assert current_key <= next_key, f"Tiles not in correct order: {current_key} vs {next_key}"
-
-
 @pytest.mark.parametrize("batch_size, n_samples", [(1, 1), (1, 2), (2, 2)])
 def test_convert_outputs_not_tiled(ordered_array, batch_size, n_samples):
     """Test conversion of output for when prediction is not tiled"""

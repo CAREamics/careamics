@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ..config.tile_information import TileInformation
-from .stitch_prediction import stitch_prediction, stitch_predictions_new
+from .stitch_prediction import stitch_prediction, stitch_prediction_vae
 
 
 def convert_outputs(predictions: list[Any], tiled: bool) -> list[NDArray]:
@@ -77,8 +77,8 @@ def convert_outputs_microsplit(
     tile_stds_arr = np.concatenate(tile_stds, axis=0)
 
     # Apply stitching using stitch_predictions_new
-    stitched_predictions = stitch_predictions_new(tiles_arr, dataset)
-    stitched_stds = stitch_predictions_new(tile_stds_arr, dataset)
+    stitched_predictions = stitch_prediction_vae(tiles_arr, dataset)
+    stitched_stds = stitch_prediction_vae(tile_stds_arr, dataset)
 
     return stitched_predictions, stitched_stds
 
@@ -109,6 +109,8 @@ def combine_batches(
 ) -> Union[list[NDArray], tuple[list[NDArray], list[TileInformation]]]:
     """
     If predictions are in batches, they will be combined.
+
+    # TODO improve description!
 
     Parameters
     ----------
@@ -147,31 +149,14 @@ def _combine_tiled_batches(
     tuple of (list of numpy.ndarray, list of TileInformation)
         Combined batches.
     """
-    # Flatten predictions and tile_infos
-    flat_predictions = []
-    flat_tile_infos = []
-    
-    for preds, tile_info_list in predictions:
-        # Split batch dimension into individual predictions
-        individual_preds = [preds[i:i+1] for i in range(preds.shape[0])]
-        flat_predictions.extend(individual_preds)
-        flat_tile_infos.extend(tile_info_list)
-    
-    # Sort by tile order using stitch coordinates as a proxy for tile order
-    # This ensures correct stitching even if batches were processed out of order
-    def tile_sort_key(item):
-        tile_info = item[1]
-        # Sort by sample_id first, then by stitch coordinates (Y, X, Z if present)
-        stitch_coords = tile_info.stitch_coords
-        return (tile_info.sample_id, *[coord[0] for coord in stitch_coords])
-    
-    # Combine predictions and tile_infos, sort, then separate
-    combined = list(zip(flat_predictions, flat_tile_infos, strict=False))
-    combined_sorted = sorted(combined, key=tile_sort_key)
-    
-    prediction_tiles = [pred for pred, _ in combined_sorted]
-    tile_infos = [tile_info for _, tile_info in combined_sorted]
-    
+    # turn list of lists into single list
+    tile_infos = [
+        tile_info for *_, tile_info_list in predictions for tile_info in tile_info_list
+    ]
+    prediction_tiles: list[NDArray] = _combine_array_batches(
+        [preds for preds, *_ in predictions]
+    )
+
     return prediction_tiles, tile_infos
 
 
