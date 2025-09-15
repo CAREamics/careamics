@@ -41,7 +41,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    'numpy<2.0.0',
+    'numpy',
     'torch>=2.0,<=2.8.0',
     'torchvision<=0.23.0',
     'bioimageio.core==0.9.0',
