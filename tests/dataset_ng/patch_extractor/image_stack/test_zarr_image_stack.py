@@ -10,7 +10,7 @@ from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
 
 
 def create_test_zarr(file_path: Path, data_path: str, data: NDArray):
-    store = zarr.storage.FSStore(url=file_path.resolve())
+    store = zarr.storage.FsspecStore.from_url(url=file_path.resolve())
     # create array
     array = zarr.create(
         store=store,
@@ -52,7 +52,7 @@ def test_extract_patch_2D(
     create_test_zarr(file_path=file_path, data_path=data_path, data=data)
 
     # initialise ZarrImageStack
-    store = zarr.storage.FSStore(url=file_path)
+    store = zarr.storage.FsspecStore.from_url(url=file_path)
     image_stack = ZarrImageStack(store=store, data_path=data_path, axes=original_axes)
     # TODO: this assert can move if _reshaped_data_shape is tested separately
     assert image_stack.data_shape == expected_shape
