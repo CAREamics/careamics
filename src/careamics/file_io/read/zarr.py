@@ -2,12 +2,12 @@
 
 from typing import Union
 
-from zarr import Group, core, storage
+from zarr import Array, Group, storage
 
 
 def read_zarr(
     zarr_source: Group, axes: str
-) -> Union[core.Array, storage.LocalStore, Group]:
+) -> Union[Array, storage.LocalStore, Group]:
     """Read a file and returns a pointer.
 
     Parameters
@@ -37,7 +37,7 @@ def read_zarr(
     elif isinstance(zarr_source, storage.LocalStore):
         raise NotImplementedError("LocalStore not supported yet")
 
-    elif isinstance(zarr_source, core.Array):
+    elif isinstance(zarr_source, Array):
         # array should be of shape (S, (C), (Z), Y, X), iterating over S ?
         if zarr_source.dtype == "O":
             raise NotImplementedError("Object type not supported yet")
