@@ -7,6 +7,8 @@ __all__ = [
     "N2VManipulateModel",
     "NoNormModel",
     "StandardizeModel",
+    "QuantileModel",
+    "MinMaxModel",
     "TransformModel",
     "XYFlipModel",
     "XYRandomRotate90Model",
@@ -14,7 +16,7 @@ __all__ = [
 
 
 from .n2v_manipulate_model import N2VManipulateModel
-from .normalize_models import NoNormModel, StandardizeModel
+from .normalize_models import NoNormModel, StandardizeModel, QuantileModel, MinMaxModel
 from .transform_model import TransformModel
 from .transform_unions import (
     NORM_AND_SPATIAL_UNION,

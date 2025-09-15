@@ -24,6 +24,7 @@ from careamics.dataset_ng.patching_strategies import (
     WholeSamplePatchingStrategy,
 )
 from careamics.transforms import Compose
+from careamics.transforms.normalization.factory import build_normalization_transform
 
 
 class Mode(str, Enum):
@@ -63,6 +64,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self.input_stats, self.target_stats = self._initialize_statistics()
 
         self.transforms = self._initialize_transforms()
+        self.normalization = build_normalization_transform(self.config.normalization)
 
     def _initialize_patching_strategy(self) -> PatchingStrategy:
         patching_strategy: PatchingStrategy
@@ -117,12 +119,11 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def _initialize_transforms(self) -> Optional[Compose]:
         if self.mode == Mode.TRAINING:
             return Compose(
-                transform_list=[self.config.normalization]
-                + list(self.config.transforms)
+                list(self.config.transforms)
             )
 
         # TODO: add TTA
-        return Compose(transform_list=[self.config.normalization])
+        return None
 
     def _calculate_stats(
         self, data_extractor: PatchExtractor[GenericImageStack]
@@ -199,6 +200,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             if self.target_extractor is not None
             else None
         )
+
+        input_patch, target_patch, _ = self.normalization(input_patch, target_patch)
 
         if self.transforms is not None:
             if self.target_extractor is not None:

@@ -297,7 +297,7 @@ class NGDataConfig(BaseModel):
                 image_means=self.image_means,
                 image_stds=self.image_stds,
                 target_means=self.target_means,
-                targettarget_stds_std=self.target_stds,
+                target_stds=self.target_stds,
             )
         return self
 

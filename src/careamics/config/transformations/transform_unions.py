@@ -4,7 +4,7 @@ from typing import Annotated, Union
 
 from pydantic import Discriminator
 
-from .normalize_models import NoNormModel, StandardizeModel
+from .normalize_models import NoNormModel, StandardizeModel, QuantileModel, MinMaxModel
 from .xy_flip_model import XYFlipModel
 from .xy_random_rotate90_model import XYRandomRotate90Model
 
@@ -12,6 +12,8 @@ NORM_AND_SPATIAL_UNION = Annotated[
     Union[
         StandardizeModel,
         NoNormModel,
+        QuantileModel,
+        MinMaxModel,
         XYFlipModel,
         XYRandomRotate90Model,
     ],
@@ -24,6 +26,8 @@ NORMALIZATION_UNION = Annotated[
     Union[
         StandardizeModel,
         NoNormModel,
+        QuantileModel,
+        MinMaxModel,
     ],
     Discriminator("name"),  # used to tell the different transform models apart
 ]
