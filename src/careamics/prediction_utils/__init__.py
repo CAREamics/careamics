@@ -9,4 +9,8 @@ __all__ = [
 ]
 
 from .prediction_outputs import convert_outputs, convert_outputs_microsplit
-from .stitch_prediction import stitch_prediction, stitch_prediction_single, stitch_prediction_vae
+from .stitch_prediction import (
+    stitch_prediction,
+    stitch_prediction_single,
+    stitch_predictions_vae,
+)

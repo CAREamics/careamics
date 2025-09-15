@@ -22,7 +22,7 @@ class TilingMode:
 def stitch_prediction_vae(predictions, dset):
     """
     Stitch predictions back together using dataset's index manager.
-    
+
     Args:
         predictions: Array of predictions with shape (n_tiles, channels, height, width)
         dset: Dataset object with idx_manager containing tiling information
@@ -47,7 +47,9 @@ def stitch_prediction_vae(predictions, dset):
 
         # valid grid start, valid grid end
         vgs = np.array([max(0, x) for x in gs], dtype=int)
-        vge = np.array([min(x, y) for x, y in zip(ge, mng.data_shape)], dtype=int)
+        vge = np.array(
+            [min(x, y) for x, y in zip(ge, mng.data_shape, strict=False)], dtype=int
+        )
 
         if mng.tiling_mode == TilingMode.ShiftBoundary:
             for dim in range(len(vgs)):

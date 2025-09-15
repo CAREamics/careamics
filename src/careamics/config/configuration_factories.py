@@ -290,7 +290,7 @@ def _create_data_configuration(
 
 
 def _create_microsplit_data_configuration(
-    data_type: Literal["array", "tiff", "czi", "custom"],
+    data_type: Literal["array", "tiff", "custom"],
     axes: str,
     patch_size: Sequence[int],
     grid_size: int,
