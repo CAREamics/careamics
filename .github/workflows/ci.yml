@@ -27,9 +27,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13"]
         # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#standard-github-hosted-runners-for-public-repositories
-        platform: [ubuntu-latest, windows-latest] # macos-latest
+        platform: [ubuntu-latest, windows-latest] # macos-latest  
 
     steps:
       - name: 🛑 Cancel Previous Runs
