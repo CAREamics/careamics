@@ -47,7 +47,7 @@ class ZarrImageStack:
 
         Path can be to a local file, or it can be a URL to a zarr stored in the cloud.
         """
-        store = zarr.storage.FsspecStore(url=path)
+        store = zarr.storage.FsspecStore.from_url(url=path)
         group = zarr.open_group(store=store, mode="r")
         if "multiscales" not in group.attrs:
             raise ValueError(
