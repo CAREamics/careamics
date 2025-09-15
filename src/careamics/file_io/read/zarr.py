@@ -2,12 +2,12 @@
 
 from typing import Union
 
-from zarr import DirectoryStore, Group, core
+from zarr import Group, core, storage
 
 
 def read_zarr(
     zarr_source: Group, axes: str
-) -> Union[core.Array, DirectoryStore, Group]:
+) -> Union[core.Array, storage.LocalStore, Group]:
     """Read a file and returns a pointer.
 
     Parameters
@@ -24,8 +24,8 @@ def read_zarr(
 
     Raises
     ------
-    ValueError, OSError
-        if a file is not a valid tiff or damaged.
+    NotImplementedError
+        if the file is a `LocalStore`.
     ValueError
         if data dimensions are not 2, 3 or 4.
     ValueError
@@ -34,8 +34,8 @@ def read_zarr(
     if isinstance(zarr_source, Group):
         array = zarr_source[0]
 
-    elif isinstance(zarr_source, DirectoryStore):
-        raise NotImplementedError("DirectoryStore not supported yet")
+    elif isinstance(zarr_source, storage.LocalStore):
+        raise NotImplementedError("LocalStore not supported yet")
 
     elif isinstance(zarr_source, core.Array):
         # array should be of shape (S, (C), (Z), Y, X), iterating over S ?
