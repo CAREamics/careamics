@@ -17,7 +17,7 @@ class ZarrImageStack:
 
     # TODO: keeping store type narrow so that it has the path attribute
     #   base zarr store is zarr.storage.Store, includes MemoryStore
-    def __init__(self, store: zarr.storage.FSStore, data_path: str, axes: str):
+    def __init__(self, store: zarr.storage.FsspecStore, data_path: str, axes: str):
         self._store = store
         self._array = zarr.open_array(store=self._store, path=data_path, mode="r")
         # TODO: validate axes
@@ -47,7 +47,7 @@ class ZarrImageStack:
 
         Path can be to a local file, or it can be a URL to a zarr stored in the cloud.
         """
-        store = zarr.storage.FSStore(url=path)
+        store = zarr.storage.FsspecStore(url=path)
         group = zarr.open_group(store=store, mode="r")
         if "multiscales" not in group.attrs:
             raise ValueError(
