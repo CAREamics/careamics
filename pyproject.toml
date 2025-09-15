@@ -20,7 +20,7 @@ name = "careamics"
 dynamic = ["version"]
 description = "Toolbox for running N2V and friends."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "BSD-3-Clause" }
 authors = [
     { name = 'CAREamics team', email = 'rse@fht.org' },
@@ -34,9 +34,10 @@ authors = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: BSD License",
     "Typing :: Typed",
 ]
