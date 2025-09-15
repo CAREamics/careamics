@@ -1672,10 +1672,7 @@ def get_likelihood_config(
                 )
             )
         noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
-        nm_lik_config = NMLikelihoodConfig(
-            data_mean=data_stats[0],
-            data_std=data_stats[1],
-        )
+        nm_lik_config = NMLikelihoodConfig()# TODO this config isn't needed probably
     else:
         noise_model_config = None
         nm_lik_config = None
@@ -1895,7 +1892,8 @@ def create_microsplit_configuration(
     num_steps: int | None = None,
     encoder_conv_strides: tuple[int, ...] = (2, 2),
     decoder_conv_strides: tuple[int, ...] = (2, 2),
-    multiscale_count: int = 1,
+    multiscale_count: int = 3,
+    grid_size: int = 32,  # TODO most likely can be derived from patch size
     z_dims: tuple[int, ...] = (128, 128),
     output_channels: int = 1,
     encoder_n_filters: int = 32,
@@ -2047,6 +2045,7 @@ def create_microsplit_configuration(
         "loss": loss_config,
         "model": network_model,
         "gaussian_likelihood": gaussian_likelihood_config,
+        "noise_model": noise_model_config,
         "noise_model_likelihood": nm_likelihood_config,
     }
 
@@ -2054,10 +2053,12 @@ def create_microsplit_configuration(
     algorithm_config = MicroSplitAlgorithm(**algorithm_params)
 
     # data
-    data_params = _create_data_configuration(
+    data_params = _create_microsplit_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
+        grid_size=grid_size,
+        multiscale_count=multiscale_count,
         batch_size=batch_size,
         augmentations=transform_list,
         train_dataloader_params=train_dataloader_params,

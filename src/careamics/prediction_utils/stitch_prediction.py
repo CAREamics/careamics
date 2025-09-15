@@ -10,9 +10,7 @@ from careamics.config.tile_information import TileInformation
 
 
 class TilingMode:
-    """
-    Enum for the tiling mode.
-    """
+    """Enum for the tiling mode."""
 
     TrimBoundary = 0
     PadBoundary = 1

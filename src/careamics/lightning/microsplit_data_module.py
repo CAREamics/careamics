@@ -195,6 +195,7 @@ class MicroSplitDataModule(L.LightningDataModule):
         )  # TODO repeats old logic, revisit
 
     def train_dataloader(self):
+        """Create a dataloader for training."""
         return DataLoader(
             self.train_dataset,
             batch_size=self.train_config.batch_size,  # TODO should be inside dataloader params?
@@ -202,6 +203,7 @@ class MicroSplitDataModule(L.LightningDataModule):
         )
 
     def val_dataloader(self):
+        """Create a dataloader for validation."""
         return DataLoader(
             self.val_dataset,
             batch_size=self.train_config.batch_size,
@@ -238,7 +240,7 @@ def create_microsplit_train_datamodule(
     val_percentage: float = 0.1,
     val_minimum_split: int = 5,
     use_in_memory: bool = True,
-    transforms: list = None,
+    transforms: list = None, # TODO should it be here?
     train_dataloader_params: dict = None,
     val_dataloader_params: dict = None,
     **dataset_kwargs,
