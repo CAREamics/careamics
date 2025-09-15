@@ -5,9 +5,7 @@ from typing import Union
 from zarr import Array, Group, storage
 
 
-def read_zarr(
-    zarr_source: Group, axes: str
-) -> Union[Array, storage.LocalStore, Group]:
+def read_zarr(zarr_source: Group, axes: str) -> Union[Array, storage.LocalStore, Group]:
     """Read a file and returns a pointer.
 
     Parameters
