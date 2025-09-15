@@ -2,12 +2,12 @@
 
 from typing import Union
 
-from zarr import Group, core, storage
+from zarr import DirectoryStore, Group, core
 
 
 def read_zarr(
     zarr_source: Group, axes: str
-) -> Union[core.Array, storage.DirectoryStore, Group]:
+) -> Union[core.Array, DirectoryStore, Group]:
     """Read a file and returns a pointer.
 
     Parameters
@@ -34,7 +34,7 @@ def read_zarr(
     if isinstance(zarr_source, Group):
         array = zarr_source[0]
 
-    elif isinstance(zarr_source, storage.DirectoryStore):
+    elif isinstance(zarr_source, DirectoryStore):
         raise NotImplementedError("DirectoryStore not supported yet")
 
     elif isinstance(zarr_source, core.Array):
