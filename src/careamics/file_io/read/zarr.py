@@ -2,12 +2,12 @@
 
 from typing import Union
 
-from zarr import Group, core, hierarchy, storage
+from zarr import Group, core, storage
 
 
 def read_zarr(
     zarr_source: Group, axes: str
-) -> Union[core.Array, storage.DirectoryStore, hierarchy.Group]:
+) -> Union[core.Array, storage.DirectoryStore, Group]:
     """Read a file and returns a pointer.
 
     Parameters
@@ -31,7 +31,7 @@ def read_zarr(
     ValueError
         if axes parameter from config is not consistent with data dimensions.
     """
-    if isinstance(zarr_source, hierarchy.Group):
+    if isinstance(zarr_source, Group):
         array = zarr_source[0]
 
     elif isinstance(zarr_source, storage.DirectoryStore):
