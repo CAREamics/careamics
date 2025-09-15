@@ -71,7 +71,7 @@ dev = [
 
     # libraries used in some tests
     "onnx",
-    "ml_dtypes>=0.5.0" # otherwise fails on python 3.13
+    "ml_dtypes>=0.5.0" # otherwise fails on python 3.13, used in onnx tests
 ]
 
 # notebooks
