@@ -9,7 +9,7 @@ from .types import DataSplitType, DataType, TilingMode
 class MicroSplitDataConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True, extra="allow")
 
-    data_type: Union[DataType, str] | None # TODO remove or refactor!!
+    data_type: Union[DataType, str] | None  # TODO remove or refactor!!
     """Type of the dataset, should be one of DataType"""
 
     depth3D: int | None = 1

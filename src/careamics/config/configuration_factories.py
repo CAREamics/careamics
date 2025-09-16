@@ -1664,15 +1664,16 @@ def get_likelihood_config(
         #     raise ValueError(f"data_stats is required for loss_type '{loss_type}'")
         # TODO validators should be in pydantic models
         gmm_list = []
-        for NM_path in nm_paths:
-            gmm_list.append(
-                GaussianMixtureNMConfig(
-                    model_type="GaussianMixtureNoiseModel",
-                    path=NM_path,
+        if nm_paths is not None:
+            for NM_path in nm_paths:
+                gmm_list.append(
+                    GaussianMixtureNMConfig(
+                        model_type="GaussianMixtureNoiseModel",
+                        path=NM_path,
+                    )
                 )
-            )
         noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
-        nm_lik_config = NMLikelihoodConfig()# TODO this config isn't needed probably
+        nm_lik_config = NMLikelihoodConfig()  # TODO this config isn't needed probably
     else:
         noise_model_config = None
         nm_lik_config = None

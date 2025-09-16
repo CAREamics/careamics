@@ -22,7 +22,18 @@ from careamics.lvae_training.dataset.types import TilingMode
 
 # TODO refactor
 def load_one_file(fpath):
-    """Load a single 2D image file."""
+    """Load a single 2D image file.
+
+    Parameters
+    ----------
+    fpath : str or Path
+        Path to the image file.
+
+    Returns
+    -------
+    numpy.ndarray
+        Reshaped image data.
+    """
     data = tifffile.imread(fpath)
     if len(data.shape) == 2:
         axes = "YX"
@@ -72,7 +83,22 @@ def load_data(datadir):
 
 # TODO refactor
 def get_datasplit_tuples(val_fraction, test_fraction, data_length):
-    """Get train/val/test indices for data splitting."""
+    """Get train/val/test indices for data splitting.
+
+    Parameters
+    ----------
+    val_fraction : float or None
+        Fraction of data to use for validation.
+    test_fraction : float or None
+        Fraction of data to use for testing.
+    data_length : int
+        Total length of the dataset.
+
+    Returns
+    -------
+    tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]
+        Training, validation, and test indices.
+    """
     indices = np.arange(data_length)
     np.random.shuffle(indices)
 
@@ -102,7 +128,30 @@ def get_train_val_data(
     allow_generation=None,
     **kwargs,
 ):
-    """Load and split data according to configuration."""
+    """Load and split data according to configuration.
+
+    Parameters
+    ----------
+    data_config : MicroSplitDataConfig
+        Data configuration object.
+    datadir : str or Path
+        Path to the data directory.
+    datasplit_type : DataSplitType
+        Type of data split to return.
+    val_fraction : float, optional
+        Fraction of data to use for validation.
+    test_fraction : float, optional
+        Fraction of data to use for testing.
+    allow_generation : bool, optional
+        Whether to allow data generation.
+    **kwargs
+        Additional keyword arguments.
+
+    Returns
+    -------
+    numpy.ndarray
+        Split data array.
+    """
     data = load_data(datadir)
     train_idx, val_idx, test_idx = get_datasplit_tuples(
         val_fraction, test_fraction, len(data)
@@ -128,6 +177,29 @@ class MicroSplitDataModule(L.LightningDataModule):
 
     Matches the interface of TrainDataModule, but internally uses original MicroSplit
     dataset logic.
+
+    Parameters
+    ----------
+    data_config : MicroSplitDataConfig
+        Configuration for the MicroSplit dataset.
+    train_data : str
+        Path to training data directory.
+    val_data : str, optional
+        Path to validation data directory.
+    train_data_target : str, optional
+        Path to training target data.
+    val_data_target : str, optional
+        Path to validation target data.
+    read_source_func : Callable, optional
+        Function to read source data.
+    extension_filter : str, optional
+        File extension filter.
+    val_percentage : float, optional
+        Percentage of data to use for validation, by default 0.1.
+    val_minimum_split : int, optional
+        Minimum number of samples for validation split, by default 5.
+    use_in_memory : bool, optional
+        Whether to use in-memory dataset, by default True.
     """
 
     def __init__(
@@ -143,6 +215,31 @@ class MicroSplitDataModule(L.LightningDataModule):
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
     ):
+        """Initialize MicroSplitDataModule.
+
+        Parameters
+        ----------
+        data_config : MicroSplitDataConfig
+            Configuration for the MicroSplit dataset.
+        train_data : str
+            Path to training data directory.
+        val_data : str, optional
+            Path to validation data directory.
+        train_data_target : str, optional
+            Path to training target data.
+        val_data_target : str, optional
+            Path to validation target data.
+        read_source_func : Callable, optional
+            Function to read source data.
+        extension_filter : str, optional
+            File extension filter.
+        val_percentage : float, optional
+            Percentage of data to use for validation, by default 0.1.
+        val_minimum_split : int, optional
+            Minimum number of samples for validation split, by default 5.
+        use_in_memory : bool, optional
+            Whether to use in-memory dataset, by default True.
+        """
         super().__init__()
         # Dataset selection logic (adapted from create_train_val_datasets)
         self.train_config = data_config  # SHould configs be separated?
@@ -195,7 +292,13 @@ class MicroSplitDataModule(L.LightningDataModule):
         )  # TODO repeats old logic, revisit
 
     def train_dataloader(self):
-        """Create a dataloader for training."""
+        """Create a dataloader for training.
+
+        Returns
+        -------
+        DataLoader
+            Training dataloader.
+        """
         return DataLoader(
             self.train_dataset,
             batch_size=self.train_config.batch_size,  # TODO should be inside dataloader params?
@@ -203,7 +306,13 @@ class MicroSplitDataModule(L.LightningDataModule):
         )
 
     def val_dataloader(self):
-        """Create a dataloader for validation."""
+        """Create a dataloader for validation.
+
+        Returns
+        -------
+        DataLoader
+            Validation dataloader.
+        """
         return DataLoader(
             self.val_dataset,
             batch_size=self.train_config.batch_size,
@@ -229,20 +338,20 @@ def create_microsplit_train_datamodule(
     data_type: DataType,
     axes: str,  # TODO should be there after refactoring
     batch_size: int,
-    val_data: str = None,
+    val_data: str | None = None,
     num_channels: int = 2,
     depth3D: int = 1,
-    grid_size: tuple = None,
-    multiscale_count: int = None,
+    grid_size: tuple | None = None,
+    multiscale_count: int | None = None,
     tiling_mode: TilingMode = TilingMode.ShiftBoundary,
-    read_source_func: Callable = None,  # TODO should be there after refactoring
+    read_source_func: Callable | None = None,  # TODO should be there after refactoring
     extension_filter: str = "",
     val_percentage: float = 0.1,
     val_minimum_split: int = 5,
     use_in_memory: bool = True,
-    transforms: list = None, # TODO should it be here?
-    train_dataloader_params: dict = None,
-    val_dataloader_params: dict = None,
+    transforms: list | None = None,  # TODO should it be here?
+    train_dataloader_params: dict | None = None,
+    val_dataloader_params: dict | None = None,
     **dataset_kwargs,
 ) -> MicroSplitDataModule:
     """
@@ -340,6 +449,19 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
 
     Matches the interface of PredictDataModule, but internally uses MicroSplit
     dataset logic for prediction.
+
+    Parameters
+    ----------
+    pred_config : MicroSplitDataConfig
+        Configuration for MicroSplit prediction.
+    pred_data : str or Path or numpy.ndarray
+        Prediction data, can be a path to a folder, a file or a numpy array.
+    read_source_func : Callable, optional
+        Function to read custom types.
+    extension_filter : str, optional
+        Filter to filter file extensions for custom types.
+    dataloader_params : dict, optional
+        Dataloader parameters.
     """
 
     def __init__(
@@ -424,13 +546,13 @@ def create_microsplit_predict_datamodule(
     batch_size: int = 1,
     num_channels: int = 2,
     depth3D: int = 1,
-    grid_size: int = None,
-    multiscale_count: int = None,
-    data_stats: tuple = None,
+    grid_size: int | None = None,
+    multiscale_count: int | None = None,
+    data_stats: tuple | None = None,
     tiling_mode: TilingMode = TilingMode.ShiftBoundary,
-    read_source_func: Callable = None,
+    read_source_func: Callable | None = None,
     extension_filter: str = "",
-    dataloader_params: dict = None,
+    dataloader_params: dict | None = None,
     **dataset_kwargs,
 ) -> MicroSplitPredictDataModule:
     """
@@ -440,8 +562,8 @@ def create_microsplit_predict_datamodule(
     ----------
     pred_data : str or Path or numpy.ndarray
         Prediction data, can be a path to a folder, a file or a numpy array.
-    patch_size : tuple
-        Size of one patch of data.
+    tile_size : tuple
+        Size of one tile of data.
     data_type : DataType
         Type of the dataset (must be a DataType enum value).
     axes : str
@@ -501,7 +623,9 @@ def create_microsplit_predict_datamodule(
     return MicroSplitPredictDataModule(
         pred_config=pred_config,
         pred_data=pred_data,
-        read_source_func=read_source_func or get_train_val_data,
+        read_source_func=(
+            read_source_func if read_source_func is not None else get_train_val_data
+        ),
         extension_filter=extension_filter,
         dataloader_params=dataloader_params,
     )

@@ -1,6 +1,5 @@
 """Tests for MicroSplitDataModule data statistics handling."""
 
-
 import numpy as np
 import tifffile
 
@@ -49,7 +48,7 @@ def test_microsplit_datamodule_data_stats(tmp_path):
     data_module = MicroSplitDataModule(
         data_config=config,
         train_data=str(tmp_path),
-        read_source_func=get_train_val_data
+        read_source_func=get_train_val_data,
     )
 
     assert data_module.data_stats is not None

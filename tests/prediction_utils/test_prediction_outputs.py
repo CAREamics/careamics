@@ -3,7 +3,6 @@ import pytest
 
 from careamics.dataset.tiling import extract_tiles
 from careamics.prediction_utils import convert_outputs
-from careamics.prediction_utils.prediction_outputs import _combine_tiled_batches
 
 
 @pytest.mark.parametrize("n_samples", [1, 2])
