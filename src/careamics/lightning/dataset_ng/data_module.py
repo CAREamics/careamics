@@ -7,7 +7,7 @@ from typing import Any, Union, overload
 import numpy as np
 import pytorch_lightning as L
 from numpy.typing import NDArray
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Sampler
 from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.ng_data_model import NGDataConfig
@@ -16,6 +16,7 @@ from careamics.dataset.dataset_utils import list_files, validate_source_target_f
 from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.patch_extractor import ImageStackLoader
+from careamics.dataset_ng.samplers import create_filtering_sampler
 from careamics.utils import get_logger
 
 logger = get_logger(__name__)
@@ -629,6 +630,21 @@ class CareamicsDataModule(L.LightningDataModule):
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
+    def initialize_sampler(self) -> Sampler:
+        """
+        Initialize a sampler for the training dataset.
+
+        Returns
+        -------
+        Sampler
+            Sampler for the training dataset. If no sampler is needed, returns None.
+        """
+        sampler = None
+
+        if self.config.coord_filter is not None or self.config.patch_filter is not None:
+            sampler = create_filtering_sampler(self.train_dataset, self.config)
+        return sampler
+
     def train_dataloader(self) -> DataLoader:
         """
         Create a dataloader for training.
@@ -638,9 +654,13 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Training dataloader.
         """
+        sampler = self.initialize_sampler()
+        if sampler is not None:
+            self.config.train_dataloader_params["shuffle"] = False
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
+            sampler=sampler,
             collate_fn=default_collate,
             **self.config.train_dataloader_params,
         )
