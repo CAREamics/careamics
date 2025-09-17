@@ -5,7 +5,7 @@ from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
-from torch import Tensor, nn, stack
+import torch
 
 from careamics.config import (
     N2VAlgorithm,
@@ -100,7 +100,7 @@ class FCNModule(L.LightningModule):
             self.n2v_preprocess = None
 
         self.algorithm = algorithm_config.algorithm
-        self.model: nn.Module = model_factory(algorithm_config.model)
+        self.model: torch.nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
@@ -124,12 +124,12 @@ class FCNModule(L.LightningModule):
         """
         return self.model(x)
 
-    def training_step(self, batch: Tensor, batch_idx: Any) -> Any:
+    def training_step(self, batch: torch.Tensor, batch_idx: Any) -> Any:
         """Training step.
 
         Parameters
         ----------
-        batch : torch.Tensor
+        batch : torch.torch.Tensor
             Input batch.
         batch_idx : Any
             Batch index.
@@ -156,12 +156,12 @@ class FCNModule(L.LightningModule):
         self.log("learning_rate", current_lr, on_step=False, on_epoch=True, logger=True)
         return loss
 
-    def validation_step(self, batch: Tensor, batch_idx: Any) -> None:
+    def validation_step(self, batch: torch.Tensor, batch_idx: Any) -> None:
         """Validation step.
 
         Parameters
         ----------
-        batch : torch.Tensor
+        batch : torch.torch.Tensor
             Input batch.
         batch_idx : Any
             Batch index.
@@ -186,12 +186,12 @@ class FCNModule(L.LightningModule):
             logger=True,
         )
 
-    def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
+    def predict_step(self, batch: torch.Tensor, batch_idx: Any) -> Any:
         """Prediction step.
 
         Parameters
         ----------
-        batch : torch.Tensor
+        batch : torch.torch.torch.Tensor
             Input batch.
         batch_idx : Any
             Batch index.
@@ -332,7 +332,7 @@ class VAEModule(L.LightningModule):
         # self.save_hyperparameters(self.algorithm_config.model_dump())
 
         # create model
-        self.model: nn.Module = model_factory(self.algorithm_config.model)
+        self.model: torch.nn.Module = model_factory(self.algorithm_config.model)
 
         # supervised_mode
         self.supervised_mode = self.algorithm_config.is_supervised
@@ -366,18 +366,18 @@ class VAEModule(L.LightningModule):
             RunningPSNR() for _ in range(self.algorithm_config.model.output_channels)
         ]
 
-    def forward(self, x: Tensor) -> tuple[Tensor, dict[str, Any]]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.
 
         Parameters
         ----------
-        x : Tensor
+        x : torch.Tensor
             Input tensor of shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
             number of lateral inputs.
 
         Returns
         -------
-        tuple[Tensor, dict[str, Any]]
+        tuple[torch.Tensor, dict[str, Any]]
             A tuple with the output tensor and additional data from the top-down pass.
         """
         return self.model(x)  # TODO Different model can have more than one output
@@ -396,13 +396,13 @@ class VAEModule(L.LightningModule):
             self.noise_model_likelihood.set_data_stats(data_mean, data_std)
 
     def training_step(
-        self, batch: tuple[Tensor, Tensor], batch_idx: Any
-    ) -> dict[str, Tensor] | None:
+        self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: Any
+    ) -> dict[str, torch.Tensor] | None:
         """Training step.
 
         Parameters
         ----------
-        batch : tuple[Tensor, Tensor]
+        batch : tuple[torch.Tensor, torch.Tensor]
             Input batch. It is a tuple with the input tensor and the target tensor.
             The input tensor has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
             number of lateral inputs. The target tensor has shape (B, C, [Z], Y, X),
@@ -437,8 +437,7 @@ class VAEModule(L.LightningModule):
                 or self.noise_model_likelihood.data_std is None
             ):
                 raise RuntimeError(
-                    "NoiseModelLikelihood: data_mean and data_std must be set before "
-                    "training."
+                    "NoiseModelLikelihood: data_mean and data_std must be set before training."
                 )
         loss = self.loss_func(
             model_outputs=out,
@@ -463,12 +462,14 @@ class VAEModule(L.LightningModule):
             pass
         return loss
 
-    def validation_step(self, batch: tuple[Tensor, Tensor], batch_idx: Any) -> None:
+    def validation_step(
+        self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: Any
+    ) -> None:
         """Validation step.
 
         Parameters
         ----------
-        batch : tuple[Tensor, Tensor]
+        batch : tuple[torch.Tensor, torch.Tensor]
             Input batch. It is a tuple with the input tensor and the target tensor.
             The input tensor has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
             number of lateral inputs. The target tensor has shape (B, C, [Z], Y, X),
@@ -512,12 +513,12 @@ class VAEModule(L.LightningModule):
         else:
             self.log("val_psnr", 0.0, on_epoch=True, prog_bar=True)
 
-    def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
+    def predict_step(self, batch: torch.Tensor, batch_idx: Any) -> Any:
         """Prediction step.
 
         Parameters
         ----------
-        batch : Tensor
+        batch : torch.Tensor
             Input batch.
         batch_idx : Any
             Batch index.
@@ -527,56 +528,86 @@ class VAEModule(L.LightningModule):
         Any
             Model output.
         """
-        if self._trainer.datamodule.tiled:
-            # TODO tile_size should match model input size
+        if self.algorithm_config.algorithm == "microsplit":
             x, *aux = batch
-            x = (
-                x[0] if isinstance(x, list | tuple) else x
-            )  # TODO ugly, so far i don't know why x might be a list
-            self.model.reset_for_inference(x.shape)  # TODO should it be here ?
-        else:
-            x = batch[0] if isinstance(batch, list | tuple) else batch
-            aux = []
-            self.model.reset_for_inference(x.shape)
+            # Reset model for inference with spatial dimensions only (H, W)
+            self.model.reset_for_inference(x.shape[-2:])
 
-        mmse_list = []
-        for _ in range(self.algorithm_config.mmse_count):
-            # apply test-time augmentation if available
-            if self._trainer.datamodule.prediction_config.tta_transforms:
-                tta = ImageRestorationTTA()
-                augmented_batch = tta.forward(x)  # list of augmented tensors
-                augmented_output = []
-                for augmented in augmented_batch:
-                    augmented_pred = self.model(augmented)
-                    augmented_output.append(augmented_pred)
-                output = tta.backward(augmented_output)
+            rec_img_list = []
+            for _ in range(self.algorithm_config.mmse_count):
+                # get model output
+                rec, _ = self.model(x)
+
+                # get reconstructed img
+                if self.model.predict_logvar is None:
+                    rec_img = rec
+                    logvar = torch.tensor([-1])
+                else:
+                    rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
+                rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
+
+            # aggregate results
+            samples = torch.cat(rec_img_list, dim=0)
+            mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
+            std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
+
+            tile_prediction = mmse_imgs.cpu().numpy()
+            tile_std = std_imgs.cpu().numpy()
+
+            return tile_prediction, tile_std
+
+        else:
+            # Regular prediction logic
+            if self._trainer.datamodule.tiled:
+                # TODO tile_size should match model input size
+                x, *aux = batch
+                x = (
+                    x[0] if isinstance(x, list | tuple) else x
+                )  # TODO ugly, so far i don't know why x might be a list
+                self.model.reset_for_inference(x.shape)  # TODO should it be here ?
             else:
-                output = self.model(x)
+                x = batch[0] if isinstance(batch, list | tuple) else batch
+                aux = []
+                self.model.reset_for_inference(x.shape)
 
-            # taking the 1st element of the output, 2nd is std if
-            # predict_logvar=="pixelwise"
-            output = (
-                output[0]
-                if self.model.predict_logvar is None
-                else output[0][:, 0:1, ...]
+            mmse_list = []
+            for _ in range(self.algorithm_config.mmse_count):
+                # apply test-time augmentation if available
+                if self._trainer.datamodule.prediction_config.tta_transforms:
+                    tta = ImageRestorationTTA()
+                    augmented_batch = tta.forward(x)  # list of augmented tensors
+                    augmented_output = []
+                    for augmented in augmented_batch:
+                        augmented_pred = self.model(augmented)
+                        augmented_output.append(augmented_pred)
+                    output = tta.backward(augmented_output)
+                else:
+                    output = self.model(x)
+
+                # taking the 1st element of the output, 2nd is std if
+                # predict_logvar=="pixelwise"
+                output = (
+                    output[0]
+                    if self.model.predict_logvar is None
+                    else output[0][:, 0:1, ...]
+                )
+                mmse_list.append(output)
+
+            mmse = torch.stack(mmse_list).mean(0)
+            std = torch.stack(mmse_list).std(0)  # TODO why?
+            # TODO better way to unpack if pred logvar
+            # Denormalize the output
+            denorm = Denormalize(
+                image_means=self._trainer.datamodule.predict_dataset.image_means,
+                image_stds=self._trainer.datamodule.predict_dataset.image_stds,
             )
-            mmse_list.append(output)
 
-        mmse = stack(mmse_list).mean(0)
-        std = stack(mmse_list).std(0)  # TODO why?
-        # TODO better way to unpack if pred logvar
-        # Denormalize the output
-        denorm = Denormalize(
-            image_means=self._trainer.datamodule.predict_dataset.image_means,
-            image_stds=self._trainer.datamodule.predict_dataset.image_stds,
-        )
+            denormalized_output = denorm(patch=mmse.cpu().numpy())
 
-        denormalized_output = denorm(patch=mmse.cpu().numpy())
-
-        if len(aux) > 0:  # aux can be tiling information
-            return denormalized_output, std, *aux
-        else:
-            return denormalized_output, std
+            if len(aux) > 0:  # aux can be tiling information
+                return denormalized_output, std, *aux
+            else:
+                return denormalized_output, std
 
     def configure_optimizers(self) -> Any:
         """Configure optimizers and learning rate schedulers.
@@ -605,19 +636,19 @@ class VAEModule(L.LightningModule):
     # should we refactor LadderVAE so that it already outputs
     # tuple(`mean`, `logvar`, `td_data`)?
     def get_reconstructed_tensor(
-        self, model_outputs: tuple[Tensor, dict[str, Any]]
-    ) -> Tensor:
+        self, model_outputs: tuple[torch.Tensor, dict[str, Any]]
+    ) -> torch.Tensor:
         """Get the reconstructed tensor from the LVAE model outputs.
 
         Parameters
         ----------
-        model_outputs : tuple[Tensor, dict[str, Any]]
+        model_outputs : tuple[torch.Tensor, dict[str, Any]]
             Model outputs. It is a tuple with a tensor representing the predicted mean
             and (optionally) logvar, and the top-down data dictionary.
 
         Returns
         -------
-        Tensor
+        torch.Tensor
             Reconstructed tensor, i.e., the predicted mean.
         """
         predictions, _ = model_outputs
@@ -628,18 +659,18 @@ class VAEModule(L.LightningModule):
 
     def compute_val_psnr(
         self,
-        model_output: tuple[Tensor, dict[str, Any]],
-        target: Tensor,
+        model_output: tuple[torch.Tensor, dict[str, Any]],
+        target: torch.Tensor,
         psnr_func: Callable = scale_invariant_psnr,
     ) -> list[float]:
         """Compute the PSNR for the current validation batch.
 
         Parameters
         ----------
-        model_output : tuple[Tensor, dict[str, Any]]
+        model_output : tuple[torch.Tensor, dict[str, Any]]
             Model output, a tuple with the predicted mean and (optionally) logvar,
             and the top-down data dictionary.
-        target : Tensor
+        target : torch.Tensor
             Target tensor.
         psnr_func : Callable, optional
             PSNR function to use, by default `scale_invariant_psnr`.
