@@ -74,7 +74,7 @@ class XYRandomRotate90(Transform):
             return patch, target, additional_arrays
 
         # number of rotations
-        n_rot = self.rng.integers(1, 4)
+        n_rot = int(self.rng.integers(1, 4))
 
         axes = (-2, -1)
         patch_transformed = self._apply(patch, n_rot, axes)
