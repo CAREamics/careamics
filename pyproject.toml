@@ -53,7 +53,7 @@ dependencies = [
     'pyyaml<=6.0.2,!=6.0.0',
     'typer>=0.12.3,<=0.17.4',
     'scikit-image<=0.25.2',
-    'zarr>=3.0.0a0,<4.0.0', # zarr v3 requires Python >3.10
+    'zarr>=3.0.0,<4.0.0',
     'pillow<=11.3.0',
     'matplotlib<=3.10.6',
     'validators<=0.35.0'
