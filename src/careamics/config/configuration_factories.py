@@ -31,6 +31,7 @@ from careamics.config.transformations import (
     XYFlipModel,
     XYRandomRotate90Model,
 )
+from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 from .configuration import Configuration
 
@@ -286,6 +287,66 @@ def _create_data_configuration(
         data["val_dataloader_params"] = val_dataloader_params
 
     return DataConfig(**data)
+
+
+def _create_microsplit_data_configuration(
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: Sequence[int],
+    grid_size: int,
+    multiscale_count: int,
+    batch_size: int,
+    augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
+) -> DataConfig:
+    """
+    Create a dictionary with the parameters of the data model.
+
+    Parameters
+    ----------
+    data_type : {"array", "tiff", "czi", "custom"}
+        Type of the data.
+    axes : str
+        Axes of the data.
+    patch_size : list of int
+        Size of the patches along the spatial dimensions.
+    batch_size : int
+        Batch size.
+    augmentations : list of transforms
+        List of transforms to apply.
+    train_dataloader_params : dict
+        Parameters for the training dataloader, see PyTorch notes, by default None.
+    val_dataloader_params : dict
+        Parameters for the validation dataloader, see PyTorch notes, by default None.
+
+    Returns
+    -------
+    DataConfig
+        Data model with the specified parameters.
+    """
+    # data model
+    data = {
+        "data_type": data_type,
+        "axes": axes,
+        "image_size": patch_size,
+        "grid_size": grid_size,
+        "multiscale_lowres_count": multiscale_count,
+        "batch_size": batch_size,
+        "transforms": augmentations,
+    }
+    # Don't override defaults set in DataConfig class
+    if train_dataloader_params is not None:
+        # DataConfig enforces the presence of `shuffle` key in the dataloader parameters
+        if "shuffle" not in train_dataloader_params:
+            train_dataloader_params["shuffle"] = True
+
+        data["train_dataloader_params"] = train_dataloader_params
+
+    if val_dataloader_params is not None:
+        data["val_dataloader_params"] = val_dataloader_params
+
+    return MicroSplitDataConfig(**data)
 
 
 def _create_ng_data_configuration(
@@ -1568,11 +1629,14 @@ def get_likelihood_config(
 
     Returns
     -------
-    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None, NMLikelihoodConfig | None]
-        A tuple containing the likelihood and noise model configurations for the specified loss type.
+    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None,
+    NMLikelihoodConfig | None]
+        A tuple containing the likelihood and noise model configurations for the
+        specified loss type.
 
         - GaussianLikelihoodConfig: Gaussian likelihood configuration for musplit losses
-        - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit losses
+        - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit
+        losses
         - NMLikelihoodConfig: Noise model likelihood configuration for denoisplit losses
 
     Raises
@@ -1600,18 +1664,16 @@ def get_likelihood_config(
         #     raise ValueError(f"data_stats is required for loss_type '{loss_type}'")
         # TODO validators should be in pydantic models
         gmm_list = []
-        for NM_path in nm_paths:
-            gmm_list.append(
-                GaussianMixtureNMConfig(
-                    model_type="GaussianMixtureNoiseModel",
-                    path=NM_path,
+        if nm_paths is not None:
+            for NM_path in nm_paths:
+                gmm_list.append(
+                    GaussianMixtureNMConfig(
+                        model_type="GaussianMixtureNoiseModel",
+                        path=NM_path,
+                    )
                 )
-            )
         noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
-        nm_lik_config = NMLikelihoodConfig(
-            data_mean=data_stats[0],
-            data_std=data_stats[1],
-        )
+        nm_lik_config = NMLikelihoodConfig()  # TODO this config isn't needed probably
     else:
         noise_model_config = None
         nm_lik_config = None
@@ -1831,7 +1893,8 @@ def create_microsplit_configuration(
     num_steps: int | None = None,
     encoder_conv_strides: tuple[int, ...] = (2, 2),
     decoder_conv_strides: tuple[int, ...] = (2, 2),
-    multiscale_count: int = 1,
+    multiscale_count: int = 3,
+    grid_size: int = 32,  # TODO most likely can be derived from patch size
     z_dims: tuple[int, ...] = (128, 128),
     output_channels: int = 1,
     encoder_n_filters: int = 32,
@@ -1983,6 +2046,7 @@ def create_microsplit_configuration(
         "loss": loss_config,
         "model": network_model,
         "gaussian_likelihood": gaussian_likelihood_config,
+        "noise_model": noise_model_config,
         "noise_model_likelihood": nm_likelihood_config,
     }
 
@@ -1990,10 +2054,12 @@ def create_microsplit_configuration(
     algorithm_config = MicroSplitAlgorithm(**algorithm_params)
 
     # data
-    data_params = _create_data_configuration(
+    data_params = _create_microsplit_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
+        grid_size=grid_size,
+        multiscale_count=multiscale_count,
         batch_size=batch_size,
         augmentations=transform_list,
         train_dataloader_params=train_dataloader_params,
