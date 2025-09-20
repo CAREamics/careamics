@@ -18,7 +18,7 @@ repos:
     hooks:
       - id: ruff
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^scripts/.*"
-        args: [--fix, --target-version, py310]
+        args: [--fix, --target-version, py311]
 
   - repo: https://github.com/psf/black
     rev: 25.1.0
@@ -33,7 +33,7 @@ repos:
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py"
         args: ["--config-file", "mypy.ini"]
         additional_dependencies:
-          - numpy<2.0.0
+          - numpy
           - pydantic
           - types-PyYAML
           - types-setuptools

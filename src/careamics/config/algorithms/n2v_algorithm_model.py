@@ -1,10 +1,9 @@
 """N2V Algorithm configuration."""
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import AfterValidator, ConfigDict, model_validator
-from typing_extensions import Self
 
 from careamics.config.architectures import UNetModel
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
