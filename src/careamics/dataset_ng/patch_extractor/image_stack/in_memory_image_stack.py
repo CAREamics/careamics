@@ -1,9 +1,8 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Any, Literal, Self, Union
 
 from numpy.typing import DTypeLike, NDArray
-from typing_extensions import Self
 
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.file_io.read import ReadFunc, read_tiff

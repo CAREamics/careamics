@@ -20,7 +20,7 @@ name = "careamics"
 dynamic = ["version"]
 description = "Toolbox for running N2V and friends."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "BSD-3-Clause" }
 authors = [
     { name = 'CAREamics team', email = 'rse@fht.org' },
@@ -34,14 +34,15 @@ authors = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: BSD License",
     "Typing :: Typed",
 ]
 dependencies = [
-    'numpy<2.0.0',
+    "numpy>=1.21",
+    "numpy>=2.1.0; python_version>='3.13'", # prevents ml_dtypes conflict in py313
     'torch>=2.0,<=2.8.0',
     'torchvision<=0.23.0',
     'bioimageio.core>=0.9.0',
@@ -52,9 +53,10 @@ dependencies = [
     'pyyaml<=6.0.2,!=6.0.0',
     'typer>=0.12.3,<=0.17.4',
     'scikit-image<=0.25.2',
-    'zarr<3.0.0',
+    'zarr>=3.0.0,<4.0.0',
     'pillow<=11.3.0',
     'matplotlib<=3.10.6',
+    'validators<=0.35.0'
 ]
 
 [project.optional-dependencies]
@@ -67,8 +69,11 @@ dev = [
     "pre-commit",
     "pytest",
     "pytest-cov",
-    "onnx",
     "sybil",      # doctesting
+
+    # libraries used in some tests
+    "onnx",
+    "ml_dtypes>=0.5.0" # required by onnx, causes issues in gh runners with py313
 ]
 
 # notebooks
