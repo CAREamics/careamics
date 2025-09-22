@@ -69,7 +69,7 @@ def create_tiff_extractor(
     return PatchExtractor(image_stacks)
 
 
-# ZARR case
+# OME-ZARR case
 def create_ome_zarr_extractor(
     source: Sequence[Path],
     axes: str,
@@ -104,7 +104,7 @@ def create_czi_extractor(
     """
     Create a patch extractor from a sequence of CZI files.
 
-    If the CZI files contain multiple scenes, one patch extractor will be created for
+    If the CZI files contain multiple scenes, one image stack will be created for
     each scene.
 
     Parameters

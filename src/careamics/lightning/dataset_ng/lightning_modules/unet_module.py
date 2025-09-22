@@ -52,7 +52,7 @@ class UnetModule(L.LightningModule):
         self._best_checkpoint_loaded = False
 
         # TODO: how to support metric evaluation better
-        self.metrics = MetricCollection(PeakSignalNoiseRatio())
+        self.metrics = MetricCollection(PeakSignalNoiseRatio(data_range=2.0))
 
     def forward(self, x: Any) -> Any:
         """Default forward method.

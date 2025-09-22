@@ -26,7 +26,7 @@ class SupportedData(str, BaseEnum):
     TIFF = "tiff"
     CZI = "czi"
     CUSTOM = "custom"
-    # ZARR = "zarr"
+    ZARR = "zarr"
 
     # TODO remove?
     @classmethod

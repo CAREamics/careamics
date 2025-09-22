@@ -18,9 +18,16 @@ class ZarrImageStack:
     # TODO: We should keep store type narrow
     #   - in zarr v3, does zarr.storage.Store exists and has the path attribute?
     #   - can we declare a narrow type rather than a union?
-    def __init__(self, store: LocalStore | FsspecStore, data_path: str, axes: str):
+    def __init__(
+        self, store: LocalStore | FsspecStore | zarr.Group, data_path: str, axes: str
+    ):
         self._store = store
-        self._array = zarr.open_array(store=self._store, path=data_path, mode="r")
+
+        if isinstance(store, LocalStore | FsspecStore):
+            self._array = zarr.open_array(store=self._store, path=data_path, mode="r")
+        elif isinstance(store, zarr.Group):
+            self._array = store[data_path]
+
         # TODO: validate axes
         #   - must contain XY
         #   - must be subset of STCZYX
