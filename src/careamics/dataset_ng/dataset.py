@@ -20,7 +20,6 @@ from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
     PatchSpecs,
-    RandomPatchingStrategy,
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
@@ -76,7 +75,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                     f"{self.config.patching.name}."
                 )
 
-            patching_strategy = RandomPatchingStrategy(
+            patching_strategy = FixedRandomPatchingStrategy(
                 data_shapes=self.input_extractor.shape,
                 patch_size=self.config.patching.patch_size,
                 seed=self.config.seed,
