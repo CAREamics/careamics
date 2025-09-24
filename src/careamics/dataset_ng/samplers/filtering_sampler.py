@@ -57,10 +57,7 @@ class FilteringSampler(Sampler):
             while patience > 0:
                 patch_spec = self.dataset.patching_strategy.get_patch_spec(idx)
                 patch = self.dataset.input_extractor.extract_patch(
-                    data_idx=patch_spec["data_idx"],
-                    sample_idx=patch_spec["sample_idx"],
-                    coords=patch_spec["coords"],
-                    patch_size=patch_spec["patch_size"],
+                    **patch_spec,
                 )
 
                 if not self.patch_filter.filter_out(patch):
