@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from collections.abc import Sequence
 from pprint import pformat
 from typing import Annotated, Any, Literal, Union
@@ -42,6 +43,17 @@ from .patching_strategies import (
 #       - `set_3D` currently not implemented here
 # TODO: we can't tell that the patching strategy is correct
 #       - or is the responsibility of the creator (e.g. conveneince functions)
+
+
+def generate_random_seed() -> int:
+    """Generate a random seed for reproducibility.
+
+    Returns
+    -------
+    int
+        A random integer between 1 and 2^31 - 1.
+    """
+    return random.randint(1, 2**31 - 1)
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -170,8 +182,8 @@ class NGDataConfig(BaseModel):
     test_dataloader_params: dict[str, Any] = Field(default={})
     """Dictionary of PyTorch test dataloader parameters."""
 
-    seed: int | None = Field(default=None, gt=0)
-    """Random seed for reproducibility."""
+    seed: int | None = Field(default_factory=generate_random_seed, gt=0)
+    """Random seed for reproducibility. If not specified, a random seed is generated."""
 
     @field_validator("axes")
     @classmethod
