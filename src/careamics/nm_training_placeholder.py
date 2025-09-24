@@ -6,10 +6,8 @@ from numpy.typing import NDArray
 from pytorch_lightning.callbacks import Callback
 
 from careamics.config.configuration import Configuration
-from careamics.config.nm_model import GaussianMixtureNMConfig
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
-    MultiChannelNoiseModel,
 )
 
 logger = logging.getLogger(__name__)
@@ -144,6 +142,7 @@ def _update_config_with_trained_noise_models(
     # noise_model_factory inside VAEModule expects paths to noise models
     # Ideally, we change that and call noise_model_factory here after the model init
     # And update the parameters of noise models right in the MultiChannelNoiseModel
+
 
 def _load_data(self, data_path: Union[Path, str]) -> NDArray:
     """Load data from file path."""
