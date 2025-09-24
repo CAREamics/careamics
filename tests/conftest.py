@@ -8,13 +8,14 @@ from careamics import CAREamist, Configuration
 from careamics.config.support import SupportedData
 from careamics.model_io import export_to_bmz
 
+# TODO add details about where each of these fixture is used (e.g. smoke test)
+
 
 @pytest.fixture
 def gaussian_likelihood_params():
     return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}
 
 
-# TODO add details about where each of these fixture is used (e.g. smoke test)
 @pytest.fixture
 def create_tiff(path: Path, n_files: int):
     """Create tiff files for testing."""
