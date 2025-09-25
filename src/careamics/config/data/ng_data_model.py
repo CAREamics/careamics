@@ -337,6 +337,62 @@ class NGDataConfig(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def propagate_seed_to_transforms(self: Self) -> Self:
+        """
+        Propagate the main seed to all transforms that support seeds.
+
+        This ensures that all transforms use the same seed for reproducibility,
+        unless they already have a seed explicitly set.
+
+        Returns
+        -------
+        Self
+            Data model with propagated seeds.
+        """
+        if self.seed is not None:
+            updated_transforms = []
+            for transform in self.transforms:
+                if hasattr(transform, "seed") and transform.seed is None:
+                    transform.seed = self.seed
+                updated_transforms.append(transform)
+
+            object.__setattr__(self, "transforms", tuple(updated_transforms))
+
+        return self
+
+    @model_validator(mode="after")
+    def propagate_seed_to_filters(self: Self) -> Self:
+        """
+        Propagate the main seed to patch and coordinate filters that support seeds.
+
+        This ensures that all filters use the same seed for reproducibility,
+        unless they already have a seed explicitly set.
+
+        Returns
+        -------
+        Self
+            Data model with propagated seeds.
+        """
+        if self.seed is not None:
+            # Propagate seed to patch filter
+            if self.patch_filter is not None:
+                if (
+                    hasattr(self.patch_filter, "seed")
+                    and self.patch_filter.seed is None
+                ):
+                    self.patch_filter.seed = self.seed
+
+            # Propagate seed to coordinate filter
+            if self.coord_filter is not None:
+                if (
+                    hasattr(self.coord_filter, "seed")
+                    and self.coord_filter.seed is None
+                ):
+                    self.coord_filter.seed = self.seed
+
+        return self
+
     def __str__(self) -> str:
         """
         Pretty string reprensenting the configuration.
