@@ -160,7 +160,7 @@ def _create_unet_configuration(
 
 def _create_algorithm_configuration(
     axes: str,
-    algorithm: Literal["n2v", "care", "n2n"],
+    algorithm: Literal["n2v", "care", "n2n", "pn2v"],
     loss: Literal["n2v", "mae", "mse"],
     independent_channels: bool,
     n_channels_in: int,
@@ -179,7 +179,7 @@ def _create_algorithm_configuration(
     ----------
     axes : str
         Axes of the data.
-    algorithm : {"n2v", "care", "n2n"}
+    algorithm : {"n2v", "care", "n2n", "pn2v"}
         Algorithm to use.
     loss : {"n2v", "mae", "mse"}
         Loss function to use.
@@ -312,6 +312,10 @@ def _create_microsplit_data_configuration(
         Axes of the data.
     patch_size : list of int
         Size of the patches along the spatial dimensions.
+    grid_size : int
+        Size of the grid for multiscale data configuration.
+    multiscale_count : int
+        Number of multiscale levels.
     batch_size : int
         Batch size.
     augmentations : list of transforms
@@ -1633,11 +1637,11 @@ def get_likelihood_config(
     tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None,
     NMLikelihoodConfig | None]
         A tuple containing the likelihood and noise model configurations for the
-        specified loss type.
+        specified loss type. The tuple contains three elements:
 
         - GaussianLikelihoodConfig: Gaussian likelihood configuration for musplit losses
         - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit
-        losses
+          losses
         - NMLikelihoodConfig: Noise model likelihood configuration for denoisplit losses
 
     Raises
@@ -1648,7 +1652,7 @@ def get_likelihood_config(
     # gaussian likelihood
     if loss_type in ["musplit", "denoisplit_musplit"]:
         # if predict_logvar is None:
-        #     raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
+        #     raise ValueError(f"predict_logvar is required for '{loss_type}'")
         # TODO validators should be in pydantic models
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
@@ -1943,7 +1947,9 @@ def create_microsplit_configuration(
     decoder_conv_strides : tuple[int, ...], optional
         Strides for the decoder convolutional layers, by default (2, 2).
     multiscale_count : int, optional
-        Number of multiscale levels, by default 1.
+        Number of multiscale levels, by default 3.
+    grid_size : int, optional
+        Size of the grid for multiscale training, by default 32.
     z_dims : tuple[int, ...], optional
         List of latent dimensions for each hierarchy level in the LVAE, by default (128, 128).
     output_channels : int, optional
@@ -2165,10 +2171,8 @@ def create_pn2v_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    nm_paths : list[str]
-        Paths to the noise model files.
-    data_stats : tuple[float, float]
-        Data statistics (mean, std).
+    nm_path : str
+        Path to the noise model file.
     num_epochs : int, default=100
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
@@ -2235,8 +2239,7 @@ def create_pn2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     nm_paths=["path/to/noise_model.npz"],
-    ...     data_stats=(0.0, 1.0),
+    ...     nm_path="path/to/noise_model.npz",
     ...     num_epochs=100
     ... )
 
@@ -2247,8 +2250,7 @@ def create_pn2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     nm_paths=["path/to/noise_model.npz"],
-    ...     data_stats=(0.0, 1.0),
+    ...     nm_path="path/to/noise_model.npz",
     ...     num_steps=100  # limit to 100 batches per epoch
     ... )
 
@@ -2259,8 +2261,7 @@ def create_pn2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     nm_paths=["path/to/noise_model.npz"],
-    ...     data_stats=(0.0, 1.0),
+    ...     nm_path="path/to/noise_model.npz",
     ...     num_epochs=100,
     ...     augmentations=[]
     ... )
@@ -2273,8 +2274,7 @@ def create_pn2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     nm_paths=["path/to/noise_model.npz"],
-    ...     data_stats=(0.0, 1.0),
+    ...     nm_path="path/to/noise_model.npz",
     ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
@@ -2289,8 +2289,7 @@ def create_pn2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     nm_paths=["path/to/noise_model.npz"],
-    ...     data_stats=(0.0, 1.0),
+    ...     nm_path="path/to/noise_model.npz",
     ...     num_epochs=100,
     ...     use_n2v2=True
     ... )
@@ -2303,8 +2302,7 @@ def create_pn2v_configuration(
     ...     axes="YX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     nm_paths=["path/to/noise_model.npz"],
-    ...     data_stats=(0.0, 1.0),
+    ...     nm_path="path/to/noise_model.npz",
     ...     num_epochs=100,
     ...     struct_n2v_axis="horizontal",
     ...     struct_n2v_span=7
@@ -2318,8 +2316,7 @@ def create_pn2v_configuration(
     ...     axes="YXC",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     nm_paths=["path/to/noise_model.npz"],
-    ...     data_stats=(0.0, 1.0),
+    ...     nm_path="path/to/noise_model.npz",
     ...     num_epochs=100,
     ...     n_channels=3
     ... )
@@ -2332,8 +2329,7 @@ def create_pn2v_configuration(
     ...     axes="YXC",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     nm_paths=["path/to/noise_model.npz"],
-    ...     data_stats=(0.0, 1.0),
+    ...     nm_path="path/to/noise_model.npz",
     ...     num_epochs=100,
     ...     independent_channels=False,
     ...     n_channels=3
@@ -2349,8 +2345,7 @@ def create_pn2v_configuration(
     ...     axes="SCYX",
     ...     patch_size=[64, 64],
     ...     batch_size=32,
-    ...     nm_paths=["path/to/noise_model.npz"],
-    ...     data_stats=(0.0, 1.0),
+    ...     nm_path="path/to/noise_model.npz",
     ...     num_epochs=100,
     ...     n_channels=1,
     ... )
@@ -2360,8 +2355,7 @@ def create_pn2v_configuration(
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
-    ...     nm_paths=["path/to/noise_model.npz"],
-    ...     data_stats=(0.0, 1.0),
+    ...     nm_path="path/to/noise_model.npz",
     ...     num_epochs=100,
     ...     n_channels=1,
     ... )

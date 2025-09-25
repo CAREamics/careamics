@@ -50,7 +50,7 @@ PN2V_DESCRIPTION = (
     "extends Noise2Void by incorporating a probabilistic noise model to estimate the "
     "posterior distribution of each pixel more precisely. Like N2V, it uses blind-spot "
     "training where random pixels are selected in patches during training and their "
-    "value replaced by a neighboring pixel value. The network is then trained to predict "
+    "value replaced by a neighboring pixel value. The model is then trained to predict "
     "the original pixel value. PN2V additionally uses a noise model to better capture "
     "the noise characteristics and provide more accurate denoising by modeling the "
     "likelihood of pixel intensities."
