@@ -344,7 +344,7 @@ class CareamicsDataModule(L.LightningDataModule):
             train_data, train_data_target
         )
         self.train_data_mask, _ = self._initialize_data_pair(train_data_mask, None)
-        
+
         self.val_data, self.val_data_target = self._initialize_data_pair(
             val_data, val_data_target
         )
