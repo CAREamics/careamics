@@ -10,6 +10,7 @@ from careamics.config.algorithms import (
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
 )
 from careamics.config.architectures import LVAEModel, UNetModel
 from careamics.config.data import DataConfig, NGDataConfig
@@ -38,7 +39,7 @@ from .configuration import Configuration
 
 def algorithm_factory(
     algorithm: dict[str, Any],
-) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]:
+) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, PN2VAlgorithm]:
     """
     Create an algorithm model for training CAREamics.
 
@@ -49,12 +50,12 @@ def algorithm_factory(
 
     Returns
     -------
-    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm
+    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm or PN2VAlgorithm
         Algorithm model for training CAREamics.
     """
     adapter: TypeAdapter = TypeAdapter(
         Annotated[
-            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm],
+            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, PN2VAlgorithm],
             Field(discriminator="algorithm"),
         ]
     )
@@ -2403,7 +2404,7 @@ def create_pn2v_configuration(
     # algorithm
     algorithm_params = _create_algorithm_configuration(
         axes=axes,
-        algorithm="n2v",
+        algorithm="pn2v",
         loss="n2v",
         independent_channels=independent_channels,
         n_channels_in=n_channels,
@@ -2418,6 +2419,9 @@ def create_pn2v_configuration(
     algorithm_params["n2v_config"] = n2v_transform
     algorithm_params["noise_model"] = noise_model_config
 
+    # Convert to PN2VAlgorithm instance
+    algorithm_config = PN2VAlgorithm(**algorithm_params)
+
     # data
     data_params = _create_data_configuration(
         data_type=data_type,
@@ -2430,10 +2434,10 @@ def create_pn2v_configuration(
     )
 
     # training
-    # Handle trainer parameters with num_epochs and nun_steps
+    # Handle trainer parameters with num_epochs and num_steps
     final_trainer_params = {} if trainer_params is None else trainer_params.copy()
 
-    # Add num_epochs and nun_steps if provided
+    # Add num_epochs and num_steps if provided
     if num_epochs is not None:
         final_trainer_params["max_epochs"] = num_epochs
     if num_steps is not None:
@@ -2447,7 +2451,7 @@ def create_pn2v_configuration(
 
     return Configuration(
         experiment_name=experiment_name,
-        algorithm_config=algorithm_params,
+        algorithm_config=algorithm_config,
         data_config=data_params,
         training_config=training_params,
     )
