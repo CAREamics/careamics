@@ -308,6 +308,25 @@ class NGDataConfig(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def propagate_seed_to_transforms(self: Self) -> Self:
+        """
+        Propagate the main seed to all transforms that support seeds.
+
+        This ensures that all transforms use the same seed for reproducibility,
+        unless they already have a seed explicitly set.
+
+        Returns
+        -------
+        Self
+            Data model with propagated seeds.
+        """
+        if self.seed is not None:
+            for transform in self.transforms:
+                if hasattr(transform, "seed") and transform.seed is None:
+                    transform.seed = self.seed
+        return self
+
     def __str__(self) -> str:
         """
         Pretty string reprensenting the configuration.
