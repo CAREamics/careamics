@@ -9,11 +9,13 @@ from careamics.config import (
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
     algorithm_factory,
     create_care_configuration,
     create_microsplit_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
+    create_pn2v_configuration,
 )
 from careamics.config.configuration_factories import (
     _create_data_configuration,
@@ -939,6 +941,20 @@ def test_n2v_configuration_trainer_params_none():
 
     # Should have empty dict when trainer_params is None
     assert config.training_config.lightning_trainer_config == {}
+
+
+def test_pn2v_configuration():
+    """Test that PN2V configuration can be created."""
+    config = create_pn2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        nm_path="dummy_noise_model.npz",
+        train_dataloader_params={"num_workers": 2},
+    )
+    assert isinstance(config.algorithm_config, PN2VAlgorithm)
 
 
 def test_checkpoint_model_save_top_k_default():
