@@ -50,7 +50,10 @@ def create_coord_filter(
     if filter_model.name == SupportedCoordinateFilters.MASK:
         assert isinstance(filter_model, MaskFilterModel)
         return MaskCoordFilter(
-            mask_extractor=mask, coverage=filter_model.coverage, p=filter_model.p
+            mask_extractor=mask,
+            coverage=filter_model.coverage,
+            p=filter_model.p,
+            seed=filter_model.seed,
         )
     else:
         raise ValueError(f"Unknown filter name: {filter_model}")
@@ -71,16 +74,21 @@ def create_patch_filter(filter_model: FilterModel) -> PatchFilter:
     """
     if filter_model.name == SupportedPatchFilters.MAX:
         assert isinstance(filter_model, MaxFilterModel)
-        return MaxPatchFilter(threshold=filter_model.threshold, p=filter_model.p)
+        return MaxPatchFilter(
+            threshold=filter_model.threshold, p=filter_model.p, seed=filter_model.seed
+        )
     elif filter_model.name == SupportedPatchFilters.MEANSTD:
         assert isinstance(filter_model, MeanSTDFilterModel)
         return MeanStdPatchFilter(
             mean_threshold=filter_model.mean_threshold,
             std_threshold=filter_model.std_threshold,
             p=filter_model.p,
+            seed=filter_model.seed,
         )
     elif filter_model.name == SupportedPatchFilters.SHANNON:
         assert isinstance(filter_model, ShannonFilterModel)
-        return ShannonPatchFilter(threshold=filter_model.threshold, p=filter_model.p)
+        return ShannonPatchFilter(
+            threshold=filter_model.threshold, p=filter_model.p, seed=filter_model.seed
+        )
     else:
         raise ValueError(f"Unknown filter name: {filter_model}")

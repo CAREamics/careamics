@@ -11,6 +11,7 @@ from torchmetrics.image import PeakSignalNoiseRatio
 from careamics.config import algorithm_factory
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.lightning.callbacks import DatasetReshuffleCallback
 from careamics.models.unet import UNet
 from careamics.transforms import Denormalize
 from careamics.utils.logging import get_logger
@@ -53,6 +54,21 @@ class UnetModule(L.LightningModule):
 
         # TODO: how to support metric evaluation better
         self.metrics = MetricCollection(PeakSignalNoiseRatio())
+
+    def configure_callbacks(self) -> list[L.Callback]:
+        """Configure default callbacks for the Lightning module.
+
+        Returns
+        -------
+        list[L.Callback]
+            List of callbacks to use during training.
+        """
+        callbacks = []
+
+        # Add DatasetReshuffleCallback by default
+        callbacks.append(DatasetReshuffleCallback())
+
+        return callbacks
 
     def forward(self, x: Any) -> Any:
         """Default forward method.

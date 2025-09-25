@@ -7,7 +7,7 @@ from typing import Any, Union, overload
 import numpy as np
 import pytorch_lightning as L
 from numpy.typing import NDArray
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Sampler
 from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.ng_data_model import NGDataConfig
@@ -16,6 +16,7 @@ from careamics.dataset.dataset_utils import list_files, validate_source_target_f
 from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.patch_extractor import ImageStackLoader
+from careamics.dataset_ng.samplers import create_filtering_sampler
 from careamics.utils import get_logger
 
 logger = get_logger(__name__)
@@ -39,6 +40,10 @@ class CareamicsDataModule(L.LightningDataModule):
     train_data_target : Optional[InputType]
         Training data target, can be a path to a folder,
         a list of paths, or a numpy array.
+    train_data_mask : InputType (when filtering is needed)
+        Training data mask, can be a path to a folder,
+        a list of paths, or a numpy array. Used for coordinate filtering.
+        Only required when using coordinate-based patch filtering.
     val_data : Optional[InputType]
         Validation data, can be a path to a folder,
         a list of paths, or a numpy array.
@@ -99,6 +104,9 @@ class CareamicsDataModule(L.LightningDataModule):
     train_data_target : Optional[Any]
         Training data target, can be a path to a folder, a list of paths, or a numpy
         array.
+    train_data_mask : Optional[Any]
+        Training data mask, can be a path to a folder, a list of paths, or a numpy
+        array.
     val_data : Optional[Any]
         Validation data, can be a path to a folder, a list of paths, or a numpy array.
     val_data_target : Optional[Any]
@@ -118,7 +126,7 @@ class CareamicsDataModule(L.LightningDataModule):
         If input and target data types are not consistent.
     """
 
-    # standard use
+    # standard use (no mask)
     @overload
     def __init__(
         self,
@@ -136,7 +144,26 @@ class CareamicsDataModule(L.LightningDataModule):
         use_in_memory: bool = True,
     ) -> None: ...
 
-    # custom read function
+    # with training mask for filtering
+    @overload
+    def __init__(
+        self,
+        data_config: NGDataConfig,
+        *,
+        train_data: InputType | None = None,
+        train_data_target: InputType | None = None,
+        train_data_mask: InputType,
+        val_data: InputType | None = None,
+        val_data_target: InputType | None = None,
+        pred_data: InputType | None = None,
+        pred_data_target: InputType | None = None,
+        extension_filter: str = "",
+        val_percentage: float | None = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None: ...
+
+    # custom read function (no mask)
     @overload
     def __init__(
         self,
@@ -156,6 +183,28 @@ class CareamicsDataModule(L.LightningDataModule):
         use_in_memory: bool = True,
     ) -> None: ...
 
+    # custom read function with training mask
+    @overload
+    def __init__(
+        self,
+        data_config: NGDataConfig,
+        *,
+        train_data: InputType | None = None,
+        train_data_target: InputType | None = None,
+        train_data_mask: InputType,
+        val_data: InputType | None = None,
+        val_data_target: InputType | None = None,
+        pred_data: InputType | None = None,
+        pred_data_target: InputType | None = None,
+        read_source_func: Callable,
+        read_kwargs: dict[str, Any] | None = None,
+        extension_filter: str = "",
+        val_percentage: float | None = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None: ...
+
+    # image stack loader (no mask)
     @overload
     def __init__(
         self,
@@ -175,12 +224,34 @@ class CareamicsDataModule(L.LightningDataModule):
         use_in_memory: bool = True,
     ) -> None: ...
 
+    # image stack loader with training mask
+    @overload
     def __init__(
         self,
         data_config: NGDataConfig,
         *,
         train_data: Any | None = None,
         train_data_target: Any | None = None,
+        train_data_mask: Any,
+        val_data: Any | None = None,
+        val_data_target: Any | None = None,
+        pred_data: Any | None = None,
+        pred_data_target: Any | None = None,
+        image_stack_loader: ImageStackLoader,
+        image_stack_loader_kwargs: dict[str, Any] | None = None,
+        extension_filter: str = "",
+        val_percentage: float | None = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        data_config: NGDataConfig,
+        *,
+        train_data: Any | None = None,
+        train_data_target: Any | None = None,
+        train_data_mask: Any | None = None,
         val_data: Any | None = None,
         val_data_target: Any | None = None,
         pred_data: Any | None = None,
@@ -209,6 +280,10 @@ class CareamicsDataModule(L.LightningDataModule):
         train_data_target : Optional[InputType]
             Training data target, can be a path to a folder,
             a list of paths, or a numpy array.
+        train_data_mask : InputType (when filtering is needed)
+            Training data mask, can be a path to a folder,
+            a list of paths, or a numpy array. Used for coordinate filtering.
+            Only required when using coordinate-based patch filtering.
         val_data : Optional[InputType]
             Validation data, can be a path to a folder,
             a list of paths, or a numpy array.
@@ -268,6 +343,8 @@ class CareamicsDataModule(L.LightningDataModule):
         self.train_data, self.train_data_target = self._initialize_data_pair(
             train_data, train_data_target
         )
+        self.train_data_mask, _ = self._initialize_data_pair(train_data_mask, None)
+
         self.val_data, self.val_data_target = self._initialize_data_pair(
             val_data, val_data_target
         )
@@ -574,6 +651,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 mode=Mode.TRAINING,
                 inputs=self.train_data,
                 targets=self.train_data_target,
+                masks=self.train_data_mask,
                 config=self.config,
                 in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
@@ -629,6 +707,21 @@ class CareamicsDataModule(L.LightningDataModule):
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
+    def initialize_sampler(self) -> Sampler:
+        """
+        Initialize a sampler for the training dataset.
+
+        Returns
+        -------
+        Sampler
+            Sampler for the training dataset. If no sampler is needed, returns None.
+        """
+        sampler = None
+
+        if self.config.coord_filter is not None or self.config.patch_filter is not None:
+            sampler = create_filtering_sampler(self.train_dataset, self.config)
+        return sampler
+
     def train_dataloader(self) -> DataLoader:
         """
         Create a dataloader for training.
@@ -638,9 +731,13 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Training dataloader.
         """
+        sampler = self.initialize_sampler()
+        if sampler is not None:
+            self.config.train_dataloader_params["shuffle"] = False
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
+            sampler=sampler,
             collate_fn=default_collate,
             **self.config.train_dataloader_params,
         )

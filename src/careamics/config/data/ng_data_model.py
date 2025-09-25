@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from collections.abc import Sequence
 from pprint import pformat
 from typing import Annotated, Any, Literal, Union
@@ -42,6 +43,17 @@ from .patching_strategies import (
 #       - `set_3D` currently not implemented here
 # TODO: we can't tell that the patching strategy is correct
 #       - or is the responsibility of the creator (e.g. conveneince functions)
+
+
+def generate_random_seed() -> int:
+    """Generate a random seed for reproducibility.
+
+    Returns
+    -------
+    int
+        A random integer between 1 and 2^31 - 1.
+    """
+    return random.randint(1, 2**31 - 1)
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -170,8 +182,8 @@ class NGDataConfig(BaseModel):
     test_dataloader_params: dict[str, Any] = Field(default={})
     """Dictionary of PyTorch test dataloader parameters."""
 
-    seed: int | None = Field(default=None, gt=0)
-    """Random seed for reproducibility."""
+    seed: int | None = Field(default_factory=generate_random_seed, gt=0)
+    """Random seed for reproducibility. If not specified, a random seed is generated."""
 
     @field_validator("axes")
     @classmethod
@@ -322,6 +334,62 @@ class NGDataConfig(BaseModel):
                     f"`patch_size` in `patching` must have 2 dimensions if the data is"
                     f" 3D, got axes {self.axes})."
                 )
+
+        return self
+
+    @model_validator(mode="after")
+    def propagate_seed_to_transforms(self: Self) -> Self:
+        """
+        Propagate the main seed to all transforms that support seeds.
+
+        This ensures that all transforms use the same seed for reproducibility,
+        unless they already have a seed explicitly set.
+
+        Returns
+        -------
+        Self
+            Data model with propagated seeds.
+        """
+        if self.seed is not None:
+            updated_transforms = []
+            for transform in self.transforms:
+                if hasattr(transform, "seed") and transform.seed is None:
+                    transform.seed = self.seed
+                updated_transforms.append(transform)
+
+            object.__setattr__(self, "transforms", tuple(updated_transforms))
+
+        return self
+
+    @model_validator(mode="after")
+    def propagate_seed_to_filters(self: Self) -> Self:
+        """
+        Propagate the main seed to patch and coordinate filters that support seeds.
+
+        This ensures that all filters use the same seed for reproducibility,
+        unless they already have a seed explicitly set.
+
+        Returns
+        -------
+        Self
+            Data model with propagated seeds.
+        """
+        if self.seed is not None:
+            # Propagate seed to patch filter
+            if self.patch_filter is not None:
+                if (
+                    hasattr(self.patch_filter, "seed")
+                    and self.patch_filter.seed is None
+                ):
+                    self.patch_filter.seed = self.seed
+
+            # Propagate seed to coordinate filter
+            if self.coord_filter is not None:
+                if (
+                    hasattr(self.coord_filter, "seed")
+                    and self.coord_filter.seed is None
+                ):
+                    self.coord_filter.seed = self.seed
 
         return self
 

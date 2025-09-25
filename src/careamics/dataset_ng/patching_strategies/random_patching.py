@@ -212,7 +212,11 @@ class FixedRandomPatchingStrategy:
         self.data_shapes = data_shapes
 
         # simply generate all the patches at initialisation, so they will be fixed
-        self.fixed_patch_specs: list[PatchSpecs] = []
+        self.fixed_patch_specs: list[PatchSpecs] = self.generate_patch_specs()
+
+    def generate_patch_specs(self) -> list[PatchSpecs]:
+        """Generate the patch specs for the patching strategy."""
+        fixed_patch_specs: list[PatchSpecs] = []
         for data_idx, data_shape in enumerate(self.data_shapes):
             spatial_shape = data_shape[2:]
             n_patches = _calc_n_patches(spatial_shape, self.patch_size)
@@ -227,7 +231,12 @@ class FixedRandomPatchingStrategy:
                         "coords": random_coords,
                         "patch_size": self.patch_size,
                     }
-                    self.fixed_patch_specs.append(patch_specs)
+                    fixed_patch_specs.append(patch_specs)
+        return fixed_patch_specs
+
+    def resample_patches(self) -> None:
+        """Create a new random sampling of patches for the patching strategy."""
+        self.fixed_patch_specs = self.generate_patch_specs()
 
     @property
     def n_patches(self):
