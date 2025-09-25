@@ -2095,8 +2095,7 @@ def create_pn2v_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    data_stats: tuple[float, float],
-    nm_paths: str,
+    nm_path: str,
     num_epochs: int = 100,
     num_steps: int | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
@@ -2396,10 +2395,9 @@ def create_pn2v_configuration(
     )
 
     # Create noise model configuration
-    _, noise_model_config, nm_likelihood_config = get_likelihood_config(
-        loss_type="denoisplit",
-        nm_paths=nm_paths,
-        data_stats=data_stats,
+    noise_model_config = GaussianMixtureNMConfig(
+        model_type="GaussianMixtureNoiseModel",
+        path=nm_path,
     )
 
     # algorithm
@@ -2419,7 +2417,6 @@ def create_pn2v_configuration(
     )
     algorithm_params["n2v_config"] = n2v_transform
     algorithm_params["noise_model"] = noise_model_config
-    algorithm_params["noise_model_likelihood"] = nm_likelihood_config
 
     # data
     data_params = _create_data_configuration(
