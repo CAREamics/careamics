@@ -40,6 +40,10 @@ class CareamicsDataModule(L.LightningDataModule):
     train_data_target : Optional[InputType]
         Training data target, can be a path to a folder,
         a list of paths, or a numpy array.
+    train_data_mask : InputType (when filtering is needed)
+        Training data mask, can be a path to a folder,
+        a list of paths, or a numpy array. Used for coordinate filtering.
+        Only required when using coordinate-based patch filtering.
     val_data : Optional[InputType]
         Validation data, can be a path to a folder,
         a list of paths, or a numpy array.
@@ -100,6 +104,9 @@ class CareamicsDataModule(L.LightningDataModule):
     train_data_target : Optional[Any]
         Training data target, can be a path to a folder, a list of paths, or a numpy
         array.
+    train_data_mask : Optional[Any]
+        Training data mask, can be a path to a folder, a list of paths, or a numpy
+        array.
     val_data : Optional[Any]
         Validation data, can be a path to a folder, a list of paths, or a numpy array.
     val_data_target : Optional[Any]
@@ -119,7 +126,7 @@ class CareamicsDataModule(L.LightningDataModule):
         If input and target data types are not consistent.
     """
 
-    # standard use
+    # standard use (no mask)
     @overload
     def __init__(
         self,
@@ -137,7 +144,26 @@ class CareamicsDataModule(L.LightningDataModule):
         use_in_memory: bool = True,
     ) -> None: ...
 
-    # custom read function
+    # with training mask for filtering
+    @overload
+    def __init__(
+        self,
+        data_config: NGDataConfig,
+        *,
+        train_data: InputType | None = None,
+        train_data_target: InputType | None = None,
+        train_data_mask: InputType,
+        val_data: InputType | None = None,
+        val_data_target: InputType | None = None,
+        pred_data: InputType | None = None,
+        pred_data_target: InputType | None = None,
+        extension_filter: str = "",
+        val_percentage: float | None = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None: ...
+
+    # custom read function (no mask)
     @overload
     def __init__(
         self,
@@ -157,6 +183,28 @@ class CareamicsDataModule(L.LightningDataModule):
         use_in_memory: bool = True,
     ) -> None: ...
 
+    # custom read function with training mask
+    @overload
+    def __init__(
+        self,
+        data_config: NGDataConfig,
+        *,
+        train_data: InputType | None = None,
+        train_data_target: InputType | None = None,
+        train_data_mask: InputType,
+        val_data: InputType | None = None,
+        val_data_target: InputType | None = None,
+        pred_data: InputType | None = None,
+        pred_data_target: InputType | None = None,
+        read_source_func: Callable,
+        read_kwargs: dict[str, Any] | None = None,
+        extension_filter: str = "",
+        val_percentage: float | None = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None: ...
+
+    # image stack loader (no mask)
     @overload
     def __init__(
         self,
@@ -176,12 +224,34 @@ class CareamicsDataModule(L.LightningDataModule):
         use_in_memory: bool = True,
     ) -> None: ...
 
+    # image stack loader with training mask
+    @overload
     def __init__(
         self,
         data_config: NGDataConfig,
         *,
         train_data: Any | None = None,
         train_data_target: Any | None = None,
+        train_data_mask: Any,
+        val_data: Any | None = None,
+        val_data_target: Any | None = None,
+        pred_data: Any | None = None,
+        pred_data_target: Any | None = None,
+        image_stack_loader: ImageStackLoader,
+        image_stack_loader_kwargs: dict[str, Any] | None = None,
+        extension_filter: str = "",
+        val_percentage: float | None = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        data_config: NGDataConfig,
+        *,
+        train_data: Any | None = None,
+        train_data_target: Any | None = None,
+        train_data_mask: Any | None = None,
         val_data: Any | None = None,
         val_data_target: Any | None = None,
         pred_data: Any | None = None,
@@ -210,6 +280,10 @@ class CareamicsDataModule(L.LightningDataModule):
         train_data_target : Optional[InputType]
             Training data target, can be a path to a folder,
             a list of paths, or a numpy array.
+        train_data_mask : InputType (when filtering is needed)
+            Training data mask, can be a path to a folder,
+            a list of paths, or a numpy array. Used for coordinate filtering.
+            Only required when using coordinate-based patch filtering.
         val_data : Optional[InputType]
             Validation data, can be a path to a folder,
             a list of paths, or a numpy array.
@@ -269,6 +343,8 @@ class CareamicsDataModule(L.LightningDataModule):
         self.train_data, self.train_data_target = self._initialize_data_pair(
             train_data, train_data_target
         )
+        self.train_data_mask, _ = self._initialize_data_pair(train_data_mask, None)
+        
         self.val_data, self.val_data_target = self._initialize_data_pair(
             val_data, val_data_target
         )
@@ -575,6 +651,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 mode=Mode.TRAINING,
                 inputs=self.train_data,
                 targets=self.train_data_target,
+                masks=self.train_data_mask,
                 config=self.config,
                 in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
