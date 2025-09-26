@@ -943,15 +943,17 @@ def test_n2v_configuration_trainer_params_none():
     assert config.training_config.lightning_trainer_config == {}
 
 
-def test_pn2v_configuration():
+def test_pn2v_configuration(tmp_path: Path, create_dummy_noise_model):
     """Test that PN2V configuration can be created."""
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
     config = create_pn2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        nm_path="dummy_noise_model.npz",
+        nm_path=tmp_path / "dummy_noise_model.npz",
         train_dataloader_params={"num_workers": 2},
     )
     assert isinstance(config.algorithm_config, PN2VAlgorithm)
