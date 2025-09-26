@@ -2233,132 +2233,132 @@ def create_pn2v_configuration(
     Examples
     --------
     Minimum example:
-    >>> config = create_pn2v_configuration(
-    ...     experiment_name="pn2v_experiment",
-    ...     data_type="array",
-    ...     axes="YX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     nm_path="path/to/noise_model.npz",
-    ...     num_epochs=100
-    ... )
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100
+    # ... )
 
-    You can also limit the number of batches per epoch:
-    >>> config = create_pn2v_configuration(
-    ...     experiment_name="pn2v_experiment",
-    ...     data_type="array",
-    ...     axes="YX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     nm_path="path/to/noise_model.npz",
-    ...     num_steps=100  # limit to 100 batches per epoch
-    ... )
+    # You can also limit the number of batches per epoch:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_steps=100  # limit to 100 batches per epoch
+    # ... )
 
-    To disable transforms, simply set `augmentations` to an empty list:
-    >>> config = create_pn2v_configuration(
-    ...     experiment_name="pn2v_experiment",
-    ...     data_type="array",
-    ...     axes="YX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     nm_path="path/to/noise_model.npz",
-    ...     num_epochs=100,
-    ...     augmentations=[]
-    ... )
+    # To disable transforms, simply set `augmentations` to an empty list:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     augmentations=[]
+    # ... )
 
-    A list of transforms can be passed to the `augmentations` parameter:
-    >>> from careamics.config.transformations import XYFlipModel
-    >>> config = create_pn2v_configuration(
-    ...     experiment_name="pn2v_experiment",
-    ...     data_type="array",
-    ...     axes="YX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     nm_path="path/to/noise_model.npz",
-    ...     num_epochs=100,
-    ...     augmentations=[
-    ...         # No rotation and only Y flipping
-    ...         XYFlipModel(flip_x = False, flip_y = True)
-    ...     ]
-    ... )
+    # A list of transforms can be passed to the `augmentations` parameter:
+    # >>> from careamics.config.transformations import XYFlipModel
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     augmentations=[
+    # ...         # No rotation and only Y flipping
+    # ...         XYFlipModel(flip_x = False, flip_y = True)
+    # ...     ]
+    # ... )
 
-    To use N2V2, simply pass the `use_n2v2` parameter:
-    >>> config = create_pn2v_configuration(
-    ...     experiment_name="pn2v2_experiment",
-    ...     data_type="tiff",
-    ...     axes="YX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     nm_path="path/to/noise_model.npz",
-    ...     num_epochs=100,
-    ...     use_n2v2=True
-    ... )
+    # To use N2V2, simply pass the `use_n2v2` parameter:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v2_experiment",
+    # ...     data_type="tiff",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     use_n2v2=True
+    # ... )
 
-    For structN2V, there are two parameters to set, `struct_n2v_axis` and
-    `struct_n2v_span`:
-    >>> config = create_pn2v_configuration(
-    ...     experiment_name="structpn2v_experiment",
-    ...     data_type="tiff",
-    ...     axes="YX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     nm_path="path/to/noise_model.npz",
-    ...     num_epochs=100,
-    ...     struct_n2v_axis="horizontal",
-    ...     struct_n2v_span=7
-    ... )
+    # For structN2V, there are two parameters to set, `struct_n2v_axis` and
+    # `struct_n2v_span`:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="structpn2v_experiment",
+    # ...     data_type="tiff",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     struct_n2v_axis="horizontal",
+    # ...     struct_n2v_span=7
+    # ... )
 
-    If you are training multiple channels they will be trained independently by default,
-    you simply need to specify the number of channels:
-    >>> config = create_pn2v_configuration(
-    ...     experiment_name="pn2v_experiment",
-    ...     data_type="array",
-    ...     axes="YXC",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     nm_path="path/to/noise_model.npz",
-    ...     num_epochs=100,
-    ...     n_channels=3
-    ... )
+    # If you are training multiple channels they will be trained independently by default,
+    # you simply need to specify the number of channels:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YXC",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     n_channels=3
+    # ... )
 
-    If instead you want to train multiple channels together, you need to turn off the
-    `independent_channels` parameter:
-    >>> config = create_pn2v_configuration(
-    ...     experiment_name="pn2v_experiment",
-    ...     data_type="array",
-    ...     axes="YXC",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     nm_path="path/to/noise_model.npz",
-    ...     num_epochs=100,
-    ...     independent_channels=False,
-    ...     n_channels=3
-    ... )
+    # If instead you want to train multiple channels together, you need to turn off the
+    # `independent_channels` parameter:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YXC",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     independent_channels=False,
+    # ...     n_channels=3
+    # ... )
 
-    If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
-    `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
-    for 3-D data but spatial context along the Z dimension will then not be taken into
-    account.
-    >>> config_2d = create_pn2v_configuration(
-    ...     experiment_name="pn2v_experiment",
-    ...     data_type="czi",
-    ...     axes="SCYX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     nm_path="path/to/noise_model.npz",
-    ...     num_epochs=100,
-    ...     n_channels=1,
-    ... )
-    >>> config_3d = create_pn2v_configuration(
-    ...     experiment_name="pn2v_experiment",
-    ...     data_type="czi",
-    ...     axes="SCZYX",
-    ...     patch_size=[16, 64, 64],
-    ...     batch_size=16,
-    ...     nm_path="path/to/noise_model.npz",
-    ...     num_epochs=100,
-    ...     n_channels=1,
-    ... )
+    # If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
+    # `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
+    # for 3-D data but spatial context along the Z dimension will then not be taken into
+    # account.
+    # >>> config_2d = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="czi",
+    # ...     axes="SCYX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     n_channels=1,
+    # ... )
+    # >>> config_3d = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="czi",
+    # ...     axes="SCZYX",
+    # ...     patch_size=[16, 64, 64],
+    # ...     batch_size=16,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     n_channels=1,
+    # ... )
     """
     # if there are channels, we need to specify their number
     if "C" in axes and n_channels is None:
