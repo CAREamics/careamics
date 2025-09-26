@@ -10,6 +10,7 @@ from careamics.config.algorithms import (
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
 )
 from careamics.config.architectures import LVAEModel, UNetModel
 from careamics.config.data import DataConfig, NGDataConfig
@@ -38,7 +39,7 @@ from .configuration import Configuration
 
 def algorithm_factory(
     algorithm: dict[str, Any],
-) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]:
+) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, PN2VAlgorithm]:
     """
     Create an algorithm model for training CAREamics.
 
@@ -49,12 +50,12 @@ def algorithm_factory(
 
     Returns
     -------
-    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm
+    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm or PN2VAlgorithm
         Algorithm model for training CAREamics.
     """
     adapter: TypeAdapter = TypeAdapter(
         Annotated[
-            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm],
+            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, PN2VAlgorithm],
             Field(discriminator="algorithm"),
         ]
     )
@@ -159,7 +160,7 @@ def _create_unet_configuration(
 
 def _create_algorithm_configuration(
     axes: str,
-    algorithm: Literal["n2v", "care", "n2n"],
+    algorithm: Literal["n2v", "care", "n2n", "pn2v"],
     loss: Literal["n2v", "mae", "mse"],
     independent_channels: bool,
     n_channels_in: int,
@@ -178,7 +179,7 @@ def _create_algorithm_configuration(
     ----------
     axes : str
         Axes of the data.
-    algorithm : {"n2v", "care", "n2n"}
+    algorithm : {"n2v", "care", "n2n", "pn2v"}
         Algorithm to use.
     loss : {"n2v", "mae", "mse"}
         Loss function to use.
@@ -311,6 +312,10 @@ def _create_microsplit_data_configuration(
         Axes of the data.
     patch_size : list of int
         Size of the patches along the spatial dimensions.
+    grid_size : int
+        Size of the grid for multiscale data configuration.
+    multiscale_count : int
+        Number of multiscale levels.
     batch_size : int
         Batch size.
     augmentations : list of transforms
@@ -1632,11 +1637,11 @@ def get_likelihood_config(
     tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None,
     NMLikelihoodConfig | None]
         A tuple containing the likelihood and noise model configurations for the
-        specified loss type.
+        specified loss type. The tuple contains three elements:
 
         - GaussianLikelihoodConfig: Gaussian likelihood configuration for musplit losses
         - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit
-        losses
+          losses
         - NMLikelihoodConfig: Noise model likelihood configuration for denoisplit losses
 
     Raises
@@ -1647,7 +1652,7 @@ def get_likelihood_config(
     # gaussian likelihood
     if loss_type in ["musplit", "denoisplit_musplit"]:
         # if predict_logvar is None:
-        #     raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
+        #     raise ValueError(f"predict_logvar is required for '{loss_type}'")
         # TODO validators should be in pydantic models
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
@@ -1942,7 +1947,9 @@ def create_microsplit_configuration(
     decoder_conv_strides : tuple[int, ...], optional
         Strides for the decoder convolutional layers, by default (2, 2).
     multiscale_count : int, optional
-        Number of multiscale levels, by default 1.
+        Number of multiscale levels, by default 3.
+    grid_size : int, optional
+        Size of the grid for multiscale training, by default 32.
     z_dims : tuple[int, ...], optional
         List of latent dimensions for each hierarchy level in the LVAE, by default (128, 128).
     output_channels : int, optional
@@ -2079,6 +2086,361 @@ def create_microsplit_configuration(
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,
+    )
+
+    return Configuration(
+        experiment_name=experiment_name,
+        algorithm_config=algorithm_config,
+        data_config=data_params,
+        training_config=training_params,
+    )
+
+
+def create_pn2v_configuration(
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "czi", "custom"],
+    axes: str,
+    patch_size: Sequence[int],
+    batch_size: int,
+    nm_path: str,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
+    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    independent_channels: bool = True,
+    use_n2v2: bool = False,
+    n_channels: int | None = None,
+    roi_size: int = 11,
+    masked_pixel_percentage: float = 0.2,
+    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
+    struct_n2v_span: int = 5,
+    trainer_params: dict | None = None,
+    logger: Literal["wandb", "tensorboard", "none"] = "none",
+    model_params: dict | None = None,
+    optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
+    optimizer_params: dict[str, Any] | None = None,
+    lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
+    lr_scheduler_params: dict[str, Any] | None = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
+    checkpoint_params: dict[str, Any] | None = None,
+) -> Configuration:
+    """
+    Create a configuration for training Probabilistic Noise2Void (PN2V).
+
+    PN2V extends N2V by incorporating a probabilistic noise model to estimate the
+    posterior distibution of each pixel more precisely.
+
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
+    If "C" is present in `axes`, then you need to set `n_channels` to the number of
+    channels.
+
+    By default, all channels are trained independently. To train all channels together,
+    set `independent_channels` to False.
+
+    By default, the transformations applied are a random flip along X or Y, and a random
+    90 degrees rotation in the XY plane. Normalization is always applied, as well as the
+    N2V manipulation.
+
+    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    rotations by 90 degrees in the XY plane) are applied. Rather than the default
+    transforms, a list of transforms can be passed to the `augmentations` parameter. To
+    disable the transforms, simply pass an empty list.
+
+    The `roi_size` parameter specifies the size of the area around each pixel that will
+    be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
+    pixels per patch will be manipulated.
+
+    The parameters of the UNet can be specified in the `model_params` (passed as a
+    parameter-value dictionary). Note that `use_n2v2` and 'n_channels' override the
+    corresponding parameters passed in `model_params`.
+
+    If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
+    will be applied to each manipulated pixel.
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "czi", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : List[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    nm_path : str
+        Path to the noise model file.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
+    augmentations : list of transforms, default=None
+        List of transforms to apply, either both or one of XYFlipModel and
+        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        and XYRandomRotate90 (in XY) to the images.
+    independent_channels : bool, optional
+        Whether to train all channels together, by default True.
+    use_n2v2 : bool, optional
+        Whether to use N2V2, by default False.
+    n_channels : int or None, default=None
+        Number of channels (in and out).
+    roi_size : int, optional
+        N2V pixel manipulation area, by default 11.
+    masked_pixel_percentage : float, optional
+        Percentage of pixels masked in each patch, by default 0.2.
+    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
+        Axis along which to apply structN2V mask, by default "none".
+    struct_n2v_span : int, optional
+        Span of the structN2V mask, by default 5.
+    trainer_params : dict, optional
+        Parameters for the trainer, see the relevant documentation.
+    logger : Literal["wandb", "tensorboard", "none"], optional
+        Logger to use, by default "none".
+    model_params : dict, default=None
+        UNetModel parameters.
+    optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
+        Optimizer to use.
+    optimizer_params : dict, default=None
+        Parameters for the optimizer, see PyTorch documentation for more details.
+    lr_scheduler : Literal["ReduceLROnPlateau", "StepLR"], default="ReduceLROnPlateau"
+        Learning rate scheduler to use.
+    lr_scheduler_params : dict, default=None
+        Parameters for the learning rate scheduler, see PyTorch documentation for more
+        details.
+    train_dataloader_params : dict, optional
+        Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
+        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
+        the `GeneralDataConfig`.
+    val_dataloader_params : dict, optional
+        Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+        If left as `None`, the empty dict `{}` will be used, this is set in the
+        `GeneralDataConfig`.
+    checkpoint_params : dict, default=None
+        Parameters for the checkpoint callback, see PyTorch Lightning documentation
+        (`ModelCheckpoint`) for the list of available parameters.
+
+    Returns
+    -------
+    Configuration
+        Configuration for training PN2V.
+
+    Examples
+    --------
+    Minimum example:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100
+    # ... )
+
+    # You can also limit the number of batches per epoch:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_steps=100  # limit to 100 batches per epoch
+    # ... )
+
+    # To disable transforms, simply set `augmentations` to an empty list:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     augmentations=[]
+    # ... )
+
+    # A list of transforms can be passed to the `augmentations` parameter:
+    # >>> from careamics.config.transformations import XYFlipModel
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     augmentations=[
+    # ...         # No rotation and only Y flipping
+    # ...         XYFlipModel(flip_x = False, flip_y = True)
+    # ...     ]
+    # ... )
+
+    # To use N2V2, simply pass the `use_n2v2` parameter:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v2_experiment",
+    # ...     data_type="tiff",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     use_n2v2=True
+    # ... )
+
+    # For structN2V, there are two parameters to set, `struct_n2v_axis` and
+    # `struct_n2v_span`:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="structpn2v_experiment",
+    # ...     data_type="tiff",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     struct_n2v_axis="horizontal",
+    # ...     struct_n2v_span=7
+    # ... )
+
+    # If you are training multiple channels they will be trained independently by default,
+    # you simply need to specify the number of channels:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YXC",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     n_channels=3
+    # ... )
+
+    # If instead you want to train multiple channels together, you need to turn off the
+    # `independent_channels` parameter:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YXC",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     independent_channels=False,
+    # ...     n_channels=3
+    # ... )
+
+    # If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
+    # `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
+    # for 3-D data but spatial context along the Z dimension will then not be taken into
+    # account.
+    # >>> config_2d = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="czi",
+    # ...     axes="SCYX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     n_channels=1,
+    # ... )
+    # >>> config_3d = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="czi",
+    # ...     axes="SCZYX",
+    # ...     patch_size=[16, 64, 64],
+    # ...     batch_size=16,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     n_channels=1,
+    # ... )
+    """
+    # if there are channels, we need to specify their number
+    if "C" in axes and n_channels is None:
+        raise ValueError("Number of channels must be specified when using channels.")
+    elif "C" not in axes and (n_channels is not None and n_channels > 1):
+        raise ValueError(
+            f"C is not present in the axes, but number of channels is specified "
+            f"(got {n_channels} channel)."
+        )
+
+    if n_channels is None:
+        n_channels = 1
+
+    # augmentations
+    spatial_transforms = _list_spatial_augmentations(augmentations)
+
+    # create the N2VManipulate transform using the supplied parameters
+    n2v_transform = N2VManipulateModel(
+        name=SupportedTransform.N2V_MANIPULATE.value,
+        strategy=(
+            SupportedPixelManipulation.MEDIAN.value
+            if use_n2v2
+            else SupportedPixelManipulation.UNIFORM.value
+        ),
+        roi_size=roi_size,
+        masked_pixel_percentage=masked_pixel_percentage,
+        struct_mask_axis=struct_n2v_axis,
+        struct_mask_span=struct_n2v_span,
+    )
+
+    # Create noise model configuration
+    noise_model_config = GaussianMixtureNMConfig(
+        model_type="GaussianMixtureNoiseModel",
+        path=nm_path,
+    )
+
+    # algorithm
+    algorithm_params = _create_algorithm_configuration(
+        axes=axes,
+        algorithm="pn2v",
+        loss="n2v",
+        independent_channels=independent_channels,
+        n_channels_in=n_channels,
+        n_channels_out=n_channels,
+        use_n2v2=use_n2v2,
+        model_params=model_params,
+        optimizer=optimizer,
+        optimizer_params=optimizer_params,
+        lr_scheduler=lr_scheduler,
+        lr_scheduler_params=lr_scheduler_params,
+    )
+    algorithm_params["n2v_config"] = n2v_transform
+    algorithm_params["noise_model"] = noise_model_config
+
+    # Convert to PN2VAlgorithm instance
+    algorithm_config = PN2VAlgorithm(**algorithm_params)
+
+    # data
+    data_params = _create_data_configuration(
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        augmentations=spatial_transforms,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
+    )
+
+    # training
+    # Handle trainer parameters with num_epochs and num_steps
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    # Add num_epochs and num_steps if provided
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["limit_train_batches"] = num_steps
+
+    training_params = _create_training_configuration(
+        trainer_params=final_trainer_params,
+        logger=logger,
+        checkpoint_params=checkpoint_params,
     )
 
     return Configuration(

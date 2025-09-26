@@ -7,6 +7,8 @@ This submodule contains the various losses used in CAREamics.
 import torch
 from torch.nn import L1Loss, MSELoss
 
+from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
+
 
 def mse_loss(source: torch.Tensor, target: torch.Tensor, *args) -> torch.Tensor:
     """
@@ -83,19 +85,37 @@ def mae_loss(samples: torch.Tensor, labels: torch.Tensor, *args) -> torch.Tensor
     return loss(samples, labels)
 
 
-# def pn2v_loss(
-#     samples: torch.Tensor,
-#     labels: torch.Tensor,
-#     masks: torch.Tensor,
-#     noise_model: HistogramNoiseModel,
-# ) -> torch.Tensor:
-#     """Probabilistic N2V loss function described in A Krull et al., CVF (2019)."""
-#     likelihoods = noise_model.likelihood(labels, samples)
-#     likelihoods_avg = torch.log(torch.mean(likelihoods, dim=0, keepdim=True)[0, ...])
+def pn2v_loss(
+    samples: torch.Tensor,
+    labels: torch.Tensor,
+    masks: torch.Tensor,
+    noise_model: GaussianMixtureNoiseModel,
+) -> torch.Tensor:
+    """
+    Probabilistic N2V loss function described in A Krull et al., CVF (2019).
 
-#     # Average over pixels and batch
-#     loss = -torch.sum(likelihoods_avg * masks) / torch.sum(masks)
-#     return loss
+    Parameters
+    ----------
+    samples : torch.Tensor
+        Predicted pixel values from the network.
+    labels : torch.Tensor
+        Original pixel values.
+    masks : torch.Tensor
+        Coordinates of manipulated pixels.
+    noise_model : GaussianMixtureNoiseModel
+        Noise model for computing likelihood.
+
+    Returns
+    -------
+    torch.Tensor
+        Loss value.
+    """
+    likelihoods = noise_model.likelihood(labels, samples)
+    likelihoods_avg = torch.log(torch.mean(likelihoods, dim=0, keepdim=True)[0, ...])
+
+    # Average over pixels and batch
+    loss = -torch.sum(likelihoods_avg * masks) / torch.sum(masks)
+    return loss
 
 
 # def dice_loss(
