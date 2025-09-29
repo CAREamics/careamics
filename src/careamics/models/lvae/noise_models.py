@@ -439,6 +439,8 @@ class GaussianMixtureNoiseModel(nn.Module):
         value: torch.Tensor:
             Likelihood of observations given the signals and the GMM noise model
         """
+        observations = observations.float()
+        signals = signals.float()
         gaussian_parameters: list[torch.Tensor] = self.get_gaussian_parameters(signals)
         p = torch.zeros_like(observations)
         for gaussian in range(self.n_gaussian):
@@ -450,9 +452,9 @@ class GaussianMixtureNoiseModel(nn.Module):
             # Compute normal density
             p += (
                 self.normal_density(
-                    observations.float(),
-                    mean.float(),
-                    std.float(),
+                    observations,
+                    mean,
+                    std,
                 )
                 * weight
             )
