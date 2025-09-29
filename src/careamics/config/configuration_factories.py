@@ -161,7 +161,7 @@ def _create_unet_configuration(
 def _create_algorithm_configuration(
     axes: str,
     algorithm: Literal["n2v", "care", "n2n", "pn2v"],
-    loss: Literal["n2v", "mae", "mse"],
+    loss: Literal["n2v", "mae", "mse", "pn2v"],
     independent_channels: bool,
     n_channels_in: int,
     n_channels_out: int,
@@ -181,7 +181,7 @@ def _create_algorithm_configuration(
         Axes of the data.
     algorithm : {"n2v", "care", "n2n", "pn2v"}
         Algorithm to use.
-    loss : {"n2v", "mae", "mse"}
+    loss : {"n2v", "mae", "mse", "pn2v"}
         Loss function to use.
     independent_channels : bool
         Whether to train all channels independently.
@@ -2399,7 +2399,7 @@ def create_pn2v_configuration(
     algorithm_params = _create_algorithm_configuration(
         axes=axes,
         algorithm="pn2v",
-        loss="n2v",
+        loss="pn2v",
         independent_channels=independent_channels,
         n_channels_in=n_channels,
         n_channels_out=n_channels,

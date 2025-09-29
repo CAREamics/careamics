@@ -10,6 +10,7 @@ from careamics.models.lvae.likelihoods import NoiseModelLikelihood
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
+    multichannel_noise_model_factory,
     noise_model_factory,
 )
 
@@ -17,7 +18,7 @@ pytestmark = pytest.mark.lvae
 
 
 def test_factory_no_noise_model():
-    noise_model = noise_model_factory(None)
+    noise_model = multichannel_noise_model_factory(None)
     assert noise_model is None
 
 
@@ -32,7 +33,7 @@ def test_instantiate_noise_model(tmp_path: Path, create_dummy_noise_model) -> No
         # all other params are default
     )
     noise_model_config = MultiChannelNMConfig(noise_models=[gmm])
-    noise_model = noise_model_factory(noise_model_config)
+    noise_model = multichannel_noise_model_factory(noise_model_config)
     assert noise_model is not None
     assert noise_model.nmodel_0.weight.shape == (9, 3)
     assert noise_model.nmodel_0.min_signal == 0
@@ -53,7 +54,7 @@ def test_instantiate_multiple_noise_models(
         # all other params are default
     )
     noise_model_config = MultiChannelNMConfig(noise_models=[gmm, gmm, gmm])
-    noise_model = noise_model_factory(noise_model_config)
+    noise_model = multichannel_noise_model_factory(noise_model_config)
     assert noise_model is not None
     assert noise_model.nmodel_0 is not None
     assert noise_model.nmodel_1 is not None
@@ -121,7 +122,7 @@ def test_multi_channel_noise_model_likelihood(
         noise_models.append(gmm)
 
     noise_model_config = MultiChannelNMConfig(noise_models=noise_models)
-    nm = noise_model_factory(noise_model_config)
+    nm = multichannel_noise_model_factory(noise_model_config)
     assert nm is not None
     assert isinstance(nm, MultiChannelNoiseModel)
     assert nm._nm_cnt == target_ch
@@ -233,3 +234,29 @@ def test_noise_model_in_likelihood_call():
 
     log_likelihood, _ = likelihood(test_input, test_target)
     assert log_likelihood is not None
+
+
+def test_single_noise_model_factory_no_config():
+    """Test single-channel noise model factory with None input."""
+    noise_model = noise_model_factory(None)
+    assert noise_model is None
+
+
+def test_single_noise_model_factory_instantiate(tmp_path: Path, create_dummy_noise_model) -> None:
+    """Test instantiating a single noise model with single-channel factory."""
+    # Create a dummy noise model
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    # Instantiate the noise model using single GaussianMixtureNMConfig
+    gmm = GaussianMixtureNMConfig(
+        model_type="GaussianMixtureNoiseModel",
+        path=tmp_path / "dummy_noise_model.npz",
+        # all other params are default
+    )
+    noise_model = noise_model_factory(gmm)
+    assert noise_model is not None
+    assert isinstance(noise_model, GaussianMixtureNoiseModel)
+    assert noise_model.weight.shape == (9, 3)
+    assert noise_model.min_signal == 0
+    assert noise_model.max_signal == 2**16 - 1
+    assert noise_model.min_sigma == 0.125

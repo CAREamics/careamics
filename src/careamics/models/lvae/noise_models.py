@@ -72,9 +72,56 @@ def create_histogram(
 
 
 def noise_model_factory(
+    model_config: Optional[GaussianMixtureNMConfig],
+) -> Optional[GaussianMixtureNoiseModel]:
+    """Noise model factory for single-channel noise models.
+
+    Parameters
+    ----------
+    model_config : Optional[GaussianMixtureNMConfig]
+        Noise model configuration for a single Gaussian mixture noise model.
+
+    Returns
+    -------
+    Optional[GaussianMixtureNoiseModel]
+        A single noise model instance, or None if no config is provided.
+
+    Raises
+    ------
+    NotImplementedError
+        If the chosen noise model `model_type` is not implemented.
+        Currently only `GaussianMixtureNoiseModel` is implemented.
+    """
+    if model_config:
+        if model_config.path:
+            if model_config.model_type == "GaussianMixtureNoiseModel":
+                return GaussianMixtureNoiseModel(model_config)
+            else:
+                raise NotImplementedError(
+                    f"Model {model_config.model_type} is not implemented"
+                )
+
+        # TODO this is outdated and likely should be removed !!
+        else:  # TODO this means signal/obs are provided. Controlled in pydantic model
+            # TODO train a new model. Config should always be provided?
+            if model_config.model_type == "GaussianMixtureNoiseModel":
+                # TODO one model for each channel all make this choise inside the model?
+                # trained_nm = train_gm_noise_model(model_config)
+                # return trained_nm
+                raise NotImplementedError(
+                    "GaussianMixtureNoiseModel model training is not implemented."
+                )
+            else:
+                raise NotImplementedError(
+                    f"Model {model_config.model_type} is not implemented"
+                )
+    return None
+
+
+def multichannel_noise_model_factory(
     model_config: Optional[MultiChannelNMConfig],
 ) -> Optional[MultiChannelNoiseModel]:
-    """Noise model factory.
+    """Multi-channel noise model factory.
 
     Parameters
     ----------
@@ -104,6 +151,7 @@ def noise_model_factory(
                         f"Model {nm.model_type} is not implemented"
                     )
 
+            # TODO this is outdated and likely should be removed !!
             else:  # TODO this means signal/obs are provided. Controlled in pydantic model
                 # TODO train a new model. Config should always be provided?
                 if nm.model_type == "GaussianMixtureNoiseModel":
@@ -402,9 +450,9 @@ class GaussianMixtureNoiseModel(nn.Module):
             # Compute normal density
             p += (
                 self.normal_density(
-                    observations,
-                    mean,
-                    std,
+                    observations.float(),
+                    mean.float(),
+                    std.float(),
                 )
                 * weight
             )

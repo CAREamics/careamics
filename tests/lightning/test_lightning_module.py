@@ -1,7 +1,12 @@
+from pathlib import Path
+
+import numpy as np
 import pytest
 import torch
 
 from careamics.config import UNetBasedAlgorithm
+from careamics.config.algorithms import PN2VAlgorithm
+from careamics.config.nm_model import GaussianMixtureNMConfig
 from careamics.lightning.lightning_module import (
     FCNModule,
     create_careamics_module,
@@ -374,3 +379,51 @@ def test_prediction_callback_during_training(minimum_n2v_configuration, tiled):
     engine.train(train_source=array)
 
     assert not np.allclose(array, predict_after_val_callback.data)
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        (8, 8),
+        (16, 16),
+        (32, 32),
+    ],
+)
+def test_fcn_module_pn2v_2D_depth_2_shape(shape, tmp_path: Path, create_dummy_noise_model):
+    """Test PN2V algorithm with FCNModule for different input shapes."""
+    # Create dummy noise model file
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    # Create noise model configuration
+    noise_model_config = GaussianMixtureNMConfig(
+        model_type="GaussianMixtureNoiseModel",
+        path=tmp_path / "dummy_noise_model.npz",
+    )
+
+    # Create PN2V algorithm configuration
+    algo_dict = {
+        "algorithm": "pn2v",
+        "model": {
+            "architecture": "UNet",
+            "conv_dims": 2,
+            "in_channels": 1,
+            "num_classes": 1,
+            "depth": 2,
+        },
+        "loss": "pn2v",
+        "noise_model": noise_model_config,
+    }
+
+    # Use PN2VAlgorithm instead of UNetBasedAlgorithm
+    algo_config = PN2VAlgorithm(**algo_dict)
+
+    # Instantiate FCNModule
+    model = FCNModule(algo_config)
+
+    # Set model to evaluation mode to avoid batch dimension error
+    model.model.eval()
+
+    # Test forward pass
+    x = torch.rand((1, 1, *shape))
+    y: torch.Tensor = model.forward(x)
+    assert y.shape == x.shape

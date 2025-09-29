@@ -1,9 +1,10 @@
 """PN2V Algorithm configuration."""
 
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import AfterValidator, ConfigDict, model_validator
+from typing_extensions import Self
 
 from careamics.config.architectures import UNetModel
 from careamics.config.nm_model import GaussianMixtureNMConfig
@@ -94,7 +95,7 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
     algorithm: Literal["pn2v"] = "pn2v"
     """PN2V Algorithm name."""
 
-    loss: Literal["n2v"] = "n2v"
+    loss: Literal["pn2v"] = "pn2v"
     """PN2V loss function (uses N2V loss with noise model)."""
 
     n2v_config: N2VManipulateModel = N2VManipulateModel()

@@ -9,6 +9,7 @@ import torch
 
 from careamics.config import (
     N2VAlgorithm,
+    PN2VAlgorithm,
     UNetBasedAlgorithm,
     VAEBasedAlgorithm,
     algorithm_factory,
@@ -90,7 +91,7 @@ class FCNModule(L.LightningModule):
             algorithm_config = algorithm_factory(algorithm_config)
 
         # create preprocessing, model and loss function
-        if isinstance(algorithm_config, N2VAlgorithm):
+        if isinstance(algorithm_config, N2VAlgorithm | PN2VAlgorithm):
             self.use_n2v = True
             self.n2v_preprocess: N2VManipulateTorch | None = N2VManipulateTorch(
                 n2v_manipulate_config=algorithm_config.n2v_config
@@ -101,7 +102,21 @@ class FCNModule(L.LightningModule):
 
         self.algorithm = algorithm_config.algorithm
         self.model: torch.nn.Module = model_factory(algorithm_config.model)
-        self.loss_func = loss_factory(algorithm_config.loss)
+        self.noise_model: NoiseModel | None = noise_model_factory(
+            algorithm_config.noise_model
+            if isinstance(algorithm_config, PN2VAlgorithm)
+            else None
+        )
+
+        # Create loss function, pre-configure with noise model for PN2V
+        loss_func = loss_factory(algorithm_config.loss)
+        if isinstance(algorithm_config, PN2VAlgorithm) and self.noise_model is not None:
+            # For PN2V, reorder arguments and pass noise model
+            self.loss_func = lambda *args: loss_func(
+                args[0], args[2], args[1], self.noise_model
+            )
+        else:
+            self.loss_func = loss_func
 
         # save optimizer and lr_scheduler names and parameters
         self.optimizer_name = algorithm_config.optimizer.name
@@ -437,7 +452,7 @@ class VAEModule(L.LightningModule):
                 or self.noise_model_likelihood.data_std is None
             ):
                 raise RuntimeError(
-                    "NoiseModelLikelihood: data_mean and data_std must be set before training."
+                    "NoiseModelLikelihood: mean and std must be set before training."
                 )
         loss = self.loss_func(
             model_outputs=out,
@@ -810,7 +825,7 @@ def create_careamics_module(
         algorithm_cfg = algorithm_factory(algorithm_dict)
 
         # if use N2V
-        if isinstance(algorithm_cfg, N2VAlgorithm):
+        if isinstance(algorithm_cfg, N2VAlgorithm | PN2VAlgorithm):
             algorithm_cfg.n2v_config.struct_mask_axis = struct_n2v_axis
             algorithm_cfg.n2v_config.struct_mask_span = struct_n2v_span
             algorithm_cfg.set_n2v2(use_n2v2)
