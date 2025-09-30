@@ -71,7 +71,7 @@ def _load_checkpoint(
     # here we might run into issues between devices
     # see https://pytorch.org/tutorials/recipes/recipes/save_load_across_devices.html
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    checkpoint: dict = torch.load(path, map_location=device)
+    checkpoint: dict = torch.load(path, map_location=device, weights_only=False)
 
     # attempt to load configuration
     try:
