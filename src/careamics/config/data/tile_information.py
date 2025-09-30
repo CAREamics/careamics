@@ -35,16 +35,17 @@ class TileInformation(BaseModel):
     """
 
     array_shape: DimTuple  # TODO: find a way to add custom error message?
-    """Shape of the tile array."""
+    """Shape of the original (untiled) array."""
 
-    last_tile: bool
-    """Whether the tile is the last tile in the array."""
+    last_tile: bool = False
+    """Whether this tile is the last one of the array."""
 
     overlap_crop_coords: tuple[tuple[int, int], ...]
-    """Coordinates for cropping overlaps."""
+    """Inner coordinates of the tile where to crop the prediction in order to stitch
+    it back into the original image."""
 
     stitch_coords: tuple[tuple[int, int], ...]
-    """Coordinates for stitching the tile back into the original array."""
+    """Coordinates in the original image where to stitch the cropped tile back."""
 
     sample_id: int
     """Sample id."""

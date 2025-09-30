@@ -7,6 +7,9 @@ from numpy.typing import NDArray
 from skimage.util import view_as_windows
 
 from .validate_patch_dimension import validate_patch_dimensions
+from careamics.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 def extract_patches_sequential(
     arr: np.ndarray, 
@@ -200,6 +203,7 @@ def _compute_patch_views(
     rng.shuffle(patches, axis=0)
     return patches
 
+
 def _extract_patches_1d(arr: NDArray, patch_size: int, target: NDArray | None = None) -> tuple[NDArray, NDArray | None]:
     """
     Extract 1D patches sequentially.
@@ -218,6 +222,9 @@ def _extract_patches_1d(arr: NDArray, patch_size: int, target: NDArray | None = 
     tuple[NDArray, NDArray | None]
         Patches and target patches as numpy arrays.
     """
+    #reshape 1D data to support convention
+    
+
     # Handle both 2D (samples, length) and 3D (samples, channels, length) arrays
     if arr.ndim == 2:
         # Legacy format: (samples, length)
@@ -226,7 +233,12 @@ def _extract_patches_1d(arr: NDArray, patch_size: int, target: NDArray | None = 
         # Add channel dimension for consistency
         arr = arr[:, np.newaxis, :]  # Shape becomes (samples, 1, length)
     elif arr.ndim == 3:
+        # if arr.shape[1] != 1: #For 1D data without channel dimension
+        #     arr = arr.transpose(0,2,1)
+        #     logger.info(f"Shape after reshape to (S,C,L) = {arr.shape}")
+      
         # Current format after reshape_array: (samples, channels, length)
+        logger.info(arr.shape)
         n_samples, n_channels, length = arr.shape
     else:
         raise ValueError(f"Expected 2D or 3D array for 1D patching, got {arr.ndim}D with shape {arr.shape}")

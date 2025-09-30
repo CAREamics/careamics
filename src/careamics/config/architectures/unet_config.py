@@ -208,14 +208,3 @@ class UNetConfig(ArchitectureConfig):
             Whether the model is 3D or not.
         """
         return self.conv_dims == 3
-
-    def get_spatial_dims(self) -> int:
-        """
-        Get the number of spatial dimensions.
-
-        Returns
-        -------
-        int
-            Number of spatial dimensions (1, 2, or 3).
-        """
-        return self.conv_dims

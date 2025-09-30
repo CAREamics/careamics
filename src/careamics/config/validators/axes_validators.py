@@ -4,9 +4,16 @@ _AXES = "STCZYX"
 
 def check_axes_validity_1d(axes: str) -> None:
     """
-    Check if the axes are valid for 1D data.
+      Sanity check on axes.
 
-    This function validates axes strings that include 1D spatial data.
+    The constraints on the axes are the following:
+    - must be a combination of 'STCZYX'
+    - must not contain duplicates
+    - must contain at least 2 contiguous axes: X and Y
+    - must contain at most 4 axes
+    - cannot contain both S and T axes
+
+    Axes do not need to be in the order 'STCZYX', as this depends on the user data.    This function validates axes strings that include 1D spatial data.
 
     Parameters
     ----------

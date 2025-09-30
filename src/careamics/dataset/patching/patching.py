@@ -122,10 +122,10 @@ def prepare_patches_supervised(
             f"No valid samples found in the input data: {train_files} and "
             f"{target_files}."
         )
-
+    
     image_means, image_stds = compute_normalization_stats(np.concatenate(all_patches))
     target_means, target_stds = compute_normalization_stats(np.concatenate(all_targets))
-
+    
     patch_array: np.ndarray = np.concatenate(all_patches, axis=0)
     target_array: np.ndarray = np.concatenate(all_targets, axis=0)
     logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
@@ -272,75 +272,83 @@ def prepare_patches_unsupervised_array(
     PatchedOutput
         Patches output.
     """
-    from .random_patching import extract_patches_random
+    # from .random_patching import extract_patches_random
     
     reshaped_sample = reshape_array(data, axes)
-    n_samples = reshaped_sample.shape[0]
+    # n_samples = reshaped_sample.shape[0]
 
-    # Determine number of spatial dimensions
-    spatial_axes = [ax for ax in axes if ax in 'XYZ']
-    n_spatial_dims = len(spatial_axes)
+    # # Determine number of spatial dimensions
+    # spatial_axes = [ax for ax in axes if ax in 'XYZ']
+    # n_spatial_dims = len(spatial_axes)
 
-    # For 1D data, check if we need to use random or sequential patching
-    if n_spatial_dims == 1:
-        spatial_size = max(reshaped_sample.shape[1:])
-        total_possible_patches = n_samples * (spatial_size - patch_size[0] + 1)
+    # # For 1D data, check if we need to use random or sequential patching
+    # if n_spatial_dims == 1:
+    #     spatial_size = max(reshaped_sample.shape[1:])
+    #     total_possible_patches = n_samples * (spatial_size - patch_size[0] + 1)
         
-        # If more than 1M patches, use random patching
-        if total_possible_patches > 2_000_000:
-            logger.info(f"Large 1D dataset detected ({total_possible_patches:,} possible patches). "
-                       f"Using random patching for memory efficiency.")
+    #     # If more than 1M patches, use random patching
+    #     if total_possible_patches > 2_000_000:
+    #         logger.info(f"Large 1D dataset detected ({total_possible_patches:,} possible patches). "
+    #                    f"Using random patching for memory efficiency.")
             
-            # Use random patching (like PathIterableDataset does)
-            all_patches = []
-            for sample_idx in range(n_samples):
-                sample = reshaped_sample[sample_idx:sample_idx+1]  # Keep batch dim
-                patch_generator = extract_patches_random(
-                    arr=sample,
-                    patch_size=patch_size,
-                    target=None
-                )
-                # Extract limited number of patches per sample
-                sample_patches = list(itertools.islice(patch_generator, 1000))  # Limit patches per sample
-                all_patches.extend([patch for patch, _ in sample_patches])
+    #         # Use random patching (like PathIterableDataset does)
+    #         all_patches = []
+    #         for sample_idx in range(n_samples):
+    #             sample = reshaped_sample[sample_idx:sample_idx+1]  # Keep batch dim
+    #             patch_generator = extract_patches_random(
+    #                 arr=sample,
+    #                 patch_size=patch_size,
+    #                 target=None
+    #             )
+    #             # Extract limited number of patches per sample
+    #             sample_patches = list(itertools.islice(patch_generator, 1000))  # Limit patches per sample
+    #             all_patches.extend([patch for patch, _ in sample_patches])
             
-            patches = all_patches
-            logger.info(f"Extracted {len(patches):,} patches using random sampling.")
-        else:
-            # Use sequential patching for smaller datasets
-            patches, _ = extract_patches_sequential(
-                reshaped_sample, 
-                patch_size=patch_size,
-                axes=axes
-            )
+    #         patches = all_patches
+    #         logger.info(f"Extracted {len(patches):,} patches using random sampling.")
+    #     else:
+    #         # Use sequential patching for smaller datasets
+    #         patches, _ = extract_patches_sequential(
+    #             reshaped_sample, 
+    #             patch_size=patch_size,
+    #             axes=axes
+    #         )
             
-            # Convert list of patches to numpy array if needed
-            if isinstance(patches, list):
-                patches = np.array(patches)
-    else:
-        # Use sequential patching for 2D/3D data
-        patches, _ = extract_patches_sequential(
-            reshaped_sample, 
-            patch_size=patch_size,
-            axes=axes
-        )
+    #         # Convert list of patches to numpy array if needed
+    #         if isinstance(patches, list):
+    #             patches = np.array(patches)
+    # else:
+    #     # Use sequential patching for 2D/3D data
+    #     patches, _ = extract_patches_sequential(
+    #         reshaped_sample, 
+    #         patch_size=patch_size,
+    #         axes=axes
+    #     )
         
-        # Convert list of patches to numpy array if needed
-        if isinstance(patches, list):
-            patches = np.array(patches)
+    #     # Convert list of patches to numpy array if needed
+    #     if isinstance(patches, list):
+    #         patches = np.array(patches)
 
-    # Ensure patches is a numpy array for stats computation
-    if isinstance(patches, list):
-        patches = np.array(patches)
-
+    # # Ensure patches is a numpy array for stats computation
+    # if isinstance(patches, list):
+    #     patches = np.array(patches)
+    
     # compute statistics
-    means, stds = compute_normalization_stats(patches)
+    means, stds = compute_normalization_stats(reshaped_sample)
+  
+    
+    patches, _ = extract_patches_sequential(
+        reshaped_sample, 
+        patch_size=patch_size,
+        axes=axes
+    )
+
 
     logger.info(f"Final: {patches.shape[0]} patches from input array.")
 
     return PatchedOutput(
         patches=patches,
-        targets=patches,  # For unsupervised (N2V), targets are same as patches
+        targets=None,  # For unsupervised (N2V), targets are same as patches
         image_stats=Stats(means=means, stds=stds),
         target_stats=Stats(means=means, stds=stds),
     )

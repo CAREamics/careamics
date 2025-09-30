@@ -13,7 +13,9 @@ from careamics.config.transformations import NormalizeModel
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.dataset.tiling.tiled_patching import extract_tiles
 from careamics.transforms import Compose
+from careamics.utils import get_logger
 
+logger = get_logger(__name__)
 
 class InMemoryTiledPredDataset:
     """
@@ -97,7 +99,6 @@ class InMemoryTiledPredDataset:
             arr=reshaped_sample,
             tile_size=self.tile_size,
             overlaps=self.tile_overlap,
-            # Remove axes parameter - extract_tiles doesn't accept it
         )
         patches_list = list(patch_generator)
 
@@ -141,7 +142,10 @@ class InMemoryTiledPredDataset:
         # Ensure it's a numpy array with correct dtype
         if not isinstance(sample, np.ndarray):
             sample = np.array(sample)
-        
+        # logger.info(sample.shape)
+        # logger.info(sample.shape)
+        # if sample.shape[0] != len(self.image_means):
+        #     sample = sample.T
         # Apply normalization transform - keep as numpy array
         if self.patch_transform is not None:
             # Call transform with patch keyword argument
