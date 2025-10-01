@@ -389,6 +389,10 @@ class GaussianMixtureNoiseModel(nn.Module):
             Corresponds to either of mean, standard deviation or weight, evaluated at `signals`
         """
         value = torch.zeros_like(signals)
+        device = value.device # TODO the whole device handling in this class needs to be refactored
+        weight_params = weight_params.to(device)
+        self.min_signal = self.min_signal.to(device)
+        self.max_signal = self.max_signal.to(device)
         for i in range(weight_params.shape[0]):
             value += weight_params[i] * (
                 ((signals - self.min_signal) / (self.max_signal - self.min_signal)) ** i
@@ -442,7 +446,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         observations = observations.float()
         signals = signals.float()
         gaussian_parameters: list[torch.Tensor] = self.get_gaussian_parameters(signals)
-        p = torch.zeros_like(observations)
+        p = 0# torch.zeros_like(observations)
         for gaussian in range(self.n_gaussian):
             # Ensure all tensors have compatible shapes
             mean = gaussian_parameters[gaussian]
@@ -479,6 +483,11 @@ class GaussianMixtureNoiseModel(nn.Module):
         sigma = []
         alpha = []
         kernels = self.weight.shape[0] // 3
+        device = signals.device
+        self.min_signal = self.min_signal.to(device)
+        self.max_signal = self.max_signal.to(device)
+        self.min_sigma = self.min_sigma.to(device)
+        self.tolerance = self.tolerance.to(device)
         for num in range(kernels):
             mu.append(self.polynomial_regressor(self.weight[num, :], signals))
             expval = torch.exp(self.weight[kernels + num, :])

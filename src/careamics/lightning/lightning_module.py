@@ -31,10 +31,12 @@ from careamics.models.lvae.likelihoods import (
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
+    multichannel_noise_model_factory,
     noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
 from careamics.transforms import (
+    TrainDenormalize,
     Denormalize,
     ImageRestorationTTA,
     N2VManipulateTorch,
@@ -90,39 +92,43 @@ class FCNModule(L.LightningModule):
         if isinstance(algorithm_config, dict):
             algorithm_config = algorithm_factory(algorithm_config)
 
+        self.algorithm_config = algorithm_config
         # create preprocessing, model and loss function
-        if isinstance(algorithm_config, N2VAlgorithm | PN2VAlgorithm):
+        if isinstance(self.algorithm_config, N2VAlgorithm | PN2VAlgorithm):
             self.use_n2v = True
             self.n2v_preprocess: N2VManipulateTorch | None = N2VManipulateTorch(
-                n2v_manipulate_config=algorithm_config.n2v_config
+                n2v_manipulate_config=self.algorithm_config.n2v_config
             )
         else:
             self.use_n2v = False
             self.n2v_preprocess = None
 
-        self.algorithm = algorithm_config.algorithm
-        self.model: torch.nn.Module = model_factory(algorithm_config.model)
+        self.algorithm = self.algorithm_config.algorithm
+        self.model: torch.nn.Module = model_factory(self.algorithm_config.model)
         self.noise_model: NoiseModel | None = noise_model_factory(
-            algorithm_config.noise_model
-            if isinstance(algorithm_config, PN2VAlgorithm)
+            self.algorithm_config.noise_model
+            if isinstance(self.algorithm_config, PN2VAlgorithm)
             else None
         )
 
         # Create loss function, pre-configure with noise model for PN2V
-        loss_func = loss_factory(algorithm_config.loss)
-        if isinstance(algorithm_config, PN2VAlgorithm) and self.noise_model is not None:
+        loss_func = loss_factory(self.algorithm_config.loss)
+        if (
+            isinstance(self.algorithm_config, PN2VAlgorithm)
+            and self.noise_model is not None
+        ):
             # For PN2V, reorder arguments and pass noise model
             self.loss_func = lambda *args: loss_func(
-                args[0], args[2], args[1], self.noise_model
+                args[0], args[1], args[2], self.noise_model
             )
         else:
             self.loss_func = loss_func
 
         # save optimizer and lr_scheduler names and parameters
-        self.optimizer_name = algorithm_config.optimizer.name
-        self.optimizer_params = algorithm_config.optimizer.parameters
-        self.lr_scheduler_name = algorithm_config.lr_scheduler.name
-        self.lr_scheduler_params = algorithm_config.lr_scheduler.parameters
+        self.optimizer_name = self.algorithm_config.optimizer.name
+        self.optimizer_params = self.algorithm_config.optimizer.parameters
+        self.lr_scheduler_name = self.algorithm_config.lr_scheduler.name
+        self.lr_scheduler_params = self.algorithm_config.lr_scheduler.parameters
 
     def forward(self, x: Any) -> Any:
         """Forward pass.
@@ -138,6 +144,30 @@ class FCNModule(L.LightningModule):
             Output tensor.
         """
         return self.model(x)
+
+    def _train_denormalize(self, out: torch.Tensor) -> torch.Tensor:
+        denorm = TrainDenormalize(
+            image_means=(self._trainer.datamodule.train_dataset.image_stats.means),
+            image_stds=(self._trainer.datamodule.train_dataset.image_stats.stds),
+        )
+        return denorm(patch=out)
+
+    def _predict_denormalize(
+        self, out: torch.Tensor, from_prediction: bool
+    ) -> torch.Tensor:
+        denorm = Denormalize(
+            image_means=(
+                self._trainer.datamodule.predict_dataset.image_means
+                if from_prediction
+                else self._trainer.datamodule.train_dataset.image_stats.means
+            ),
+            image_stds=(
+                self._trainer.datamodule.predict_dataset.image_stds
+                if from_prediction
+                else self._trainer.datamodule.train_dataset.image_stats.stds
+            ),
+        )
+        return denorm(patch=out.cpu().numpy())
 
     def training_step(self, batch: torch.Tensor, batch_idx: Any) -> Any:
         """Training step.
@@ -162,6 +192,12 @@ class FCNModule(L.LightningModule):
             aux = []
 
         out = self.model(x_preprocessed)
+
+        # PN2V needs denormalized output and targets for loss computation
+        if isinstance(self.algorithm_config, PN2VAlgorithm):
+            out = self._train_denormalize(out)
+            aux = [self._train_denormalize(aux[0]), aux[1]]
+            # TODO hacky and ugly
         loss = self.loss_func(out, *aux, *targets)
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
@@ -189,6 +225,12 @@ class FCNModule(L.LightningModule):
             aux = []
 
         out = self.model(x_preprocessed)
+
+        # PN2V needs denormalized output and targets for loss computation
+        if isinstance(self.algorithm_config, PN2VAlgorithm):
+            out = torch.tensor(self._train_denormalize(out))
+            aux = [self._train_denormalize(aux[0]), aux[1]]
+            # TODO hacky and ugly
         val_loss = self.loss_func(out, *aux, *targets)
 
         # log validation loss
@@ -256,20 +298,27 @@ class FCNModule(L.LightningModule):
 
         # Denormalize the output
         # TODO incompatible API between predict and train datasets
-        denorm = Denormalize(
-            image_means=(
-                self._trainer.datamodule.predict_dataset.image_means
-                if from_prediction
-                else self._trainer.datamodule.train_dataset.image_stats.means
-            ),
-            image_stds=(
-                self._trainer.datamodule.predict_dataset.image_stds
-                if from_prediction
-                else self._trainer.datamodule.train_dataset.image_stats.stds
-            ),
-        )
-        denormalized_output = denorm(patch=output.cpu().numpy())
 
+        denormalized_input = self._predict_denormalize(
+            x, from_prediction=from_prediction
+        )
+        denormalized_output = self._predict_denormalize(
+            output, from_prediction=from_prediction
+        )
+
+        # Calculate MSE estimate
+        if isinstance(self.algorithm_config, PN2VAlgorithm):
+            likelihoods = self.noise_model.likelihood(
+                torch.tensor(denormalized_input), torch.tensor(denormalized_output)
+            )
+            mse_estimate = torch.sum(
+                likelihoods * denormalized_input, dim=1, keepdim=True
+            )[0, ...]
+            mse_estimate /= torch.sum(likelihoods, dim=1, keepdim=True)[0, ...]
+
+        if isinstance(self.algorithm_config, PN2VAlgorithm):
+            denormalized_output = (denormalized_output, mse_estimate)
+            # TODO: might be ugly but otherwise we need to change the output signature
         if len(aux) > 0:  # aux can be tiling information
             return denormalized_output, *aux
         else:
@@ -351,8 +400,8 @@ class VAEModule(L.LightningModule):
 
         # supervised_mode
         self.supervised_mode = self.algorithm_config.is_supervised
-        # create loss function
-        self.noise_model: NoiseModel | None = noise_model_factory(
+        # create noise model (VAE algorithms always use multichannel noise model factory)
+        self.noise_model: NoiseModel | None = multichannel_noise_model_factory(
             self.algorithm_config.noise_model
         )
 

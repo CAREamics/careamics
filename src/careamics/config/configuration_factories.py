@@ -2361,14 +2361,14 @@ def create_pn2v_configuration(
     # ... )
     """
     # if there are channels, we need to specify their number
-    if "C" in axes and n_channels is None:
-        raise ValueError("Number of channels must be specified when using channels.")
-    elif "C" not in axes and (n_channels is not None and n_channels > 1):
-        raise ValueError(
-            f"C is not present in the axes, but number of channels is specified "
-            f"(got {n_channels} channel)."
-        )
-
+    # if "C" in axes and n_channels is None:
+    #     raise ValueError("Number of channels must be specified when using channels.")
+    # elif "C" not in axes and (n_channels is not None and n_channels > 1):
+    #     raise ValueError(
+    #         f"C is not present in the axes, but number of channels is specified "
+    #         f"(got {n_channels} channel)."
+    #     )
+    # TODO for pn2v channel handling needs to be changed
     if n_channels is None:
         n_channels = 1
 
@@ -2402,7 +2402,7 @@ def create_pn2v_configuration(
         loss="pn2v",
         independent_channels=independent_channels,
         n_channels_in=n_channels,
-        n_channels_out=n_channels,
+        n_channels_out=10,  # TODO for pn2v channel handling needs to be changed
         use_n2v2=use_n2v2,
         model_params=model_params,
         optimizer=optimizer,

@@ -105,7 +105,7 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
 
     model: Annotated[
         UNetModel,
-        AfterValidator(model_matching_in_out_channels),
+        # AfterValidator(model_matching_in_out_channels), # TODO for pn2v channel handling needs to be changed
         AfterValidator(model_without_final_activation),
     ]
 

@@ -63,6 +63,39 @@ def n2v_loss(
     return loss  # TODO change output to dict ?
 
 
+def pn2v_loss(
+    samples: torch.Tensor,
+    labels: torch.Tensor,
+    masks: torch.Tensor,
+    noise_model: GaussianMixtureNoiseModel,
+) -> torch.Tensor:
+    """
+    Probabilistic N2V loss function described in A Krull et al., CVF (2019).
+
+    Parameters
+    ----------
+    samples : torch.Tensor # TODO this naming is confusing
+        Predicted pixel values from the network.
+    labels : torch.Tensor
+        Original pixel values.
+    masks : torch.Tensor
+        Coordinates of manipulated pixels.
+    noise_model : GaussianMixtureNoiseModel
+        Noise model for computing likelihood.
+
+    Returns
+    -------
+    torch.Tensor
+        Loss value.
+    """
+    likelihoods = noise_model.likelihood(labels, samples)
+    likelihoods_avg = torch.log(torch.mean(likelihoods, dim=1, keepdim=True))
+
+    # Average over pixels and batch
+    loss = -torch.sum(likelihoods_avg * masks) / torch.sum(masks)
+    return loss
+
+
 def mae_loss(samples: torch.Tensor, labels: torch.Tensor, *args) -> torch.Tensor:
     """
     N2N Loss function described in to J Lehtinen et al 2018.
@@ -83,39 +116,6 @@ def mae_loss(samples: torch.Tensor, labels: torch.Tensor, *args) -> torch.Tensor
     """
     loss = L1Loss()
     return loss(samples, labels)
-
-
-def pn2v_loss(
-    samples: torch.Tensor,
-    labels: torch.Tensor,
-    masks: torch.Tensor,
-    noise_model: GaussianMixtureNoiseModel,
-) -> torch.Tensor:
-    """
-    Probabilistic N2V loss function described in A Krull et al., CVF (2019).
-
-    Parameters
-    ----------
-    samples : torch.Tensor
-        Predicted pixel values from the network.
-    labels : torch.Tensor
-        Original pixel values.
-    masks : torch.Tensor
-        Coordinates of manipulated pixels.
-    noise_model : GaussianMixtureNoiseModel
-        Noise model for computing likelihood.
-
-    Returns
-    -------
-    torch.Tensor
-        Loss value.
-    """
-    likelihoods = noise_model.likelihood(labels, samples)
-    likelihoods_avg = torch.log(torch.mean(likelihoods, dim=0, keepdim=True)[0, ...])
-
-    # Average over pixels and batch
-    loss = -torch.sum(likelihoods_avg * masks) / torch.sum(masks)
-    return loss
 
 
 # def dice_loss(

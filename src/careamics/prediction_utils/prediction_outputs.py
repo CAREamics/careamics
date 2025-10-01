@@ -41,6 +41,39 @@ def convert_outputs(predictions: list[Any], tiled: bool) -> list[NDArray]:
     return predictions_output
 
 
+def convert_outputs_pn2v(predictions: list[Any], tiled: bool) -> list[NDArray]:
+    """
+    Convert the Lightning trainer outputs to the desired form.
+
+    This method allows stitching back together tiled predictions.
+
+    Parameters
+    ----------
+    predictions : list
+        Predictions that are output from `Trainer.predict`.
+    tiled : bool
+        Whether the predictions are tiled.
+
+    Returns
+    -------
+    list of numpy.ndarray or numpy.ndarray
+        list of arrays with the axes SC(Z)YX. If there is only 1 output it will not
+        be in a list.
+    """
+    if len(predictions) == 0:
+        return predictions
+    # TODO len(preds) = num tiles, for each tile we have (prediction, mse), tile info
+    # unpack properly! 
+    # this layout is to stop mypy complaining
+    if tiled:
+        predictions_comb = combine_batches(predictions, tiled)
+        predictions_output = stitch_prediction(*predictions_comb)
+    else:
+        predictions_output = combine_batches(predictions, tiled)
+
+    return predictions_output
+
+
 def convert_outputs_microsplit(
     predictions: list[tuple[NDArray, NDArray]], dataset
 ) -> tuple[NDArray, NDArray]:
