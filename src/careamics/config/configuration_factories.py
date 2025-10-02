@@ -1639,9 +1639,12 @@ def get_likelihood_config(
 
     Returns
     -------
-    (GaussianLikelihoodConfig, MultiChannelNMConfig, NMLikelihoodConfig)
-        A tuple containing the likelihood and noise model configurations for the
-        specified loss type.
+    GaussianLikelihoodConfig or None
+        Configuration for the Gaussian likelihood model.
+    MultiChannelNMConfig or None
+        Configuration for the multi-channel noise model.
+    NMLikelihoodConfig or None
+        Configuration for the noise model likelihood.
 
     Raises
     ------
