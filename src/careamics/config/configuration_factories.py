@@ -311,6 +311,10 @@ def _create_microsplit_data_configuration(
         Axes of the data.
     patch_size : list of int
         Size of the patches along the spatial dimensions.
+    grid_size : int
+        Grid size for patch extraction.
+    multiscale_count : int
+        Number of LC scales.
     batch_size : int
         Batch size.
     augmentations : list of transforms
@@ -1610,6 +1614,12 @@ def get_likelihood_config(
 ]:
     """Get the likelihood configuration for split models.
 
+    Returns a tuple containing the following optional entries:
+        - GaussianLikelihoodConfig: Gaussian likelihood configuration for musplit losses
+        - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit
+        losses
+        - NMLikelihoodConfig: Noise model likelihood configuration for denoisplit losses
+
     Parameters
     ----------
     loss_type : Literal["musplit", "denoisplit", "denoisplit_musplit"]
@@ -1629,15 +1639,9 @@ def get_likelihood_config(
 
     Returns
     -------
-    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None,
-    NMLikelihoodConfig | None]
+    (GaussianLikelihoodConfig, MultiChannelNMConfig, NMLikelihoodConfig)
         A tuple containing the likelihood and noise model configurations for the
         specified loss type.
-
-        - GaussianLikelihoodConfig: Gaussian likelihood configuration for musplit losses
-        - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit
-        losses
-        - NMLikelihoodConfig: Noise model likelihood configuration for denoisplit losses
 
     Raises
     ------
@@ -1647,7 +1651,7 @@ def get_likelihood_config(
     # gaussian likelihood
     if loss_type in ["musplit", "denoisplit_musplit"]:
         # if predict_logvar is None:
-        #     raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
+        #    raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
         # TODO validators should be in pydantic models
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
@@ -1903,7 +1907,7 @@ def create_microsplit_configuration(
     decoder_dropout: float = 0.0,
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
-    ] = "ReLU",
+    ] = "ReLU",  # TODO do we need all these?
     analytical_kl: bool = False,
     predict_logvar: Literal["pixelwise"] = "pixelwise",
     logvar_lowerbound: Union[float, None] = None,
@@ -1943,8 +1947,11 @@ def create_microsplit_configuration(
         Strides for the decoder convolutional layers, by default (2, 2).
     multiscale_count : int, optional
         Number of multiscale levels, by default 1.
+    grid_size : int, optional
+        Size of the grid for the lateral context, by default 32.
     z_dims : tuple[int, ...], optional
-        List of latent dimensions for each hierarchy level in the LVAE, by default (128, 128).
+        List of latent dimensions for each hierarchy level in the LVAE, by default
+        (128, 128).
     output_channels : int, optional
         Number of output channels for the model, by default 1.
     encoder_n_filters : int, optional

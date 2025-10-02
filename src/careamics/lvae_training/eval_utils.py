@@ -32,7 +32,7 @@ class TilingMode:
     ShiftBoundary = 2
 
 
-# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------
 # Function of plotting: TODO -> moved them to another file, plot_utils.py
 def clean_ax(ax):
     """
@@ -68,7 +68,8 @@ def get_psnr_str(tar_hsnr, pred, col_idx):
     """
     Compute PSNR between the ground truth (`tar_hsnr`) and the predicted image (`pred`).
     """
-    return f"{scale_invariant_psnr(tar_hsnr[col_idx][None], pred[col_idx][None]).item():.1f}"
+    return f"{scale_invariant_psnr(
+        tar_hsnr[col_idx][None], pred[col_idx][None]).item():.1f}"
 
 
 def add_psnr_str(ax_, psnr):
@@ -129,8 +130,10 @@ def show_for_one(
     baseline_preds=None,
 ):
     """
-    Given an index, it plots the input, target, reconstructed images and the difference image.
-    Note the the difference image is computed with respect to a ground truth image, obtained from the high SNR dataset.
+    Given an index, it plots the input, target, reconstructed images and the difference
+    image.
+    Note the the difference image is computed with respect to a ground truth image,
+    obtained from the high SNR dataset.
     """
     highsnr_val_dset.set_img_sz(patch_size, 64)
     highsnr_val_dset.disable_noise()
@@ -164,7 +167,8 @@ def plot_crops(
         for i in range(len(baseline_preds)):
             if baseline_preds[i].shape != tar_hsnr.shape:
                 print(
-                    f"Baseline prediction {i} shape {baseline_preds[i].shape} does not match target shape {tar_hsnr.shape}"
+                    f"Baseline prediction {i} shape {baseline_preds[i].shape} does not "
+                    f"match target shape {tar_hsnr.shape}"
                 )
                 print("This happens when we want to predict the edges of the image.")
                 return
@@ -333,14 +337,21 @@ def plot_crops(
     ax_temp.imshow(inp[0, 0].cpu().numpy(), cmap="magma")
     clean_ax(ax_temp)
 
-    # line_ch1 = mlines.Line2D([0, 1], [0, 1], color=color_ch_list[0], linestyle='-', label='$C_1$')
-    # line_ch2 = mlines.Line2D([0, 1], [0, 1], color=color_ch_list[1], linestyle='-', label='$C_2$')
-    # line_pred = mlines.Line2D([0, 1], [0, 1], color=color_pred, linestyle='-', label='Pred')
-    # line_noisych1 = mlines.Line2D([0, 1], [0, 1], color=color_ch_list[0], linestyle='--', label='$C^N_1$')
-    # line_noisych2 = mlines.Line2D([0, 1], [0, 1], color=color_ch_list[1], linestyle='--', label='$C^N_2$')
-    # legend_ch1 = legend_ch1_ax.legend(handles=[line_ch1, line_noisych1, line_pred], loc='upper right', frameon=False, labelcolor='white',
+    # line_ch1 = mlines.Line2D([0, 1], [0, 1], color=color_ch_list[0], linestyle='-',
+    # label='$C_1$')
+    # line_ch2 = mlines.Line2D([0, 1], [0, 1], color=color_ch_list[1], linestyle='-',
+    # label='$C_2$')
+    # line_pred = mlines.Line2D([0, 1], [0, 1], color=color_pred, linestyle='-',
+    # label='Pred')
+    # line_noisych1 = mlines.Line2D([0, 1], [0, 1], color=color_ch_list[0],
+    # linestyle='--', label='$C^N_1$')
+    # line_noisych2 = mlines.Line2D([0, 1], [0, 1], color=color_ch_list[1],
+    # linestyle='--', label='$C^N_2$')
+    # legend_ch1 = legend_ch1_ax.legend(handles=[line_ch1, line_noisych1, line_pred],
+    # loc='upper right', frameon=False, labelcolor='white',
     #                         prop={'size': 11})
-    # legend_ch2 = legend_ch2_ax.legend(handles=[line_ch2, line_noisych2, line_pred], loc='upper right', frameon=False, labelcolor='white',
+    # legend_ch2 = legend_ch2_ax.legend(handles=[line_ch2, line_noisych2, line_pred],
+    # loc='upper right', frameon=False, labelcolor='white',
     #                             prop={'size': 11})
 
     if calibration_stats is not None:
@@ -383,7 +394,9 @@ def plot_calibration(ax, calibration_stats):
 
 def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name="shiftedcmap"):
     """
-    Adapted from https://stackoverflow.com/questions/7404116/defining-the-midpoint-of-a-colormap-in-matplotlib
+    Adapted from
+    https://stackoverflow.com/questions/7404116/defining-the-midpoint-of-a-colormap-in-
+    matplotlib
 
     Function to offset the "center" of a colormap. Useful for
     data with a negative min and positive max and you want the
@@ -444,7 +457,8 @@ def get_fractional_change(target, prediction, max_val=None):
 
 def get_zero_centered_midval(error):
     """
-    When done this way, the midval ensures that the colorbar is centered at 0. (Don't know how, but it works ;))
+    When done this way, the midval ensures that the colorbar is centered at 0. (Don't
+    know how, but it works ;))
     """
     vmax = error.max()
     vmin = error.min()
@@ -670,7 +684,7 @@ def get_single_file_mmse(
     return stitched_predictions, stitched_stds
 
 
-# ------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------
 ### Classes and Functions used to stitch predictions
 class PatchLocation:
     """
@@ -698,9 +712,10 @@ def _get_location(extra_padding, hwt, pred_h, pred_w):
 
 def get_location_from_idx(dset, dset_input_idx, pred_h, pred_w):
     """
-    For a given idx of the dataset, it returns where exactly in the dataset, does this prediction lies.
-    Note that this prediction also has padded pixels and so a subset of it will be used in the final prediction.
-    Which time frame, which spatial location (h_start, h_end, w_start,w_end)
+    For a given idx of the dataset, it returns where exactly in the dataset, does this
+    prediction lies. Note that this prediction also has padded pixels and so a subset of
+    it will be used in the final prediction. Which time frame, which spatial location
+    (h_start, h_end, w_start,w_end)
     Args:
         dset:
         dset_input_idx:
@@ -785,9 +800,11 @@ def stitch_predictions(predictions, dset, smoothening_pixelcount=0):
                 # NOTE: don't need to compute it for every patch.
                 assert (
                     smoothening_pixelcount == 0
-                ), "For smoothing,enable the get_smoothing_mask. It is disabled since I don't use it and it needs modification to work with non-square images"
+                ), "For smoothing,enable the get_smoothing_mask. It is disabled since I"
+                "don't use it and it needs modification to work with non-square images"
                 mask = 1
-                # mask = _get_smoothing_mask(cropped_pred_i.shape, smoothening_pixelcount, loc, frame_size)
+                # mask = _get_smoothing_mask(cropped_pred_i.shape,
+                # smoothening_pixelcount, loc, frame_size)
 
             cropped_pred_list.append(cropped_pred_i)
 
@@ -827,7 +844,8 @@ def stitch_predictions_new(predictions, dset):
     output = np.zeros(shape, dtype=predictions.dtype)
     # frame_shape = dset.get_data_shape()[:-1]
     for dset_idx in range(predictions.shape[0]):
-        # loc = get_location_from_idx(dset, dset_idx, predictions.shape[-2], predictions.shape[-1])
+        # loc = get_location_from_idx(dset, dset_idx, predictions.shape[-2],
+        # predictions.shape[-1])
         # grid start, grid end
         gs = np.array(mng.get_location_from_dataset_idx(dset_idx), dtype=int)
         ge = gs + mng.grid_shape
@@ -843,7 +861,8 @@ def stitch_predictions_new(predictions, dset):
         vgs = np.array([max(0, x) for x in gs], dtype=int)
         vge = np.array([min(x, y) for x, y in zip(ge, mng.data_shape)], dtype=int)
         # assert np.all(vgs == gs)
-        # assert np.all(vge == ge) # TODO comented out this shit cuz I have no interest to dig why it's failing at this point !
+        # assert np.all(vge == ge) # TODO comented out this shit cuz I have no interest
+        # to dig why it's failing at this point !
         # print('VGS')
         # print(gs)
         # print(ge)
@@ -898,7 +917,8 @@ def stitch_predictions_general(predictions, dset):
     # frame_shape = dset.get_data_shape()[:-1]
     for patch_idx in range(predictions.shape[0]):
         # grid start, grid end
-        # channel_idx is 0 because during prediction we're only use one channel. # TODO revisit this
+        # channel_idx is 0 because during prediction we're only use one channel.
+        # # TODO revisit this
         # 0th dimension is sample index in the output list
         grid_coords = np.array(
             mng.get_location_from_patch_idx(channel_idx=0, patch_idx=patch_idx),
@@ -906,7 +926,8 @@ def stitch_predictions_general(predictions, dset):
         )
         sample_idx = grid_coords[0]
         grid_start = grid_coords[1:]
-        # from here on, coordinates are relative to the sample(file in the list of inputs)
+        # from here on, coordinates are relative to the sample(file in the list of
+        # inputs)
         grid_end = grid_start + mng.grid_shape
 
         # patch start, patch end

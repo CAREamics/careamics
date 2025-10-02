@@ -41,6 +41,7 @@ logger = get_logger(__name__)
 LOGGER_TYPES = list[Union[TensorBoardLogger, WandbLogger, CSVLogger]]
 
 
+# TODO type ignore have been added because of the czi data type in data configuration
 class CAREamist:
     """Main CAREamics class, allowing training and prediction using various algorithms.
 
@@ -674,7 +675,7 @@ class CAREamist:
         # create the prediction
         self.pred_datamodule = create_predict_datamodule(
             pred_data=source,
-            data_type=data_type or self.cfg.data_config.data_type,
+            data_type=data_type or self.cfg.data_config.data_type,  # type: ignore
             axes=axes or self.cfg.data_config.axes,
             image_means=self.cfg.data_config.image_means,
             image_stds=self.cfg.data_config.image_stds,
@@ -817,14 +818,16 @@ class CAREamist:
 
         # extract file names
         source_path: Union[Path, str, NDArray]
-        source_data_type: Literal["array", "tiff", "czi", "custom"]
+        source_data_type: Literal["array", "tiff", "custom"]
         if isinstance(source, PredictDataModule):
             source_path = source.pred_data
-            source_data_type = source.data_type
+            source_data_type = source.data_type  # type: ignore
             extension_filter = source.extension_filter
         elif isinstance(source, (str | Path)):
             source_path = source
-            source_data_type = data_type or self.cfg.data_config.data_type
+            source_data_type = (
+                data_type or self.cfg.data_config.data_type  # type: ignore
+            )
             extension_filter = SupportedData.get_extension_pattern(
                 SupportedData(source_data_type)
             )
