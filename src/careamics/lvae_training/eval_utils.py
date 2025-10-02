@@ -68,8 +68,9 @@ def get_psnr_str(tar_hsnr, pred, col_idx):
     """
     Compute PSNR between the ground truth (`tar_hsnr`) and the predicted image (`pred`).
     """
-    return f"{scale_invariant_psnr(
-        tar_hsnr[col_idx][None], pred[col_idx][None]).item():.1f}"
+    psnr = scale_invariant_psnr(tar_hsnr[col_idx][None], pred[col_idx][None]).item()
+
+    return f"{psnr:.1f}"
 
 
 def add_psnr_str(ax_, psnr):
