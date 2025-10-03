@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import os
-import sys
 import random
+import sys
 from collections.abc import Sequence
 from pprint import pformat
 from typing import Annotated, Any, Literal, Self, Union
