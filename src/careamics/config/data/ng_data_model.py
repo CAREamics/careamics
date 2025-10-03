@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 import random
 from collections.abc import Sequence
 from pprint import pformat
@@ -325,6 +327,80 @@ class NGDataConfig(BaseModel):
             for transform in self.transforms:
                 if hasattr(transform, "seed") and transform.seed is None:
                     transform.seed = self.seed
+        return self
+
+    @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
+    @classmethod
+    def set_default_pin_memory(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Set default pin_memory for dataloader parameters if not provided.
+
+        - If 'pin_memory' is not set, it defaults to True if CUDA is available.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The dataloader parameters with pin_memory default applied.
+        """
+        if "pin_memory" not in dataloader_params:
+            import torch
+
+            dataloader_params["pin_memory"] = torch.cuda.is_available()
+        return dataloader_params
+
+    @field_validator("train_dataloader_params", mode="before")
+    @classmethod
+    def set_default_train_workers(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Set default num_workers for training dataloader if not provided.
+
+        - If 'num_workers' is not set, it defaults to the number of available CPU cores.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The training dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The dataloader parameters with num_workers default applied.
+        """
+        if "num_workers" not in dataloader_params:
+            # Use 0 workers during tests, otherwise use all available CPU cores
+            if "pytest" in sys.modules:
+                dataloader_params["num_workers"] = 0
+            else:
+                dataloader_params["num_workers"] = os.cpu_count()
+
+        return dataloader_params
+
+    @model_validator(mode="after")
+    def set_val_workers_to_match_train(self: Self) -> Self:
+        """
+        Set validation dataloader num_workers to match training dataloader if not specified.
+
+        If num_workers is not specified in val_dataloader_params, it will be set to the
+        same value as train_dataloader_params["num_workers"].
+
+        Returns
+        -------
+        Self
+            Validated data model with synchronized num_workers.
+        """
+        if "num_workers" not in self.val_dataloader_params:
+            self.val_dataloader_params["num_workers"] = self.train_dataloader_params[
+                "num_workers"
+            ]
         return self
 
     def __str__(self) -> str:
