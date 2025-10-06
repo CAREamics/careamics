@@ -197,17 +197,39 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             region_spec=patch_spec,
         )
 
-    def __getitem__(
-        self, index: int
-    ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
+    def _extract_patches(
+        self, patch_spec: PatchSpecs
+    ) -> tuple[NDArray, NDArray | None]:
+        """Extract input and target patches based on patch specifications."""
+        input_patch = self.input_extractor.extract_patch(
+            data_idx=patch_spec["data_idx"],
+            sample_idx=patch_spec["sample_idx"],
+            coords=patch_spec["coords"],
+            patch_size=patch_spec["patch_size"],
+        )
 
-        # assumed only random patching strategy is used
+        target_patch = (
+            self.target_extractor.extract_patch(
+                data_idx=patch_spec["data_idx"],
+                sample_idx=patch_spec["sample_idx"],
+                coords=patch_spec["coords"],
+                patch_size=patch_spec["patch_size"],
+            )
+            if self.target_extractor is not None
+            else None
+        )
+        return input_patch, target_patch
+
+    def _get_filtered_patch(
+        self, index: int
+    ) -> tuple[NDArray[Any], NDArray[Any] | None, PatchSpecs]:
+        """Extract a patch that passes filtering criteria with retry logic."""
         should_filter = self.mode == Mode.TRAINING and (
             self.patch_filter is not None or self.coord_filter is not None
         )
         empty_patch = True
-
         patch_filter_patience = self.patch_filter_patience  # reset patience
+
         while empty_patch and patch_filter_patience > 0:
             # query patches
             patch_spec = self.patching_strategy.get_patch_spec(index)
@@ -215,27 +237,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             # filter patch based on coordinates if needed
             if should_filter and self.coord_filter is not None:
                 if self.coord_filter.filter_out(patch_spec):
-                    empty_patch = True
                     patch_filter_patience -= 1
                     continue
 
-            input_patch = self.input_extractor.extract_patch(
-                data_idx=patch_spec["data_idx"],
-                sample_idx=patch_spec["sample_idx"],
-                coords=patch_spec["coords"],
-                patch_size=patch_spec["patch_size"],
-            )
-
-            target_patch = (
-                self.target_extractor.extract_patch(
-                    data_idx=patch_spec["data_idx"],
-                    sample_idx=patch_spec["sample_idx"],
-                    coords=patch_spec["coords"],
-                    patch_size=patch_spec["patch_size"],
-                )
-                if self.target_extractor is not None
-                else None
-            )
+            input_patch, target_patch = self._extract_patches(patch_spec)
 
             # filter patch based on values if needed
             if should_filter and self.patch_filter is not None:
@@ -243,6 +248,13 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 patch_filter_patience -= 1  # decrease patience
             else:
                 empty_patch = False
+
+        return input_patch, target_patch, patch_spec
+
+    def __getitem__(
+        self, index: int
+    ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
+        input_patch, target_patch, patch_spec = self._get_filtered_patch(index)
 
         # apply transforms
         if self.transforms is not None:
