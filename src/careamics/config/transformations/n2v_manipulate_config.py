@@ -52,7 +52,11 @@ class N2VManipulateConfig(TransformConfig):
 
     struct_mask_span: int = Field(default=5, ge=3, le=15)
     """Size of the structN2V mask."""
-
+    n_data_channels: int = Field(
+        default=1,
+        ge=1,
+        description="Number of data channels to mask (excludes auxiliary channels like positional encoding)",
+    )
     @field_validator("roi_size", "struct_mask_span")
     @classmethod
     def odd_value(cls, v: int) -> int:

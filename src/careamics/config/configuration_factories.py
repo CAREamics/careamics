@@ -1186,6 +1186,7 @@ def create_n2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    n_data_channels: int = 1,
 ) -> Configuration:
     """
      Create a configuration for training Noise2Void.
@@ -1490,6 +1491,7 @@ def create_n2v_configuration(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
+        n_data_channels=n_data_channels,
     )
 
     # algorithm

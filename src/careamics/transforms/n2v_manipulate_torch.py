@@ -14,7 +14,6 @@ from .pixel_manipulation_torch import (
 )
 from .struct_mask_parameters import StructMaskParameters
 
-
 class N2VManipulateTorch:
     """
     Default augmentation for the N2V model.
@@ -51,6 +50,7 @@ class N2VManipulateTorch:
         n2v_manipulate_config: N2VManipulateConfig,
         seed: int | None = None,
         device: str | None = None,
+        n_data_channels: int = 1,
     ):
         """Constructor.
 
@@ -63,6 +63,7 @@ class N2VManipulateTorch:
         device : str
             The device on which operations take place, e.g. "cuda", "cpu" or "mps".
         """
+        self.n_data_channels = n_data_channels
         self.masked_pixel_percentage = n2v_manipulate_config.masked_pixel_percentage
         self.roi_size = n2v_manipulate_config.roi_size
         self.strategy = n2v_manipulate_config.strategy
@@ -123,8 +124,9 @@ class N2VManipulateTorch:
         mask = torch.zeros_like(batch, dtype=torch.uint8)
 
         if self.strategy == SupportedPixelManipulation.UNIFORM:
+            # Only mask first n data channels as specified in config
             # Iterate over the channels to apply manipulation separately
-            for c in range(batch.shape[1]):
+            for c in range(self.n_data_channels):
                 masked[:, c, ...], mask[:, c, ...] = uniform_manipulate_torch(
                     patch=batch[:, c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
@@ -134,8 +136,9 @@ class N2VManipulateTorch:
                     rng=self.rng,
                 )
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
+            # Only mask first n data channels as specified in config
             # Iterate over the channels to apply manipulation separately
-            for c in range(batch.shape[1]):
+            for c in range(self.n_data_channels):
                 masked[:, c, ...], mask[:, c, ...] = median_manipulate_torch(
                     batch=batch[:, c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
