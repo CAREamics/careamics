@@ -11,6 +11,9 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
 )
 from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterProtocol
 from careamics.dataset_ng.patching_strategies import TilingStrategy
+from careamics.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class MaxPatchFilter(PatchFilterProtocol):
@@ -33,6 +36,7 @@ class MaxPatchFilter(PatchFilterProtocol):
         self,
         threshold: float,
         p: float = 1.0,
+        threshold_ratio: float = 0.25,
         seed: int | None = None,
     ) -> None:
         """
@@ -47,21 +51,27 @@ class MaxPatchFilter(PatchFilterProtocol):
             Threshold for the maximum filter of the patch.
         p : float, default=1
             Probability of applying the filter to a patch. Must be between 0 and 1.
+        threshold_ratio : float, default=0.25
+            Ratio of pixels that must be below threshold for patch to be filtered out.
+            Must be between 0 and 1.
         seed : int | None, default=None
             Seed for the random number generator for reproducibility.
         """
         self.threshold = threshold
-
+        self.threshold_ratio = threshold_ratio
         self.p = p
         self.rng = np.random.default_rng(seed)
 
     def filter_out(self, patch: np.ndarray) -> bool:
         if self.rng.uniform(0, 1) < self.p:
 
+            if np.max(patch) < self.threshold:
+                return True
+
             patch_shape = [(p // 2 if p > 1 else 1) for p in patch.shape]
             filtered = maximum_filter(patch, patch_shape, mode="constant")
-
-            return (filtered < self.threshold).any()
+            return np.mean(filtered < self.threshold) > self.threshold_ratio
+            
         return False
 
     @staticmethod
@@ -172,4 +182,7 @@ class MaxPatchFilter(PatchFilterProtocol):
             (not filtered out) and False indicates that the patch should be filtered
             out.
         """
-        return filter_map >= threshold
+        threshold = filter_map >= threshold
+        coverage = np.sum(threshold) * 100 / threshold.size
+        logger.info(f"Image coverage: {coverage:.2f}%")
+        return threshold
