@@ -130,7 +130,7 @@ class NGDataConfig(BaseModel):
     """Coordinate filter to apply when using random patching. Only available during
     training."""
 
-    patch_filter_patience: int = Field(default=10, ge=1)
+    patch_filter_patience: int = Field(default=5, ge=1)
     """Number of consecutive patches not passing the filter before accepting the next
     patch."""
 
