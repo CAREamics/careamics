@@ -89,6 +89,7 @@ def _reconstruction_loss_musplit_denoisplit(
     if predictions.shape[1] == 2 * targets.shape[1]:
         # predictions contain both mean and log-variance
         pred_mean, _ = predictions.chunk(2, dim=1)
+        # TODO if this condition does not hold, everything breaks later!
     else:
         pred_mean = predictions
 

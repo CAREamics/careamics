@@ -5,13 +5,12 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from pprint import pformat
-from typing import Any, Literal, Union
+from typing import Any, Literal, Self, Union
 
 import numpy as np
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.main import IncEx
-from typing_extensions import Self
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
@@ -22,6 +21,7 @@ from careamics.config.algorithms import (
 )
 from careamics.config.data import DataConfig
 from careamics.config.training_model import TrainingConfig
+from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 ALGORITHMS = Union[
     CAREAlgorithm,
@@ -141,7 +141,7 @@ class Configuration(BaseModel):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: DataConfig
+    data_config: DataConfig | MicroSplitDataConfig
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 

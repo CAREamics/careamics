@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, model_validator
-from typing_extensions import Self
 
 from careamics.config.architectures import LVAEModel
 from careamics.config.likelihood_model import (

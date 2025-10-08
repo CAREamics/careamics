@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import zarr
 from numpy.typing import NDArray
-from zarr.storage import FSStore
+from zarr.storage import FsspecStore
 
 from careamics.config import DataConfig
 from careamics.config.support import SupportedData
@@ -20,7 +20,7 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
 
 # %%
 def create_zarr_array(file_path: Path, data_path: str, data: NDArray):
-    store = FSStore(url=file_path.resolve())
+    store = FsspecStore.from_url(url=file_path.resolve())
     # create array
     array = zarr.create(
         store=store,
@@ -61,7 +61,7 @@ if not file_path.is_file() and not file_path.is_dir():
 # ### Make sure file exists
 
 # %%
-store = FSStore(url=file_path.resolve(), mode="r")
+store = FsspecStore.from_url(url=file_path.resolve(), mode="r")
 
 # %%
 list(store.keys())
@@ -72,7 +72,7 @@ list(store.keys())
 
 # %%
 class ZarrSource(TypedDict):
-    store: FSStore
+    store: FsspecStore
     data_paths: Sequence[str]
 
 
