@@ -264,7 +264,7 @@ class DataConfig(BaseModel):
     @model_validator(mode="after")
     def set_val_workers_to_match_train(self: Self) -> Self:
         """
-        Set validation dataloader num_workers to match training dataloader if not specified.
+        Set validation dataloader num_workers to match training dataloader.
 
         If num_workers is not specified in val_dataloader_params, it will be set to the
         same value as train_dataloader_params["num_workers"].

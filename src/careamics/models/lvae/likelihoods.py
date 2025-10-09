@@ -381,7 +381,8 @@ class NoiseModelLikelihood(LikelihoodModule):
         """
         if self.data_mean is None or self.data_std is None:
             raise RuntimeError(
-                "NoiseModelLikelihood: data_mean and data_std must be set before calling log_likelihood."
+                "NoiseModelLikelihood: data_mean and data_std must be set before"
+                "callinglog_likelihood."
             )
         self._set_params_to_same_device_as(x)
         predicted_s_denormalized = params["mean"] * self.data_std + self.data_mean

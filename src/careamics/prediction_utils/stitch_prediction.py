@@ -17,13 +17,21 @@ class TilingMode:
     ShiftBoundary = 2
 
 
-def stitch_prediction_vae(predictions, dset):
+def stitch_prediction_vae(predictions, dset) -> NDArray:
     """
     Stitch predictions back together using dataset's index manager.
 
-    Args:
-        predictions: Array of predictions with shape (n_tiles, channels, height, width)
-        dset: Dataset object with idx_manager containing tiling information
+    Parameters
+    ----------
+    predictions : np.ndarray
+        Array of predictions with shape (n_tiles, channels, height, width).
+    dset : Dataset
+        Dataset object with idx_manager containing tiling information.
+
+    Returns
+    -------
+    np.ndarray
+        Stitched array with shape matching the original data shape.
     """
     mng = dset.idx_manager
 
@@ -34,7 +42,8 @@ def stitch_prediction_vae(predictions, dset):
     output = np.zeros(shape, dtype=predictions.dtype)
     # frame_shape = dset.get_data_shape()[:-1]
     for dset_idx in range(predictions.shape[0]):
-        # loc = get_location_from_idx(dset, dset_idx, predictions.shape[-2], predictions.shape[-1])
+        # loc = get_location_from_idx(dset, dset_idx, predictions.shape[-2],
+        # predictions.shape[-1])
         # grid start, grid end
         gs = np.array(mng.get_location_from_dataset_idx(dset_idx), dtype=int)
         ge = gs + mng.grid_shape
@@ -178,6 +187,8 @@ def stitch_prediction_single(
 
         # Insert cropped tile into predicted image using stitch coordinates
         image_slices = (..., *[slice(c[0], c[1]) for c in tile_info.stitch_coords])
-        predicted_image[image_slices] = cropped_tile.astype(np.float32)
+
+        # TODO fix mypy error here, potentially due to numpy 2
+        predicted_image[image_slices] = cropped_tile.astype(np.float32)  # type: ignore
 
     return predicted_image
