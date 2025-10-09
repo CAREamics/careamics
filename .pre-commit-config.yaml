@@ -18,7 +18,6 @@ repos:
     hooks:
       - id: ruff
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^scripts/.*"
-        args: [--fix, --target-version, py311]
 
   - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 25.9.0

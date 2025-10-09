@@ -95,6 +95,7 @@ careamics = "careamics.cli.main:run"
 
 # https://beta.ruff.rs/docs
 [tool.ruff]
+fix = true
 line-length = 88
 target-version = "py311" # is this needed? see .pre-commit-config.yaml
 src = ["src"]
