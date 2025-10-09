@@ -542,9 +542,9 @@ class VAEModule(L.LightningModule):
                 # get reconstructed img
                 if self.model.predict_logvar is None:
                     rec_img = rec
-                    logvar = torch.tensor([-1])
+                    _logvar = torch.tensor([-1])
                 else:
-                    rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
+                    rec_img, _logvar = torch.chunk(rec, chunks=2, dim=1)
                 rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
 
             # aggregate results

@@ -9,6 +9,13 @@ from careamics.config.support import SupportedData
 from careamics.model_io import export_to_bmz
 
 
+# Allows CI to run on macos-latest gh runner
+@pytest.fixture(autouse=True)
+def disable_mps(monkeypatch):
+    """Disable MPS for all tests"""
+    monkeypatch.setattr("torch._C._mps_is_available", lambda: False)
+
+
 @pytest.fixture
 def gaussian_likelihood_params():
     return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}
