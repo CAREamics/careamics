@@ -47,8 +47,9 @@ def convert_outputs_microsplit(
     """
     Convert microsplit Lightning trainer outputs using eval_utils stitching functions.
 
-    This function processes microsplit predictions that return (tile_prediction, tile_std) tuples
-    and stitches them back together using the same logic as get_single_file_mmse.
+    This function processes microsplit predictions that return (tile_prediction,
+    tile_std) tuples and stitches them back together using the same logic as
+    get_single_file_mmse.
 
     Parameters
     ----------
