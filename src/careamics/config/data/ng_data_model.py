@@ -23,6 +23,12 @@ from pydantic import (
 
 from ..transformations import XYFlipModel, XYRandomRotate90Model
 from ..validators import check_axes_validity
+from .patch_filter import (
+    MaskFilterModel,
+    MaxFilterModel,
+    MeanSTDFilterModel,
+    ShannonFilterModel,
+)
 from .patching_strategies import (
     RandomPatchingModel,
     TiledPatchingModel,
@@ -81,6 +87,16 @@ PatchingStrategies = Union[
 ]
 """Patching strategies."""
 
+PatchFilters = Union[
+    MaxFilterModel,
+    MeanSTDFilterModel,
+    ShannonFilterModel,
+]
+"""Patch filters."""
+
+CoordFilters = Union[MaskFilterModel]  # add more here as needed
+"""Coordinate filters."""
+
 
 class NGDataConfig(BaseModel):
     """Next-Generation Dataset configuration.
@@ -118,6 +134,18 @@ class NGDataConfig(BaseModel):
     # Optional fields
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
+
+    patch_filter: PatchFilters | None = Field(default=None, discriminator="name")
+    """Patch filter to apply when using random patching. Only available during
+    training."""
+
+    coord_filter: CoordFilters | None = Field(default=None, discriminator="name")
+    """Coordinate filter to apply when using random patching. Only available during
+    training."""
+
+    patch_filter_patience: int = Field(default=5, ge=1)
+    """Number of consecutive patches not passing the filter before accepting the next
+    patch."""
 
     image_means: list[Float] | None = Field(default=None, min_length=0, max_length=32)
     """Means of the data across channels, used for normalization."""
@@ -307,6 +335,36 @@ class NGDataConfig(BaseModel):
                     f"`patch_size` in `patching` must have 2 dimensions if the data is"
                     f" 3D, got axes {self.axes})."
                 )
+
+        return self
+
+    @model_validator(mode="after")
+    def propagate_seed_to_filters(self: Self) -> Self:
+        """
+        Propagate the main seed to patch and coordinate filters that support seeds.
+
+        This ensures that all filters use the same seed for reproducibility,
+        unless they already have a seed explicitly set.
+
+        Returns
+        -------
+        Self
+            Data model with propagated seeds.
+        """
+        if self.seed is not None:
+            if self.patch_filter is not None:
+                if (
+                    hasattr(self.patch_filter, "seed")
+                    and self.patch_filter.seed is None
+                ):
+                    self.patch_filter.seed = self.seed
+
+            if self.coord_filter is not None:
+                if (
+                    hasattr(self.coord_filter, "seed")
+                    and self.coord_filter.seed is None
+                ):
+                    self.coord_filter.seed = self.seed
 
         return self
 
