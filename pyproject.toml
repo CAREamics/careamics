@@ -65,6 +65,14 @@ dependencies = [
 # czi format
 czi = ['pylibCZIrw>=4.1.2,<6.0.0']
 
+# notebooks
+examples = ["jupyter", "careamics-portfolio"]
+
+# loggers
+wandb = ["wandb"]
+tensorboard = ["tensorboard", "protobuf==5.29.1"]
+
+[dependency-groups]
 # development dependencies and tooling
 dev = [
     "pre-commit",
@@ -77,13 +85,6 @@ dev = [
     "ml_dtypes>=0.5.0" # required by onnx, causes issues in gh runners with py313
 ]
 
-# notebooks
-examples = ["jupyter", "careamics-portfolio"]
-
-# loggers
-wandb = ["wandb"]
-tensorboard = ["tensorboard", "protobuf==5.29.1"]
-
 [project.urls]
 homepage = "https://careamics.github.io/"
 repository = "https://github.com/CAREamics/careamics"
@@ -94,8 +95,9 @@ careamics = "careamics.cli.main:run"
 
 # https://beta.ruff.rs/docs
 [tool.ruff]
+fix = true
 line-length = 88
-target-version = "py310"
+target-version = "py311" # is this needed? see .pre-commit-config.yaml
 src = ["src"]
 lint.select = [
     "E",  # style errors
