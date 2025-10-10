@@ -182,7 +182,7 @@ class MaxPatchFilter(PatchFilterProtocol):
             (not filtered out) and False indicates that the patch should be filtered
             out.
         """
-        threshold = filter_map >= threshold
-        coverage = np.sum(threshold) * 100 / threshold.size
+        threshold_map = filter_map >= threshold
+        coverage = np.sum(threshold_map) * 100 / threshold_map.size
         logger.info(f"Image coverage: {coverage:.2f}%")
-        return threshold
+        return threshold_map
