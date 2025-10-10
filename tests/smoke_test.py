@@ -1,7 +1,9 @@
 #! /usr/bin/env python
+"""Simple test used to check CAREamist import after packaging in the deployment CI."""
 
 
 def test_smoke():
+    """Import careamics.CAREamist."""
     from careamics import CAREamist
     from careamics.config import create_n2v_configuration
 
