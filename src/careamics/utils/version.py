@@ -21,9 +21,9 @@ def get_careamics_version() -> str:
     parts = __version__.split(".")
 
     # for local installs that do not detect the latest versions via tags
-    # (typically our CI will install `0.1.devX<hash>` versions)
-    if "dev" in parts[-1]:
-        parts[-1] = "*"
+    # (typically our CI will install `0.X.devX<hash>.<other hash>` versions)
+    if "dev" in parts[2]:
+        parts[2] = "*"
         clean_version = ".".join(parts[:3])
 
         logger.warning(
@@ -34,5 +34,5 @@ def get_careamics_version() -> str:
             f"closest CAREamics version from PyPI or conda-forge."
         )
 
-    # Remove any local version identifier)
+    # Remove any local version identifier
     return ".".join(parts[:3])
