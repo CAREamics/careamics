@@ -51,8 +51,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: 🧪 Run tests
-        # For example, using `pytest`
-        run: uv run pytest tests --color=yes -m "not lvae"
+        run: uv run pytest --color=yes -m "not lvae"
 
 
   deploy:
