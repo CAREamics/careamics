@@ -41,5 +41,5 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: 🧪 Run tests
-        # For example, using `pytest`
+        # does not run doctests
         run: uv run pytest tests --color=yes -m lvae
