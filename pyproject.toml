@@ -43,7 +43,7 @@ classifiers = [
 dependencies = [
     "numpy>=1.21",
     "numpy>=2.1.0; python_version>='3.13'", # prevents ml_dtypes conflict in py313
-    'torch>=2.0,<=2.8.0',
+    'torch>=2.0,<=2.9.0',
     'torchvision<=0.24.0',
     'bioimageio.core>=0.9.0',
     'tifffile<=2025.10.4',
