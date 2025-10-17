@@ -30,6 +30,7 @@ def create_test_zarr(file_path: Path, data_path: str, data: NDArray):
         ("YX", (32, 48), (1, 1, 32, 48), 0),
         ("XYS", (48, 32, 3), (3, 1, 32, 48), 1),
         ("SXYC", (3, 48, 32, 2), (3, 2, 32, 48), 1),
+        ("SXYC", (3, 8, 8, 2), (3, 2, 8, 8), 1),  # spatial dims smaller that patch size
         ("CYXT", (2, 32, 48, 3), (3, 2, 32, 48), 2),
         ("CXYTS", (2, 48, 32, 3, 2), (6, 2, 32, 48), 4),
         ("XCSYT", (48, 1, 2, 32, 3), (6, 1, 32, 48), 5),  # crazy one

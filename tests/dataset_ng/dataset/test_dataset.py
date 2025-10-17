@@ -23,6 +23,7 @@ from careamics.dataset_ng.factory import (
         ((256, 256), (32, 32), 64),
         ((512, 512), (64, 64), 64),
         ((128, 128), (32, 32), 16),
+        ((24, 24), (32, 32), 1),  # data smaller than patch
     ],
 )
 def test_from_array(data_shape, patch_size, expected_dataset_len):
@@ -67,6 +68,7 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         ((256, 256), (32, 32), 64),
         ((512, 512), (64, 64), 64),
         ((128, 128), (32, 32), 16),
+        ((24, 24), (32, 32), 1),  # data smaller than patch
     ],
 )
 def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len):
@@ -159,6 +161,7 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
         ((32, 32), (256, 256)),
         ((64, 64), (512, 512)),
         ((16, 16), (128, 128)),
+        ((32, 32), (24, 24)),  # data smaller than patch
     ],
 )
 def test_from_custom_data_type(patch_size, data_shape):

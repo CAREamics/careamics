@@ -8,6 +8,8 @@ from numpy.typing import DTypeLike, NDArray
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.file_io.read import ReadFunc, read_tiff
 
+from .utils import pad_patch
+
 
 class InMemoryImageStack:
     """
@@ -31,13 +33,6 @@ class InMemoryImageStack:
             )
         # TODO: test for 2D or 3D?
 
-        patch = np.zeros((self.data_shape[1], *patch_size), dtype=self._data.dtype)
-        patch_start = np.clip(np.array(coords), 0, None) - np.array(coords)
-        patch_end = np.array(coords) + np.array(patch_size)
-        patch_end = np.clip(patch_end, None, np.array(self.data_shape[2:])) - np.clip(
-            np.array(coords), None, np.array(self.data_shape[2:])
-        )
-
         patch_data = self._data[
             (
                 sample_idx,  # type: ignore
@@ -51,14 +46,7 @@ class InMemoryImageStack:
                 ],  # type: ignore
             )  # type: ignore
         ]
-        patch[
-            (
-                slice(None, None, None),
-                *tuple(
-                    slice(s, t) for s, t in zip(patch_start, patch_end, strict=False)
-                ),
-            )
-        ] = patch_data
+        patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
 
         return patch
 
