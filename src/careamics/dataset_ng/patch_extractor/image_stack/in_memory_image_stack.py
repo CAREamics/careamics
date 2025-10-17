@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, Self, Union
 
+import numpy as np
 from numpy.typing import DTypeLike, NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
@@ -23,16 +24,43 @@ class InMemoryImageStack:
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray:
-        if len(coords) != len(patch_size):
-            raise ValueError("Length of coords and extent must match.")
+        if (coord_dims := len(coords)) != (patch_dims := len(patch_size)):
+            raise ValueError(
+                "Patch coordinates and patch size must have the same dimensions but "
+                f"found {coord_dims} and {patch_dims}."
+            )
         # TODO: test for 2D or 3D?
-        return self._data[
+
+        patch = np.zeros((self.data_shape[1], *patch_size), dtype=self._data.dtype)
+        patch_start = np.clip(np.array(coords), 0, None) - np.array(coords)
+        patch_end = np.array(coords) + np.array(patch_size)
+        patch_end = np.clip(patch_end, None, np.array(self.data_shape[2:])) - np.clip(
+            np.array(coords), None, np.array(self.data_shape[2:])
+        )
+
+        patch_data = self._data[
             (
                 sample_idx,  # type: ignore
                 ...,  # type: ignore
-                *[slice(c, c + e) for c, e in zip(coords, patch_size, strict=False)],  # type: ignore
-            )
+                *[
+                    slice(
+                        np.clip(c, 0, self.data_shape[2 + i]),
+                        np.clip(c + ps, 0, self.data_shape[2 + i]),
+                    )
+                    for i, (c, ps) in enumerate(zip(coords, patch_size, strict=False))
+                ],  # type: ignore
+            )  # type: ignore
         ]
+        patch[
+            (
+                slice(None, None, None),
+                *tuple(
+                    slice(s, t) for s, t in zip(patch_start, patch_end, strict=False)
+                ),
+            )
+        ] = patch_data
+
+        return patch
 
     @classmethod
     def from_array(cls, data: NDArray, axes: str) -> Self:
