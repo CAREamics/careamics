@@ -23,7 +23,6 @@ from careamics.dataset_ng.factory import (
         ((256, 256), (32, 32), 64),
         ((512, 512), (64, 64), 64),
         ((128, 128), (32, 32), 16),
-        ((24, 24), (32, 32), 1),  # data smaller than patch
     ],
 )
 def test_from_array(data_shape, patch_size, expected_dataset_len):
@@ -68,7 +67,6 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         ((256, 256), (32, 32), 64),
         ((512, 512), (64, 64), 64),
         ((128, 128), (32, 32), 16),
-        ((24, 24), (32, 32), 1),  # data smaller than patch
     ],
 )
 def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len):
@@ -113,13 +111,13 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
     assert target.data.shape == (1, *patch_size)
 
 
-@pytest.mark.skip("Prediction not fully implemented")
 @pytest.mark.parametrize(
     "data_shape, tile_size, tile_overlap",
     [
         ((256, 256), (32, 32), (16, 16)),
         ((512, 512), (64, 64), (32, 32)),
         ((128, 128), (32, 32), (8, 8)),
+        ((24, 24), (32, 32), (8, 8)),  # data smaller than patch
     ],
 )
 def test_prediction_from_array(data_shape, tile_size, tile_overlap):
@@ -131,12 +129,12 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
         patching={
             "name": "tiled",
             "patch_size": tile_size,
-            "overlap": tile_overlap,
+            "overlaps": tile_overlap,
         },
         axes="YX",
-        image_means=(example_data.mean(),),
-        image_stds=(example_data.std(),),
-        augmentations=_list_spatial_augmentations(),
+        image_means=[example_data.mean()],
+        image_stds=[example_data.std()],
+        transforms=_list_spatial_augmentations(),
         batch_size=1,
         seed=42,
     )
@@ -161,7 +159,6 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
         ((32, 32), (256, 256)),
         ((64, 64), (512, 512)),
         ((16, 16), (128, 128)),
-        ((32, 32), (24, 24)),  # data smaller than patch
     ],
 )
 def test_from_custom_data_type(patch_size, data_shape):
@@ -287,3 +284,34 @@ def test_array_patch_filtering():
     for i in range(len(train_dataset)):
         (sample,) = train_dataset[i]
         assert sample.data.mean() >= normed_thresh
+
+
+def test_error_data_smaller_than_patch():
+    """
+    In training mode, initializing the dataset with data smaller than the patch size
+    should result in an error.
+    """
+
+    data_shape = (24, 24)
+    patch_size = (32, 32)
+
+    rng = np.random.default_rng(42)
+    example_input = rng.random(data_shape)
+    example_target = rng.random(data_shape)
+
+    train_data_config = _create_ng_data_configuration(
+        data_type="array",
+        axes="YX",
+        patch_size=patch_size,
+        batch_size=1,
+        augmentations=_list_spatial_augmentations(),
+        seed=42,
+    )
+
+    with pytest.raises(ValueError):
+        _ = create_array_dataset(
+            config=train_data_config,
+            mode=Mode.TRAINING,
+            inputs=[example_input],
+            targets=[example_target],
+        )
