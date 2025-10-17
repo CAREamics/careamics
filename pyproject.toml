@@ -70,7 +70,7 @@ examples = ["jupyter", "careamics-portfolio"]
 
 # loggers
 wandb = ["wandb"]
-tensorboard = ["tensorboard", "protobuf==5.29.1"]
+tensorboard = ["tensorboard", "protobuf==5.29.5"]
 
 [dependency-groups]
 # development dependencies and tooling
