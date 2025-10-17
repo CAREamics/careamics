@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
+from careamics.dataset_ng.patch_extractor.image_stack.utils import pad_patch
 
 
 def create_test_zarr(file_path: Path, data_path: str, data: NDArray):
@@ -71,6 +72,7 @@ def test_extract_patch_2D(
         coords[0] : coords[0] + patch_size[0],
         coords[1] : coords[1] + patch_size[1],
     ]
+    patch_ref = pad_patch(coords, patch_size, image_stack.data_shape, patch_ref)
     np.testing.assert_array_equal(extracted_patch, patch_ref)
 
 
