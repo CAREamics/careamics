@@ -38,7 +38,7 @@ class N2VManipulateModel(TransformModel):
     roi_size: int = Field(default=11, ge=3)
     """Size of the region where the pixel manipulation is applied."""
 
-    masked_pixel_percentage: float = Field(default=0.2, ge=0.05, le=10.0)
+    masked_pixel_percentage: float = Field(default=0.2, ge=0.001, le=10.0)
     """Percentage of masked pixels per image."""
 
     remove_center: bool = Field(default=True)  # TODO remove it
