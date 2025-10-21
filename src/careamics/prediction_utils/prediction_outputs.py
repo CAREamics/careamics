@@ -41,7 +41,9 @@ def convert_outputs(predictions: list[Any], tiled: bool) -> list[NDArray]:
     return predictions_output
 
 
-def convert_outputs_pn2v(predictions: list[Any], tiled: bool) -> list[NDArray]:
+def convert_outputs_pn2v(
+    predictions: list[Any], tiled: bool
+) -> tuple[list[NDArray], list[NDArray]]:
     """
     Convert the Lightning trainer outputs to the desired form.
 
@@ -50,28 +52,49 @@ def convert_outputs_pn2v(predictions: list[Any], tiled: bool) -> list[NDArray]:
     Parameters
     ----------
     predictions : list
-        Predictions that are output from `Trainer.predict`.
+        Predictions that are output from `Trainer.predict`. Length of list the total
+        number of tiles divided by the batch size. Each element consists of a tuple of
+        ((prediction, mse), tile_info_list). 1st dimension of each tensor is the batch size.
+        Length of tile info list is the batch size.
+
     tiled : bool
         Whether the predictions are tiled.
 
     Returns
     -------
-    list of numpy.ndarray or numpy.ndarray
-        list of arrays with the axes SC(Z)YX. If there is only 1 output it will not
-        be in a list.
+    tuple[list[NDArray], list[NDArray]]
+        Tuple of (predictions, mmse) where each is a list of arrays with axes SC(Z)YX.
     """
     if len(predictions) == 0:
-        return predictions
-    # TODO len(preds) = num tiles, for each tile we have (prediction, mse), tile info
-    # unpack properly! 
-    # this layout is to stop mypy complaining
-    if tiled:
-        predictions_comb = combine_batches(predictions, tiled)
-        predictions_output = stitch_prediction(*predictions_comb)
-    else:
-        predictions_output = combine_batches(predictions, tiled)
+        return [], []
 
-    return predictions_output
+    if tiled:
+        # Separate predictions and mmse, keeping tile info for each
+        pred_with_tiles = [
+            (pred, tile_info_list) for (pred, _), tile_info_list in predictions
+        ]
+        mse_with_tiles = [
+            (mse, tile_info_list) for (_, mse), tile_info_list in predictions
+        ]
+
+        # Process predictions
+        pred_comb = combine_batches(pred_with_tiles, tiled)
+        predictions_output = stitch_prediction(*pred_comb)
+
+        # Process mmse
+        mse_comb = combine_batches(mse_with_tiles, tiled)
+        mse_output = stitch_prediction(*mse_comb)
+
+        return predictions_output, mse_output
+    else:
+        # Separate predictions and mmse for non-tiled case
+        pred_only = [pred for (pred, mse) in predictions]
+        mse_only = [mse for (pred, mse) in predictions]
+
+        predictions_output = combine_batches(pred_only, tiled)
+        mse_output = combine_batches(mse_only, tiled)
+
+        return predictions_output, mse_output
 
 
 def convert_outputs_microsplit(

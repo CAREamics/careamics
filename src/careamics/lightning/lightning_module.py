@@ -36,10 +36,10 @@ from careamics.models.lvae.noise_models import (
 )
 from careamics.models.model_factory import model_factory
 from careamics.transforms import (
-    TrainDenormalize,
     Denormalize,
     ImageRestorationTTA,
     N2VManipulateTorch,
+    TrainDenormalize,
 )
 from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
@@ -312,11 +312,12 @@ class FCNModule(L.LightningModule):
                 torch.tensor(denormalized_input), torch.tensor(denormalized_output)
             )
             mse_estimate = torch.sum(
-                likelihoods * denormalized_input, dim=1, keepdim=True
-            )[0, ...]
-            mse_estimate /= torch.sum(likelihoods, dim=1, keepdim=True)[0, ...]
+                likelihoods * denormalized_output, dim=1, keepdim=True
+            )
+            mse_estimate /= torch.sum(likelihoods, dim=1, keepdim=True)
 
         if isinstance(self.algorithm_config, PN2VAlgorithm):
+            denormalized_output = np.mean(denormalized_output, axis=1, keepdims=True)
             denormalized_output = (denormalized_output, mse_estimate)
             # TODO: might be ugly but otherwise we need to change the output signature
         if len(aux) > 0:  # aux can be tiling information

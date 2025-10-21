@@ -15,7 +15,7 @@ from careamics.lightning import (
     create_train_datamodule,
 )
 from careamics.lightning.lightning_module import FCNModule
-from careamics.prediction_utils import convert_outputs
+from careamics.prediction_utils import convert_outputs, convert_outputs_pn2v
 
 pytestmark = pytest.mark.mps_gh_fail
 
@@ -201,4 +201,6 @@ def test_smoke_pn2v_2d_array(tmp_path, create_dummy_noise_model):
 
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
-    assert predicted[0].squeeze().shape == val_array.shape
+    predicted_avg, mse = convert_outputs_pn2v(predicted, tiled=False)
+    assert predicted_avg[0].squeeze().shape == val_array.shape
+    assert mse[0].squeeze().shape == val_array.shape

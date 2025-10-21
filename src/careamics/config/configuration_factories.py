@@ -2108,7 +2108,8 @@ def create_pn2v_configuration(
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
-    n_channels: int | None = None,
+    num_in_channels: int = 1,
+    num_out_channels: int = 100,
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
@@ -2133,11 +2134,13 @@ def create_pn2v_configuration(
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
 
-    If "C" is present in `axes`, then you need to set `n_channels` to the number of
+    If "C" is present in `axes`, then you need to set `num_in_channels` to the number of
     channels.
 
     By default, all channels are trained independently. To train all channels together,
-    set `independent_channels` to False.
+    set `independent_channels` to False. When training independently, each input channel
+    will have `num_out_channels` outputs (default 400). When training together, all
+    input channels will share `num_out_channels` outputs.
 
     By default, the transformations applied are a random flip along X or Y, and a random
     90 degrees rotation in the XY plane. Normalization is always applied, as well as the
@@ -2153,8 +2156,8 @@ def create_pn2v_configuration(
     pixels per patch will be manipulated.
 
     The parameters of the UNet can be specified in the `model_params` (passed as a
-    parameter-value dictionary). Note that `use_n2v2` and 'n_channels' override the
-    corresponding parameters passed in `model_params`.
+    parameter-value dictionary). Note that `use_n2v2`, `num_in_channels`, and
+    `num_out_channels` override the corresponding parameters passed in `model_params`.
 
     If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
     will be applied to each manipulated pixel.
@@ -2185,11 +2188,17 @@ def create_pn2v_configuration(
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
-        Whether to train all channels together, by default True.
+        Whether to train all channels independently, by default True. If True, each
+        input channel will correspond to num_out_channels output channels (e.g., 3
+        input channels with num_out_channels=400 results in 1200 total output
+        channels).
     use_n2v2 : bool, optional
         Whether to use N2V2, by default False.
-    n_channels : int or None, default=None
-        Number of channels (in and out).
+    num_in_channels : int, default=1
+        Number of input channels.
+    num_out_channels : int, default=400
+        Number of output channels per input channel when independent_channels is True,
+        or total number of output channels when independent_channels is False.
     roi_size : int, optional
         N2V pixel manipulation area, by default 11.
     masked_pixel_percentage : float, optional
@@ -2308,8 +2317,10 @@ def create_pn2v_configuration(
     # ...     struct_n2v_span=7
     # ... )
 
-    # If you are training multiple channels they will be trained independently by default,
-    # you simply need to specify the number of channels:
+    # If you are training multiple channels they will be trained independently by
+    # default, you simply need to specify the number of input channels. Each input
+    # channel will correspond to num_out_channels outputs (1200 total for 3
+    # channels with default num_out_channels=400):
     # >>> config = create_pn2v_configuration(
     # ...     experiment_name="pn2v_experiment",
     # ...     data_type="array",
@@ -2318,11 +2329,12 @@ def create_pn2v_configuration(
     # ...     batch_size=32,
     # ...     nm_path="path/to/noise_model.npz",
     # ...     num_epochs=100,
-    # ...     n_channels=3
+    # ...     num_in_channels=3
     # ... )
 
-    # If instead you want to train multiple channels together, you need to turn off the
-    # `independent_channels` parameter:
+    # If instead you want to train multiple channels together, you need to turn
+    # off the `independent_channels` parameter (resulting in 400 total output
+    # channels regardless of the number of input channels):
     # >>> config = create_pn2v_configuration(
     # ...     experiment_name="pn2v_experiment",
     # ...     data_type="array",
@@ -2332,13 +2344,9 @@ def create_pn2v_configuration(
     # ...     nm_path="path/to/noise_model.npz",
     # ...     num_epochs=100,
     # ...     independent_channels=False,
-    # ...     n_channels=3
+    # ...     num_in_channels=3
     # ... )
 
-    # If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
-    # `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
-    # for 3-D data but spatial context along the Z dimension will then not be taken into
-    # account.
     # >>> config_2d = create_pn2v_configuration(
     # ...     experiment_name="pn2v_experiment",
     # ...     data_type="czi",
@@ -2347,7 +2355,7 @@ def create_pn2v_configuration(
     # ...     batch_size=32,
     # ...     nm_path="path/to/noise_model.npz",
     # ...     num_epochs=100,
-    # ...     n_channels=1,
+    # ...     num_in_channels=1,
     # ... )
     # >>> config_3d = create_pn2v_configuration(
     # ...     experiment_name="pn2v_experiment",
@@ -2357,20 +2365,23 @@ def create_pn2v_configuration(
     # ...     batch_size=16,
     # ...     nm_path="path/to/noise_model.npz",
     # ...     num_epochs=100,
-    # ...     n_channels=1,
+    # ...     num_in_channels=1,
     # ... )
     """
-    # if there are channels, we need to specify their number
-    # if "C" in axes and n_channels is None:
-    #     raise ValueError("Number of channels must be specified when using channels.")
-    # elif "C" not in axes and (n_channels is not None and n_channels > 1):
-    #     raise ValueError(
-    #         f"C is not present in the axes, but number of channels is specified "
-    #         f"(got {n_channels} channel)."
-    #     )
-    # TODO for pn2v channel handling needs to be changed
-    if n_channels is None:
-        n_channels = 1
+    # Validate channel configuration
+    if "C" in axes and num_in_channels < 1:
+        raise ValueError("num_in_channels must be at least 1 when using channels.")
+    elif "C" not in axes and num_in_channels > 1:
+        raise ValueError(
+            f"C is not present in the axes, but num_in_channels is specified "
+            f"(got {num_in_channels} channels)."
+        )
+
+    # Calculate total output channels based on independent_channels setting
+    if independent_channels:
+        total_out_channels = num_in_channels * num_out_channels
+    else:
+        total_out_channels = num_out_channels
 
     # augmentations
     spatial_transforms = _list_spatial_augmentations(augmentations)
@@ -2401,8 +2412,8 @@ def create_pn2v_configuration(
         algorithm="pn2v",
         loss="pn2v",
         independent_channels=independent_channels,
-        n_channels_in=n_channels,
-        n_channels_out=10,  # TODO for pn2v channel handling needs to be changed
+        n_channels_in=num_in_channels,
+        n_channels_out=total_out_channels,
         use_n2v2=use_n2v2,
         model_params=model_params,
         optimizer=optimizer,
