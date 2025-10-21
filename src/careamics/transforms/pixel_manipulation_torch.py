@@ -120,10 +120,6 @@ def _get_stratified_coords_torch(
     n_dims = len(spatial_shape)
     expected_area_per_pixel = 1 / (mask_pixel_perc / 100)
 
-    # TODO if roi size is too large, we may not have pixels selected for masking
-    # if all(expected_area_per_pixel > s for s in spatial_shape):
-    #     expected_area_per_pixel = min(spatial_shape)
-
     # keep the grid size in floats for a more accurate expected masked pixel percentage
     grid_size = expected_area_per_pixel ** (1 / n_dims)
     grid_dims = torch.ceil(torch.tensor(spatial_shape) / grid_size).int()
