@@ -64,11 +64,16 @@ def _apply_struct_mask_torch(
     )
     mix = mix[valid_indices]
 
-    # Replace neighboring pixels with random values from a uniform distribution
-    random_values = torch.empty(len(mix), device=patch.device).uniform_(
-        patch.min().item(), patch.max().item(), generator=rng
-    )
-    patch[tuple(mix.T.tolist())] = random_values
+    mins = patch.min(-1)[0].min(-1)[0]
+    maxs = patch.max(-1)[0].max(-1)[0]
+    for i in range(patch.shape[0]):
+        batch_coords = mix[mix[:, 0] == i]
+        min_ = mins[i].item()
+        max_ = maxs[i].item()
+        random_values = torch.empty(len(batch_coords), device=patch.device).uniform_(
+            min_, max_, generator=rng
+        )
+        patch[tuple(batch_coords[:, i] for i in range(patch.ndim))] = random_values
 
     return patch
 
