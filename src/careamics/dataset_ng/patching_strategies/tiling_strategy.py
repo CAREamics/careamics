@@ -148,8 +148,11 @@ class TilingStrategy:
                 coords.append(i)
                 crop_coords.append(0)
                 stitch_coords.append(0)
-                crop_size.append(tile_size - overlap // 2)
-            elif (i > 0) and (i + tile_size < axis_size):
+                if axis_size <= tile_size:
+                    crop_size.append(axis_size)
+                else:
+                    crop_size.append(tile_size - overlap // 2)
+            elif (0 < i) and (i + tile_size < axis_size):
                 coords.append(i)
                 crop_coords.append(overlap // 2)
                 stitch_coords.append(coords[-1] + crop_coords[-1])
