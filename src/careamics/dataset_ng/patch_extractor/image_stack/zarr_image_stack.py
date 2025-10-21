@@ -9,6 +9,8 @@ from zarr.storage import FsspecStore, LocalStore
 
 from careamics.dataset.dataset_utils import reshape_array
 
+from .utils import pad_patch
+
 
 class ZarrImageStack:
     """
@@ -66,9 +68,9 @@ class ZarrImageStack:
             If the OME-Zarr at the path does not contain the attribute 'multiscales'.
         """
         if Path(path).is_file():
-            store = zarr.storage.LocalStore(root=Path(path).resolve())
-        elif validators.url(path):
-            store = zarr.storage.FsspecStore.from_url(url=path)
+            store = LocalStore(root=Path(path).resolve())
+        elif validators.url(str(path)):
+            store = FsspecStore.from_url(url=str(path))
         else:
             raise ValueError(
                 f"Path '{path}' is neither an existing file nor a valid URL."
@@ -132,9 +134,11 @@ class ZarrImageStack:
             else:
                 raise ValueError(f"Unrecognised axis '{d}', axes should be in STCZYX.")
 
-        patch = self._array[tuple(patch_slice)]
+        patch_data = self._array[tuple(patch_slice)]
         patch_axes = self._original_axes.replace("S", "").replace("T", "")
-        return reshape_array(patch, patch_axes)[0]  # remove first sample dim
+        patch_data = reshape_array(patch_data, patch_axes)[0]  # remove first sample dim
+        patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
+        return patch
 
     def _get_T_index(self, sample_idx: int) -> int:
         """Get T index given `sample_idx`."""

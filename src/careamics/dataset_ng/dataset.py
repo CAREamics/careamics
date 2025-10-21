@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from careamics.config.data.ng_data_model import NGDataConfig
+from careamics.config.data.ng_data_model import NGDataConfig, WholePatchingModel
 from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
@@ -46,6 +46,32 @@ class ImageRegionData(NamedTuple):
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
 
+def _patch_size_within_data_shapes(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+) -> bool:
+    """Determine whether all the data_shapes are greater than the patch size.
+
+    Parameters
+    ----------
+    data_shapes : Sequence[Sequence[int]]
+        A sequence of data shapes. They must be in the format SC(Z)YX.
+    patch_size : Sequence[int]
+        A patch size that must specify the size of the patch in all the spatial
+        dimensions, in the format (Z)YX.
+
+    Returns
+    -------
+    bool
+        If all the data shapes are greater than the patch size.
+    """
+    smaller_than_shapes = [
+        # skip sample and channel dimension in data_shape
+        (np.array(patch_size) < np.array(data_shape[2:])).all()
+        for data_shape in data_shapes
+    ]
+    return all(smaller_than_shapes)
+
+
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
@@ -55,6 +81,22 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
         mask_extractor: PatchExtractor[GenericImageStack] | None = None,
     ) -> None:
+
+        # Make sure all the image sizes are greater than the patch size for training
+        data_shapes = [
+            image_stack.data_shape for image_stack in input_extractor.image_stacks
+        ]
+        if mode != Mode.PREDICTING:
+            if not isinstance(
+                data_config.patching, WholePatchingModel
+            ) and not _patch_size_within_data_shapes(
+                data_shapes, data_config.patching.patch_size
+            ):
+                raise ValueError(
+                    "Not all images sizes are greater than the patch size for training "
+                    "and validation."
+                )
+
         self.config = data_config
         self.mode = mode
 
