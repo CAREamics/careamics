@@ -6,6 +6,8 @@ from numpy.typing import NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 
+from .utils import pad_patch
+
 
 # we need source to point to the zarr archive and not just to the path
 class ZarrImageStack:
@@ -81,9 +83,12 @@ class ZarrImageStack:
             else:
                 raise ValueError(f"Unrecognised axis '{d}', axes should be in STCZYX.")
 
-        patch = self._array[tuple(patch_slice)]
+        patch_data = self._array[tuple(patch_slice)]
         patch_axes = self._original_axes.replace("S", "").replace("T", "")
-        return reshape_array(patch, patch_axes)[0]  # remove first sample dim
+        patch_data = reshape_array(patch_data, patch_axes)[0]  # remove first sample dim
+        patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
+
+        return patch
 
     def _get_T_index(self, sample_idx: int) -> int:
         """Get T index given `sample_idx`."""
