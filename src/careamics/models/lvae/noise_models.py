@@ -72,9 +72,56 @@ def create_histogram(
 
 
 def noise_model_factory(
+    model_config: Optional[GaussianMixtureNMConfig],
+) -> Optional[GaussianMixtureNoiseModel]:
+    """Noise model factory for single-channel noise models.
+
+    Parameters
+    ----------
+    model_config : Optional[GaussianMixtureNMConfig]
+        Noise model configuration for a single Gaussian mixture noise model.
+
+    Returns
+    -------
+    Optional[GaussianMixtureNoiseModel]
+        A single noise model instance, or None if no config is provided.
+
+    Raises
+    ------
+    NotImplementedError
+        If the chosen noise model `model_type` is not implemented.
+        Currently only `GaussianMixtureNoiseModel` is implemented.
+    """
+    if model_config:
+        if model_config.path:
+            if model_config.model_type == "GaussianMixtureNoiseModel":
+                return GaussianMixtureNoiseModel(model_config)
+            else:
+                raise NotImplementedError(
+                    f"Model {model_config.model_type} is not implemented"
+                )
+
+        # TODO this is outdated and likely should be removed !!
+        else:  # TODO this means signal/obs are provided. Controlled in pydantic model
+            # TODO train a new model. Config should always be provided?
+            if model_config.model_type == "GaussianMixtureNoiseModel":
+                # TODO one model for each channel all make this choise inside the model?
+                # trained_nm = train_gm_noise_model(model_config)
+                # return trained_nm
+                raise NotImplementedError(
+                    "GaussianMixtureNoiseModel model training is not implemented."
+                )
+            else:
+                raise NotImplementedError(
+                    f"Model {model_config.model_type} is not implemented"
+                )
+    return None
+
+
+def multichannel_noise_model_factory(
     model_config: Optional[MultiChannelNMConfig],
 ) -> Optional[MultiChannelNoiseModel]:
-    """Noise model factory.
+    """Multi-channel noise model factory.
 
     Parameters
     ----------
@@ -104,6 +151,7 @@ def noise_model_factory(
                         f"Model {nm.model_type} is not implemented"
                     )
 
+            # TODO this is outdated and likely should be removed !!
             else:  # TODO this means signal/obs are provided. Controlled in pydantic model
                 # TODO train a new model. Config should always be provided?
                 if nm.model_type == "GaussianMixtureNoiseModel":
@@ -341,6 +389,12 @@ class GaussianMixtureNoiseModel(nn.Module):
             Corresponds to either of mean, standard deviation or weight, evaluated at `signals`
         """
         value = torch.zeros_like(signals)
+        device = (
+            value.device
+        )  # TODO the whole device handling in this class needs to be refactored
+        weight_params = weight_params.to(device)
+        self.min_signal = self.min_signal.to(device)
+        self.max_signal = self.max_signal.to(device)
         for i in range(weight_params.shape[0]):
             value += weight_params[i] * (
                 ((signals - self.min_signal) / (self.max_signal - self.min_signal)) ** i
@@ -391,8 +445,10 @@ class GaussianMixtureNoiseModel(nn.Module):
         value: torch.Tensor:
             Likelihood of observations given the signals and the GMM noise model
         """
+        observations = observations.float()
+        signals = signals.float()
         gaussian_parameters: list[torch.Tensor] = self.get_gaussian_parameters(signals)
-        p = torch.zeros_like(observations)
+        p = 0  # torch.zeros_like(observations)
         for gaussian in range(self.n_gaussian):
             # Ensure all tensors have compatible shapes
             mean = gaussian_parameters[gaussian]
@@ -429,6 +485,11 @@ class GaussianMixtureNoiseModel(nn.Module):
         sigma = []
         alpha = []
         kernels = self.weight.shape[0] // 3
+        device = signals.device
+        self.min_signal = self.min_signal.to(device)
+        self.max_signal = self.max_signal.to(device)
+        self.min_sigma = self.min_sigma.to(device)
+        self.tolerance = self.tolerance.to(device)
         for num in range(kernels):
             mu.append(self.polynomial_regressor(self.weight[num, :], signals))
             expval = torch.exp(self.weight[kernels + num, :])

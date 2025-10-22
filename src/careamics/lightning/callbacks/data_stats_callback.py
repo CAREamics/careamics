@@ -7,8 +7,8 @@ from pytorch_lightning.callbacks import Callback
 class DataStatsCallback(Callback):
     """Callback to update model's data statistics from datamodule.
 
-    This callback ensures that the model has access to the data statistics (mean and
-    std) calculated by the datamodule before training starts.
+    This callback ensures that the model has access to the data statistics (mean, std)
+    calculated by the datamodule before training starts.
     """
 
     def setup(self, trainer: L.Trainer, module: L.LightningModule, stage: str) -> None:
@@ -16,12 +16,12 @@ class DataStatsCallback(Callback):
 
         Parameters
         ----------
-        trainer : Lightning.Trainer
-            The trainer instance.
-        module : Lightning.LightningModule
-            The model being trained.
+        trainer : L.Trainer
+            PyTorch Lightning trainer.
+        module : L.LightningModule
+            Lightning module.
         stage : str
-            The current stage of training (e.g., 'fit', 'validate', 'test', 'predict').
+            Current stage (fit, validate, test, or predict).
         """
         if stage == "fit":
             # Get data statistics from datamodule
