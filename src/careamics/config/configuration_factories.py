@@ -1634,15 +1634,12 @@ def get_likelihood_config(
 
     Returns
     -------
-    tuple[GaussianLikelihoodConfig | None, MultiChannelNMConfig | None,
-    NMLikelihoodConfig | None]
-        A tuple containing the likelihood and noise model configurations for the
-        specified loss type. The tuple contains three elements:
-
-        - GaussianLikelihoodConfig: Gaussian likelihood configuration for musplit losses
-        - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit
-          losses
-        - NMLikelihoodConfig: Noise model likelihood configuration for denoisplit losses
+    gaussian_lik_config : GaussianLikelihoodConfig | None
+        Gaussian likelihood configuration for musplit losses, or None.
+    nm_config : MultiChannelNMConfig | None
+        Multi-channel noise model configuration for denoisplit losses, or None.
+    nm_lik_config : NMLikelihoodConfig | None
+        Noise model likelihood configuration for denoisplit losses, or None.
 
     Raises
     ------
@@ -1951,7 +1948,7 @@ def create_microsplit_configuration(
     grid_size : int, optional
         Size of the grid for multiscale training, by default 32.
     z_dims : tuple[int, ...], optional
-        List of latent dimensions for each hierarchy level in the LVAE, by default (128, 128).
+        List of latent dims for each hierarchy level in the LVAE, default (128, 128).
     output_channels : int, optional
         Number of output channels for the model, by default 1.
     encoder_n_filters : int, optional

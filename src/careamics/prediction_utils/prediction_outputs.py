@@ -54,7 +54,7 @@ def convert_outputs_pn2v(
     predictions : list
         Predictions that are output from `Trainer.predict`. Length of list the total
         number of tiles divided by the batch size. Each element consists of a tuple of
-        ((prediction, mse), tile_info_list). 1st dimension of each tensor is the batch size.
+        ((prediction, mse), tile_info_list). 1st dimension of each tensor is the bs.
         Length of tile info list is the batch size.
 
     tiled : bool
@@ -103,8 +103,9 @@ def convert_outputs_microsplit(
     """
     Convert microsplit Lightning trainer outputs using eval_utils stitching functions.
 
-    This function processes microsplit predictions that return (tile_prediction, tile_std) tuples
-    and stitches them back together using the same logic as get_single_file_mmse.
+    This function processes microsplit predictions that return
+    (tile_prediction, tile_std) tuples and stitches them back together using the same
+    logic as get_single_file_mmse.
 
     Parameters
     ----------

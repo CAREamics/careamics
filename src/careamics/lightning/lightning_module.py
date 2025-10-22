@@ -146,6 +146,18 @@ class FCNModule(L.LightningModule):
         return self.model(x)
 
     def _train_denormalize(self, out: torch.Tensor) -> torch.Tensor:
+        """Denormalize output using training dataset statistics.
+
+        Parameters
+        ----------
+        out : torch.Tensor
+            Output tensor to denormalize.
+
+        Returns
+        -------
+        torch.Tensor
+            Denormalized tensor.
+        """
         denorm = TrainDenormalize(
             image_means=(self._trainer.datamodule.train_dataset.image_stats.means),
             image_stds=(self._trainer.datamodule.train_dataset.image_stats.stds),
@@ -155,6 +167,20 @@ class FCNModule(L.LightningModule):
     def _predict_denormalize(
         self, out: torch.Tensor, from_prediction: bool
     ) -> torch.Tensor:
+        """Denormalize output for prediction.
+
+        Parameters
+        ----------
+        out : torch.Tensor
+            Output tensor to denormalize.
+        from_prediction : bool
+            Whether using prediction or training dataset stats.
+
+        Returns
+        -------
+        torch.Tensor
+            Denormalized tensor.
+        """
         denorm = Denormalize(
             image_means=(
                 self._trainer.datamodule.predict_dataset.image_means
@@ -308,6 +334,7 @@ class FCNModule(L.LightningModule):
 
         # Calculate MSE estimate
         if isinstance(self.algorithm_config, PN2VAlgorithm):
+            assert self.noise_model is not None, "Noise model required for PN2V"
             likelihoods = self.noise_model.likelihood(
                 torch.tensor(denormalized_input), torch.tensor(denormalized_output)
             )
@@ -401,7 +428,7 @@ class VAEModule(L.LightningModule):
 
         # supervised_mode
         self.supervised_mode = self.algorithm_config.is_supervised
-        # create noise model (VAE algorithms always use multichannel noise model factory)
+        # create noise model (VAE algorithms always use multichannel nm factory)
         self.noise_model: NoiseModel | None = multichannel_noise_model_factory(
             self.algorithm_config.noise_model
         )

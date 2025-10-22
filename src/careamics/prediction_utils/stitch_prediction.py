@@ -18,12 +18,19 @@ class TilingMode:
 
 
 def stitch_prediction_vae(predictions, dset):
-    """
-    Stitch predictions back together using dataset's index manager.
+    """Stitch predictions back together using dataset's index manager.
 
-    Args:
-        predictions: Array of predictions with shape (n_tiles, channels, height, width)
-        dset: Dataset object with idx_manager containing tiling information
+    Parameters
+    ----------
+    predictions : numpy.ndarray
+        Array of predictions with shape (n_tiles, channels, height, width).
+    dset : Dataset
+        Dataset object with idx_manager containing tiling information.
+
+    Returns
+    -------
+    numpy.ndarray
+        Stitched predictions.
     """
     mng = dset.idx_manager
 

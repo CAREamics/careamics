@@ -73,8 +73,8 @@ def load_data(datadir):
 
         channel_stack = np.concatenate(
             channel_images, axis=0
-        )  # FIXME: this line works iff images have
-        # a singleton channel dimension. Specify in the notebook or change with `torch.stack`??
+        )  # FIXME: this line works if images have a singleton channel dimension.
+        # Specify in the notebook or change with `torch.stack`??
         channels_data.append(channel_stack)
 
     final_data = np.stack(channels_data, axis=-1)
@@ -204,7 +204,7 @@ class MicroSplitDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: MicroSplitDataConfig,  # Should be compatible with microSplit DatasetConfig
+        data_config: MicroSplitDataConfig,
         train_data: str,
         val_data: str | None = None,
         train_data_target: str | None = None,
@@ -301,7 +301,8 @@ class MicroSplitDataModule(L.LightningDataModule):
         """
         return DataLoader(
             self.train_dataset,
-            batch_size=self.train_config.batch_size,  # TODO should be inside dataloader params?
+            batch_size=self.train_config.batch_size,
+            # TODO should be inside dataloader params?
             **self.train_config.train_dataloader_params,
         )
 
@@ -355,7 +356,7 @@ def create_microsplit_train_datamodule(
     **dataset_kwargs,
 ) -> MicroSplitDataModule:
     """
-    Create a MicroSplitDataModule for microSplit-style datasets, including config creation.
+    Create a MicroSplitDataModule for MicroSplit-style datasets.
 
     Parameters
     ----------
@@ -578,10 +579,10 @@ def create_microsplit_predict_datamodule(
         Grid size for patch extraction.
     multiscale_count : int, optional
         Number of LC scales.
-    tiling_mode : TilingMode, default=ShiftBoundary
-        Tiling mode for patch extraction.
     data_stats : tuple, optional
         Data statistics, by default None.
+    tiling_mode : TilingMode, default=ShiftBoundary
+        Tiling mode for patch extraction.
     read_source_func : Callable, optional
         Function to read the source data.
     extension_filter : str, optional

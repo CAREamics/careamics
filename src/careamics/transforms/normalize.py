@@ -1,8 +1,8 @@
 """Normalization and denormalization transforms for image patches."""
 
 import numpy as np
-from numpy.typing import NDArray
 import torch
+from numpy.typing import NDArray
 from torch import Tensor
 
 from careamics.transforms.transform import Transform
@@ -305,6 +305,15 @@ class TrainDenormalize:
         image_means: list[float],
         image_stds: list[float],
     ) -> None:
+        """Initialize Denormalize transform.
+
+        Parameters
+        ----------
+        image_means : list of float
+            Mean values per channel.
+        image_stds : list of float
+            Standard deviation values per channel.
+        """
         self.image_means = image_means
         self.image_stds = image_stds
         self.eps = 1e-6
@@ -325,8 +334,8 @@ class TrainDenormalize:
         # if len(self.image_means) != patch.shape[1]:
         #     raise ValueError(
         #         f"Number of means (got a list of size {len(self.image_means)}) and "
-        #         f"number of channels (got shape {tuple(patch.shape)} for BC(Z)YX) do not "
-        #         f"match."
+        #         f"number of channels (got shape {tuple(patch.shape)} for BC(Z)YX) "
+        #         f"don't match."
         #     )
         # TODO for pn2v channel handling needs to be changed
 
@@ -346,5 +355,20 @@ class TrainDenormalize:
         return denorm_tensor.float()
 
     def _apply(self, array: Tensor, mean: Tensor, std: Tensor) -> Tensor:
-        """Apply the denormalization to the tensor."""
+        """Apply the denormalization to the tensor.
+
+        Parameters
+        ----------
+        array : Tensor
+            Input tensor.
+        mean : Tensor
+            Mean values.
+        std : Tensor
+            Standard deviation values.
+
+        Returns
+        -------
+        Tensor
+            Denormalized tensor.
+        """
         return array * (std + self.eps) + mean

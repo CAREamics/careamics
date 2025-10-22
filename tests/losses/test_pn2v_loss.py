@@ -22,8 +22,7 @@ def test_pn2v_loss_basic(tmp_path: Path, create_dummy_noise_model):
 
     # Create a noise model config
     nm_config = GaussianMixtureNMConfig(
-        model_type="GaussianMixtureNoiseModel",
-        path=tmp_path /"dummy_noise_model.npz"
+        model_type="GaussianMixtureNoiseModel", path=tmp_path / "dummy_noise_model.npz"
     )
 
     # Create noise model (we'll need to mock this properly)
@@ -39,4 +38,3 @@ def test_pn2v_loss_basic(tmp_path: Path, create_dummy_noise_model):
     except Exception as e:
         print(f"Error calling pn2v_loss: {e}")
         raise
-

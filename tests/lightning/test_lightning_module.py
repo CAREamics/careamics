@@ -389,7 +389,9 @@ def test_prediction_callback_during_training(minimum_n2v_configuration, tiled):
         (32, 32),
     ],
 )
-def test_fcn_module_pn2v_2D_depth_2_shape(shape, tmp_path: Path, create_dummy_noise_model):
+def test_fcn_module_pn2v_2D_depth_2_shape(
+    shape, tmp_path: Path, create_dummy_noise_model
+):
     """Test PN2V algorithm with FCNModule for different input shapes."""
     # Create dummy noise model file
     np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)

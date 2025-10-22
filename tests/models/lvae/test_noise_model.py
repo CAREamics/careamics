@@ -242,7 +242,9 @@ def test_single_noise_model_factory_no_config():
     assert noise_model is None
 
 
-def test_single_noise_model_factory_instantiate(tmp_path: Path, create_dummy_noise_model) -> None:
+def test_single_noise_model_factory_instantiate(
+    tmp_path: Path, create_dummy_noise_model
+) -> None:
     """Test instantiating a single noise model with single-channel factory."""
     # Create a dummy noise model
     np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)

@@ -1,3 +1,10 @@
+"""Placeholder code snippets for noise model training integration.
+
+This module contains template/placeholder code that demonstrates how noise model
+training could be integrated into CAREamist. These are reference implementations
+and should not be imported or used directly.
+"""
+
 import logging
 from pathlib import Path
 from typing import Union
@@ -21,10 +28,25 @@ def __init__(
     callbacks: list[Callback] | None = None,
     enable_progress_bar: bool = True,
 ) -> None:
+    """Placeholder __init__ method showing noise model initialization.
+
+    Parameters
+    ----------
+    self : object
+        CAREamist instance.
+    source : Union[Path, str, Configuration]
+        Configuration source.
+    work_dir : Union[Path, str] | None, optional
+        Working directory, by default None.
+    callbacks : list[Callback] | None, optional
+        List of callbacks, by default None.
+    enable_progress_bar : bool, optional
+        Whether to show progress bar, by default True.
+    """
     # ... existing initialization code ...
 
     # Initialize untrained noise models if needed
-    self.untrained_noise_models: list[GaussianMixtureNoiseModel] | None = None
+    self.untrained_noise_models = None
     if (
         hasattr(self.cfg.algorithm_config, "train_noise_model")
         and self.cfg.algorithm_config.train_noise_model_from_data
@@ -35,8 +57,8 @@ def __init__(
 # In src/careamics/careamist.py
 def train_noise_model(
     self,
-    clean_data: Union[Path, str, NDArray],  # data is provided by the user
-    noisy_data: Union[Path, str, NDArray],  # called signal/observation in the nm fit
+    clean_data: Union[Path, str, NDArray],
+    noisy_data: Union[Path, str, NDArray],
     learning_rate: float = 1e-1,
     batch_size: int = 250000,
     n_epochs: int = 2000,
@@ -48,6 +70,8 @@ def train_noise_model(
 
     Parameters
     ----------
+    self : object
+        CAREamist instance.
     clean_data : Union[Path, str, NDArray]
         Clean (signal) data for training noise models.
     noisy_data : Union[Path, str, NDArray]
@@ -62,7 +86,7 @@ def train_noise_model(
         Lower percentile for clipping training data.
     upper_clip : float, default=100.0
         Upper percentile for clipping training data.
-    save_models : bool, default=True
+    save_noise_models : bool, default=True
         Whether to save trained noise models to disk.
 
     Raises
@@ -80,10 +104,14 @@ def train_noise_model(
         )
 
     # Load data if paths provided (currently NM expects only numpy)
-    if isinstance(clean_data, str | Path):
+    if isinstance(clean_data, (str, Path)):
         clean_data = self._load_data(clean_data)
-    if isinstance(noisy_data, str | Path):
+    if isinstance(noisy_data, (str, Path)):
         noisy_data = self._load_data(noisy_data)
+
+    # Type narrowing for mypy
+    assert not isinstance(clean_data, (str, Path))
+    assert not isinstance(noisy_data, (str, Path))
 
     # Validate data shapes
     if clean_data.shape != noisy_data.shape:
@@ -136,14 +164,40 @@ def train_noise_model(
 def _update_config_with_trained_noise_models(
     self, trained_models: list[GaussianMixtureNoiseModel]
 ) -> None:
-    """Update algorithm config with trained noise models."""
+    """Update algorithm config with trained noise models.
 
+    Parameters
+    ----------
+    self : object
+        CAREamist instance.
+    trained_models : list[GaussianMixtureNoiseModel]
+        List of trained noise models, one per channel.
+    """
     # Currently the model is initialized in the __init__ of CAREamist
     # multichannel_noise_model_factory inside VAEModule expects paths to noise models
-    # Ideally, we change that and call multichannel_noise_model_factory here after the model init
-    # And update the parameters of noise models right in the MultiChannelNoiseModel
+    # Ideally, we change that and call multichannel_noise_model_factory here after the
+    # model init and update the parameters of noise models right in the
+    # MultiChannelNoiseModel
 
 
 def _load_data(self, data_path: Union[Path, str]) -> NDArray:
-    """Load data from file path."""
-    pass
+    """Load data from file path.
+
+    Parameters
+    ----------
+    self : object
+        CAREamist instance.
+    data_path : Union[Path, str]
+        Path to data file.
+
+    Returns
+    -------
+    NDArray
+        Loaded data array.
+
+    Raises
+    ------
+    NotImplementedError
+        This is a placeholder method.
+    """
+    raise NotImplementedError("Data loading not yet implemented")
