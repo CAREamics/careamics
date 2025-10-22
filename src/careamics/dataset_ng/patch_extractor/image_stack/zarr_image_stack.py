@@ -9,7 +9,6 @@ from careamics.dataset.dataset_utils import reshape_array
 from .utils import pad_patch
 
 
-# we need source to point to the zarr archive and not just to the path
 class ZarrImageStack:
     """
     A class for extracting patches from an image stack that is stored as a zarr array.
