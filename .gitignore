@@ -1,3 +1,10 @@
+
+
+# image
+**/*.zarr
+**/*.jpg
+**/*.jpeg
+
 .vscode
 *.DS_Store
 **/.DS_Store
