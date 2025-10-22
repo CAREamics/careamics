@@ -111,13 +111,13 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
     assert target.data.shape == (1, *patch_size)
 
 
-@pytest.mark.skip("Prediction not fully implemented")
 @pytest.mark.parametrize(
     "data_shape, tile_size, tile_overlap",
     [
         ((256, 256), (32, 32), (16, 16)),
         ((512, 512), (64, 64), (32, 32)),
         ((128, 128), (32, 32), (8, 8)),
+        ((24, 24), (32, 32), (8, 8)),  # data smaller than patch
     ],
 )
 def test_prediction_from_array(data_shape, tile_size, tile_overlap):
@@ -129,12 +129,12 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
         patching={
             "name": "tiled",
             "patch_size": tile_size,
-            "overlap": tile_overlap,
+            "overlaps": tile_overlap,
         },
         axes="YX",
-        image_means=(example_data.mean(),),
-        image_stds=(example_data.std(),),
-        augmentations=_list_spatial_augmentations(),
+        image_means=[example_data.mean()],
+        image_stds=[example_data.std()],
+        transforms=_list_spatial_augmentations(),
         batch_size=1,
         seed=42,
     )
@@ -200,3 +200,118 @@ def test_from_custom_data_type(patch_size, data_shape):
     sample, target = output
     assert sample.data.shape == (1, *patch_size)
     assert target.data.shape == (1, *patch_size)
+
+
+def test_array_coordinate_filtering():
+    """Test that coordinate filtering is applied correctly when creating a dataset from
+    an array."""
+    size = 16
+    img = np.zeros((size, size))
+    mask = np.zeros((size, size))
+
+    # create a square and mask it
+    coords = (slice(8, 24), slice(8, 24))
+    mask[coords] = 1
+    img[coords] = 255
+
+    train_data_config = _create_ng_data_configuration(
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=1,
+        augmentations=[],
+        seed=42,
+    )
+
+    train_data_config.patch_filter_patience = 100
+    train_data_config.coord_filter = {
+        "name": "mask",
+        "coverage": 0.5,
+    }
+
+    train_dataset = create_array_dataset(
+        config=train_data_config,
+        mode=Mode.TRAINING,
+        inputs=[img],
+        targets=None,
+        masks=[mask],
+    )
+
+    # check that we only get patches with at least half of 255 pixels
+    threshold = 255 // 2
+    stats = train_dataset.input_stats
+    normed_thresh = (threshold - stats.means[0]) / stats.stds[0]
+    for i in range(len(train_dataset)):
+        (sample,) = train_dataset[i]
+        assert sample.data.mean() > normed_thresh
+
+
+def test_array_patch_filtering():
+    """Test that patch filtering is applied correctly when creating a dataset from
+    an array."""
+    size = 32
+    img = np.zeros((size, size))
+
+    # create a square
+    coords = (slice(8, 24), slice(8, 24))
+    img[coords] = 255
+
+    train_data_config = _create_ng_data_configuration(
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=1,
+        augmentations=[],
+        seed=42,
+    )
+    threshold = 255 // 2
+    train_data_config.patch_filter_patience = 10
+    train_data_config.patch_filter = {
+        "name": "mean_std",
+        "mean_threshold": threshold,
+    }
+
+    train_dataset = create_array_dataset(
+        config=train_data_config,
+        mode=Mode.TRAINING,
+        inputs=[img],
+        targets=None,
+    )
+
+    # check that we only get the full 255 patch (in normalized units)
+    stats = train_dataset.input_stats
+    normed_thresh = (threshold - stats.means[0]) / stats.stds[0]
+    for i in range(len(train_dataset)):
+        (sample,) = train_dataset[i]
+        assert sample.data.mean() >= normed_thresh
+
+
+def test_error_data_smaller_than_patch():
+    """
+    In training mode, initializing the dataset with data smaller than the patch size
+    should result in an error.
+    """
+
+    data_shape = (24, 24)
+    patch_size = (32, 32)
+
+    rng = np.random.default_rng(42)
+    example_input = rng.random(data_shape)
+    example_target = rng.random(data_shape)
+
+    train_data_config = _create_ng_data_configuration(
+        data_type="array",
+        axes="YX",
+        patch_size=patch_size,
+        batch_size=1,
+        augmentations=_list_spatial_augmentations(),
+        seed=42,
+    )
+
+    with pytest.raises(ValueError):
+        _ = create_array_dataset(
+            config=train_data_config,
+            mode=Mode.TRAINING,
+            inputs=[example_input],
+            targets=[example_target],
+        )

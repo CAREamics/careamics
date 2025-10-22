@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from careamics.config.data.ng_data_model import NGDataConfig
+from careamics.config.data.ng_data_model import NGDataConfig, WholePatchingModel
 from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
@@ -16,6 +16,7 @@ from careamics.config.transformations import NormalizeModel
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
+from careamics.dataset_ng.patch_filter import create_coord_filter, create_patch_filter
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -45,6 +46,32 @@ class ImageRegionData(NamedTuple):
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
 
+def _patch_size_within_data_shapes(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+) -> bool:
+    """Determine whether all the data_shapes are greater than the patch size.
+
+    Parameters
+    ----------
+    data_shapes : Sequence[Sequence[int]]
+        A sequence of data shapes. They must be in the format SC(Z)YX.
+    patch_size : Sequence[int]
+        A patch size that must specify the size of the patch in all the spatial
+        dimensions, in the format (Z)YX.
+
+    Returns
+    -------
+    bool
+        If all the data shapes are greater than the patch size.
+    """
+    smaller_than_shapes = [
+        # skip sample and channel dimension in data_shape
+        (np.array(patch_size) < np.array(data_shape[2:])).all()
+        for data_shape in data_shapes
+    ]
+    return all(smaller_than_shapes)
+
+
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
@@ -52,12 +79,41 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         mode: Mode,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
-    ):
+        mask_extractor: PatchExtractor[GenericImageStack] | None = None,
+    ) -> None:
+
+        # Make sure all the image sizes are greater than the patch size for training
+        data_shapes = [
+            image_stack.data_shape for image_stack in input_extractor.image_stacks
+        ]
+        if mode != Mode.PREDICTING:
+            if not isinstance(
+                data_config.patching, WholePatchingModel
+            ) and not _patch_size_within_data_shapes(
+                data_shapes, data_config.patching.patch_size
+            ):
+                raise ValueError(
+                    "Not all images sizes are greater than the patch size for training "
+                    "and validation."
+                )
+
         self.config = data_config
         self.mode = mode
 
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
+
+        self.patch_filter = (
+            create_patch_filter(self.config.patch_filter)
+            if self.config.patch_filter is not None
+            else None
+        )
+        self.coord_filter = (
+            create_coord_filter(self.config.coord_filter, mask=mask_extractor)
+            if self.config.coord_filter is not None and mask_extractor is not None
+            else None
+        )
+        self.patch_filter_patience = self.config.patch_filter_patience
 
         self.patching_strategy = self._initialize_patching_strategy()
 
@@ -183,10 +239,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             region_spec=patch_spec,
         )
 
-    def __getitem__(
-        self, index: int
-    ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
-        patch_spec = self.patching_strategy.get_patch_spec(index)
+    def _extract_patches(
+        self, patch_spec: PatchSpecs
+    ) -> tuple[NDArray, NDArray | None]:
+        """Extract input and target patches based on patch specifications."""
         input_patch = self.input_extractor.extract_patch(
             data_idx=patch_spec["data_idx"],
             sample_idx=patch_spec["sample_idx"],
@@ -204,7 +260,45 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             if self.target_extractor is not None
             else None
         )
+        return input_patch, target_patch
 
+    def _get_filtered_patch(
+        self, index: int
+    ) -> tuple[NDArray[Any], NDArray[Any] | None, PatchSpecs]:
+        """Extract a patch that passes filtering criteria with retry logic."""
+        should_filter = self.mode == Mode.TRAINING and (
+            self.patch_filter is not None or self.coord_filter is not None
+        )
+        empty_patch = True
+        patch_filter_patience = self.patch_filter_patience  # reset patience
+
+        while empty_patch and patch_filter_patience > 0:
+            # query patches
+            patch_spec = self.patching_strategy.get_patch_spec(index)
+
+            # filter patch based on coordinates if needed
+            if should_filter and self.coord_filter is not None:
+                if self.coord_filter.filter_out(patch_spec):
+                    patch_filter_patience -= 1
+                    continue
+
+            input_patch, target_patch = self._extract_patches(patch_spec)
+
+            # filter patch based on values if needed
+            if should_filter and self.patch_filter is not None:
+                empty_patch = self.patch_filter.filter_out(input_patch)
+                patch_filter_patience -= 1  # decrease patience
+            else:
+                empty_patch = False
+
+        return input_patch, target_patch, patch_spec
+
+    def __getitem__(
+        self, index: int
+    ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
+        input_patch, target_patch, patch_spec = self._get_filtered_patch(index)
+
+        # apply transforms
         if self.transforms is not None:
             if self.target_extractor is not None:
                 input_patch, target_patch = self.transforms(input_patch, target_patch)

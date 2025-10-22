@@ -1615,6 +1615,12 @@ def get_likelihood_config(
 ]:
     """Get the likelihood configuration for split models.
 
+    Returns a tuple containing the following optional entries:
+        - GaussianLikelihoodConfig: Gaussian likelihood configuration for musplit losses
+        - MultiChannelNMConfig: Multi-channel noise model configuration for denoisplit
+        losses
+        - NMLikelihoodConfig: Noise model likelihood configuration for denoisplit losses
+
     Parameters
     ----------
     loss_type : Literal["musplit", "denoisplit", "denoisplit_musplit"]
@@ -1905,7 +1911,7 @@ def create_microsplit_configuration(
     decoder_dropout: float = 0.0,
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
-    ] = "ReLU",
+    ] = "ReLU",  # TODO do we need all these?
     analytical_kl: bool = False,
     predict_logvar: Literal["pixelwise"] = "pixelwise",
     logvar_lowerbound: Union[float, None] = None,

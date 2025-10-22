@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -13,7 +13,6 @@ from pydantic import (
     model_validator,
 )
 from torch import optim
-from typing_extensions import Self
 
 from careamics.utils.torch_utils import filter_parameters
 

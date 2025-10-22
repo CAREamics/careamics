@@ -1,9 +1,8 @@
 """Pydantic model for the Normalize transform."""
 
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import ConfigDict, Field, model_validator
-from typing_extensions import Self
 
 from .transform_model import TransformModel
 

@@ -41,7 +41,8 @@ def stitch_prediction_vae(predictions, dset):
     output = np.zeros(shape, dtype=predictions.dtype)
     # frame_shape = dset.get_data_shape()[:-1]
     for dset_idx in range(predictions.shape[0]):
-        # loc = get_location_from_idx(dset, dset_idx, predictions.shape[-2], predictions.shape[-1])
+        # loc = get_location_from_idx(dset, dset_idx, predictions.shape[-2],
+        # predictions.shape[-1])
         # grid start, grid end
         gs = np.array(mng.get_location_from_dataset_idx(dset_idx), dtype=int)
         ge = gs + mng.grid_shape
@@ -185,6 +186,8 @@ def stitch_prediction_single(
 
         # Insert cropped tile into predicted image using stitch coordinates
         image_slices = (..., *[slice(c[0], c[1]) for c in tile_info.stitch_coords])
-        predicted_image[image_slices] = cropped_tile.astype(np.float32)
+
+        # TODO fix mypy error here, potentially due to numpy 2
+        predicted_image[image_slices] = cropped_tile.astype(np.float32)  # type: ignore
 
     return predicted_image

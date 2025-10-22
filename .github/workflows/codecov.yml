@@ -7,14 +7,12 @@ on:
 
 jobs:
   codecov:
-    name: ${{ matrix.platform }} (${{ matrix.python-version }})
-    runs-on: ${{ matrix.platform }}
-    if: startsWith(github.ref, 'refs/tags/') && github.event_name != 'schedule'
+    name: codecov update
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.12"]
-        platform: [ubuntu-latest]
 
     steps:
       - name: 🛑 Cancel Previous Runs
@@ -22,25 +20,24 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      - uses: actions/checkout@v3
-
-      - name: 🐍 Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v5
+  
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
         with:
+          # Install a specific version of uv.
+          version: "0.9.0"
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-          cache-dependency-path: "pyproject.toml"
-          cache: "pip"
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install -U pip
-          # if running a cron job, we add the --pre flag to test against pre-releases
-          python -m pip install .[dev,czi] ${{ github.event_name == 'schedule' && '--pre' || ''  }}
+      - name: Install the project
+        run: uv sync --all-extras --dev
 
       - name: 🧪 Run Tests
-        run: pytest --color=yes --cov --cov-config=pyproject.toml --cov-report=xml --cov-report=term-missing 
+        run: uv run pytest --color=yes --cov --cov-config=pyproject.toml --cov-report=xml --cov-report=term-missing 
 
       - name: Coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           version: v0.7.3

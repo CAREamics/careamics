@@ -425,10 +425,10 @@ def create_microsplit_train_datamodule(
         **dataset_config_params,
         datasplit_type=DataSplitType.Train,
     )
-    val_config = MicroSplitDataConfig(
-        **dataset_config_params,
-        datasplit_type=DataSplitType.Val,
-    )
+    # val_config = MicroSplitDataConfig(
+    #     **dataset_config_params,
+    #     datasplit_type=DataSplitType.Val,
+    # )
     # TODO, data config is duplicated here and in configuration
 
     return MicroSplitDataModule(

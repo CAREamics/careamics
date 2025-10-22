@@ -1,13 +1,15 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Union
+from typing import Self, Union
 
+import validators
 import zarr
-import zarr.storage
 from numpy.typing import NDArray
-from typing_extensions import Self
+from zarr.storage import FsspecStore, LocalStore
 
 from careamics.dataset.dataset_utils import reshape_array
+
+from .utils import pad_patch
 
 
 class ZarrImageStack:
@@ -15,9 +17,10 @@ class ZarrImageStack:
     A class for extracting patches from an image stack that is stored as a zarr array.
     """
 
-    # TODO: keeping store type narrow so that it has the path attribute
-    #   base zarr store is zarr.storage.Store, includes MemoryStore
-    def __init__(self, store: zarr.storage.FSStore, data_path: str, axes: str):
+    # TODO: We should keep store type narrow
+    #   - in zarr v3, does zarr.storage.Store exists and has the path attribute?
+    #   - can we declare a narrow type rather than a union?
+    def __init__(self, store: LocalStore | FsspecStore, data_path: str, axes: str):
         self._store = store
         self._array = zarr.open_array(store=self._store, path=data_path, mode="r")
         # TODO: validate axes
@@ -46,8 +49,33 @@ class ZarrImageStack:
         Assumes the path only contains 1 image.
 
         Path can be to a local file, or it can be a URL to a zarr stored in the cloud.
+
+        Parameters
+        ----------
+        path : Union[Path, str]
+            Path to the root of the OME-Zarr, local file or url.
+
+        Returns
+        -------
+        ZarrImageStack
+            Initialised ZarrImageStack.
+
+        Raises
+        ------
+        ValueError
+            If the path does not exist or is not a valid URL.
+        ValueError
+            If the OME-Zarr at the path does not contain the attribute 'multiscales'.
         """
-        store = zarr.storage.FSStore(url=path)
+        if Path(path).is_file():
+            store = LocalStore(root=Path(path).resolve())
+        elif validators.url(str(path)):
+            store = FsspecStore.from_url(url=str(path))
+        else:
+            raise ValueError(
+                f"Path '{path}' is neither an existing file nor a valid URL."
+            )
+
         group = zarr.open_group(store=store, mode="r")
         if "multiscales" not in group.attrs:
             raise ValueError(
@@ -106,9 +134,11 @@ class ZarrImageStack:
             else:
                 raise ValueError(f"Unrecognised axis '{d}', axes should be in STCZYX.")
 
-        patch = self._array[tuple(patch_slice)]
+        patch_data = self._array[tuple(patch_slice)]
         patch_axes = self._original_axes.replace("S", "").replace("T", "")
-        return reshape_array(patch, patch_axes)[0]  # remove first sample dim
+        patch_data = reshape_array(patch_data, patch_axes)[0]  # remove first sample dim
+        patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
+        return patch
 
     def _get_T_index(self, sample_idx: int) -> int:
         """Get T index given `sample_idx`."""

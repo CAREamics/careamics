@@ -59,15 +59,15 @@ def _test_tiling_output(
     samples = [sample for d in data for sample in np.split(d, d.shape[0])]
 
     for sample, stitched_sample in zip(samples, stitched_samples, strict=False):
-        np.testing.assert_array_equal(sample, stitched_sample)
+        np.testing.assert_array_equal(stitched_sample, sample)
 
 
 @pytest.mark.parametrize("overlaps", [(2, 2), (3, 4), (6, 3)])
 @pytest.mark.parametrize(
     "data_shapes,patch_size",
     [
-        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 8)],
-        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 5)],
+        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9), (2, 1, 6, 5)], (8, 8)],
+        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9), (2, 1, 6, 5)], (8, 5)],
     ],
 )
 def test_tiling_output_2D(
@@ -82,8 +82,24 @@ def test_tiling_output_2D(
 @pytest.mark.parametrize(
     "data_shapes,patch_size",
     [
-        [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 8, 8)],
-        [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 5, 7)],
+        [
+            [
+                (2, 1, 32, 32, 32),
+                (1, 1, 19, 37, 23),
+                (3, 1, 14, 9, 12),
+                (2, 1, 6, 5, 4),
+            ],
+            (8, 8, 8),
+        ],
+        [
+            [
+                (2, 1, 32, 32, 32),
+                (1, 1, 19, 37, 23),
+                (3, 1, 14, 9, 12),
+                (2, 1, 6, 5, 4),
+            ],
+            (8, 5, 7),
+        ],
     ],
 )
 def test_tiling_output_3D(
