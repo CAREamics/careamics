@@ -13,9 +13,6 @@ class ZarrImageStack:
     A class for extracting patches from an image stack that is stored as a zarr array.
     """
 
-    # TODO: We should keep store type narrow
-    #   - in zarr v3, does zarr.storage.Store exists and has the path attribute?
-    #   - can we declare a narrow type rather than a union?
     def __init__(self, group: zarr.Group, data_path: str, axes: str):
         if not isinstance(group, zarr.Group):
             raise TypeError(f"group must be a zarr.Group instance, got {type(group)}.")
@@ -34,73 +31,15 @@ class ZarrImageStack:
         self.data_dtype = self._array.dtype
         self._chunk_size = self._array.chunks
 
-    # TODO: not sure if this is useful
-    # TODO: potential solution using different metadata class for each ImageStack type
-    #   - see #399
+    # Used to identify the source of the data and write to similar path during pred
     @property
     def source(self) -> str:
-        # e.g. file://data/bsd68.zarr/train /
+        # e.g. file://data/bsd68.zarr/train/
         return self._source
 
     @property
     def chunk_size(self) -> Sequence[int]:
         return self._chunk_size
-
-    # automatically finds axes from metadata
-    # based on implementation in ome-zarr python package
-    # https://github.com/ome/ome-zarr-py/blob/f7096b0f2c1fc8edf4d7304e33caf8d279d99dbb/ome_zarr/reader.py#L294-L316
-    # @classmethod
-    # def from_ome_zarr(cls, path: Path | str) -> Self:
-    #     """
-    #     Will only use the first resolution in the hierarchy.
-
-    #     Assumes the path only contains 1 image.
-
-    #     Path can be to a local file, or it can be a URL to a zarr stored in the cloud.
-
-    #     Parameters
-    #     ----------
-    #     path : Path | str
-    #         Path to the root of the OME-Zarr, local file or url.
-
-    #     Returns
-    #     -------
-    #     ZarrImageStack
-    #         Initialised ZarrImageStack.
-
-    #     Raises
-    #     ------
-    #     ValueError
-    #         If the path does not exist or is not a valid URL.
-    #     ValueError
-    #         If the OME-Zarr at the path does not contain the attribute 'multiscales'.
-    #     """
-    #     if Path(path).is_file():
-    #         store = zarr.storage.LocalStore(root=Path(path).resolve())
-    #     elif validators.url(path):
-    #         store = zarr.storage.FsspecStore.from_url(url=path)
-    #     else:
-    #         raise ValueError(
-    #             f"Path '{path}' is neither an existing file nor a valid URL."
-    #         )
-
-    #     group = zarr.open_group(store=store, mode="r")
-    #     if "multiscales" not in group.attrs:
-    #         raise ValueError(
-    #             f"Zarr at path '{path}' cannot be loaded as an OME-Zarr because it "
-    #             "does not contain the attribute 'multiscales'."
-    #         )
-    #     # TODO: why is this a list of length 1? 0 index also in ome-zarr-python
-    #     # https://github.com/ome/ome-zarr-py/blob/f7096b0f2c1fc8edf4d7304e33caf8d279d99dbb/ome_zarr/reader.py#L286
-    #     multiscales_metadata = group.attrs["multiscales"][0]
-
-    #     # get axes
-    #     axes_list = [axes_data["name"] for axes_data in multiscales_metadata["axes"]]
-    #     axes = "".join(axes_list).upper()
-
-    #     first_multiscale_path = multiscales_metadata["datasets"][0]["path"]
-
-    #     return cls(store=store, data_path=first_multiscale_path, axes=axes)
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
