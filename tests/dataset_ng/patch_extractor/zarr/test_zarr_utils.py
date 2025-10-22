@@ -131,3 +131,19 @@ def test_create_image_stacks_ome(ome_zarr_url):
     )
 
     assert len(image_stacks) == 1
+
+    # warning raised if axes do not match
+    with pytest.warns(UserWarning):
+        _ = create_zarr_image_stacks(
+            source=[ome_zarr_url],
+            axes="CYX",  # wrong axes
+            multiscale_level="0",
+        )
+
+    # error raised if level does not exist
+    with pytest.raises(ValueError):
+        _ = create_zarr_image_stacks(
+            source=[ome_zarr_url],
+            axes="ZYX",
+            multiscale_level="lvl1",  # non-existing level
+        )
