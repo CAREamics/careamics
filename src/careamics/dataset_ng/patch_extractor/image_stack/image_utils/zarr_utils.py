@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -135,14 +136,76 @@ def add_segmentation_key(path_to_zarr: str) -> str:
     return path_to_zarr[:-5] + "_seg.zarr"
 
 
+# TODO Does this hold also for old zarr? Pydantic models from Talley might be better
+def _is_ome_zarr(zarr_group: zarr.Group) -> bool:
+    """Check if a Zarr group is an OME-Zarr.
+
+    Parameters
+    ----------
+    zarr_group : zarr.Group
+        The Zarr group to check.
+
+    Returns
+    -------
+    bool
+        True if the Zarr group is an OME-Zarr, False otherwise.
+    """
+    return "multiscales" in zarr_group.attrs
+
+
+def _extract_metadata_from_ome_zarr(
+    zarr_group: zarr.Group,
+    multiscale_level: str = "0",
+) -> tuple[str, str]:
+    """Extract metadata from an OME-Zarr group.
+
+    Parameters
+    ----------
+    zarr_group : zarr.Group
+        The OME-Zarr group to extract metadata from.
+    multiscale_level : str, default = "0"
+        The multiscale level to extract metadata for.
+
+    Returns
+    -------
+    str
+        Validated multiscale level.
+    str
+        Axes string.
+    """
+    # extract metadata
+    multiscales_metadata = zarr_group.attrs["multiscales"][0]
+
+    # retrieve all datasets (resolution levels) in multiscale
+    levels = [d["path"] for d in multiscales_metadata["datasets"]]
+
+    if multiscale_level not in levels:
+        raise ValueError(
+            f"Multiscale level '{multiscale_level}' not found in OME-Zarr group. "
+            f"Available levels are {levels}."
+        )
+
+    # get axes
+    axes_list = [axes_data["name"] for axes_data in multiscales_metadata["axes"]]
+    axes = "".join(axes_list).upper()
+
+    return multiscale_level, axes
+
+
 def create_zarr_image_stacks(
     source: Sequence[str | Path],
     axes: str,
+    multiscale_level: str = "0",
 ) -> list[ZarrImageStack]:
     """Create a list of ZarrImageStack from a sequence of zarr file paths or URIs.
 
     File paths must point to a zarr store (ending with .zarr) and URIs must be in the
     format "file://path/to/zarr_store.zarr/group/path/array_name".
+
+    If the zarr file is an OME-Zarr, the specified multiscale level will be used. Note
+    that OME-Zarrs are only supported when providing a path to the zarr store, not when
+    using a file URI. One can, however, provide a file URI to the specific resolution
+    array within the OME-Zarr.
 
     Parameters
     ----------
@@ -150,6 +213,8 @@ def create_zarr_image_stacks(
         The source zarr file paths or URIs.
     axes : str
         The original axes of the data, must be a subset of "STCZYX".
+    multiscale_level : str, default = "0"
+        The multiscale level to use when loading OME-Zarr data.
 
     Returns
     -------
@@ -166,9 +231,26 @@ def create_zarr_image_stacks(
         if data_str.endswith(".zarr"):
             zarr_group = zarr.open(data_str, mode="r")
 
-            # collect all arrays
-            array_paths = collect_arrays(zarr_group)
+            # test if ome-zarr (minimum assumption of multiscales)
+            if _is_ome_zarr(zarr_group):
+                data_path, metadata_axes = _extract_metadata_from_ome_zarr(
+                    zarr_group, multiscale_level=multiscale_level
+                )
 
+                if metadata_axes != axes:
+                    warnings.warn(
+                        f"Axes mismatch for OME-Zarr at '{data_str}': "
+                        f"expected {axes}, got {metadata_axes}.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+
+                array_paths = [data_path]
+            else:
+                # collect all arrays
+                array_paths = collect_arrays(zarr_group)
+
+            # instantiate image stacks
             for array_path in array_paths:
                 image_stacks.append(
                     ZarrImageStack(group=zarr_group, data_path=array_path, axes=axes)

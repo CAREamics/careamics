@@ -1,6 +1,5 @@
 from collections.abc import Sequence
-from pathlib import Path
-from typing import Self, Union
+from typing import Union
 
 import zarr
 from numpy.typing import NDArray
@@ -46,12 +45,6 @@ class ZarrImageStack:
     @property
     def chunk_size(self) -> Sequence[int]:
         return self._chunk_size
-
-    # TODO test
-    @classmethod
-    def from_memory(cls, store: str | Path, data_path: str, axes: str) -> Self:
-        group = zarr.open_group(store=store, mode="r")
-        return cls(group=group, data_path=data_path, axes=axes)
 
     # automatically finds axes from metadata
     # based on implementation in ome-zarr python package

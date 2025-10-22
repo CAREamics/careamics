@@ -17,6 +17,12 @@ class ZarrSource(TypedDict):
 
 
 @pytest.fixture
+def ome_zarr_url() -> str:
+    """URL to a public OME-Zarr for testing."""
+    return "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0062A/6001240.zarr"
+
+
+@pytest.fixture
 def arrays() -> NDArray:
     return np.arange(3 * 16 * 16).reshape((3, 16, 16))
 

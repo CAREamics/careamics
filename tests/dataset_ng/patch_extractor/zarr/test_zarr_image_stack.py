@@ -7,10 +7,9 @@ from numpy.typing import NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
-
-# TODO test from memory
-# TODO test from remote
-# TODO test from ome-zarr
+from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
+    _extract_metadata_from_ome_zarr,
+)
 
 
 def create_test_zarr(file_path: Path, data_path: str, data: NDArray):
@@ -78,14 +77,18 @@ def test_extract_patch_2D(
     np.testing.assert_array_equal(extracted_patch, patch_ref)
 
 
-# def test_from_ome_zarr():
-#     # kinda an integration test
-#     url = "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0062A/6001240.zarr"
-#     image_stack = ZarrImageStack.from_ome_zarr(path=url)  # initialise image stack
-#     n_channels = image_stack.data_shape[1]
-#     patch_size = (100, 64, 25)
-#     patch = image_stack.extract_patch(
-#         sample_idx=0, coords=(112, 56, 15), patch_size=patch_size
-#     )
-#     assert isinstance(patch, np.ndarray)  # make sure patch is numpy
-#     assert patch.shape == (n_channels, *patch_size)# extracted patch has expected size
+def test_ome_zarr(ome_zarr_url):
+    """Test that ZarrImageStack can be initialised from an OME-Zarr URL."""
+    # instantiate zarr image stack
+    group = zarr.open(ome_zarr_url, mode="r")
+    path, axes = _extract_metadata_from_ome_zarr(group)
+    image_stack = ZarrImageStack(group=group, data_path=path, axes=axes)
+
+    # extract patch
+    n_channels = image_stack.data_shape[1]
+    patch_size = (100, 64, 25)
+    patch = image_stack.extract_patch(
+        sample_idx=0, coords=(112, 56, 15), patch_size=patch_size
+    )
+    assert isinstance(patch, np.ndarray)  # make sure patch is numpy
+    assert patch.shape == (n_channels, *patch_size)  # extracted patch has expected size

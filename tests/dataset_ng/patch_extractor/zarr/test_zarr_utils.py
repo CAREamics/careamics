@@ -118,3 +118,16 @@ def test_create_image_stacks_paths(request, zarr_source):
     )
 
     assert len(image_stacks) == 3
+
+
+def test_create_image_stacks_ome(ome_zarr_url):
+    """Test that create_image_stacks can create a ZarrImageStack from an OME-Zarr
+    URL."""
+
+    image_stacks = create_zarr_image_stacks(
+        source=[ome_zarr_url],
+        axes="ZYX",
+        multiscale_level="0",
+    )
+
+    assert len(image_stacks) == 1
