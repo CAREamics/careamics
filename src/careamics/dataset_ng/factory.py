@@ -21,8 +21,8 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_custom_file_extractor,
     create_custom_image_stack_extractor,
     create_czi_extractor,
-    create_ome_zarr_extractor,
     create_tiff_extractor,
+    create_zarr_extractor,
 )
 from careamics.file_io.read import ReadFunc
 
@@ -345,15 +345,15 @@ def create_czi_dataset(
     )
 
 
-def create_ome_zarr_dataset(
+def create_zarr_dataset(
     config: NGDataConfig,
     mode: Mode,
-    inputs: Sequence[Path],
-    targets: Sequence[Path] | None,
-    masks: Sequence[Path] | None = None,
+    inputs: Sequence[str | Path],
+    targets: Sequence[str | Path] | None,
+    masks: Sequence[str | Path] | None = None,
 ) -> CareamicsDataset[ZarrImageStack]:
     """
-    Create a dataset from OME ZARR files.
+    Create a dataset from Zarr files.
 
     Parameters
     ----------
@@ -374,15 +374,15 @@ def create_ome_zarr_dataset(
         A CAREamicsDataset.
     """
 
-    input_extractor = create_ome_zarr_extractor(source=inputs, axes=config.axes)
+    input_extractor = create_zarr_extractor(source=inputs, axes=config.axes)
     target_extractor: PatchExtractor[ZarrImageStack] | None
     if targets is not None:
-        target_extractor = create_ome_zarr_extractor(source=targets, axes=config.axes)
+        target_extractor = create_zarr_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
     mask_extractor: PatchExtractor[ZarrImageStack] | None
     if masks is not None:
-        mask_extractor = create_ome_zarr_extractor(source=masks, axes=config.axes)
+        mask_extractor = create_zarr_extractor(source=masks, axes=config.axes)
     else:
         mask_extractor = None
 

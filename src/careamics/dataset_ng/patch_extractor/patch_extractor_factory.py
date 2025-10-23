@@ -6,6 +6,9 @@ from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
 from careamics.dataset_ng.patch_extractor import PatchExtractor
+from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
+    create_zarr_image_stacks,
+)
 from careamics.file_io.read import ReadFunc
 
 from .image_stack import (
@@ -69,30 +72,42 @@ def create_tiff_extractor(
     return PatchExtractor(image_stacks)
 
 
-# ZARR case
-def create_ome_zarr_extractor(
-    source: Sequence[Path],
+# # OME-ZARR case
+# def create_ome_zarr_extractor(
+#     source: Sequence[Path],
+#     axes: str,
+# ) -> PatchExtractor[ZarrImageStack]:
+#     """
+#     Create a patch extractor from a sequence of OME ZARR files.
+
+#     If you have ZARR files that do not follow the OME standard, see documentation on
+#     how to create a custom `image_stack_loader`. (TODO: Add link).
+
+#     Parameters
+#     ----------
+#     source: sequence of Path
+#         The source files for the data.
+#     axes: str
+#         The original axes of the data, must be a subset of "STCZYX".
+
+#     Returns
+#     -------
+#     PatchExtractor
+#     """
+#     # NOTE: axes is unused here, in from_ome_zarr the axes are automatically retrieved
+#     image_stacks = [ZarrImageStack.from_ome_zarr(path) for path in source]
+#     return PatchExtractor(image_stacks)
+
+
+# Arbitrary zarr list
+def create_zarr_extractor(
+    source: Sequence[str | Path],
     axes: str,
 ) -> PatchExtractor[ZarrImageStack]:
-    """
-    Create a patch extractor from a sequence of OME ZARR files.
+    image_stacks: list[ZarrImageStack] = create_zarr_image_stacks(
+        source=source, axes=axes
+    )
 
-    If you have ZARR files that do not follow the OME standard, see documentation on
-    how to create a custom `image_stack_loader`. (TODO: Add link).
-
-    Parameters
-    ----------
-    source: sequence of Path
-        The source files for the data.
-    axes: str
-        The original axes of the data, must be a subset of "STCZYX".
-
-    Returns
-    -------
-    PatchExtractor
-    """
-    # NOTE: axes is unused here, in from_ome_zarr the axes are automatically retrieved
-    image_stacks = [ZarrImageStack.from_ome_zarr(path) for path in source]
     return PatchExtractor(image_stacks)
 
 
@@ -104,7 +119,7 @@ def create_czi_extractor(
     """
     Create a patch extractor from a sequence of CZI files.
 
-    If the CZI files contain multiple scenes, one patch extractor will be created for
+    If the CZI files contain multiple scenes, one image stack will be created for
     each scene.
 
     Parameters
