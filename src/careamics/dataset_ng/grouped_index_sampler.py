@@ -8,7 +8,7 @@ from torch.utils.data import Sampler
 from careamics.dataset_ng.dataset import CareamicsDataset
 
 
-class GroupedIterSampler(Sampler):
+class GroupedIndexSampler(Sampler):
 
     def __init__(self, grouped_indices: Sequence[Sequence[int]], rng: Generator | None):
         super().__init__()

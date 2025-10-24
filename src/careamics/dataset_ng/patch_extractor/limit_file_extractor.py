@@ -6,7 +6,7 @@ from .image_stack import FileImageStack
 from .patch_extractor import PatchExtractor
 
 
-class LimitFilePatchExtractor(PatchExtractor):
+class LimitFilesPatchExtractor(PatchExtractor):
 
     def __init__(self, image_stacks: Sequence[FileImageStack]):
         self.image_stacks: list[FileImageStack]
