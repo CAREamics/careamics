@@ -11,6 +11,7 @@ from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import ImageStackLoader, PatchExtractor
 from careamics.dataset_ng.patch_extractor.image_stack import (
     CziImageStack,
+    FileImageStack,
     GenericImageStack,
     ImageStack,
     InMemoryImageStack,
@@ -21,6 +22,7 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_custom_file_extractor,
     create_custom_image_stack_extractor,
     create_czi_extractor,
+    create_lazy_tiff_extractor,
     create_tiff_extractor,
     create_zarr_extractor,
 )
@@ -525,6 +527,66 @@ def create_custom_image_stack_dataset(
             image_stack_loader,
             *args,
             **kwargs,
+        )
+    else:
+        mask_extractor = None
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, mask_extractor
+    )
+
+
+def create_lazy_file_dataset(
+    config: NGDataConfig,
+    mode: Mode,
+    inputs: Sequence[Path],
+    targets: Sequence[Path] | None,
+    masks: Sequence[Path] | None = None,
+) -> CareamicsDataset[FileImageStack]:
+    """
+    Create a CAREamicsDataset from a custom `ImageStack` class.
+
+    The custom `ImageStack` class can be loaded using the `image_stack_loader` function.
+
+    Parameters
+    ----------
+    config : DataConfig or InferenceConfig
+        The data configuration.
+    mode : Mode
+        Whether to create the dataset in "training", "validation" or "predicting" mode.
+    inputs :
+        The input sources to the dataset.
+    targets : Any, optional
+        The target sources to the dataset.
+    image_stack_loader : ImageStackLoader
+        A function for custom image stack loading. This argument is ignored unless the
+        `data_type` is "custom".
+    masks : Any, optional
+        The mask sources used to filter patches.
+
+    Returns
+    -------
+    CareamicsDataset[GenericImageStack]
+        A CAREamicsDataset.
+    """
+    input_extractor = create_lazy_tiff_extractor(
+        inputs,
+        config.axes,
+    )
+    target_extractor: PatchExtractor[FileImageStack] | None
+    if targets is not None:
+        target_extractor = create_lazy_tiff_extractor(
+            targets,
+            config.axes,
+        )
+    else:
+        target_extractor = None
+
+    mask_extractor: PatchExtractor[FileImageStack] | None
+    if masks is not None:
+        mask_extractor = create_lazy_tiff_extractor(
+            masks,
+            config.axes,
         )
     else:
         mask_extractor = None
