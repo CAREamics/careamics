@@ -15,6 +15,7 @@ from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import list_files, validate_source_target_files
 from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
+from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset_ng.patch_extractor import ImageStackLoader
 from careamics.utils import get_logger
 
@@ -715,10 +716,17 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Training dataloader.
         """
+        sampler: GroupedIndexSampler | None
+        rng = np.random.default_rng()
+        if not self.use_in_memory and self.config.data_type == SupportedData.TIFF:
+            sampler = GroupedIndexSampler.from_dataset(self.train_dataset, rng=rng)
+        else:
+            sampler = None
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
+            sampler=sampler,
             **self.config.train_dataloader_params,
         )
 
