@@ -37,7 +37,7 @@ class FileImageStack:
         if self._data is None:
             raise ValueError(
                 "Cannot extract patch because data has not been loaded from "
-                f"'{self.source}'"
+                f"'{self.source}', the `load` method must be called first."
             )
 
         if (coord_dims := len(coords)) != (patch_dims := len(patch_size)):
