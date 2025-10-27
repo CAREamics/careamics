@@ -6,8 +6,12 @@ from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
 from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import create_zarr_image_stacks
-from careamics.dataset_ng.patch_extractor.limit_file_extractor import LimitFilesPatchExtractor
+from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
+    create_zarr_image_stacks,
+)
+from careamics.dataset_ng.patch_extractor.limit_file_extractor import (
+    LimitFilesPatchExtractor,
+)
 from careamics.file_io.read import ReadFunc
 
 from .image_stack import (
@@ -98,6 +102,7 @@ def create_tiff_extractor(
 #     image_stacks = [ZarrImageStack.from_ome_zarr(path) for path in source]
 #     return PatchExtractor(image_stacks)
 
+
 # Lazy Tiff
 def create_lazy_tiff_extractor(
     source: Sequence[Path], axes: str
@@ -118,6 +123,7 @@ def create_lazy_tiff_extractor(
     """
     image_stacks = [FileImageStack.from_tiff(path=path, axes=axes) for path in source]
     return LimitFilesPatchExtractor(image_stacks)
+
 
 # Arbitrary zarr list
 def create_zarr_extractor(
