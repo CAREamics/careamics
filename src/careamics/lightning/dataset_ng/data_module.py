@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Union, overload
+from typing import TYPE_CHECKING, Any, Union, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -18,6 +18,9 @@ from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset_ng.patch_extractor import ImageStackLoader
 from careamics.utils import get_logger
+
+if TYPE_CHECKING:
+    from torch.utils.data import Sampler
 
 logger = get_logger(__name__)
 
@@ -707,6 +710,15 @@ class CareamicsDataModule(L.LightningDataModule):
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
+    def _sampler(self) -> Sampler | None:
+        sampler: GroupedIndexSampler | None
+        rng = np.random.default_rng()
+        if not self.use_in_memory and self.config.data_type == SupportedData.TIFF:
+            sampler = GroupedIndexSampler.from_dataset(self.train_dataset, rng=rng)
+        else:
+            sampler = None
+        return sampler
+
     def train_dataloader(self) -> DataLoader:
         """
         Create a dataloader for training.
@@ -716,12 +728,7 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Training dataloader.
         """
-        sampler: GroupedIndexSampler | None
-        rng = np.random.default_rng()
-        if not self.use_in_memory and self.config.data_type == SupportedData.TIFF:
-            sampler = GroupedIndexSampler.from_dataset(self.train_dataset, rng=rng)
-        else:
-            sampler = None
+        sampler = self._sampler()
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -739,10 +746,12 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Validation dataloader.
         """
+        sampler = self._sampler()
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
+            sampler=sampler,
             **self.config.val_dataloader_params,
         )
 
@@ -755,9 +764,11 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Prediction dataloader.
         """
+        sampler = self._sampler()
         return DataLoader(
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
+            sampler=sampler,
             **self.config.test_dataloader_params,
         )
