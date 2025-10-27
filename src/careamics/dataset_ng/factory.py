@@ -172,41 +172,43 @@ def create_dataset(
     dataset_type = determine_dataset_type(
         data_type, in_memory, read_func, image_stack_loader
     )
-    if dataset_type == DatasetType.ARRAY:
-        return create_array_dataset(config, mode, inputs, targets, masks)
-    elif dataset_type == DatasetType.IN_MEM_TIFF:
-        return create_tiff_dataset(config, mode, inputs, targets, masks)
-    # TODO: Lazy tiff
-    elif dataset_type == DatasetType.CZI:
-        return create_czi_dataset(config, mode, inputs, targets, masks)
-    elif dataset_type == DatasetType.IN_MEM_CUSTOM_FILE:
-        if read_kwargs is None:
-            read_kwargs = {}
-        assert read_func is not None  # should be true from `determine_dataset_type`
-        return create_custom_file_dataset(
-            config,
-            mode,
-            inputs,
-            targets,
-            masks,
-            read_func=read_func,
-            read_kwargs=read_kwargs,
-        )
-    elif dataset_type == DatasetType.CUSTOM_IMAGE_STACK:
-        if image_stack_loader_kwargs is None:
-            image_stack_loader_kwargs = {}
-        assert image_stack_loader is not None  # should be true
-        return create_custom_image_stack_dataset(
-            config,
-            mode,
-            inputs,
-            targets,
-            image_stack_loader,
-            masks,
-            **image_stack_loader_kwargs,
-        )
-    else:
-        raise ValueError(f"Unrecognized dataset type, {dataset_type}.")
+    match data_type:
+        case DatasetType.ARRAY:
+            return create_array_dataset(config, mode, inputs, targets, masks)
+        case DatasetType.IN_MEM_TIFF:
+            return create_tiff_dataset(config, mode, inputs, targets, masks)
+        case DatasetType.LAZY_TIFF:
+            return create_lazy_file_dataset(config, mode, inputs, targets, masks)
+        case DatasetType.CZI:
+            return create_czi_dataset(config, mode, inputs, targets, masks)
+        case DatasetType.IN_MEM_CUSTOM_FILE:
+            if read_kwargs is None:
+                read_kwargs = {}
+            assert read_func is not None  # should be true from `determine_dataset_type`
+            return create_custom_file_dataset(
+                config,
+                mode,
+                inputs,
+                targets,
+                masks,
+                read_func=read_func,
+                read_kwargs=read_kwargs,
+            )
+        case DatasetType.CUSTOM_IMAGE_STACK:
+            if image_stack_loader_kwargs is None:
+                image_stack_loader_kwargs = {}
+            assert image_stack_loader is not None  # should be true
+            return create_custom_image_stack_dataset(
+                config,
+                mode,
+                inputs,
+                targets,
+                image_stack_loader,
+                masks,
+                **image_stack_loader_kwargs,
+            )
+        case _:
+            raise ValueError(f"Unrecognized dataset type, {dataset_type}.")
 
 
 def create_array_dataset(
