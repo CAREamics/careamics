@@ -172,7 +172,7 @@ def create_dataset(
     dataset_type = determine_dataset_type(
         data_type, in_memory, read_func, image_stack_loader
     )
-    match data_type:
+    match dataset_type:
         case DatasetType.ARRAY:
             return create_array_dataset(config, mode, inputs, targets, masks)
         case DatasetType.IN_MEM_TIFF:
