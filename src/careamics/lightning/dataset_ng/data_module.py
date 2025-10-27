@@ -2,12 +2,12 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Union, overload
+from typing import Any, Union, overload
 
 import numpy as np
 import pytorch_lightning as L
 from numpy.typing import NDArray
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Sampler
 from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.ng_data_model import NGDataConfig
@@ -18,9 +18,6 @@ from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset_ng.patch_extractor import ImageStackLoader
 from careamics.utils import get_logger
-
-if TYPE_CHECKING:
-    from torch.utils.data import Sampler
 
 logger = get_logger(__name__)
 
