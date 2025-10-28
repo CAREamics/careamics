@@ -104,7 +104,7 @@ def create_tiff_extractor(
 
 
 # Lazy Tiff
-def create_lazy_tiff_extractor(
+def create_iter_tiff_extractor(
     source: Sequence[Path], axes: str
 ) -> LimitFilesPatchExtractor:
     """

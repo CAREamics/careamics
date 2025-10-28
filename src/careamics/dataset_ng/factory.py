@@ -22,7 +22,7 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_custom_file_extractor,
     create_custom_image_stack_extractor,
     create_czi_extractor,
-    create_lazy_tiff_extractor,
+    create_iter_tiff_extractor,
     create_tiff_extractor,
     create_zarr_extractor,
 )
@@ -39,7 +39,7 @@ class DatasetType(Enum):
 
     ARRAY = "array"
     IN_MEM_TIFF = "in_mem_tiff"
-    LAZY_TIFF = "lazy_tiff"
+    ITER_TIFF = "iter_tiff"
     IN_MEM_CUSTOM_FILE = "in_mem_custom_file"
     OME_ZARR = "ome_zarr"
     CZI = "czi"
@@ -91,7 +91,7 @@ def determine_dataset_type(
         if in_memory:
             return DatasetType.IN_MEM_TIFF
         else:
-            return DatasetType.LAZY_TIFF
+            return DatasetType.ITER_TIFF
     elif data_type == SupportedData.CZI:
         return DatasetType.CZI
     elif data_type == SupportedData.CUSTOM:
@@ -177,8 +177,8 @@ def create_dataset(
             return create_array_dataset(config, mode, inputs, targets, masks)
         case DatasetType.IN_MEM_TIFF:
             return create_tiff_dataset(config, mode, inputs, targets, masks)
-        case DatasetType.LAZY_TIFF:
-            return create_lazy_file_dataset(config, mode, inputs, targets, masks)
+        case DatasetType.ITER_TIFF:
+            return create_iter_tiff_dataset(config, mode, inputs, targets, masks)
         case DatasetType.CZI:
             return create_czi_dataset(config, mode, inputs, targets, masks)
         case DatasetType.IN_MEM_CUSTOM_FILE:
@@ -538,7 +538,7 @@ def create_custom_image_stack_dataset(
     )
 
 
-def create_lazy_file_dataset(
+def create_iter_tiff_dataset(
     config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[Path],
@@ -546,9 +546,7 @@ def create_lazy_file_dataset(
     masks: Sequence[Path] | None = None,
 ) -> CareamicsDataset[FileImageStack]:
     """
-    Create a CAREamicsDataset from a custom `ImageStack` class.
-
-    The custom `ImageStack` class can be loaded using the `image_stack_loader` function.
+    Create a CAREamicsDataset for iteratively loading tiff files.
 
     Parameters
     ----------
@@ -560,24 +558,21 @@ def create_lazy_file_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
-    image_stack_loader : ImageStackLoader
-        A function for custom image stack loading. This argument is ignored unless the
-        `data_type` is "custom".
     masks : Any, optional
         The mask sources used to filter patches.
 
     Returns
     -------
-    CareamicsDataset[GenericImageStack]
+    CareamicsDataset[FileImageStack]
         A CAREamicsDataset.
     """
-    input_extractor = create_lazy_tiff_extractor(
+    input_extractor = create_iter_tiff_extractor(
         inputs,
         config.axes,
     )
     target_extractor: PatchExtractor[FileImageStack] | None
     if targets is not None:
-        target_extractor = create_lazy_tiff_extractor(
+        target_extractor = create_iter_tiff_extractor(
             targets,
             config.axes,
         )
@@ -586,7 +581,7 @@ def create_lazy_file_dataset(
 
     mask_extractor: PatchExtractor[FileImageStack] | None
     if masks is not None:
-        mask_extractor = create_lazy_tiff_extractor(
+        mask_extractor = create_iter_tiff_extractor(
             masks,
             config.axes,
         )
