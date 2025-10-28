@@ -62,8 +62,6 @@ def test_not_in_mem_tiff(tmp_path: Path):
 def test_sampler(tmp_path: Path, in_memory, correct_sampler):
     """Test `_sampler` method returns the correct sampler for"""
 
-    tmp_path = Path("data")
-
     # set up test data
     data_shapes = [(64, 48), (55, 54), (71, 65), (32, 32)]
     input_data = [np.arange(np.prod(shape)).reshape(shape) for shape in data_shapes]
