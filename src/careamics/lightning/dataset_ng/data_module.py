@@ -1,8 +1,9 @@
 """Next-Generation CAREamics DataModule."""
 
-from collections.abc import Callable
+import copy
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Union, overload
+from typing import Any, Literal, Union, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -24,7 +25,7 @@ logger = get_logger(__name__)
 ItemType = Union[Path, str, NDArray[Any]]
 """Type of input items passed to the dataset."""
 
-InputType = Union[ItemType, list[ItemType], None]
+InputType = Union[ItemType, Sequence[ItemType], None]
 """Type of input data passed to the dataset."""
 
 
@@ -707,11 +708,23 @@ class CareamicsDataModule(L.LightningDataModule):
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
-    def _sampler(self) -> Sampler | None:
+    def _sampler(self, dataset: Literal["train", "val", "predict"]) -> Sampler | None:
         sampler: GroupedIndexSampler | None
         rng = np.random.default_rng()
         if not self.use_in_memory and self.config.data_type == SupportedData.TIFF:
-            sampler = GroupedIndexSampler.from_dataset(self.train_dataset, rng=rng)
+            match dataset:
+                case "train":
+                    ds = self.train_dataset
+                case "val":
+                    ds = self.val_dataset
+                case "predict":
+                    ds = self.predict_dataset
+                case _:
+                    raise (
+                        f"Unrecognized dataset '{dataset}', should be one of 'train', "
+                        "'val' or 'predict'."
+                    )
+            sampler = GroupedIndexSampler.from_dataset(ds, rng=rng)
         else:
             sampler = None
         return sampler
@@ -725,13 +738,19 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Training dataloader.
         """
-        sampler = self._sampler()
+        sampler = self._sampler("train")
+        dataloader_params = copy.deepcopy(self.config.train_dataloader_params)
+        # have to remove shuffle with sampler because of torch error:
+        #   ValueError: sampler option is mutually exclusive with shuffle
+        # TODO: there might be other parameters mutually exclusive with sampler
+        if (sampler is not None) and ("shuffle" in dataloader_params):
+            del dataloader_params["shuffle"]
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
             sampler=sampler,
-            **self.config.train_dataloader_params,
+            **dataloader_params,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -743,13 +762,16 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Validation dataloader.
         """
-        sampler = self._sampler()
+        sampler = self._sampler("val")
+        dataloader_params = copy.deepcopy(self.config.val_dataloader_params)
+        if (sampler is not None) and ("shuffle" in dataloader_params):
+            del dataloader_params["shuffle"]
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
             sampler=sampler,
-            **self.config.val_dataloader_params,
+            **dataloader_params,
         )
 
     def predict_dataloader(self) -> DataLoader:
@@ -761,11 +783,9 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Prediction dataloader.
         """
-        sampler = self._sampler()
         return DataLoader(
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
-            sampler=sampler,
             **self.config.test_dataloader_params,
         )
