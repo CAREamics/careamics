@@ -42,5 +42,5 @@ def test_files_limited(tmp_path: Path):
         is_loaded = [
             image_stack.is_loaded for image_stack in patch_extractor.image_stacks
         ]
-        # 2 or less files should be loaded at any time
-        assert np.count_nonzero(is_loaded) <= 2
+        # 1 or less files should be loaded at any time
+        assert np.count_nonzero(is_loaded) <= 1

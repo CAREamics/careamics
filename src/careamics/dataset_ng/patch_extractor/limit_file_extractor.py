@@ -34,7 +34,7 @@ class LimitFilesPatchExtractor(PatchExtractor):
             self.image_stacks[data_idx].load()
             self.loaded_stacks.append(data_idx)
         # TODO: make maximum images loaded configurable?
-        if len(self.loaded_stacks) > 2:
+        if len(self.loaded_stacks) > 1:
             # get the idx that was added longest ago
             idx_to_close = self.loaded_stacks.pop(0)
             self.image_stacks[idx_to_close].close()
