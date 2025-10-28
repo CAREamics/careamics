@@ -710,7 +710,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def _sampler(self, dataset: Literal["train", "val", "predict"]) -> Sampler | None:
         sampler: GroupedIndexSampler | None
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(self.config.seed)
         if not self.use_in_memory and self.config.data_type == SupportedData.TIFF:
             match dataset:
                 case "train":
