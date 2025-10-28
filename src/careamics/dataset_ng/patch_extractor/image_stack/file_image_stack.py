@@ -13,6 +13,12 @@ from .utils import pad_patch, reshaped_array_shape
 
 
 class FileImageStack:
+    """
+    An ImageStack implementation for data that is coming from a file.
+
+    The data will not be loaded until the `load` method is called. The `close` method
+    can be used to remove the internal reference to the data.
+    """
 
     def __init__(
         self,
@@ -64,12 +70,14 @@ class FileImageStack:
         return patch
 
     def load(self):
+        """Load the data stored in a file."""
         data = self.read_func(self.source)
         self._data = reshape_array(data, self.axes)
 
     # TODO: maybe this should be called something else
     def close(self):
-        # should get cleaned up by garbage collector since there is no longer a ref
+        """Remove the internal reference to the data to clear up memory."""
+        # will get cleaned up by the garbage collector since there is no longer a ref
         self._data = None
 
     @property

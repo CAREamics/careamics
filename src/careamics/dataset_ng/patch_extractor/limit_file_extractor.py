@@ -7,8 +7,18 @@ from .patch_extractor import PatchExtractor
 
 
 class LimitFilesPatchExtractor(PatchExtractor):
+    """
+    A patch extractor that limits the number of files that have their data loaded.
+
+    This is useful for when not all of the data will fit into memory.
+    """
 
     def __init__(self, image_stacks: Sequence[FileImageStack]):
+        """
+        Parameters
+        ----------
+        image_stacks: Sequence of `FileImageStack`
+        """
         self.image_stacks: list[FileImageStack]
         super().__init__(image_stacks)
         self.loaded_stacks: list[int] = []
