@@ -7,22 +7,27 @@ from numpy.typing import NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
-from careamics.dataset_ng.patch_extractor.image_stack.utils import pad_patch
+from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
+    _extract_metadata_from_ome_zarr,
+)
+
+# TODO test _reshaped_data_shape
 
 
-def create_test_zarr(file_path: Path, data_path: str, data: NDArray):
-    store = zarr.storage.LocalStore(root=file_path.resolve())
+def create_zarr(file_path: Path, data_path: str, data: NDArray):
+    group = zarr.create_group(file_path.resolve())
+
     # create array
-    array = zarr.create(
-        store=store,
+    array = group.create(
+        name=data_path,
         shape=data.shape,
         chunks=data.shape,  # only 1 chunk
         dtype=np.uint16,
-        path=data_path,
     )
     # write data
     array[...] = data
-    store.close()
+
+    return group
 
 
 @pytest.mark.parametrize(
@@ -31,7 +36,6 @@ def create_test_zarr(file_path: Path, data_path: str, data: NDArray):
         ("YX", (32, 48), (1, 1, 32, 48), 0),
         ("XYS", (48, 32, 3), (3, 1, 32, 48), 1),
         ("SXYC", (3, 48, 32, 2), (3, 2, 32, 48), 1),
-        ("SXYC", (3, 8, 8, 2), (3, 2, 8, 8), 1),  # spatial dims smaller that patch size
         ("CYXT", (2, 32, 48, 3), (3, 2, 32, 48), 2),
         ("CXYTS", (2, 48, 32, 3, 2), (6, 2, 32, 48), 4),
         ("XCSYT", (48, 1, 2, 32, 3), (6, 1, 32, 48), 5),  # crazy one
@@ -51,13 +55,14 @@ def test_extract_patch_2D(
     # save data as a zarr array to ininitialise image stack with
     file_path = tmp_path / "test_zarr.zarr"
     data_path = "image"
-    create_test_zarr(file_path=file_path, data_path=data_path, data=data)
 
     # initialise ZarrImageStack
-    store = zarr.storage.LocalStore(root=file_path)
-    image_stack = ZarrImageStack(store=store, data_path=data_path, axes=original_axes)
+    group = create_zarr(file_path=file_path, data_path=data_path, data=data)
+    image_stack = ZarrImageStack(group=group, data_path=data_path, axes=original_axes)
+
     # TODO: this assert can move if _reshaped_data_shape is tested separately
     assert image_stack.data_shape == expected_shape
+    assert image_stack.chunk_size == original_shape
 
     # test extracted patch matches patch from reference data
     coords = (11, 4)
@@ -65,21 +70,24 @@ def test_extract_patch_2D(
 
     extracted_patch = image_stack.extract_patch(
         sample_idx=sample_idx, coords=coords, patch_size=patch_size
-    )
+    )  # return in SCZYX order
     patch_ref = data_ref[
         sample_idx,
         :,
         coords[0] : coords[0] + patch_size[0],
         coords[1] : coords[1] + patch_size[1],
     ]
-    patch_ref = pad_patch(coords, patch_size, image_stack.data_shape, patch_ref)
     np.testing.assert_array_equal(extracted_patch, patch_ref)
 
 
-def test_from_ome_zarr():
-    # kinda an integration test
-    url = "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0062A/6001240.zarr"
-    image_stack = ZarrImageStack.from_ome_zarr(path=url)  # initialise image stack
+def test_ome_zarr(ome_zarr_url):
+    """Test that ZarrImageStack can be initialised from an OME-Zarr URL."""
+    # instantiate zarr image stack
+    group = zarr.open(ome_zarr_url, mode="r")
+    path, axes = _extract_metadata_from_ome_zarr(group)
+    image_stack = ZarrImageStack(group=group, data_path=path, axes=axes)
+
+    # extract patch
     n_channels = image_stack.data_shape[1]
     patch_size = (100, 64, 25)
     patch = image_stack.extract_patch(
