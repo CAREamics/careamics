@@ -9,10 +9,14 @@ from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
     create_zarr_image_stacks,
 )
+from careamics.dataset_ng.patch_extractor.limit_file_extractor import (
+    LimitFilesPatchExtractor,
+)
 from careamics.file_io.read import ReadFunc
 
 from .image_stack import (
     CziImageStack,
+    FileImageStack,
     GenericImageStack,
     InMemoryImageStack,
     ZarrImageStack,
@@ -97,6 +101,28 @@ def create_tiff_extractor(
 #     # NOTE: axes is unused here, in from_ome_zarr the axes are automatically retrieved
 #     image_stacks = [ZarrImageStack.from_ome_zarr(path) for path in source]
 #     return PatchExtractor(image_stacks)
+
+
+# Lazy Tiff
+def create_iter_tiff_extractor(
+    source: Sequence[Path], axes: str
+) -> LimitFilesPatchExtractor:
+    """
+    Create a patch extractor from a sequence of TIFF files.
+
+    Parameters
+    ----------
+    source: sequence of Path
+        The source files for the data.
+    axes: str
+        The original axes of the data, must be a subset of "STCZYX".
+
+    Returns
+    -------
+    PatchExtractor
+    """
+    image_stacks = [FileImageStack.from_tiff(path=path, axes=axes) for path in source]
+    return LimitFilesPatchExtractor(image_stacks)
 
 
 # Arbitrary zarr list

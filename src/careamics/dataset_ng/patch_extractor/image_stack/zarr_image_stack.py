@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 
-from .utils import pad_patch
+from .utils import pad_patch, reshaped_array_shape
 
 
 class ZarrImageStack:
@@ -28,7 +28,7 @@ class ZarrImageStack:
         #   - must be subset of STCZYX
         self._original_axes = axes
         self._original_data_shape: tuple[int, ...] = self._array.shape
-        self.data_shape = _reshaped_array_shape(axes, self._original_data_shape)
+        self.data_shape = reshaped_array_shape(axes, self._original_data_shape)
         self.data_dtype = self._array.dtype
         self._chunk_size = self._array.chunks
 
@@ -119,24 +119,3 @@ class ZarrImageStack:
             return sample_idx // T_dim
         else:
             return sample_idx
-
-
-# TODO: move to dataset_utils, better name?
-def _reshaped_array_shape(axes: str, shape: Sequence[int]) -> tuple[int, ...]:
-    """Find resulting shape if reshaping array with given `axes` and `shape`."""
-    target_axes = "SCZYX"
-    target_shape = []
-    for d in target_axes:
-        if d in axes:
-            idx = axes.index(d)
-            target_shape.append(shape[idx])
-        elif (d != axes) and (d != "Z"):
-            target_shape.append(1)
-        else:
-            pass
-
-    if "T" in axes:
-        idx = axes.index("T")
-        target_shape[0] = target_shape[0] * shape[idx]
-
-    return tuple(target_shape)

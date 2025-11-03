@@ -11,6 +11,7 @@ from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import ImageStackLoader, PatchExtractor
 from careamics.dataset_ng.patch_extractor.image_stack import (
     CziImageStack,
+    FileImageStack,
     GenericImageStack,
     ImageStack,
     InMemoryImageStack,
@@ -21,6 +22,7 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_custom_file_extractor,
     create_custom_image_stack_extractor,
     create_czi_extractor,
+    create_iter_tiff_extractor,
     create_tiff_extractor,
     create_zarr_extractor,
 )
@@ -37,7 +39,7 @@ class DatasetType(Enum):
 
     ARRAY = "array"
     IN_MEM_TIFF = "in_mem_tiff"
-    LAZY_TIFF = "lazy_tiff"
+    ITER_TIFF = "iter_tiff"
     IN_MEM_CUSTOM_FILE = "in_mem_custom_file"
     OME_ZARR = "ome_zarr"
     CZI = "czi"
@@ -89,7 +91,7 @@ def determine_dataset_type(
         if in_memory:
             return DatasetType.IN_MEM_TIFF
         else:
-            return DatasetType.LAZY_TIFF
+            return DatasetType.ITER_TIFF
     elif data_type == SupportedData.CZI:
         return DatasetType.CZI
     elif data_type == SupportedData.CUSTOM:
@@ -170,41 +172,43 @@ def create_dataset(
     dataset_type = determine_dataset_type(
         data_type, in_memory, read_func, image_stack_loader
     )
-    if dataset_type == DatasetType.ARRAY:
-        return create_array_dataset(config, mode, inputs, targets, masks)
-    elif dataset_type == DatasetType.IN_MEM_TIFF:
-        return create_tiff_dataset(config, mode, inputs, targets, masks)
-    # TODO: Lazy tiff
-    elif dataset_type == DatasetType.CZI:
-        return create_czi_dataset(config, mode, inputs, targets, masks)
-    elif dataset_type == DatasetType.IN_MEM_CUSTOM_FILE:
-        if read_kwargs is None:
-            read_kwargs = {}
-        assert read_func is not None  # should be true from `determine_dataset_type`
-        return create_custom_file_dataset(
-            config,
-            mode,
-            inputs,
-            targets,
-            masks,
-            read_func=read_func,
-            read_kwargs=read_kwargs,
-        )
-    elif dataset_type == DatasetType.CUSTOM_IMAGE_STACK:
-        if image_stack_loader_kwargs is None:
-            image_stack_loader_kwargs = {}
-        assert image_stack_loader is not None  # should be true
-        return create_custom_image_stack_dataset(
-            config,
-            mode,
-            inputs,
-            targets,
-            image_stack_loader,
-            masks,
-            **image_stack_loader_kwargs,
-        )
-    else:
-        raise ValueError(f"Unrecognized dataset type, {dataset_type}.")
+    match dataset_type:
+        case DatasetType.ARRAY:
+            return create_array_dataset(config, mode, inputs, targets, masks)
+        case DatasetType.IN_MEM_TIFF:
+            return create_tiff_dataset(config, mode, inputs, targets, masks)
+        case DatasetType.ITER_TIFF:
+            return create_iter_tiff_dataset(config, mode, inputs, targets, masks)
+        case DatasetType.CZI:
+            return create_czi_dataset(config, mode, inputs, targets, masks)
+        case DatasetType.IN_MEM_CUSTOM_FILE:
+            if read_kwargs is None:
+                read_kwargs = {}
+            assert read_func is not None  # should be true from `determine_dataset_type`
+            return create_custom_file_dataset(
+                config,
+                mode,
+                inputs,
+                targets,
+                masks,
+                read_func=read_func,
+                read_kwargs=read_kwargs,
+            )
+        case DatasetType.CUSTOM_IMAGE_STACK:
+            if image_stack_loader_kwargs is None:
+                image_stack_loader_kwargs = {}
+            assert image_stack_loader is not None  # should be true
+            return create_custom_image_stack_dataset(
+                config,
+                mode,
+                inputs,
+                targets,
+                image_stack_loader,
+                masks,
+                **image_stack_loader_kwargs,
+            )
+        case _:
+            raise ValueError(f"Unrecognized dataset type, {dataset_type}.")
 
 
 def create_array_dataset(
@@ -525,6 +529,61 @@ def create_custom_image_stack_dataset(
             image_stack_loader,
             *args,
             **kwargs,
+        )
+    else:
+        mask_extractor = None
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, mask_extractor
+    )
+
+
+def create_iter_tiff_dataset(
+    config: NGDataConfig,
+    mode: Mode,
+    inputs: Sequence[Path],
+    targets: Sequence[Path] | None,
+    masks: Sequence[Path] | None = None,
+) -> CareamicsDataset[FileImageStack]:
+    """
+    Create a CAREamicsDataset for iteratively loading tiff files.
+
+    Parameters
+    ----------
+    config : DataConfig or InferenceConfig
+        The data configuration.
+    mode : Mode
+        Whether to create the dataset in "training", "validation" or "predicting" mode.
+    inputs :
+        The input sources to the dataset.
+    targets : Any, optional
+        The target sources to the dataset.
+    masks : Any, optional
+        The mask sources used to filter patches.
+
+    Returns
+    -------
+    CareamicsDataset[FileImageStack]
+        A CAREamicsDataset.
+    """
+    input_extractor = create_iter_tiff_extractor(
+        inputs,
+        config.axes,
+    )
+    target_extractor: PatchExtractor[FileImageStack] | None
+    if targets is not None:
+        target_extractor = create_iter_tiff_extractor(
+            targets,
+            config.axes,
+        )
+    else:
+        target_extractor = None
+
+    mask_extractor: PatchExtractor[FileImageStack] | None
+    if masks is not None:
+        mask_extractor = create_iter_tiff_extractor(
+            masks,
+            config.axes,
         )
     else:
         mask_extractor = None
