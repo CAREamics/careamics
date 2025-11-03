@@ -7,7 +7,7 @@ from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 
 
 def _assert_indices_grouped(sampler: GroupedIndexSampler):
-    """Assert the indices from the sampler a grouped as expected."""
+    """Assert the indices from the sampler are grouped as expected."""
 
     grouped_indices = sampler.grouped_indices
     sizes = [len(group) for group in grouped_indices]
