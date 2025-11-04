@@ -36,4 +36,4 @@ class SupportedAlgorithm(str, BaseEnum):
     """Hierarchical Denoising Network, an unsupervised denoising algorithm"""
 
     PN2V = "pn2v"
-    """Pixel-wise Noise2Void, a self-supervised approach based on blind denoising."""
+    """Probabilistic Noise2Void, a probabilistic self-supervised approach based on Noise2Void."""
