@@ -70,12 +70,11 @@ def convert_outputs_pn2v(
 
     if tiled:
         # Separate predictions and mmse, keeping tile info for each
-        pred_with_tiles = [
-            (pred, tile_info_list) for (pred, _), tile_info_list in predictions
-        ]
-        mse_with_tiles = [
-            (mse, tile_info_list) for (_, mse), tile_info_list in predictions
-        ]
+pred_with_tiles=[]
+mse_with_tiles = []
+for (pred, mse), tile_info_list in predictions:
+    pred_with_tiles.append((pred, tile_info_list))
+    mse_with_tiles.append((mse, tile_info_list))
 
         # Process predictions
         pred_comb = combine_batches(pred_with_tiles, tiled)
