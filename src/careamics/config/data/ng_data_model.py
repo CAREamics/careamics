@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import random
+import sys
 from collections.abc import Sequence
 from pprint import pformat
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Any, Literal, Self, Union
 from warnings import warn
 
 import numpy as np
@@ -17,10 +20,15 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from typing_extensions import Self
 
 from ..transformations import XYFlipModel, XYRandomRotate90Model
 from ..validators import check_axes_validity
+from .patch_filter import (
+    MaskFilterModel,
+    MaxFilterModel,
+    MeanSTDFilterModel,
+    ShannonFilterModel,
+)
 from .patching_strategies import (
     RandomPatchingModel,
     TiledPatchingModel,
@@ -36,6 +44,17 @@ from .patching_strategies import (
 #       - `set_3D` currently not implemented here
 # TODO: we can't tell that the patching strategy is correct
 #       - or is the responsibility of the creator (e.g. conveneince functions)
+
+
+def generate_random_seed() -> int:
+    """Generate a random seed for reproducibility.
+
+    Returns
+    -------
+    int
+        A random integer between 1 and 2^31 - 1.
+    """
+    return random.randint(1, 2**31 - 1)
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -67,6 +86,16 @@ PatchingStrategies = Union[
     WholePatchingModel,
 ]
 """Patching strategies."""
+
+PatchFilters = Union[
+    MaxFilterModel,
+    MeanSTDFilterModel,
+    ShannonFilterModel,
+]
+"""Patch filters."""
+
+CoordFilters = Union[MaskFilterModel]  # add more here as needed
+"""Coordinate filters."""
 
 
 class NGDataConfig(BaseModel):
@@ -106,6 +135,18 @@ class NGDataConfig(BaseModel):
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
 
+    patch_filter: PatchFilters | None = Field(default=None, discriminator="name")
+    """Patch filter to apply when using random patching. Only available during
+    training."""
+
+    coord_filter: CoordFilters | None = Field(default=None, discriminator="name")
+    """Coordinate filter to apply when using random patching. Only available during
+    training."""
+
+    patch_filter_patience: int = Field(default=5, ge=1)
+    """Number of consecutive patches not passing the filter before accepting the next
+    patch."""
+
     image_means: list[Float] | None = Field(default=None, min_length=0, max_length=32)
     """Means of the data across channels, used for normalization."""
 
@@ -142,8 +183,8 @@ class NGDataConfig(BaseModel):
     test_dataloader_params: dict[str, Any] = Field(default={})
     """Dictionary of PyTorch test dataloader parameters."""
 
-    seed: int | None = Field(default=None, gt=0)
-    """Random seed for reproducibility."""
+    seed: int | None = Field(default_factory=generate_random_seed, gt=0)
+    """Random seed for reproducibility. If not specified, a random seed is generated."""
 
     @field_validator("axes")
     @classmethod
@@ -295,6 +336,129 @@ class NGDataConfig(BaseModel):
                     f" 3D, got axes {self.axes})."
                 )
 
+        return self
+
+    @model_validator(mode="after")
+    def propagate_seed_to_filters(self: Self) -> Self:
+        """
+        Propagate the main seed to patch and coordinate filters that support seeds.
+
+        This ensures that all filters use the same seed for reproducibility,
+        unless they already have a seed explicitly set.
+
+        Returns
+        -------
+        Self
+            Data model with propagated seeds.
+        """
+        if self.seed is not None:
+            if self.patch_filter is not None:
+                if (
+                    hasattr(self.patch_filter, "seed")
+                    and self.patch_filter.seed is None
+                ):
+                    self.patch_filter.seed = self.seed
+
+            if self.coord_filter is not None:
+                if (
+                    hasattr(self.coord_filter, "seed")
+                    and self.coord_filter.seed is None
+                ):
+                    self.coord_filter.seed = self.seed
+
+        return self
+
+    @model_validator(mode="after")
+    def propagate_seed_to_transforms(self: Self) -> Self:
+        """
+        Propagate the main seed to all transforms that support seeds.
+
+        This ensures that all transforms use the same seed for reproducibility,
+        unless they already have a seed explicitly set.
+
+        Returns
+        -------
+        Self
+            Data model with propagated seeds.
+        """
+        if self.seed is not None:
+            for transform in self.transforms:
+                if hasattr(transform, "seed") and transform.seed is None:
+                    transform.seed = self.seed
+        return self
+
+    @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
+    @classmethod
+    def set_default_pin_memory(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Set default pin_memory for dataloader parameters if not provided.
+
+        - If 'pin_memory' is not set, it defaults to True if CUDA is available.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The dataloader parameters with pin_memory default applied.
+        """
+        if "pin_memory" not in dataloader_params:
+            import torch
+
+            dataloader_params["pin_memory"] = torch.cuda.is_available()
+        return dataloader_params
+
+    @field_validator("train_dataloader_params", mode="before")
+    @classmethod
+    def set_default_train_workers(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Set default num_workers for training dataloader if not provided.
+
+        - If 'num_workers' is not set, it defaults to the number of available CPU cores.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The training dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The dataloader parameters with num_workers default applied.
+        """
+        if "num_workers" not in dataloader_params:
+            # Use 0 workers during tests, otherwise use all available CPU cores
+            if "pytest" in sys.modules:
+                dataloader_params["num_workers"] = 0
+            else:
+                dataloader_params["num_workers"] = os.cpu_count()
+
+        return dataloader_params
+
+    @model_validator(mode="after")
+    def set_val_workers_to_match_train(self: Self) -> Self:
+        """
+        Set validation dataloader num_workers to match training dataloader.
+
+        If num_workers is not specified in val_dataloader_params, it will be set to the
+        same value as train_dataloader_params["num_workers"].
+
+        Returns
+        -------
+        Self
+            Validated data model with synchronized num_workers.
+        """
+        if "num_workers" not in self.val_dataloader_params:
+            self.val_dataloader_params["num_workers"] = self.train_dataloader_params[
+                "num_workers"
+            ]
         return self
 
     def __str__(self) -> str:

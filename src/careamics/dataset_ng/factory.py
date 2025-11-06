@@ -21,8 +21,8 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_custom_file_extractor,
     create_custom_image_stack_extractor,
     create_czi_extractor,
-    create_ome_zarr_extractor,
     create_tiff_extractor,
+    create_zarr_extractor,
 )
 from careamics.file_io.read import ReadFunc
 
@@ -121,6 +121,7 @@ def create_dataset(
     inputs: Any,
     targets: Any,
     in_memory: bool,
+    masks: Any = None,
     read_func: ReadFunc | None = None,
     read_kwargs: dict[str, Any] | None = None,
     image_stack_loader: ImageStackLoader | None = None,
@@ -142,6 +143,8 @@ def create_dataset(
     in_memory : bool
         Whether all the data should be loaded into memory. This is argument is ignored
         unless the `data_type` in `config` is "tiff" or "custom".
+    masks : Any, optional
+        The mask sources used to filter patches.
     read_func : ReadFunc, optional
         A function that can that can be used to load custom data. This argument is
         ignored unless the `data_type` in the `config` is "custom".
@@ -168,18 +171,24 @@ def create_dataset(
         data_type, in_memory, read_func, image_stack_loader
     )
     if dataset_type == DatasetType.ARRAY:
-        return create_array_dataset(config, mode, inputs, targets)
+        return create_array_dataset(config, mode, inputs, targets, masks)
     elif dataset_type == DatasetType.IN_MEM_TIFF:
-        return create_tiff_dataset(config, mode, inputs, targets)
+        return create_tiff_dataset(config, mode, inputs, targets, masks)
     # TODO: Lazy tiff
     elif dataset_type == DatasetType.CZI:
-        return create_czi_dataset(config, mode, inputs, targets)
+        return create_czi_dataset(config, mode, inputs, targets, masks)
     elif dataset_type == DatasetType.IN_MEM_CUSTOM_FILE:
         if read_kwargs is None:
             read_kwargs = {}
         assert read_func is not None  # should be true from `determine_dataset_type`
         return create_custom_file_dataset(
-            config, mode, inputs, targets, read_func=read_func, read_kwargs=read_kwargs
+            config,
+            mode,
+            inputs,
+            targets,
+            masks,
+            read_func=read_func,
+            read_kwargs=read_kwargs,
         )
     elif dataset_type == DatasetType.CUSTOM_IMAGE_STACK:
         if image_stack_loader_kwargs is None:
@@ -191,6 +200,7 @@ def create_dataset(
             inputs,
             targets,
             image_stack_loader,
+            masks,
             **image_stack_loader_kwargs,
         )
     else:
@@ -202,6 +212,7 @@ def create_array_dataset(
     mode: Mode,
     inputs: Sequence[NDArray[Any]],
     targets: Sequence[NDArray[Any]] | None,
+    masks: Sequence[NDArray[Any]] | None = None,
 ) -> CareamicsDataset[InMemoryImageStack]:
     """
     Create a CAREamicsDataset from array data.
@@ -216,6 +227,8 @@ def create_array_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
+    masks : Any, optional
+        The mask sources used to filter patches.
 
     Returns
     -------
@@ -228,7 +241,14 @@ def create_array_dataset(
         target_extractor = create_array_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    return CareamicsDataset(config, mode, input_extractor, target_extractor)
+    mask_extractor: PatchExtractor[InMemoryImageStack] | None
+    if masks is not None:
+        mask_extractor = create_array_extractor(source=masks, axes=config.axes)
+    else:
+        mask_extractor = None
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, mask_extractor
+    )
 
 
 def create_tiff_dataset(
@@ -236,9 +256,10 @@ def create_tiff_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
+    masks: Sequence[Path] | None = None,
 ) -> CareamicsDataset[InMemoryImageStack]:
     """
-    Create a CAREamicsDataset from tiff files that will be all loaded into memory.
+    Create a CAREamicsDataset from tiff files that will be loaded into memory.
 
     Parameters
     ----------
@@ -246,10 +267,12 @@ def create_tiff_dataset(
         The data configuration.
     mode : Mode
         Whether to create the dataset in "training", "validation" or "predicting" mode.
-    inputs : Any
+    inputs : Sequence[Path]
         The input sources to the dataset.
-    targets : Any, optional
+    targets : Sequence[Path], optional
         The target sources to the dataset.
+    masks : Sequence[Path], optional
+        The mask sources used to filter patches.
 
     Returns
     -------
@@ -265,8 +288,15 @@ def create_tiff_dataset(
         target_extractor = create_tiff_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+    mask_extractor: PatchExtractor[InMemoryImageStack] | None
+    if masks is not None:
+        mask_extractor = create_tiff_extractor(source=masks, axes=config.axes)
+    else:
+        mask_extractor = None
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, mask_extractor
+    )
 
 
 def create_czi_dataset(
@@ -274,6 +304,7 @@ def create_czi_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
+    masks: Sequence[Path] | None = None,
 ) -> CareamicsDataset[CziImageStack]:
     """
     Create a dataset from CZI files.
@@ -288,6 +319,8 @@ def create_czi_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
+    masks : Any, optional
+        The mask sources used to filter patches.
 
     Returns
     -------
@@ -301,18 +334,26 @@ def create_czi_dataset(
         target_extractor = create_czi_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+    mask_extractor: PatchExtractor[CziImageStack] | None
+    if masks is not None:
+        mask_extractor = create_czi_extractor(source=masks, axes=config.axes)
+    else:
+        mask_extractor = None
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, mask_extractor
+    )
 
 
-def create_ome_zarr_dataset(
+def create_zarr_dataset(
     config: NGDataConfig,
     mode: Mode,
-    inputs: Sequence[Path],
-    targets: Sequence[Path] | None,
+    inputs: Sequence[str | Path],
+    targets: Sequence[str | Path] | None,
+    masks: Sequence[str | Path] | None = None,
 ) -> CareamicsDataset[ZarrImageStack]:
     """
-    Create a dataset from OME ZARR files.
+    Create a dataset from Zarr files.
 
     Parameters
     ----------
@@ -324,6 +365,8 @@ def create_ome_zarr_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
+    masks : Any, optional
+        The mask sources used to filter patches.
 
     Returns
     -------
@@ -331,14 +374,21 @@ def create_ome_zarr_dataset(
         A CAREamicsDataset.
     """
 
-    input_extractor = create_ome_zarr_extractor(source=inputs, axes=config.axes)
+    input_extractor = create_zarr_extractor(source=inputs, axes=config.axes)
     target_extractor: PatchExtractor[ZarrImageStack] | None
     if targets is not None:
-        target_extractor = create_ome_zarr_extractor(source=targets, axes=config.axes)
+        target_extractor = create_zarr_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+    mask_extractor: PatchExtractor[ZarrImageStack] | None
+    if masks is not None:
+        mask_extractor = create_zarr_extractor(source=masks, axes=config.axes)
+    else:
+        mask_extractor = None
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, mask_extractor
+    )
 
 
 def create_custom_file_dataset(
@@ -346,6 +396,7 @@ def create_custom_file_dataset(
     mode: Mode,
     inputs: Sequence[Path],
     targets: Sequence[Path] | None,
+    masks: Sequence[Path] | None = None,
     *,
     read_func: ReadFunc,
     read_kwargs: dict[str, Any],
@@ -363,6 +414,8 @@ def create_custom_file_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
+    masks : Any, optional
+        The mask sources used to filter patches.
     read_func : Optional[ReadFunc], optional
         A function that can that can be used to load custom data. This argument is
         ignored unless the `data_type` is "custom".
@@ -388,8 +441,21 @@ def create_custom_file_dataset(
         )
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+
+    mask_extractor: PatchExtractor[InMemoryImageStack] | None
+    if masks is not None:
+        mask_extractor = create_custom_file_extractor(
+            source=masks,
+            axes=config.axes,
+            read_func=read_func,
+            read_kwargs=read_kwargs,
+        )
+    else:
+        mask_extractor = None
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, mask_extractor
+    )
 
 
 def create_custom_image_stack_dataset(
@@ -398,6 +464,7 @@ def create_custom_image_stack_dataset(
     inputs: Any,
     targets: Any | None,
     image_stack_loader: ImageStackLoader[P, GenericImageStack],
+    masks: Any | None = None,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> CareamicsDataset[GenericImageStack]:
@@ -419,6 +486,8 @@ def create_custom_image_stack_dataset(
     image_stack_loader : ImageStackLoader
         A function for custom image stack loading. This argument is ignored unless the
         `data_type` is "custom".
+    masks : Any, optional
+        The mask sources used to filter patches.
     *args : Any
         Positional arguments to pass to the `image_stack_loader`.
     **kwargs : Any
@@ -447,5 +516,19 @@ def create_custom_image_stack_dataset(
         )
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+
+    mask_extractor: PatchExtractor[GenericImageStack] | None
+    if masks is not None:
+        mask_extractor = create_custom_image_stack_extractor(
+            masks,
+            config.axes,
+            image_stack_loader,
+            *args,
+            **kwargs,
+        )
+    else:
+        mask_extractor = None
+
+    return CareamicsDataset(
+        config, mode, input_extractor, target_extractor, mask_extractor
+    )

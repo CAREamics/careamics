@@ -7,5 +7,5 @@ updates:
       interval: "daily"
       time: "08:00"
     ignore:
-      - dependency-name: "numpy"
       - dependency-name: "zarr"
+      - dependency-name: "torchmetrics"

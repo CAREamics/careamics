@@ -1,13 +1,12 @@
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Union
 
 import zarr
-import zarr.storage
 from numpy.typing import NDArray
-from typing_extensions import Self
 
 from careamics.dataset.dataset_utils import reshape_array
+
+from .utils import pad_patch
 
 
 class ZarrImageStack:
@@ -15,11 +14,15 @@ class ZarrImageStack:
     A class for extracting patches from an image stack that is stored as a zarr array.
     """
 
-    # TODO: keeping store type narrow so that it has the path attribute
-    #   base zarr store is zarr.storage.Store, includes MemoryStore
-    def __init__(self, store: zarr.storage.FSStore, data_path: str, axes: str):
-        self._store = store
-        self._array = zarr.open_array(store=self._store, path=data_path, mode="r")
+    def __init__(self, group: zarr.Group, data_path: str, axes: str):
+        if not isinstance(group, zarr.Group):
+            raise TypeError(f"group must be a zarr.Group instance, got {type(group)}.")
+
+        self._group = group
+        self._array = group[data_path]
+        self._store = str(group.store_path)
+        self._source = self._array.store_path
+
         # TODO: validate axes
         #   - must contain XY
         #   - must be subset of STCZYX
@@ -27,44 +30,17 @@ class ZarrImageStack:
         self._original_data_shape: tuple[int, ...] = self._array.shape
         self.data_shape = _reshaped_array_shape(axes, self._original_data_shape)
         self.data_dtype = self._array.dtype
+        self._chunk_size = self._array.chunks
 
-    # TODO: not sure if this is useful
-    # TODO: potential solution using different metadata class for each ImageStack type
-    #   - see #399
+    # Used to identify the source of the data and write to similar path during pred
     @property
-    def source(self) -> Path:
-        return Path(self._store.path) / self._array.path
+    def source(self) -> str:
+        # e.g. file://data/bsd68.zarr/train/
+        return self._source
 
-    # automatically finds axes from metadata
-    # based on implementation in ome-zarr python package
-    # https://github.com/ome/ome-zarr-py/blob/f7096b0f2c1fc8edf4d7304e33caf8d279d99dbb/ome_zarr/reader.py#L294-L316
-    @classmethod
-    def from_ome_zarr(cls, path: Union[Path, str]) -> Self:
-        """
-        Will only use the first resolution in the hierarchy.
-
-        Assumes the path only contains 1 image.
-
-        Path can be to a local file, or it can be a URL to a zarr stored in the cloud.
-        """
-        store = zarr.storage.FSStore(url=path)
-        group = zarr.open_group(store=store, mode="r")
-        if "multiscales" not in group.attrs:
-            raise ValueError(
-                f"Zarr at path '{path}' cannot be loaded as an OME-Zarr because it "
-                "does not contain the attribute 'multiscales'."
-            )
-        # TODO: why is this a list of length 1? 0 index also in ome-zarr-python
-        # https://github.com/ome/ome-zarr-py/blob/f7096b0f2c1fc8edf4d7304e33caf8d279d99dbb/ome_zarr/reader.py#L286
-        multiscales_metadata = group.attrs["multiscales"][0]
-
-        # get axes
-        axes_list = [axes_data["name"] for axes_data in multiscales_metadata["axes"]]
-        axes = "".join(axes_list).upper()
-
-        first_multiscale_path = multiscales_metadata["datasets"][0]["path"]
-
-        return cls(store=store, data_path=first_multiscale_path, axes=axes)
+    @property
+    def chunk_size(self) -> Sequence[int]:
+        return self._chunk_size
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
@@ -106,9 +82,12 @@ class ZarrImageStack:
             else:
                 raise ValueError(f"Unrecognised axis '{d}', axes should be in STCZYX.")
 
-        patch = self._array[tuple(patch_slice)]
+        patch_data = self._array[tuple(patch_slice)]
         patch_axes = self._original_axes.replace("S", "").replace("T", "")
-        return reshape_array(patch, patch_axes)[0]  # remove first sample dim
+        patch_data = reshape_array(patch_data, patch_axes)[0]  # remove first sample dim
+        patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
+
+        return patch
 
     def _get_T_index(self, sample_idx: int) -> int:
         """Get T index given `sample_idx`."""

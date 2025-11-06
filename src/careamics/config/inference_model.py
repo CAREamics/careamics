@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, Union
+from typing import Any, Literal, Self, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing_extensions import Self
 
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 

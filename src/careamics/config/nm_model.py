@@ -1,7 +1,7 @@
 """Noise models config."""
 
 from pathlib import Path
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, Self, Union
 
 import numpy as np
 import torch
@@ -13,7 +13,6 @@ from pydantic import (
     PlainValidator,
     model_validator,
 )
-from typing_extensions import Self
 
 from careamics.utils.serializers import _array_to_json, _to_numpy
 

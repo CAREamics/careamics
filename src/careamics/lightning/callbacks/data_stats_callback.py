@@ -16,9 +16,9 @@ class DataStatsCallback(Callback):
 
         Parameters
         ----------
-        trainer : L.Trainer
+        trainer : Lightning.Trainer
             PyTorch Lightning trainer.
-        module : L.LightningModule
+        module : Lightning.LightningModule
             Lightning module.
         stage : str
             Current stage (fit, validate, test, or predict).

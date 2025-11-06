@@ -1,3 +1,11 @@
+
+
+# image and data
+**/*.zarr
+**/*.jpg
+**/*.jpeg
+**/*.unzip
+
 .vscode
 *.DS_Store
 **/.DS_Store
