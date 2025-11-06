@@ -42,7 +42,7 @@ class GaussianMixtureNMConfig(BaseModel):
         extra="allow",
     )
     # model type
-    model_type: Literal["GaussianMixtureNoiseModel"]
+    model_type: Literal["GaussianMixtureNoiseModel"] = "GaussianMixtureNoiseModel"
 
     path: Union[Path, str] | None = None
     """Path to the directory where the trained noise model (*.npz) is saved in the
