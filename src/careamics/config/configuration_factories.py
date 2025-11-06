@@ -2398,10 +2398,7 @@ def create_pn2v_configuration(
     )
 
     # Create noise model configuration
-    noise_model_config = GaussianMixtureNMConfig(
-        model_type="GaussianMixtureNoiseModel",
-        path=nm_path,
-    )
+    noise_model_config = GaussianMixtureNMConfig(path=nm_path)
 
     # algorithm
     algorithm_params = _create_algorithm_configuration(
