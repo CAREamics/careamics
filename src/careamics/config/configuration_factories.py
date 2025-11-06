@@ -463,6 +463,40 @@ def _create_training_configuration(
     )
 
 
+def update_trainer_params(
+    trainer_params: dict[str, Any] | None = None,
+    num_epochs: int | None = None,
+    num_steps: int | None = None,
+) -> dict[str, Any]:
+    """
+    Update trainer parameters with num_epochs and num_steps.
+
+    Parameters
+    ----------
+    trainer_params : dict, optional
+        Parameters for Lightning Trainer class, by default None.
+    num_epochs : int, optional
+        Number of epochs to train for. If provided, this will be added as max_epochs
+        to trainer_params, by default None.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added as
+        limit_train_batches to trainer_params, by default None.
+
+    Returns
+    -------
+    dict
+        Updated trainer parameters dictionary.
+    """
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["limit_train_batches"] = num_steps
+
+    return final_trainer_params
+
+
 # TODO reconsider naming once we officially support LVAE approaches
 def _create_supervised_config_dict(
     algorithm: Literal["care", "n2n"],
@@ -604,16 +638,12 @@ def _create_supervised_config_dict(
         val_dataloader_params=val_dataloader_params,
     )
 
-    # Handle trainer parameters with num_epochs and num_steps
-    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
-
-    # Add num_epochs and num_steps if provided
-    if num_epochs is not None:
-        final_trainer_params["max_epochs"] = num_epochs
-    if num_steps is not None:
-        final_trainer_params["limit_train_batches"] = num_steps
-
     # training
+    final_trainer_params = update_trainer_params(
+        trainer_params=trainer_params,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,
@@ -1416,15 +1446,11 @@ def create_n2v_configuration(
     )
 
     # training
-    # Handle trainer parameters with num_epochs and nun_steps
-    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
-
-    # Add num_epochs and nun_steps if provided
-    if num_epochs is not None:
-        final_trainer_params["max_epochs"] = num_epochs
-    if num_steps is not None:
-        final_trainer_params["limit_train_batches"] = num_steps
-
+    final_trainer_params = update_trainer_params(
+        trainer_params=trainer_params,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,
@@ -1868,16 +1894,12 @@ def create_hdn_configuration(
         val_dataloader_params=val_dataloader_params,
     )
 
-    # Handle trainer parameters with num_epochs and num_steps
-    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
-
-    # Add num_epochs and num_steps if provided
-    if num_epochs is not None:
-        final_trainer_params["max_epochs"] = num_epochs
-    if num_steps is not None:
-        final_trainer_params["limit_train_batches"] = num_steps
-
     # training
+    final_trainer_params = update_trainer_params(
+        trainer_params=trainer_params,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,
@@ -2076,16 +2098,12 @@ def create_microsplit_configuration(
         val_dataloader_params=val_dataloader_params,
     )
 
-    # Handle trainer parameters with num_epochs and num_steps
-    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
-
-    # Add num_epochs and num_steps if provided
-    if num_epochs is not None:
-        final_trainer_params["max_epochs"] = num_epochs
-    if num_steps is not None:
-        final_trainer_params["limit_train_batches"] = num_steps
-
     # training
+    final_trainer_params = update_trainer_params(
+        trainer_params=trainer_params,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,
@@ -2439,15 +2457,11 @@ def create_pn2v_configuration(
     )
 
     # training
-    # Handle trainer parameters with num_epochs and num_steps
-    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
-
-    # Add num_epochs and num_steps if provided
-    if num_epochs is not None:
-        final_trainer_params["max_epochs"] = num_epochs
-    if num_steps is not None:
-        final_trainer_params["limit_train_batches"] = num_steps
-
+    final_trainer_params = update_trainer_params(
+        trainer_params=trainer_params,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,

@@ -67,14 +67,15 @@ def convert_outputs_pn2v(
     """
     if len(predictions) == 0:
         return [], []
-
+    # TODO test with multi_channel predictions
     if tiled:
         # Separate predictions and mmse, keeping tile info for each
-pred_with_tiles=[]
-mse_with_tiles = []
-for (pred, mse), tile_info_list in predictions:
-    pred_with_tiles.append((pred, tile_info_list))
-    mse_with_tiles.append((mse, tile_info_list))
+        pred_with_tiles = [
+            (pred, tile_info_list) for (pred, _), tile_info_list in predictions
+        ]
+        mse_with_tiles = [
+            (mse, tile_info_list) for (_, mse), tile_info_list in predictions
+        ]
 
         # Process predictions
         pred_comb = combine_batches(pred_with_tiles, tiled)
@@ -87,7 +88,7 @@ for (pred, mse), tile_info_list in predictions:
         return predictions_output, mse_output
     else:
         # Separate predictions and mmse for non-tiled case
-        pred_only, mse_only = zip(*predictions)
+        pred_only, mse_only = zip(*predictions, strict=False)
 
         predictions_output = combine_batches(pred_only, tiled)
         mse_output = combine_batches(mse_only, tiled)
