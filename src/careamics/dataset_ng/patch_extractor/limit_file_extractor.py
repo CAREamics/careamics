@@ -3,24 +3,28 @@ from collections.abc import Sequence
 from numpy.typing import NDArray
 
 from .image_stack import FileImageStack
+from .patch_construction import PatchConstructor, basic_patch_constr
 from .patch_extractor import PatchExtractor
 
 
-class LimitFilesPatchExtractor(PatchExtractor):
+class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
     """
     A patch extractor that limits the number of files that have their data loaded.
 
     This is useful for when not all of the data will fit into memory.
     """
 
-    def __init__(self, image_stacks: Sequence[FileImageStack]):
+    def __init__(
+        self,
+        image_stacks: Sequence[FileImageStack],
+        patch_constructor: PatchConstructor = basic_patch_constr,
+    ):
         """
         Parameters
         ----------
         image_stacks: Sequence of `FileImageStack`
         """
-        self.image_stacks: list[FileImageStack]
-        super().__init__(image_stacks)
+        super().__init__(image_stacks, patch_constructor)
         self.loaded_stacks: list[int] = []
 
     def extract_patch(
