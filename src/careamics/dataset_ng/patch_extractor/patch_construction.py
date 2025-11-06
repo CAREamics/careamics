@@ -114,17 +114,17 @@ def lateral_context_patch_constr(
             pad_after = lc_end - end_clipped
             pad_width = np.concat(
                 [
+                    # zeros to not pad the channel axis
                     np.zeros((1, 2), dtype=int),
                     np.stack([pad_before, pad_after], axis=-1),
                 ]
             )
             lc_patch = np.pad(
-                # zeros to not pad the channel axis
                 lc_patch,
                 pad_width,
                 mode=padding_mode,
             )
-            # TODO: test different downscaling, could try max pooling?
+            # TODO: test different downscaling? skimage suggests downscale_local_mean
             lc_patch = resize(lc_patch, (n_channels, *patch_size))
             patch[scale] = lc_patch
         return patch

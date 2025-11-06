@@ -12,6 +12,17 @@ from careamics.dataset_ng.patch_extractor.patch_construction import (
 
 
 def _assert_lc_centralized(lc_input: NDArray[Any]):
+    """
+    Assert that the central region of each lateral context patch contains the primary
+    patch (but each at a smaller scale).
+
+    Parameters
+    ----------
+    lc_input : NDArray[Any]
+        The lateral context input with the dimensions LC(Z)YX, where L is the lateral
+        context inputs. The first patch in L is the primary patch at the original
+        image scale.
+    """
     multiscale_count = lc_input.shape[0]
     n_channels = lc_input.shape[1]
     patch_size = lc_input.shape[2:]
@@ -21,11 +32,13 @@ def _assert_lc_centralized(lc_input: NDArray[Any]):
         lc_patch = lc_input[scale]
 
         scale_factor = 2**scale
+        # size of the data in the primary patch at this scale
         equiv_size = tuple(ps // scale_factor for ps in patch_size)
 
+        # the primary patch scaled to the size of the data in the lc patch
         scaled = resize(primary_patch, (n_channels, *equiv_size))
-
-        central_patch = lc_patch[
+        # the centre of the lc, that should contain the data from the primary input
+        central_region = lc_patch[
             :,
             *(
                 slice(ps // 2 - es // 2, ps // 2 + es // 2, None)
@@ -33,9 +46,10 @@ def _assert_lc_centralized(lc_input: NDArray[Any]):
             ),
         ]
 
-        border_crop = (..., *(slice(2, -2, None) for _ in patch_size))
         # there are some border differences since resize won't interpolate the same way
-        np.testing.assert_allclose(scaled[border_crop], central_patch[border_crop])
+        border_crop = (..., *(slice(2, -2, None) for _ in patch_size))
+        # assert that the scaled primary patch is the same as the lc central region
+        np.testing.assert_allclose(scaled[border_crop], central_region[border_crop])
 
 
 @pytest.mark.parametrize(
@@ -43,22 +57,23 @@ def _assert_lc_centralized(lc_input: NDArray[Any]):
     [
         ((512, 496), (64, 64), "YX"),
         ((451, 501, 2), (64, 64), "YXC"),
-        ((512, 512, 64), (32, 64, 64), "YXZ"),
-        ((2, 512, 496, 65), (32, 64, 64), "CYXZ"),
+        ((512, 512, 128), (32, 64, 64), "YXZ"),
+        ((2, 512, 497, 129), (32, 64, 64), "CYXZ"),
     ],
 )
-@pytest.mark.parametrize("multiscale_count", [2, 3, 4])
 def test_lateral_context_constructor(
     data_shape: tuple[int, ...],
     patch_size: tuple[int, ...],
     axes: str,
-    multiscale_count: int,
 ):
+    """Test the lateral context patch constructor function."""
+    multiscale_count = 4
     rng = np.random.default_rng(seed=42)
     data = rng.random(data_shape)
     image_stack = InMemoryImageStack.from_array(data, axes)
 
     constructor_func = lateral_context_patch_constr(multiscale_count, "reflect")
+    # test coord at edge (which will have padded lc) and coord at centre
     coords = [tuple(0 for _ in patch_size), tuple(ps // 2 for ps in (patch_size))]
     for coord in coords:
         lc_input = constructor_func(image_stack, 0, coord, patch_size)
