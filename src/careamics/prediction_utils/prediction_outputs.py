@@ -87,8 +87,7 @@ for (pred, mse), tile_info_list in predictions:
         return predictions_output, mse_output
     else:
         # Separate predictions and mmse for non-tiled case
-        pred_only = [pred for (pred, mse) in predictions]
-        mse_only = [mse for (pred, mse) in predictions]
+        pred_only, mse_only = zip(*predictions)
 
         predictions_output = combine_batches(pred_only, tiled)
         mse_output = combine_batches(mse_only, tiled)
