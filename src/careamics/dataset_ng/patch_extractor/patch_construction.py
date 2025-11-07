@@ -15,6 +15,7 @@ class PatchConstructor(Protocol):
         self,
         image_stack: ImageStack,
         sample_idx: int,
+        channel_idx: int | None,  # `channel_idx = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray[Any]:
@@ -42,11 +43,15 @@ class PatchConstructor(Protocol):
 def basic_patch_constr(
     image_stack: ImageStack,
     sample_idx: int,
+    channel_idx: int | None,  # `channel_idx = None` to select all channels
     coords: Sequence[int],
     patch_size: Sequence[int],
 ) -> NDArray[Any]:
-    return image_stack.extract_patch(
-        sample_idx=sample_idx, coords=coords, patch_size=patch_size
+    return image_stack.extract_channel_patch(
+        sample_idx=sample_idx,
+        channel_idx=channel_idx,
+        coords=coords,
+        patch_size=patch_size,
     )
 
 
@@ -81,6 +86,7 @@ def lateral_context_patch_constr(
     def constructor_func(
         image_stack: ImageStack,
         sample_idx: int,
+        channel_idx: int | None,  # `channel_idx = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray[Any]:
@@ -107,8 +113,8 @@ def lateral_context_patch_constr(
             )
             size_clipped = end_clipped - start_clipped
 
-            lc_patch = image_stack.extract_patch(
-                sample_idx, start_clipped, size_clipped
+            lc_patch = image_stack.extract_channel_patch(
+                sample_idx, channel_idx, start_clipped, size_clipped
             )
             pad_before = start_clipped - lc_start
             pad_after = lc_end - end_clipped

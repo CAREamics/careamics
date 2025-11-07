@@ -27,10 +27,11 @@ class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
         super().__init__(image_stacks, patch_constructor)
         self.loaded_stacks: list[int] = []
 
-    def extract_patch(
+    def extract_channel_patch(
         self,
         data_idx: int,
         sample_idx: int,
+        channel_idx: int | None,
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
@@ -44,4 +45,6 @@ class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
             self.image_stacks[data_idx].load()
             self.loaded_stacks.append(data_idx)
 
-        return super().extract_patch(data_idx, sample_idx, coords, patch_size)
+        return super().extract_channel_patch(
+            data_idx, sample_idx, channel_idx, coords, patch_size
+        )

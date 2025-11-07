@@ -27,9 +27,26 @@ class PatchExtractor(Generic[GenericImageStack]):
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
+        return self.extract_channel_patch(
+            data_idx=data_idx,
+            sample_idx=sample_idx,
+            channel_idx=None,
+            coords=coords,
+            patch_size=patch_size,
+        )
+
+    def extract_channel_patch(
+        self,
+        data_idx: int,
+        sample_idx: int,
+        channel_idx: int | None,
+        coords: Sequence[int],
+        patch_size: Sequence[int],
+    ) -> NDArray:
         return self.patch_constructor(
             self.image_stacks[data_idx],
             sample_idx=sample_idx,
+            channel_idx=channel_idx,
             coords=coords,
             patch_size=patch_size,
         )

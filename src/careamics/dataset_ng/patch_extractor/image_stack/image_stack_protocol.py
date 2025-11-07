@@ -56,7 +56,7 @@ class ImageStack(Protocol):
     def extract_channel_patch(
         self,
         sample_idx: int,
-        channel_idx: int,
+        channel_idx: int | None,
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
