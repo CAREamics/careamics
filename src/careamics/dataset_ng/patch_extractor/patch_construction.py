@@ -92,7 +92,7 @@ def lateral_context_patch_constr(
     ) -> NDArray[Any]:
         shape = image_stack.data_shape
         spatial_shape = shape[2:]
-        n_channels = shape[1]
+        n_channels = shape[1] if channel_idx is None else 1
 
         # There will now be an additional lc dimension,
         # this has to be handled correctly by the dataset
