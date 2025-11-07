@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -175,6 +175,24 @@ class CziImageStack:
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray:
+        return self._extract_patch(sample_idx, None, coords, patch_size)
+
+    def extract_channel_patch(
+        self,
+        sample_idx: int,
+        channel_idx: int,
+        coords: Sequence[int],
+        patch_size: Sequence[int],
+    ) -> NDArray:
+        return self._extract_patch(sample_idx, channel_idx, coords, patch_size)
+
+    def _extract_patch(
+        self,
+        sample_idx: int,
+        channel_idx: int | None,  # `channel_idx = None` to select all channels
+        coords: Sequence[int],
+        patch_size: Sequence[int],
+    ) -> NDArray:
         # Determine 3rd dimension (T, Z or none)
         if len(coords) == 3:
             if len(self.axes) != 5:
@@ -200,8 +218,9 @@ class CziImageStack:
         )
 
         # Create output array of shape (C, Z, Y, X)
+        n_channels = self.data_shape[1] if channel_idx is None else 1
         patch = np.empty(
-            (self.data_shape[1], third_dim_size, *patch_size[-2:]), dtype=np.float32
+            (n_channels, third_dim_size, *patch_size[-2:]), dtype=np.float32
         )
 
         # Set up plane to index `sample_idx`
@@ -215,7 +234,12 @@ class CziImageStack:
         }
 
         # Read XY planes sequentially
-        for channel in range(self.data_shape[1]):
+        channels: Iterable
+        if channel_idx is None:
+            channels = range(self.data_shape[1])
+        else:
+            channels = [channel_idx]
+        for channel in channels:
             for third_dim_index in range(third_dim_size):
                 plane["C"] = channel
                 if third_dim is not None:

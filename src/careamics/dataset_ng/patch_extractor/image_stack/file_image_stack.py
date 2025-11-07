@@ -40,6 +40,24 @@ class FileImageStack:
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray:
+        return self._extract_patch(sample_idx, None, coords, patch_size)
+
+    def extract_channel_patch(
+        self,
+        sample_idx: int,
+        channel_idx: int,
+        coords: Sequence[int],
+        patch_size: Sequence[int],
+    ) -> NDArray:
+        return self._extract_patch(sample_idx, channel_idx, coords, patch_size)
+
+    def _extract_patch(
+        self,
+        sample_idx: int,
+        channel_idx: int | None,  # `channel_idx = None` to select all channels
+        coords: Sequence[int],
+        patch_size: Sequence[int],
+    ) -> NDArray:
         if self._data is None:
             raise ValueError(
                 "Cannot extract patch because data has not been loaded from "
@@ -55,7 +73,8 @@ class FileImageStack:
         patch_data = self._data[
             (
                 sample_idx,  # type: ignore
-                ...,  # type: ignore
+                # use channel slice so that channel dimension is kept
+                ... if channel_idx is None else slice(channel_idx, channel_idx + 1),  # type: ignore
                 *[
                     slice(
                         np.clip(c, 0, self.data_shape[2 + i]),
