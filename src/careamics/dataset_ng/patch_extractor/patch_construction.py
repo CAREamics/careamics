@@ -74,7 +74,7 @@ def lateral_context_patch_constr(
     -------
     PatchConstructor
         The patch constructor function. It will return patches with the dimensions
-        (L, C, (Z), Y, X) where L will be equal to `multiscale_count`, C is the number
+        (C, L, (Z), Y, X) where L will be equal to `multiscale_count`, C is the number
         of channels in the image, and (Z), Y, X are the patch size.
     """
 
@@ -93,7 +93,7 @@ def lateral_context_patch_constr(
         # TODO: maybe we want to limit this constructor to only images with 1 channel
         #   then we can put LCs in the channel dimension
         #   but not sure if this artificially limits potential use-cases
-        patch = np.zeros((multiscale_count, n_channels, *patch_size))
+        patch = np.zeros((n_channels, multiscale_count, *patch_size))
         for scale in range(multiscale_count):
             lc_patch_size = np.array(patch_size) * (2**scale)
             lc_start = np.array(coords) + np.array(patch_size) // 2 - lc_patch_size // 2
@@ -126,7 +126,7 @@ def lateral_context_patch_constr(
             )
             # TODO: test different downscaling? skimage suggests downscale_local_mean
             lc_patch = resize(lc_patch, (n_channels, *patch_size))
-            patch[scale] = lc_patch
+            patch[:, scale, ...] = lc_patch
         return patch
 
     return constructor_func

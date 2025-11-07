@@ -21,17 +21,17 @@ def _assert_lc_centralized(lc_patch: NDArray[Any]):
     Parameters
     ----------
     lc_input : NDArray[Any]
-        The lateral context input with the dimensions LC(Z)YX, where L is the lateral
+        The lateral context input with the dimensions CL(Z)YX, where L is the lateral
         context inputs. The first patch in L is the primary patch at the original
         image scale.
     """
-    multiscale_count = lc_patch.shape[0]
-    n_channels = lc_patch.shape[1]
+    multiscale_count = lc_patch.shape[1]
+    n_channels = lc_patch.shape[0]
     patch_size = lc_patch.shape[2:]
 
-    primary_patch = lc_patch[0]
+    primary_patch = lc_patch[:, 0, ...]
     for scale in range(1, multiscale_count):
-        lc_scale = lc_patch[scale]
+        lc_scale = lc_patch[:, scale, ...]
 
         scale_factor = 2**scale
         # size of the data in the primary patch at this scale
@@ -79,7 +79,7 @@ def test_lateral_context_constructor(
     coords = [tuple(0 for _ in patch_size), tuple(ps // 2 for ps in (patch_size))]
     for coord in coords:
         lc_patch = constructor_func(image_stack, 0, coord, patch_size)
-        assert lc_patch.shape[0] == multiscale_count
+        assert lc_patch.shape[1] == multiscale_count
         _assert_lc_centralized(lc_patch)
 
 
@@ -103,5 +103,5 @@ def test_patch_extractor_lc_injection():
     for idx in range(patching_strat.n_patches):
         patch_spec = patching_strat.get_patch_spec(idx)
         lc_patch = patch_extractor.extract_patch(**patch_spec)
-        assert lc_patch.shape[0] == multiscale_count
+        assert lc_patch.shape[1] == multiscale_count
         _assert_lc_centralized(lc_patch)
