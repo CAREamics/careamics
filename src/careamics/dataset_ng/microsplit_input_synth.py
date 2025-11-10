@@ -4,6 +4,7 @@ from typing import Any, Literal, NamedTuple
 import numpy as np
 from numpy.typing import NDArray
 
+from .dataset import ImageRegionData
 from .patch_extractor import PatchExtractor
 from .patch_extractor.image_stack import ImageStack
 from .patch_filter import PatchFilterProtocol
@@ -34,6 +35,139 @@ def is_not_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
         return not filter.filter_out(patch)
 
     return is_not_empty_check
+
+
+def create_default_input_target(
+    idx: int,
+    patch_extractor: PatchExtractor[ImageStack],
+    patching_strategy: PatchingStrategy,
+    alphas: list[float],
+    axes: str,  # annoyingly have to supply this to image region
+) -> tuple[ImageRegionData, ImageRegionData]:
+    """
+    Create a default MicroSplit patch.
+
+    Parameters
+    ----------
+    idx: int
+        The dataset index.
+    patch_extractor: PatchExtractor
+        Used to extract patches from the data.
+    patching_strategy: PatchingStrategy
+        Patch locations will be sampled using the patching strategy.
+    alphas: list[float]
+        Weights for each channel for creating the synthetic input with summation.
+    axes: str
+        The axes of the data. This is only used to populate metadata.
+
+    Returns
+    -------
+    input_region: ImageRegionData
+        The input patch and its metadata, the data has the dimension L(Z)YX.
+    target_region: ImageRegionData
+        The target patch and its metadata, the data has the dimensions C(Z)YX.
+    """
+    patch_spec = patching_strategy.get_patch_spec(idx)
+    patches = patch_extractor.extract_patch(
+        data_idx=patch_spec["data_idx"],
+        sample_idx=patch_spec["sample_idx"],
+        coords=patch_spec["coords"],
+        patch_size=patch_spec["patch_size"],
+    )
+
+    # Add L dimension if not present
+    n_spatial_dims = patch_extractor.n_spatial_dims
+    lateral_context_present = len(patches.shape) - n_spatial_dims == 2
+    if not lateral_context_present:
+        # insert a L dim
+        patches = patches[:, np.newaxis]
+
+    ndims = len(patches.shape) - 1
+    alpha_broadcast = np.array(alphas)[:, *(np.newaxis for _ in range(ndims))]
+    # weight channels by alphas then sum on the channel axis
+    # input dims will be L(Z)YX
+    input_patch = (alpha_broadcast * patches).sum(axis=0)
+    target_patch = patches[:, 0, ...]  # first L patch
+
+    data_idx = patch_spec["data_idx"]
+    input_region = ImageRegionData(
+        input_patch,
+        source=str(patch_extractor.image_stacks[data_idx].source),
+        data_shape=patch_extractor.image_stacks[data_idx].data_shape,
+        dtype=str(patch_extractor.image_stacks[data_idx].data_dtype),
+        axes=axes,
+        region_spec=patch_spec,
+    )
+    target_region = ImageRegionData(
+        target_patch,
+        source=str(patch_extractor.image_stacks[data_idx].source),
+        data_shape=patch_extractor.image_stacks[data_idx].data_shape,
+        dtype=str(patch_extractor.image_stacks[data_idx].data_dtype),
+        axes=axes,
+        region_spec=patch_spec,
+    )
+    return input_region, target_region
+
+
+def create_uncorrelated_input_target(
+    patches: NDArray[Any],
+    patch_specs: list[PatchSpecs],
+    alphas: list[float],
+    patch_extractor: PatchExtractor[ImageStack],  # for metadata
+) -> tuple[UncorrelatedRegionData, UncorrelatedRegionData]:
+    """
+    Create MicroSplit target and synthetic input with metadata.
+
+    Parameters
+    ----------
+    patches: NDArray
+        Patches with dimensions LC(Z)YX, where L contains the lateral context at
+        multiple scales.
+    patch_specs: list[PatchSpecs]
+        The patch specs for each channel.
+    alphas: list[float]
+        Weights for each channel for creating the synthetic input with summation.
+    patch_extractor: PatchExtractor
+        The patch extractor the patches were extracted from. Used for additional
+        metadata.
+
+    Returns
+    -------
+    input_region: UncorrelatedRegionData
+        The input patch and its metadata, the data has the dimension L(Z)YX.
+    target_region: UncorrelatedRegionData
+        The target patch and its metadata, the data has the dimensions C(Z)YX.
+    """
+    ndims = len(patches.shape) - 1
+    alpha_broadcast = np.array(alphas)[:, *(np.newaxis for _ in range(ndims))]
+    # weight channels by alphas then sum on the channel axis
+    # input dims will be L(Z)YX
+    input_patch = (alpha_broadcast * patches).sum(axis=0)
+    target_patch = patches[:, 0, ...]  # first L patch
+
+    input_stacks = [
+        patch_extractor.image_stacks[patch_spec["data_idx"]]
+        for patch_spec in patch_specs
+    ]
+    source = [str(stack.source) for stack in input_stacks]
+    data_shape = [stack.data_shape for stack in input_stacks]
+    dtype = [str(stack.data_dtype) for stack in input_stacks]
+
+    input_region = UncorrelatedRegionData(
+        data=input_patch,
+        source=source,
+        data_shape=data_shape,
+        dtype=dtype,
+        region_spec=patch_specs,
+    )
+    target_region = UncorrelatedRegionData(
+        data=target_patch,
+        source=source,
+        data_shape=data_shape,
+        dtype=dtype,
+        region_spec=patch_specs,
+    )
+    return input_region, target_region
 
 
 def get_random_channel_patches(
@@ -180,60 +314,6 @@ def get_empty_channel_patches(
         patch_specs[c] = patch_spec
 
     return patches, patch_specs
-
-
-def create_uncorrelated_input_target(
-    patches: NDArray[Any],
-    patch_specs: list[PatchSpecs],
-    alphas: list[float],
-    patch_extractor: PatchExtractor[ImageStack],  # for extractor
-) -> tuple[UncorrelatedRegionData, UncorrelatedRegionData]:
-    """
-    Create MicroSplit target and synthetic input with metadata.
-
-    Parameters
-    ----------
-    patches: NDArray
-        Patches with dimensions LC(Z)YX, where L contains the lateral context at
-        multiple scales.
-    patch_specs: list[PatchSpecs]
-        The patch specs for each channel.
-    alphas: list[float]
-        Weights for each channel for creating the synthetic input with summation.
-    patch_extractor: PatchExtractor
-        The patch extractor the patches were extracted from. Used for additional
-        metadata.
-    """
-    ndims = len(patches.shape) - 1
-    alpha_broadcast = np.array(alphas)[:, *(np.newaxis for _ in range(ndims))]
-    # weight channels by alphas then sum on the channel axis
-    # input dims will be L(Z)YX
-    input_patch = (alpha_broadcast * patches).sum(axis=0)
-    target_patch = patches[:, 0, ...]  # first L patch
-
-    input_stacks = [
-        patch_extractor.image_stacks[patch_spec["data_idx"]]
-        for patch_spec in patch_specs
-    ]
-    source = [str(stack.source) for stack in input_stacks]
-    data_shape = [stack.data_shape for stack in input_stacks]
-    dtype = [str(stack.data_dtype) for stack in input_stacks]
-
-    input_region = UncorrelatedRegionData(
-        data=input_patch,
-        source=source,
-        data_shape=data_shape,
-        dtype=dtype,
-        region_spec=patch_specs,
-    )
-    target_region = UncorrelatedRegionData(
-        data=target_patch,
-        source=source,
-        data_shape=data_shape,
-        dtype=dtype,
-        region_spec=patch_specs,
-    )
-    return input_region, target_region
 
 
 def extract_microsplit_patch(
