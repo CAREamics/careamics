@@ -11,11 +11,12 @@ from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 def extract_patches_sequential(
-    arr: np.ndarray, 
-    patch_size: Union[list[int], tuple[int, ...]], 
+    arr: np.ndarray,
+    patch_size: Union[list[int], tuple[int, ...]],
     target: np.ndarray = None,
-    axes: str = None
+    axes: str = None,
 ) -> tuple[np.ndarray, np.ndarray | None]:
     """
     Extract patches from a single image sequentially with support for 1D, 2D, and 3D data.
@@ -39,21 +40,21 @@ def extract_patches_sequential(
     # Convert patch_size to list for consistency
     if isinstance(patch_size, tuple):
         patch_size = list(patch_size)
-    
+
     # Determine if this is 3D based on patch_size length (legacy behavior)
     is_3d_patch = len(patch_size) == 3
-    
+
     # Validate patch dimensions with axes support
     validate_patch_dimensions(arr, patch_size, is_3d_patch, axes)
-    
+
     # Determine spatial dimensions
     if axes is not None:
-        spatial_axes = [ax for ax in axes if ax in 'XYZ']
+        spatial_axes = [ax for ax in axes if ax in "XYZ"]
         n_spatial_dims = len(spatial_axes)
     else:
         # Infer from patch_size length and array shape
         n_spatial_dims = len(patch_size)
-    
+
     # Route to appropriate patching function
     if n_spatial_dims == 1:
         return _extract_patches_1d(arr, patch_size[0], target)
@@ -204,91 +205,105 @@ def _compute_patch_views(
     return patches
 
 
-def _extract_patches_1d(arr: NDArray, patch_size: int, target: NDArray | None = None) -> tuple[NDArray, NDArray | None]:
+def _extract_patches_1d(
+    arr: NDArray, patch_size: int, target: NDArray | None = None
+) -> tuple[NDArray, NDArray | None]:
     """
     Extract 1D patches sequentially.
-    
+
     Parameters
-    ---------- 
+    ----------
     arr : NDArray
         Input array with shape (samples, channels, length) for 1D data after reshaping.
     patch_size : int
         Size of patches to extract.
     target : NDArray | None
         Target array, by default None.
-        
+
     Returns
     -------
     tuple[NDArray, NDArray | None]
         Patches and target patches as numpy arrays.
     """
-    #reshape 1D data to support convention
-    
+    # reshape 1D data to support convention
 
     # Handle both 2D (samples, length) and 3D (samples, channels, length) arrays
+    # Normalise input shape
     if arr.ndim == 2:
-        # Legacy format: (samples, length)
-        n_samples, length = arr.shape
-        n_channels = 1
-        # Add channel dimension for consistency
-        arr = arr[:, np.newaxis, :]  # Shape becomes (samples, 1, length)
-    elif arr.ndim == 3:
-        # if arr.shape[1] != 1: #For 1D data without channel dimension
-        #     arr = arr.transpose(0,2,1)
-        #     logger.info(f"Shape after reshape to (S,C,L) = {arr.shape}")
-      
-        # Current format after reshape_array: (samples, channels, length)
-        logger.info(arr.shape)
-        n_samples, n_channels, length = arr.shape
-    else:
-        raise ValueError(f"Expected 2D or 3D array for 1D patching, got {arr.ndim}D with shape {arr.shape}")
+        # Legacy format: (samples, length) -> add channel dimension
+        arr = arr[:, np.newaxis, :]
+        if target is not None:
+            target = target[:, np.newaxis, :]
+    elif arr.ndim != 3:
+        raise ValueError(
+            f"Expected 2D or 3D array for 1D patching, got {arr.ndim}D with shape {arr.shape}"
+        )
+
+    n_samples, n_channels, length = arr.shape
 
     if patch_size > length:
-        raise ValueError(f"Patch size ({patch_size}) cannot be larger than sequence length ({length})")
+        raise ValueError(
+            f"Patch size ({patch_size}) cannot be larger than sequence length ({length})"
+        )
+    full_patch_size = [1, n_channels, patch_size]
+    overlaps = _compute_overlap(arr_shape=arr.shape, patch_sizes=full_patch_size)
+    window_steps = _compute_patch_steps(patch_sizes=full_patch_size, overlaps=overlaps)
+    output_shape = [-1, n_channels, patch_size]
+    patches = _compute_patch_views(
+        arr,
+        window_shape=full_patch_size,
+        step=window_steps,
+        output_shape=output_shape,
+        target=target,
+    )
 
-    patches_list = []
-    target_patches_list = [] if target is not None else None
-    
+    # patches_list = []
+    # target_patches_list = [] if target is not None else None
+
     # Handle target array reshaping if provided
     if target is not None:
-        if target.ndim == 2:
-            target = target[:, np.newaxis, :]  # Add channel dimension
-        elif target.ndim != 3:
-            raise ValueError(f"Target array must be 2D or 3D for 1D patching, got {target.ndim}D")
+        # target was concatenated to patches in _compute_reshaped_view
+        return (
+            patches[:, 0, ...],
+            patches[:, 1, ...],
+        )  # TODO  in _compute_reshaped_view?
+    else:
+        return patches, None
 
-    # Extract patches from each sample
-    for sample_idx in range(n_samples):
-        sample = arr[sample_idx]  # Shape: (channels, length)
-        
-        # Calculate number of patches that can be extracted
-        n_patches = length - patch_size + 1
-        
-        # Extract all possible patches from this sample
-        for start_idx in range(n_patches):
-            end_idx = start_idx + patch_size
-            patch = sample[:, start_idx:end_idx]  # Shape: (channels, patch_size)
-            patches_list.append(patch)
-            
-            # Extract corresponding target patch if available
-            if target is not None and target_patches_list is not None:
-                target_sample = target[sample_idx]
-                target_patch = target_sample[:, start_idx:end_idx]
-                target_patches_list.append(target_patch)
+    # # Extract patches from each sample
+    # for sample_idx in range(n_samples):
+    #     sample = arr[sample_idx]  # Shape: (channels, length)
 
-    # Convert lists to numpy arrays
-    patches = np.array(patches_list) if patches_list else np.array([])
-    target_patches = np.array(target_patches_list) if target_patches_list else None
+    #     # Calculate number of patches that can be extracted
+    #     n_patches = length - patch_size + 1
 
-    return patches, target_patches
+    #     # Extract all possible patches from this sample
+    #     for start_idx in range(n_patches):
+    #         end_idx = start_idx + patch_size
+    #         patch = sample[:, start_idx:end_idx]  # Shape: (channels, patch_size)
+    #         patches_list.append(patch)
+
+    #         # Extract corresponding target patch if available
+    #         if target is not None and target_patches_list is not None:
+    #             target_sample = target[sample_idx]
+    #             target_patch = target_sample[:, start_idx:end_idx]
+    #             target_patches_list.append(target_patch)
+
+    # # Convert lists to numpy arrays
+    # patches = np.array(patches_list) if patches_list else np.array([])
+    # target_patches = np.array(target_patches_list) if target_patches_list else None
+
+    # return patches, target_patches
+
 
 def _extract_patches_2d(
-    arr: np.ndarray, 
-    patch_size: Union[list[int], tuple[int, ...]], 
-    target: np.ndarray = None
+    arr: np.ndarray,
+    patch_size: Union[list[int], tuple[int, ...]],
+    target: np.ndarray = None,
 ) -> tuple[np.ndarray, np.ndarray | None]:
     """
     Extract 2D patches sequentially using the original algorithm.
-    
+
     Parameters
     ----------
     arr : np.ndarray
@@ -297,7 +312,7 @@ def _extract_patches_2d(
         Patch size [Y, X].
     target : np.ndarray, optional
         Target array, by default None.
-        
+
     Returns
     -------
     tuple[np.ndarray, np.ndarray | None]
@@ -329,14 +344,15 @@ def _extract_patches_2d(
     else:
         return patches, None
 
+
 def _extract_patches_3d(
-    arr: np.ndarray, 
-    patch_size: Union[list[int], tuple[int, ...]], 
-    target: np.ndarray = None
+    arr: np.ndarray,
+    patch_size: Union[list[int], tuple[int, ...]],
+    target: np.ndarray = None,
 ) -> tuple[np.ndarray, np.ndarray | None]:
     """
     Extract 3D patches sequentially using the original algorithm.
-    
+
     Parameters
     ----------
     arr : np.ndarray
@@ -345,7 +361,7 @@ def _extract_patches_3d(
         Patch size [Z, Y, X].
     target : np.ndarray, optional
         Target array, by default None.
-        
+
     Returns
     -------
     tuple[np.ndarray, np.ndarray | None]

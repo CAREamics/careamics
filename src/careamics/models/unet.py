@@ -4,6 +4,7 @@ UNet model.
 A UNet encoder, decoder and complete model.
 """
 
+import logging
 from typing import Any, Union
 
 import torch
@@ -12,6 +13,9 @@ import torch.nn as nn
 from ..config.support import SupportedActivation
 from .activation import get_activation
 from .layers import Conv_Block, MaxBlurPool
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class SelfAttention1D(nn.Module):
@@ -113,6 +117,7 @@ class UnetEncoder(nn.Module):
 
         # Initialise attention layers before encoder blocks. Every depth has its own attention
         if use_attention:
+            logger.info("Using self-attention layers in UNet encoder.")
             self.attention_layers = nn.ModuleList(
                 [
                     SelfAttention1D(

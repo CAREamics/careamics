@@ -14,6 +14,7 @@ from .pixel_manipulation_torch import (
 )
 from .struct_mask_parameters import StructMaskParameters
 
+
 class N2VManipulateTorch:
     """
     Default augmentation for the N2V model.
@@ -135,6 +136,9 @@ class N2VManipulateTorch:
                     struct_params=self.struct_mask,
                     rng=self.rng,
                 )
+            masked[:, self.n_data_channels :, ...] = batch[
+                :, self.n_data_channels :, ...
+            ]
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
             # Only mask first n data channels as specified in config
             # Iterate over the channels to apply manipulation separately
@@ -146,6 +150,9 @@ class N2VManipulateTorch:
                     struct_params=self.struct_mask,
                     rng=self.rng,
                 )
+            masked[:, self.n_data_channels :, ...] = batch[
+                :, self.n_data_channels :, ...
+            ]
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
 
