@@ -170,7 +170,7 @@ def get_train_val_data(
     else:
         raise Exception("invalid datasplit")
 
-    return data
+    return data[0][None, ...]
 
 
 class MicroSplitDataModule(L.LightningDataModule):
@@ -536,10 +536,12 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
         DataLoader
             Prediction dataloader.
         """
+        params = {**self.dataloader_params}
+        params["shuffle"] = False
         return DataLoader(
             self.predict_dataset,
             batch_size=self.pred_config.batch_size,
-            **self.dataloader_params,
+            **params,
         )
 
 
@@ -615,6 +617,7 @@ def create_microsplit_predict_datamodule(
         "data_stats": data_stats,
         "tiling_mode": tiling_mode,
         "batch_size": batch_size,
+        "enable_random_cropping": False,
         "datasplit_type": DataSplitType.Test,  # For prediction, use all data
         **dataset_kwargs,
     }
