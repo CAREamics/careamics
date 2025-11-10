@@ -5,6 +5,7 @@ from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils imp
     collect_arrays,
     create_zarr_image_stacks,
     decipher_zarr_path,
+    is_zarr_uri,
 )
 
 # TODO rename file and sort tests
@@ -41,6 +42,33 @@ def test_collect_arrays(request, zarr_source):
         arrays.extend(collect_arrays(zarr_archive))
 
     assert len(arrays) == 3
+
+
+@pytest.mark.parametrize(
+    "uri, expected",
+    [
+        # True
+        (
+            "file://data/bsd68_group_in_group.zarr/group_1/group_2/bsd68_gaussian25_7",
+            True,
+        ),
+        ("file:///absolute/path/to/zarr/store.zarr/array0", True),
+        ("gs://gcs_bucket/mydata.zarr", True),
+        ("az://container/store.zarr", True),
+        ("https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0062A/6001240.zarr", True),
+        # False
+        ("data/local_store.zarr", False),
+        ("/absolute/path/to/store.zarr", False),
+        ("./relative/path/to/store.zarr", False),
+        ("C:\\data\\store.zarr", False),
+        ("C:/data/store.zarr", False),
+        (r"\\server\share\store.zarr", False),
+        ("", False),  # empty
+        (None, False),  # not a string
+    ],
+)
+def test_valid_zarr_uris(uri, expected):
+    assert is_zarr_uri(uri) == expected
 
 
 @pytest.mark.parametrize(

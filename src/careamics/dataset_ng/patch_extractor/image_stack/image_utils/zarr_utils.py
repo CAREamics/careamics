@@ -1,17 +1,43 @@
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
+from urllib.parse import urlparse
 
 import zarr
 
 from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
 
-FILE = "file://"
-
-# TODO convenience function to return source path?
+INPUT = str | Path
 
 
-def is_file_uri(source: str) -> bool:
+def is_zarr_uri(path: str | Path) -> bool:
+    """
+    Check if a path is a Zarr URI.
+
+    Parameters
+    ----------
+    path : str | Path
+        The path to check.
+
+    Returns
+    -------
+    bool
+        True if the path is a Zarr URI, False otherwise.
+    """
+    parsed = urlparse(str(path))
+
+    valid_schemes = {"file", "s3", "gs", "az", "https", "http", "zip"}
+
+    if parsed.scheme and parsed.scheme.lower() in valid_schemes:
+        return True
+
+    return False
+
+
+# TODO it will be different for remote stores
+# TODO will this even work cross platforms
+# TODO make more robust
+def _is_file_uri(source: str) -> bool:
     """Check if a source string is a file URI.
 
     Parameters
@@ -24,7 +50,7 @@ def is_file_uri(source: str) -> bool:
     bool
         True if the source string is a file URI, False otherwise.
     """
-    return source.startswith(FILE)
+    return source.startswith("file://")
 
 
 def collect_arrays(zarr_group: zarr.Group) -> list[str]:
@@ -118,22 +144,6 @@ def decipher_zarr_path(source: str) -> tuple[str, str, str]:
     array_path = groups[-1]
 
     return "/".join(path_to_zarr), "/".join(group_path), array_path
-
-
-def add_segmentation_key(path_to_zarr: str) -> str:
-    """Add '_seg' before the '.zarr' extension in a zarr store path.
-
-    Parameters
-    ----------
-    path_to_zarr : str
-        The path to the zarr store.
-
-    Returns
-    -------
-    str
-        The modified path with '_seg' added before the '.zarr' extension.
-    """
-    return path_to_zarr[:-5] + "_seg.zarr"
 
 
 # TODO Does this hold also for old zarr? Pydantic models from Talley might be better
@@ -256,7 +266,7 @@ def create_zarr_image_stacks(
                     ZarrImageStack(group=zarr_group, data_path=array_path, axes=axes)
                 )
 
-        elif is_file_uri(data_str):
+        elif is_zarr_uri(data_str):
             # decipher the uri and open the group
             store_path, group_path, array_name = decipher_zarr_path(data_str)
 

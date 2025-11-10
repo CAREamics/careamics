@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 
-from .utils import pad_patch, reshaped_array_shape
+from .image_utils.image_stack_utils import pad_patch, reshaped_array_shape
 
 
 class ZarrImageStack:
