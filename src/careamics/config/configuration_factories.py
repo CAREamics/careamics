@@ -654,7 +654,7 @@ def create_care_configuration(
     """
     Create a configuration for training CARE.
 
-    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
     2.
 
     If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
@@ -891,7 +891,7 @@ def create_n2n_configuration(
     """
     Create a configuration for training Noise2Noise.
 
-    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
     2.
 
     If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
@@ -1139,7 +1139,7 @@ def create_n2v_configuration(
     or horizontal correlations are present in the noise; it applies an additional mask
     to the manipulated pixel neighbors.
 
-    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
     2.
 
     If "C" is present in `axes`, then you need to set `n_channels` to the number of
@@ -1722,7 +1722,7 @@ def create_hdn_configuration(
     """
     Create a configuration for training HDN.
 
-    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
     2.
 
     If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
