@@ -537,17 +537,16 @@ class VAEModule(L.LightningModule):
             rec_img_list = []
             for _ in range(self.algorithm_config.mmse_count):
                 # get model output
-                # rec, _ = self.model(x)
+                rec, _ = self.model(x)
 
-                # # get reconstructed img
-                # if self.model.predict_logvar is None:
-                #     rec_img = rec
-                #     _logvar = torch.tensor([-1])
-                # else:
-                #     rec_img, _logvar = torch.chunk(rec, chunks=2, dim=1)
-                # rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
-                
-                rec_img_list.append(aux[0].cpu().unsqueeze(0))  # add MMSE dim
+                # get reconstructed img
+                if self.model.predict_logvar is None:
+                    rec_img = rec
+                    _logvar = torch.tensor([-1])
+                else:
+                    rec_img, _logvar = torch.chunk(rec, chunks=2, dim=1)
+                rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
+
             # aggregate results
             samples = torch.cat(rec_img_list, dim=0)
             mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim

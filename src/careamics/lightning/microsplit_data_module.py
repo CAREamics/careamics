@@ -617,6 +617,7 @@ def create_microsplit_predict_datamodule(
         "data_stats": data_stats,
         "tiling_mode": tiling_mode,
         "batch_size": batch_size,
+        "enable_random_cropping": False,
         "datasplit_type": DataSplitType.Test,  # For prediction, use all data
         **dataset_kwargs,
     }
