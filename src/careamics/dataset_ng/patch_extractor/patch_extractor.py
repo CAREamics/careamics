@@ -20,6 +20,25 @@ class PatchExtractor(Generic[GenericImageStack]):
         self.patch_constructor = patch_constructor
         self.image_stacks: list[GenericImageStack] = list(image_stacks)
 
+        # check all image stacks have the same number of dimensions
+        # check all image stacks have the same number of channels
+        self.n_spatial_dims = len(self.image_stacks[0].data_shape) - 2  # SC(Z)YX
+        self.n_channels = self.image_stacks[0].data_shape[1]
+        for i, image_stack in enumerate(image_stacks):
+            if (ndims := len(image_stack.data_shape) - 2) != self.n_spatial_dims:
+                raise ValueError(
+                    "All `ImageStack` objects in a `PatchExtractor` must have the same "
+                    "number of spatial dimensions. The first image stack is "
+                    f"{self.n_spatial_dims}D but found a {ndims}D image stack at index "
+                    f"{i}."
+                )
+            if (n_channels := image_stack.data_shape[1]) != self.n_channels:
+                raise ValueError(
+                    "All `ImageStack` objects in a `PatchExtractor` must have the same "
+                    f"number of channels. The first image stack has {self.n_channels} "
+                    f"but found an image stack with {n_channels} at index {i}."
+                )
+
     def extract_patch(
         self,
         data_idx: int,
