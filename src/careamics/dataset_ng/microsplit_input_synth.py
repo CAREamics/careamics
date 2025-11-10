@@ -21,6 +21,7 @@ class UncorrelatedRegionData(NamedTuple):
     region_spec: Sequence[PatchSpecs]
 
 
+# --- for empty channel loop
 def is_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
     def is_empty_check(patch: NDArray[Any]) -> bool:
         return filter.filter_out(patch)
@@ -35,39 +36,35 @@ def is_not_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
     return is_not_empty_check
 
 
-def create_microsplit_patch(
-    patch_extractor: PatchExtractor[ImageStack], patch_specs: list[PatchSpecs]
-) -> NDArray[Any]:
-    patches = np.concat(
-        [
-            patch_extractor.extract_channel_patch(
-                data_idx=patch_spec["data_idx"],
-                sample_idx=patch_spec["sample_idx"],
-                channel_idx=c,
-                coords=patch_spec["coords"],
-                patch_size=patch_spec["patch_size"],
-            )
-            for c, patch_spec in enumerate(patch_specs)
-        ],
-        axis=0,
-    )
-    # Add L dimension if not present
-    # TODO: make this more robust: maybe PatchExtractor should have an ndim attribute
-    n_spatial_dims = len(patch_specs[0]["patch_size"])
-    lateral_context_present = len(patches.shape) - n_spatial_dims == 2
-    if not lateral_context_present:
-        # insert a L dim
-        patches = patches[:, np.newaxis]
-
-    return patches
-
-
 def get_random_channel_patches(
-    idx: int,
-    patching_strategy: PatchingStrategy,
+    idx: int,  # TODO: is this needed it makes it work the same as original dataset
     patch_extractor: PatchExtractor[ImageStack],
+    patching_strategy: PatchingStrategy,
     rng: np.random.Generator | None,
 ) -> tuple[NDArray[Any], list[PatchSpecs]]:
+    """
+    Select patches form random patch locations for each channel.
+
+    Parameters
+    ----------
+    idx: int
+        The dataset index.
+    patch_extractor: PatchExtractor
+        Used to extract patches from the data.
+    patching_strategy: PatchingStrategy
+        Patch locations will be sampled using the patching strategy.
+    rng: numpy.random.Generator | None
+        Useful for seeding the process. If `None` the default random number generator
+        will be used.
+
+    Returns
+    -------
+    NDArray[Any]
+        The resulting patches with dimensions LC(Z)YX, where L contains the lateral
+        context at multiple scales.
+    list[PatchSpecs]
+        A list of patch specification, one for each channel.
+    """
     if rng is None:
         rng = np.random.default_rng()
 
@@ -79,25 +76,58 @@ def get_random_channel_patches(
 
     # get n different patch specs for n different channels
     patch_specs = [patching_strategy.get_patch_spec(i) for i in indices]
-    patches = create_microsplit_patch(patch_extractor, patch_specs)
+    patches = extract_microsplit_patch(patch_extractor, patch_specs)
 
     return patches, patch_specs
 
 
 def get_empty_channel_patches(
     idx: int,
-    patching_strategy: PatchingStrategy,
     patch_extractor: PatchExtractor,
-    filled_channels: dict[int, PatchFilterProtocol],
+    patching_strategy: PatchingStrategy,
+    signal_channels: dict[int, PatchFilterProtocol],
     empty_channels: dict[int, PatchFilterProtocol],
     patience: int,
     rng: np.random.Generator | None,
 ) -> tuple[NDArray[Any], list[PatchSpecs]]:
+    """
+    Select patches, specifying which channels should have signal and which should not.
+
+    Parameters
+    ----------
+    idx: int
+        The dataset index.
+    patch_extractor: PatchExtractor
+        Used to extract patches from the data.
+    patching_strategy: PatchingStrategy
+        Patch locations will be sampled using the patching strategy.
+    signal_channels: dict[int, PatchFilterProtocol]
+        A dictionary to specify the channels that should have signal and how they should
+        be filtered. The keys are the channel index and the values are the patch filters
+        used to determine if the channel patch is empty or not.
+    empty_channels: dict[int, PatchFilterProtocol]
+        A dictionary to specify the channels that should not have signal. Similar to
+        the `signal_channels`.
+    patience: int
+        New patches are selected at random until a patch with signal or without is
+        found, the `patience` determines how many times to look before giving up.
+    rng: numpy.random.Generator | None
+        Useful for seeding the process. If `None` the default random number generator
+        will be used.
+
+    Returns
+    -------
+    NDArray[Any]
+        The resulting patches with dimensions LC(Z)YX, where L contains the lateral
+        context at multiple scales.
+    list[PatchSpecs]
+        A list of patch specification, one for each channel.
+    """
     if rng is None:
         rng = np.random.default_rng()
 
     # if a channel is not selected to be empty or filled it will from idx
-    filled = set(filled_channels.keys())
+    filled = set(signal_channels.keys())
     empty = set(empty_channels.keys())
     if len(intersect := filled.intersection(empty)) != 0:
         raise ValueError(
@@ -109,7 +139,7 @@ def get_empty_channel_patches(
     patch_spec = patching_strategy.get_patch_spec(idx)
     patch_specs = [patch_spec for _ in range(n_channels)]
     # initial patches
-    patches = create_microsplit_patch(patch_extractor, patch_specs)  # CL(Z)YX
+    patches = extract_microsplit_patch(patch_extractor, patch_specs)  # CL(Z)YX
 
     # for each channel sample patches until they are empty or not empty
     for c in range(n_channels):
@@ -120,8 +150,8 @@ def get_empty_channel_patches(
         if c in empty_channels:
             filter_ = empty_channels[c]
             criterion = is_not_empty(filter_)
-        elif c in filled_channels:
-            filter_ = filled_channels[c]
+        elif c in signal_channels:
+            filter_ = signal_channels[c]
             criterion = is_empty(filter_)
         else:
             break
@@ -143,6 +173,7 @@ def get_empty_channel_patches(
             # ^ removing channel dim
             patience_ -= 1
         if patience <= 0:
+            # TODO: log properly
             print(f"Out of patience finding patch for channel {c}")
 
         patches[c] = patch
@@ -151,12 +182,28 @@ def get_empty_channel_patches(
     return patches, patch_specs
 
 
-def create_microsplit_input_target(
+def create_uncorrelated_input_target(
     patches: NDArray[Any],
     patch_specs: list[PatchSpecs],
     alphas: list[float],
-    patch_extractor: PatchExtractor[ImageStack],
-):
+    patch_extractor: PatchExtractor[ImageStack],  # for extractor
+) -> tuple[UncorrelatedRegionData, UncorrelatedRegionData]:
+    """
+    Create MicroSplit target and synthetic input with metadata.
+
+    Parameters
+    ----------
+    patches: NDArray
+        Patches with dimensions LC(Z)YX, where L contains the lateral context at
+        multiple scales.
+    patch_specs: list[PatchSpecs]
+        The patch specs for each channel.
+    alphas: list[float]
+        Weights for each channel for creating the synthetic input with summation.
+    patch_extractor: PatchExtractor
+        The patch extractor the patches were extracted from. Used for additional
+        metadata.
+    """
     ndims = len(patches.shape) - 1
     alpha_broadcast = np.array(alphas)[:, *(np.newaxis for _ in range(ndims))]
     # weight channels by alphas then sum on the channel axis
@@ -187,3 +234,50 @@ def create_microsplit_input_target(
         region_spec=patch_specs,
     )
     return input_region, target_region
+
+
+def extract_microsplit_patch(
+    patch_extractor: PatchExtractor[ImageStack], patch_specs: list[PatchSpecs]
+) -> NDArray[Any]:
+    """
+    Extract a MicroSplit patch with the dimensions LC(Z)YX.
+
+    This patch can be used to synthesis an input patch by summing the C dimension, and
+    it can be used to create a target patch by selecting the primary input from the
+    L dimension, where L is to store lateral context patches.
+
+    Parameters
+    ----------
+    patch_extractor: PatchExtractor
+        Used to extract patches from the data.
+    patch_specs: list[PatchSpecs]
+        A list of patch specifications, one for each channel. Different patch
+        specs can be used or each channel to create uncorrelated channel patches.
+
+    Returns
+    -------
+    NDArray[Any]
+        The resulting patches with dimensions LC(Z)YX, where L contains the lateral
+        context at multiple scales.
+    """
+    patches = np.concat(
+        [
+            patch_extractor.extract_channel_patch(
+                data_idx=patch_spec["data_idx"],
+                sample_idx=patch_spec["sample_idx"],
+                channel_idx=c,
+                coords=patch_spec["coords"],
+                patch_size=patch_spec["patch_size"],
+            )
+            for c, patch_spec in enumerate(patch_specs)
+        ],
+        axis=0,
+    )
+    # Add L dimension if not present
+    n_spatial_dims = patch_extractor.n_spatial_dims
+    lateral_context_present = len(patches.shape) - n_spatial_dims == 2
+    if not lateral_context_present:
+        # insert a L dim
+        patches = patches[:, np.newaxis]
+
+    return patches
