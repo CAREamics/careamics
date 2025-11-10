@@ -28,20 +28,12 @@ def test_fixtures(request, zarr_source):
         assert isinstance(image_data, zarr.Array)
 
 
-@pytest.mark.parametrize("zarr_source", ["zarr_linear", "zarr_groups", "zarr_multiple"])
-def test_collect_arrays(request, zarr_source):
+def test_collect_arrays(zarr_linear):
     """Test that collect_arrays returns the correct arrays."""
+    zarr_s = zarr_linear[0]["zarr_file"]
+    g = zarr.open(zarr_s, mode="r")
 
-    zarr_s = request.getfixturevalue(zarr_source)
-    zarr_set = {d["zarr_file"] for d in zarr_s}
-
-    arrays = []
-    for source in zarr_set:
-        zarr_archive = zarr.open(source, mode="r")
-
-        arrays.extend(collect_arrays(zarr_archive))
-
-    assert len(arrays) == 3
+    assert len(collect_arrays(g)) == 3
 
 
 @pytest.mark.parametrize(
@@ -127,9 +119,10 @@ def test_create_image_stacks_uris(request, zarr_source):
     assert len(image_stacks) == 3
 
 
-@pytest.mark.parametrize("zarr_source", ["zarr_linear", "zarr_groups", "zarr_multiple"])
+@pytest.mark.parametrize("zarr_source", ["zarr_linear", "zarr_multiple"])
 def test_create_image_stacks_paths(request, zarr_source):
-    """Test that create_image_stacks creates the correct number of ZarrImageStack."""
+    """Test that create_image_stacks creates the correct number of ZarrImageStack
+    for file paths to zarr containing arrays in the root group."""
 
     zarr_s = request.getfixturevalue(zarr_source)
 

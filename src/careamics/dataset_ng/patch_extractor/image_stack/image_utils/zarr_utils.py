@@ -75,29 +75,14 @@ def collect_arrays(zarr_group: zarr.Group) -> list[str]:
         if isinstance(zarr_group[name], zarr.Array):
             arrays.append(name)
 
+    if arrays == []:
+        warnings.warn(
+            f"No arrays found in zarr group at '{zarr_group.path}'.",
+            UserWarning,
+            stacklevel=2,
+        )
+
     return arrays
-
-
-# def _collect_arrays_recursive(
-#     zarr_group: zarr.Group, parent_path: str, arrays: list[str]
-# ) -> None:
-#     """Recursively collect arrays in a Zarr group.
-
-#     Parameters
-#     ----------
-#     zarr_group : zarr.Group
-#         The Zarr group to collect arrays from.
-#     parent_path : str
-#         The parent path of the current group.
-#     arrays : list of str
-#         The list to append the array paths to.
-#     """
-#     for name in zarr_group.keys():
-#         current_path = f"{parent_path}/{name}" if parent_path else name
-#         if isinstance(zarr_group[name], zarr.Array):
-#             arrays.append(current_path)
-#         elif isinstance(zarr_group[name], zarr.Group):
-#             _collect_arrays_recursive(zarr_group[name], current_path, arrays)
 
 
 def decipher_zarr_path(source: str) -> tuple[str, str, str]:
@@ -118,7 +103,7 @@ def decipher_zarr_path(source: str) -> tuple[str, str, str]:
     str
         The path to the zarr store.
     str
-        The group path within the zarr store, if it is not the root, else "".
+        The parent group within the zarr store, if it is not the root, else "".
     str
         The group or array name the source is pointing to.
 
@@ -144,10 +129,10 @@ def decipher_zarr_path(source: str) -> tuple[str, str, str]:
     zarr_index = next((i for i, p in enumerate(groups) if p.endswith(".zarr")))
 
     path_to_zarr = groups[: zarr_index + 1]
-    group_path = groups[zarr_index + 1 : -1]
-    array_path = groups[-1]
+    parent_path = groups[zarr_index + 1 : -1]
+    content_path = groups[-1]
 
-    return "/".join(path_to_zarr), "/".join(group_path), array_path
+    return "/".join(path_to_zarr), "/".join(parent_path), content_path
 
 
 # TODO Does this hold also for old zarr? Pydantic models from Talley might be better
@@ -275,9 +260,9 @@ def create_zarr_image_stacks(
 
         elif is_zarr_uri(data_str):
             # decipher the uri and open the group
-            store_path, group_path, name = decipher_zarr_path(data_str)
+            store_path, parent_path, name = decipher_zarr_path(data_str)
 
-            zarr_group = zarr.open(store_path, mode="r")[group_path]
+            zarr_group = zarr.open(store_path, mode="r")[parent_path]
             content = zarr_group[name]
 
             # assert if group or array
@@ -301,7 +286,7 @@ def create_zarr_image_stacks(
                 # create image stack from a single array
                 image_stacks.append(
                     ZarrImageStack(
-                        group=name,
+                        group=zarr_group,
                         data_path=name,
                         axes=axes,
                     )
