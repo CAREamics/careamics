@@ -537,7 +537,7 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
             Prediction dataloader.
         """
         params = {**self.dataloader_params}
-        params['shuffle'] = False
+        params["shuffle"] = False
         return DataLoader(
             self.predict_dataset,
             batch_size=self.pred_config.batch_size,
