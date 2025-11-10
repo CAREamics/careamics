@@ -21,7 +21,7 @@ class ZarrImageStack:
         self._group = group
         self._array = group[data_path]
         self._store = str(group.store_path)
-        self._source = self._array.store_path
+        self._source = str(self._array.store_path)
 
         # TODO: validate axes
         #   - must contain XY

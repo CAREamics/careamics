@@ -86,7 +86,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         data_shapes = [
             image_stack.data_shape for image_stack in input_extractor.image_stacks
         ]
-        if mode != Mode.PREDICTING:
+        if mode != Mode.PREDICTING and mode != Mode.VALIDATING:
             if not isinstance(
                 data_config.patching, WholePatchingModel
             ) and not _patch_size_within_data_shapes(
@@ -280,7 +280,13 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             if should_filter and self.coord_filter is not None:
                 if self.coord_filter.filter_out(patch_spec):
                     patch_filter_patience -= 1
-                    continue
+
+                    # TODO should we raise an error rather than silently accept patches?
+                    # if patience runs out without ever finding coordinates
+                    # then we need to guard against an exist before defining
+                    # input_patch and target_patch
+                    if patch_filter_patience != 0:
+                        continue
 
             input_patch, target_patch = self._extract_patches(patch_spec)
 

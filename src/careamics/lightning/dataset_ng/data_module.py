@@ -324,6 +324,10 @@ class CareamicsDataModule(L.LightningDataModule):
             raise ValueError(
                 "At least one of train_data, val_data or pred_data must be provided."
             )
+        elif train_data is None != val_data is None:
+            raise ValueError(
+                "If one of train_data or val_data is provided, both must be provided."
+            )
 
         self.config: NGDataConfig = data_config
         self.data_type: str = data_config.data_type
@@ -342,7 +346,7 @@ class CareamicsDataModule(L.LightningDataModule):
         self.val_percentage = val_percentage
         self.val_minimum_split = val_minimum_split
         if self.val_percentage is not None:
-            raise NotImplementedError("Validation split not implemented")
+            raise NotImplementedError("Validation split is not implemented.")
 
         custom_loader = self.image_stack_loader is not None
         self.train_data, self.train_data_target = initialize_data_pair(

@@ -57,6 +57,8 @@ def collect_arrays(zarr_group: zarr.Group) -> list[str]:
     """
     Collect all arrays in a Zarr group into a list.
 
+    Only run on the first level of the group.
+
     Parameters
     ----------
     zarr_group : zarr.Group
@@ -69,31 +71,33 @@ def collect_arrays(zarr_group: zarr.Group) -> list[str]:
     """
     arrays: list[str] = []
 
-    _collect_arrays_recursive(zarr_group, parent_path="", arrays=arrays)
+    for name in zarr_group.array_keys():
+        if isinstance(zarr_group[name], zarr.Array):
+            arrays.append(name)
 
     return arrays
 
 
-def _collect_arrays_recursive(
-    zarr_group: zarr.Group, parent_path: str, arrays: list[str]
-) -> None:
-    """Recursively collect arrays in a Zarr group.
+# def _collect_arrays_recursive(
+#     zarr_group: zarr.Group, parent_path: str, arrays: list[str]
+# ) -> None:
+#     """Recursively collect arrays in a Zarr group.
 
-    Parameters
-    ----------
-    zarr_group : zarr.Group
-        The Zarr group to collect arrays from.
-    parent_path : str
-        The parent path of the current group.
-    arrays : list of str
-        The list to append the array paths to.
-    """
-    for name in zarr_group.keys():
-        current_path = f"{parent_path}/{name}" if parent_path else name
-        if isinstance(zarr_group[name], zarr.Array):
-            arrays.append(current_path)
-        elif isinstance(zarr_group[name], zarr.Group):
-            _collect_arrays_recursive(zarr_group[name], current_path, arrays)
+#     Parameters
+#     ----------
+#     zarr_group : zarr.Group
+#         The Zarr group to collect arrays from.
+#     parent_path : str
+#         The parent path of the current group.
+#     arrays : list of str
+#         The list to append the array paths to.
+#     """
+#     for name in zarr_group.keys():
+#         current_path = f"{parent_path}/{name}" if parent_path else name
+#         if isinstance(zarr_group[name], zarr.Array):
+#             arrays.append(current_path)
+#         elif isinstance(zarr_group[name], zarr.Group):
+#             _collect_arrays_recursive(zarr_group[name], current_path, arrays)
 
 
 def decipher_zarr_path(source: str) -> tuple[str, str, str]:
@@ -114,9 +118,9 @@ def decipher_zarr_path(source: str) -> tuple[str, str, str]:
     str
         The path to the zarr store.
     str
-        The group path within the zarr store.
+        The group path within the zarr store, if it is not the root, else "".
     str
-        The array name within the group.
+        The group or array name the source is pointing to.
 
     Raises
     ------
@@ -260,6 +264,9 @@ def create_zarr_image_stacks(
                 # collect all arrays
                 array_paths = collect_arrays(zarr_group)
 
+                # sort names
+                array_paths.sort()
+
             # instantiate image stacks
             for array_path in array_paths:
                 image_stacks.append(
@@ -268,18 +275,37 @@ def create_zarr_image_stacks(
 
         elif is_zarr_uri(data_str):
             # decipher the uri and open the group
-            store_path, group_path, array_name = decipher_zarr_path(data_str)
+            store_path, group_path, name = decipher_zarr_path(data_str)
 
             zarr_group = zarr.open(store_path, mode="r")[group_path]
+            content = zarr_group[name]
 
-            # create image stack from a single array
-            image_stacks.append(
-                ZarrImageStack(
-                    group=zarr_group,
-                    data_path=array_name,
-                    axes=axes,
+            # assert if group or array
+            if isinstance(content, zarr.Group):
+                array_paths = collect_arrays(content)
+
+                # sort the names
+                array_paths.sort()
+
+                for array_path in array_paths:
+                    image_stacks.append(
+                        ZarrImageStack(group=content, data_path=array_path, axes=axes)
+                    )
+            else:
+                if not isinstance(content, zarr.Array):
+                    raise TypeError(
+                        f"Content at '{data_str}' is neither a zarr.Group nor "
+                        f"a zarr.Array."
+                    )
+
+                # create image stack from a single array
+                image_stacks.append(
+                    ZarrImageStack(
+                        group=name,
+                        data_path=name,
+                        axes=axes,
+                    )
                 )
-            )
 
         else:
             raise ValueError(
