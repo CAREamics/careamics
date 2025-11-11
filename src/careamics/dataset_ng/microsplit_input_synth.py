@@ -76,19 +76,7 @@ def create_default_input_target(
         The target patch and its metadata, the data has the dimensions C(Z)YX.
     """
     patch_spec = patching_strategy.get_patch_spec(idx)
-    patches = patch_extractor.extract_patch(
-        data_idx=patch_spec["data_idx"],
-        sample_idx=patch_spec["sample_idx"],
-        coords=patch_spec["coords"],
-        patch_size=patch_spec["patch_size"],
-    )
-
-    # Add L dimension if not present
-    n_spatial_dims = patch_extractor.n_spatial_dims
-    lateral_context_present = len(patches.shape) - n_spatial_dims == 2
-    if not lateral_context_present:
-        # insert a L dim
-        patches = patches[:, np.newaxis]
+    patches = extract_microsplit_patch(patch_extractor, patch_spec)
 
     ndims = len(patches.shape) - 1
     alpha_broadcast = np.array(alphas)[:, *(np.newaxis for _ in range(ndims))]
@@ -331,7 +319,8 @@ def get_empty_channel_patches(
 
 
 def extract_microsplit_patch(
-    patch_extractor: PatchExtractor[ImageStack], patch_specs: list[PatchSpecs]
+    patch_extractor: PatchExtractor[ImageStack],
+    patch_specs: PatchSpecs | list[PatchSpecs],
 ) -> NDArray[Any]:
     """
     Extract a MicroSplit patch with the dimensions LC(Z)YX.
@@ -344,9 +333,10 @@ def extract_microsplit_patch(
     ----------
     patch_extractor: PatchExtractor
         Used to extract patches from the data.
-    patch_specs: list[PatchSpecs]
-        A list of patch specifications, one for each channel. Different patch
-        specs can be used or each channel to create uncorrelated channel patches.
+    patch_specs: PatchSpec | list[PatchSpecs]
+        A patch specification or a list of patch specifications — one for each channel.
+        Different patch specs can be used or each channel to create uncorrelated channel
+        patches.
 
     Returns
     -------
@@ -354,19 +344,27 @@ def extract_microsplit_patch(
         The resulting patches with dimensions LC(Z)YX, where L contains the lateral
         context at multiple scales.
     """
-    patches = np.concat(
-        [
-            patch_extractor.extract_channel_patch(
-                data_idx=patch_spec["data_idx"],
-                sample_idx=patch_spec["sample_idx"],
-                channel_idx=c,
-                coords=patch_spec["coords"],
-                patch_size=patch_spec["patch_size"],
-            )
-            for c, patch_spec in enumerate(patch_specs)
-        ],
-        axis=0,
-    )
+    if isinstance(patch_specs, list):
+        patches = np.concat(
+            [
+                patch_extractor.extract_channel_patch(
+                    data_idx=patch_spec["data_idx"],
+                    sample_idx=patch_spec["sample_idx"],
+                    channel_idx=c,
+                    coords=patch_spec["coords"],
+                    patch_size=patch_spec["patch_size"],
+                )
+                for c, patch_spec in enumerate(patch_specs)
+            ],
+            axis=0,
+        )
+    else:
+        patches = patch_extractor.extract_patch(
+            data_idx=patch_specs["data_idx"],
+            sample_idx=patch_specs["sample_idx"],
+            coords=patch_specs["coords"],
+            patch_size=patch_specs["patch_size"],
+        )
     # Add L dimension if not present
     n_spatial_dims = patch_extractor.n_spatial_dims
     lateral_context_present = len(patches.shape) - n_spatial_dims == 2
