@@ -1,3 +1,8 @@
+"""MicroSplit patch synthesis."""
+
+# --- PROOF OF PRINCIPLE ---
+
+
 from collections.abc import Callable, Sequence
 from typing import Any, Literal, NamedTuple
 
@@ -18,11 +23,11 @@ class UncorrelatedRegionData(NamedTuple):
     source: Sequence[str | Literal["array"]]
     data_shape: Sequence[Sequence[int]]
     dtype: Sequence[str]  # dtype should be str for collate
-    # axes: Sequence[str]
+    axes: Sequence[str]
     region_spec: Sequence[PatchSpecs]
 
 
-# --- for empty channel loop
+# --- for finding empty / signal channel patches in loop
 def is_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
     def is_empty_check(patch: NDArray[Any]) -> bool:
         return filter.filter_out(patch)
@@ -37,6 +42,9 @@ def is_not_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
     return is_not_empty_check
 
 
+# ---
+
+
 def create_default_input_target(
     idx: int,
     patch_extractor: PatchExtractor[ImageStack],
@@ -45,7 +53,7 @@ def create_default_input_target(
     axes: str,  # annoyingly have to supply this to image region
 ) -> tuple[ImageRegionData, ImageRegionData]:
     """
-    Create a default MicroSplit patch.
+    Create a default MicroSplit patch with synthetically summed input.
 
     Parameters
     ----------
@@ -114,9 +122,10 @@ def create_uncorrelated_input_target(
     patch_specs: list[PatchSpecs],
     alphas: list[float],
     patch_extractor: PatchExtractor[ImageStack],  # for metadata
+    axes: str,  # mirroring imageregion
 ) -> tuple[UncorrelatedRegionData, UncorrelatedRegionData]:
     """
-    Create MicroSplit target and synthetic input with metadata.
+    Create MicroSplit target and synthetically summed input with metadata.
 
     Parameters
     ----------
@@ -159,6 +168,7 @@ def create_uncorrelated_input_target(
         data_shape=data_shape,
         dtype=dtype,
         region_spec=patch_specs,
+        axes=axes,
     )
     target_region = UncorrelatedRegionData(
         data=target_patch,
@@ -166,6 +176,7 @@ def create_uncorrelated_input_target(
         data_shape=data_shape,
         dtype=dtype,
         region_spec=patch_specs,
+        axes=axes,
     )
     return input_region, target_region
 
