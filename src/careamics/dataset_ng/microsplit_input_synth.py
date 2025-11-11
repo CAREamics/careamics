@@ -304,6 +304,7 @@ def get_empty_channel_patches(
             break
 
         patch = patches[c]
+        patch_spec = patch_specs[c]
         patience_ = patience
         # only check if primary input is empty
         while criterion(patch[0]) and patience_ > 0:
