@@ -4,7 +4,7 @@ from typing import Generic
 from numpy.typing import NDArray
 
 from .image_stack import GenericImageStack
-from .patch_construction import PatchConstructor, basic_patch_constr
+from .patch_construction import PatchConstructor, default_patch_constr
 
 
 class PatchExtractor(Generic[GenericImageStack]):
@@ -15,7 +15,7 @@ class PatchExtractor(Generic[GenericImageStack]):
     def __init__(
         self,
         image_stacks: Sequence[GenericImageStack],
-        patch_constructor: PatchConstructor = basic_patch_constr,
+        patch_constructor: PatchConstructor = default_patch_constr,
     ):
         self.patch_constructor = patch_constructor
         self.image_stacks: list[GenericImageStack] = list(image_stacks)

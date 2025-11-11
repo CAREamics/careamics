@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from numpy.typing import NDArray
 
 from .image_stack import FileImageStack
-from .patch_construction import PatchConstructor, basic_patch_constr
+from .patch_construction import PatchConstructor, default_patch_constr
 from .patch_extractor import PatchExtractor
 
 
@@ -17,7 +17,7 @@ class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
     def __init__(
         self,
         image_stacks: Sequence[FileImageStack],
-        patch_constructor: PatchConstructor = basic_patch_constr,
+        patch_constructor: PatchConstructor = default_patch_constr,
     ):
         """
         Parameters

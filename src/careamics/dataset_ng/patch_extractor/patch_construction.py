@@ -9,7 +9,13 @@ from .image_stack import ImageStack
 
 
 class PatchConstructor(Protocol):
-    """A patch constructor function creates a patch from a given ImageStack."""
+    """
+    A callable that modifies how patches are constructed in the PatchExtractor.
+
+    This protocol defines the signature of a callable that is passed as an argument to
+    the `PatchExtractor`. It can be used to modify how patches are constructed, for
+    example creating patches with multiple lateral context levels for MicroSplit.
+    """
 
     def __call__(
         self,
@@ -40,7 +46,7 @@ class PatchConstructor(Protocol):
         ...
 
 
-def basic_patch_constr(
+def default_patch_constr(
     image_stack: ImageStack,
     sample_idx: int,
     channel_idx: int | None,  # `channel_idx = None` to select all channels
