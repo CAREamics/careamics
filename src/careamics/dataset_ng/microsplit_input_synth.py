@@ -226,6 +226,7 @@ def get_random_channel_patches(
     return patches, patch_specs
 
 
+# TODO: better name
 def get_empty_channel_patches(
     idx: int,
     patch_extractor: PatchExtractor,
@@ -281,10 +282,11 @@ def get_empty_channel_patches(
         )
 
     n_channels = patch_extractor.n_channels
-    patch_spec = patching_strategy.get_patch_spec(idx)
-    patch_specs = [patch_spec for _ in range(n_channels)]
-    # initial patches
-    patches = extract_microsplit_patch(patch_extractor, patch_specs)  # CL(Z)YX
+
+    # start with random initial patches
+    patches, patch_specs = get_random_channel_patches(
+        idx, patch_extractor, patching_strategy, rng
+    )
 
     # for each channel sample patches until they are empty or not empty
     for c in range(n_channels):
