@@ -110,7 +110,7 @@ class SupportedData(str, BaseEnum):
         if data_type == cls.ARRAY:
             raise NotImplementedError(f"Data '{data_type}' is not loaded from a file.")
         elif data_type == cls.TIFF:
-            return ".tiff"  # TODO not working for .tif? Currently only used for writing
+            return ".tiff"
         elif data_type == cls.CZI:
             return ".czi"
         elif data_type == cls.ZARR:
