@@ -34,25 +34,6 @@ def is_zarr_uri(path: str | Path) -> bool:
     return False
 
 
-# TODO it will be different for remote stores
-# TODO will this even work cross platforms
-# TODO make more robust
-def _is_file_uri(source: str) -> bool:
-    """Check if a source string is a file URI.
-
-    Parameters
-    ----------
-    source : str
-        The source string to check.
-
-    Returns
-    -------
-    bool
-        True if the source string is a file URI, False otherwise.
-    """
-    return source.startswith("file://")
-
-
 def collect_arrays(zarr_group: zarr.Group) -> list[str]:
     """
     Collect all arrays in a Zarr group into a list.
