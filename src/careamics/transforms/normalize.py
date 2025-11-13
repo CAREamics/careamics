@@ -246,15 +246,27 @@ class Denormalize:
         NDArray
             Transformed array.
         """
-        # if len(self.image_means) != patch.shape[1]:
-        #     raise ValueError(
-        #         f"Number of means (got a list of size {len(self.image_means)}) and "
-        #         f"number of channels (got shape {patch.shape} for BC(Z)YX) do not "
-        #         f"match."
-        #     )
-        # TODO for pn2v channel handling needs to be changed
-        means = _reshape_stats(self.image_means, patch.ndim)
-        stds = _reshape_stats(self.image_stds, patch.ndim)
+        # Handle case where output has fewer channels than input (e.g., PE with N2V)
+        # Use only the first N channel stats to match output channels
+        n_output_channels = patch.shape[1]
+        if len(self.image_means) != n_output_channels:
+            if len(self.image_means) > n_output_channels:
+                # More stats than output channels - use first N stats only
+                image_means = self.image_means[:n_output_channels]
+                image_stds = self.image_stds[:n_output_channels]
+            else:
+                # Fewer stats than output channels - this is an error
+                raise ValueError(
+                    f"Number of means (got a list of size {len(self.image_means)}) and "
+                    f"number of channels (got shape {patch.shape} for BC(Z)YX) do not "
+                    f"match."
+                )
+        else:
+            image_means = self.image_means
+            image_stds = self.image_stds
+
+        means = _reshape_stats(image_means, patch.ndim)
+        stds = _reshape_stats(image_stds, patch.ndim)
 
         denorm_array = self._apply(
             patch,

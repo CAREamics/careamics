@@ -100,10 +100,10 @@ class N2VAlgorithm(UNetBasedAlgorithm):
     n2v_config: N2VManipulateConfig = N2VManipulateConfig()
 
     model: Annotated[
-        UNetConfig,
-        AfterValidator(model_matching_in_out_channels),
-        AfterValidator(model_without_final_activation),
-    ]
+          UNetConfig,
+          # AfterValidator(model_matching_in_out_channels),  # Disabled for mismatching in/out channels support
+          AfterValidator(model_without_final_activation),
+      ]
 
     @model_validator(mode="after")
     def validate_n2v2(self) -> Self:
