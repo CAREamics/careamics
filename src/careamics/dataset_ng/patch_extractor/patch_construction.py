@@ -9,12 +9,19 @@ from .image_stack import ImageStack
 
 
 class PatchConstructor(Protocol):
-    """A patch constructor function creates a patch from a given ImageStack."""
+    """
+    A callable that modifies how patches are constructed in the PatchExtractor.
+
+    This protocol defines the signature of a callable that is passed as an argument to
+    the `PatchExtractor`. It can be used to modify how patches are constructed, for
+    example creating patches with multiple lateral context levels for MicroSplit.
+    """
 
     def __call__(
         self,
         image_stack: ImageStack,
         sample_idx: int,
+        channel_idx: int | None,  # `channel_idx = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray[Any]:
@@ -39,14 +46,18 @@ class PatchConstructor(Protocol):
         ...
 
 
-def basic_patch_constr(
+def default_patch_constr(
     image_stack: ImageStack,
     sample_idx: int,
+    channel_idx: int | None,  # `channel_idx = None` to select all channels
     coords: Sequence[int],
     patch_size: Sequence[int],
 ) -> NDArray[Any]:
-    return image_stack.extract_patch(
-        sample_idx=sample_idx, coords=coords, patch_size=patch_size
+    return image_stack.extract_channel_patch(
+        sample_idx=sample_idx,
+        channel_idx=channel_idx,
+        coords=coords,
+        patch_size=patch_size,
     )
 
 
@@ -74,26 +85,27 @@ def lateral_context_patch_constr(
     -------
     PatchConstructor
         The patch constructor function. It will return patches with the dimensions
-        (L, C, (Z), Y, X) where L will be equal to `multiscale_count`, C is the number
+        (C, L, (Z), Y, X) where L will be equal to `multiscale_count`, C is the number
         of channels in the image, and (Z), Y, X are the patch size.
     """
 
     def constructor_func(
         image_stack: ImageStack,
         sample_idx: int,
+        channel_idx: int | None,  # `channel_idx = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray[Any]:
         shape = image_stack.data_shape
         spatial_shape = shape[2:]
-        n_channels = shape[1]
+        n_channels = shape[1] if channel_idx is None else 1
 
         # There will now be an additional lc dimension,
         # this has to be handled correctly by the dataset
         # TODO: maybe we want to limit this constructor to only images with 1 channel
         #   then we can put LCs in the channel dimension
         #   but not sure if this artificially limits potential use-cases
-        patch = np.zeros((multiscale_count, n_channels, *patch_size))
+        patch = np.zeros((n_channels, multiscale_count, *patch_size))
         for scale in range(multiscale_count):
             lc_patch_size = np.array(patch_size) * (2**scale)
             lc_start = np.array(coords) + np.array(patch_size) // 2 - lc_patch_size // 2
@@ -107,8 +119,8 @@ def lateral_context_patch_constr(
             )
             size_clipped = end_clipped - start_clipped
 
-            lc_patch = image_stack.extract_patch(
-                sample_idx, start_clipped, size_clipped
+            lc_patch = image_stack.extract_channel_patch(
+                sample_idx, channel_idx, start_clipped, size_clipped
             )
             pad_before = start_clipped - lc_start
             pad_after = lc_end - end_clipped
@@ -126,7 +138,7 @@ def lateral_context_patch_constr(
             )
             # TODO: test different downscaling? skimage suggests downscale_local_mean
             lc_patch = resize(lc_patch, (n_channels, *patch_size))
-            patch[scale] = lc_patch
+            patch[:, scale, ...] = lc_patch
         return patch
 
     return constructor_func

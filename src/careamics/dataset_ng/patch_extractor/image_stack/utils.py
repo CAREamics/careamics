@@ -63,7 +63,7 @@ def pad_patch(
         The resulting padded patch.
     """
     coords_ = np.array(coords)
-    patch = np.zeros((data_shape[1], *patch_size), dtype=patch_data.dtype)
+    patch = np.zeros((patch_data.shape[0], *patch_size), dtype=patch_data.dtype)
     # data start will be zero unless coords are negative
     data_start = np.clip(coords_, 0, None) - coords_
     data_end = data_start + np.array(patch_data.shape[1:])
