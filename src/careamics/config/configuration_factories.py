@@ -1187,6 +1187,7 @@ def create_n2v_configuration(
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
     n_data_channels: int = 1,
+    data_channel_indices: list[int] | None = None,
 ) -> Configuration:
     """
      Create a configuration for training Noise2Void.
@@ -1229,69 +1230,78 @@ def create_n2v_configuration(
      If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
      will be applied to each manipulated pixel.
 
-     Parameters
-     ----------
-     experiment_name : str
-         Name of the experiment.
-     data_type : Literal["array", "tiff", "czi", "custom"]
-         Type of the data.
-     axes : str
-         Axes of the data (e.g. "YX" for 2D, "X" for 1D, "ZYX" for 3D).
-     patch_size : List[int]
-         Size of the patches along the spatial dimensions (e.g. [64, 64]).
-     batch_size : int
-         Batch size.
-     num_epochs : int, default=100
-         Number of epochs to train for. If provided, this will be added to
-         trainer_params.
-     num_steps : int, optional
-         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
-         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
-         documentation for more details.
-     augmentations : list of transforms, default=None
-         List of transforms to apply, either both or one of XYFlipConfig and
-         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
-         and XYRandomRotate90 (in XY) to the images.
-     independent_channels : bool, optional
-         Whether to train all channels together, by default True.
-     use_n2v2 : bool, optional
-         Whether to use N2V2, by default False.
-     n_channels : int or None, default=None
-         Number of channels (in and out).
-     roi_size : int, optional
-         N2V pixel manipulation area, by default 11.
-     masked_pixel_percentage : float, optional
-         Percentage of pixels masked in each patch, by default 0.2.
-     struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
-         Axis along which to apply structN2V mask, by default "none".
-     struct_n2v_span : int, optional
-         Span of the structN2V mask, by default 5.
-     trainer_params : dict, optional
-         Parameters for the trainer, see the relevant documentation.
-     logger : Literal["wandb", "tensorboard", "none"], optional
-         Logger to use, by default "none".
-     model_params : dict, default=None
-         UNetModel parameters.
-     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
-         Optimizer to use.
-     optimizer_params : dict, default=None
-         Parameters for the optimizer, see PyTorch documentation for more details.
-     lr_scheduler : Literal["ReduceLROnPlateau", "StepLR"], default="ReduceLROnPlateau"
-         Learning rate scheduler to use.
-     lr_scheduler_params : dict, default=None
-         Parameters for the learning rate scheduler, see PyTorch documentation for more
-         details.
-     train_dataloader_params : dict, optional
-         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
-         If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
-         the `GeneralDataConfig`.
-     val_dataloader_params : dict, optional
-         Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
-         If left as `None`, the empty dict `{}` will be used, this is set in the
-         `GeneralDataConfig`.
-     checkpoint_params : dict, default=None
-         Parameters for the checkpoint callback, see PyTorch Lightning documentation
-         (`ModelCheckpoint`) for the list of available parameters.
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "czi", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. "YX" for 2D, "X" for 1D, "ZYX" for 3D).
+    patch_size : List[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
+    augmentations : list of transforms, default=None
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
+        and XYRandomRotate90 (in XY) to the images.
+    independent_channels : bool, optional
+        Whether to train all channels together, by default True.
+    use_n2v2 : bool, optional
+        Whether to use N2V2, by default False.
+    n_channels : int or None, default=None
+        Number of channels (in and out).
+    roi_size : int, optional
+        N2V pixel manipulation area, by default 11.
+    masked_pixel_percentage : float, optional
+        Percentage of pixels masked in each patch, by default 0.2.
+    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
+        Axis along which to apply structN2V mask, by default "none".
+    struct_n2v_span : int, optional
+        Span of the structN2V mask, by default 5.
+    trainer_params : dict, optional
+        Parameters for the trainer, see the relevant documentation.
+    logger : Literal["wandb", "tensorboard", "none"], optional
+        Logger to use, by default "none".
+    model_params : dict, default=None
+        UNetModel parameters.
+    optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
+        Optimizer to use.
+    optimizer_params : dict, default=None
+        Parameters for the optimizer, see PyTorch documentation for more details.
+    lr_scheduler : Literal["ReduceLROnPlateau", "StepLR"], default="ReduceLROnPlateau"
+        Learning rate scheduler to use.
+    lr_scheduler_params : dict, default=None
+        Parameters for the learning rate scheduler, see PyTorch documentation for more
+        details.
+    train_dataloader_params : dict, optional
+        Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
+        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
+        the `GeneralDataConfig`.
+    val_dataloader_params : dict, optional
+        Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+        If left as `None`, the empty dict `{}` will be used, this is set in the
+        `GeneralDataConfig`.
+    checkpoint_params : dict, default=None
+        Parameters for the checkpoint callback, see PyTorch Lightning documentation
+        (`ModelCheckpoint`) for the list of available parameters.
+    n_data_channels : int, default=1
+        Number of data channels to mask, starting from index 0. Only used if
+        `data_channel_indices` is None. For example, if `n_data_channels=2`, channels
+        0 and 1 will be masked.
+    data_channel_indices : list of int or None, default=None
+        Specific channel indices to mask (e.g., [0, 3, 5]). If specified, takes
+        precedence over `n_data_channels`. Useful when you have auxiliary channels
+        (like positional encodings) that should not be masked. The indices will be
+        automatically sorted. If None, the first `n_data_channels` channels are masked.
 
      Returns
      -------
@@ -1393,19 +1403,47 @@ def create_n2v_configuration(
      ...     n_channels=3
      ... )
 
-     If instead you want to train multiple channels together, you need to turn off the
-     `independent_channels` parameter:
-     >>> config = create_n2v_configuration(
-     ...     experiment_name="n2v_experiment",
-     ...     data_type="array",
-     ...     axes="YXC",
-     ...     patch_size=[64, 64],
-     ...     batch_size=32,
-     ...     num_epochs=100,
-     ...     independent_channels=False,
-     ...     n_channels=3
-     ... )
+    If instead you want to train multiple channels together, you need to turn off the
+    `independent_channels` parameter:
+    >>> config = create_n2v_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="array",
+    ...     axes="YXC",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     independent_channels=False,
+    ...     n_channels=3
+    ... )
 
+    For advanced use cases with auxiliary channels (like positional encodings), you can
+    specify exactly which channels to mask using `data_channel_indices`:
+    >>> config = create_n2v_configuration(
+    ...     experiment_name="raman_with_pe",
+    ...     data_type="array",
+    ...     axes="SXC",  # 1D Raman with channels
+    ...     patch_size=[1024],
+    ...     batch_size=64,
+    ...     num_epochs=100,
+    ...     independent_channels=False,
+    ...     n_channels=7,  # 1 Raman + 6 positional encoding channels
+    ...     data_channel_indices=[0],  # Only mask the Raman channel
+    ...     model_params={"num_classes": 1}  # Output 1 channel
+    ... )
+
+    Or with non-sequential data channels:
+    >>> config = create_n2v_configuration(
+    ...     experiment_name="multi_channel_microscopy",
+    ...     data_type="array",
+    ...     axes="YXC",
+    ...     patch_size=[256, 256],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     independent_channels=False,
+    ...     n_channels=6,  # 3 fluorescence + 3 auxiliary
+    ...     data_channel_indices=[0, 2, 4],  # Mask fluorescence channels only
+    ...     model_params={"num_classes": 3}  # Output 3 channels
+    ... )
      If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
      `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
      for 3-D data but spatial context along the Z dimension will then not be taken into
@@ -1492,6 +1530,7 @@ def create_n2v_configuration(
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
         n_data_channels=n_data_channels,
+        data_channel_indices=data_channel_indices,
     )
 
     # algorithm

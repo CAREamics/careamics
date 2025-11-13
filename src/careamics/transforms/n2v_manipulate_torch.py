@@ -63,8 +63,20 @@ class N2VManipulateTorch:
             Random seed, by default None.
         device : str
             The device on which operations take place, e.g. "cuda", "cpu" or "mps".
+        n_data_channels : int
+            Number of data channels (used when data_channel_indices is None in config).
         """
-        self.n_data_channels = n_data_channels
+        # Determine which channels to mask
+        if n2v_manipulate_config.data_channel_indices is not None:
+            self.data_channel_indices = n2v_manipulate_config.data_channel_indices
+        else:
+            # Fallback to first n_data_channels
+            n_channels = n2v_manipulate_config.n_data_channels
+            self.data_channel_indices = list(range(n_channels))
+
+        # Keep for backward compatibility
+        self.n_data_channels = len(self.data_channel_indices)
+
         self.masked_pixel_percentage = n2v_manipulate_config.masked_pixel_percentage
         self.roi_size = n2v_manipulate_config.roi_size
         self.strategy = n2v_manipulate_config.strategy
@@ -124,35 +136,41 @@ class N2VManipulateTorch:
         masked = torch.zeros_like(batch)
         mask = torch.zeros_like(batch, dtype=torch.uint8)
 
+        # Create a set of data channel indices for faster lookup
+        data_channels_set = set(self.data_channel_indices)
+
         if self.strategy == SupportedPixelManipulation.UNIFORM:
-            # Only mask first n data channels as specified in config
-            # Iterate over the channels to apply manipulation separately
-            for c in range(self.n_data_channels):
-                masked[:, c, ...], mask[:, c, ...] = uniform_manipulate_torch(
-                    patch=batch[:, c, ...],
-                    mask_pixel_percentage=self.masked_pixel_percentage,
-                    subpatch_size=self.roi_size,
-                    remove_center=self.remove_center,
-                    struct_params=self.struct_mask,
-                    rng=self.rng,
-                )
-            masked[:, self.n_data_channels :, ...] = batch[
-                :, self.n_data_channels :, ...
-            ]
+            # Iterate over all channels
+            for c in range(batch.shape[1]):
+                if c in data_channels_set:
+                    # Mask data channels
+                    masked[:, c, ...], mask[:, c, ...] = uniform_manipulate_torch(
+                        patch=batch[:, c, ...],
+                        mask_pixel_percentage=self.masked_pixel_percentage,
+                        subpatch_size=self.roi_size,
+                        remove_center=self.remove_center,
+                        struct_params=self.struct_mask,
+                        rng=self.rng,
+                    )
+                else:
+                    # Copy auxiliary channels without masking
+                    masked[:, c, ...] = batch[:, c, ...]
+
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
-            # Only mask first n data channels as specified in config
-            # Iterate over the channels to apply manipulation separately
-            for c in range(self.n_data_channels):
-                masked[:, c, ...], mask[:, c, ...] = median_manipulate_torch(
-                    batch=batch[:, c, ...],
-                    mask_pixel_percentage=self.masked_pixel_percentage,
-                    subpatch_size=self.roi_size,
-                    struct_params=self.struct_mask,
-                    rng=self.rng,
-                )
-            masked[:, self.n_data_channels :, ...] = batch[
-                :, self.n_data_channels :, ...
-            ]
+            # Iterate over all channels
+            for c in range(batch.shape[1]):
+                if c in data_channels_set:
+                    # Mask data channels
+                    masked[:, c, ...], mask[:, c, ...] = median_manipulate_torch(
+                        batch=batch[:, c, ...],
+                        mask_pixel_percentage=self.masked_pixel_percentage,
+                        subpatch_size=self.roi_size,
+                        struct_params=self.struct_mask,
+                        rng=self.rng,
+                    )
+                else:
+                    # Copy auxiliary channels without masking
+                    masked[:, c, ...] = batch[:, c, ...]
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
 

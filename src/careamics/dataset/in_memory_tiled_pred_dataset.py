@@ -155,9 +155,16 @@ class InMemoryTiledPredDataset:
                 sample = transformed_result[0]
             else:
                 sample = transformed_result
-    
-        # Ensure sample has correct shape for 1D data: (C, X)
-        if len(sample.shape) != 2:
-            raise ValueError(f"Expected 2D tensor (C, X) for 1D data, got shape {sample.shape}")
+
+        # Validate sample shape based on axes
+        # Determine expected number of dimensions from axes
+        spatial_axes = [ax for ax in self.pred_config.axes if ax in 'XYZ']
+        expected_ndims = len(spatial_axes) + 1  # +1 for channel dimension
+
+        if len(sample.shape) != expected_ndims:
+            raise ValueError(
+                f"Expected {expected_ndims}D tensor for axes '{self.pred_config.axes}', "
+                f"got shape {sample.shape} ({len(sample.shape)}D)"
+            )
 
         return (sample,), tile_info

@@ -1,6 +1,6 @@
 """Pydantic model for the N2VManipulate transform."""
 
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import ConfigDict, Field, field_validator
 
@@ -27,6 +27,10 @@ class N2VManipulateConfig(TransformConfig):
         Axis of the structN2V mask, by default "none".
     struct_mask_span : int
         Span of the structN2V mask, by default 5.
+    data_channel_indices : Optional[list[int]]
+        Specific channel indices to mask (e.g., [0, 3, 5]). If None, uses first n_data_channels.
+    n_data_channels : int
+        Number of data channels to mask (used when data_channel_indices is None).
     """
 
     model_config = ConfigDict(
@@ -52,10 +56,17 @@ class N2VManipulateConfig(TransformConfig):
 
     struct_mask_span: int = Field(default=5, ge=3, le=15)
     """Size of the structN2V mask."""
+
+    data_channel_indices: Optional[list[int]] = Field(
+        default=None,
+        description="Specific channel indices to mask (e.g., [0, 3, 5]). If None, uses first n_data_channels channels.",
+    )
+    """Specific channel indices to mask. If None, uses first n_data_channels."""
+
     n_data_channels: int = Field(
         default=1,
         ge=1,
-        description="Number of data channels to mask (excludes auxiliary channels like positional encoding)",
+        description="Number of data channels to mask starting from index 0 (used when data_channel_indices is None)",
     )
     @field_validator("roi_size", "struct_mask_span")
     @classmethod
@@ -81,3 +92,40 @@ class N2VManipulateConfig(TransformConfig):
         if v % 2 == 0:
             raise ValueError("Size must be an odd number.")
         return v
+
+    @field_validator("data_channel_indices")
+    @classmethod
+    def validate_channel_indices(cls, v: Optional[list[int]]) -> Optional[list[int]]:
+        """
+        Validate and sort data_channel_indices.
+
+        Parameters
+        ----------
+        v : Optional[list[int]]
+            Channel indices to validate.
+
+        Returns
+        -------
+        Optional[list[int]]
+            The validated and sorted channel indices.
+
+        Raises
+        ------
+        ValueError
+            If channel indices are invalid (negative, duplicates, or empty list).
+        """
+        if v is None:
+            return v
+
+        if len(v) == 0:
+            raise ValueError("data_channel_indices cannot be an empty list. Use None instead.")
+
+        if any(idx < 0 for idx in v):
+            raise ValueError("Channel indices must be non-negative.")
+
+        if len(v) != len(set(v)):
+            raise ValueError("data_channel_indices cannot contain duplicates.")
+
+        # Sort indices to ensure predictable mapping to output channels
+        # Model output channel i will correspond to data_channel_indices[i]
+        return sorted(v)
