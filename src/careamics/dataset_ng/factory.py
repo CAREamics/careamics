@@ -112,7 +112,6 @@ def determine_dataset_type(
                 "Found `data_type='custom'` but no `read_func` or `image_stack_loader` "
                 "has been provided."
             )
-    # TODO: ZARR
     else:
         raise ValueError(f"Unrecognized `data_type`, '{data_type}'.")
 

@@ -341,3 +341,20 @@ class TestInitializeDataPairZarr:
         )
         assert isinstance(inp, list) and len(inp) == len(array_uris)
         assert isinstance(tar, list) and len(tar) == len(tar_array_uris)
+
+    def test_mixed_uris_and_path(self, zarr_with_arrays, zarr_with_groups):
+        g_groups = zarr.open(zarr_with_groups)
+        group_group_uri = str(g_groups["groupA"].store_path)  # uri to group
+        array_uris = [
+            str(g_groups["groupB"][array_name].store_path)
+            for array_name in g_groups["groupB"].array_keys()
+        ]
+        g_zarr_path = str(zarr_with_arrays)
+
+        all_uris = array_uris + [g_zarr_path] + [group_group_uri]
+
+        inp, _ = initialize_data_pair(
+            data_type="zarr",
+            input_data=all_uris,
+        )
+        assert len(inp) == len(all_uris) - 1  # it removed the path to zarr

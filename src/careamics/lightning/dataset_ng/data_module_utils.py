@@ -277,6 +277,8 @@ def validate_zarr_input(
     # of input and target are the same
     if isinstance(input_data, (str, Path)):
         if Path(input_data).exists():
+            # either a path to a folder or a zarr file
+            # path to a folder will trigger collection of all zarr files in that folder
             assert target_data is None or isinstance(target_data, (str, Path))
             if target_data is not None and not Path(target_data).exists():
                 raise ValueError(
