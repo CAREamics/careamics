@@ -62,7 +62,7 @@ def test_extract_patch_2D(
 
     # TODO: this assert can move if _reshaped_data_shape is tested separately
     assert image_stack.data_shape == expected_shape
-    assert image_stack.chunk_size == original_shape
+    assert image_stack.chunks == original_shape
 
     # test extracted patch matches patch from reference data
     coords = (11, 4)

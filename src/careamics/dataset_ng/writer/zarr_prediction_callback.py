@@ -146,8 +146,6 @@ class ZarrTileWriter:
             shape = region.data_shape
             chunks = region.chunks
             region_dtype = region.dtype
-
-            assert chunks is not None, "Chunks must be defined to create zarr array."
             self._create_array(array_name, shape, chunks, region_dtype)
 
         # TODO region_spec is PatchSpecs, TileSpecs inherit from PatchSpecs
