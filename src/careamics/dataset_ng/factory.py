@@ -41,7 +41,7 @@ class DatasetType(Enum):
     IN_MEM_TIFF = "in_mem_tiff"
     ITER_TIFF = "iter_tiff"
     IN_MEM_CUSTOM_FILE = "in_mem_custom_file"
-    OME_ZARR = "ome_zarr"
+    ZARR = "zarr"
     CZI = "czi"
     CUSTOM_IMAGE_STACK = "custom_image_stack"
 
@@ -92,6 +92,8 @@ def determine_dataset_type(
             return DatasetType.IN_MEM_TIFF
         else:
             return DatasetType.ITER_TIFF
+    elif data_type == SupportedData.ZARR:
+        return DatasetType.ZARR
     elif data_type == SupportedData.CZI:
         return DatasetType.CZI
     elif data_type == SupportedData.CUSTOM:
@@ -110,7 +112,6 @@ def determine_dataset_type(
                 "Found `data_type='custom'` but no `read_func` or `image_stack_loader` "
                 "has been provided."
             )
-    # TODO: ZARR
     else:
         raise ValueError(f"Unrecognized `data_type`, '{data_type}'.")
 
@@ -179,6 +180,8 @@ def create_dataset(
             return create_tiff_dataset(config, mode, inputs, targets, masks)
         case DatasetType.ITER_TIFF:
             return create_iter_tiff_dataset(config, mode, inputs, targets, masks)
+        case DatasetType.ZARR:
+            return create_zarr_dataset(config, mode, inputs, targets, masks)
         case DatasetType.CZI:
             return create_czi_dataset(config, mode, inputs, targets, masks)
         case DatasetType.IN_MEM_CUSTOM_FILE:

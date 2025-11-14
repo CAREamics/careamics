@@ -5,6 +5,7 @@ from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils imp
     collect_arrays,
     create_zarr_image_stacks,
     decipher_zarr_path,
+    is_zarr_uri,
 )
 
 # TODO rename file and sort tests
@@ -27,20 +28,39 @@ def test_fixtures(request, zarr_source):
         assert isinstance(image_data, zarr.Array)
 
 
-@pytest.mark.parametrize("zarr_source", ["zarr_linear", "zarr_groups", "zarr_multiple"])
-def test_collect_arrays(request, zarr_source):
+def test_collect_arrays(zarr_linear):
     """Test that collect_arrays returns the correct arrays."""
+    zarr_s = zarr_linear[0]["zarr_file"]
+    g = zarr.open(zarr_s, mode="r")
 
-    zarr_s = request.getfixturevalue(zarr_source)
-    zarr_set = {d["zarr_file"] for d in zarr_s}
+    assert len(collect_arrays(g)) == 3
 
-    arrays = []
-    for source in zarr_set:
-        zarr_archive = zarr.open(source, mode="r")
 
-        arrays.extend(collect_arrays(zarr_archive))
-
-    assert len(arrays) == 3
+@pytest.mark.parametrize(
+    "uri, expected",
+    [
+        # True
+        (
+            "file://data/bsd68_group_in_group.zarr/group_1/group_2/bsd68_gaussian25_7",
+            True,
+        ),
+        ("file:///absolute/path/to/zarr/store.zarr/array0", True),
+        ("gs://gcs_bucket/mydata.zarr", True),
+        ("az://container/store.zarr", True),
+        ("https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0062A/6001240.zarr", True),
+        # False
+        ("data/local_store.zarr", False),
+        ("/absolute/path/to/store.zarr", False),
+        ("./relative/path/to/store.zarr", False),
+        ("C:\\data\\store.zarr", False),
+        ("C:/data/store.zarr", False),
+        (r"\\server\share\store.zarr", False),
+        ("", False),  # empty
+        (None, False),  # not a string
+    ],
+)
+def test_valid_zarr_uris(uri, expected):
+    assert is_zarr_uri(uri) == expected
 
 
 @pytest.mark.parametrize(
@@ -99,9 +119,10 @@ def test_create_image_stacks_uris(request, zarr_source):
     assert len(image_stacks) == 3
 
 
-@pytest.mark.parametrize("zarr_source", ["zarr_linear", "zarr_groups", "zarr_multiple"])
+@pytest.mark.parametrize("zarr_source", ["zarr_linear", "zarr_multiple"])
 def test_create_image_stacks_paths(request, zarr_source):
-    """Test that create_image_stacks creates the correct number of ZarrImageStack."""
+    """Test that create_image_stacks creates the correct number of ZarrImageStack
+    for file paths to zarr containing arrays in the root group."""
 
     zarr_s = request.getfixturevalue(zarr_source)
 

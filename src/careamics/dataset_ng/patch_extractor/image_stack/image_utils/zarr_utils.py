@@ -1,35 +1,44 @@
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
+from urllib.parse import urlparse
 
 import zarr
 
 from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
 
-FILE = "file://"
-
-# TODO convenience function to return source path?
+INPUT = str | Path
 
 
-def is_file_uri(source: str) -> bool:
-    """Check if a source string is a file URI.
+def is_zarr_uri(path: str | Path) -> bool:
+    """
+    Check if a path is a Zarr URI.
 
     Parameters
     ----------
-    source : str
-        The source string to check.
+    path : str | Path
+        The path to check.
 
     Returns
     -------
     bool
-        True if the source string is a file URI, False otherwise.
+        True if the path is a Zarr URI, False otherwise.
     """
-    return source.startswith(FILE)
+    parsed = urlparse(str(path))
+
+    valid_schemes = {"file", "s3", "gs", "az", "https", "http", "zip"}
+
+    if parsed.scheme and parsed.scheme.lower() in valid_schemes:
+        return True
+
+    return False
 
 
 def collect_arrays(zarr_group: zarr.Group) -> list[str]:
     """
     Collect all arrays in a Zarr group into a list.
+
+    Only run on the first level of the group.
 
     Parameters
     ----------
@@ -43,31 +52,18 @@ def collect_arrays(zarr_group: zarr.Group) -> list[str]:
     """
     arrays: list[str] = []
 
-    _collect_arrays_recursive(zarr_group, parent_path="", arrays=arrays)
+    for name in zarr_group.array_keys():
+        if isinstance(zarr_group[name], zarr.Array):
+            arrays.append(name)
+
+    if arrays == []:
+        warnings.warn(
+            f"No arrays found in zarr group at '{zarr_group.path}'.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     return arrays
-
-
-def _collect_arrays_recursive(
-    zarr_group: zarr.Group, parent_path: str, arrays: list[str]
-) -> None:
-    """Recursively collect arrays in a Zarr group.
-
-    Parameters
-    ----------
-    zarr_group : zarr.Group
-        The Zarr group to collect arrays from.
-    parent_path : str
-        The parent path of the current group.
-    arrays : list of str
-        The list to append the array paths to.
-    """
-    for name in zarr_group.keys():
-        current_path = f"{parent_path}/{name}" if parent_path else name
-        if isinstance(zarr_group[name], zarr.Array):
-            arrays.append(current_path)
-        elif isinstance(zarr_group[name], zarr.Group):
-            _collect_arrays_recursive(zarr_group[name], current_path, arrays)
 
 
 def decipher_zarr_path(source: str) -> tuple[str, str, str]:
@@ -88,9 +84,9 @@ def decipher_zarr_path(source: str) -> tuple[str, str, str]:
     str
         The path to the zarr store.
     str
-        The group path within the zarr store.
+        The parent group within the zarr store, if it is not the root, else "".
     str
-        The array name within the group.
+        The group or array name the source is pointing to.
 
     Raises
     ------
@@ -114,26 +110,10 @@ def decipher_zarr_path(source: str) -> tuple[str, str, str]:
     zarr_index = next((i for i, p in enumerate(groups) if p.endswith(".zarr")))
 
     path_to_zarr = groups[: zarr_index + 1]
-    group_path = groups[zarr_index + 1 : -1]
-    array_path = groups[-1]
+    parent_path = groups[zarr_index + 1 : -1]
+    content_path = groups[-1]
 
-    return "/".join(path_to_zarr), "/".join(group_path), array_path
-
-
-def add_segmentation_key(path_to_zarr: str) -> str:
-    """Add '_seg' before the '.zarr' extension in a zarr store path.
-
-    Parameters
-    ----------
-    path_to_zarr : str
-        The path to the zarr store.
-
-    Returns
-    -------
-    str
-        The modified path with '_seg' added before the '.zarr' extension.
-    """
-    return path_to_zarr[:-5] + "_seg.zarr"
+    return "/".join(path_to_zarr), "/".join(parent_path), content_path
 
 
 # TODO Does this hold also for old zarr? Pydantic models from Talley might be better
@@ -250,26 +230,48 @@ def create_zarr_image_stacks(
                 # collect all arrays
                 array_paths = collect_arrays(zarr_group)
 
+                # sort names
+                array_paths.sort()
+
             # instantiate image stacks
             for array_path in array_paths:
                 image_stacks.append(
                     ZarrImageStack(group=zarr_group, data_path=array_path, axes=axes)
                 )
 
-        elif is_file_uri(data_str):
+        elif is_zarr_uri(data_str):
             # decipher the uri and open the group
-            store_path, group_path, array_name = decipher_zarr_path(data_str)
+            store_path, parent_path, name = decipher_zarr_path(data_str)
 
-            zarr_group = zarr.open(store_path, mode="r")[group_path]
+            zarr_group = zarr.open(store_path, mode="r")[parent_path]
+            content = zarr_group[name]
 
-            # create image stack from a single array
-            image_stacks.append(
-                ZarrImageStack(
-                    group=zarr_group,
-                    data_path=array_name,
-                    axes=axes,
+            # assert if group or array
+            if isinstance(content, zarr.Group):
+                array_paths = collect_arrays(content)
+
+                # sort the names
+                array_paths.sort()
+
+                for array_path in array_paths:
+                    image_stacks.append(
+                        ZarrImageStack(group=content, data_path=array_path, axes=axes)
+                    )
+            else:
+                if not isinstance(content, zarr.Array):
+                    raise TypeError(
+                        f"Content at '{data_str}' is neither a zarr.Group nor "
+                        f"a zarr.Array."
+                    )
+
+                # create image stack from a single array
+                image_stacks.append(
+                    ZarrImageStack(
+                        group=zarr_group,
+                        data_path=name,
+                        axes=axes,
+                    )
                 )
-            )
 
         else:
             raise ValueError(

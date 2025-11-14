@@ -81,7 +81,7 @@ def list_files(
         extension = extension_filter
 
     # search recurively
-    if data_path.is_dir():
+    if data_path.is_dir() and data_path.suffix != ".zarr":
         # search recursively the path for files with the extension
         files = sorted(data_path.rglob(extension))
     else:

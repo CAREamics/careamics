@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 
-from .utils import pad_patch, reshaped_array_shape
+from .image_utils.image_stack_utils import pad_patch, reshaped_array_shape
 
 
 class ZarrImageStack:
@@ -21,7 +21,7 @@ class ZarrImageStack:
         self._group = group
         self._array = group[data_path]
         self._store = str(group.store_path)
-        self._source = self._array.store_path
+        self._source = str(self._array.store_path)
 
         # TODO: validate axes
         #   - must contain XY

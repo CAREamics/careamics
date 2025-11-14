@@ -15,6 +15,8 @@ from careamics.dataset_ng.patch_extractor.limit_file_extractor import (
 )
 from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 
+# TODO add tests for the various types, for mismatching input/target/mask lengths, etc.
+
 
 def _patch_file_image_stacks(dataset: CareamicsDataset[FileImageStack]):
     mocks = []

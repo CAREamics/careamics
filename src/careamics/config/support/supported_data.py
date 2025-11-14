@@ -18,6 +18,8 @@ class SupportedData(str, BaseEnum):
         TIFF image data.
     CZI : str
         CZI image data.
+    ZARR : str
+        Zarr data.
     CUSTOM : str
         Custom data.
     """
@@ -26,7 +28,7 @@ class SupportedData(str, BaseEnum):
     TIFF = "tiff"
     CZI = "czi"
     CUSTOM = "custom"
-    # ZARR = "zarr"
+    ZARR = "zarr"
 
     # TODO remove?
     @classmethod
@@ -81,6 +83,8 @@ class SupportedData(str, BaseEnum):
             raise NotImplementedError(f"Data '{data_type}' is not loaded from a file.")
         elif data_type == cls.TIFF:
             return "*.tif*"
+        elif data_type == cls.ZARR:
+            return "*.zarr"
         elif data_type == cls.CZI:
             return "*.czi"
         elif data_type == cls.CUSTOM:
@@ -109,6 +113,8 @@ class SupportedData(str, BaseEnum):
             return ".tiff"
         elif data_type == cls.CZI:
             return ".czi"
+        elif data_type == cls.ZARR:
+            return ".zarr"
         elif data_type == cls.CUSTOM:
             # TODO: improve this message
             raise NotImplementedError("Custom extensions have to be passed elsewhere.")
