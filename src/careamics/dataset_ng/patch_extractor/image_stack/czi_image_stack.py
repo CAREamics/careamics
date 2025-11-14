@@ -146,6 +146,7 @@ class CziImageStack:
             self._get_shape()
         )
         self.data_dtype = np.float32
+        self.chunks: Sequence[int] | None = None  # to abide ImageStack protocol
 
     def __del__(self):
         if hasattr(self, "_czi"):

@@ -18,8 +18,6 @@ class ImageStack(Protocol):
 
     """
 
-    # TODO: not sure how compatible using Path will be for a zarr array
-    #   (for a zarr array need to specify file path and internal zarr path)
     @property
     def source(self) -> Union[str, Path, Literal["array"]]: ...
 
@@ -28,6 +26,9 @@ class ImageStack(Protocol):
 
     @property
     def data_dtype(self) -> DTypeLike: ...
+
+    @property
+    def chunks(self) -> Sequence[int] | None: ...
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]

@@ -42,6 +42,8 @@ class ImageRegionData(NamedTuple):
     axes: str
     region_spec: PatchSpecs
 
+    chunks: Sequence[int] | None = None
+
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
@@ -234,6 +236,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             source=str(source),
             dtype=str(extractor.image_stacks[data_idx].data_dtype),
             data_shape=extractor.image_stacks[data_idx].data_shape,
+            chunks=extractor.image_stacks[data_idx].chunk,
             # TODO: should it be axes of the original image instead?
             axes=self.config.axes,
             region_spec=patch_spec,
