@@ -177,7 +177,7 @@ class ZarrPredictionWriterCallback(BasePredictionWriter):
 
     def __init__(
         self,
-    ):
+    ) -> None:
         """
         A PyTorch Lightning callback to save predictions.
         """
