@@ -45,7 +45,7 @@ def decollate_image_region_data(
                 tuple(int(value[idx][i]) for idx in range(len(value)))
                 if isinstance(value, list)
                 else int(value[i])
-            )  # handles tensor (1D) vs list (ND)
+            )  # handles tensor (1D) vs list of tensors/tuples (2D)
             for key, value in batch.region_spec.items()
         }
 

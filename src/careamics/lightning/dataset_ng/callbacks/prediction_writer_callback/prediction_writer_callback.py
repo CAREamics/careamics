@@ -74,7 +74,7 @@ class PredictionWriterCallback(BasePredictionWriter):
 
         # forward declaration
         self.write_strategy: WriteStrategy
-        if write_strategy is not None:
+        if write_strategy is not None:  # avoid `WriteStrategy | None` type
             self.write_strategy = write_strategy
 
         self.dirpath: Path
@@ -181,7 +181,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         """
         Write predictions at the end of a batch.
 
-        The method of prediction is determined by the attribute `write_strategy`.
+        Writing method is determined by the attribute `write_strategy`.
 
         Parameters
         ----------

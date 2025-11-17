@@ -8,8 +8,7 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
 )
 from careamics.dataset_ng.patching_strategies import TileSpecs, TilingStrategy
 from careamics.lightning.dataset_ng.prediction.stitch_prediction import (
-    sort_tiles_by_data_index,
-    sort_tiles_by_sample_index,
+    group_tiles_by_key,
     stitch_prediction,
     stitch_single_prediction,
     stitch_single_sample,
@@ -87,7 +86,7 @@ def test_sort_tiles_by_data_index(tiles):
     array, tile_list = tiles
     n_data = array.shape[0]
 
-    sorted_tiles = sort_tiles_by_data_index(tile_list)
+    sorted_tiles = group_tiles_by_key(tile_list, key="data_idx")
     assert len(sorted_tiles.keys()) == n_data
     n_tiles_per_data = [len(sorted_tiles[data_idx]) for data_idx in sorted_tiles.keys()]
     assert all(n_tiles_per_data[0] == n_tiles_per_data[i] for i in range(1, n_data))
@@ -104,7 +103,7 @@ def test_sort_tiles_by_sample_index(tiles):
     array, tile_list = tiles
     n_data = array.shape[1]
 
-    sorted_tiles = sort_tiles_by_sample_index(tile_list)
+    sorted_tiles = group_tiles_by_key(tile_list, key="sample_idx")
     assert len(sorted_tiles.keys()) == n_data
     n_tiles_per_data = [len(sorted_tiles[data_idx]) for data_idx in sorted_tiles.keys()]
     assert all(n_tiles_per_data[0] == n_tiles_per_data[i] for i in range(1, n_data))

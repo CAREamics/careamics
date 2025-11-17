@@ -2,6 +2,7 @@
 
 import builtins
 from collections import defaultdict
+from typing import Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -10,8 +11,8 @@ from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.patching_strategies import TileSpecs
 
 
-def sort_tiles_by_data_index(
-    tiles: list[ImageRegionData],
+def group_tiles_by_key(
+    tiles: list[ImageRegionData], key: Literal["data_idx", "sample_idx"]
 ) -> dict[int, list[ImageRegionData]]:
     """
     Sort tiles by their data index.
@@ -20,6 +21,8 @@ def sort_tiles_by_data_index(
     ----------
     tiles : list of ImageRegionData
         List of tiles to sort.
+    key : {'data_idx', 'sample_idx'}
+        Key to group tiles by.
 
     Returns
     -------
@@ -28,31 +31,8 @@ def sort_tiles_by_data_index(
     """
     sorted_tiles: dict[int, list[ImageRegionData]] = defaultdict(list)
     for tile in tiles:
-        data_idx = tile.region_spec["data_idx"]
-        sorted_tiles[data_idx].append(tile)
-    return sorted_tiles
-
-
-def sort_tiles_by_sample_index(
-    tiles: list[ImageRegionData],
-) -> dict[int, list[ImageRegionData]]:
-    """
-    Sort tiles by their sample index.
-
-    Parameters
-    ----------
-    tiles : list of ImageRegionData
-        List of tiles to sort.
-
-    Returns
-    -------
-    {int: list of ImageRegionData}
-        Dictionary mapping sample indices to lists of tiles.
-    """
-    sorted_tiles: dict[int, list[ImageRegionData]] = defaultdict(list)
-    for tile in tiles:
-        sample_idx = tile.region_spec["sample_idx"]
-        sorted_tiles[sample_idx].append(tile)
+        key_value = tile.region_spec[key]
+        sorted_tiles[key_value].append(tile)
     return sorted_tiles
 
 
@@ -77,7 +57,9 @@ def stitch_prediction(
         Full images, may be a single image.
     """
     # sort tiles by data index
-    sorted_tiles: dict[int, list[ImageRegionData]] = sort_tiles_by_data_index(tiles)
+    sorted_tiles: dict[int, list[ImageRegionData]] = group_tiles_by_key(
+        tiles, key="data_idx"
+    )
 
     # stitch each image separately
     image_predictions: list[NDArray] = []
@@ -109,7 +91,7 @@ def stitch_single_prediction(
     predicted_image = np.zeros(data_shape, dtype=np.float32)
 
     if "S" in tiles[0].axes:
-        tiles_by_sample = sort_tiles_by_sample_index(tiles)
+        tiles_by_sample = group_tiles_by_key(tiles, key="sample_idx")
         for sample_idx in tiles_by_sample.keys():
             sample_tiles = tiles_by_sample[sample_idx]
             stitched_sample = stitch_single_sample(sample_tiles)

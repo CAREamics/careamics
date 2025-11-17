@@ -239,7 +239,7 @@ class CacheTiles(WriteStrategy):
         _ = [self.last_tile.pop(i) for i in sorted(indices, reverse=True)]
 
         # TODO necessary? it makes testing easier
-        # rever to original order
+        # reverse to original order
         tiles.reverse()
 
         return tiles
