@@ -15,7 +15,7 @@ def group_tiles_by_key(
     tiles: list[ImageRegionData], key: Literal["data_idx", "sample_idx"]
 ) -> dict[int, list[ImageRegionData]]:
     """
-    Sort tiles by their data index.
+    Sort tiles by key.
 
     Parameters
     ----------
