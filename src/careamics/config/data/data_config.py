@@ -107,6 +107,21 @@ class DataConfig(BaseModel):
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
 
+    patching_strategy: Literal["sequential", "random"] = Field(default="sequential")
+    """Patching strategy to use during data preparation. 'sequential' extracts patches
+    in a sequential manner with potential overlap, while 'random' extracts patches
+    randomly from the data."""
+
+    patching_seed: int | None = Field(default=None, gt=0)
+    """Random seed for random patching. Only used when patching_strategy is 'random'.
+    If None, patches will be extracted randomly without a fixed seed."""
+
+    num_patches_per_sample: int | None = Field(default=None, gt=0)
+    """Number of patches to extract per sample when using random patching. If None,
+    automatically calculated as ceil(total_pixels / patch_pixels). Setting this higher
+    extracts more patches with potential overlap (better training diversity), lower
+    extracts fewer patches (faster training). Only used when patching_strategy is 'random'."""
+
     # Optional fields
     image_means: list[Float] | None = Field(default=None, min_length=0, max_length=32)
     """Means of the data across channels, used for normalization."""

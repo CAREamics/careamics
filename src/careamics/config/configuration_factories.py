@@ -257,6 +257,9 @@ def _create_data_configuration(
     augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
+    patching_strategy: Literal["sequential", "random"] = "sequential",
+    patching_seed: int | None = None,
+    num_patches_per_sample: int | None = None,
 ) -> DataConfig:
     """
     Create a dictionary with the parameters of the data model.
@@ -277,6 +280,12 @@ def _create_data_configuration(
         Parameters for the training dataloader, see PyTorch notes, by default None.
     val_dataloader_params : dict
         Parameters for the validation dataloader, see PyTorch notes, by default None.
+    patching_strategy : {"sequential", "random"}, default="sequential"
+        Patching strategy to use during data preparation.
+    patching_seed : int or None, default=None
+        Random seed for random patching.
+    num_patches_per_sample : int or None, default=None
+        Number of patches to extract per sample when using random patching.
 
     Returns
     -------
@@ -290,6 +299,9 @@ def _create_data_configuration(
         "patch_size": patch_size,
         "batch_size": batch_size,
         "transforms": augmentations,
+        "patching_strategy": patching_strategy,
+        "patching_seed": patching_seed,
+        "num_patches_per_sample": num_patches_per_sample,
     }
     # Don't override defaults set in DataConfig class
     if train_dataloader_params is not None:
@@ -551,6 +563,9 @@ def _create_supervised_config_dict(
     checkpoint_params: dict[str, Any] | None = None,
     num_epochs: int | None = None,
     num_steps: int | None = None,
+    patching_strategy: Literal["sequential", "random"] = "sequential",
+    patching_seed: int | None = None,
+    num_patches_per_sample: int | None = None,
 ) -> dict:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -665,7 +680,18 @@ def _create_supervised_config_dict(
         augmentations=spatial_transform_list,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
+        patching_strategy=patching_strategy,
+        patching_seed=patching_seed,
+        num_patches_per_sample=num_patches_per_sample,
     )
+    # Handle trainer parameters with num_epochs and num_steps
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    # Add num_epochs and num_steps if provided
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["limit_train_batches"] = num_steps
 
     # training
     final_trainer_params = update_trainer_params(
@@ -710,6 +736,9 @@ def create_care_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    patching_strategy: Literal["sequential", "random"] = "sequential",
+    patching_seed: int | None = None,
+    num_patches_per_sample: int | None = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE.
@@ -920,6 +949,9 @@ def create_care_configuration(
             checkpoint_params=checkpoint_params,
             num_epochs=num_epochs,
             num_steps=num_steps,
+            patching_strategy=patching_strategy,
+            patching_seed=patching_seed,
+            num_patches_per_sample=num_patches_per_sample,
         )
     )
 
@@ -947,6 +979,9 @@ def create_n2n_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    patching_strategy: Literal["sequential", "random"] = "sequential",
+    patching_seed: int | None = None,
+    num_patches_per_sample: int | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Noise.
@@ -1156,6 +1191,9 @@ def create_n2n_configuration(
             checkpoint_params=checkpoint_params,
             num_epochs=num_epochs,
             num_steps=num_steps,
+            patching_strategy=patching_strategy,
+            patching_seed=patching_seed,
+            num_patches_per_sample=num_patches_per_sample,
         )
     )
 
@@ -1188,6 +1226,9 @@ def create_n2v_configuration(
     checkpoint_params: dict[str, Any] | None = None,
     n_data_channels: int = 1,
     data_channel_indices: list[int] | None = None,
+    patching_strategy: Literal["sequential", "random"] = "sequential",
+    patching_seed: int | None = None,
+    num_patches_per_sample: int | None = None,
 ) -> Configuration:
     """
      Create a configuration for training Noise2Void.
@@ -1230,78 +1271,90 @@ def create_n2v_configuration(
      If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
      will be applied to each manipulated pixel.
 
-    Parameters
-    ----------
-    experiment_name : str
-        Name of the experiment.
-    data_type : Literal["array", "tiff", "czi", "custom"]
-        Type of the data.
-    axes : str
-        Axes of the data (e.g. "YX" for 2D, "X" for 1D, "ZYX" for 3D).
-    patch_size : List[int]
-        Size of the patches along the spatial dimensions (e.g. [64, 64]).
-    batch_size : int
-        Batch size.
-    num_epochs : int, default=100
-        Number of epochs to train for. If provided, this will be added to
-        trainer_params.
-    num_steps : int, optional
-        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
-        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
-        documentation for more details.
-    augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipConfig and
-        XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
-        and XYRandomRotate90 (in XY) to the images.
-    independent_channels : bool, optional
-        Whether to train all channels together, by default True.
-    use_n2v2 : bool, optional
-        Whether to use N2V2, by default False.
-    n_channels : int or None, default=None
-        Number of channels (in and out).
-    roi_size : int, optional
-        N2V pixel manipulation area, by default 11.
-    masked_pixel_percentage : float, optional
-        Percentage of pixels masked in each patch, by default 0.2.
-    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
-        Axis along which to apply structN2V mask, by default "none".
-    struct_n2v_span : int, optional
-        Span of the structN2V mask, by default 5.
-    trainer_params : dict, optional
-        Parameters for the trainer, see the relevant documentation.
-    logger : Literal["wandb", "tensorboard", "none"], optional
-        Logger to use, by default "none".
-    model_params : dict, default=None
-        UNetModel parameters.
-    optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
-        Optimizer to use.
-    optimizer_params : dict, default=None
-        Parameters for the optimizer, see PyTorch documentation for more details.
-    lr_scheduler : Literal["ReduceLROnPlateau", "StepLR"], default="ReduceLROnPlateau"
-        Learning rate scheduler to use.
-    lr_scheduler_params : dict, default=None
-        Parameters for the learning rate scheduler, see PyTorch documentation for more
-        details.
-    train_dataloader_params : dict, optional
-        Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
-        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
-        the `GeneralDataConfig`.
-    val_dataloader_params : dict, optional
-        Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
-        If left as `None`, the empty dict `{}` will be used, this is set in the
-        `GeneralDataConfig`.
-    checkpoint_params : dict, default=None
-        Parameters for the checkpoint callback, see PyTorch Lightning documentation
-        (`ModelCheckpoint`) for the list of available parameters.
-    n_data_channels : int, default=1
-        Number of data channels to mask, starting from index 0. Only used if
-        `data_channel_indices` is None. For example, if `n_data_channels=2`, channels
-        0 and 1 will be masked.
-    data_channel_indices : list of int or None, default=None
-        Specific channel indices to mask (e.g., [0, 3, 5]). If specified, takes
-        precedence over `n_data_channels`. Useful when you have auxiliary channels
-        (like positional encodings) that should not be masked. The indices will be
-        automatically sorted. If None, the first `n_data_channels` channels are masked.
+     Parameters
+     ----------
+     experiment_name : str
+         Name of the experiment.
+     data_type : Literal["array", "tiff", "czi", "custom"]
+         Type of the data.
+     axes : str
+         Axes of the data (e.g. "YX" for 2D, "X" for 1D, "ZYX" for 3D).
+     patch_size : List[int]
+         Size of the patches along the spatial dimensions (e.g. [64, 64]).
+     batch_size : int
+         Batch size.
+     num_epochs : int, default=100
+         Number of epochs to train for. If provided, this will be added to
+         trainer_params.
+     num_steps : int, optional
+         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+         documentation for more details.
+     augmentations : list of transforms, default=None
+         List of transforms to apply, either both or one of XYFlipModel and
+         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+         and XYRandomRotate90 (in XY) to the images.
+     independent_channels : bool, optional
+         Whether to train all channels together, by default True.
+     use_n2v2 : bool, optional
+         Whether to use N2V2, by default False.
+     n_channels : int or None, default=None
+         Number of channels (in and out).
+     roi_size : int, optional
+         N2V pixel manipulation area, by default 11.
+     masked_pixel_percentage : float, optional
+         Percentage of pixels masked in each patch, by default 0.2.
+     struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
+         Axis along which to apply structN2V mask, by default "none".
+     struct_n2v_span : int, optional
+         Span of the structN2V mask, by default 5.
+     trainer_params : dict, optional
+         Parameters for the trainer, see the relevant documentation.
+     logger : Literal["wandb", "tensorboard", "none"], optional
+         Logger to use, by default "none".
+     model_params : dict, default=None
+         UNetModel parameters.
+     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
+         Optimizer to use.
+     optimizer_params : dict, default=None
+         Parameters for the optimizer, see PyTorch documentation for more details.
+     lr_scheduler : Literal["ReduceLROnPlateau", "StepLR"], default="ReduceLROnPlateau"
+         Learning rate scheduler to use.
+     lr_scheduler_params : dict, default=None
+         Parameters for the learning rate scheduler, see PyTorch documentation for more
+         details.
+     train_dataloader_params : dict, optional
+         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
+         If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
+         the `GeneralDataConfig`.
+     val_dataloader_params : dict, optional
+         Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+         If left as `None`, the empty dict `{}` will be used, this is set in the
+         `GeneralDataConfig`.
+     checkpoint_params : dict, default=None
+         Parameters for the checkpoint callback, see PyTorch Lightning documentation
+         (`ModelCheckpoint`) for the list of available parameters.
+     n_data_channels : int, default=1
+         Number of data channels to mask, starting from index 0. Only used if
+         `data_channel_indices` is None. For example, if `n_data_channels=2`, channels
+         0 and 1 will be masked.
+     data_channel_indices : list of int or None, default=None
+         Specific channel indices to mask (e.g., [0, 3, 5]). If specified, takes
+         precedence over `n_data_channels`. Useful when you have auxiliary channels
+         (like positional encodings) that should not be masked. The indices will be
+         automatically sorted. If None, the first `n_data_channels` channels are masked.
+     patching_strategy : Literal["sequential", "random"], default="sequential"
+         Patching strategy to use during data preparation. 'sequential' extracts patches
+         sequentially with potential overlap, while 'random' extracts patches randomly
+         from the data. Random patching can improve training diversity.
+     patching_seed : int or None, default=None
+         Random seed for random patching. Only used when patching_strategy is 'random'.
+         If None, patches will be extracted randomly without a fixed seed.
+     num_patches_per_sample : int or None, default=None
+         Number of patches to extract per sample when using random patching. If None,
+         automatically calculated as ceil(total_pixels / patch_pixels). Setting higher
+         extracts more patches with overlap (better diversity), lower extracts fewer
+         (faster training). Only used when patching_strategy is 'random'.
 
      Returns
      -------
@@ -1431,19 +1484,33 @@ def create_n2v_configuration(
     ...     model_params={"num_classes": 1}  # Output 1 channel
     ... )
 
-    Or with non-sequential data channels:
-    >>> config = create_n2v_configuration(
-    ...     experiment_name="multi_channel_microscopy",
-    ...     data_type="array",
-    ...     axes="YXC",
-    ...     patch_size=[256, 256],
-    ...     batch_size=32,
-    ...     num_epochs=100,
-    ...     independent_channels=False,
-    ...     n_channels=6,  # 3 fluorescence + 3 auxiliary
-    ...     data_channel_indices=[0, 2, 4],  # Mask fluorescence channels only
-    ...     model_params={"num_classes": 3}  # Output 3 channels
-    ... )
+     Or with non-sequential data channels:
+     >>> config = create_n2v_configuration(
+     ...     experiment_name="multi_channel_microscopy",
+     ...     data_type="array",
+     ...     axes="YXC",
+     ...     patch_size=[256, 256],
+     ...     batch_size=32,
+     ...     num_epochs=100,
+     ...     independent_channels=False,
+     ...     n_channels=6,  # 3 fluorescence + 3 auxiliary
+     ...     data_channel_indices=[0, 2, 4],  # Mask fluorescence channels only
+     ...     model_params={"num_classes": 3}  # Output 3 channels
+     ... )
+
+     To use random patching instead of sequential patching (which can improve training
+     diversity), simply set the `patching_strategy` parameter:
+     >>> config = create_n2v_configuration(
+     ...     experiment_name="n2v_random_patching",
+     ...     data_type="array",
+     ...     axes="YX",
+     ...     patch_size=[64, 64],
+     ...     batch_size=32,
+     ...     num_epochs=100,
+     ...     patching_strategy="random",
+     ...     patching_seed=42  # Optional: for reproducibility
+     ... )
+
      If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
      `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
      for 3-D data but spatial context along the Z dimension will then not be taken into
@@ -1559,6 +1626,9 @@ def create_n2v_configuration(
         augmentations=spatial_transforms,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
+        patching_strategy=patching_strategy,
+        patching_seed=patching_seed,
+        num_patches_per_sample=num_patches_per_sample,
     )
 
     # training

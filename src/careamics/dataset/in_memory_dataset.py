@@ -150,6 +150,9 @@ class InMemoryDataset(Dataset):
                     self.axes,
                     self.input_targets,
                     self.patch_size,
+                    patching_strategy=self.data_config.patching_strategy,
+                    patching_seed=self.data_config.patching_seed,
+                    num_patches_per_sample=self.data_config.num_patches_per_sample,
                 )
             elif isinstance(self.inputs, list) and isinstance(self.input_targets, list):
                 return prepare_patches_supervised(
@@ -158,6 +161,9 @@ class InMemoryDataset(Dataset):
                     self.axes,
                     self.patch_size,
                     self.read_source_func,
+                    patching_strategy=self.data_config.patching_strategy,
+                    patching_seed=self.data_config.patching_seed,
+                    num_patches_per_sample=self.data_config.num_patches_per_sample,
                 )
             else:
                 raise ValueError(
@@ -171,6 +177,9 @@ class InMemoryDataset(Dataset):
                     self.inputs,
                     self.axes,
                     self.patch_size,
+                    patching_strategy=self.data_config.patching_strategy,
+                    patching_seed=self.data_config.patching_seed,
+                    num_patches_per_sample=self.data_config.num_patches_per_sample,
                 )
             else:
                 return prepare_patches_unsupervised(
@@ -178,6 +187,9 @@ class InMemoryDataset(Dataset):
                     self.axes,
                     self.patch_size,
                     self.read_source_func,
+                    patching_strategy=self.data_config.patching_strategy,
+                    patching_seed=self.data_config.patching_seed,
+                    num_patches_per_sample=self.data_config.num_patches_per_sample,
                 )
 
     def __len__(self) -> int:
