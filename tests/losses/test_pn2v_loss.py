@@ -25,7 +25,7 @@ def test_pn2v_loss_basic(tmp_path: Path, create_dummy_noise_model):
         model_type="GaussianMixtureNoiseModel", path=tmp_path / "dummy_noise_model.npz"
     )
 
-    # Create noise model (we'll need to mock this properly)
+    # TODO Create noise model (we'll need to mock this properly)
     # For now, create a simple mock
     noise_model = GaussianMixtureNoiseModel(nm_config)
 
