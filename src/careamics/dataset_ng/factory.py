@@ -9,14 +9,6 @@ from typing_extensions import ParamSpec
 from careamics.config.data.ng_data_model import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import ImageStackLoader, PatchExtractor
-from careamics.dataset_ng.patch_extractor.image_stack import (
-    CziImageStack,
-    FileImageStack,
-    GenericImageStack,
-    ImageStack,
-    InMemoryImageStack,
-    ZarrImageStack,
-)
 from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_array_extractor,
     create_custom_file_extractor,
@@ -29,6 +21,14 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
 from careamics.file_io.read import ReadFunc
 
 from .dataset import CareamicsDataset, Mode
+from .image_stack import (
+    CziImageStack,
+    FileImageStack,
+    GenericImageStack,
+    ImageStack,
+    InMemoryImageStack,
+    ZarrImageStack,
+)
 
 P = ParamSpec("P")
 

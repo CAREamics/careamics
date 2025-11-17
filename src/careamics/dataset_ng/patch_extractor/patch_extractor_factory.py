@@ -5,23 +5,23 @@ from typing import Any, Literal
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
-from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
+from careamics.dataset_ng.image_stack.image_utils.zarr_utils import (
     create_zarr_image_stacks,
 )
+from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_extractor.limit_file_extractor import (
     LimitFilesPatchExtractor,
 )
 from careamics.file_io.read import ReadFunc
 
-from .image_stack import (
+from ..image_stack import (
     CziImageStack,
     FileImageStack,
     GenericImageStack,
     InMemoryImageStack,
     ZarrImageStack,
 )
-from .image_stack_loader import (
+from ..image_stack_loader.image_stack_loader_protocol import (
     ImageStackLoader,
 )
 

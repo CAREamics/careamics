@@ -5,7 +5,7 @@ from typing_extensions import ParamSpec
 
 from careamics.utils import BaseEnum
 
-from .image_stack import GenericImageStack
+from ..image_stack import GenericImageStack
 
 P = ParamSpec("P")
 
