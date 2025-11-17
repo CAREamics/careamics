@@ -22,7 +22,10 @@ logger = get_logger(__name__)
 
 class PredictionWriterCallback(BasePredictionWriter):
     """
-    A PyTorch Lightning callback to save predictions.
+    PyTorch Lightning callback to save predictions.
+
+    A `WriteStrategy` must be provided at instantiation or later via
+    `set_writing_strategy`.
 
     Parameters
     ----------
