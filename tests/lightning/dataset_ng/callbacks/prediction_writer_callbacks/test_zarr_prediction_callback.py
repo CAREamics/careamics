@@ -11,7 +11,7 @@ from careamics.dataset_ng.patching_strategies import (
     TileSpecs,
     TilingStrategy,
 )
-from careamics.lightning.dataset_ng.callbacks.prediction_writer_callback import (
+from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     WriteTilesZarr,
 )
 

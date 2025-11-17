@@ -14,7 +14,7 @@ from careamics.dataset_ng.patching_strategies import (
     TilingStrategy,
 )
 from careamics.file_io.write import write_tiff
-from careamics.lightning.dataset_ng.callbacks.prediction_writer_callback import (
+from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     CacheTiles,
     create_write_file_path,
 )

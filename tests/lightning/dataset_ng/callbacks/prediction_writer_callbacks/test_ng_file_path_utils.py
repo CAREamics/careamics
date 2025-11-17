@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from careamics.lightning.dataset_ng.callbacks.prediction_writer_callback import (
+from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     create_write_file_path,
 )
 

@@ -11,7 +11,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from careamics.config import Configuration
 from careamics.config.configuration_factories import _create_ng_data_configuration
 from careamics.config.data import NGDataConfig
-from careamics.lightning.dataset_ng.callbacks.prediction_writer_callback import (
+from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     PredictionWriterCallback,
     WriteStrategy,
 )

@@ -7,7 +7,7 @@ import pytest
 from numpy.typing import NDArray
 
 from careamics.file_io.write import write_tiff
-from careamics.lightning.dataset_ng.callbacks.prediction_writer_callback import (
+from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     CacheTiles,
     WriteImage,
     create_write_strategy,
