@@ -83,7 +83,7 @@ def test_extract_patch_2D(
 def test_ome_zarr(ome_zarr_url):
     """Test that ZarrImageStack can be initialised from an OME-Zarr URL."""
     # instantiate zarr image stack
-    group = zarr.open(ome_zarr_url, mode="r")
+    group = zarr.open_group(ome_zarr_url, mode="r")
     path, axes = _extract_metadata_from_ome_zarr(group)
     image_stack = ZarrImageStack(group=group, data_path=path, axes=axes)
 
@@ -95,3 +95,11 @@ def test_ome_zarr(ome_zarr_url):
     )
     assert isinstance(patch, np.ndarray)  # make sure patch is numpy
     assert patch.shape == (n_channels, *patch_size)  # extracted patch has expected size
+
+
+def test_no_array_error(tmp_path):
+    file_path = tmp_path / "test_zarr.zarr"
+    group = zarr.create_group(file_path.resolve())
+
+    with pytest.raises(ValueError):
+        _ = ZarrImageStack(group=group, data_path="no/array", axes="YX")

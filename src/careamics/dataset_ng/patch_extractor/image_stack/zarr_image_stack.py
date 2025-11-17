@@ -20,11 +20,13 @@ class ZarrImageStack:
 
         self._group = group
         self._store = str(group.store_path)
-        self._array = group[data_path]
-        if not isinstance(self._array, zarr.Array):
-            raise TypeError(
+        try:
+            self._array = group[data_path]
+        except KeyError as e:
+            raise ValueError(
                 f"Did not find array at '{data_path}' in store '{self._store}'."
-            )
+            ) from e
+
         self._source = self._array.store_path
 
         # TODO: validate axes
