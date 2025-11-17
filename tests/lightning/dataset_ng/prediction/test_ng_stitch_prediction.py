@@ -7,7 +7,7 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_array_extractor,
 )
 from careamics.dataset_ng.patching_strategies import TileSpecs, TilingStrategy
-from careamics.dataset_ng.prediction.stitch_predictions import (
+from careamics.lightning.dataset_ng.prediction.stitch_prediction import (
     sort_tiles_by_data_index,
     sort_tiles_by_sample_index,
     stitch_prediction,

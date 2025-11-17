@@ -22,6 +22,7 @@ from careamics.dataset_ng.patching_strategies import (
     PatchingStrategy,
     PatchSpecs,
     RandomPatchingStrategy,
+    RegionSpecs,
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
@@ -34,13 +35,13 @@ class Mode(str, Enum):
     PREDICTING = "predicting"
 
 
-class ImageRegionData(NamedTuple):
+class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     data: NDArray
     source: Union[str, Literal["array"]]
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
-    region_spec: PatchSpecs
+    region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
 
     chunks: Sequence[int] = (1,)  # default value for ImageStack without chunks
 

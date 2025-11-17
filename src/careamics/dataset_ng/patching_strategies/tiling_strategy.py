@@ -128,8 +128,13 @@ class TilingStrategy:
                             "crop_coords": crop_coords,
                             "crop_size": crop_size,
                             "stitch_coords": stitch_coords,
+                            "last_tile": False,
                         }
                     )
+
+                # mark last tile
+                tile_specs[-1]["last_tile"] = True
+
         return tile_specs
 
     @staticmethod

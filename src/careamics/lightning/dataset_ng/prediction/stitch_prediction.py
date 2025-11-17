@@ -1,3 +1,5 @@
+"""Tiled prediction stitching utilities."""
+
 import builtins
 from collections import defaultdict
 

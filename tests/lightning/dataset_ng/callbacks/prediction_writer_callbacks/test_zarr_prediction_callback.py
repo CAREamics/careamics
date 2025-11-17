@@ -11,8 +11,8 @@ from careamics.dataset_ng.patching_strategies import (
     TileSpecs,
     TilingStrategy,
 )
-from careamics.dataset_ng.writer.zarr_prediction_callback import (
-    ZarrPredictionWriterCallback,
+from careamics.lightning.dataset_ng.callbacks.prediction_writer_callback import (
+    WriteTilesZarr,
 )
 
 
@@ -94,11 +94,10 @@ def test_zarr_prediction_callback_identity(tmp_path):
     )
     assert strategy.n_patches == 6 * ((32 - 4) / (8 - 4)) ** 2
 
-    # use callback to write predictions
-    callback = ZarrPredictionWriterCallback()
-    for img in gen_image_regions(patch_extractor, strategy):
-        # assert isinstance(img, ImageRegionData)
-        callback.write_on_batch_end(None, None, [img], None, None, None, None)
+    # use writer to write predictions
+    writer = WriteTilesZarr()
+    for region in gen_image_regions(patch_extractor, strategy):
+        writer.write_tile(region=region)
 
     # check that the arrays have been writtent correctly to the first zarr
     assert (tmp_path / "source_output.zarr").exists()

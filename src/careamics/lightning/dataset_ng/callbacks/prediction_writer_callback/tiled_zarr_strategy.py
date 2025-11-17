@@ -1,9 +1,11 @@
+"""Tile Zarr writing strategy."""
+
 from collections.abc import Sequence
 from pathlib import Path
 
 import zarr
+from numpy import float32
 from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks import BasePredictionWriter
 
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
@@ -11,9 +13,11 @@ from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils imp
 )
 from careamics.dataset_ng.patching_strategies import TileSpecs
 
+OUTPUT_KEY = "_output"
+
 
 def _add_output_key(path: str | Path) -> Path:
-    """Add `output` key to zarr name.
+    """Add `_output` to zarr name.
 
     Parameters
     ----------
@@ -26,14 +30,12 @@ def _add_output_key(path: str | Path) -> Path:
         Zarr path with `output` key added.
     """
     p = Path(path)
-    new_name = p.stem + "_output" + p.suffix
+    new_name = p.stem + OUTPUT_KEY + p.suffix
     return p.with_name(new_name)
 
 
-# TODO output shape may not be input shape, check what the image region info holds!!
-# TODO dealing with non tiled
-class ZarrTileWriter:
-    """Zarr tile writer class.
+class WriteTilesZarr:
+    """Zarr tile writer strategy.
 
     This writer creates zarr files, groups and arrays as needed and writes tiles
     into the appropriate locations.
@@ -86,7 +88,6 @@ class ZarrTileWriter:
         array_name: str,
         shape: Sequence[int],
         chunks: Sequence[int],
-        dtype: str,
     ) -> None:
         """Create a new array in an existing zarr group.
 
@@ -98,8 +99,6 @@ class ZarrTileWriter:
             Shape of the array.
         chunks : Sequence[int]
             Chunk size for the array.
-        dtype : str
-            Data type of the array.
 
         Raises
         ------
@@ -113,8 +112,10 @@ class ZarrTileWriter:
 
             shape = [i for i in shape if i != 1]
 
+            # TODO can't use original type here as prediction might differ
+            # is float32 alright?
             self.current_array = self.current_group.create_array(
-                name=array_name, shape=shape, chunks=chunks, dtype=dtype
+                name=array_name, shape=shape, chunks=chunks, dtype=float32
             )
         else:
             self.current_array = self.current_group[array_name]
@@ -127,15 +128,13 @@ class ZarrTileWriter:
         region : ImageRegionData
             Image region data containing tile information.
         """
-
         store_path, parent_path, array_name = decipher_zarr_path(region.source)
         output_store_path = _add_output_key(store_path)
 
         if (
             self.current_group is None
-            or
-            # TODO remove hard coded 7
-            str(self.current_group.store_path)[7:] != output_store_path
+            or str(self.current_group.store_path)[: len(OUTPUT_KEY)]
+            != output_store_path
         ):
             self._create_zarr(output_store_path)
 
@@ -145,56 +144,65 @@ class ZarrTileWriter:
         if self.current_array is None or self.current_array.basename != array_name:
             shape = region.data_shape
             chunks = region.chunks
-            region_dtype = region.dtype
-            self._create_array(array_name, shape, chunks, region_dtype)
+            self._create_array(array_name, shape, chunks)
 
-        # TODO region_spec is PatchSpecs, TileSpecs inherit from PatchSpecs
         tile_spec: TileSpecs = region.region_spec  # type: ignore[assignment]
         crop_coords = tile_spec["crop_coords"]
         crop_size = tile_spec["crop_size"]
         stitch_coords = tile_spec["stitch_coords"]
 
-        slices = tuple(
-            slice(start, start + length)
-            for start, length in zip(crop_coords, crop_size, strict=True)
+        crop_slices = (
+            ...,
+            *[
+                slice(start, start + length)
+                for start, length in zip(crop_coords, crop_size, strict=True)
+            ],
         )
-        stitch_slices = tuple(
-            slice(start, start + length)
-            for start, length in zip(stitch_coords, crop_size, strict=True)
+        stitch_slices = (
+            ...,
+            *[
+                slice(start, start + length)
+                for start, length in zip(stitch_coords, crop_size, strict=True)
+            ],
         )
 
         if self.current_array is not None:
-            self.current_array[stitch_slices] = region.data.squeeze()[slices]
+            self.current_array[stitch_slices] = region.data.squeeze()[crop_slices]
         else:
             raise RuntimeError("Zarr array not initialized.")
 
-
-# TODO generalizes prediction writer as done previously
-# TODO switch off if not tiled
-class ZarrPredictionWriterCallback(BasePredictionWriter):
-
-    def __init__(
-        self,
-    ) -> None:
-        """
-        A PyTorch Lightning callback to save predictions.
-        """
-        super().__init__(write_interval="batch")
-
-        # Toggle for CAREamist to switch off saving if desired
-        self.writing_predictions: bool = True
-        self.writer = ZarrTileWriter()
-
-    def write_on_batch_end(
+    def write_batch(
         self,
         trainer: Trainer,
         pl_module: LightningModule,
         prediction: list[ImageRegionData],
         batch_indices: Sequence[int] | None,
-        batch: list[ImageRegionData],
+        batch: ImageRegionData,
         batch_idx: int,
         dataloader_idx: int,
+        dirpath: Path,
     ) -> None:
-        assert prediction is not None
-        for pred_region in prediction:
-            self.writer.write_tile(pred_region)
+        """
+        Write all tiles to a Zarr file.
+
+        Parameters
+        ----------
+        trainer : Trainer
+            PyTorch Lightning Trainer.
+        pl_module : LightningModule
+            PyTorch Lightning LightningModule.
+        prediction : list[ImageRegionData]
+            Decollated Predictions on `batch`.
+        batch_indices : sequence of int
+            Indices identifying the samples in the batch.
+        batch : ImageRegionData
+            Input batch.
+        batch_idx : int
+            Batch index.
+        dataloader_idx : int
+            Dataloader index.
+        dirpath : Path
+            Path to directory to save predictions to.
+        """
+        for region in prediction:
+            self.write_tile(region)
