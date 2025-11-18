@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import list_files, validate_source_target_files
 from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
-    is_zarr_uri,
+    is_valid_uri,
 )
 
 ItemType = Path | str | NDArray[Any]
@@ -286,11 +286,11 @@ def validate_zarr_input(
                 )
 
             return validate_path_input("zarr", input_data, target_data)
-        elif isinstance(input_data, str) and is_zarr_uri(input_data):
+        elif isinstance(input_data, str) and is_valid_uri(input_data):
             input_list = [input_data]
 
             assert target_data is None or isinstance(target_data, str)
-            if target_data is not None and not is_zarr_uri(target_data):
+            if target_data is not None and not is_valid_uri(target_data):
                 raise ValueError(
                     f"Wrong target type for zarr data. Expected a zarr URI, got "
                     f"{type(target_data)}."
@@ -309,12 +309,12 @@ def validate_zarr_input(
                 return validate_path_input("zarr", input_data, target_data)
             else:
                 final_input_list = [
-                    str(item) for item in input_data if is_zarr_uri(item)
+                    str(item) for item in input_data if is_valid_uri(item)
                 ]
                 if target_data is not None:
                     assert isinstance(target_data, list)
                     final_target_list = [
-                        str(item) for item in target_data if is_zarr_uri(item)
+                        str(item) for item in target_data if is_valid_uri(item)
                     ]
                 else:
                     final_target_list = None

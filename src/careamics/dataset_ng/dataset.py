@@ -86,7 +86,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         data_shapes = [
             image_stack.data_shape for image_stack in input_extractor.image_stacks
         ]
-        if mode != Mode.PREDICTING and mode != Mode.VALIDATING:
+        if mode != Mode.PREDICTING:
             if not isinstance(
                 data_config.patching, WholePatchingModel
             ) and not _patch_size_within_data_shapes(

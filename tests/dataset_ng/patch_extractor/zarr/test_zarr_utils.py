@@ -5,7 +5,7 @@ from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils imp
     collect_arrays,
     create_zarr_image_stacks,
     decipher_zarr_path,
-    is_zarr_uri,
+    is_valid_uri,
 )
 
 # TODO rename file and sort tests
@@ -60,7 +60,7 @@ def test_collect_arrays(zarr_linear):
     ],
 )
 def test_valid_zarr_uris(uri, expected):
-    assert is_zarr_uri(uri) == expected
+    assert is_valid_uri(uri) == expected
 
 
 @pytest.mark.parametrize(
@@ -141,30 +141,30 @@ def test_create_image_stacks_paths(request, zarr_source):
     assert len(image_stacks) == 3
 
 
-def test_create_image_stacks_ome(ome_zarr_url):
-    """Test that create_image_stacks can create a ZarrImageStack from an OME-Zarr
-    URL."""
+# def test_create_image_stacks_ome(ome_zarr_url):
+#     """Test that create_image_stacks can create a ZarrImageStack from an OME-Zarr
+#     URL."""
 
-    image_stacks = create_zarr_image_stacks(
-        source=[ome_zarr_url],
-        axes="ZYX",
-        multiscale_level="0",
-    )
+#     image_stacks = create_zarr_image_stacks(
+#         source=[ome_zarr_url],
+#         axes="ZYX",
+#         multiscale_level="0",
+#     )
 
-    assert len(image_stacks) == 1
+#     assert len(image_stacks) == 1
 
-    # warning raised if axes do not match
-    with pytest.warns(UserWarning):
-        _ = create_zarr_image_stacks(
-            source=[ome_zarr_url],
-            axes="CYX",  # wrong axes
-            multiscale_level="0",
-        )
+#     # warning raised if axes do not match
+#     with pytest.warns(UserWarning):
+#         _ = create_zarr_image_stacks(
+#             source=[ome_zarr_url],
+#             axes="CYX",  # wrong axes
+#             multiscale_level="0",
+#         )
 
-    # error raised if level does not exist
-    with pytest.raises(ValueError):
-        _ = create_zarr_image_stacks(
-            source=[ome_zarr_url],
-            axes="ZYX",
-            multiscale_level="lvl1",  # non-existing level
-        )
+#     # error raised if level does not exist
+#     with pytest.raises(ValueError):
+#         _ = create_zarr_image_stacks(
+#             source=[ome_zarr_url],
+#             axes="ZYX",
+#             multiscale_level="lvl1",  # non-existing level
+#         )

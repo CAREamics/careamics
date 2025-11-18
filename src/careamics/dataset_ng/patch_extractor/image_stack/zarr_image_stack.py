@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from typing import Union
 
 import zarr
 from numpy.typing import NDArray
@@ -18,8 +17,15 @@ class ZarrImageStack:
         if not isinstance(group, zarr.Group):
             raise TypeError(f"group must be a zarr.Group instance, got {type(group)}.")
 
+        array = group[data_path]
+        if not isinstance(array, zarr.Array):
+            raise TypeError(
+                f"data at path '{data_path}' must be a zarr.Array instance, "
+                f"got {type(array)}."
+            )
+
         self._group = group
-        self._array = group[data_path]
+        self._array = array
         self._store = str(group.store_path)
         self._source = str(self._array.store_path)
 
@@ -59,7 +65,7 @@ class ZarrImageStack:
                     f"{self.data_shape[0]}"
                 )
 
-        patch_slice: list[Union[int, slice]] = []
+        patch_slice: list[int | slice] = []
         for d in self._original_axes:
             if d == "S":
                 patch_slice.append(self._get_S_index(sample_idx))
@@ -82,7 +88,7 @@ class ZarrImageStack:
             else:
                 raise ValueError(f"Unrecognised axis '{d}', axes should be in STCZYX.")
 
-        patch_data = self._array[tuple(patch_slice)]
+        patch_data: NDArray = self._array[tuple(patch_slice)]  # type: ignore
         patch_axes = self._original_axes.replace("S", "").replace("T", "")
         patch_data = reshape_array(patch_data, patch_axes)[0]  # remove first sample dim
         patch = pad_patch(coords, patch_size, self.data_shape, patch_data)

@@ -5,7 +5,7 @@ import pytest
 import zarr
 
 from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
-    is_zarr_uri,
+    is_valid_uri,
 )
 from careamics.lightning.dataset_ng.data_module_utils import initialize_data_pair
 
@@ -228,10 +228,10 @@ class TestInitializeDataPairZarr:
         g_tar = zarr.open(target_zarr_with_arrays)
 
         zarr_uri = str(g.store_path)
-        assert is_zarr_uri(zarr_uri), "Not a valid zarr URI"
+        assert is_valid_uri(zarr_uri), "Not a valid zarr URI"
 
         tar_zarr_uri = str(g_tar.store_path)
-        assert is_zarr_uri(tar_zarr_uri), "Not a valid zarr URI for target"
+        assert is_valid_uri(tar_zarr_uri), "Not a valid zarr URI for target"
 
         inp, targ = initialize_data_pair(
             data_type="zarr",
@@ -256,8 +256,8 @@ class TestInitializeDataPairZarr:
         zarr_uri1 = str(g1.store_path)
         zarr_uri2 = str(g2.store_path)
 
-        assert is_zarr_uri(zarr_uri1), "Not a valid zarr URI"
-        assert is_zarr_uri(zarr_uri2), "Not a valid zarr URI"
+        assert is_valid_uri(zarr_uri1), "Not a valid zarr URI"
+        assert is_valid_uri(zarr_uri2), "Not a valid zarr URI"
 
         inp, _ = initialize_data_pair(
             data_type="zarr",
@@ -281,11 +281,11 @@ class TestInitializeDataPairZarr:
 
         array_name = sorted(g.array_keys())[0]
         array_uri = str(g[array_name].store_path)
-        assert is_zarr_uri(array_uri), "Not a valid zarr URI"
+        assert is_valid_uri(array_uri), "Not a valid zarr URI"
 
         tar_array_name = sorted(g_tar.array_keys())[0]
         tar_array_uri = str(g_tar[tar_array_name].store_path)
-        assert is_zarr_uri(tar_array_uri), "Not a valid zarr URI for target"
+        assert is_valid_uri(tar_array_uri), "Not a valid zarr URI for target"
 
         assert array_name == tar_array_name, "Array names do not match"
 

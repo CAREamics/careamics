@@ -1,3 +1,4 @@
+import os
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
@@ -10,7 +11,7 @@ from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
 INPUT = str | Path
 
 
-def is_zarr_uri(path: str | Path) -> bool:
+def is_valid_uri(path: str | Path) -> bool:
     """
     Check if a path is a Zarr URI.
 
@@ -113,10 +114,15 @@ def decipher_zarr_path(source: str) -> tuple[str, str, str]:
     parent_path = groups[zarr_index + 1 : -1]
     content_path = groups[-1]
 
-    return "/".join(path_to_zarr), "/".join(parent_path), content_path
+    # return "/".join(path_to_zarr), "/".join(parent_path), content_path
+
+    path_to_zarr_j = os.path.join(os.sep, *path_to_zarr)
+    parent_path_j = os.path.join(*parent_path) if parent_path != [] else ""
+
+    return path_to_zarr_j, parent_path_j, content_path
 
 
-# TODO Does this hold also for old zarr? Pydantic models from Talley might be better
+# TODO use yaozarrs models to validate OME-Zarr structure
 def _is_ome_zarr(zarr_group: zarr.Group) -> bool:
     """Check if a Zarr group is an OME-Zarr.
 
@@ -130,52 +136,12 @@ def _is_ome_zarr(zarr_group: zarr.Group) -> bool:
     bool
         True if the Zarr group is an OME-Zarr, False otherwise.
     """
-    return "multiscales" in zarr_group.attrs
-
-
-def _extract_metadata_from_ome_zarr(
-    zarr_group: zarr.Group,
-    multiscale_level: str = "0",
-) -> tuple[str, str]:
-    """Extract metadata from an OME-Zarr group.
-
-    Parameters
-    ----------
-    zarr_group : zarr.Group
-        The OME-Zarr group to extract metadata from.
-    multiscale_level : str, default = "0"
-        The multiscale level to extract metadata for.
-
-    Returns
-    -------
-    str
-        Validated multiscale level.
-    str
-        Axes string.
-    """
-    # extract metadata
-    multiscales_metadata = zarr_group.attrs["multiscales"][0]
-
-    # retrieve all datasets (resolution levels) in multiscale
-    levels = [d["path"] for d in multiscales_metadata["datasets"]]
-
-    if multiscale_level not in levels:
-        raise ValueError(
-            f"Multiscale level '{multiscale_level}' not found in OME-Zarr group. "
-            f"Available levels are {levels}."
-        )
-
-    # get axes
-    axes_list = [axes_data["name"] for axes_data in multiscales_metadata["axes"]]
-    axes = "".join(axes_list).upper()
-
-    return multiscale_level, axes
+    return False
 
 
 def create_zarr_image_stacks(
     source: Sequence[str | Path],
     axes: str,
-    multiscale_level: str = "0",
 ) -> list[ZarrImageStack]:
     """Create a list of ZarrImageStack from a sequence of zarr file paths or URIs.
 
@@ -193,8 +159,6 @@ def create_zarr_image_stacks(
         The source zarr file paths or URIs.
     axes : str
         The original axes of the data, must be a subset of "STCZYX".
-    multiscale_level : str, default = "0"
-        The multiscale level to use when loading OME-Zarr data.
 
     Returns
     -------
@@ -209,23 +173,18 @@ def create_zarr_image_stacks(
 
         # either a path to a zarr file or a uri "file://path/to/zarr/array_path"
         if data_str.endswith(".zarr"):
-            zarr_group = zarr.open(data_str, mode="r")
+            zarr_group = zarr.open_group(data_str, mode="r")
 
             # test if ome-zarr (minimum assumption of multiscales)
             if _is_ome_zarr(zarr_group):
-                data_path, metadata_axes = _extract_metadata_from_ome_zarr(
-                    zarr_group, multiscale_level=multiscale_level
+                # TODO placeholder for handling OME-Zarr
+                # - Need to potentially select multiscale level
+                # - Extract axes and compare with provided ones
+                raise NotImplementedError(
+                    "OME-Zarr support is not yet implemented when providing a "
+                    "path to the zarr store. Please provide a file URI to the "
+                    "specific array within the OME-Zarr."
                 )
-
-                if metadata_axes != axes:
-                    warnings.warn(
-                        f"Axes mismatch for OME-Zarr at '{data_str}': "
-                        f"expected {axes}, got {metadata_axes}.",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
-                array_paths = [data_path]
             else:
                 # collect all arrays
                 array_paths = collect_arrays(zarr_group)
@@ -239,11 +198,11 @@ def create_zarr_image_stacks(
                     ZarrImageStack(group=zarr_group, data_path=array_path, axes=axes)
                 )
 
-        elif is_zarr_uri(data_str):
+        elif is_valid_uri(data_str):
             # decipher the uri and open the group
             store_path, parent_path, name = decipher_zarr_path(data_str)
 
-            zarr_group = zarr.open(store_path, mode="r")[parent_path]
+            zarr_group = zarr.open_group(store_path, path=parent_path, mode="r")
             content = zarr_group[name]
 
             # assert if group or array
