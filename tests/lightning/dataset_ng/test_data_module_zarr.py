@@ -6,9 +6,11 @@ from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 
 
 def test_zarr_data_module(zarr_with_target_and_mask):
+    assert zarr_with_target_and_mask.exists()
 
     # create uri
     g = zarr.open(zarr_with_target_and_mask)
+    assert "input" in g
 
     input_uris = str(g["input"].store_path)
     target_uris = str(g["target"].store_path)

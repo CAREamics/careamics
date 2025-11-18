@@ -1,4 +1,3 @@
-import os
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
@@ -67,7 +66,7 @@ def collect_arrays(zarr_group: zarr.Group) -> list[str]:
     return arrays
 
 
-def decipher_zarr_path(source: str) -> tuple[str, str, str]:
+def decipher_zarr_uri(source: str) -> tuple[str, str, str]:
     """Extract the zarr store path, group path and array path from a zarr source string.
 
     The input string is expected to be in the format:
@@ -114,12 +113,7 @@ def decipher_zarr_path(source: str) -> tuple[str, str, str]:
     parent_path = groups[zarr_index + 1 : -1]
     content_path = groups[-1]
 
-    # return "/".join(path_to_zarr), "/".join(parent_path), content_path
-
-    path_to_zarr_j = os.path.join(os.sep, *path_to_zarr)
-    parent_path_j = os.path.join(*parent_path) if parent_path != [] else ""
-
-    return path_to_zarr_j, parent_path_j, content_path
+    return "/".join(path_to_zarr), "/".join(parent_path), content_path
 
 
 # TODO use yaozarrs models to validate OME-Zarr structure
@@ -200,7 +194,7 @@ def create_zarr_image_stacks(
 
         elif is_valid_uri(data_str):
             # decipher the uri and open the group
-            store_path, parent_path, name = decipher_zarr_path(data_str)
+            store_path, parent_path, name = decipher_zarr_uri(data_str)
 
             zarr_group = zarr.open_group(store_path, path=parent_path, mode="r")
             content = zarr_group[name]
