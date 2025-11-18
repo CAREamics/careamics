@@ -105,7 +105,7 @@ def zarr_with_target_and_mask(tmp_path) -> str:
     arrays = np.arange(3 * 16 * 16).reshape((3, 16, 16))
     targets = np.arange(3 * 16 * 16).reshape((3, 16, 16))
     masks = np.ones((3, 16, 16), dtype=bool)
-    val = np.ones((8, 8))
+    val = np.ones((16, 16))
 
     # exclude central frame
     masks[1] = np.zeros((16, 16), dtype=bool)
