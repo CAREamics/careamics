@@ -1,3 +1,5 @@
+import os
+
 import pytest
 import zarr
 
@@ -90,6 +92,10 @@ def test_decipher_zarr_path(path, zarr_path, group_path, array_name):
     """Test that decipher_zarr_path correctly deciphers the zarr URI."""
 
     decoded_zarr_path, decoded_group_path, decoded_array_name = decipher_zarr_path(path)
+
+    # replace "/" by os.sep
+    zarr_path = zarr_path.replace("/", os.sep)
+    group_path = group_path.replace("/", os.sep)
 
     assert decoded_zarr_path == zarr_path
     assert decoded_group_path == group_path
