@@ -88,7 +88,7 @@ class UnetEncoder(nn.Module):
         Parameters
         ----------
         conv_dim : int
-            Number of dimension of the convolution layers, 2 for 2D or 3 for 3D.
+            Number of dimension of the convolution layers, 1 for 1D, 2 for 2D or 3 for 3D.
         in_channels : int, optional
             Number of input channels, by default 1.
         depth : int, optional

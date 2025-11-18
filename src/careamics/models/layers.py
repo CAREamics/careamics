@@ -318,8 +318,11 @@ def _get_pascal_kernel_nd(
     kernel = [
         get_pascal_kernel_1d(kd, device=device, dtype=dtype) for kd in kernel_dims
     ]
-
-    if dim == 2:
+    
+    # implement for 1d
+    if dim == 1:
+        kernel = kernel[0]
+    elif dim == 2:
         kernel = kernel[0][:, None] * kernel[1][None, :]
     elif dim == 3:
         kernel = (
@@ -330,6 +333,43 @@ def _get_pascal_kernel_nd(
     if norm:
         kernel = kernel / torch.sum(kernel)
     return kernel
+
+def _max_blur_pool_by_kernel1d(
+    x: torch.Tensor,
+    kernel: torch.Tensor,
+    stride: int,
+    max_pool_size: int,
+    ceil_mode: bool,
+) -> torch.Tensor:
+    """Compute max_blur_pool by a given :math:`CxC_(out, None)xNxN` kernel.
+
+    Inspired by Kornia implementation.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor.
+    kernel : torch.Tensor
+        Kernel tensor.
+    stride : int
+        Stride.
+    max_pool_size : int
+        Maximum pool size.
+    ceil_mode : bool
+        Ceil mode, by default False. Set to True to match output size of conv2d.
+
+    Returns
+    -------
+    torch.Tensor
+        Output tensor.
+    """
+    # compute local maxima
+    x = F.max_pool1d(
+        x, kernel_size=max_pool_size, padding=0, stride=1, ceil_mode=ceil_mode
+    )
+    # blur and downsample
+    padding = _compute_zero_padding((kernel.shape[-1],), dim=1)
+    return F.conv1d(x, kernel, padding=padding, stride=stride, groups=x.size(1))
 
 
 def _max_blur_pool_by_kernel2d(
@@ -411,7 +451,7 @@ def _max_blur_pool_by_kernel3d(
 
 
 class MaxBlurPool(nn.Module):
-    """Compute pools and blurs and downsample a given feature map.
+    """Compute pools, blurs and downsamples a given feature map.
 
     Inspired by Kornia MaxBlurPool implementation. Equivalent to
     ```nn.Sequential(nn.MaxPool2d(...), BlurPool2D(...))```
@@ -477,7 +517,17 @@ class MaxBlurPool(nn.Module):
         """
         kernel = self.kernel.to(dtype=x.dtype)
         num_channels = int(x.size(1))
-        if self.dim == 2:
+        if self.dim == 1:
+            return _max_blur_pool_by_kernel1d(
+                x,
+                kernel.repeat((num_channels, 1, 1)),
+                self.stride,
+                self.max_pool_size,
+                self.ceil_mode,
+            )
+            raise NotImplementedError("MaxBlurPool1D is not implemented yet.")
+
+        elif self.dim == 2:
             return _max_blur_pool_by_kernel2d(
                 x,
                 kernel.repeat((num_channels, 1, 1, 1)),
@@ -485,7 +535,7 @@ class MaxBlurPool(nn.Module):
                 self.max_pool_size,
                 self.ceil_mode,
             )
-        else:
+        elif self.dim == 3:
             return _max_blur_pool_by_kernel3d(
                 x,
                 kernel.repeat((num_channels, 1, 1, 1, 1)),
