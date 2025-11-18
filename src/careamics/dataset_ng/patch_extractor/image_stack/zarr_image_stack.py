@@ -17,17 +17,22 @@ class ZarrImageStack:
         if not isinstance(group, zarr.Group):
             raise TypeError(f"group must be a zarr.Group instance, got {type(group)}.")
 
-        array = group[data_path]
-        if not isinstance(array, zarr.Array):
+        self._group = group
+        self._store = str(group.store_path)
+        try:
+            self._array = group[data_path]
+        except KeyError as e:
+            raise ValueError(
+                f"Did not find array at '{data_path}' in store '{self._store}'."
+            ) from e
+
+        if not isinstance(self._array, zarr.Array):
             raise TypeError(
                 f"data at path '{data_path}' must be a zarr.Array instance, "
-                f"got {type(array)}."
+                f"got {type(self._array)}."
             )
 
-        self._group = group
-        self._array = array
-        self._store = str(group.store_path)
-        self._source = str(self._array.store_path)
+        self._source = self._array.store_path
 
         # TODO: validate axes
         #   - must contain XY
@@ -42,7 +47,7 @@ class ZarrImageStack:
     @property
     def source(self) -> str:
         # e.g. file://data/bsd68.zarr/train/
-        return self._source
+        return str(self._source)
 
     @property
     def chunk_size(self) -> Sequence[int]:
@@ -50,6 +55,15 @@ class ZarrImageStack:
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
+    ) -> NDArray:
+        return self.extract_channel_patch(sample_idx, None, coords, patch_size)
+
+    def extract_channel_patch(
+        self,
+        sample_idx: int,
+        channel_idx: int | None,  # `channel_idx = None` to select all channels,
+        coords: Sequence[int],
+        patch_size: Sequence[int],
     ) -> NDArray:
         # original axes assumed to be any subset of STCZYX (containing YX), in any order
         # arguments must be transformed to index data in original axes order
@@ -72,7 +86,11 @@ class ZarrImageStack:
             elif d == "T":
                 patch_slice.append(self._get_T_index(sample_idx))
             elif d == "C":
-                patch_slice.append(slice(None, None))
+                if channel_idx is None:
+                    patch_slice.append(slice(None, None))
+                else:
+                    # use slice here so that channel dimension is kept
+                    patch_slice.append(slice(channel_idx, channel_idx + 1))
             elif d == "Z":
                 patch_slice.append(slice(coords[0], coords[0] + patch_size[0]))
             elif d == "Y":
