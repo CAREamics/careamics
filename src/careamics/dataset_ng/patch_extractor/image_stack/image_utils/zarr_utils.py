@@ -243,7 +243,7 @@ def create_zarr_image_stacks(
             # decipher the uri and open the group
             store_path, parent_path, name = decipher_zarr_path(data_str)
 
-            zarr_group = zarr.open(store_path, mode="r")[parent_path]
+            zarr_group = zarr.open_group(store_path, path=parent_path, mode="r")
             content = zarr_group[name]
 
             # assert if group or array
