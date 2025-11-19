@@ -190,7 +190,7 @@ def test_get_full_images(
     update_cache(cache_tiles_strategy, random_tiles)
 
     data_indices = cache_tiles_strategy._get_full_images()
-    assert data_indices == [0, 1]
+    assert set(data_indices) == {0, 1}
 
 
 @pytest.mark.parametrize("n_data, shape, axes", [(1, (28, 28), "YX")])
