@@ -1,10 +1,7 @@
 """Module containing different strategies for writing predictions."""
 
-from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Protocol
-
-from pytorch_lightning import LightningModule, Trainer
 
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.file_io import WriteFunc
@@ -21,36 +18,18 @@ class WriteStrategy(Protocol):
 
     def write_batch(
         self,
-        trainer: Trainer,
-        pl_module: LightningModule,
-        prediction: list[ImageRegionData],
-        batch_indices: Sequence[int] | None,
-        batch: ImageRegionData,
-        batch_idx: int,
-        dataloader_idx: int,
         dirpath: Path,
+        predictions: list[ImageRegionData],
     ) -> None:
         """
         WriteStrategy subclasses must contain this function to write a batch.
 
         Parameters
         ----------
-        trainer : Trainer
-            PyTorch Lightning Trainer.
-        pl_module : LightningModule
-            PyTorch Lightning LightningModule.
-        prediction : list[ImageRegionData]
-            Decollated Predictions on `batch`.
-        batch_indices : sequence of int
-            Indices identifying the samples in the batch.
-        batch : ImageRegionData
-            Collated input batch.
-        batch_idx : int
-            Batch index.
-        dataloader_idx : int
-            Dataloader index.
         dirpath : Path
             Path to directory to save predictions to.
+        predictions : list[ImageRegionData]
+            Decollated predictions.
         """
 
 
@@ -118,46 +97,28 @@ class CacheTiles(WriteStrategy):
 
     def write_batch(
         self,
-        trainer: Trainer,
-        pl_module: LightningModule,
-        prediction: list[ImageRegionData],
-        batch_indices: Sequence[int] | None,
-        batch: ImageRegionData,
-        batch_idx: int,
-        dataloader_idx: int,
         dirpath: Path,
+        predictions: list[ImageRegionData],
     ) -> None:
         """
-        Cache tiles until the last tile is predicted; save the stitched prediction.
+        Cache tiles until the last tile is predicted, then save the stitched image.
 
         Parameters
         ----------
-        trainer : Trainer
-            PyTorch Lightning Trainer.
-        pl_module : LightningModule
-            PyTorch Lightning LightningModule.
-        prediction : list[ImageRegionData]
-            Decollated Predictions on `batch`.
-        batch_indices : sequence of int
-            Indices identifying the samples in the batch.
-        batch : ImageRegionData
-            Input batch.
-        batch_idx : int
-            Batch index.
-        dataloader_idx : int
-            Dataloader index.
         dirpath : Path
             Path to directory to save predictions to.
+        predictions : list[ImageRegionData]
+            Decollated predictions.
         """
-        assert prediction is not None
+        assert predictions is not None
 
         # cache tiles
-        self.tile_cache.extend(prediction)
+        self.tile_cache.extend(predictions)
         self.data_indices.extend(
-            [image_region.region_spec["data_idx"] for image_region in prediction]
+            [image_region.region_spec["data_idx"] for image_region in predictions]
         )
         self.last_tile.extend(
-            [image_region.region_spec["last_tile"] for image_region in prediction]
+            [image_region.region_spec["last_tile"] for image_region in predictions]
         )
 
         # save stitched prediction
@@ -318,41 +279,23 @@ class WriteImage(WriteStrategy):
 
     def write_batch(
         self,
-        trainer: Trainer,
-        pl_module: LightningModule,
-        prediction: list[ImageRegionData],
-        batch_indices: Sequence[int] | None,
-        batch: ImageRegionData,
-        batch_idx: int,
-        dataloader_idx: int,
         dirpath: Path,
+        predictions: list[ImageRegionData],
     ) -> None:
         """
         Save full images.
 
         Parameters
         ----------
-        trainer : Trainer
-            PyTorch Lightning Trainer.
-        pl_module : LightningModule
-            PyTorch Lightning LightningModule.
-        prediction : list[ImageRegionData]
-            Decollated predictions on `batch`.
-        batch_indices : sequence of int
-            Indices identifying the samples in the batch.
-        batch : list[ImageRegionData]
-            Input batch.
-        batch_idx : int
-            Batch index.
-        dataloader_idx : int
-            Dataloader index.
         dirpath : Path
             Path to directory to save predictions to.
+        predictions : list[ImageRegionData]
+            Decollated predictions.
         """
-        assert prediction is not None
-        predictions, sources = combine_samples(prediction)
+        assert predictions is not None
+        image_lst, sources = combine_samples(predictions)
 
-        for i, image in enumerate(predictions):
+        for i, image in enumerate(image_lst):
             file_path = create_write_file_path(
                 dirpath=dirpath,
                 file_path=Path(sources[i]),

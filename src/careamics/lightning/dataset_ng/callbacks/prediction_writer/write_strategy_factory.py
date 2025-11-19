@@ -5,8 +5,8 @@ from typing import Any
 from careamics.config.support import SupportedData
 from careamics.file_io import SupportedWriteType, WriteFunc, get_write_func
 
-from .tiled_zarr_strategy import WriteTilesZarr
 from .write_strategy import CacheTiles, WriteImage, WriteStrategy
+from .write_tiles_zarr_strategy import WriteTilesZarr
 
 
 def create_write_strategy(

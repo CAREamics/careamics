@@ -209,14 +209,8 @@ class PredictionWriterCallback(BasePredictionWriter):
             predictions = decollate_image_region_data(prediction)
 
             self.write_strategy.write_batch(
-                trainer=trainer,
-                pl_module=pl_module,
-                prediction=predictions,
-                batch_indices=batch_indices,
-                batch=batch,
-                batch_idx=batch_idx,
-                dataloader_idx=dataloader_idx,
                 dirpath=self.dirpath,
+                predictions=predictions,
             )
         else:
             raise RuntimeError(

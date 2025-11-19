@@ -124,14 +124,8 @@ def test_write_batch_no_last_tile(
     next_batch = tiles[n_tiles : n_tiles + batch_size]
 
     cache_tiles_strategy.write_batch(
-        trainer=None,
-        pl_module=None,
-        prediction=next_batch,
-        batch_indices=1,
-        batch=next_batch,  # does not contain the last tile
-        batch_idx=3,
-        dataloader_idx=None,
         dirpath="predictions",
+        predictions=next_batch,
     )
 
     extended_tiles = tiles[: n_tiles + batch_size]
@@ -165,14 +159,8 @@ def test_write_batch_with_last_tile(
     next_batch = tiles[n_tiles : n_tiles + batch_size]
 
     cache_tiles_strategy.write_batch(
-        trainer=None,
-        pl_module=None,
-        prediction=next_batch,
-        batch_indices=1,
-        batch=next_batch,
-        batch_idx=3,
-        dataloader_idx=None,
         dirpath=tmp_path,
+        predictions=next_batch,
     )
 
     # check existence of written file

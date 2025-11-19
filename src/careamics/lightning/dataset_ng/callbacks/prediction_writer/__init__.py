@@ -18,10 +18,10 @@ from .prediction_writer_callback import (
     PredictionWriterCallback,
     decollate_image_region_data,
 )
-from .tiled_zarr_strategy import WriteTilesZarr
 from .write_strategy import CacheTiles, WriteImage, WriteStrategy
 from .write_strategy_factory import (
     create_write_strategy,
     select_write_extension,
     select_write_func,
 )
+from .write_tiles_zarr_strategy import WriteTilesZarr

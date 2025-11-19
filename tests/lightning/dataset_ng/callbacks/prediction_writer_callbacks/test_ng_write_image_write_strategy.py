@@ -84,14 +84,8 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
     # call write batch
     dirpath = Path("out_dir")
     write_image_strategy.write_batch(
-        trainer=None,
-        pl_module=None,
-        prediction=prediction,
-        batch_indices=0,
-        batch=prediction,
-        batch_idx=0,
-        dataloader_idx=None,
         dirpath=dirpath,
+        predictions=prediction,
     )
 
     # check call and arguments

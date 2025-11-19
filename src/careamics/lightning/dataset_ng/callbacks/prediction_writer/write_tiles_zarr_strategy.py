@@ -1,11 +1,11 @@
 """Tile Zarr writing strategy."""
 
+import builtins
 from collections.abc import Sequence
 from pathlib import Path
 
 import zarr
 from numpy import float32
-from pytorch_lightning import LightningModule, Trainer
 
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
@@ -43,9 +43,9 @@ class WriteTilesZarr:
 
     def __init__(self) -> None:
         """Constructor."""
-        self.current_store = None
-        self.current_group = None
-        self.current_array = None
+        self.current_store: zarr.Group | None = None
+        self.current_group: zarr.Group | None = None
+        self.current_array: zarr.Array | None = None
 
     def _create_zarr(self, store: str | Path) -> None:
         """Create a new zarr storage.
@@ -58,16 +58,21 @@ class WriteTilesZarr:
         if not Path(store).exists():
             self.current_store = zarr.create_group(store)
         else:
-            self.current_store = zarr.open(store)
+            open_store = zarr.open(store)
+
+            if not isinstance(open_store, zarr.Group):
+                raise RuntimeError(f"Zarr store at {store} is not a group.")
+
+            self.current_store = open_store
 
         print(f"Store: {Path(store).absolute()}")
 
-    def _create_group(self, group_path: str | Path) -> None:
+    def _create_group(self, group_path: str) -> None:
         """Create a new group in an existing zarr storage.
 
         Parameters
         ----------
-        group_path : str | Path
+        group_path : str
             Path to the group within the zarr store.
 
         Raises
@@ -81,7 +86,11 @@ class WriteTilesZarr:
         if group_path not in self.current_store:
             self.current_group = self.current_store.create_group(group_path)
         else:
-            self.current_group = self.current_store[group_path]
+            current_group = self.current_store[group_path]
+            if not isinstance(current_group, zarr.Group):
+                raise RuntimeError(f"Zarr group at {group_path} is not a group.")
+
+            self.current_group = current_group
 
     def _create_array(
         self,
@@ -121,10 +130,13 @@ class WriteTilesZarr:
                 )
 
             self.current_array = self.current_group.create_array(
-                name=array_name, shape=shape, chunks=chunks, dtype=float32
+                name=array_name, shape=shape, chunks=tuple(chunks), dtype=float32
             )
         else:
-            self.current_array = self.current_group[array_name]
+            current_array = self.current_group[array_name]
+            if not isinstance(current_array, zarr.Array):
+                raise RuntimeError(f"Zarr array at {array_name} is not an array.")
+            self.current_array = current_array
 
     def write_tile(self, region: ImageRegionData) -> None:
         """Write cropped tile to zarr array.
@@ -157,14 +169,14 @@ class WriteTilesZarr:
         crop_size = tile_spec["crop_size"]
         stitch_coords = tile_spec["stitch_coords"]
 
-        crop_slices = (
+        crop_slices: tuple[builtins.ellipsis | slice, ...] = (
             ...,
             *[
                 slice(start, start + length)
                 for start, length in zip(crop_coords, crop_size, strict=True)
             ],
         )
-        stitch_slices = (
+        stitch_slices: tuple[builtins.ellipsis | slice, ...] = (
             ...,
             *[
                 slice(start, start + length)
@@ -179,36 +191,18 @@ class WriteTilesZarr:
 
     def write_batch(
         self,
-        trainer: Trainer,
-        pl_module: LightningModule,
-        prediction: list[ImageRegionData],
-        batch_indices: Sequence[int] | None,
-        batch: ImageRegionData,
-        batch_idx: int,
-        dataloader_idx: int,
         dirpath: Path,
+        predictions: list[ImageRegionData],
     ) -> None:
         """
         Write all tiles to a Zarr file.
 
         Parameters
         ----------
-        trainer : Trainer
-            PyTorch Lightning Trainer.
-        pl_module : LightningModule
-            PyTorch Lightning LightningModule.
-        prediction : list[ImageRegionData]
-            Decollated Predictions on `batch`.
-        batch_indices : sequence of int
-            Indices identifying the samples in the batch.
-        batch : ImageRegionData
-            Input batch.
-        batch_idx : int
-            Batch index.
-        dataloader_idx : int
-            Dataloader index.
         dirpath : Path
             Path to directory to save predictions to.
+        predictions : list[ImageRegionData]
+            Decollated predictions.
         """
-        for region in prediction:
+        for region in predictions:
             self.write_tile(region)
