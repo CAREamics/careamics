@@ -318,7 +318,7 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
     predicted_images = convert_prediction(predicted, tiled=True)
 
     # assert predicted file exists
-    z_out = zarr.open(tmp_path / "train_output.zarr")
+    z_out = zarr.open(dirpath / "train_output.zarr")
     array_output = z_out["data"]["single_image"]
 
     # save data has singleton channel axis

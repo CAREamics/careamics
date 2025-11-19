@@ -16,22 +16,24 @@ from careamics.dataset_ng.patching_strategies import TileSpecs
 OUTPUT_KEY = "_output"
 
 
-def _add_output_key(path: str | Path) -> Path:
+def _add_output_key(dirpath: Path, path: str | Path) -> Path:
     """Add `_output` to zarr name.
 
     Parameters
     ----------
+    dirpath : Path
+        Directory path to save the output zarr.
     path : str | Path
         Original zarr path.
 
     Returns
     -------
-    str
+    Path
         Zarr path with `output` key added.
     """
     p = Path(path)
     new_name = p.stem + OUTPUT_KEY + p.suffix
-    return p.with_name(new_name)
+    return dirpath / new_name
 
 
 class WriteTilesZarr:
@@ -138,16 +140,18 @@ class WriteTilesZarr:
                 raise RuntimeError(f"Zarr array at {array_name} is not an array.")
             self.current_array = current_array
 
-    def write_tile(self, region: ImageRegionData) -> None:
+    def write_tile(self, dirpath: Path, region: ImageRegionData) -> None:
         """Write cropped tile to zarr array.
 
         Parameters
         ----------
+        dirpath : Path
+            Path to directory to save predictions to.
         region : ImageRegionData
             Image region data containing tile information.
         """
         store_path, parent_path, array_name = decipher_zarr_uri(region.source)
-        output_store_path = _add_output_key(store_path)
+        output_store_path = _add_output_key(dirpath, store_path)
 
         if (
             self.current_group is None
@@ -205,4 +209,4 @@ class WriteTilesZarr:
             Decollated predictions.
         """
         for region in predictions:
-            self.write_tile(region)
+            self.write_tile(dirpath, region)

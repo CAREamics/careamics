@@ -97,7 +97,7 @@ def test_zarr_prediction_callback_identity(tmp_path):
     # use writer to write predictions
     writer = WriteTilesZarr()
     for region in gen_image_regions(patch_extractor, strategy):
-        writer.write_tile(region=region)
+        writer.write_tile(tmp_path, region)
 
     # check that the arrays have been writtent correctly to the first zarr
     assert (tmp_path / "source_output.zarr").exists()
