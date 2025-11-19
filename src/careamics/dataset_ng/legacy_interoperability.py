@@ -3,7 +3,6 @@ A module for utility functions that adapts the new dataset outputs to work with 
 code until it is updated.
 """
 
-import warnings
 from collections.abc import Sequence
 from typing import cast
 
@@ -11,13 +10,15 @@ import numpy as np
 from numpy.typing import NDArray
 
 from careamics.config.tile_information import TileInformation
+from careamics.utils.deprecation import deprecated
 
 from .dataset import ImageRegionData
 from .patching_strategies import TileSpecs
 
 
-@warnings.deprecated(
-    "Deprecated, use careamics.lightning.dataset_ng.prediction functions instead."
+@deprecated(
+    "use careamics.lightning.dataset_ng.prediction functions instead for stitching and"
+    " combining predictions."
 )
 def imageregions_to_tileinfos(
     image_regions: Sequence[ImageRegionData],
