@@ -4,7 +4,7 @@ import zarr
 from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
     collect_arrays,
     create_zarr_image_stacks,
-    decipher_zarr_path,
+    decipher_zarr_uri,
 )
 
 # TODO rename file and sort tests
@@ -69,7 +69,7 @@ def test_collect_arrays(request, zarr_source):
 def test_decipher_zarr_path(path, zarr_path, group_path, array_name):
     """Test that decipher_zarr_path correctly deciphers the zarr URI."""
 
-    decoded_zarr_path, decoded_group_path, decoded_array_name = decipher_zarr_path(path)
+    decoded_zarr_path, decoded_group_path, decoded_array_name = decipher_zarr_uri(path)
 
     assert decoded_zarr_path == zarr_path
     assert decoded_group_path == group_path

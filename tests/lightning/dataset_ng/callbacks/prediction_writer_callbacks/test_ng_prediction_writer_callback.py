@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import tifffile
+import zarr
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
@@ -228,6 +229,101 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
 
     # save data has singleton channel axis
     np.testing.assert_array_equal(save_data, predicted_images[0], verbose=True)
+
+
+@pytest.mark.mps_gh_fail
+def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
+
+    rng = np.random.default_rng(42)
+
+    # training data
+    train_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
+    val_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
+
+    # write train array to zarr
+    z = zarr.open(tmp_path / "train.zarr", mode="w")
+    group = z.create_group("data")
+    array = group.create_array(name="single_image", data=train_array, chunks=(16, 16))
+    path_to_array = array.store_path
+
+    cfg = Configuration(**minimum_n2v_configuration)
+
+    # create NGDataset configuration
+    dataset_cfg = _create_ng_data_configuration(
+        data_type="array",
+        axes=cfg.data_config.axes,
+        patch_size=cfg.data_config.patch_size,
+        batch_size=cfg.data_config.batch_size,
+        augmentations=cfg.data_config.transforms,
+        patch_overlaps=(4, 4),
+        train_dataloader_params=cfg.data_config.train_dataloader_params,
+        val_dataloader_params=cfg.data_config.val_dataloader_params,
+    )
+
+    # create lightning module
+    model = N2VModule(algorithm_config=cfg.algorithm_config)
+
+    # create data module
+    data = CareamicsDataModule(
+        data_config=dataset_cfg,
+        train_data=train_array,
+        val_data=val_array,
+    )
+
+    # create prediction writer callback params
+    dirpath = tmp_path / "predictions"
+    predict_writer = PredictionWriterCallback(dirpath=dirpath)
+
+    # create trainer
+    trainer = Trainer(
+        max_epochs=1,
+        default_root_dir=tmp_path,
+        callbacks=[
+            ModelCheckpoint(
+                dirpath=tmp_path / "checkpoints",
+                filename="test_lightning_api",
+            ),
+            predict_writer,
+        ],
+    )
+
+    # train
+    trainer.fit(model, datamodule=data)
+
+    # predict
+    predict_writer.set_writing_strategy(write_type="zarr", tiled=True)
+    means = data.train_dataset.input_stats.means
+    stds = data.train_dataset.input_stats.stds
+
+    pred_dataset_cfg = NGDataConfig(
+        data_type="zarr",
+        axes=cfg.data_config.axes,
+        batch_size=4,
+        patching={
+            "name": "tiled",
+            "patch_size": (8, 8),
+            "overlaps": (2, 2),
+        },
+        transforms=[],
+        image_means=means,
+        image_stds=stds,
+    )
+    predict_data = CareamicsDataModule(
+        data_config=pred_dataset_cfg,
+        pred_data=path_to_array,
+    )
+
+    # predict
+    predicted = trainer.predict(model, datamodule=predict_data)
+    predicted_images = convert_prediction(predicted, tiled=False)
+
+    # assert predicted file exists
+    assert (dirpath / "train_output.zarr").is_file()
+    z_out = zarr.open(dirpath / "train_output.zarr")
+    array_output = z_out["data"]["single_image"]
+
+    # save data has singleton channel axis
+    np.testing.assert_array_equal(array_output, predicted_images, verbose=True)
 
 
 def test_initialization(prediction_writer_callback, write_strategy, dirpath):

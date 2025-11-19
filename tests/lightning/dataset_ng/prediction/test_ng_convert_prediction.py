@@ -85,6 +85,7 @@ def test_decollate_image_region_data(n_batch) -> None:
                     "sample_idx": 0,
                     "coords": (0, i * 4),
                     "patch_size": (4, 4),
+                    "last_tile": False,
                 },
                 chunks=(1, 1, 8, 8),
             )

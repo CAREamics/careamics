@@ -9,7 +9,7 @@ from pytorch_lightning import LightningModule, Trainer
 
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
-    decipher_zarr_path,
+    decipher_zarr_uri,
 )
 from careamics.dataset_ng.patching_strategies import TileSpecs
 
@@ -112,8 +112,14 @@ class WriteTilesZarr:
 
             shape = [i for i in shape if i != 1]
 
-            # TODO can't use original type here as prediction might differ
-            # is float32 alright?
+            if chunks == (1,):  # guard against the ImageRegionData default
+                raise ValueError("Chunks cannot be (1,).")
+
+            if len(shape) != len(chunks):
+                raise ValueError(
+                    f"Shape {shape} and chunks {chunks} have different lengths."
+                )
+
             self.current_array = self.current_group.create_array(
                 name=array_name, shape=shape, chunks=chunks, dtype=float32
             )
@@ -128,7 +134,7 @@ class WriteTilesZarr:
         region : ImageRegionData
             Image region data containing tile information.
         """
-        store_path, parent_path, array_name = decipher_zarr_path(region.source)
+        store_path, parent_path, array_name = decipher_zarr_uri(region.source)
         output_store_path = _add_output_key(store_path)
 
         if (

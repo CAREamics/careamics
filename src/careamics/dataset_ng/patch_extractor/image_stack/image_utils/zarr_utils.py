@@ -70,7 +70,7 @@ def _collect_arrays_recursive(
             _collect_arrays_recursive(zarr_group[name], current_path, arrays)
 
 
-def decipher_zarr_path(source: str) -> tuple[str, str, str]:
+def decipher_zarr_uri(source: str) -> tuple[str, str, str]:
     """Extract the zarr store path, group path and array path from a zarr source string.
 
     The input string is expected to be in the format:
@@ -258,7 +258,7 @@ def create_zarr_image_stacks(
 
         elif is_file_uri(data_str):
             # decipher the uri and open the group
-            store_path, group_path, array_name = decipher_zarr_path(data_str)
+            store_path, group_path, array_name = decipher_zarr_uri(data_str)
 
             zarr_group = zarr.open(store_path, mode="r")[group_path]
 
