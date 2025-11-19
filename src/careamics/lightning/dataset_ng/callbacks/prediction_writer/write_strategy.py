@@ -1,5 +1,6 @@
 """Module containing different strategies for writing predictions."""
 
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -91,9 +92,7 @@ class CacheTiles(WriteStrategy):
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
 
         # where tiles will be cached until a whole image has been predicted
-        self.tile_cache: list[ImageRegionData] = []
-        self.data_indices: list[int] = []
-        self.last_tile: list[bool] = []
+        self.tile_cache: dict[int, list[ImageRegionData]] = defaultdict(list)
 
     def write_batch(
         self,
@@ -113,121 +112,76 @@ class CacheTiles(WriteStrategy):
         assert predictions is not None
 
         # cache tiles
-        self.tile_cache.extend(predictions)
-        self.data_indices.extend(
-            [image_region.region_spec["data_idx"] for image_region in predictions]
-        )
-        self.last_tile.extend(
-            [image_region.region_spec["last_tile"] for image_region in predictions]
-        )
+        for tile in predictions:
+            data_idx = tile.region_spec["data_idx"]
+            self.tile_cache[data_idx].append(tile)
 
-        # save stitched prediction
-        if self._has_last_tile():
+        self._write_images(dirpath)
 
-            # get ImageRegionData tiles and remove them from the cache
-            tiles = self._extract_image_tiles()
-
-            # stitch prediction
-            prediction_image = stitch_single_prediction(tiles)
-
-            # write prediction
-            source: Path = Path(tiles[0].source)
-            file_path = create_write_file_path(
-                dirpath=dirpath,
-                file_path=source,
-                write_extension=self.write_extension,
-            )
-            self.write_func(
-                file_path=file_path, img=prediction_image, **self.write_func_kwargs
-            )
-
-    def _has_last_tile(self) -> bool:
+    def _get_full_images(self) -> list[int]:
         """
-        Whether a last tile is contained in the cached tiles.
-
-        Returns
-        -------
-        bool
-            Whether a last tile is contained in the cached tiles.
-        """
-        return any(self.last_tile)
-
-    def _find_last_tile_index(self) -> int | None:
-        """
-        Find the index of the last tile in the cache.
-
-        Returns
-        -------
-        int | None
-            Index of the last tile in the cache, or None if not found.
-        """
-        return next(
-            (idx for idx, is_last in enumerate(self.last_tile) if is_last), None
-        )
-
-    def _find_image_tile_indices(self, data_idx: int) -> list[int]:
-        """
-        Find all tile indices in the cache with the given data index.
-
-        Parameters
-        ----------
-        data_idx : int
-            Data index to search for.
+        Get data indices of full images contained in the cache.
 
         Returns
         -------
         list of int
-            List of tile indices in the cache with the given data index.
+            Data indices of full images contained in the cache.
         """
-        return [i for i, d_idx in enumerate(self.data_indices) if d_idx == data_idx]
+        full_images = []
+        for data_idx in self.tile_cache.keys():
+            exp_n_tiles = self.tile_cache[data_idx][0].region_spec["tot_tiles"]
 
-    def _pop_cache(self, indices: list[int]) -> list[ImageRegionData]:
+            if len(self.tile_cache[data_idx]) == exp_n_tiles:
+                full_images.append(data_idx)
+            elif len(self.tile_cache[data_idx]) > exp_n_tiles:
+                raise ValueError(
+                    f"More tiles cached for data_idx {data_idx} than expected. "
+                    f"Expected {exp_n_tiles}, found "
+                    f"{len(self.tile_cache[data_idx])}."
+                )
+
+        return full_images
+
+    def _stitch_and_write_single(
+        self, dirpath: Path, tiles: list[ImageRegionData]
+    ) -> None:
         """
-        Pop tiles from the cache at the given indices.
+        Stitch and write a single image from tiles.
 
         Parameters
         ----------
-        indices : list of int
-            Indices of tiles to pop from the cache.
-
-        Returns
-        -------
-        list of ImageRegionData
-            Popped tiles.
+        dirpath : Path
+            Path to directory to save predictions to.
+        tiles : list[ImageRegionData]
+            Tiles to stitch and write.
         """
-        tiles = [self.tile_cache.pop(i) for i in sorted(indices, reverse=True)]
-        _ = [self.data_indices.pop(i) for i in sorted(indices, reverse=True)]
-        _ = [self.last_tile.pop(i) for i in sorted(indices, reverse=True)]
+        # stitch prediction
+        prediction_image = stitch_single_prediction(tiles)
 
-        # TODO necessary? it makes testing easier
-        # reverse to original order
-        tiles.reverse()
+        # write prediction
+        source: Path = Path(tiles[0].source)
+        file_path = create_write_file_path(
+            dirpath=dirpath,
+            file_path=source,
+            write_extension=self.write_extension,
+        )
+        self.write_func(
+            file_path=file_path, img=prediction_image, **self.write_func_kwargs
+        )
 
-        return tiles
-
-    def _extract_image_tiles(self) -> list[ImageRegionData]:
+    def _write_images(self, dirpath: Path) -> None:
         """
-        Get the tiles corresponding to a single image.
+        Write full images from cached tiles.
 
-        Returns
-        -------
-        list of ImageRegionData
-            Tiles corresponding to a single image.
+        Parameters
+        ----------
+        dirpath : Path
+            Path to directory to save predictions to.
         """
-        # find last tile index
-        idx_last_tile = self._find_last_tile_index()
-
-        if idx_last_tile is None:
-            raise ValueError("No last tile found in the cache.")
-
-        # find all tiles with same data_idx as the last tile
-        data_idx = self.data_indices[idx_last_tile]
-        same_data_indices = self._find_image_tile_indices(data_idx)
-
-        # pop tiles and indices from cache
-        tiles = self._pop_cache(same_data_indices)
-
-        return tiles
+        full_images = self._get_full_images()
+        for data_idx in full_images:
+            tiles = self.tile_cache.pop(data_idx)
+            self._stitch_and_write_single(dirpath, tiles)
 
 
 class WriteImage(WriteStrategy):

@@ -54,14 +54,14 @@ class TileSpecs(PatchSpecs):
     stitch_coords: sequence of int
         Where the tile will be stitched back into an image, taking into account
         that the tile will be cropped, in coords relative to the image.
-    last_tile: bool
-        Whether this tile is the last tile of the corresponding image region.
+    tot_tiles: bool
+        Number of tiles belonging to the same data.
     """
 
     crop_coords: Sequence[int]
     crop_size: Sequence[int]
     stitch_coords: Sequence[int]
-    last_tile: bool
+    tot_tiles: int
 
 
 class PatchingStrategy(Protocol):

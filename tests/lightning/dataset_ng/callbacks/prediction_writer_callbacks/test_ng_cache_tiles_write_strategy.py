@@ -1,5 +1,6 @@
 """Test `CacheTiles` class."""
 
+import random
 from pathlib import Path
 
 import numpy as np
@@ -101,13 +102,12 @@ def cache_tiles_strategy() -> CacheTiles:
 
 def update_cache(cache_strategy: CacheTiles, tiles: list[ImageRegionData]):
     """Helper function to patch the tile cache."""
-    cache_strategy.tile_cache.extend(tiles)
-    cache_strategy.data_indices.extend([tile.region_spec["data_idx"] for tile in tiles])
-    cache_strategy.last_tile.extend([tile.region_spec["last_tile"] for tile in tiles])
+    for tile in tiles:
+        cache_strategy.tile_cache[tile.region_spec["data_idx"]].append(tile)
 
 
 @pytest.mark.parametrize("n_data, shape, axes", [(1, (32, 32), "YX")])
-def test_write_batch_no_last_tile(
+def test_write_batch_incomplete(
     tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles
 ):
     """
@@ -129,15 +129,7 @@ def test_write_batch_no_last_tile(
     )
 
     extended_tiles = tiles[: n_tiles + batch_size]
-    extended_data_indices = [tile.region_spec["data_idx"] for tile in extended_tiles]
-    extended_last_tiles = [tile.region_spec["last_tile"] for tile in extended_tiles]
-
-    assert all(
-        np.array_equal(extended_tiles[i].data, cache_tiles_strategy.tile_cache[i].data)
-        for i in range(n_tiles + batch_size)
-    )
-    assert extended_data_indices == cache_tiles_strategy.data_indices
-    assert extended_last_tiles == cache_tiles_strategy.last_tile
+    assert len(extended_tiles) == len(cache_tiles_strategy.tile_cache[0])
 
 
 # TODO mock as in previous versions of the test?
@@ -153,20 +145,23 @@ def test_write_batch_with_last_tile(
     n_tiles = len(tiles) // 2 - 1
     batch_size = 2
     update_cache(cache_tiles_strategy, tiles[:n_tiles])
-    assert not cache_tiles_strategy._has_last_tile()
+    assert len(cache_tiles_strategy._get_full_images()) == 0
 
     # create next batch
     next_batch = tiles[n_tiles : n_tiles + batch_size]
 
+    dirpath = tmp_path / "predictions"
+    dirpath.mkdir(parents=True, exist_ok=True)
+
     cache_tiles_strategy.write_batch(
-        dirpath=tmp_path,
+        dirpath=dirpath,
         predictions=next_batch,
     )
 
     # check existence of written file
     file_name = tiles[0].source
     expected_path = create_write_file_path(
-        dirpath=tmp_path,
+        dirpath=dirpath,
         file_path=Path(file_name),
         write_extension=cache_tiles_strategy.write_extension,
     )
@@ -174,112 +169,41 @@ def test_write_batch_with_last_tile(
 
     # check remaining tiles in cache
     remaining_tiles = tiles[len(tiles) // 2 : n_tiles + batch_size]
-    remaining_data_indices = [tile.region_spec["data_idx"] for tile in remaining_tiles]
-    remaining_last_tiles = [tile.region_spec["last_tile"] for tile in remaining_tiles]
 
-    for i, tile in enumerate(cache_tiles_strategy.tile_cache):
-        np.testing.assert_array_equal(tile.data, remaining_tiles[i].data)
-
-    assert remaining_data_indices == cache_tiles_strategy.data_indices
-    assert remaining_last_tiles == cache_tiles_strategy.last_tile
+    assert cache_tiles_strategy.tile_cache.keys() == {1}
+    for i in range(len(remaining_tiles)):
+        np.testing.assert_array_equal(
+            cache_tiles_strategy.tile_cache[1][i].data, remaining_tiles[i].data
+        )
 
 
-@pytest.mark.parametrize("n_data, shape, axes", [(2, (28, 28), "YX")])
-def test_last_tiles(tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles):
-    """Test `CacheTiles._has_last_tile` property."""
-    update_cache(cache_tiles_strategy, tiles[: len(tiles) // 2 + 1])
-
-    assert cache_tiles_strategy._has_last_tile()
-
-
-@pytest.mark.parametrize("n_data, shape, axes", [(2, (28, 28), "YX")])
-def test_last_tiles_false(
+@pytest.mark.parametrize("n_data, shape, axes", [(4, (28, 28), "YX")])
+def test_get_full_images(
     tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles
 ):
-    """Test `CacheTiles._has_last_tile` property."""
-    update_cache(cache_tiles_strategy, tiles[: len(tiles) // 2 - 1])
+    """Test `CacheTiles._get_full_images`."""
+    # randomize tiles order and add a few tiles from other images
+    random_tiles = [tiles[15], tiles[10]] + tiles[: len(tiles) // 2 + 1]
+    # randomize
+    random.shuffle(random_tiles)
 
-    assert not cache_tiles_strategy._has_last_tile()
+    update_cache(cache_tiles_strategy, random_tiles)
+
+    data_indices = cache_tiles_strategy._get_full_images()
+    assert data_indices == [0, 1]
 
 
-@pytest.mark.parametrize("n_data, shape, axes", [(2, (28, 28), "YX")])
-def test_find_last_tile_index(
+@pytest.mark.parametrize("n_data, shape, axes", [(1, (28, 28), "YX")])
+def test_get_full_images_too_many(
     tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles
 ):
-    """Test `CacheTiles.__find_last_tile_index`."""
-    # There is two last tile, find the first one
-    update_cache(cache_tiles_strategy, tiles)
+    """Test `CacheTiles._get_full_images` raises error when too many tiles of a data_idx
+    are cached."""
+    # add all tiles plus one extra
+    extra_tile = tiles[1]
+    tiles_with_extra = tiles + [extra_tile]
 
-    index = cache_tiles_strategy._find_last_tile_index()
-    assert index == len(tiles) // 2 - 1
-
-
-@pytest.mark.parametrize("n_data, shape, axes", [(2, (28, 28), "YX")])
-def test_find_image_tile_indices(
-    tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles
-):
-    """Test `CacheTiles._find_image_tile_indices`."""
-    # There is two last tile, find the first one
-    update_cache(cache_tiles_strategy, tiles)
-
-    data_idx = tiles[0].region_spec["data_idx"]
-    indices = cache_tiles_strategy._find_image_tile_indices(data_idx)
-    assert indices == list(range(len(tiles) // 2))
-
-    data_idx = tiles[-1].region_spec["data_idx"]
-    indices = cache_tiles_strategy._find_image_tile_indices(data_idx)
-    assert indices == list(range(len(tiles) // 2, len(tiles)))
-
-
-@pytest.mark.parametrize("n_data, shape, axes", [(2, (28, 28), "YX")])
-def test_pop_cache(tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles):
-    """Test `CacheTiles._find_image_tile_indices`."""
-    # There is two last tile, find the first one
-    update_cache(cache_tiles_strategy, tiles)
-
-    data_idx = tiles[0].region_spec["data_idx"]
-    indices = cache_tiles_strategy._find_image_tile_indices(data_idx)
-    popped_tiles = cache_tiles_strategy._pop_cache(indices)
-
-    for i in range(len(popped_tiles)):
-        np.testing.assert_array_equal(popped_tiles[i].data, tiles[i].data)
-
-    assert len(cache_tiles_strategy.tile_cache) == len(tiles) // 2
-    assert len(cache_tiles_strategy.data_indices) == len(tiles) // 2
-    assert len(cache_tiles_strategy.last_tile) == len(tiles) // 2
-    for i, tile in enumerate(cache_tiles_strategy.tile_cache):
-        j = len(tiles) // 2 + i
-        np.testing.assert_array_equal(tile.data, tiles[j].data)
-
-
-@pytest.mark.parametrize("n_data, shape, axes", [(2, (28, 28), "YX")])
-def test_extract_image_tiles_error(
-    tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles
-):
-    """Test `CacheTiles._extract_image_tiles` raises an error when there is no last
-    tile."""
-    update_cache(cache_tiles_strategy, tiles[: len(tiles) // 2 - 1])
+    update_cache(cache_tiles_strategy, tiles_with_extra)
 
     with pytest.raises(ValueError):
-        cache_tiles_strategy._extract_image_tiles()
-
-
-@pytest.mark.parametrize("n_data, shape, axes", [(2, (28, 28), "YX")])
-def test_extract_image_tiles(
-    tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles
-):
-    """Test `CacheTiles._extract_image_tiles` returns the tiles of a single image."""
-    # include first tile from next sample
-    update_cache(cache_tiles_strategy, tiles[: len(tiles) // 2 + 1])
-
-    image_tiles = cache_tiles_strategy._extract_image_tiles()
-
-    assert len(image_tiles) == len(tiles) // 2
-
-    for i in range(len(image_tiles)):
-        np.testing.assert_array_equal(image_tiles[i].data, tiles[i].data)
-
-    assert len(cache_tiles_strategy.tile_cache) == 1
-    np.testing.assert_array_equal(
-        cache_tiles_strategy.tile_cache[0].data, tiles[len(tiles) // 2].data
-    )
+        _ = cache_tiles_strategy._get_full_images()
