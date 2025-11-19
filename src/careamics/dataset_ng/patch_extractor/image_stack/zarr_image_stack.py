@@ -1,12 +1,11 @@
 from collections.abc import Sequence
-from typing import Union
 
 import zarr
 from numpy.typing import DTypeLike, NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 
-from .utils import pad_patch, reshaped_array_shape
+from .image_utils.image_stack_utils import pad_patch, reshaped_array_shape
 
 
 class ZarrImageStack:
@@ -26,6 +25,12 @@ class ZarrImageStack:
             raise ValueError(
                 f"Did not find array at '{data_path}' in store '{self._store}'."
             ) from e
+
+        if not isinstance(self._array, zarr.Array):
+            raise TypeError(
+                f"data at path '{data_path}' must be a zarr.Array instance, "
+                f"got {type(self._array)}."
+            )
 
         self._source = self._array.store_path
 
@@ -78,7 +83,7 @@ class ZarrImageStack:
                     f"{self.data_shape[0]}"
                 )
 
-        patch_slice: list[Union[int, slice]] = []
+        patch_slice: list[int | slice] = []
         for d in self._original_axes:
             if d == "S":
                 patch_slice.append(self._get_S_index(sample_idx))
@@ -105,7 +110,7 @@ class ZarrImageStack:
             else:
                 raise ValueError(f"Unrecognised axis '{d}', axes should be in STCZYX.")
 
-        patch_data = self._array[tuple(patch_slice)]
+        patch_data: NDArray = self._array[tuple(patch_slice)]  # type: ignore
         patch_axes = self._original_axes.replace("S", "").replace("T", "")
         patch_data = reshape_array(patch_data, patch_axes)[0]  # remove first sample dim
         patch = pad_patch(coords, patch_size, self.data_shape, patch_data)

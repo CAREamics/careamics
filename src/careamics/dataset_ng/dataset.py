@@ -284,7 +284,13 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             if should_filter and self.coord_filter is not None:
                 if self.coord_filter.filter_out(patch_spec):
                     patch_filter_patience -= 1
-                    continue
+
+                    # TODO should we raise an error rather than silently accept patches?
+                    # if patience runs out without ever finding coordinates
+                    # then we need to guard against an exist before defining
+                    # input_patch and target_patch
+                    if patch_filter_patience != 0:
+                        continue
 
             input_patch, target_patch = self._extract_patches(patch_spec)
 

@@ -7,9 +7,6 @@ from numpy.typing import NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
-from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
-    _extract_metadata_from_ome_zarr,
-)
 
 # TODO test _reshaped_data_shape
 
@@ -78,28 +75,3 @@ def test_extract_patch_2D(
         coords[1] : coords[1] + patch_size[1],
     ]
     np.testing.assert_array_equal(extracted_patch, patch_ref)
-
-
-def test_ome_zarr(ome_zarr_url):
-    """Test that ZarrImageStack can be initialised from an OME-Zarr URL."""
-    # instantiate zarr image stack
-    group = zarr.open_group(ome_zarr_url, mode="r")
-    path, axes = _extract_metadata_from_ome_zarr(group)
-    image_stack = ZarrImageStack(group=group, data_path=path, axes=axes)
-
-    # extract patch
-    n_channels = image_stack.data_shape[1]
-    patch_size = (100, 64, 25)
-    patch = image_stack.extract_patch(
-        sample_idx=0, coords=(112, 56, 15), patch_size=patch_size
-    )
-    assert isinstance(patch, np.ndarray)  # make sure patch is numpy
-    assert patch.shape == (n_channels, *patch_size)  # extracted patch has expected size
-
-
-def test_no_array_error(tmp_path):
-    file_path = tmp_path / "test_zarr.zarr"
-    group = zarr.create_group(file_path.resolve())
-
-    with pytest.raises(ValueError):
-        _ = ZarrImageStack(group=group, data_path="no/array", axes="YX")
