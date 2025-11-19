@@ -244,7 +244,7 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
     z = zarr.open(tmp_path / "train.zarr", mode="w")
     group = z.create_group("data")
     array = group.create_array(name="single_image", data=train_array, chunks=(16, 16))
-    path_to_array = array.store_path
+    path_to_array = str(array.store_path)
 
     cfg = Configuration(**minimum_n2v_configuration)
 
@@ -315,15 +315,16 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
 
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
-    predicted_images = convert_prediction(predicted, tiled=False)
+    predicted_images = convert_prediction(predicted, tiled=True)
 
     # assert predicted file exists
-    assert (dirpath / "train_output.zarr").is_file()
-    z_out = zarr.open(dirpath / "train_output.zarr")
+    z_out = zarr.open(tmp_path / "train_output.zarr")
     array_output = z_out["data"]["single_image"]
 
     # save data has singleton channel axis
-    np.testing.assert_array_equal(array_output, predicted_images, verbose=True)
+    np.testing.assert_array_equal(
+        array_output, predicted_images[0].squeeze(), verbose=True
+    )
 
 
 def test_initialization(prediction_writer_callback, write_strategy, dirpath):

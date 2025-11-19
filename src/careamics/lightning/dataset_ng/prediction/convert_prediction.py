@@ -155,5 +155,5 @@ def convert_prediction(
         predictions_output = stitch_prediction(decollated_predictions)
     else:
         predictions_output, _ = combine_samples(decollated_predictions)
-
+    # TODO squeeze single output?
     return predictions_output
