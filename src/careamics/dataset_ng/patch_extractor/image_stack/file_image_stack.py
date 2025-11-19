@@ -9,7 +9,7 @@ from numpy.typing import DTypeLike, NDArray
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.file_io.read import ReadFunc, read_tiff
 
-from .utils import pad_patch, reshaped_array_shape
+from .image_utils.image_stack_utils import pad_patch, reshaped_array_shape
 
 
 class FileImageStack:
