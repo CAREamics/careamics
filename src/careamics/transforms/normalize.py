@@ -211,6 +211,11 @@ class Denormalize:
         Mean value per channel.
     image_stds : list or tuple of float
         Standard deviation value per channel.
+    target_channel_indices : list of int, optional
+        Indices of channels that were used as targets during training. If provided,
+        denormalization will use statistics from these specific channels instead of
+        the first N channels. This is important for per-channel N2V models where
+        different channels may have different statistics.
 
     """
 
@@ -218,6 +223,7 @@ class Denormalize:
         self,
         image_means: list[float],
         image_stds: list[float],
+        target_channel_indices: list[int] | None = None,
     ):
         """Constructor.
 
@@ -227,9 +233,12 @@ class Denormalize:
             Mean value per channel.
         image_stds : list of float
             Standard deviation value per channel.
+        target_channel_indices : list of int, optional
+            Indices of channels that were used as targets during training.
         """
         self.image_means = image_means
         self.image_stds = image_stds
+        self.target_channel_indices = target_channel_indices
 
         self.eps = 1e-6
 
@@ -247,13 +256,25 @@ class Denormalize:
             Transformed array.
         """
         # Handle case where output has fewer channels than input (e.g., PE with N2V)
-        # Use only the first N channel stats to match output channels
         n_output_channels = patch.shape[1]
+
         if len(self.image_means) != n_output_channels:
             if len(self.image_means) > n_output_channels:
-                # More stats than output channels - use first N stats only
-                image_means = self.image_means[:n_output_channels]
-                image_stds = self.image_stds[:n_output_channels]
+                # More stats than output channels
+                # Use target_channel_indices if provided (for per-channel models)
+                if self.target_channel_indices is not None:
+                    # Use statistics for the specific channels that were trained
+                    if len(self.target_channel_indices) != n_output_channels:
+                        raise ValueError(
+                            f"Number of target_channel_indices ({len(self.target_channel_indices)}) "
+                            f"does not match number of output channels ({n_output_channels})"
+                        )
+                    image_means = [self.image_means[i] for i in self.target_channel_indices]
+                    image_stds = [self.image_stds[i] for i in self.target_channel_indices]
+                else:
+                    # Fallback to old behavior: use first N stats
+                    image_means = self.image_means[:n_output_channels]
+                    image_stds = self.image_stds[:n_output_channels]
             else:
                 # Fewer stats than output channels - this is an error
                 raise ValueError(

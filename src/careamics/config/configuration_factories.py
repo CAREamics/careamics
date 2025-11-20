@@ -1229,6 +1229,8 @@ def create_n2v_configuration(
     patching_strategy: Literal["sequential", "random"] = "sequential",
     patching_seed: int | None = None,
     num_patches_per_sample: int | None = None,
+    auxiliary_mask_percentage: float = 0.00,
+    auxiliary_dropout_probability: float = 0.0,
 ) -> Configuration:
     """
      Create a configuration for training Noise2Void.
@@ -1355,6 +1357,17 @@ def create_n2v_configuration(
          automatically calculated as ceil(total_pixels / patch_pixels). Setting higher
          extracts more patches with overlap (better diversity), lower extracts fewer
          (faster training). Only used when patching_strategy is 'random'.
+     auxiliary_mask_percentage : float, default=0.05
+         Percentage of pixels to mask in auxiliary (non-data) channels. Set to 0.0 to
+         disable masking of auxiliary channels (backward compatible). Lower values (e.g.,
+         0.05) prevent direct copying of noisy auxiliary channels while preserving spatial
+         information. Used in Formulation 2C for multi-channel denoising with auxiliary
+         information.
+     auxiliary_dropout_probability : float, default=0.0
+         Probability of completely dropping an auxiliary channel per training sample. Set
+         to 0.0 to disable (backward compatible). Typical values: 0.2-0.5. This regularizes
+         the model to not over-rely on noisy auxiliary channels. Combined with
+         auxiliary_mask_percentage, this implements Formulation 2C.
 
      Returns
      -------
@@ -1511,6 +1524,23 @@ def create_n2v_configuration(
      ...     patching_seed=42  # Optional: for reproducibility
      ... )
 
+     For multi-channel denoising with auxiliary channels (Formulation 2C), use asymmetric
+     masking and channel dropout to prevent noise contamination from auxiliary channels:
+     >>> config = create_n2v_configuration(
+     ...     experiment_name="n2v_formulation_2c",
+     ...     data_type="array",
+     ...     axes="YXC",
+     ...     patch_size=[128, 128],
+     ...     batch_size=32,
+     ...     num_epochs=100,
+     ...     n_channels=4,
+     ...     data_channel_indices=[0],  # Only mask channel 0
+     ...     independent_channels=False,
+     ...     auxiliary_mask_percentage=0.05,  # Light masking on auxiliary channels
+     ...     auxiliary_dropout_probability=0.3,  # 30% dropout per channel
+     ...     model_params={"num_classes": 1}  # Output single channel
+     ... )
+
      If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
      `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
      for 3-D data but spatial context along the Z dimension will then not be taken into
@@ -1598,6 +1628,8 @@ def create_n2v_configuration(
         struct_mask_span=struct_n2v_span,
         n_data_channels=n_data_channels,
         data_channel_indices=data_channel_indices,
+        auxiliary_mask_percentage=auxiliary_mask_percentage,
+        auxiliary_dropout_probability=auxiliary_dropout_probability,
     )
 
     # algorithm

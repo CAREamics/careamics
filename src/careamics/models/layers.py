@@ -525,8 +525,6 @@ class MaxBlurPool(nn.Module):
                 self.max_pool_size,
                 self.ceil_mode,
             )
-            raise NotImplementedError("MaxBlurPool1D is not implemented yet.")
-
         elif self.dim == 2:
             return _max_blur_pool_by_kernel2d(
                 x,
