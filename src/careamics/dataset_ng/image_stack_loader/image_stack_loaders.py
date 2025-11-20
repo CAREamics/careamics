@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import zarr
 from numpy.typing import NDArray
@@ -8,6 +8,7 @@ from numpy.typing import NDArray
 from careamics.file_io import ReadFunc
 
 from ..image_stack import (
+    CziImageStack,
     FileImageStack,
     InMemoryImageStack,
     ZarrImageStack,
@@ -212,4 +213,44 @@ def load_zarrs(
                 f"Source '{data_source}' is neither a zarr file nor a file URI."
             )
 
+    return image_stacks
+
+
+def load_czis(
+    source: Sequence[Path],
+    axes: str,
+) -> list[CziImageStack]:
+    """
+    Load CZI image stacks from a sequence of CZI files paths.
+
+    If the CZI files contain multiple scenes, one image stack will be created for
+    each scene.
+
+    Parameters
+    ----------
+    source: sequence of Path
+        The source files for the data.
+    axes: str
+        Specifies which axes of the data to use and how.
+        If this string ends with `"ZYX"` or `"TYX"`, the data will consist of 3-D
+        patches, using `Z` or `T` as third dimension, respectively.
+        If the string does not end with "ZYX", the data will consist of 2-D patches.
+
+    Returns
+    -------
+    list[CziImageStack]
+    """
+    depth_axis: Literal["none", "Z", "T"] = "none"
+    if axes.endswith("TYX"):
+        depth_axis = "T"
+    elif axes.endswith("ZYX"):
+        depth_axis = "Z"
+
+    image_stacks: list[CziImageStack] = []
+    for path in source:
+        scene_rectangles = CziImageStack.get_bounding_rectangles(path)
+        image_stacks.extend(
+            CziImageStack(path, scene=scene, depth_axis=depth_axis)
+            for scene in scene_rectangles.keys()
+        )
     return image_stacks
