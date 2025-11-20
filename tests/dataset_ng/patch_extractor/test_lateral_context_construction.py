@@ -5,8 +5,8 @@ import pytest
 from numpy.typing import NDArray
 from skimage.transform import resize
 
+from careamics.dataset_ng.image_stack import InMemoryImageStack
 from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patch_extractor.image_stack import InMemoryImageStack
 from careamics.dataset_ng.patch_extractor.patch_construction import (
     lateral_context_patch_constr,
 )

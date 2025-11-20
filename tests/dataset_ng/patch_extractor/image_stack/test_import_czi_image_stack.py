@@ -2,7 +2,7 @@ import importlib
 
 import pytest
 
-from careamics.dataset_ng.patch_extractor.image_stack import CziImageStack
+from careamics.dataset_ng.image_stack import CziImageStack
 
 
 def test_import_czi_image_stack_failure():

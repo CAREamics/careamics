@@ -6,7 +6,7 @@ import zarr
 from numpy.typing import NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
-from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
+from careamics.dataset_ng.image_stack import ZarrImageStack
 
 # TODO test _reshaped_data_shape
 

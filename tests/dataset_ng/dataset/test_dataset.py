@@ -10,11 +10,7 @@ from careamics.config.configuration_factories import (
 )
 from careamics.config.data import NGDataConfig
 from careamics.dataset_ng.dataset import Mode
-from careamics.dataset_ng.factory import (
-    create_array_dataset,
-    create_custom_file_dataset,
-    create_tiff_dataset,
-)
+from careamics.dataset_ng.factory import create_dataset
 
 
 @pytest.mark.parametrize(
@@ -46,11 +42,12 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         [example_target.std()],
     )
 
-    train_dataset = create_array_dataset(
+    train_dataset = create_dataset(
         config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[example_input],
         targets=[example_target],
+        in_memory=True,
     )
 
     assert len(train_dataset) == expected_dataset_len
@@ -96,11 +93,12 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
         [example_target.std()],
     )
 
-    train_dataset = create_tiff_dataset(
+    train_dataset = create_dataset(
         config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[input_file_path],
         targets=[target_file_path],
+        in_memory=True,
     )
 
     assert len(train_dataset) == expected_dataset_len
@@ -139,11 +137,12 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
         seed=42,
     )
 
-    prediction_dataset = create_array_dataset(
+    prediction_dataset = create_dataset(
         config=prediction_config,
         mode=Mode.PREDICTING,
         inputs=[example_data],
         targets=None,
+        in_memory=True,
     )
 
     assert len(prediction_dataset) > 0
@@ -185,11 +184,12 @@ def test_from_custom_data_type(patch_size, data_shape):
     def read_data_func_test(data):
         return 1 - data
 
-    train_dataset = create_custom_file_dataset(
+    train_dataset = create_dataset(
         config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[example_data],
         targets=[example_target],
+        in_memory=True,
         read_func=read_data_func_test,
         read_kwargs={},
     )
@@ -229,12 +229,13 @@ def test_array_coordinate_filtering():
         "coverage": 0.5,
     }
 
-    train_dataset = create_array_dataset(
+    train_dataset = create_dataset(
         config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[img],
         targets=None,
         masks=[mask],
+        in_memory=True,
     )
 
     # check that we only get patches with at least half of 255 pixels
@@ -271,11 +272,12 @@ def test_array_patch_filtering():
         "mean_threshold": threshold,
     }
 
-    train_dataset = create_array_dataset(
+    train_dataset = create_dataset(
         config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[img],
         targets=None,
+        in_memory=True,
     )
 
     # check that we only get the full 255 patch (in normalized units)
@@ -309,9 +311,10 @@ def test_error_data_smaller_than_patch():
     )
 
     with pytest.raises(ValueError):
-        _ = create_array_dataset(
+        _ = create_dataset(
             config=train_data_config,
             mode=Mode.TRAINING,
             inputs=[example_input],
             targets=[example_target],
+            in_memory=True,
         )
