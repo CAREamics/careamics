@@ -36,6 +36,7 @@ repos:
           - pydantic
           - types-PyYAML
           - types-setuptools
+          - zarr
 
   # check docstrings
   - repo: https://github.com/numpy/numpydoc
