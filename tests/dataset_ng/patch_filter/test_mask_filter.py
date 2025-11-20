@@ -1,8 +1,7 @@
 import numpy as np
-from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
-    create_array_extractor,
-)
 
+from careamics.dataset_ng.image_stack_loader import load_arrays
+from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_filter import MaskCoordFilter
 from careamics.dataset_ng.patching_strategies import PatchSpecs
 
@@ -15,8 +14,9 @@ def test_filter():
     mask = np.zeros((size, size))
     mask[size // 4 : -size // 4, size // 4 : -size // 4] = 1
 
+    image_stacks = load_arrays(source=[mask], axes="YX")
     mask_filter = MaskCoordFilter(
-        mask_extractor=create_array_extractor(source=[mask], axes="YX"),
+        mask_extractor=PatchExtractor(image_stacks),
         coverage=0.50,
     )
     assert mask_filter.filter_out(

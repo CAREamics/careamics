@@ -16,7 +16,7 @@ from careamics.config.support import SupportedData
 from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
-from careamics.dataset_ng.patch_extractor import ImageStackLoader
+from careamics.dataset_ng.image_stack_loader import ImageStackLoader
 from careamics.lightning.dataset_ng.data_module_utils import initialize_data_pair
 from careamics.utils import get_logger
 

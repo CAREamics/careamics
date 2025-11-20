@@ -2,7 +2,8 @@
 
 import numpy as np
 
-from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
+from careamics.dataset_ng.image_stack import GenericImageStack
+from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_filter.coordinate_filter_protocol import (
     CoordinateFilterProtocol,
 )

@@ -138,7 +138,9 @@ def select_image_stack_loader(
         case SupportedData.CUSTOM:
             if (read_func is not None) and (image_stack_loader is None):
                 read_kwargs = {} if read_kwargs is None else read_kwargs
-                return partial(load_custom_file, **read_kwargs)
+                return partial(
+                    load_custom_file, read_func=read_func, read_kwargs=read_kwargs
+                )
             elif (read_func is None) and (image_stack_loader is not None):
                 image_stack_loader_kwargs = (
                     {}
