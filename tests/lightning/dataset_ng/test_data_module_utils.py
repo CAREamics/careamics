@@ -3,10 +3,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 import zarr
-
 from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
     is_valid_uri,
 )
+
 from careamics.lightning.dataset_ng.data_module_utils import initialize_data_pair
 
 

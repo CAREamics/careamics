@@ -1,12 +1,12 @@
 # %%
 import numpy as np
-
 from careamics.dataset_ng.patch_extractor.image_stack import InMemoryImageStack
 
 # %%
 from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_array_extractor,
 )
+
 from careamics.dataset_ng.patching_strategies import RandomPatchingStrategy
 
 # %%

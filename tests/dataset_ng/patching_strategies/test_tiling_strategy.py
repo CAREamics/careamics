@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
-
-from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.legacy_interoperability import imageregions_to_tileinfos
 from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_array_extractor,
 )
+
+from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.dataset_ng.legacy_interoperability import imageregions_to_tileinfos
 from careamics.dataset_ng.patching_strategies import TilingStrategy
 from careamics.prediction_utils.stitch_prediction import stitch_prediction
 
