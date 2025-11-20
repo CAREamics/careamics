@@ -6,7 +6,7 @@ from typing import Any, Literal, Self, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
+from ..validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 
 class InferenceConfig(BaseModel):

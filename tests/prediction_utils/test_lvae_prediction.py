@@ -3,8 +3,8 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-from careamics.config.inference_model import InferenceConfig
-from careamics.config.tile_information import TileInformation
+from careamics.config.data.inference_model import InferenceConfig
+from careamics.config.data.tile_information import TileInformation
 from careamics.dataset import InMemoryTiledPredDataset
 from careamics.dataset.tiling.collate_tiles import collate_tiles
 from careamics.models.lvae.likelihoods import GaussianLikelihood

@@ -7,8 +7,8 @@ from torch import nn
 
 from careamics.config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEModel
-from careamics.config.likelihood_model import GaussianLikelihoodConfig
-from careamics.config.loss_model import LVAELossConfig
+from careamics.config.losses.loss_model import LVAELossConfig
+from careamics.config.noise_model.likelihood_model import GaussianLikelihoodConfig
 from careamics.models.model_factory import model_factory
 
 

@@ -7,8 +7,8 @@ import pytest
 import torch
 from pydantic import BaseModel, ConfigDict
 
-from careamics.config.likelihood_model import Tensor
-from careamics.config.nm_model import Array
+from careamics.config.noise_model.likelihood_model import Tensor
+from careamics.config.noise_model.noise_model_config import Array
 
 
 class MyArray(BaseModel):

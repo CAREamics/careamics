@@ -12,12 +12,15 @@ from torch.utils.data import DataLoader, Dataset
 
 from careamics.config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEModel
-from careamics.config.likelihood_model import (
+from careamics.config.losses.loss_model import LVAELossConfig
+from careamics.config.noise_model.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.loss_model import LVAELossConfig
-from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.noise_model.noise_model_config import (
+    GaussianMixtureNMConfig,
+    MultiChannelNMConfig,
+)
 from careamics.lightning import VAEModule
 from careamics.losses import (
     denoisplit_loss,

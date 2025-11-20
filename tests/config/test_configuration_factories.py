@@ -943,7 +943,7 @@ def test_n2v_configuration_trainer_params_none():
 
 def test_checkpoint_model_save_top_k_default():
     """CheckpointModel's default save_top_k=3 doesn't conflict with trainer params."""
-    from careamics.config.callback_model import CheckpointModel
+    from careamics.config.lightning.callbacks.callback_model import CheckpointModel
 
     # Test default save_top_k value
     checkpoint_model = CheckpointModel()
@@ -1018,7 +1018,7 @@ def test_checkpoint_model_save_top_k_edge_cases():
     """Test edge cases for save_top_k parameter."""
     import pytest
 
-    from careamics.config.callback_model import CheckpointModel
+    from careamics.config.lightning.callbacks.callback_model import CheckpointModel
 
     # Test that save_top_k accepts valid range (-1 to 100)
     checkpoint_model = CheckpointModel(save_top_k=-1)  # Save all

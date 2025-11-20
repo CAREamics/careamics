@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
+from careamics.config.lightning.optimizer_models import LrSchedulerModel, OptimizerModel
 from careamics.config.support.supported_optimizers import (
     SupportedOptimizer,
     SupportedScheduler,

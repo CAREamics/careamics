@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from careamics.config.likelihood_model import (
+from careamics.config.noise_model.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )

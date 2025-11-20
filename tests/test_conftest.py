@@ -3,8 +3,8 @@
 from careamics.config import Configuration
 from careamics.config.algorithms import UNetBasedAlgorithm
 from careamics.config.data import DataConfig
-from careamics.config.inference_model import InferenceConfig
-from careamics.config.training_model import TrainingConfig
+from careamics.config.data.inference_model import InferenceConfig
+from careamics.config.lightning.training_model import TrainingConfig
 
 
 def test_minimum_algorithm(minimum_algorithm_n2v):

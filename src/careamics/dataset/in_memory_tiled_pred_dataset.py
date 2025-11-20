@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from careamics.transforms import Compose
 
 from ..config import InferenceConfig
-from ..config.tile_information import TileInformation
+from ..config.data.tile_information import TileInformation
 from ..config.transformations import NormalizeModel
 from .dataset_utils import reshape_array
 from .tiling import extract_tiles

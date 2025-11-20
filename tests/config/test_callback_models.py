@@ -1,6 +1,9 @@
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
-from careamics.config.callback_model import CheckpointModel, EarlyStoppingModel
+from careamics.config.lightning.callbacks.callback_model import (
+    CheckpointModel,
+    EarlyStoppingModel,
+)
 
 
 def test_defaults_checkpoint():

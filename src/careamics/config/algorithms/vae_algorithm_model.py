@@ -8,13 +8,13 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from careamics.config.architectures import LVAEModel
-from careamics.config.likelihood_model import (
+from careamics.config.lightning.optimizer_models import LrSchedulerModel, OptimizerModel
+from careamics.config.losses.loss_model import LVAELossConfig
+from careamics.config.noise_model.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.loss_model import LVAELossConfig
-from careamics.config.nm_model import MultiChannelNMConfig
-from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
+from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.config.support import SupportedAlgorithm, SupportedLoss
 
 

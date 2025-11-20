@@ -5,11 +5,14 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.config.likelihood_model import (
+from careamics.config.noise_model.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.noise_model.noise_model_config import (
+    GaussianMixtureNMConfig,
+    MultiChannelNMConfig,
+)
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 

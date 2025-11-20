@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from careamics.config.architectures import UNetModel
-from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
+from careamics.config.lightning.optimizer_models import LrSchedulerModel, OptimizerModel
 
 
 class UNetBasedAlgorithm(BaseModel):

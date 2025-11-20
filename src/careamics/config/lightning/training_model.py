@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .callback_model import CheckpointModel, EarlyStoppingModel
+from .callbacks.callback_model import CheckpointModel, EarlyStoppingModel
 
 
 class TrainingConfig(BaseModel):

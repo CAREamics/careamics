@@ -14,11 +14,11 @@ from careamics.config import (
     LVAELossConfig,
     MultiChannelNMConfig,
 )
-from careamics.config.likelihood_model import (
+from careamics.config.losses.loss_model import KLLossConfig
+from careamics.config.noise_model.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.loss_model import KLLossConfig
 from careamics.losses.loss_factory import (
     SupportedLoss,
     loss_factory,

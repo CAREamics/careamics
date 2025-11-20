@@ -5,8 +5,8 @@ import pytest
 
 from careamics.config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEModel
-from careamics.config.loss_model import LVAELossConfig
-from careamics.config.nm_model import (
+from careamics.config.losses.loss_model import LVAELossConfig
+from careamics.config.noise_model.noise_model_config import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
 )

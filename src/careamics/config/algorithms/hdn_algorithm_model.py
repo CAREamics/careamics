@@ -7,7 +7,7 @@ from pydantic import ConfigDict
 
 from careamics.config.algorithms.vae_algorithm_model import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEModel
-from careamics.config.loss_model import LVAELossConfig
+from careamics.config.losses.loss_model import LVAELossConfig
 
 HDN = "Hierarchical DivNoising"
 

@@ -13,18 +13,21 @@ from careamics.config.algorithms import (
 )
 from careamics.config.architectures import LVAEModel, UNetModel
 from careamics.config.data import DataConfig, NGDataConfig
-from careamics.config.likelihood_model import (
+from careamics.config.lightning.training_model import TrainingConfig
+from careamics.config.losses.loss_model import LVAELossConfig
+from careamics.config.noise_model.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.loss_model import LVAELossConfig
-from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.noise_model.noise_model_config import (
+    GaussianMixtureNMConfig,
+    MultiChannelNMConfig,
+)
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
     SupportedTransform,
 )
-from careamics.config.training_model import TrainingConfig
 from careamics.config.transformations import (
     SPATIAL_TRANSFORMS_UNION,
     N2VManipulateModel,

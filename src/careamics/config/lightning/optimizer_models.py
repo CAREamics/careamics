@@ -16,7 +16,7 @@ from torch import optim
 
 from careamics.utils.torch_utils import filter_parameters
 
-from .support import SupportedOptimizer
+from ..support import SupportedOptimizer
 
 
 class OptimizerModel(BaseModel):
