@@ -1,11 +1,8 @@
 import warnings
-from collections.abc import Sequence
 from pathlib import Path
 from urllib.parse import urlparse
 
 import zarr
-
-from ..zarr_image_stack import ZarrImageStack
 
 INPUT = str | Path
 
@@ -117,7 +114,7 @@ def decipher_zarr_uri(source: str) -> tuple[str, str, str]:
 
 
 # TODO use yaozarrs models to validate OME-Zarr structure
-def _is_ome_zarr(zarr_group: zarr.Group) -> bool:
+def is_ome_zarr(zarr_group: zarr.Group) -> bool:
     """Check if a Zarr group is an OME-Zarr.
 
     Parameters
@@ -131,104 +128,3 @@ def _is_ome_zarr(zarr_group: zarr.Group) -> bool:
         True if the Zarr group is an OME-Zarr, False otherwise.
     """
     return False
-
-
-def create_zarr_image_stacks(
-    source: Sequence[str | Path],
-    axes: str,
-) -> list[ZarrImageStack]:
-    """Create a list of ZarrImageStack from a sequence of zarr file paths or URIs.
-
-    File paths must point to a zarr store (ending with .zarr) and URIs must be in the
-    format "file://path/to/zarr_store.zarr/group/path/array_name".
-
-    If the zarr file is an OME-Zarr, the specified multiscale level will be used. Note
-    that OME-Zarrs are only supported when providing a path to the zarr store, not when
-    using a file URI. One can, however, provide a file URI to the specific resolution
-    array within the OME-Zarr.
-
-    Parameters
-    ----------
-    source : sequence of str or Path
-        The source zarr file paths or URIs.
-    axes : str
-        The original axes of the data, must be a subset of "STCZYX".
-
-    Returns
-    -------
-    list of ZarrImageStack
-        A list of ZarrImageStack created from the sources.
-    """
-
-    image_stacks: list[ZarrImageStack] = []
-
-    for data_source in source:
-        data_str = str(data_source)
-
-        # either a path to a zarr file or a uri "file://path/to/zarr/array_path"
-        if data_str.endswith(".zarr"):
-            zarr_group = zarr.open_group(data_str, mode="r")
-
-            # test if ome-zarr (minimum assumption of multiscales)
-            if _is_ome_zarr(zarr_group):
-                # TODO placeholder for handling OME-Zarr
-                # - Need to potentially select multiscale level
-                # - Extract axes and compare with provided ones
-                raise NotImplementedError(
-                    "OME-Zarr support is not yet implemented when providing a "
-                    "path to the zarr store. Please provide a file URI to the "
-                    "specific array within the OME-Zarr."
-                )
-            else:
-                # collect all arrays
-                array_paths = collect_arrays(zarr_group)
-
-                # sort names
-                array_paths.sort()
-
-            # instantiate image stacks
-            for array_path in array_paths:
-                image_stacks.append(
-                    ZarrImageStack(group=zarr_group, data_path=array_path, axes=axes)
-                )
-
-        elif is_valid_uri(data_str):
-            # decipher the uri and open the group
-            store_path, parent_path, name = decipher_zarr_uri(data_str)
-
-            zarr_group = zarr.open_group(store_path, path=parent_path, mode="r")
-            content = zarr_group[name]
-
-            # assert if group or array
-            if isinstance(content, zarr.Group):
-                array_paths = collect_arrays(content)
-
-                # sort the names
-                array_paths.sort()
-
-                for array_path in array_paths:
-                    image_stacks.append(
-                        ZarrImageStack(group=content, data_path=array_path, axes=axes)
-                    )
-            else:
-                if not isinstance(content, zarr.Array):
-                    raise TypeError(
-                        f"Content at '{data_str}' is neither a zarr.Group nor "
-                        f"a zarr.Array."
-                    )
-
-                # create image stack from a single array
-                image_stacks.append(
-                    ZarrImageStack(
-                        group=zarr_group,
-                        data_path=name,
-                        axes=axes,
-                    )
-                )
-
-        else:
-            raise ValueError(
-                f"Source '{data_source}' is neither a zarr file nor a file URI."
-            )
-
-    return image_stacks
