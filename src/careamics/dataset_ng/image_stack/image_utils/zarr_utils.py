@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 
 import zarr
 
-from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
+from ..zarr_image_stack import ZarrImageStack
 
 INPUT = str | Path
 
