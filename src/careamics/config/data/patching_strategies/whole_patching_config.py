@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-class WholePatchingModel(BaseModel):
+class WholePatchingConfig(BaseModel):
     """Whole image patching Pydantic model."""
 
     name: Literal["whole"] = "whole"

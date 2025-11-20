@@ -2,10 +2,10 @@
 
 from typing import Literal
 
-from ._patched_model import _PatchedModel
+from ._patched_config import _PatchedConfig
 
 
-class RandomPatchingModel(_PatchedModel):
+class RandomPatchingConfig(_PatchedConfig):
     """Random patching Pydantic model.
 
     Attributes

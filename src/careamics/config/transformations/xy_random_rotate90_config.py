@@ -4,10 +4,10 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field
 
-from .transform_model import TransformModel
+from .transform_config import TransformConfig
 
 
-class XYRandomRotate90Model(TransformModel):
+class XYRandomRotate90Config(TransformConfig):
     """
     Pydantic model used to represent the XY random 90 degree rotation transformation.
 

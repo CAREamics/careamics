@@ -5,15 +5,15 @@ from typing import Annotated, Literal, Self
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import AfterValidator, ConfigDict, model_validator
 
-from careamics.config.architectures import UNetModel
+from careamics.config.architectures import UNetConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
-from careamics.config.transformations import N2VManipulateModel
+from careamics.config.transformations import N2VManipulateConfig
 from careamics.config.validators import (
     model_matching_in_out_channels,
     model_without_final_activation,
 )
 
-from .unet_algorithm_model import UNetBasedAlgorithm
+from .unet_algorithm_config import UNetBasedAlgorithm
 
 N2V = "Noise2Void"
 N2V2 = "N2V2"
@@ -97,10 +97,10 @@ class N2VAlgorithm(UNetBasedAlgorithm):
     loss: Literal["n2v"] = "n2v"
     """N2V loss function."""
 
-    n2v_config: N2VManipulateModel = N2VManipulateModel()
+    n2v_config: N2VManipulateConfig = N2VManipulateConfig()
 
     model: Annotated[
-        UNetModel,
+        UNetConfig,
         AfterValidator(model_matching_in_out_channels),
         AfterValidator(model_without_final_activation),
     ]

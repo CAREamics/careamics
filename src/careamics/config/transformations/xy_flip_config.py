@@ -4,10 +4,10 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field
 
-from .transform_model import TransformModel
+from .transform_config import TransformConfig
 
 
-class XYFlipModel(TransformModel):
+class XYFlipConfig(TransformConfig):
     """
     Pydantic model used to represent XYFlip transformation.
 

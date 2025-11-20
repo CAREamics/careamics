@@ -1,55 +1,48 @@
-"""CARE algorithm configuration."""
+"""N2N Algorithm configuration."""
 
 from typing import Annotated, Literal
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import AfterValidator
 
-from careamics.config.architectures import UNetModel
+from careamics.config.architectures import UNetConfig
 from careamics.config.validators import (
     model_without_final_activation,
     model_without_n2v2,
 )
 
-from .unet_algorithm_model import UNetBasedAlgorithm
+from .unet_algorithm_config import UNetBasedAlgorithm
 
-CARE = "CARE"
+N2N = "Noise2Noise"
 
-CARE_DESCRIPTION = (
-    "Content-aware image restoration (CARE) is a deep-learning-based "
-    "algorithm that uses a U-Net architecture to restore images. CARE "
-    "is a supervised algorithm that requires pairs of noisy and "
-    "clean images to train the network. The algorithm learns to "
-    "predict the clean image from the noisy image. CARE is "
-    "particularly useful for denoising images acquired in low-light "
-    "conditions, such as fluorescence microscopy images."
-)
-CARE_REF = CiteEntry(
-    text='Weigert, Martin, et al. "Content-aware image restoration: pushing the '
-    'limits of fluorescence microscopy." Nature methods 15.12 (2018): 1090-1097.',
-    doi="10.1038/s41592-018-0216-7",
+N2N_DESCRIPTION = (
+    "Noise2Noise is a deep-learning-based algorithm that uses a U-Net "
+    "architecture to restore images. Noise2Noise is a self-supervised "
+    "algorithm that requires only noisy images to train the network. "
+    "The algorithm learns to predict the clean image from the noisy "
+    "image. Noise2Noise is particularly useful when clean images are "
+    "not available for training."
 )
 
+N2N_REF = CiteEntry(
+    text="Lehtinen, J., Munkberg, J., Hasselgren, J., Laine, S., Karras, T., "
+    'Aittala, M. and Aila, T., 2018. "Noise2Noise: Learning image restoration '
+    'without clean data". arXiv preprint arXiv:1803.04189.',
+    doi="10.48550/arXiv.1803.04189",
+)
 
-class CAREAlgorithm(UNetBasedAlgorithm):
-    """CARE algorithm configuration.
 
-    Attributes
-    ----------
-    algorithm : "care"
-        CARE Algorithm name.
-    loss : {"mae", "mse"}
-        CARE-compatible loss function.
-    """
+class N2NAlgorithm(UNetBasedAlgorithm):
+    """Noise2Noise Algorithm configuration."""
 
-    algorithm: Literal["care"] = "care"
-    """CARE Algorithm name."""
+    algorithm: Literal["n2n"] = "n2n"
+    """N2N Algorithm name."""
 
     loss: Literal["mae", "mse"] = "mae"
-    """CARE-compatible loss function."""
+    """N2N-compatible loss function."""
 
     model: Annotated[
-        UNetModel,
+        UNetConfig,
         AfterValidator(model_without_n2v2),
         AfterValidator(model_without_final_activation),
     ]
@@ -64,7 +57,7 @@ class CAREAlgorithm(UNetBasedAlgorithm):
         str
             Friendly name of the algorithm.
         """
-        return CARE
+        return N2N
 
     def get_algorithm_keywords(self) -> list[str]:
         """
@@ -81,7 +74,7 @@ class CAREAlgorithm(UNetBasedAlgorithm):
             "3D" if self.model.is_3D() else "2D",
             "CAREamics",
             "pytorch",
-            CARE,
+            N2N,
         ]
 
     def get_algorithm_references(self) -> str:
@@ -95,7 +88,7 @@ class CAREAlgorithm(UNetBasedAlgorithm):
         str
             Algorithm references.
         """
-        return CARE_REF.text + " doi: " + CARE_REF.doi
+        return N2N_REF.text + " doi: " + N2N_REF.doi
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """
@@ -108,7 +101,7 @@ class CAREAlgorithm(UNetBasedAlgorithm):
         List[CiteEntry]
             List of citation entries.
         """
-        return [CARE_REF]
+        return [N2N_REF]
 
     def get_algorithm_description(self) -> str:
         """
@@ -119,4 +112,4 @@ class CAREAlgorithm(UNetBasedAlgorithm):
         str
             Algorithm description.
         """
-        return CARE_DESCRIPTION
+        return N2N_DESCRIPTION

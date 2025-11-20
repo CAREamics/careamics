@@ -19,7 +19,7 @@ from careamics.utils.torch_utils import filter_parameters
 from ..support import SupportedOptimizer
 
 
-class OptimizerModel(BaseModel):
+class OptimizerConfig(BaseModel):
     """Torch optimizer Pydantic model.
 
     Only parameters supported by the corresponding torch optimizer will be taken
@@ -116,7 +116,7 @@ class OptimizerModel(BaseModel):
         return self
 
 
-class LrSchedulerModel(BaseModel):
+class LrSchedulerConfig(BaseModel):
     """Torch learning rate scheduler Pydantic model.
 
     Only parameters supported by the corresponding torch lr scheduler will be taken

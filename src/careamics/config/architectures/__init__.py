@@ -1,7 +1,7 @@
 """Deep-learning model configurations."""
 
-__all__ = ["ArchitectureModel", "LVAEModel", "UNetModel"]
+__all__ = ["ArchitectureConfig", "LVAEConfig", "UNetConfig"]
 
-from .architecture_model import ArchitectureModel
-from .lvae_model import LVAEModel
-from .unet_model import UNetModel
+from .architecture_config import ArchitectureConfig
+from .lvae_config import LVAEConfig
+from .unet_config import UNetConfig

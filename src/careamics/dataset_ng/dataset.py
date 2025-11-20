@@ -8,11 +8,11 @@ from numpy.typing import NDArray
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from careamics.config.data.ng_data_model import NGDataConfig, WholePatchingModel
+from careamics.config.data.ng_data_config import NGDataConfig, WholePatchingConfig
 from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
-from careamics.config.transformations import NormalizeModel
+from careamics.config.transformations import NormalizeConfig
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
@@ -88,7 +88,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         ]
         if mode != Mode.PREDICTING:
             if not isinstance(
-                data_config.patching, WholePatchingModel
+                data_config.patching, WholePatchingConfig
             ) and not _patch_size_within_data_shapes(
                 data_shapes, data_config.patching.patch_size
             ):
@@ -172,7 +172,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         return patching_strategy
 
     def _initialize_transforms(self) -> Compose | None:
-        normalize = NormalizeModel(
+        normalize = NormalizeConfig(
             image_means=self.input_stats.means,
             image_stds=self.input_stats.stds,
             target_means=self.target_stats.means,

@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 
-class TransformModel(BaseModel):
+class TransformConfig(BaseModel):
     """
     Pydantic model used to represent a transformation.
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import random
 import sys
 from collections.abc import Sequence
 from pprint import pformat
@@ -21,40 +20,8 @@ from pydantic import (
     model_validator,
 )
 
-from ..transformations import XYFlipModel, XYRandomRotate90Model
-from ..validators import check_axes_validity
-from .patch_filter import (
-    MaskFilterModel,
-    MaxFilterModel,
-    MeanSTDFilterModel,
-    ShannonFilterModel,
-)
-from .patching_strategies import (
-    RandomPatchingModel,
-    TiledPatchingModel,
-    WholePatchingModel,
-)
-
-# TODO: Validate the specific sizes of tiles and overlaps given UNet constraints
-#   - needs to be done in the Configuration
-#   - patches and overlaps sizes must also be checked against dimensionality
-
-# TODO: is 3D updated anywhere in the code in CAREamist/downstream?
-#       - this will be important when swapping the data config in Configuration
-#       - `set_3D` currently not implemented here
-# TODO: we can't tell that the patching strategy is correct
-#       - or is the responsibility of the creator (e.g. conveneince functions)
-
-
-def generate_random_seed() -> int:
-    """Generate a random seed for reproducibility.
-
-    Returns
-    -------
-    int
-        A random integer between 1 and 2^31 - 1.
-    """
-    return random.randint(1, 2**31 - 1)
+from ..transformations import XYFlipConfig, XYRandomRotate90Config
+from ..validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -79,40 +46,46 @@ def np_float_to_scientific_str(x: float) -> str:
 Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type=str)]
 """Annotated float type, used to serialize floats to strings."""
 
-PatchingStrategies = Union[
-    RandomPatchingModel,
-    # SequentialPatchingModel, # not supported yet
-    TiledPatchingModel,
-    WholePatchingModel,
-]
-"""Patching strategies."""
 
-PatchFilters = Union[
-    MaxFilterModel,
-    MeanSTDFilterModel,
-    ShannonFilterModel,
-]
-"""Patch filters."""
-
-CoordFilters = Union[MaskFilterModel]  # add more here as needed
-"""Coordinate filters."""
-
-
-class NGDataConfig(BaseModel):
-    """Next-Generation Dataset configuration.
-
-    NGDataConfig are used for both training and prediction, with the patching strategy
-    determining how the data is processed. Note that `random` is the only patching
-    strategy compatible with training, while `tiled` and `whole` are only used for
-    prediction.
+class DataConfig(BaseModel):
+    """Data configuration.
 
     If std is specified, mean must be specified as well. Note that setting the std first
     and then the mean (if they were both `None` before) will raise a validation error.
-    Prefer instead `set_means_and_stds` to set both at once. Means and stds are expected
+    Prefer instead `set_mean_and_std` to set both at once. Means and stds are expected
     to be lists of floats, one for each channel. For supervised tasks, the mean and std
     of the target could be different from the input data.
 
     All supported transforms are defined in the SupportedTransform enum.
+
+    Examples
+    --------
+    Minimum example:
+
+    >>> data = DataConfig(
+    ...     data_type="array", # defined in SupportedData
+    ...     patch_size=[128, 128],
+    ...     batch_size=4,
+    ...     axes="YX"
+    ... )
+
+    To change the image_means and image_stds of the data:
+    >>> data.set_means_and_stds(image_means=[214.3], image_stds=[84.5])
+
+    One can pass also a list of transformations, by keyword, using the
+    SupportedTransform value:
+    >>> from careamics.config.support import SupportedTransform
+    >>> data = DataConfig(
+    ...     data_type="tiff",
+    ...     patch_size=[128, 128],
+    ...     batch_size=4,
+    ...     axes="YX",
+    ...     transforms=[
+    ...         {
+    ...             "name": "XYFlip",
+    ...         }
+    ...     ]
+    ... )
     """
 
     # Pydantic class configuration
@@ -121,32 +94,20 @@ class NGDataConfig(BaseModel):
     )
 
     # Dataset configuration
-    data_type: Literal["array", "tiff", "zarr", "custom"]
-    """Type of input data."""
+    data_type: Literal["array", "tiff", "czi", "custom"]
+    """Type of input data, numpy.ndarray (array) or paths (tiff, czi, and custom), as
+    defined in SupportedData."""
 
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
-    patching: PatchingStrategies = Field(..., discriminator="name")
-    """Patching strategy to use. Note that `random` is the only supported strategy for
-    training, while `tiled` and `whole` are only used for prediction."""
+    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
+    """Patch size, as used during training."""
 
-    # Optional fields
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
 
-    patch_filter: PatchFilters | None = Field(default=None, discriminator="name")
-    """Patch filter to apply when using random patching. Only available during
-    training."""
-
-    coord_filter: CoordFilters | None = Field(default=None, discriminator="name")
-    """Coordinate filter to apply when using random patching. Only available during
-    training."""
-
-    patch_filter_patience: int = Field(default=5, ge=1)
-    """Number of consecutive patches not passing the filter before accepting the next
-    patch."""
-
+    # Optional fields
     image_means: list[Float] | None = Field(default=None, min_length=0, max_length=32)
     """Means of the data across channels, used for normalization."""
 
@@ -160,11 +121,11 @@ class NGDataConfig(BaseModel):
     """Standard deviations of the target data across channels, used for
     normalization."""
 
-    transforms: Sequence[Union[XYFlipModel, XYRandomRotate90Model]] = Field(
-        default=(
-            XYFlipModel(),
-            XYRandomRotate90Model(),
-        ),
+    transforms: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
+        default=[
+            XYFlipConfig(),
+            XYRandomRotate90Config(),
+        ],
         validate_default=True,
     )
     """List of transformations to apply to the data, available transforms are defined
@@ -177,14 +138,39 @@ class NGDataConfig(BaseModel):
     should include the `shuffle` key, which is set to `True` by default. We strongly
     recommend to keep it as `True` to ensure the best training results."""
 
-    val_dataloader_params: dict[str, Any] = Field(default={})
+    val_dataloader_params: dict[str, Any] = Field(default={}, validate_default=True)
     """Dictionary of PyTorch validation dataloader parameters."""
 
-    test_dataloader_params: dict[str, Any] = Field(default={})
-    """Dictionary of PyTorch test dataloader parameters."""
+    @field_validator("patch_size")
+    @classmethod
+    def all_elements_power_of_2_minimum_8(
+        cls, patch_list: Union[list[int]]
+    ) -> Union[list[int]]:
+        """
+        Validate patch size.
 
-    seed: int | None = Field(default_factory=generate_random_seed, gt=0)
-    """Random seed for reproducibility. If not specified, a random seed is generated."""
+        Patch size must be powers of 2 and minimum 8.
+
+        Parameters
+        ----------
+        patch_list : list of int
+            Patch size.
+
+        Returns
+        -------
+        list of int
+            Validated patch size.
+
+        Raises
+        ------
+        ValueError
+            If the patch size is smaller than 8.
+        ValueError
+            If the patch size is not a power of 2.
+        """
+        patch_size_ge_than_8_power_of_2(patch_list)
+
+        return patch_list
 
     @field_validator("axes")
     @classmethod
@@ -218,6 +204,81 @@ class NGDataConfig(BaseModel):
         check_axes_validity(axes)
 
         return axes
+
+    @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
+    @classmethod
+    def set_default_pin_memory(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Set default pin_memory for dataloader parameters if not provided.
+
+        - If 'pin_memory' is not set, it defaults to True if CUDA is available.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The dataloader parameters with pin_memory default applied.
+        """
+        if "pin_memory" not in dataloader_params:
+            import torch
+
+            dataloader_params["pin_memory"] = torch.cuda.is_available()
+
+        return dataloader_params
+
+    @field_validator("train_dataloader_params", mode="before")
+    @classmethod
+    def set_default_train_workers(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Set default num_workers for training dataloader if not provided.
+
+        - If 'num_workers' is not set, it defaults to the number of available CPU cores.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The training dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The dataloader parameters with num_workers default applied.
+        """
+        if "num_workers" not in dataloader_params:
+            # Use 0 workers during tests, otherwise use all available CPU cores
+            if "pytest" in sys.modules:
+                dataloader_params["num_workers"] = 0
+            else:
+                dataloader_params["num_workers"] = os.cpu_count()
+
+        return dataloader_params
+
+    @model_validator(mode="after")
+    def set_val_workers_to_match_train(self: Self) -> Self:
+        """
+        Set validation dataloader num_workers to match training dataloader.
+
+        If num_workers is not specified in val_dataloader_params, it will be set to the
+        same value as train_dataloader_params["num_workers"].
+
+        Returns
+        -------
+        Self
+            Validated data model with synchronized num_workers.
+        """
+        if "num_workers" not in self.val_dataloader_params:
+            self.val_dataloader_params["num_workers"] = self.train_dataloader_params[
+                "num_workers"
+            ]
+        return self
 
     @field_validator("train_dataloader_params")
     @classmethod
@@ -305,7 +366,7 @@ class NGDataConfig(BaseModel):
     @model_validator(mode="after")
     def validate_dimensions(self: Self) -> Self:
         """
-        Validate 2D/3D dimensions between axes and patch size.
+        Validate 2D/3D dimensions between axes, patch size and transforms.
 
         Returns
         -------
@@ -315,150 +376,22 @@ class NGDataConfig(BaseModel):
         Raises
         ------
         ValueError
-            If the patch size dimension is not compatible with the axes.
+            If the transforms are not valid.
         """
         if "Z" in self.axes:
-            if (
-                hasattr(self.patching, "patch_size")
-                and len(self.patching.patch_size) != 3
-            ):
+            if len(self.patch_size) != 3:
                 raise ValueError(
-                    f"`patch_size` in `patching` must have 3 dimensions if the data is"
-                    f" 3D, got axes {self.axes})."
+                    f"Patch size must have 3 dimensions if the data is 3D "
+                    f"({self.axes})."
                 )
+
         else:
-            if (
-                hasattr(self.patching, "patch_size")
-                and len(self.patching.patch_size) != 2
-            ):
+            if len(self.patch_size) != 2:
                 raise ValueError(
-                    f"`patch_size` in `patching` must have 2 dimensions if the data is"
-                    f" 3D, got axes {self.axes})."
+                    f"Patch size must have 3 dimensions if the data is 3D "
+                    f"({self.axes})."
                 )
 
-        return self
-
-    @model_validator(mode="after")
-    def propagate_seed_to_filters(self: Self) -> Self:
-        """
-        Propagate the main seed to patch and coordinate filters that support seeds.
-
-        This ensures that all filters use the same seed for reproducibility,
-        unless they already have a seed explicitly set.
-
-        Returns
-        -------
-        Self
-            Data model with propagated seeds.
-        """
-        if self.seed is not None:
-            if self.patch_filter is not None:
-                if (
-                    hasattr(self.patch_filter, "seed")
-                    and self.patch_filter.seed is None
-                ):
-                    self.patch_filter.seed = self.seed
-
-            if self.coord_filter is not None:
-                if (
-                    hasattr(self.coord_filter, "seed")
-                    and self.coord_filter.seed is None
-                ):
-                    self.coord_filter.seed = self.seed
-
-        return self
-
-    @model_validator(mode="after")
-    def propagate_seed_to_transforms(self: Self) -> Self:
-        """
-        Propagate the main seed to all transforms that support seeds.
-
-        This ensures that all transforms use the same seed for reproducibility,
-        unless they already have a seed explicitly set.
-
-        Returns
-        -------
-        Self
-            Data model with propagated seeds.
-        """
-        if self.seed is not None:
-            for transform in self.transforms:
-                if hasattr(transform, "seed") and transform.seed is None:
-                    transform.seed = self.seed
-        return self
-
-    @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
-    @classmethod
-    def set_default_pin_memory(
-        cls, dataloader_params: dict[str, Any]
-    ) -> dict[str, Any]:
-        """
-        Set default pin_memory for dataloader parameters if not provided.
-
-        - If 'pin_memory' is not set, it defaults to True if CUDA is available.
-
-        Parameters
-        ----------
-        dataloader_params : dict of {str: Any}
-            The dataloader parameters.
-
-        Returns
-        -------
-        dict of {str: Any}
-            The dataloader parameters with pin_memory default applied.
-        """
-        if "pin_memory" not in dataloader_params:
-            import torch
-
-            dataloader_params["pin_memory"] = torch.cuda.is_available()
-        return dataloader_params
-
-    @field_validator("train_dataloader_params", mode="before")
-    @classmethod
-    def set_default_train_workers(
-        cls, dataloader_params: dict[str, Any]
-    ) -> dict[str, Any]:
-        """
-        Set default num_workers for training dataloader if not provided.
-
-        - If 'num_workers' is not set, it defaults to the number of available CPU cores.
-
-        Parameters
-        ----------
-        dataloader_params : dict of {str: Any}
-            The training dataloader parameters.
-
-        Returns
-        -------
-        dict of {str: Any}
-            The dataloader parameters with num_workers default applied.
-        """
-        if "num_workers" not in dataloader_params:
-            # Use 0 workers during tests, otherwise use all available CPU cores
-            if "pytest" in sys.modules:
-                dataloader_params["num_workers"] = 0
-            else:
-                dataloader_params["num_workers"] = os.cpu_count()
-
-        return dataloader_params
-
-    @model_validator(mode="after")
-    def set_val_workers_to_match_train(self: Self) -> Self:
-        """
-        Set validation dataloader num_workers to match training dataloader.
-
-        If num_workers is not specified in val_dataloader_params, it will be set to the
-        same value as train_dataloader_params["num_workers"].
-
-        Returns
-        -------
-        Self
-            Validated data model with synchronized num_workers.
-        """
-        if "num_workers" not in self.val_dataloader_params:
-            self.val_dataloader_params["num_workers"] = self.train_dataloader_params[
-                "num_workers"
-            ]
         return self
 
     def __str__(self) -> str:
@@ -525,15 +458,15 @@ class NGDataConfig(BaseModel):
             target_stds=target_stds,
         )
 
-    # def set_3D(self, axes: str, patch_size: list[int]) -> None:
-    #     """
-    #     Set 3D parameters.
+    def set_3D(self, axes: str, patch_size: list[int]) -> None:
+        """
+        Set 3D parameters.
 
-    #     Parameters
-    #     ----------
-    #     axes : str
-    #         Axes.
-    #     patch_size : list of int
-    #         Patch size.
-    #     """
-    #     self._update(axes=axes, patch_size=patch_size)
+        Parameters
+        ----------
+        axes : str
+            Axes.
+        patch_size : list of int
+            Patch size.
+        """
+        self._update(axes=axes, patch_size=patch_size)

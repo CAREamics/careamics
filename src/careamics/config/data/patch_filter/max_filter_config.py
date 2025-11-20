@@ -2,10 +2,10 @@
 
 from typing import Literal
 
-from .filter_model import FilterModel
+from .filter_config import FilterConfig
 
 
-class MaxFilterModel(FilterModel):
+class MaxFilterConfig(FilterConfig):
     """Pydantic model for the max patch filter."""
 
     name: Literal["max"] = "max"

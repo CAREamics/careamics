@@ -6,7 +6,7 @@ from typing import Any
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
-from careamics.config.data.ng_data_model import NGDataConfig
+from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import ImageStackLoader, PatchExtractor
 from careamics.dataset_ng.patch_extractor.image_stack import (

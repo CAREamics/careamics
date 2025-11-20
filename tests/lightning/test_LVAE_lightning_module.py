@@ -11,9 +11,9 @@ from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader, Dataset
 
 from careamics.config import VAEBasedAlgorithm
-from careamics.config.architectures import LVAEModel
-from careamics.config.losses.loss_model import LVAELossConfig
-from careamics.config.noise_model.likelihood_model import (
+from careamics.config.architectures import LVAEConfig
+from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
@@ -65,7 +65,7 @@ def create_vae_lightning_model(
     target_ch: int = 1,
 ) -> VAEModule:
     """Instantiate the muSplit lightining model."""
-    lvae_config = LVAEModel(
+    lvae_config = LVAEConfig(
         architecture="LVAE",
         input_shape=(64, 64),
         multiscale_count=multiscale_count,
@@ -189,7 +189,7 @@ def test_hdn_lightning_init(
     output_channels: int,
     exp_error: Callable,
 ):
-    lvae_config = LVAEModel(
+    lvae_config = LVAEConfig(
         architecture="LVAE",
         input_shape=(64, 64),
         multiscale_count=multiscale_count,
@@ -266,7 +266,7 @@ def test_microsplit_lightning_init(
     exp_error: Callable,
 ):
     # Create the model config
-    lvae_config = LVAEModel(
+    lvae_config = LVAEConfig(
         architecture="LVAE",
         input_shape=(64, 64),
         multiscale_count=multiscale_count,

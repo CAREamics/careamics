@@ -12,7 +12,7 @@ from pydantic import (
 )
 
 
-class CheckpointModel(BaseModel):
+class CheckpointConfig(BaseModel):
     """Checkpoint saving callback Pydantic model.
 
     The parameters corresponds to those of
@@ -65,7 +65,7 @@ class CheckpointModel(BaseModel):
     """Number of epochs between checkpoints."""
 
 
-class EarlyStoppingModel(BaseModel):
+class EarlyStoppingConfig(BaseModel):
     """Early stopping callback Pydantic model.
 
     The parameters corresponds to those of

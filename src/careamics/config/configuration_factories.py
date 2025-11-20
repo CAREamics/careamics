@@ -11,11 +11,11 @@ from careamics.config.algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
 )
-from careamics.config.architectures import LVAEModel, UNetModel
+from careamics.config.architectures import LVAEConfig, UNetConfig
 from careamics.config.data import DataConfig, NGDataConfig
-from careamics.config.lightning.training_model import TrainingConfig
-from careamics.config.losses.loss_model import LVAELossConfig
-from careamics.config.noise_model.likelihood_model import (
+from careamics.config.lightning.training_config import TrainingConfig
+from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
@@ -30,9 +30,9 @@ from careamics.config.support import (
 )
 from careamics.config.transformations import (
     SPATIAL_TRANSFORMS_UNION,
-    N2VManipulateModel,
-    XYFlipModel,
-    XYRandomRotate90Model,
+    N2VManipulateConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
 )
 from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
@@ -73,8 +73,8 @@ def _list_spatial_augmentations(
     Parameters
     ----------
     augmentations : list of transforms, optional
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model.
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config.
 
     Returns
     -------
@@ -84,24 +84,24 @@ def _list_spatial_augmentations(
     Raises
     ------
     ValueError
-        If the transforms are not XYFlipModel or XYRandomRotate90Model.
+        If the transforms are not XYFlipConfig or XYRandomRotate90Config.
     ValueError
         If there are duplicate transforms.
     """
     if augmentations is None:
         transform_list: list[SPATIAL_TRANSFORMS_UNION] = [
-            XYFlipModel(),
-            XYRandomRotate90Model(),
+            XYFlipConfig(),
+            XYRandomRotate90Config(),
         ]
     else:
         # throw error if not all transforms are pydantic models
         if not all(
-            isinstance(t, XYFlipModel) or isinstance(t, XYRandomRotate90Model)
+            isinstance(t, XYFlipConfig) or isinstance(t, XYRandomRotate90Config)
             for t in augmentations
         ):
             raise ValueError(
-                "Accepted transforms are either XYFlipModel or "
-                "XYRandomRotate90Model."
+                "Accepted transforms are either XYFlipConfig or "
+                "XYRandomRotate90Config."
             )
 
         # check that there is no duplication
@@ -121,7 +121,7 @@ def _create_unet_configuration(
     independent_channels: bool,
     use_n2v2: bool,
     model_params: dict[str, Any] | None = None,
-) -> UNetModel:
+) -> UNetConfig:
     """
     Create a dictionary with the parameters of the UNet model.
 
@@ -154,7 +154,7 @@ def _create_unet_configuration(
     model_params["num_classes"] = n_channels_out
     model_params["independent_channels"] = independent_channels
 
-    return UNetModel(
+    return UNetConfig(
         architecture=SupportedArchitecture.UNET.value,
         **model_params,
     )
@@ -511,8 +511,8 @@ def _create_supervised_config_dict(
     trainer_params : dict
         Parameters for the training configuration.
     augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
@@ -638,7 +638,7 @@ def create_care_configuration(
     batch_size: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int | None = None,
@@ -695,8 +695,8 @@ def create_care_configuration(
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
     augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
@@ -773,7 +773,7 @@ def create_care_configuration(
 
     A list of transforms can be passed to the `augmentations` parameter to replace the
     default augmentations:
-    >>> from careamics.config.transformations import XYFlipModel
+    >>> from careamics.config.transformations import XYFlipConfig
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
     ...     data_type="array",
@@ -783,7 +783,7 @@ def create_care_configuration(
     ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
-    ...         XYFlipModel(flip_x = False, flip_y = True)
+    ...         XYFlipConfig(flip_x = False, flip_y = True)
     ...     ]
     ... )
 
@@ -875,7 +875,7 @@ def create_n2n_configuration(
     batch_size: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int | None = None,
@@ -932,8 +932,8 @@ def create_n2n_configuration(
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
     augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
@@ -1009,7 +1009,7 @@ def create_n2n_configuration(
     ... )
 
     A list of transforms can be passed to the `augmentations` parameter:
-    >>> from careamics.config.transformations import XYFlipModel
+    >>> from careamics.config.transformations import XYFlipConfig
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
     ...     data_type="array",
@@ -1019,7 +1019,7 @@ def create_n2n_configuration(
     ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
-    ...         XYFlipModel(flip_x = False, flip_y = True)
+    ...         XYFlipConfig(flip_x = False, flip_y = True)
     ...     ]
     ... )
 
@@ -1111,7 +1111,7 @@ def create_n2v_configuration(
     batch_size: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
     n_channels: int | None = None,
@@ -1191,8 +1191,8 @@ def create_n2v_configuration(
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
     augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels together, by default True.
@@ -1274,7 +1274,7 @@ def create_n2v_configuration(
     ... )
 
     A list of transforms can be passed to the `augmentations` parameter:
-    >>> from careamics.config.transformations import XYFlipModel
+    >>> from careamics.config.transformations import XYFlipConfig
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
@@ -1284,7 +1284,7 @@ def create_n2v_configuration(
     ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
-    ...         XYFlipModel(flip_x = False, flip_y = True)
+    ...         XYFlipConfig(flip_x = False, flip_y = True)
     ...     ]
     ... )
 
@@ -1376,7 +1376,7 @@ def create_n2v_configuration(
     spatial_transforms = _list_spatial_augmentations(augmentations)
 
     # create the N2VManipulate transform using the supplied parameters
-    n2v_transform = N2VManipulateModel(
+    n2v_transform = N2VManipulateConfig(
         name=SupportedTransform.N2V_MANIPULATE.value,
         strategy=(
             SupportedPixelManipulation.MEDIAN.value
@@ -1457,7 +1457,7 @@ def _create_vae_configuration(
     ],
     predict_logvar: Literal[None, "pixelwise"],
     analytical_kl: bool,
-) -> LVAEModel:
+) -> LVAEConfig:
     """Create a dictionary with the parameters of the vae based algorithm model.
 
     Parameters
@@ -1494,7 +1494,7 @@ def _create_vae_configuration(
     LVAEModel
         LVAE model with the specified parameters.
     """
-    return LVAEModel(
+    return LVAEConfig(
         architecture=SupportedArchitecture.LVAE.value,
         input_shape=input_shape,
         encoder_conv_strides=encoder_conv_strides,
@@ -1718,7 +1718,7 @@ def create_hdn_configuration(
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     trainer_params: dict | None = None,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
 ) -> Configuration:
@@ -1794,7 +1794,7 @@ def create_hdn_configuration(
         Logger to use for training, by default "none".
     trainer_params : dict, optional
         Parameters for the trainer class, see PyTorch Lightning documentation.
-    augmentations : Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]], optional
+    augmentations : list[XYFlipConfig | XYRandomRotate90Config] | None, optional
         List of augmentations to apply, by default None.
     train_dataloader_params : Optional[dict[str, Any]], optional
         Parameters for the training dataloader, by default None.
@@ -1919,7 +1919,7 @@ def create_microsplit_configuration(
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     trainer_params: dict | None = None,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
     nm_paths: list[str] | None = None,
     data_stats: tuple[float, float] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
@@ -1980,7 +1980,7 @@ def create_microsplit_configuration(
         Logger to use for training, by default "none".
     trainer_params : dict, optional
         Parameters for the trainer class, see PyTorch Lightning documentation.
-    augmentations : list[Union[XYFlipModel, XYRandomRotate90Model]] | None, optional
+    augmentations : list[Union[XYFlipConfig, XYRandomRotate90Config]] | None, optional
         List of augmentations to apply, by default None.
     nm_paths : list[str] | None, optional
         Paths to the noise model files, by default None.

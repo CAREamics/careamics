@@ -4,10 +4,10 @@ from collections.abc import Sequence
 
 from pydantic import Field, ValidationInfo, field_validator
 
-from ._patched_model import _PatchedModel
+from ._patched_config import _PatchedConfig
 
 
-class _OverlappingPatchedModel(_PatchedModel):
+class _OverlappingPatchedConfig(_PatchedConfig):
     """Overlapping patching Pydantic model.
 
     This model is only used for inheritance and validation purposes.

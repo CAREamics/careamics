@@ -1,22 +1,21 @@
-"""HDN algorithm configuration."""
+"""MicroSplit algorithm configuration."""
 
 from typing import Literal
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import ConfigDict
 
-from careamics.config.algorithms.vae_algorithm_model import VAEBasedAlgorithm
-from careamics.config.architectures import LVAEModel
-from careamics.config.losses.loss_model import LVAELossConfig
+from careamics.config.algorithms.vae_algorithm_config import VAEBasedAlgorithm
+from careamics.config.architectures import LVAEConfig
+from careamics.config.losses.loss_config import LVAELossConfig
 
-HDN = "Hierarchical DivNoising"
+MICROSPLIT = "MicroSplit"
 
-HDN_DESCRIPTION = (
-    "HDN leverages a hierarchical VAE to perform image "
-    "restoration. It is designed to be interpretable and unsupervised, "
-    "making it suitable for a wide range of microscopy images."
-)
-HDN_REF = CiteEntry(
+MICROSPLIT_DESCRIPTION = """MicroSplit is a self-supervised deep learning method for
+microscopy image splitting that combines the strengths of both denoising and
+representation learning approaches."""
+
+MICROSPLIT_REF = CiteEntry(
     text='Prakash, M., Delbracio, M., Milanfar, P., Jug, F. 2022. "Interpretable '
     'Unsupervised Diversity Denoising and Artefact Removal." The International '
     "Conference on Learning Representations (ICLR).",
@@ -24,18 +23,18 @@ HDN_REF = CiteEntry(
 )
 
 
-class HDNAlgorithm(VAEBasedAlgorithm):
-    """HDN algorithm configuration."""
+class MicroSplitAlgorithm(VAEBasedAlgorithm):
+    """MicroSplit algorithm configuration."""
 
     model_config = ConfigDict(validate_assignment=True)
 
-    algorithm: Literal["hdn"] = "hdn"
+    algorithm: Literal["microsplit"] = "microsplit"
 
     loss: LVAELossConfig
 
-    model: LVAEModel  # TODO add validators
+    model: LVAEConfig  # TODO add validators
 
-    is_supervised: bool = False
+    is_supervised: bool = True
 
     def get_algorithm_friendly_name(self) -> str:
         """
@@ -46,7 +45,7 @@ class HDNAlgorithm(VAEBasedAlgorithm):
         str
             Friendly name of the algorithm.
         """
-        return HDN
+        return MICROSPLIT
 
     def get_algorithm_keywords(self) -> list[str]:
         """
@@ -60,6 +59,7 @@ class HDNAlgorithm(VAEBasedAlgorithm):
         return [
             "restoration",
             "VAE",
+            "self-supervised",
             "3D" if self.model.is_3D() else "2D",
             "CAREamics",
             "pytorch",
@@ -76,7 +76,7 @@ class HDNAlgorithm(VAEBasedAlgorithm):
         str
             Algorithm references.
         """
-        return HDN_REF.text + " doi: " + HDN_REF.doi
+        return MICROSPLIT_REF.text + " doi: " + MICROSPLIT_REF.doi
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """
@@ -89,7 +89,7 @@ class HDNAlgorithm(VAEBasedAlgorithm):
         List[CiteEntry]
             List of citation entries.
         """
-        return [HDN_REF]
+        return [MICROSPLIT_REF]
 
     def get_algorithm_description(self) -> str:
         """
@@ -100,4 +100,4 @@ class HDNAlgorithm(VAEBasedAlgorithm):
         str
             Algorithm description.
         """
-        return HDN_DESCRIPTION
+        return MICROSPLIT_DESCRIPTION

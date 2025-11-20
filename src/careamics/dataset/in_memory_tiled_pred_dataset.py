@@ -9,7 +9,7 @@ from careamics.transforms import Compose
 
 from ..config import InferenceConfig
 from ..config.data.tile_information import TileInformation
-from ..config.transformations import NormalizeModel
+from ..config.transformations import NormalizeConfig
 from .dataset_utils import reshape_array
 from .tiling import extract_tiles
 
@@ -67,7 +67,9 @@ class InMemoryTiledPredDataset(Dataset):
         # get transforms
         self.patch_transform = Compose(
             transform_list=[
-                NormalizeModel(image_means=self.image_means, image_stds=self.image_stds)
+                NormalizeConfig(
+                    image_means=self.image_means, image_stds=self.image_stds
+                )
             ],
         )
 

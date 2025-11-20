@@ -2,10 +2,10 @@
 
 from typing import Literal
 
-from .filter_model import FilterModel
+from .filter_config import FilterConfig
 
 
-class ShannonFilterModel(FilterModel):
+class ShannonFilterConfig(FilterConfig):
     """Pydantic model for the Shannon entropy patch filter."""
 
     name: Literal["shannon"] = "shannon"

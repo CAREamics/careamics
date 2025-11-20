@@ -4,10 +4,10 @@ from typing import Literal, Self
 
 from pydantic import ConfigDict, Field, model_validator
 
-from .transform_model import TransformModel
+from .transform_config import TransformConfig
 
 
-class NormalizeModel(TransformModel):
+class NormalizeConfig(TransformConfig):
     """
     Pydantic model used to represent Normalize transformation.
 

@@ -1,15 +1,15 @@
 """Pydantic models representing coordinate and patch filters."""
 
 __all__ = [
-    "FilterModel",
-    "MaskFilterModel",
-    "MaxFilterModel",
-    "MeanSTDFilterModel",
-    "ShannonFilterModel",
+    "FilterConfig",
+    "MaskFilterConfig",
+    "MaxFilterConfig",
+    "MeanSTDFilterConfig",
+    "ShannonFilterConfig",
 ]
 
-from .filter_model import FilterModel
-from .mask_filter_model import MaskFilterModel
-from .max_filter_model import MaxFilterModel
-from .meanstd_filter_model import MeanSTDFilterModel
-from .shannon_filter_model import ShannonFilterModel
+from .filter_config import FilterConfig
+from .mask_filter_config import MaskFilterConfig
+from .max_filter_config import MaxFilterConfig
+from .meanstd_filter_config import MeanSTDFilterConfig
+from .shannon_filter_config import ShannonFilterConfig

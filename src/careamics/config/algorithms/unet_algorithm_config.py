@@ -5,8 +5,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from careamics.config.architectures import UNetModel
-from careamics.config.lightning.optimizer_models import LrSchedulerModel, OptimizerModel
+from careamics.config.architectures import UNetConfig
+from careamics.config.lightning.optimizer_configs import (
+    LrSchedulerConfig,
+    OptimizerConfig,
+)
 
 
 class UNetBasedAlgorithm(BaseModel):
@@ -27,11 +30,11 @@ class UNetBasedAlgorithm(BaseModel):
         Algorithm to use.
     loss : {"n2v", "mae", "mse"}
         Loss function to use.
-    model : UNetModel
+    model : UNetConfig
         Model architecture to use.
-    optimizer : OptimizerModel, optional
+    optimizer : OptimizerConfig, optional
         Optimizer to use.
-    lr_scheduler : LrSchedulerModel, optional
+    lr_scheduler : LrSchedulerConfig, optional
         Learning rate scheduler to use.
 
     Raises
@@ -56,14 +59,14 @@ class UNetBasedAlgorithm(BaseModel):
     loss: Literal["n2v", "mae", "mse"]
     """Loss function to use, as defined in SupportedLoss."""
 
-    model: UNetModel
+    model: UNetConfig
     """UNet model configuration."""
 
     # Optional fields
-    optimizer: OptimizerModel = OptimizerModel()
+    optimizer: OptimizerConfig = OptimizerConfig()
     """Optimizer to use, defined in SupportedOptimizer."""
 
-    lr_scheduler: LrSchedulerModel = LrSchedulerModel()
+    lr_scheduler: LrSchedulerConfig = LrSchedulerConfig()
     """Learning rate scheduler to use, defined in SupportedLrScheduler."""
 
     def __str__(self) -> str:

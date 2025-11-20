@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from careamics.transforms import Compose
 
 from ..config import InferenceConfig
-from ..config.transformations import NormalizeModel
+from ..config.transformations import NormalizeConfig
 from .dataset_utils import reshape_array
 
 
@@ -54,7 +54,9 @@ class InMemoryPredDataset(Dataset):
         # get transforms
         self.patch_transform = Compose(
             transform_list=[
-                NormalizeModel(image_means=self.image_means, image_stds=self.image_stds)
+                NormalizeConfig(
+                    image_means=self.image_means, image_stds=self.image_stds
+                )
             ],
         )
 

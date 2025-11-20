@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel
 
 
-class ArchitectureModel(BaseModel):
+class ArchitectureConfig(BaseModel):
     """
     Base Pydantic model for all model architectures.
 

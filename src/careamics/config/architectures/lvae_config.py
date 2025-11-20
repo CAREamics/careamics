@@ -4,11 +4,11 @@ from typing import Literal, Self
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
-from .architecture_model import ArchitectureModel
+from .architecture_config import ArchitectureConfig
 
 
 # TODO: it is quite confusing to call this LVAEModel, as it is basically a config
-class LVAEModel(ArchitectureModel):
+class LVAEConfig(ArchitectureConfig):
     """LVAE model."""
 
     model_config = ConfigDict(validate_assignment=True, validate_default=True)

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.config.noise_model.likelihood_model import (
+from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )

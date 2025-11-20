@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .callbacks.callback_model import CheckpointModel, EarlyStoppingModel
+from .callbacks.callback_config import CheckpointConfig, EarlyStoppingConfig
 
 
 class TrainingConfig(BaseModel):
@@ -38,11 +38,11 @@ class TrainingConfig(BaseModel):
     loggers are defined in SupportedLogger."""
 
     # Only basic callbacks
-    checkpoint_callback: CheckpointModel = CheckpointModel()
+    checkpoint_callback: CheckpointConfig = CheckpointConfig()
     """Checkpoint callback configuration, following PyTorch Lightning Checkpoint
     callback."""
 
-    early_stopping_callback: EarlyStoppingModel | None = Field(
+    early_stopping_callback: EarlyStoppingConfig | None = Field(
         default=None, validate_default=True
     )
     """Early stopping callback configuration, following PyTorch Lightning Checkpoint

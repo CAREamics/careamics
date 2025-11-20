@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from careamics.config import VAEBasedAlgorithm
-from careamics.config.architectures import LVAEModel
-from careamics.config.losses.loss_model import LVAELossConfig
+from careamics.config.architectures import LVAEConfig
+from careamics.config.losses.loss_config import LVAELossConfig
 from careamics.config.noise_model.noise_model_config import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
@@ -57,7 +57,7 @@ def test_noise_model_denoisplit(tmp_path: Path, create_dummy_noise_model):
     config = VAEBasedAlgorithm(
         algorithm="denoisplit",
         loss="denoisplit",
-        model=LVAEModel(architecture="LVAE"),
+        model=LVAEConfig(architecture="LVAE"),
         noise_model=MultiChannelNMConfig(noise_models=[gmm]),
     )
     assert config.noise_model is not None

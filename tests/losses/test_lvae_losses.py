@@ -14,8 +14,8 @@ from careamics.config import (
     LVAELossConfig,
     MultiChannelNMConfig,
 )
-from careamics.config.losses.loss_model import KLLossConfig
-from careamics.config.noise_model.likelihood_model import (
+from careamics.config.losses.loss_config import KLLossConfig
+from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )

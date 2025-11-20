@@ -7,10 +7,13 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from careamics.config.architectures import LVAEModel
-from careamics.config.lightning.optimizer_models import LrSchedulerModel, OptimizerModel
-from careamics.config.losses.loss_model import LVAELossConfig
-from careamics.config.noise_model.likelihood_model import (
+from careamics.config.architectures import LVAEConfig
+from careamics.config.lightning.optimizer_configs import (
+    LrSchedulerConfig,
+    OptimizerConfig,
+)
+from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
@@ -43,7 +46,7 @@ class VAEBasedAlgorithm(BaseModel):
 
     # NOTE: these are all configs (pydantic models)
     loss: LVAELossConfig
-    model: LVAEModel
+    model: LVAEConfig
     noise_model: MultiChannelNMConfig | None = None
     noise_model_likelihood: NMLikelihoodConfig | None = None
     gaussian_likelihood: GaussianLikelihoodConfig | None = None  # TODO change to str
@@ -52,10 +55,10 @@ class VAEBasedAlgorithm(BaseModel):
     is_supervised: bool = False
 
     # Optional fields
-    optimizer: OptimizerModel = OptimizerModel()
+    optimizer: OptimizerConfig = OptimizerConfig()
     """Optimizer to use, defined in SupportedOptimizer."""
 
-    lr_scheduler: LrSchedulerModel = LrSchedulerModel()
+    lr_scheduler: LrSchedulerConfig = LrSchedulerConfig()
 
     @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:

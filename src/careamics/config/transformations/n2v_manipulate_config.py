@@ -4,12 +4,12 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator
 
-from .transform_model import TransformModel
+from .transform_config import TransformConfig
 
 
-# TODO should probably not be a TransformModel anymore, no reason for it
+# TODO should probably not be a TransformConfig anymore, no reason for it
 # `name` is used as a discriminator field in the transforms
-class N2VManipulateModel(TransformModel):
+class N2VManipulateConfig(TransformConfig):
     """
     Pydantic model used to represent N2V manipulation.
 
