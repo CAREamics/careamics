@@ -54,14 +54,14 @@ class TileSpecs(PatchSpecs):
     stitch_coords: sequence of int
         Where the tile will be stitched back into an image, taking into account
         that the tile will be cropped, in coords relative to the image.
-    tot_tiles: bool
+    total_tiles: int
         Number of tiles belonging to the same data.
     """
 
     crop_coords: Sequence[int]
     crop_size: Sequence[int]
     stitch_coords: Sequence[int]
-    tot_tiles: int
+    total_tiles: int
 
 
 class PatchingStrategy(Protocol):

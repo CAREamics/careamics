@@ -133,7 +133,7 @@ class TilingStrategy:
                             "crop_coords": crop_coords,
                             "crop_size": crop_size,
                             "stitch_coords": stitch_coords,
-                            "tot_tiles": n_tiles,
+                            "total_tiles": n_tiles,
                         }
                     )
 

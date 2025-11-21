@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 
 from careamics.file_io.write import write_tiff
 from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
-    CacheTiles,
+    CachedTiles,
     WriteImage,
     create_write_strategy,
     select_write_extension,
@@ -25,7 +25,7 @@ def test_create_write_strategy_tiff_tiled():
     """Test write strategy creation for tiled tiff."""
     write_strategy = create_write_strategy(write_type="tiff", tiled=True)
 
-    assert isinstance(write_strategy, CacheTiles)
+    assert isinstance(write_strategy, CachedTiles)
     assert write_strategy.write_func is write_tiff
     assert write_strategy.write_extension == ".tiff"
     assert write_strategy.write_func_kwargs == {}
@@ -46,7 +46,7 @@ def test_create_write_strategy_custom_tiled():
     write_strategy = create_write_strategy(
         write_type="custom", tiled=True, write_func=save_numpy, write_extension=".npy"
     )
-    assert isinstance(write_strategy, CacheTiles)
+    assert isinstance(write_strategy, CachedTiles)
     assert write_strategy.write_func is save_numpy
     assert write_strategy.write_extension == ".npy"
     assert write_strategy.write_func_kwargs == {}

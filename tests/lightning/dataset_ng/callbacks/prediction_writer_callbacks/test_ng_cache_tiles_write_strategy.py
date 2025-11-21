@@ -16,7 +16,7 @@ from careamics.dataset_ng.patching_strategies import (
 )
 from careamics.file_io.write import write_tiff
 from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
-    CacheTiles,
+    CachedTiles,
     create_write_file_path,
 )
 
@@ -81,7 +81,7 @@ def tiles(n_data, shape, axes) -> list[ImageRegionData]:
 
 
 @pytest.fixture
-def cache_tiles_strategy() -> CacheTiles:
+def cache_tiles_strategy() -> CachedTiles:
     """
     Initialized `CacheTiles` class.
 
@@ -93,14 +93,14 @@ def cache_tiles_strategy() -> CacheTiles:
     write_extension = ".tif"
     write_func_kwargs = {}
     write_func = write_tiff
-    return CacheTiles(
+    return CachedTiles(
         write_func=write_func,
         write_extension=write_extension,
         write_func_kwargs=write_func_kwargs,
     )
 
 
-def update_cache(cache_strategy: CacheTiles, tiles: list[ImageRegionData]):
+def update_cache(cache_strategy: CachedTiles, tiles: list[ImageRegionData]):
     """Helper function to patch the tile cache."""
     for tile in tiles:
         cache_strategy.tile_cache[tile.region_spec["data_idx"]].append(tile)
@@ -108,7 +108,7 @@ def update_cache(cache_strategy: CacheTiles, tiles: list[ImageRegionData]):
 
 @pytest.mark.parametrize("n_data, shape, axes", [(1, (32, 32), "YX")])
 def test_write_batch_incomplete(
-    tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles
+    tiles: list[ImageRegionData], cache_tiles_strategy: CachedTiles
 ):
     """
     Test `CacheTiles.write_batch` when there is no last tile added to the cache.
@@ -134,8 +134,8 @@ def test_write_batch_incomplete(
 
 # TODO mock as in previous versions of the test?
 @pytest.mark.parametrize("n_data, shape, axes", [(2, (28, 28), "YX")])
-def test_write_batch_with_last_tile(
-    tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles, tmp_path: Path
+def test_write_batch_no_full_image(
+    tiles: list[ImageRegionData], cache_tiles_strategy: CachedTiles, tmp_path: Path
 ):
     """
     Test `CacheTiles.write_batch` when there is no last tile added to the cache.
@@ -179,7 +179,7 @@ def test_write_batch_with_last_tile(
 
 @pytest.mark.parametrize("n_data, shape, axes", [(4, (28, 28), "YX")])
 def test_get_full_images(
-    tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles
+    tiles: list[ImageRegionData], cache_tiles_strategy: CachedTiles
 ):
     """Test `CacheTiles._get_full_images`."""
     # randomize tiles order and add a few tiles from other images
@@ -195,7 +195,7 @@ def test_get_full_images(
 
 @pytest.mark.parametrize("n_data, shape, axes", [(1, (28, 28), "YX")])
 def test_get_full_images_too_many(
-    tiles: list[ImageRegionData], cache_tiles_strategy: CacheTiles
+    tiles: list[ImageRegionData], cache_tiles_strategy: CachedTiles
 ):
     """Test `CacheTiles._get_full_images` raises error when too many tiles of a data_idx
     are cached."""

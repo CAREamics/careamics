@@ -146,9 +146,10 @@ def convert_prediction(
         decollated_batch = decollate_image_region_data(batch)
         decollated_predictions.extend(decollated_batch)
 
-    if not tiled and "tot_tiles" in decollated_predictions[0].region_spec:
+    if not tiled and "total_tiles" in decollated_predictions[0].region_spec:
         raise ValueError(
-            "Predictions contain 'tot_tiles' in region_spec but tiled is set to False."
+            "Predictions contain `total_tiles` in region_spec but `tiled` is set to "
+            "False."
         )
 
     if tiled:
