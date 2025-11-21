@@ -147,6 +147,9 @@ class CziImageStack:
         )
         self.data_dtype = np.float32
 
+        # unsused mandatory member
+        self.chunks: Sequence[int] = (1,)  # ImageStack protocol
+
     def __del__(self):
         if hasattr(self, "_czi"):
             # Close CZI file

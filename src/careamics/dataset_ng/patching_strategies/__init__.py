@@ -3,13 +3,19 @@ __all__ = [
     "PatchSpecs",
     "PatchingStrategy",
     "RandomPatchingStrategy",
+    "RegionSpecs",
     "SequentialPatchingStrategy",
     "TileSpecs",
     "TilingStrategy",
     "WholeSamplePatchingStrategy",
 ]
 
-from .patching_strategy_protocol import PatchingStrategy, PatchSpecs, TileSpecs
+from .patching_strategy_protocol import (
+    PatchingStrategy,
+    PatchSpecs,
+    RegionSpecs,
+    TileSpecs,
+)
 from .random_patching import FixedRandomPatchingStrategy, RandomPatchingStrategy
 from .sequential_patching import SequentialPatchingStrategy
 from .tiling_strategy import TilingStrategy

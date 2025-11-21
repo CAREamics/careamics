@@ -25,6 +25,7 @@ from .patching_strategies import (
     PatchingStrategy,
     PatchSpecs,
     RandomPatchingStrategy,
+    RegionSpecs,
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
@@ -36,13 +37,15 @@ class Mode(str, Enum):
     PREDICTING = "predicting"
 
 
-class ImageRegionData(NamedTuple):
+class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     data: NDArray
     source: Union[str, Literal["array"]]
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
-    region_spec: PatchSpecs
+    region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
+
+    chunks: Sequence[int] = (1,)  # default value for ImageStack without chunks
 
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
@@ -230,12 +233,13 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
     ) -> ImageRegionData:
         data_idx = patch_spec["data_idx"]
-        source = extractor.image_stacks[data_idx].source
+        image_stack: GenericImageStack = extractor.image_stacks[data_idx]
         return ImageRegionData(
             data=patch,
-            source=str(source),
-            dtype=str(extractor.image_stacks[data_idx].data_dtype),
-            data_shape=extractor.image_stacks[data_idx].data_shape,
+            source=str(image_stack.source),
+            dtype=str(image_stack.data_dtype),
+            data_shape=image_stack.data_shape,
+            chunks=image_stack.chunks,
             # TODO: should it be axes of the original image instead?
             axes=self.config.axes,
             region_spec=patch_spec,

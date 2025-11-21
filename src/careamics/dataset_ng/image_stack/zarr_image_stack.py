@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 import zarr
-from numpy.typing import NDArray
+from numpy.typing import DTypeLike, NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 
@@ -40,7 +40,7 @@ class ZarrImageStack:
         self._original_axes = axes
         self._original_data_shape: tuple[int, ...] = self._array.shape
         self.data_shape = reshaped_array_shape(axes, self._original_data_shape)
-        self.data_dtype = self._array.dtype
+        self._data_dtype = self._array.dtype
         self._chunk_size = self._array.chunks
 
     # Used to identify the source of the data and write to similar path during pred
@@ -50,8 +50,12 @@ class ZarrImageStack:
         return str(self._source)
 
     @property
-    def chunk_size(self) -> Sequence[int]:
+    def chunks(self) -> Sequence[int]:
         return self._chunk_size
+
+    @property
+    def data_dtype(self) -> DTypeLike:
+        return self._data_dtype
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
