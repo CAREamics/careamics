@@ -6,7 +6,8 @@ from careamics.config.support import SupportedData
 from careamics.file_io import SupportedWriteType, WriteFunc, get_write_func
 
 from .cached_tiles_strategy import CachedTiles
-from .write_strategy import WriteImage, WriteStrategy
+from .write_image_strategy import WriteImage
+from .write_strategy import WriteStrategy
 from .write_tiles_zarr_strategy import WriteTilesZarr
 
 

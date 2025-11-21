@@ -19,7 +19,8 @@ from .prediction_writer_callback import (
     PredictionWriterCallback,
     decollate_image_region_data,
 )
-from .write_strategy import WriteImage, WriteStrategy
+from .write_image_strategy import WriteImage
+from .write_strategy import WriteStrategy
 from .write_strategy_factory import (
     create_write_strategy,
     select_write_extension,
