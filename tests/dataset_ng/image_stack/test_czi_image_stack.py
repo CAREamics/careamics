@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from careamics.dataset_ng.patch_extractor.image_stack import CziImageStack
+from careamics.dataset_ng.image_stack import CziImageStack
 
 # skip if fail imports
 pylib = pytest.importorskip("pylibCZIrw")

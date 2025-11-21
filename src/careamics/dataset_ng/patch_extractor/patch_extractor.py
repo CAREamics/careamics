@@ -3,7 +3,7 @@ from typing import Generic
 
 from numpy.typing import NDArray
 
-from .image_stack import GenericImageStack
+from ..image_stack import GenericImageStack
 from .patch_construction import PatchConstructor, default_patch_constr
 
 

@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from careamics.dataset import IterablePredDataset
 from careamics.file_io import WriteFunc
-from careamics.lightning.callbacks.prediction_writer_callback.write_strategy import (
+from careamics.lightning.callbacks.prediction_writer_callback import (
     WriteImage,
 )
 

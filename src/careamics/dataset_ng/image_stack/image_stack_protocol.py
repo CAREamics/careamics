@@ -15,19 +15,31 @@ class ImageStack(Protocol):
         Origin of the image data.
     data_shape: Sequence[int]
         The shape of the data, it is expected to be in the order (SC(Z)YX).
-
+    data_dtype: DTypeLike
+        The data type of the image data.
+    chunks: Sequence[int]
+        The chunk size of the image data.
     """
 
-    # TODO: not sure how compatible using Path will be for a zarr array
-    #   (for a zarr array need to specify file path and internal zarr path)
     @property
     def source(self) -> Union[str, Path, Literal["array"]]: ...
+
+    """Source of the image data."""
 
     @property
     def data_shape(self) -> Sequence[int]: ...
 
+    """Shape of the image data."""
+
     @property
     def data_dtype(self) -> DTypeLike: ...
+
+    """Data type of the image data."""
+
+    @property
+    def chunks(self) -> Sequence[int]: ...
+
+    """Chunk size of the image data."""
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]

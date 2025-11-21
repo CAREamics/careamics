@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 from numpy.typing import NDArray
 
-from .image_stack import FileImageStack
+from ..image_stack import FileImageStack
 from .patch_construction import PatchConstructor, default_patch_constr
 from .patch_extractor import PatchExtractor
 

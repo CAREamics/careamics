@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.dataset_ng.patch_extractor.image_stack.image_utils import (
+from careamics.dataset_ng.image_stack.image_utils.image_stack_utils import (
     pad_patch,
 )
 

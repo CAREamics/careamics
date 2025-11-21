@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.dataset_ng.patch_extractor.image_stack import FileImageStack
+from careamics.dataset_ng.image_stack import FileImageStack
 
 
 def test_extract_patch(tmp_path: Path):

@@ -9,7 +9,7 @@ from careamics.config.support import SupportedData
 
 from .tiff import write_tiff
 
-SupportedWriteType = Literal["tiff", "custom"]
+SupportedWriteType = Literal["tiff", "zarr", "custom"]
 
 
 # This is very strict, arguments have to be called file_path & img
