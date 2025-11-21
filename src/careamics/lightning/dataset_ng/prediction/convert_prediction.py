@@ -20,7 +20,7 @@ def decollate_image_region_data(
     Input batch has the following structure:
     - data: (B, C, (Z), Y, X) numpy.ndarray
     - source: sequence of str, length B
-    - data_shape: sequence of tuple of int, each typle being of length B
+    - data_shape: sequence of tuple of int, each tuple being of length B
     - dtype: list of numpy.dtype, length B
     - axes: list of str, length B
     - region_spec: dict of {str: sequence}, each sequence being of length B
