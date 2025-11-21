@@ -77,11 +77,12 @@ tensorboard = ["tensorboard", "protobuf==5.29.1"]
 dev = [
     "pre-commit",
     "pytest",
+    "pytest-mock",
     "pytest-cov",
     "sybil",      # doctesting
 
     # libraries used in some tests
-    "onnx",
+    "onnxscript<=0.5.6",
     "ml_dtypes>=0.5.0" # required by onnx, causes issues in gh runners with py313
 ]
 

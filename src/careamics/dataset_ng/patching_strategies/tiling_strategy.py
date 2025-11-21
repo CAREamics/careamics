@@ -2,6 +2,7 @@
 
 import itertools
 from collections.abc import Sequence
+from math import prod
 
 from .patching_strategy_protocol import TileSpecs
 
@@ -107,6 +108,10 @@ class TilingStrategy:
             all_coords, all_stitch_coords, all_crop_coords, all_crop_size = zip(
                 *axis_specs, strict=False
             )
+
+            # number of tiles for this data_idx
+            n_tiles = prod(len(dim) for dim in all_coords) * data_shape[0]
+
             # patches will be the same for each sample in a stack
             for sample_idx in range(data_shape[0]):
                 # iterate through all combinations using itertools.product
@@ -128,8 +133,10 @@ class TilingStrategy:
                             "crop_coords": crop_coords,
                             "crop_size": crop_size,
                             "stitch_coords": stitch_coords,
+                            "total_tiles": n_tiles,
                         }
                     )
+
         return tile_specs
 
     @staticmethod

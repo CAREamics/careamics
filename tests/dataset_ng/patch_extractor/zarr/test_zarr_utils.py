@@ -8,8 +8,6 @@ from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils imp
     is_valid_uri,
 )
 
-# TODO rename file and sort tests
-
 
 @pytest.mark.parametrize("zarr_source", ["zarr_linear", "zarr_groups", "zarr_multiple"])
 def test_fixtures(request, zarr_source):
