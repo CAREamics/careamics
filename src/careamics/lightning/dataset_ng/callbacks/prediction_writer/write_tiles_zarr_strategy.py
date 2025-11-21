@@ -8,9 +8,7 @@ import zarr
 from numpy import float32
 
 from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
-    decipher_zarr_uri,
-)
+from careamics.dataset_ng.image_stack_loader.zarr_utils import decipher_zarr_uri
 from careamics.dataset_ng.patching_strategies import TileSpecs
 
 OUTPUT_KEY = "_output"

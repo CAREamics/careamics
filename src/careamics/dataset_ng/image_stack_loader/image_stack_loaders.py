@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import zarr
 from numpy.typing import NDArray
+from zarr.storage import StorePath
 
 from careamics.file_io import ReadFunc
 
@@ -116,7 +117,7 @@ def load_custom_file(
 
 
 def load_zarrs(
-    source: Sequence[str | Path],
+    source: Sequence[str | Path | StorePath],
     axes: str,
 ) -> list[ZarrImageStack]:
     """Create a list of ZarrImageStack from a sequence of zarr file paths or URIs.
