@@ -5,7 +5,7 @@ import numpy as np
 from numpy.typing import NDArray
 from skimage.transform import resize
 
-from .image_stack import ImageStack
+from ..image_stack import ImageStack
 
 
 class PatchConstructor(Protocol):

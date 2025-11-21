@@ -5,7 +5,7 @@ from typing_extensions import ParamSpec
 
 from careamics.utils import BaseEnum
 
-from .image_stack import GenericImageStack
+from ..image_stack import GenericImageStack
 
 P = ParamSpec("P")
 
@@ -41,7 +41,7 @@ class ImageStackLoader(Protocol[P, GenericImageStack]):
     >>> from zarr.storage import FsspecStore
 
     >>> from careamics.config import DataConfig
-    >>> from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
+    >>> from careamics.dataset_ng.image_stack import ZarrImageStack
 
     >>> # Define a zarr source
     >>> # It encompasses multiple arguments that determine what data will be loaded

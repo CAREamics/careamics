@@ -9,7 +9,7 @@ import tifffile
 from careamics.config.data import NGDataConfig
 from careamics.dataset_ng.dataset import CareamicsDataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
-from careamics.dataset_ng.patch_extractor.image_stack import FileImageStack
+from careamics.dataset_ng.image_stack import FileImageStack
 from careamics.dataset_ng.patch_extractor.limit_file_extractor import (
     LimitFilesPatchExtractor,
 )

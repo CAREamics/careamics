@@ -15,9 +15,12 @@ from careamics.config.support.supported_patching_strategies import (
 from careamics.config.transformations import NormalizeModel
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
-from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
-from careamics.dataset_ng.patch_filter import create_coord_filter, create_patch_filter
-from careamics.dataset_ng.patching_strategies import (
+from careamics.transforms import Compose
+
+from .image_stack import GenericImageStack
+from .patch_extractor import PatchExtractor
+from .patch_filter import create_coord_filter, create_patch_filter
+from .patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
     PatchSpecs,
@@ -26,7 +29,6 @@ from careamics.dataset_ng.patching_strategies import (
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
-from careamics.transforms import Compose
 
 
 class Mode(str, Enum):

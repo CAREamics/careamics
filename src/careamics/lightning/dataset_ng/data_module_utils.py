@@ -9,9 +9,7 @@ from numpy.typing import NDArray
 
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import list_files, validate_source_target_files
-from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
-    is_valid_uri,
-)
+from careamics.dataset_ng.image_stack_loader.zarr_utils import is_valid_uri
 
 ItemType = Path | str | NDArray[Any]
 """Type of input items passed to the dataset."""

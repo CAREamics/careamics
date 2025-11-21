@@ -1,9 +1,9 @@
 import pytest
 import zarr
 
-from careamics.dataset_ng.patch_extractor.image_stack.image_utils.zarr_utils import (
+from careamics.dataset_ng.image_stack_loader import load_zarrs
+from careamics.dataset_ng.image_stack_loader.zarr_utils import (
     collect_arrays,
-    create_zarr_image_stacks,
     decipher_zarr_uri,
     is_valid_uri,
 )
@@ -109,7 +109,7 @@ def test_create_image_stacks_uris(request, zarr_source):
         uri = f"file://{zarr_file}/{array_path}"
         source_uris.append(uri)
 
-    image_stacks = create_zarr_image_stacks(
+    image_stacks = load_zarrs(
         source=source_uris,
         axes="YX",
     )
@@ -131,7 +131,7 @@ def test_create_image_stacks_paths(request, zarr_source):
 
     source_files = list(set(source_files))
 
-    image_stacks = create_zarr_image_stacks(
+    image_stacks = load_zarrs(
         source=source_files,
         axes="YX",
     )

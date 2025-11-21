@@ -7,9 +7,8 @@ import numpy as np
 import pytest
 
 from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
-    create_array_extractor,
-)
+from careamics.dataset_ng.image_stack_loader import load_arrays
+from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patching_strategies import (
     TileSpecs,
     TilingStrategy,
@@ -53,9 +52,8 @@ def tiles(n_data, shape, axes) -> list[ImageRegionData]:
     n_tiles = tiling_strategy.n_patches
 
     # create patch extractor
-    patch_extractor = create_array_extractor(
-        source=[array[i] for i in range(n_data)], axes=axes
-    )
+    image_stacks = load_arrays(source=[array[i] for i in range(n_data)], axes=axes)
+    patch_extractor = PatchExtractor(image_stacks)
 
     # extract tiles
     tiles: list[ImageRegionData] = []

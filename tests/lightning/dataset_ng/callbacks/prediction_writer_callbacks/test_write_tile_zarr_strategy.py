@@ -2,10 +2,8 @@ import numpy as np
 import zarr
 
 from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
-    PatchExtractor,
-    create_zarr_extractor,
-)
+from careamics.dataset_ng.image_stack_loader import load_zarrs
+from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patching_strategies import (
     PatchSpecs,
     TileSpecs,
@@ -82,10 +80,11 @@ def test_zarr_prediction_callback_identity(tmp_path):
     array_uris.append(array_root.store_path)
 
     # create extractor and tiling strategy
-    patch_extractor = create_zarr_extractor(
+    image_stacks = load_zarrs(
         source=array_uris,
         axes="YX",
     )
+    patch_extractor = PatchExtractor(image_stacks)
 
     strategy = TilingStrategy(
         data_shapes=[(1, 1, 32, 32) for _ in range(len(array_uris))],

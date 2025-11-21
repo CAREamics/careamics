@@ -13,7 +13,8 @@ from careamics.config.support.supported_filters import (
     SupportedCoordinateFilters,
     SupportedPatchFilters,
 )
-from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
+from careamics.dataset_ng.image_stack import GenericImageStack
+from careamics.dataset_ng.patch_extractor import PatchExtractor
 
 from .mask_filter import MaskCoordFilter
 from .max_filter import MaxPatchFilter
