@@ -5,7 +5,7 @@ from typing import Any, Literal, Union, overload
 import numpy as np
 from numpy.typing import NDArray
 
-from ..config.tile_information import TileInformation
+from ..config.data.tile_information import TileInformation
 from .stitch_prediction import stitch_prediction, stitch_prediction_vae
 
 

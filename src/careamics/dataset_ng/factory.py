@@ -3,7 +3,7 @@ from typing import Any
 
 from typing_extensions import ParamSpec
 
-from careamics.config.data.ng_data_model import NGDataConfig
+from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
 

@@ -9,7 +9,7 @@ from typing import cast
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.config.tile_information import TileInformation
+from careamics.config.data.tile_information import TileInformation
 from careamics.utils.deprecation import deprecated
 
 from .dataset import ImageRegionData

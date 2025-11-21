@@ -35,7 +35,7 @@ class Compose:
 
     Parameters
     ----------
-    transform_list : list[TransformModel]
+    transform_list : list[TransformConfig]
         A list of dictionaries where each dictionary contains the name of a
         transform and its parameters.
 

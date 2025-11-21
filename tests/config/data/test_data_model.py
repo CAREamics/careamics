@@ -2,11 +2,11 @@ import numpy as np
 import pytest
 import yaml
 
-from careamics.config.data.data_model import DataConfig
+from careamics.config.data.data_config import DataConfig
 from careamics.config.support import (
     SupportedTransform,
 )
-from careamics.config.transformations import NormalizeModel
+from careamics.config.transformations import NormalizeConfig
 from careamics.transforms import get_all_transforms
 
 
@@ -28,11 +28,11 @@ def test_mean_std_non_negative(minimum_data: dict, mean, std):
     minimum_data["target_means"] = [mean]
     minimum_data["target_stds"] = [std]
 
-    data_model = DataConfig(**minimum_data)
-    assert data_model.image_means == [mean]
-    assert data_model.image_stds == [std]
-    assert data_model.target_means == [mean]
-    assert data_model.target_stds == [std]
+    data_config = DataConfig(**minimum_data)
+    assert data_config.image_means == [mean]
+    assert data_config.image_stds == [std]
+    assert data_config.target_means == [mean]
+    assert data_config.target_stds == [std]
 
 
 def test_mean_std_both_specified_or_none(minimum_data: dict):
@@ -84,7 +84,7 @@ def test_normalize_not_accepted(minimum_data: dict):
     minimum_data["image_means"] = [10.4]
     minimum_data["image_stds"] = [3.2]
     minimum_data["transforms"] = [
-        NormalizeModel(image_means=[0.485], image_stds=[0.229])
+        NormalizeConfig(image_means=[0.485], image_stds=[0.229])
     ]
 
     with pytest.raises(ValueError):
@@ -94,14 +94,14 @@ def test_normalize_not_accepted(minimum_data: dict):
 def test_patch_size(minimum_data: dict):
     """Test that non-zero even patch size are accepted."""
     # 2D
-    data_model = DataConfig(**minimum_data)
+    data_config = DataConfig(**minimum_data)
 
     # 3D
     minimum_data["patch_size"] = [16, 8, 8]
     minimum_data["axes"] = "ZYX"
 
-    data_model = DataConfig(**minimum_data)
-    assert data_model.patch_size == minimum_data["patch_size"]
+    data_config = DataConfig(**minimum_data)
+    assert data_config.patch_size == minimum_data["patch_size"]
 
 
 @pytest.mark.parametrize(

@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from pytorch_lightning import LightningModule, Trainer
 from torch.utils.data import DataLoader
 
-from careamics.config.tile_information import TileInformation
+from careamics.config.data.tile_information import TileInformation
 from careamics.dataset import IterablePredDataset, IterableTiledPredDataset
 from careamics.file_io import WriteFunc
 from careamics.prediction_utils import stitch_prediction_single

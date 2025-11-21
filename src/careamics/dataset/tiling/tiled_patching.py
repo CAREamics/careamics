@@ -6,7 +6,7 @@ from typing import Union
 
 import numpy as np
 
-from careamics.config.tile_information import TileInformation
+from careamics.config.data.tile_information import TileInformation
 
 
 def _compute_crop_and_stitch_coords_1d(

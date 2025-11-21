@@ -1,9 +1,9 @@
 import pytest
 
-from careamics.config.data.patching_strategies._overlapping_patched_model import (
-    _OverlappingPatchedModel,
+from careamics.config.data.patching_strategies._overlapping_patched_config import (
+    _OverlappingPatchedConfig,
 )
-from careamics.config.data.patching_strategies._patched_model import _PatchedModel
+from careamics.config.data.patching_strategies._patched_config import _PatchedConfig
 
 
 @pytest.mark.parametrize(
@@ -18,7 +18,7 @@ from careamics.config.data.patching_strategies._patched_model import _PatchedMod
 def test_patch_sizes_error(patch_size):
     """Test that the random patching"""
     with pytest.raises(ValueError):
-        _PatchedModel(patch_size=patch_size)
+        _PatchedConfig(patch_size=patch_size)
 
 
 @pytest.mark.parametrize(
@@ -32,4 +32,4 @@ def test_patch_sizes_error(patch_size):
 def test_patch_overlaps_error(patch_size, overlap):
     """Test that the random patching"""
     with pytest.raises(ValueError):
-        _OverlappingPatchedModel(patch_size=patch_size, overlaps=overlap)
+        _OverlappingPatchedConfig(patch_size=patch_size, overlaps=overlap)

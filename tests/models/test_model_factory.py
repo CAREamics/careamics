@@ -1,4 +1,4 @@
-from careamics.config.architectures import UNetModel
+from careamics.config.architectures import UNetConfig
 from careamics.models import model_factory
 from careamics.models.unet import UNet
 
@@ -11,5 +11,5 @@ def test_model_registry_unet():
     }
 
     # instantiate model
-    model = model_factory(UNetModel(**model_config))
+    model = model_factory(UNetConfig(**model_config))
     assert isinstance(model, UNet)

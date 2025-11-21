@@ -6,9 +6,9 @@ import torch
 from torch import nn
 
 from careamics.config import VAEBasedAlgorithm
-from careamics.config.architectures import LVAEModel
-from careamics.config.likelihood_model import GaussianLikelihoodConfig
-from careamics.config.loss_model import LVAELossConfig
+from careamics.config.architectures import LVAEConfig
+from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.noise_model.likelihood_config import GaussianLikelihoodConfig
 from careamics.models.model_factory import model_factory
 
 
@@ -23,7 +23,7 @@ def create_LVAE_model(
     analytical_kl: bool = False,
     predict_logvar: Union[Literal["pixelwise"], None] = None,
 ) -> nn.Module:
-    lvae_model_config = LVAEModel(
+    lvae_model_config = LVAEConfig(
         architecture="LVAE",
         input_shape=input_shape,
         z_dims=z_dims,

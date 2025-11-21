@@ -13,8 +13,8 @@ from careamics.file_io.read import read_tiff
 from careamics.transforms import Compose
 
 from ..config import InferenceConfig
-from ..config.tile_information import TileInformation
-from ..config.transformations import NormalizeModel
+from ..config.data.tile_information import TileInformation
+from ..config.transformations import NormalizeConfig
 from .dataset_utils import iterate_over_files
 from .tiling import extract_tiles
 
@@ -100,7 +100,7 @@ class IterableTiledPredDataset(IterableDataset):
             # instantiate normalize transform
             self.patch_transform = Compose(
                 transform_list=[
-                    NormalizeModel(
+                    NormalizeConfig(
                         image_means=self.image_means,
                         image_stds=self.image_stds,
                     )

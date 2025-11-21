@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader, Sampler
 from torch.utils.data._utils.collate import default_collate
 
-from careamics.config.data.ng_data_model import NGDataConfig
+from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset

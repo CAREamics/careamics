@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, IterableDataset
 
 from careamics.config.data import DataConfig
 from careamics.config.support import SupportedData
-from careamics.config.transformations import TransformModel
+from careamics.config.transformations import TransformConfig
 from careamics.dataset.dataset_utils import (
     get_files_size,
     list_files,
@@ -478,7 +478,7 @@ def create_train_datamodule(
     axes: str,
     batch_size: int,
     val_data: Union[str, Path, NDArray] | None = None,
-    transforms: list[TransformModel] | None = None,
+    transforms: list[TransformConfig] | None = None,
     train_target_data: Union[str, Path, NDArray] | None = None,
     val_target_data: Union[str, Path, NDArray] | None = None,
     read_source_func: Callable | None = None,
@@ -605,11 +605,11 @@ def create_train_datamodule(
     transforms:
     >>> import numpy as np
     >>> from careamics.lightning import create_train_datamodule
-    >>> from careamics.config.transformations import XYFlipModel
+    >>> from careamics.config.transformations import XYFlipConfig
     >>> from careamics.config.support import SupportedTransform
     >>> my_array = np.arange(256).reshape(16, 16)
     >>> my_transforms = [
-    ...     XYFlipModel(flip_y=False),
+    ...     XYFlipConfig(flip_y=False),
     ... ]
     >>> data_module = create_train_datamodule(
     ...     train_data=my_array,

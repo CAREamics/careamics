@@ -1,9 +1,9 @@
 """Architecture model validators."""
 
-from careamics.config.architectures import UNetModel
+from careamics.config.architectures import UNetConfig
 
 
-def model_without_n2v2(model: UNetModel) -> UNetModel:
+def model_without_n2v2(model: UNetConfig) -> UNetConfig:
     """Validate that the Unet model does not have the n2v2 attribute.
 
     Parameters
@@ -30,7 +30,7 @@ def model_without_n2v2(model: UNetModel) -> UNetModel:
     return model
 
 
-def model_without_final_activation(model: UNetModel) -> UNetModel:
+def model_without_final_activation(model: UNetConfig) -> UNetConfig:
     """Validate that the UNet model does not have the final_activation.
 
     Parameters
@@ -57,7 +57,7 @@ def model_without_final_activation(model: UNetModel) -> UNetModel:
     return model
 
 
-def model_matching_in_out_channels(model: UNetModel) -> UNetModel:
+def model_matching_in_out_channels(model: UNetConfig) -> UNetConfig:
     """Validate that the UNet model has the same number of channel inputs and outputs.
 
     Parameters

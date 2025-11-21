@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 
 from careamics.config.transformations import (
-    NormalizeModel,
-    XYFlipModel,
-    XYRandomRotate90Model,
+    NormalizeConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
 )
 from careamics.transforms import Compose, XYFlip, XYRandomRotate90
 
@@ -34,8 +34,8 @@ def test_compose_with_target(ordered_array):
     # transform lists
     transform_list = [XYFlip(seed=seed), XYRandomRotate90(seed=seed)]
     transform_list_pydantic = [
-        XYFlipModel(name="XYFlip", seed=seed),
-        XYRandomRotate90Model(name="XYRandomRotate90", seed=seed),
+        XYFlipConfig(name="XYFlip", seed=seed),
+        XYRandomRotate90Config(name="XYRandomRotate90", seed=seed),
     ]
 
     # instantiate Compose
@@ -80,14 +80,14 @@ def test_random_composition(ordered_array, shape):
         flip_x = rng.choice([True, False])
 
         transforms = [
-            NormalizeModel(
+            NormalizeConfig(
                 image_means=[0.5 for _ in range(array.shape[0])],
                 image_stds=[0.5 for _ in range(array.shape[0])],
                 target_means=[0.5 for _ in range(array.shape[0])],
                 target_stds=[0.5 for _ in range(array.shape[0])],
             ),
-            XYFlipModel(flip_x=flip_x, seed=42),
-            XYRandomRotate90Model(seed=42),
+            XYFlipConfig(flip_x=flip_x, seed=42),
+            XYRandomRotate90Config(seed=42),
         ]
 
         # randomly sort the transforms
@@ -110,8 +110,8 @@ def test_compose_additional_arrays(ordered_array):
 
     # create tranforms
     transforms = [
-        XYFlipModel(name="XYFlip", seed=seed),
-        XYRandomRotate90Model(name="XYRandomRotate90", seed=seed),
+        XYFlipConfig(name="XYFlip", seed=seed),
+        XYRandomRotate90Config(name="XYRandomRotate90", seed=seed),
     ]
 
     compose = Compose(transforms)

@@ -3,8 +3,8 @@
 from collections.abc import Callable
 from typing import Any, Union
 
-from careamics.config.algorithms.care_algorithm_model import CAREAlgorithm
-from careamics.config.algorithms.n2n_algorithm_model import N2NAlgorithm
+from careamics.config.algorithms.care_algorithm_config import CAREAlgorithm
+from careamics.config.algorithms.n2n_algorithm_config import N2NAlgorithm
 from careamics.config.support import SupportedLoss
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.losses import mae_loss, mse_loss

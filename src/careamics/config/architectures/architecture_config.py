@@ -1,0 +1,37 @@
+"""Base model for the various CAREamics architectures."""
+
+from typing import Any
+
+from pydantic import BaseModel
+
+
+class ArchitectureConfig(BaseModel):
+    """
+    Base Pydantic model for all model architectures.
+
+    The `model_dump` method allows removing the `architecture` key from the model.
+    """
+
+    architecture: str
+    """Name of the architecture."""
+
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
+        """
+        Dump the model as a dictionary, ignoring the architecture keyword.
+
+        Parameters
+        ----------
+        **kwargs : Any
+            Additional keyword arguments from Pydantic BaseModel model_dump method.
+
+        Returns
+        -------
+        {str: Any}
+            Model as a dictionary.
+        """
+        model_dict = super().model_dump(**kwargs)
+
+        # remove the architecture key
+        model_dict.pop("architecture")
+
+        return model_dict
