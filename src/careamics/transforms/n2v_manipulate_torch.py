@@ -188,6 +188,7 @@ class N2VManipulateTorch:
 
                     # Apply masking (skip if auxiliary_mask_percentage is 0)
                     if mask_pct > 0:
+
                         masked_result, mask_result = uniform_manipulate_torch(
                             patch=batch[b, c, ...],
                             mask_pixel_percentage=mask_pct,

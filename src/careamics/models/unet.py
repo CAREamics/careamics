@@ -18,6 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+### WIP: Self-Attention module for 1D data
 class SelfAttention1D(nn.Module):
     def __init__(self, channels: int, num_heads: int = 8):
         super().__init__()

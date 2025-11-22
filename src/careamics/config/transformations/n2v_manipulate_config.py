@@ -76,7 +76,7 @@ class N2VManipulateConfig(TransformConfig):
     )
 
     auxiliary_mask_percentage: float = Field(
-        default=0.05,
+        default=0.00,
         ge=0.0,
         le=1.0,
         description="Percentage of pixels to mask in auxiliary channels (non-data channels). "
