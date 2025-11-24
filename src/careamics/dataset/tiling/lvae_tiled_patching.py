@@ -8,7 +8,7 @@ from typing import Any, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.config.tile_information import TileInformation
+from careamics.config.data.tile_information import TileInformation
 from careamics.lvae_training.dataset.utils.index_manager import GridIndexManager
 
 

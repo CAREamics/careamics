@@ -6,7 +6,7 @@ import torch
 
 from careamics.config import UNetBasedAlgorithm
 from careamics.config.algorithms import PN2VAlgorithm
-from careamics.config.nm_model import GaussianMixtureNMConfig
+from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.lightning.lightning_module import (
     FCNModule,
     create_careamics_module,

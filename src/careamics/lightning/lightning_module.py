@@ -14,6 +14,7 @@ from careamics.config import (
     VAEBasedAlgorithm,
     algorithm_factory,
 )
+from careamics.config.data.tile_information import TileInformation
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -21,7 +22,6 @@ from careamics.config.support import (
     SupportedOptimizer,
     SupportedScheduler,
 )
-from careamics.config.tile_information import TileInformation
 from careamics.losses import loss_factory
 from careamics.models.lvae.likelihoods import (
     GaussianLikelihood,

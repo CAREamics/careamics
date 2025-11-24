@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config.data.ng_data_model import NGDataConfig
+from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
@@ -25,16 +25,16 @@ from careamics.config.support.supported_patching_strategies import (
         },
     ],
 )
-def test_ng_data_model_strategy(patching_strategy):
+def test_ng_data_config_strategy(patching_strategy):
 
     # Test the DataModel class
-    data_model = NGDataConfig(
+    data_config = NGDataConfig(
         data_type="array",
         axes="YX",
         patching=patching_strategy,
     )
 
-    assert data_model.patching.name == patching_strategy["name"]
+    assert data_config.patching.name == patching_strategy["name"]
 
 
 @pytest.mark.parametrize(

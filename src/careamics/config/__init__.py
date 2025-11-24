@@ -1,14 +1,8 @@
-"""CAREamics Pydantic configuration models.
-
-To maintain clarity at the module level, we follow the following naming conventions:
-`*_model` is specific for sub-configurations (e.g. architecture, data, algorithm),
-while `*_configuration` is reserved for the main configuration models, including the
-`Configuration` base class and its algorithm-specific child classes.
-"""
+"""CAREamics Pydantic configurations."""
 
 __all__ = [
     "CAREAlgorithm",
-    "CheckpointModel",
+    "CheckpointConfig",
     "Configuration",
     "DataConfig",
     "GaussianMixtureNMConfig",
@@ -44,7 +38,6 @@ from .algorithms import (
     UNetBasedAlgorithm,
     VAEBasedAlgorithm,
 )
-from .callback_model import CheckpointModel
 from .configuration import Configuration
 from .configuration_factories import (
     algorithm_factory,
@@ -55,9 +48,13 @@ from .configuration_factories import (
     create_n2v_configuration,
     create_pn2v_configuration,
 )
-from .configuration_io import load_configuration, save_configuration
 from .data import DataConfig
-from .inference_model import InferenceConfig
-from .loss_model import LVAELossConfig
-from .nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
-from .training_model import TrainingConfig
+from .data.inference_config import InferenceConfig
+from .lightning.callbacks.callback_config import CheckpointConfig
+from .lightning.training_config import TrainingConfig
+from .losses.loss_config import LVAELossConfig
+from .noise_model.noise_model_config import (
+    GaussianMixtureNMConfig,
+    MultiChannelNMConfig,
+)
+from .utils.configuration_io import load_configuration, save_configuration

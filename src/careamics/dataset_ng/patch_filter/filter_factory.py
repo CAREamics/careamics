@@ -3,11 +3,11 @@
 from typing import Union
 
 from careamics.config.data.patch_filter import (
-    FilterModel,
-    MaskFilterModel,
-    MaxFilterModel,
-    MeanSTDFilterModel,
-    ShannonFilterModel,
+    FilterConfig,
+    MaskFilterConfig,
+    MaxFilterConfig,
+    MeanSTDFilterConfig,
+    ShannonFilterConfig,
 )
 from careamics.config.support.supported_filters import (
     SupportedCoordinateFilters,
@@ -32,7 +32,7 @@ CoordFilter = Union[MaskCoordFilter]
 
 
 def create_coord_filter(
-    filter_model: FilterModel, mask: PatchExtractor[GenericImageStack]
+    filter_model: FilterConfig, mask: PatchExtractor[GenericImageStack]
 ) -> CoordFilter:
     """Factory function to create coordinate filter instances based on the filter name.
 
@@ -49,7 +49,7 @@ def create_coord_filter(
         Instance of the mask patch filter.
     """
     if filter_model.name == SupportedCoordinateFilters.MASK:
-        assert isinstance(filter_model, MaskFilterModel)
+        assert isinstance(filter_model, MaskFilterConfig)
         return MaskCoordFilter(
             mask_extractor=mask,
             coverage=filter_model.coverage,
@@ -60,7 +60,7 @@ def create_coord_filter(
         raise ValueError(f"Unknown filter name: {filter_model}")
 
 
-def create_patch_filter(filter_model: FilterModel) -> PatchFilter:
+def create_patch_filter(filter_model: FilterConfig) -> PatchFilter:
     """Factory function to create patch filter instances based on the filter name.
 
     Parameters
@@ -74,12 +74,12 @@ def create_patch_filter(filter_model: FilterModel) -> PatchFilter:
         Instance of the requested patch filter.
     """
     if filter_model.name == SupportedPatchFilters.MAX:
-        assert isinstance(filter_model, MaxFilterModel)
+        assert isinstance(filter_model, MaxFilterConfig)
         return MaxPatchFilter(
             threshold=filter_model.threshold, p=filter_model.p, seed=filter_model.seed
         )
     elif filter_model.name == SupportedPatchFilters.MEANSTD:
-        assert isinstance(filter_model, MeanSTDFilterModel)
+        assert isinstance(filter_model, MeanSTDFilterConfig)
         return MeanStdPatchFilter(
             mean_threshold=filter_model.mean_threshold,
             std_threshold=filter_model.std_threshold,
@@ -87,7 +87,7 @@ def create_patch_filter(filter_model: FilterModel) -> PatchFilter:
             seed=filter_model.seed,
         )
     elif filter_model.name == SupportedPatchFilters.SHANNON:
-        assert isinstance(filter_model, ShannonFilterModel)
+        assert isinstance(filter_model, ShannonFilterConfig)
         return ShannonPatchFilter(
             threshold=filter_model.threshold, p=filter_model.p, seed=filter_model.seed
         )

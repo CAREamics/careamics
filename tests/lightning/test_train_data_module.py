@@ -7,7 +7,7 @@ from careamics.config.support import (
     SupportedData,
     SupportedTransform,
 )
-from careamics.config.transformations import N2VManipulateModel, XYFlipModel
+from careamics.config.transformations import N2VManipulateConfig, XYFlipConfig
 from careamics.dataset import InMemoryDataset, PathIterableDataset
 from careamics.lightning import TrainDataModule, create_train_datamodule
 
@@ -94,7 +94,7 @@ def test_wrapper_supervised_n2v_throws_error(simple_array):
             batch_size=2,
             train_target_data=simple_array,
             val_minimum_patches=2,
-            transforms=[XYFlipModel(), N2VManipulateModel()],
+            transforms=[XYFlipConfig(), N2VManipulateConfig()],
         )
 
 

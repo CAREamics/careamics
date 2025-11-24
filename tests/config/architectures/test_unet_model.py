@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config.architectures import UNetModel
+from careamics.config.architectures import UNetConfig
 from careamics.config.support import SupportedActivation
 
 
@@ -13,7 +13,7 @@ def test_instantiation():
     }
 
     # instantiate model
-    UNetModel(**model_params)
+    UNetConfig(**model_params)
 
 
 def test_architecture_missing():
@@ -24,7 +24,7 @@ def test_architecture_missing():
     }
 
     with pytest.raises(ValueError):
-        UNetModel(**model_params)
+        UNetConfig(**model_params)
 
 
 @pytest.mark.parametrize("num_channels_init", [8, 16, 32, 96, 128])
@@ -34,7 +34,7 @@ def test_num_channels_init(num_channels_init: int):
     model_params = {"architecture": "UNet", "num_channels_init": num_channels_init}
 
     # instantiate model
-    UNetModel(**model_params)
+    UNetConfig(**model_params)
 
 
 @pytest.mark.parametrize("num_channels_init", [2, 17, 127])
@@ -43,7 +43,7 @@ def test_wrong_num_channels_init(num_channels_init: int):
     model_params = {"architecture": "UNet", "num_channels_init": num_channels_init}
 
     with pytest.raises(ValueError):
-        UNetModel(**model_params)
+        UNetConfig(**model_params)
 
 
 def test_activations():
@@ -57,7 +57,7 @@ def test_activations():
             }
 
         # instantiate model
-        UNetModel(**model_params)
+        UNetConfig(**model_params)
 
 
 def test_all_activations_are_supported():
@@ -66,7 +66,7 @@ def test_all_activations_are_supported():
     activations = list(SupportedActivation)
 
     # Algorithm json schema
-    schema = UNetModel.model_json_schema()
+    schema = UNetConfig.model_json_schema()
 
     # check that all activations are supported
     for act in schema["properties"]["final_activation"]["enum"]:
@@ -82,13 +82,13 @@ def test_activation_wrong_values():
     }
 
     with pytest.raises(ValueError):
-        UNetModel(**model_params)
+        UNetConfig(**model_params)
 
 
 def test_parameters_wrong_values_by_assigment():
     """Test that wrong values are not accepted through assignment."""
     model_params = {"architecture": "UNet", "num_channels_init": 16, "depth": 2}
-    model = UNetModel(**model_params)
+    model = UNetConfig(**model_params)
 
     # depth
     model.depth = model_params["depth"]
@@ -108,7 +108,7 @@ def test_model_dump():
         "num_channels_init": 16,  # non-default value
         "final_activation": "ReLU",  # non-default value
     }
-    model = UNetModel(**model_params)
+    model = UNetConfig(**model_params)
 
     # dump model
     model_dict = model.model_dump(exclude_defaults=True)

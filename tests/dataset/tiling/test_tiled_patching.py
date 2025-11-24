@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.config.tile_information import TileInformation
+from careamics.config.data.tile_information import TileInformation
 from careamics.dataset.tiling.tiled_patching import (
     _compute_crop_and_stitch_coords_1d,
     extract_tiles,

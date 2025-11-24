@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config.architectures import LVAEModel
+from careamics.config.architectures import LVAEConfig
 from careamics.config.support import SupportedActivation
 
 pytestmark = pytest.mark.lvae
@@ -13,7 +13,7 @@ def test_instantiation():
     }
 
     # instantiate model
-    LVAEModel(**model_params)
+    LVAEConfig(**model_params)
 
 
 def test_architecture_missing():
@@ -23,7 +23,7 @@ def test_architecture_missing():
     }
 
     with pytest.raises(ValueError):
-        LVAEModel(**model_params)
+        LVAEConfig(**model_params)
 
 
 @pytest.mark.parametrize("encoder_n_filters", [8, 16, 32, 96, 128])
@@ -33,7 +33,7 @@ def test_encoder_n_filters(encoder_n_filters: int):
     model_params = {"architecture": "LVAE", "encoder_n_filters": encoder_n_filters}
 
     # instantiate model
-    LVAEModel(**model_params)
+    LVAEConfig(**model_params)
 
 
 @pytest.mark.parametrize("decoder_n_filters", [8, 16, 32, 96, 128])
@@ -43,7 +43,7 @@ def test_decoder_n_filters(decoder_n_filters: int):
     model_params = {"architecture": "LVAE", "decoder_n_filters": decoder_n_filters}
 
     # instantiate model
-    LVAEModel(**model_params)
+    LVAEConfig(**model_params)
 
 
 @pytest.mark.parametrize("n_filters", [2, 17, 127])
@@ -51,11 +51,11 @@ def test_wrong_num_filters(n_filters: int):
     """Test that wrong num_channels_init causes an error."""
     model_params = {"architecture": "LVAE", "encoder_n_filters": n_filters}
     with pytest.raises(ValueError):
-        LVAEModel(**model_params)
+        LVAEConfig(**model_params)
 
     model_params = {"architecture": "LVAE", "decoder_n_filters": n_filters}
     with pytest.raises(ValueError):
-        LVAEModel(**model_params)
+        LVAEConfig(**model_params)
 
 
 def test_activations():
@@ -67,7 +67,7 @@ def test_activations():
         }
 
         # instantiate model
-        LVAEModel(**model_params)
+        LVAEConfig(**model_params)
 
 
 def test_all_activations_are_supported():
@@ -76,7 +76,7 @@ def test_all_activations_are_supported():
     activations = list(SupportedActivation)
 
     # Algorithm json schema
-    schema = LVAEModel.model_json_schema()
+    schema = LVAEConfig.model_json_schema()
 
     # check that all activations are supported
     for act in schema["properties"]["nonlinearity"]["enum"]:
@@ -91,7 +91,7 @@ def test_activation_wrong_values():
     }
 
     with pytest.raises(ValueError):
-        LVAEModel(**model_params)
+        LVAEConfig(**model_params)
 
 
 def test_parameters_wrong_values_by_assigment():
@@ -102,7 +102,7 @@ def test_parameters_wrong_values_by_assigment():
         "multiscale_count": 2,
         "encoder_n_filters": 32,
     }
-    model = LVAEModel(**model_params)
+    model = LVAEConfig(**model_params)
 
     # z_dims
     model.z_dims = model_params["z_dims"]

@@ -30,9 +30,9 @@ from careamics.config.support import (
     SupportedTransform,
 )
 from careamics.config.transformations import (
-    N2VManipulateModel,
-    XYFlipModel,
-    XYRandomRotate90Model,
+    N2VManipulateConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
 )
 
 
@@ -92,7 +92,7 @@ def test_list_aug_error_duplicate_transforms():
     """Test that an error is raised when there are duplicate transforms."""
     with pytest.raises(ValueError):
         _list_spatial_augmentations(
-            augmentations=[XYFlipModel(), XYRandomRotate90Model(), XYFlipModel()],
+            augmentations=[XYFlipConfig(), XYRandomRotate90Config(), XYFlipConfig()],
         )
 
 
@@ -100,7 +100,7 @@ def test_list_aug_error_wrong_transform():
     """Test that an error is raised when the wrong transform is passed."""
     with pytest.raises(ValueError):
         _list_spatial_augmentations(
-            augmentations=[XYFlipModel(), N2VManipulateModel()],
+            augmentations=[XYFlipConfig(), N2VManipulateConfig()],
         )
 
 
@@ -123,7 +123,7 @@ def test_supervised_configuration_passing_transforms():
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        augmentations=[XYFlipModel()],
+        augmentations=[XYFlipConfig()],
     )
     config = Configuration(**config_dict)
 
@@ -175,7 +175,7 @@ def test_create_configuration():
     axes = "CYX"
     patch_size = [128, 128]
     batch_size = 8
-    transform_list = [XYFlipModel(), XYRandomRotate90Model()]
+    transform_list = [XYFlipConfig(), XYRandomRotate90Config()]
     independent_channels = False
     loss = "mse"
     n_channels_in = 2
@@ -960,11 +960,11 @@ def test_pn2v_configuration(tmp_path: Path, create_dummy_noise_model):
 
 
 def test_checkpoint_model_save_top_k_default():
-    """CheckpointModel's default save_top_k=3 doesn't conflict with trainer params."""
-    from careamics.config.callback_model import CheckpointModel
+    """CheckpointConfig's default save_top_k=3 doesn't conflict with trainer params."""
+    from careamics.config.lightning.callbacks.callback_config import CheckpointConfig
 
     # Test default save_top_k value
-    checkpoint_model = CheckpointModel()
+    checkpoint_model = CheckpointConfig()
     assert checkpoint_model.save_top_k == 3
 
     # Test that default works with standard trainer configuration
@@ -1036,25 +1036,25 @@ def test_checkpoint_model_save_top_k_edge_cases():
     """Test edge cases for save_top_k parameter."""
     import pytest
 
-    from careamics.config.callback_model import CheckpointModel
+    from careamics.config.lightning.callbacks.callback_config import CheckpointConfig
 
     # Test that save_top_k accepts valid range (-1 to 100)
-    checkpoint_model = CheckpointModel(save_top_k=-1)  # Save all
+    checkpoint_model = CheckpointConfig(save_top_k=-1)  # Save all
     assert checkpoint_model.save_top_k == -1
 
-    checkpoint_model = CheckpointModel(save_top_k=0)  # Save none
+    checkpoint_model = CheckpointConfig(save_top_k=0)  # Save none
     assert checkpoint_model.save_top_k == 0
 
-    checkpoint_model = CheckpointModel(save_top_k=100)  # Maximum allowed
+    checkpoint_model = CheckpointConfig(save_top_k=100)  # Maximum allowed
     assert checkpoint_model.save_top_k == 100
 
     # Test that invalid values are rejected (assuming validation exists)
     # This depends on the Pydantic field constraints
     with pytest.raises(ValueError):
-        CheckpointModel(save_top_k=101)  # Above maximum
+        CheckpointConfig(save_top_k=101)  # Above maximum
 
     with pytest.raises(ValueError):
-        CheckpointModel(save_top_k=-2)  # Below minimum
+        CheckpointConfig(save_top_k=-2)  # Below minimum
 
 
 def test_checkpoint_model_save_top_k_with_development_modes():

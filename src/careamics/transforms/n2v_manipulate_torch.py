@@ -6,7 +6,7 @@ from typing import Any
 import torch
 
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
-from careamics.config.transformations import N2VManipulateModel
+from careamics.config.transformations import N2VManipulateConfig
 
 from .pixel_manipulation_torch import (
     median_manipulate_torch,
@@ -48,7 +48,7 @@ class N2VManipulateTorch:
 
     def __init__(
         self,
-        n2v_manipulate_config: N2VManipulateModel,
+        n2v_manipulate_config: N2VManipulateConfig,
         seed: int | None = None,
         device: str | None = None,
     ):
@@ -56,7 +56,7 @@ class N2VManipulateTorch:
 
         Parameters
         ----------
-        n2v_manipulate_config : N2VManipulateModel
+        n2v_manipulate_config : N2VManipulateConfig
             N2V manipulation configuration.
         seed : Optional[int], optional
             Random seed, by default None.

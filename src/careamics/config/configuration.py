@@ -19,7 +19,7 @@ from careamics.config.algorithms import (
     PN2VAlgorithm,
 )
 from careamics.config.data import DataConfig
-from careamics.config.training_model import TrainingConfig
+from careamics.config.lightning.training_config import TrainingConfig
 from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 ALGORITHMS = Union[

@@ -4,15 +4,15 @@ from typing import Annotated, Union
 
 from pydantic import Discriminator
 
-from .normalize_model import NormalizeModel
-from .xy_flip_model import XYFlipModel
-from .xy_random_rotate90_model import XYRandomRotate90Model
+from .normalize_config import NormalizeConfig
+from .xy_flip_config import XYFlipConfig
+from .xy_random_rotate90_config import XYRandomRotate90Config
 
 NORM_AND_SPATIAL_UNION = Annotated[
     Union[
-        NormalizeModel,
-        XYFlipModel,
-        XYRandomRotate90Model,
+        NormalizeConfig,
+        XYFlipConfig,
+        XYRandomRotate90Config,
     ],
     Discriminator("name"),  # used to tell the different transform models apart
 ]
@@ -21,8 +21,8 @@ NORM_AND_SPATIAL_UNION = Annotated[
 
 SPATIAL_TRANSFORMS_UNION = Annotated[
     Union[
-        XYFlipModel,
-        XYRandomRotate90Model,
+        XYFlipConfig,
+        XYRandomRotate90Config,
     ],
     Discriminator("name"),  # used to tell the different transform models apart
 ]

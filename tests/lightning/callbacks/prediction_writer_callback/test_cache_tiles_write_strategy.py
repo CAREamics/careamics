@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from pytorch_lightning import LightningModule, Trainer
 from torch.utils.data import DataLoader
 
-from careamics.config.tile_information import TileInformation
+from careamics.config.data.tile_information import TileInformation
 from careamics.dataset import IterableTiledPredDataset
 from careamics.dataset.tiling import extract_tiles
 from careamics.file_io import WriteFunc
