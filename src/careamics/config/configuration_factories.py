@@ -363,7 +363,7 @@ def _create_ng_data_configuration(
     patch_overlaps: Sequence[int] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
-    test_dataloader_params: dict[str, Any] | None = None,
+    pred_dataloader_params: dict[str, Any] | None = None,
     seed: int | None = None,
 ) -> NGDataConfig:
     """
@@ -390,7 +390,7 @@ def _create_ng_data_configuration(
         Parameters for the training dataloader, see PyTorch notes, by default None.
     val_dataloader_params : dict
         Parameters for the validation dataloader, see PyTorch notes, by default None.
-    test_dataloader_params : dict
+    pred_dataloader_params : dict
         Parameters for the test dataloader, see PyTorch notes, by default None.
     seed : int, default=None
         Random seed for reproducibility. If `None`, no seed is set.
@@ -420,8 +420,8 @@ def _create_ng_data_configuration(
     if val_dataloader_params is not None:
         data["val_dataloader_params"] = val_dataloader_params
 
-    if test_dataloader_params is not None:
-        data["test_dataloader_params"] = test_dataloader_params
+    if pred_dataloader_params is not None:
+        data["pred_dataloader_params"] = pred_dataloader_params
 
     # add training patching
     data["patching"] = {
