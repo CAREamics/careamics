@@ -317,7 +317,9 @@ def test_fcn_module_unet_depth_3_channels_3D(n_channels):
 
 @pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("tiled", [False, True])
-def test_prediction_callback_during_training(minimum_n2v_configuration, tiled):
+def test_prediction_callback_during_training(
+    tmp_path, minimum_n2v_configuration, tiled
+):
     import numpy as np
     from pytorch_lightning import Callback, Trainer
 
@@ -375,7 +377,9 @@ def test_prediction_callback_during_training(minimum_n2v_configuration, tiled):
     predict_after_val_callback = CustomPredictAfterValidationCallback(
         pred_datamodule=pred_datamodule
     )
-    engine = CAREamist(config, callbacks=[predict_after_val_callback])
+    engine = CAREamist(
+        config, work_dir=tmp_path, callbacks=[predict_after_val_callback]
+    )
     engine.train(train_source=array)
 
     assert not np.allclose(array, predict_after_val_callback.data)
