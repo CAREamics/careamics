@@ -1,6 +1,9 @@
 import pytest
 
-from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
+from careamics.config.lightning.optimizer_configs import (
+    LrSchedulerConfig,
+    OptimizerConfig,
+)
 from careamics.config.support.supported_optimizers import (
     SupportedOptimizer,
     SupportedScheduler,
@@ -43,7 +46,7 @@ def test_optimizer_parameters(optimizer_name: SupportedOptimizer, parameters: di
     new_parameters["some_random_one"] = 42
 
     # create optimizer and check that the parameters are filtered
-    optimizer = OptimizerModel(name=optimizer_name, parameters=new_parameters)
+    optimizer = OptimizerConfig(name=optimizer_name, parameters=new_parameters)
     assert optimizer.parameters == parameters
 
 
@@ -53,10 +56,10 @@ def test_sgd_missing_parameter():
     Note: The SGD optimizer requires the `lr` parameter.
     """
     with pytest.raises(ValueError):
-        OptimizerModel(name=SupportedOptimizer.SGD.value, parameters={})
+        OptimizerConfig(name=SupportedOptimizer.SGD.value, parameters={})
 
     # test that it works if lr is provided
-    optimizer = OptimizerModel(
+    optimizer = OptimizerConfig(
         name=SupportedOptimizer.SGD.value, parameters={"lr": 0.1}
     )
     assert optimizer.parameters == {"lr": 0.1}
@@ -64,7 +67,7 @@ def test_sgd_missing_parameter():
 
 def test_optimizer_wrong_values_by_assignments():
     """Test that wrong values cause an error during assignment."""
-    optimizer = OptimizerModel(
+    optimizer = OptimizerConfig(
         name=SupportedOptimizer.ADAM.value, parameters={"lr": 0.08}
     )
 
@@ -89,7 +92,7 @@ def test_optimizer_to_dict_optional():
         },
     }
 
-    optim_minimum = OptimizerModel(**config).model_dump()
+    optim_minimum = OptimizerConfig(**config).model_dump()
     assert optim_minimum == config
 
 
@@ -130,17 +133,17 @@ def test_scheduler_parameters(lr_scheduler_name: SupportedScheduler, parameters:
     new_parameters["some_random_one"] = 42
 
     # create optimizer and check that the parameters are filtered
-    lr_scheduler = LrSchedulerModel(name=lr_scheduler_name, parameters=new_parameters)
+    lr_scheduler = LrSchedulerConfig(name=lr_scheduler_name, parameters=new_parameters)
     assert lr_scheduler.parameters == parameters
 
 
 def test_scheduler_missing_parameter():
     """Test that StepLR scheduler fails if `step_size` is not provided"""
     with pytest.raises(ValueError):
-        LrSchedulerModel(name=SupportedScheduler.STEP_LR.value, parameters={})
+        LrSchedulerConfig(name=SupportedScheduler.STEP_LR.value, parameters={})
 
     # test that it works if lr is provided
-    lr_scheduler = LrSchedulerModel(
+    lr_scheduler = LrSchedulerConfig(
         name=SupportedScheduler.STEP_LR.value, parameters={"step_size": "5"}
     )
     assert lr_scheduler.parameters == {"step_size": "5"}

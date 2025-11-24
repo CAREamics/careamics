@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from careamics.config.support import SupportedPixelManipulation
-from careamics.config.transformations import N2VManipulateModel
+from careamics.config.transformations import N2VManipulateConfig
 from careamics.transforms import N2VManipulate, N2VManipulateTorch
 
 
@@ -41,7 +41,7 @@ def test_manipulate_n2v_torch(strategy):
     array = torch.arange(16 * 16).reshape(1, 16, 16).float()
 
     # create configuration
-    config = N2VManipulateModel(
+    config = N2VManipulateConfig(
         roi_size=5, masked_pixel_percentage=5, strategy=strategy.value
     )
     # Create augmentation

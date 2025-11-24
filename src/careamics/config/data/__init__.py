@@ -5,5 +5,5 @@ __all__ = [
     "NGDataConfig",
 ]
 
-from .data_model import DataConfig
-from .ng_data_model import NGDataConfig
+from .data_config import DataConfig
+from .ng_data_config import NGDataConfig

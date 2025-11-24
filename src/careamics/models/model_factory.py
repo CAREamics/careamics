@@ -13,8 +13,8 @@ from careamics.utils import get_logger
 
 if TYPE_CHECKING:
     from careamics.config.architectures import (
-        LVAEModel,
-        UNetModel,
+        LVAEConfig,
+        UNetConfig,
     )
 
 
@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 
 def model_factory(
-    model_configuration: Union[UNetModel, LVAEModel],
+    model_configuration: Union[UNetConfig, LVAEConfig],
 ) -> torch.nn.Module:
     """
     Deep learning model factory.
