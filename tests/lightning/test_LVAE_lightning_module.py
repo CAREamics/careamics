@@ -557,7 +557,13 @@ def test_training_loop_hdn(
         multiscale_count=1,
         target_ch=1,
     )
-    trainer = Trainer(accelerator="cpu", max_epochs=2, logger=False, callbacks=[])
+    trainer = Trainer(
+        default_root_dir=tmp_path,
+        accelerator="cpu",
+        max_epochs=2,
+        logger=False,
+        callbacks=[],
+    )
 
     try:
         trainer.fit(
@@ -627,7 +633,13 @@ def test_training_loop_microsplit(
         data_std = torch.zeros(1, target_ch, 1, 1)
         lightning_model.set_data_stats(data_mean, data_std)
 
-    trainer = Trainer(accelerator="cpu", max_epochs=2, logger=False, callbacks=[])
+    trainer = Trainer(
+        default_root_dir=tmp_path,
+        accelerator="cpu",
+        max_epochs=2,
+        logger=False,
+        callbacks=[],
+    )
 
     try:
         trainer.fit(

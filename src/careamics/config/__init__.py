@@ -13,6 +13,7 @@ __all__ = [
     "MultiChannelNMConfig",
     "N2NAlgorithm",
     "N2VAlgorithm",
+    "PN2VAlgorithm",
     "TrainingConfig",
     "UNetBasedAlgorithm",
     "VAEBasedAlgorithm",
@@ -22,6 +23,7 @@ __all__ = [
     "create_microsplit_configuration",
     "create_n2n_configuration",
     "create_n2v_configuration",
+    "create_pn2v_configuration",
     "load_configuration",
     "save_configuration",
 ]
@@ -32,6 +34,7 @@ from .algorithms import (
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
     UNetBasedAlgorithm,
     VAEBasedAlgorithm,
 )
@@ -43,6 +46,7 @@ from .configuration_factories import (
     create_microsplit_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
+    create_pn2v_configuration,
 )
 from .data import DataConfig
 from .data.inference_config import InferenceConfig

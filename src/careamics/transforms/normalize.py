@@ -1,7 +1,9 @@
 """Normalization and denormalization transforms for image patches."""
 
 import numpy as np
+import torch
 from numpy.typing import NDArray
+from torch import Tensor
 
 from careamics.transforms.transform import Transform
 
@@ -25,6 +27,26 @@ def _reshape_stats(stats: list[float], ndim: int) -> NDArray:
         Reshaped stats.
     """
     return np.array(stats)[(..., *[np.newaxis] * (ndim - 1))]
+
+
+def _reshape_stats_torch(stats: list[float], ndim: int) -> Tensor:
+    """Torch equivalent of `_reshape_stats` for broadcasting over image dims.
+
+    Parameters
+    ----------
+    stats : list of float
+        List of stats, mean or standard deviation.
+    ndim : int
+        Number of dimensions of the tensor, including the C channel.
+
+    Returns
+    -------
+    Tensor
+        Reshaped stats tensor.
+    """
+    t = torch.tensor(stats)
+    # Add singleton dimensions to match input tensor ndim for broadcasting
+    return t[(..., *[None] * (ndim - 1))]
 
 
 class Normalize(Transform):
@@ -224,13 +246,13 @@ class Denormalize:
         NDArray
             Transformed array.
         """
-        if len(self.image_means) != patch.shape[1]:
-            raise ValueError(
-                f"Number of means (got a list of size {len(self.image_means)}) and "
-                f"number of channels (got shape {patch.shape} for BC(Z)YX) do not "
-                f"match."
-            )
-
+        # if len(self.image_means) != patch.shape[1]:
+        #     raise ValueError(
+        #         f"Number of means (got a list of size {len(self.image_means)}) and "
+        #         f"number of channels (got shape {patch.shape} for BC(Z)YX) do not "
+        #         f"match."
+        #     )
+        # TODO for pn2v channel handling needs to be changed
         means = _reshape_stats(self.image_means, patch.ndim)
         stds = _reshape_stats(self.image_stds, patch.ndim)
 
@@ -259,5 +281,94 @@ class Denormalize:
         -------
         NDArray
             Denormalized image array.
+        """
+        return array * (std + self.eps) + mean
+
+
+class TrainDenormalize:
+    """
+    Denormalize an image tensor for training-time tensors.
+
+    This class mirrors `Denormalize` but operates on torch tensors. It expects
+    the input tensor to have shape BC(Z)YX with the channel dimension at index 1.
+
+    Parameters
+    ----------
+    image_means : list or tuple of float
+        Mean value per channel.
+    image_stds : list or tuple of float
+        Standard deviation value per channel.
+    """
+
+    def __init__(
+        self,
+        image_means: list[float],
+        image_stds: list[float],
+    ) -> None:
+        """Initialize Denormalize transform.
+
+        Parameters
+        ----------
+        image_means : list of float
+            Mean values per channel.
+        image_stds : list of float
+            Standard deviation values per channel.
+        """
+        self.image_means = image_means
+        self.image_stds = image_stds
+        self.eps = 1e-6
+
+    def __call__(self, patch: Tensor) -> Tensor:
+        """Reverse the normalization operation for a batch of patches.
+
+        Parameters
+        ----------
+        patch : Tensor
+            Patch, 2D or 3D, shape BC(Z)YX.
+
+        Returns
+        -------
+        Tensor
+            Denormalized tensor with dtype float32.
+        """
+        # if len(self.image_means) != patch.shape[1]:
+        #     raise ValueError(
+        #         f"Number of means (got a list of size {len(self.image_means)}) and "
+        #         f"number of channels (got shape {tuple(patch.shape)} for BC(Z)YX) "
+        #         f"don't match."
+        #     )
+        # TODO for pn2v channel handling needs to be changed
+
+        means = _reshape_stats_torch(self.image_means, patch.ndim).to(
+            device=patch.device, dtype=patch.dtype
+        )
+        stds = _reshape_stats_torch(self.image_stds, patch.ndim).to(
+            device=patch.device, dtype=patch.dtype
+        )
+
+        denorm_tensor = self._apply(
+            patch,
+            torch.swapaxes(means, 0, 1),  # swap axes as C channel is axis 1
+            torch.swapaxes(stds, 0, 1),
+        )
+
+        return denorm_tensor.float()
+
+    def _apply(self, array: Tensor, mean: Tensor, std: Tensor) -> Tensor:
+        """Apply the denormalization to the tensor.
+
+        Parameters
+        ----------
+        array : Tensor
+            Input tensor.
+        mean : Tensor
+            Mean values.
+        std : Tensor
+            Standard deviation values.
+
+        Returns
+        -------
+        Tensor
+            Denormalized tensor.
         """
         return array * (std + self.eps) + mean
