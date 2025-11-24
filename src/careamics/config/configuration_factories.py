@@ -355,7 +355,7 @@ def _create_microsplit_data_configuration(
 
 
 def _create_ng_data_configuration(
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
@@ -371,7 +371,7 @@ def _create_ng_data_configuration(
 
     Parameters
     ----------
-    data_type : {"array", "tiff", "custom"}
+    data_type : {"array", "tiff", "zarr", "czi", "custom"}
         Type of the data.
     axes : str
         Axes of the data.
