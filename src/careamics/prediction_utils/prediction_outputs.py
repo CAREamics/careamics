@@ -88,10 +88,12 @@ def convert_outputs_pn2v(
         return predictions_output, mse_output
     else:
         # Separate predictions and mmse for non-tiled case
-        pred_only, mse_only = zip(*predictions, strict=False)
+        pred_only_tuple, mse_only_tuple = zip(*predictions, strict=False)
+        pred_only_list: list[NDArray] = list(pred_only_tuple)
+        mse_only_list: list[NDArray] = list(mse_only_tuple)
 
-        predictions_output = combine_batches(pred_only, tiled)
-        mse_output = combine_batches(mse_only, tiled)
+        predictions_output = combine_batches(pred_only_list, tiled=False)
+        mse_output = combine_batches(mse_only_list, tiled=False)
 
         return predictions_output, mse_output
 

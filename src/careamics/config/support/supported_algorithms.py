@@ -36,4 +36,5 @@ class SupportedAlgorithm(str, BaseEnum):
     """Hierarchical Denoising Network, an unsupervised denoising algorithm"""
 
     PN2V = "pn2v"
-    """Probabilistic Noise2Void, a probabilistic self-supervised approach based on Noise2Void."""
+    """Probabilistic Noise2Void. A extension of Noise2Void is not restricted to Gaussian
+    noise models or Gaussian intensity predictions."""
