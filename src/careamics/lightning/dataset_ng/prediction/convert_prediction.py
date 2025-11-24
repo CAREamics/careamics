@@ -120,7 +120,8 @@ def combine_samples(
 def convert_prediction(
     predictions: list[ImageRegionData],
     tiled: bool,
-) -> list[NDArray]:
+    return_sources: bool = False,
+) -> list[NDArray] | tuple[list[NDArray], list[str]]:
     """
     Convert the Lightning trainer outputs to the desired form.
 
@@ -133,12 +134,16 @@ def convert_prediction(
         Output from `Trainer.predict`, list of batches.
     tiled : bool
         Whether the predictions are tiled.
+    return_sources : bool, optional
+        Whether to return the sources along with the predictions, by default False.
 
     Returns
     -------
     list of numpy.ndarray
         list of arrays with the axes SC(Z)YX. If there is only 1 output it will not
         be in a list.
+    list of str, optional
+        List of sources, one per output, only returned if `return_sources` is True.
     """
     # decollate batches
     decollated_predictions: list[ImageRegionData] = []
@@ -153,8 +158,12 @@ def convert_prediction(
         )
 
     if tiled:
-        predictions_output = stitch_prediction(decollated_predictions)
+        predictions_output, sources = stitch_prediction(decollated_predictions)
     else:
-        predictions_output, _ = combine_samples(decollated_predictions)
-    # TODO squeeze single output?
+        # TODO squeeze single output?
+        predictions_output, sources = combine_samples(decollated_predictions)
+
+    if return_sources:
+        return predictions_output, sources
+
     return predictions_output

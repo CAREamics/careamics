@@ -62,7 +62,7 @@ def tiles(n_data, shape, axes) -> tuple[NDArray, list[ImageRegionData]]:
         tiles.append(
             ImageRegionData(
                 data=tile,
-                source="array",
+                source=f"array{tile_spec['data_idx']}",  # for testing purposes
                 dtype=str(tile.dtype),
                 data_shape=shape,
                 axes=axes,
@@ -168,7 +168,9 @@ def test_stitching_predicition(tiles):
     array, tile_list = tiles
     array = array.squeeze()  # remove sample dim if S=1
 
-    stitched_arrays = stitch_prediction(tile_list)
-    prediction = np.stack(stitched_arrays)
+    stitched_arrays, data_indices = stitch_prediction(tile_list)
 
+    prediction = np.stack(stitched_arrays)
     np.testing.assert_array_equal(prediction, array)
+
+    assert data_indices == [f"array{i}" for i in range(array.shape[0])]

@@ -38,7 +38,7 @@ def group_tiles_by_key(
 
 def stitch_prediction(
     tiles: list[ImageRegionData],
-) -> list[NDArray]:
+) -> tuple[list[NDArray], list[str]]:
     """
     Stitch tiles back together to form full images.
 
@@ -55,6 +55,8 @@ def stitch_prediction(
     -------
     list of numpy.ndarray
         Full images, may be a single image.
+    list of str
+        List of sources, one per output.
     """
     # sort tiles by data index
     sorted_tiles: dict[int, list[ImageRegionData]] = group_tiles_by_key(
@@ -63,9 +65,12 @@ def stitch_prediction(
 
     # stitch each image separately
     image_predictions: list[NDArray] = []
+    image_sources: list[str] = []
     for data_idx in sorted_tiles.keys():
         image_predictions.append(stitch_single_prediction(sorted_tiles[data_idx]))
-    return image_predictions
+        image_sources.append(f"array{data_idx}")
+
+    return image_predictions, image_sources
 
 
 def stitch_single_prediction(
