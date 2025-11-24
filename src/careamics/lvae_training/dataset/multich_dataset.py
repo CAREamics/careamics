@@ -208,6 +208,9 @@ class MultiChDloader(Dataset):
             test_fraction=test_fraction,
             allow_generation=allow_generation,
         )
+
+        # self._data = self._data[..., ::-1]
+
         self._loaded_data_preprocessing(data_config)
 
     def _loaded_data_preprocessing(self, data_config):

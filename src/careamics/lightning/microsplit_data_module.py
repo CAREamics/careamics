@@ -170,7 +170,7 @@ def get_train_val_data(
     else:
         raise Exception("invalid datasplit")
 
-    return data[0][None, ...]
+    return data[0][None, ...] # TODO probably a hack
 
 
 class MicroSplitDataModule(L.LightningDataModule):
@@ -502,22 +502,6 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
         self.read_source_func = read_source_func or get_train_val_data
         self.extension_filter = extension_filter
         self.dataloader_params = dataloader_params
-
-    def prepare_data(self) -> None:
-        """Hook used to prepare the data before calling `setup`."""
-        # # TODO currently data preparation is handled in dataset creation, revisit!
-        pass
-
-    def setup(self, stage: str | None = None) -> None:
-        """
-        Hook called at the beginning of predict.
-
-        Parameters
-        ----------
-        stage : Optional[str], optional
-            Stage, by default None.
-        """
-        # Create prediction dataset using LCMultiChDloader
         self.predict_dataset = LCMultiChDloader(
             self.pred_config,
             self.pred_data,
@@ -526,6 +510,30 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
             test_fraction=1.0,  # No test split for prediction
         )
         self.predict_dataset.set_mean_std(*self.pred_config.data_stats)
+
+    # def prepare_data(self) -> None:
+    #     """Hook used to prepare the data before calling `setup`."""
+    #     # # TODO currently data preparation is handled in dataset creation, revisit!
+    #     pass
+
+    # def setup(self, stage: str | None = None) -> None:
+    #     """
+    #     Hook called at the beginning of predict.
+
+    #     Parameters
+    #     ----------
+    #     stage : Optional[str], optional
+    #         Stage, by default None.
+    #     """
+    #     # Create prediction dataset using LCMultiChDloader
+    #     self.predict_dataset = LCMultiChDloader(
+    #         self.pred_config,
+    #         self.pred_data,
+    #         load_data_fn=self.read_source_func,
+    #         val_fraction=0.0,  # No validation split for prediction
+    #         test_fraction=1.0,  # No test split for prediction
+        # )
+        # self.predict_dataset.set_mean_std(*self.pred_config.data_stats)
 
     def predict_dataloader(self) -> DataLoader:
         """
