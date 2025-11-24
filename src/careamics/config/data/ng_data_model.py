@@ -43,7 +43,7 @@ from .patching_strategies import (
 #       - this will be important when swapping the data config in Configuration
 #       - `set_3D` currently not implemented here
 # TODO: we can't tell that the patching strategy is correct
-#       - or is the responsibility of the creator (e.g. conveneince functions)
+#       - or is the responsibility of the creator (e.g. convenience functions)
 
 
 def generate_random_seed() -> int:
@@ -121,7 +121,7 @@ class NGDataConfig(BaseModel):
     )
 
     # Dataset configuration
-    data_type: Literal["array", "tiff", "zarr", "custom"]
+    data_type: Literal["array", "tiff", "zarr", "czi", "custom"]
     """Type of input data."""
 
     axes: str
