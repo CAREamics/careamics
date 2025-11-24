@@ -23,7 +23,7 @@ class SupportedAlgorithm(str, BaseEnum):
     """Noise2Noise algorithm, a self-supervised denoising scheme based on comparing
     noisy images of the same sample."""
 
-    MUSPLIT = "musplit"
+    MUSPLIT = "musplit"  # TODO remove
     """An image splitting approach based on ladder VAE architectures."""
 
     MICROSPLIT = "microsplit"
@@ -34,3 +34,7 @@ class SupportedAlgorithm(str, BaseEnum):
 
     HDN = "hdn"
     """Hierarchical Denoising Network, an unsupervised denoising algorithm"""
+
+    PN2V = "pn2v"
+    """Probabilistic Noise2Void. A extension of Noise2Void is not restricted to Gaussian
+    noise models or Gaussian intensity predictions."""
