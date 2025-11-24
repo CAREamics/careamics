@@ -180,8 +180,8 @@ class NGDataConfig(BaseModel):
     val_dataloader_params: dict[str, Any] = Field(default={})
     """Dictionary of PyTorch validation dataloader parameters."""
 
-    test_dataloader_params: dict[str, Any] = Field(default={})
-    """Dictionary of PyTorch test dataloader parameters."""
+    pred_dataloader_params: dict[str, Any] = Field(default={})
+    """Dictionary of PyTorch prediction dataloader parameters."""
 
     seed: int | None = Field(default_factory=generate_random_seed, gt=0)
     """Random seed for reproducibility. If not specified, a random seed is generated."""
