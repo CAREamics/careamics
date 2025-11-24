@@ -527,5 +527,5 @@ class CareamicsDataModule(L.LightningDataModule):
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
-            **self.config.test_dataloader_params,
+            **self.config.pred_dataloader_params,
         )
