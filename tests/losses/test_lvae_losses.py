@@ -32,7 +32,7 @@ from careamics.losses.lvae.losses import (
     musplit_loss,
 )
 from careamics.models.lvae.likelihoods import likelihood_factory
-from careamics.models.lvae.noise_models import noise_model_factory
+from careamics.models.lvae.noise_models import multichannel_noise_model_factory
 
 if TYPE_CHECKING:
     from careamics.models.lvae.noise_models import MultiChannelNoiseModel
@@ -71,7 +71,7 @@ def init_noise_model(
         # all other params are default
     )
     noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
-    return noise_model_factory(noise_model_config)
+    return multichannel_noise_model_factory(noise_model_config)
 
 
 @pytest.mark.parametrize(
