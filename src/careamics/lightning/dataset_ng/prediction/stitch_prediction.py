@@ -59,16 +59,16 @@ def stitch_prediction(
         List of sources, one per output.
     """
     # sort tiles by data index
-    sorted_tiles: dict[int, list[ImageRegionData]] = group_tiles_by_key(
+    grouped_tiles: dict[int, list[ImageRegionData]] = group_tiles_by_key(
         tiles, key="data_idx"
     )
 
     # stitch each image separately
     image_predictions: list[NDArray] = []
     image_sources: list[str] = []
-    for data_idx in sorted_tiles.keys():
-        image_predictions.append(stitch_single_prediction(sorted_tiles[data_idx]))
-        image_sources.append(f"array{data_idx}")
+    for data_idx in sorted(grouped_tiles.keys()):
+        image_predictions.append(stitch_single_prediction(grouped_tiles[data_idx]))
+        image_sources.append(grouped_tiles[data_idx][0].source)
 
     return image_predictions, image_sources
 

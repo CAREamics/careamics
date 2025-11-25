@@ -1,6 +1,5 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
-from collections import defaultdict
 from collections.abc import Sequence
 
 import numpy as np
@@ -8,7 +7,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset_ng.dataset import ImageRegionData
 
-from .stitch_prediction import stitch_prediction
+from .stitch_prediction import group_tiles_by_key, stitch_prediction
 
 
 def decollate_image_region_data(
@@ -95,16 +94,15 @@ def combine_samples(
         List of sources, one per unique `data_idx`.
     """
     # group predictions by data idx
-    predictions_by_data_idx: defaultdict[int, list[ImageRegionData]] = defaultdict(list)
-    for image_region in predictions:
-        data_idx = image_region.region_spec["data_idx"]
-        predictions_by_data_idx[data_idx].append(image_region)
+    grouped_prediction: dict[int, list[ImageRegionData]] = group_tiles_by_key(
+        predictions, key="data_idx"
+    )
 
     # sort predictions by sample idx
     combined_predictions: list[NDArray] = []
     combined_sources: list[str] = []
-    for data_idx in sorted(predictions_by_data_idx.keys()):
-        image_regions = predictions_by_data_idx[data_idx]
+    for data_idx in sorted(grouped_prediction.keys()):
+        image_regions = grouped_prediction[data_idx]
         combined_sources.append(image_regions[0].source)
 
         # sort by sample idx
