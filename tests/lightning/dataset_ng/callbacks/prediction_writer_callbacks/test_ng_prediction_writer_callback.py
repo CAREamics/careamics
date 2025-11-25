@@ -126,7 +126,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
 
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
-    predicted_images = convert_prediction(predicted, tiled=True)
+    predicted_images, _ = convert_prediction(predicted, tiled=True)
 
     # assert predicted file exists
     assert (dirpath / file_name).is_file()
@@ -221,7 +221,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
 
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
-    predicted_images = convert_prediction(predicted, tiled=False)
+    predicted_images, _ = convert_prediction(predicted, tiled=False)
 
     # assert predicted file exists
     assert (dirpath / file_name).is_file()
@@ -315,7 +315,7 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
 
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
-    predicted_images = convert_prediction(predicted, tiled=True)
+    predicted_images, _ = convert_prediction(predicted, tiled=True)
 
     # assert predicted file exists
     z_out = zarr.open(dirpath / "train_output.zarr")

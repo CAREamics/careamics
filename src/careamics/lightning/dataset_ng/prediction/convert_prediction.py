@@ -127,6 +127,9 @@ def convert_prediction(
     This method allows decollating batches and stitching back together tiled
     predictions.
 
+    If the `source` of all predictions is "array" (see `InMemoryImageStack`), then the
+    returned sources list will be empty.
+
     Parameters
     ----------
     predictions : list[ImageRegionData]
@@ -137,10 +140,9 @@ def convert_prediction(
     Returns
     -------
     list of numpy.ndarray
-        list of arrays with the axes SC(Z)YX. If there is only 1 output it will not
-        be in a list.
+        List of arrays with the axes SC(Z)YX.
     list of str
-        List of sources, one per output.
+        List of sources, one per output or empty if all equal to `array`.
     """
     # decollate batches
     decollated_predictions: list[ImageRegionData] = []
@@ -159,5 +161,8 @@ def convert_prediction(
     else:
         # TODO squeeze single output?
         predictions_output, sources = combine_samples(decollated_predictions)
+
+    if set(sources) == {"array"}:
+        sources = []
 
     return predictions_output, sources

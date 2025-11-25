@@ -5,12 +5,13 @@ from torch.utils.data.dataloader import default_collate
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.lightning.dataset_ng.prediction import (
     combine_samples,
+    convert_prediction,
     decollate_image_region_data,
 )
 
 
 @pytest.fixture
-def batches() -> list[ImageRegionData]:
+def batches(source_name: str) -> list[ImageRegionData]:
     """
     Fixture providing batches of `ImageRegionData`.
 
@@ -25,7 +26,7 @@ def batches() -> list[ImageRegionData]:
         for i in range(4):
             batch.append(
                 ImageRegionData(
-                    source="array.tiff",
+                    source=source_name,
                     data=np.ones((1, 32, 32)).astype(
                         np.float32
                     ),  # B dim added by collate
@@ -48,6 +49,7 @@ def batches() -> list[ImageRegionData]:
     return batches
 
 
+@pytest.mark.parametrize("source_name", ["array.tiff"])  # injected in fixture
 def test_combine_prediction_by_data_idx(batches: list[ImageRegionData]) -> None:
     """Test `combine_prediction_by_data_idx` function."""
     all_decollated: list[ImageRegionData] = []
@@ -101,3 +103,21 @@ def test_decollate_image_region_data(n_batch) -> None:
         assert decollated[i].dtype == batch[i].dtype
         assert decollated[i].axes == batch[i].axes
         assert decollated[i].region_spec == batch[i].region_spec
+
+
+class TestConvertPrediction:
+
+    @pytest.mark.parametrize("source_name", ["array.tiff"])  # injected in fixture
+    def test_convert_arrays(self, batches: list[ImageRegionData]) -> None:
+        """Test `convert_arrays` function."""
+        predictions, sources = convert_prediction(batches, tiled=False)
+        assert len(predictions) == 2  # 2 data idx in fixture
+        assert predictions[0].shape == (10, 32, 32)
+        assert predictions[1].shape == (10, 32, 32)
+        assert sources == ["array.tiff", "array.tiff"]
+
+    @pytest.mark.parametrize("source_name", ["array"])  # injected in fixture
+    def test_convert_arrays_empty_list(self, batches: list[ImageRegionData]) -> None:
+        """Test `convert_arrays` with "array" sources returns an empty list."""
+        _, sources = convert_prediction(batches, tiled=False)
+        assert sources == []
