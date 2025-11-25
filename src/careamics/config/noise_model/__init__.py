@@ -3,9 +3,10 @@
 __all__ = [
     "GaussianLikelihoodConfig",
     "GaussianMixtureNMConfig",
+    "MultiChannelNMConfig",
     "NMLikelihoodConfig",
 ]
 
 
 from .likelihood_config import GaussianLikelihoodConfig, NMLikelihoodConfig
-from .noise_model_config import GaussianMixtureNMConfig
+from .noise_model_config import GaussianMixtureNMConfig, MultiChannelNMConfig
