@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Self, Union
+from typing import Any, Literal, Self, Union
 
 import numpy as np
 from numpy.typing import DTypeLike, NDArray
@@ -16,8 +16,8 @@ class InMemoryImageStack:
     A class for extracting patches from an image stack that has been loaded into memory.
     """
 
-    def __init__(self, source: Union[Path, str], data: NDArray):
-        self.source: Union[Path, str] = source
+    def __init__(self, source: Union[Path, Literal["array"]], data: NDArray):
+        self.source: Union[Path, Literal["array"]] = source
         # data expected to be in SC(Z)YX shape, reason to use from_array constructor
         self._data: NDArray = data
         self.data_shape: Sequence[int] = self._data.shape
@@ -64,11 +64,7 @@ class InMemoryImageStack:
     @classmethod
     def from_array(cls, data: NDArray, axes: str) -> Self:
         data = reshape_array(data, axes)
-
-        # hash array to have a quasi-unique id for the source
-        array_hash = str(hash(str(data)))
-
-        return cls(source=array_hash, data=data)
+        return cls(source="array", data=data)
 
     @classmethod
     def from_tiff(cls, path: Path, axes: str) -> Self:
