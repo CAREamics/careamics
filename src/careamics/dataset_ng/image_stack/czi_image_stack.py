@@ -47,7 +47,7 @@ def are_axes_valid(axes: str) -> bool:
         return False
 
     # check for mandatory axes
-    if "S" not in axes_set or "C" not in axes_set:
+    if not ({"S", "C", "Y", "X"}.issubset(axes_set)):
         return False
 
     # check for mutually exclusive axes
@@ -55,7 +55,7 @@ def are_axes_valid(axes: str) -> bool:
         return False
 
     # check for correct order
-    order = "SCZYX"
+    order = "SCZYX" if "Z" in axes else "SCTYX"
     last_index = -1
     for axis in axes:
         current_index = order.find(axis)
