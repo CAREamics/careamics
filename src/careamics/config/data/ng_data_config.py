@@ -135,6 +135,12 @@ class NGDataConfig(BaseModel):
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
 
+    in_memory: bool | None = Field(default=None, validate_default=True)
+    """Whether to load all data into memory. This is only supported for 'array',
+    'tiff' and 'custom' data types. Must be `True` for `array`. If `None`, defaults to
+    `True` for 'array', 'tiff' and `custom`, and `False` for 'zarr' and 'czi' data
+    types."""
+
     patch_filter: PatchFilters | None = Field(default=None, discriminator="name")
     """Patch filter to apply when using random patching. Only available during
     training."""
@@ -218,6 +224,53 @@ class NGDataConfig(BaseModel):
         check_axes_validity(axes)
 
         return axes
+
+    @field_validator("in_memory")
+    @classmethod
+    def validate_in_memory_with_data_type(cls, in_memory: bool, info: Any) -> bool:
+        """
+        Validate that in_memory is compatible with data_type.
+
+        in_memory can only be True for 'array', 'tiff' and 'custom' data types.
+
+        Parameters
+        ----------
+        in_memory : bool
+            Whether to load data into memory.
+        info : Any
+            Additional information about the field being validated.
+
+        Returns
+        -------
+        bool
+            Validated in_memory value.
+
+        Raises
+        ------
+        ValueError
+            If in_memory is True for unsupported data types.
+        """
+        data_type = info.data.get("data_type")
+
+        if in_memory is None:
+            if data_type in ("array", "tiff", "custom"):
+                return True
+            else:
+                return False
+
+        if in_memory and data_type not in ("array", "tiff", "custom"):
+            raise ValueError(
+                f"`in_memory` can only be True for 'array', 'tiff' and 'custom' "
+                f"data types, got '{data_type}'. In memory loading of zarr and czi "
+                f"data types is not currently not implemented."
+            )
+
+        if not in_memory and data_type == "array":
+            raise ValueError(
+                "`in_memory` must be True for 'array' data type, got False."
+            )
+
+        return in_memory
 
     @field_validator("train_dataloader_params")
     @classmethod

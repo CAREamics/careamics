@@ -363,6 +363,7 @@ def _create_ng_data_configuration(
     patch_size: Sequence[int],
     batch_size: int,
     augmentations: list[SPATIAL_TRANSFORMS_UNION],
+    in_memory: bool | None = None,
     patch_overlaps: Sequence[int] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
@@ -384,6 +385,11 @@ def _create_ng_data_configuration(
         Batch size.
     augmentations : list of transforms
         List of transforms to apply.
+    in_memory : bool, default=None
+        Whether to load all data into memory. This is only supported for 'array',
+        'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
+        'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
+        for `array`.
     patch_overlaps : Sequence of int, default=None
         Overlaps between patches in each spatial dimension, only used with "sequential"
         patching. If `None`, no overlap is applied. The overlap must be smaller than
@@ -409,6 +415,7 @@ def _create_ng_data_configuration(
         "axes": axes,
         "batch_size": batch_size,
         "transforms": augmentations,
+        "in_memory": in_memory,
         "seed": seed,
     }
     # don't override defaults set in DataConfig class

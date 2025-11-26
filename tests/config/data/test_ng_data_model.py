@@ -68,3 +68,51 @@ def test_ng_dataset_invalid_axes_patch(axes, patching_strategy):
             axes=axes,
             patching=patching_strategy,
         )
+
+
+@pytest.mark.parametrize(
+    "in_memory, data_type, error",
+    [
+        # accepted combinations
+        (True, "array", False),
+        (True, "tiff", False),
+        (True, "custom", False),
+        (False, "tiff", False),
+        (False, "custom", False),
+        (False, "zarr", False),
+        (False, "czi", False),
+        # defaults are valid
+        (None, "array", False),
+        (None, "tiff", False),
+        (None, "custom", False),
+        (None, "zarr", False),
+        (None, "czi", False),
+        # validation errors
+        (False, "array", True),
+        (True, "zarr", True),
+        (True, "czi", True),
+    ],
+)
+def test_ng_data_config_in_memory(in_memory, data_type, error):
+    if error:
+        with pytest.raises(ValueError):
+            NGDataConfig(
+                data_type=data_type,
+                axes="YX",
+                in_memory=in_memory,
+                patching={"name": SupportedPatchingStrategy.WHOLE},
+            )
+    else:
+        config = NGDataConfig(
+            data_type=data_type,
+            axes="YX",
+            in_memory=in_memory,
+            patching={"name": SupportedPatchingStrategy.WHOLE},
+        )
+
+        # if in_memory is None, check the default value
+        if in_memory is None:
+            if data_type in ("array", "tiff", "custom"):
+                assert config.in_memory is True
+            else:
+                assert config.in_memory is False
