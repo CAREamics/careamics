@@ -247,7 +247,7 @@ class CziImageStack:
             channel_iter = list(channels)
 
         # for each channel
-        for path_channel, data_channel in enumerate(channel_iter):
+        for patch_channel, data_channel in enumerate(channel_iter):
             # pull plane with the given channel and 3rd dim index
             for third_dim_index in range(third_dim_size):
                 plane["C"] = data_channel
@@ -266,7 +266,7 @@ class CziImageStack:
                     extracted_roi = extracted_roi.squeeze(-1)
 
                 # add requested channel into the patch
-                patch[path_channel, third_dim_index] = extracted_roi
+                patch[patch_channel, third_dim_index] = extracted_roi
 
         # Remove dummy 3rd dimension for 2-D data
         if third_dim is None:
