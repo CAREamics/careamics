@@ -93,7 +93,6 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
         mode=Mode.TRAINING,
         inputs=[rng],
         targets=[rng],
-        in_memory=True,
     )
 
     sample, target = train_dataset[0]
@@ -185,7 +184,6 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
         image_stds=[example_data.std()],
         transforms=_list_spatial_augmentations(),
         batch_size=1,
-        in_memory=True,
         seed=42,
     )
 

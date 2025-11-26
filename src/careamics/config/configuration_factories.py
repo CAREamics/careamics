@@ -425,9 +425,12 @@ def create_ng_data_configuration(
         "batch_size": batch_size,
         "channels": channels,
         "transforms": augmentations,
-        "in_memory": in_memory,
         "seed": seed,
     }
+
+    if in_memory is not None:
+        data["in_memory"] = in_memory
+
     # don't override defaults set in DataConfig class
     if train_dataloader_params is not None:
         # the presence of `shuffle` key in the dataloader parameters is enforced
