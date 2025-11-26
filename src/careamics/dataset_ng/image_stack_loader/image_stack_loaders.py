@@ -6,14 +6,15 @@ import zarr
 from numpy.typing import NDArray
 from zarr.storage import StorePath
 
+from careamics.config.validators import check_czi_axes_validity
 from careamics.file_io import ReadFunc
 
 from ..image_stack import (
-    CziImageStack,
     FileImageStack,
     InMemoryImageStack,
     ZarrImageStack,
 )
+from ..image_stack.czi_image_stack import CziImageStack
 from .zarr_utils import collect_arrays, decipher_zarr_uri, is_ome_zarr, is_valid_uri
 
 if TYPE_CHECKING:
@@ -227,6 +228,9 @@ def load_czis(
     If the CZI files contain multiple scenes, one image stack will be created for
     each scene.
 
+    Axes should be in the format "SC(Z/T)YX", where Z or T are optional, and S and C
+    can be singleton dimensions, but must be provided.
+
     Parameters
     ----------
     source: sequence of Path
@@ -240,7 +244,19 @@ def load_czis(
     Returns
     -------
     list[CziImageStack]
+
+    Raises
+    ------
+    ValueError
+        If the provided axes are not valid.
     """
+    if check_czi_axes_validity(axes) is False:
+        raise ValueError(
+            f"Provided axes '{axes}' are not valid. Axes must be in the `SC(Z/T)YX` "
+            f"format, where Z or T are optional, and S and C can be singleton "
+            f"dimensions, but must be provided."
+        )
+
     depth_axis: Literal["none", "Z", "T"] = "none"
     if axes.endswith("TYX"):
         depth_axis = "T"

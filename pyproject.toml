@@ -42,7 +42,7 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=1.21",
-    "numpy>=2.1.0; python_version>='3.13'", # prevents ml_dtypes conflict in py313
+    "numpy>=2.1.0; python_version>='3.13'",  # prevents ml_dtypes conflict in py313
     'torch>=2.0,<=2.9.1',
     'torchvision<=0.24.1',
     'bioimageio.core>=0.9.0',
@@ -79,11 +79,12 @@ dev = [
     "pytest",
     "pytest-mock",
     "pytest-cov",
-    "sybil",      # doctesting
+    "sybil",  # doctesting
 
     # libraries used in some tests
     "onnxscript<=0.5.6",
-    "ml_dtypes>=0.5.0" # required by onnx, causes issues in gh runners with py313
+    "ml_dtypes>=0.5.0",  # required by onnx, causes issues in gh runners with py313
+    'pylibCZIrw>=4.1.2,<6.0.0',  # czi files testing
 ]
 
 [project.urls]

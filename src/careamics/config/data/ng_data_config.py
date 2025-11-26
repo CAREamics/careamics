@@ -17,12 +17,13 @@ from pydantic import (
     ConfigDict,
     Field,
     PlainSerializer,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
 
 from ..transformations import XYFlipConfig, XYRandomRotate90Config
-from ..validators import check_axes_validity
+from ..validators import check_axes_validity, check_czi_axes_validity
 from .patch_filter import (
     MaskFilterConfig,
     MaxFilterConfig,
@@ -194,7 +195,7 @@ class NGDataConfig(BaseModel):
 
     @field_validator("axes")
     @classmethod
-    def axes_valid(cls, axes: str) -> str:
+    def axes_valid(cls, axes: str, info: ValidationInfo) -> str:
         """
         Validate axes.
 
@@ -209,6 +210,8 @@ class NGDataConfig(BaseModel):
         ----------
         axes : str
             Axes to validate.
+        info : ValidationInfo
+            Validation information.
 
         Returns
         -------
@@ -220,8 +223,16 @@ class NGDataConfig(BaseModel):
         ValueError
             If axes are not valid.
         """
-        # Validate axes
-        check_axes_validity(axes)
+        # Additional validation for CZI files
+        if info.data["data_type"] == "czi":
+            if not check_czi_axes_validity(axes):
+                raise ValueError(
+                    f"Provided axes '{axes}' are not valid. Axes must be in the "
+                    f"`SC(Z/T)YX` format, where Z or T are optional, and S and C can be"
+                    f" singleton dimensions, but must be provided."
+                )
+        else:
+            check_axes_validity(axes)
 
         return axes
 
