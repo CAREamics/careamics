@@ -121,3 +121,43 @@ def test_extract_channels(
         0 : 0 + 8,
     ]
     np.testing.assert_array_equal(patch, expected_patch)
+
+
+@pytest.mark.parametrize(
+    "shape, axes, channels",
+    [
+        ((2, 3, 64, 64), "SCYX", [0, 4]),
+        ((2, 3, 64, 64), "SCYX", [3]),
+    ],
+)
+def test_extract_channel_error(
+    tmp_path: Path,
+    shape: tuple[int, ...],
+    axes: str,
+    channels: int,
+):
+    # reference data to compare against, it is reshaped using careamics reshape_array
+    data = np.arange(np.prod(shape)).reshape(shape)
+
+    # save data as a zarr array to ininitialise image stack with
+    file_path = tmp_path / "test_zarr.zarr"
+    data_path = "image"
+
+    # initialise ZarrImageStack
+    group = create_zarr(file_path=file_path, data_path=data_path, data=data)
+    image_stack = ZarrImageStack(group=group, data_path=data_path, axes=axes)
+
+    expected_msg = (
+        f"Channel index {channels[-1]} is out of bounds for data with "
+        f"{shape[1]} channels. Check the provided `channels` "
+        f"parameter in the configuration for erroneous channel "
+        f"indices."
+    )
+
+    with pytest.raises(ValueError, match=expected_msg):
+        image_stack.extract_channel_patch(
+            sample_idx=0,
+            channels=channels,
+            coords=(0, 0),
+            patch_size=(16, 16),
+        )

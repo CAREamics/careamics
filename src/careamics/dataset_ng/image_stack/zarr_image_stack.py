@@ -83,6 +83,18 @@ class ZarrImageStack:
                     f"{self.data_shape[0]}"
                 )
 
+        # check that channels are within bounds
+        if channels is not None:
+            max_channel = self.data_shape[1] - 1  # channel is second dimension
+            for ch in channels:
+                if ch > max_channel:
+                    raise ValueError(
+                        f"Channel index {ch} is out of bounds for data with "
+                        f"{self.data_shape[1]} channels. Check the provided `channels` "
+                        f"parameter in the configuration for erroneous channel "
+                        f"indices."
+                    )
+
         patch_slice: list[int | slice] = []
         for d in self._original_axes:
             if d == "S":

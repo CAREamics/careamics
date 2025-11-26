@@ -59,3 +59,30 @@ def test_extract_channels(array_stack, channels):
         10 : 10 + 32,
     ]
     np.testing.assert_array_equal(patch, expected_patch)
+
+
+@pytest.mark.parametrize(
+    "shape, axes, channels",
+    [
+        ((2, 3, 64, 64), "SCYX", [0, 4]),
+        ((2, 3, 64, 64), "SCYX", [3]),
+    ],
+)
+def test_extract_channel_error(array_stack, channels):
+    data, image_stack = array_stack
+    data_shape = data.shape
+
+    expected_msg = (
+        f"Channel index {channels[-1]} is out of bounds for data with "
+        f"{data_shape[1]} channels. Check the provided `channels` "
+        f"parameter in the configuration for erroneous channel "
+        f"indices."
+    )
+
+    with pytest.raises(ValueError, match=expected_msg):
+        image_stack.extract_channel_patch(
+            sample_idx=0,
+            channels=channels,
+            coords=(0, 0),
+            patch_size=(16, 16),
+        )

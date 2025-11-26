@@ -65,6 +65,44 @@ def test_extract_channels(tmp_path, shape, axes, channels):
     np.testing.assert_array_equal(patch, expected_patch)
 
 
+@pytest.mark.parametrize(
+    "shape, axes, channels",
+    [
+        ((2, 3, 64, 64), "SCYX", [0, 4]),
+        ((2, 3, 64, 64), "SCYX", [3]),
+    ],
+)
+def test_extract_channel_error(
+    tmp_path: Path,
+    shape: tuple[int, ...],
+    axes: str,
+    channels: int,
+):
+    data = np.arange(np.prod(shape)).reshape(shape)
+    path = tmp_path / "image.tiff"
+    tifffile.imwrite(path, data, metadata={"axes": axes})
+
+    image_stack = FileImageStack.from_tiff(path, axes)
+
+    # call load & extract patch
+    image_stack.load()
+
+    expected_msg = (
+        f"Channel index {channels[-1]} is out of bounds for data with "
+        f"{shape[1]} channels. Check the provided `channels` "
+        f"parameter in the configuration for erroneous channel "
+        f"indices."
+    )
+
+    with pytest.raises(ValueError, match=expected_msg):
+        image_stack.extract_channel_patch(
+            sample_idx=0,
+            channels=channels,
+            coords=(0, 0),
+            patch_size=(16, 16),
+        )
+
+
 def test_load_and_close(tmp_path: Path):
     data_shape = (64, 47)
     axes = "YX"

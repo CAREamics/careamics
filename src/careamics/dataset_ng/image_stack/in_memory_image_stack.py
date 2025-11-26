@@ -41,6 +41,19 @@ class InMemoryImageStack:
                 "Patch coordinates and patch size must have the same dimensions but "
                 f"found {coord_dims} and {patch_dims}."
             )
+
+        # check that channels are within bounds
+        if channels is not None:
+            max_channel = self.data_shape[1] - 1  # channel is second dimension
+            for ch in channels:
+                if ch > max_channel:
+                    raise ValueError(
+                        f"Channel index {ch} is out of bounds for data with "
+                        f"{self.data_shape[1]} channels. Check the provided `channels` "
+                        f"parameter in the configuration for erroneous channel "
+                        f"indices."
+                    )
+
         # TODO: test for 2D or 3D?
 
         patch_data = self._data[

@@ -174,6 +174,44 @@ def test_extract_channels(
     np.testing.assert_array_equal(patch, expected_patch)
 
 
+@pytest.mark.parametrize(
+    "shape, channels",
+    [
+        ((2, 3, 1, 64, 64), [0, 4]),
+        ((2, 3, 1, 64, 64), [3]),
+    ],
+)
+def test_extract_channel_error(
+    tmp_path: Path,
+    shape: tuple[int, ...],
+    channels: int,
+):
+    # reference data to compare against
+    data = np.random.randn(*shape).astype(np.float32)
+
+    # save data as a czi file to ininitialise image stack with
+    file_path = tmp_path / "test_czi.czi"
+    create_test_czi(file_path=file_path, data=data)
+
+    # initialise CziImageStack
+    image_stack = CziImageStack(data_path=file_path)
+
+    expected_msg = (
+        f"Channel index {channels[-1]} is out of bounds for data with "
+        f"{shape[1]} channels. Check the provided `channels` "
+        f"parameter in the configuration for erroneous channel "
+        f"indices."
+    )
+
+    with pytest.raises(ValueError, match=expected_msg):
+        image_stack.extract_channel_patch(
+            sample_idx=0,
+            channels=channels,
+            coords=(0, 0),
+            patch_size=(16, 16),
+        )
+
+
 @pytest.mark.czi
 def test_multiple_scenes(
     tmp_path: Path,

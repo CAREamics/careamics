@@ -62,6 +62,18 @@ class FileImageStack:
                 f"found {coord_dims} and {patch_dims}."
             )
 
+        # check that channels are within bounds
+        if channels is not None:
+            max_channel = self.data_shape[1] - 1  # channel is second dimension
+            for ch in channels:
+                if ch > max_channel:
+                    raise ValueError(
+                        f"Channel index {ch} is out of bounds for data with "
+                        f"{self.data_shape[1]} channels. Check the provided `channels` "
+                        f"parameter in the configuration for erroneous channel "
+                        f"indices."
+                    )
+
         patch_data = self._data[
             (
                 sample_idx,  # type: ignore
