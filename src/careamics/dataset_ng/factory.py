@@ -33,7 +33,6 @@ def create_dataset(
     mode: Mode,
     inputs: Any,
     targets: Any,
-    in_memory: bool,
     masks: Any = None,
     read_func: ReadFunc | None = None,
     read_kwargs: dict[str, Any] | None = None,
@@ -53,9 +52,6 @@ def create_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
-    in_memory : bool
-        Whether all the data should be loaded into memory. This is argument is ignored
-        unless the `data_type` in `config` is "tiff" or "custom".
     masks : Any, optional
         The mask sources used to filter patches.
     read_func : ReadFunc, optional
@@ -71,14 +67,14 @@ def create_dataset(
     """
     image_stack_loader = select_image_stack_loader(
         data_type=SupportedData(config.data_type),
-        in_memory=in_memory,
+        in_memory=config.in_memory,
         read_func=read_func,
         read_kwargs=read_kwargs,
         image_stack_loader=image_stack_loader,
         image_stack_loader_kwargs=image_stack_loader_kwargs,
     )
     patch_extractor_type = select_patch_extractor_type(
-        data_type=SupportedData(config.data_type), in_memory=in_memory
+        data_type=SupportedData(config.data_type), in_memory=config.in_memory
     )
     input_extractor = init_patch_extractor(
         patch_extractor_type, image_stack_loader, inputs, config.axes

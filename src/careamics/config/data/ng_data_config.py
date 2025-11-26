@@ -135,7 +135,7 @@ class NGDataConfig(BaseModel):
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
 
-    in_memory: bool | None = Field(default=None, validate_default=True)
+    in_memory: bool = Field(default=None, validate_default=True)
     """Whether to load all data into memory. This is only supported for 'array',
     'tiff' and 'custom' data types. Must be `True` for `array`. If `None`, defaults to
     `True` for 'array', 'tiff' and `custom`, and `False` for 'zarr' and 'czi' data
@@ -225,7 +225,7 @@ class NGDataConfig(BaseModel):
 
         return axes
 
-    @field_validator("in_memory")
+    @field_validator("in_memory", mode="before")
     @classmethod
     def validate_in_memory_with_data_type(cls, in_memory: bool, info: Any) -> bool:
         """

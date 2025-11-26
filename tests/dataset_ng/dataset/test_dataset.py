@@ -32,6 +32,7 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         patch_size=patch_size,
         batch_size=1,
         augmentations=_list_spatial_augmentations(),
+        in_memory=True,
         seed=42,
     )
 
@@ -47,7 +48,6 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         mode=Mode.TRAINING,
         inputs=[example_input],
         targets=[example_target],
-        in_memory=True,
     )
 
     assert len(train_dataset) == expected_dataset_len
@@ -83,6 +83,7 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
         patch_size=patch_size,
         batch_size=1,
         augmentations=_list_spatial_augmentations(),
+        in_memory=True,
         seed=42,
     )
 
@@ -98,7 +99,6 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
         mode=Mode.TRAINING,
         inputs=[input_file_path],
         targets=[target_file_path],
-        in_memory=True,
     )
 
     assert len(train_dataset) == expected_dataset_len
@@ -134,6 +134,7 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
         image_stds=[example_data.std()],
         transforms=_list_spatial_augmentations(),
         batch_size=1,
+        in_memory=True,
         seed=42,
     )
 
@@ -142,7 +143,6 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
         mode=Mode.PREDICTING,
         inputs=[example_data],
         targets=None,
-        in_memory=True,
     )
 
     assert len(prediction_dataset) > 0
@@ -171,6 +171,7 @@ def test_from_custom_data_type(patch_size, data_shape):
         patch_size=patch_size,
         batch_size=1,
         augmentations=_list_spatial_augmentations(),
+        in_memory=True,
         seed=42,
     )
 
@@ -189,7 +190,6 @@ def test_from_custom_data_type(patch_size, data_shape):
         mode=Mode.TRAINING,
         inputs=[example_data],
         targets=[example_target],
-        in_memory=True,
         read_func=read_data_func_test,
         read_kwargs={},
     )
@@ -220,6 +220,7 @@ def test_array_coordinate_filtering():
         patch_size=(8, 8),
         batch_size=1,
         augmentations=[],
+        in_memory=True,
         seed=42,
     )
 
@@ -235,7 +236,6 @@ def test_array_coordinate_filtering():
         inputs=[img],
         targets=None,
         masks=[mask],
-        in_memory=True,
     )
 
     # check that we only get patches with at least half of 255 pixels
@@ -263,6 +263,7 @@ def test_array_patch_filtering():
         patch_size=(8, 8),
         batch_size=1,
         augmentations=[],
+        in_memory=True,
         seed=42,
     )
     threshold = 255 // 2
@@ -277,7 +278,6 @@ def test_array_patch_filtering():
         mode=Mode.TRAINING,
         inputs=[img],
         targets=None,
-        in_memory=True,
     )
 
     # check that we only get the full 255 patch (in normalized units)
@@ -307,6 +307,7 @@ def test_error_data_smaller_than_patch():
         patch_size=patch_size,
         batch_size=1,
         augmentations=_list_spatial_augmentations(),
+        in_memory=True,
         seed=42,
     )
 
@@ -316,5 +317,4 @@ def test_error_data_smaller_than_patch():
             mode=Mode.TRAINING,
             inputs=[example_input],
             targets=[example_target],
-            in_memory=True,
         )
