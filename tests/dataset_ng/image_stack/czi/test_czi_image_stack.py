@@ -38,9 +38,9 @@ def create_test_czi(file_path: Path, data: NDArray | list[NDArray]):
             xoffs += scene_data.shape[-1] + 20
 
 
+@pytest.mark.czi
 class TestCziImageStack:
 
-    @pytest.mark.czi
     @pytest.mark.parametrize(
         "orig_shape, depth_axis, expected_axes, expected_shape, sample_idx, "
         "expect_raise",
@@ -167,7 +167,6 @@ class TestCziImageStack:
             ]
         np.testing.assert_array_equal(extracted_patch, patch_ref)
 
-    @pytest.mark.czi
     def test_multiple_scenes(
         self,
         tmp_path: Path,
