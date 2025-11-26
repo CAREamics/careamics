@@ -98,14 +98,14 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
         with pytest.raises(ValueError):
             NGDataConfig(
                 data_type=data_type,
-                axes="YX",
+                axes="YX" if data_type != "czi" else "SCYX",
                 in_memory=in_memory,
                 patching={"name": SupportedPatchingStrategy.WHOLE},
             )
     else:
         config = NGDataConfig(
             data_type=data_type,
-            axes="YX",
+            axes="YX" if data_type != "czi" else "SCYX",
             in_memory=in_memory,
             patching={"name": SupportedPatchingStrategy.WHOLE},
         )
