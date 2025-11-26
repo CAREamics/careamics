@@ -6,6 +6,7 @@ import zarr
 from numpy.typing import NDArray
 from zarr.storage import StorePath
 
+from careamics.config.validators import check_czi_axes_validity
 from careamics.file_io import ReadFunc
 
 from ..image_stack import (
@@ -14,7 +15,6 @@ from ..image_stack import (
     ZarrImageStack,
 )
 from ..image_stack.czi_image_stack import CziImageStack
-from ..image_stack.image_utils import are_czi_axes_valid
 from .zarr_utils import collect_arrays, decipher_zarr_uri, is_ome_zarr, is_valid_uri
 
 if TYPE_CHECKING:
@@ -250,7 +250,7 @@ def load_czis(
     ValueError
         If the provided axes are not valid.
     """
-    if are_czi_axes_valid(axes) is False:
+    if check_czi_axes_validity(axes) is False:
         raise ValueError(
             f"Provided axes '{axes}' are not valid. Axes must be in the `SC(Z/T)YX` "
             f"format, where Z or T are optional, and S and C can be singleton "

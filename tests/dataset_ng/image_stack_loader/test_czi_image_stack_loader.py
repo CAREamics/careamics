@@ -1,8 +1,8 @@
 import pytest
 
+from careamics.config.validators import check_czi_axes_validity
 from careamics.dataset_ng.image_stack.czi_image_stack import (
     CziImageStack,
-    are_czi_axes_valid,
 )
 from careamics.dataset_ng.image_stack_loader import load_czis
 
@@ -40,7 +40,7 @@ class TestCziImageStackLoader:
 
         source = ["mocked_file.czi"]
 
-        if not are_czi_axes_valid(axes):
+        if not check_czi_axes_validity(axes):
             with pytest.raises(ValueError):
                 _ = load_czis(source=source, axes=axes)
         else:
