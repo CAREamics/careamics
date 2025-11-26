@@ -98,8 +98,9 @@ def lateral_context_patch_constr(
     ) -> NDArray[Any]:
         if channels is not None and len(channels) > 1:
             raise NotImplementedError(
-                "Lateral context patch constructor is only implemented for single-"
-                "channel images."
+                "Selecting multiple channels is currently not implemented for lateral "
+                "context patches. Select a single channel or pass `channels=None` to "
+                "select all channels."
             )
 
         shape = image_stack.data_shape
