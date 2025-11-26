@@ -77,7 +77,9 @@ def create_dataset(
         image_stack_loader=image_stack_loader,
         image_stack_loader_kwargs=image_stack_loader_kwargs,
     )
-    patch_extractor_type = select_patch_extractor_type(in_memory)
+    patch_extractor_type = select_patch_extractor_type(
+        data_type=SupportedData(config.data_type), in_memory=in_memory
+    )
     input_extractor = init_patch_extractor(
         patch_extractor_type, image_stack_loader, inputs, config.axes
     )
@@ -112,8 +114,28 @@ def init_patch_extractor(
     return patch_extractor(image_stacks)
 
 
-def select_patch_extractor_type(in_memory: bool) -> type[PatchExtractor]:
-    if in_memory:
+def select_patch_extractor_type(
+    data_type: SupportedData,
+    in_memory: bool,
+) -> type[PatchExtractor]:
+    """Select the appropriate PatchExtractor type based on data type and memory mode.
+
+    If `in_memory` is True, or `data_type` is ZARR or CZI, the standard
+    `PatchExtractor` is selected, otherwise the `LimitFilesPatchExtractor` will be used.
+
+    Parameters
+    ----------
+    data_type : SupportedData
+        The type of data being handled.
+    in_memory : bool
+        Indicates whether data is to be loaded into memory.
+
+    Returns
+    -------
+    type[PatchExtractor]
+        The selected PatchExtractor type.
+    """
+    if in_memory or data_type == SupportedData.ZARR or data_type == SupportedData.CZI:
         return PatchExtractor
     else:
         return LimitFilesPatchExtractor
