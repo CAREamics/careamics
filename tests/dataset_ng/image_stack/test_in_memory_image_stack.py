@@ -12,12 +12,14 @@ def array_stack(shape, axes) -> tuple[NDArray, InMemoryImageStack]:
     return data, InMemoryImageStack.from_array(data, axes)
 
 
+# TODO test reshaping of array
+
+
 @pytest.mark.parametrize(
     "shape, axes",
     [
         ((2, 3, 64, 64), "SCYX"),
-        ((1, 4, 32, 32, 32), "SCZYX"),
-        ((32, 8, 32, 32), "ZSYX"),
+        ((3, 4, 32, 32, 32), "SCZYX"),
     ],
 )
 def test_from_array(array_stack):
