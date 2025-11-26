@@ -116,11 +116,7 @@ def default_in_memory(validated_params: dict[str, Any]) -> bool:
     bool
         Default value for the `in_memory` field.
     """
-    data_type = validated_params.get("data_type")
-    if data_type in ("array", "tiff", "custom"):
-        return True
-    else:
-        return False
+    return validated_params.get("data_type") not in ("zarr", "czi")
 
 
 class NGDataConfig(BaseModel):
