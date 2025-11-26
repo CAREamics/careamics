@@ -136,6 +136,9 @@ class NGDataConfig(BaseModel):
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
 
+    channels: Sequence[int] | None = Field(default=None)
+    """Channels to use from the data. If `None`, all channels are used."""
+
     patch_filter: PatchFilters | None = Field(default=None, discriminator="name")
     """Patch filter to apply when using random patching. Only available during
     training."""
@@ -229,6 +232,61 @@ class NGDataConfig(BaseModel):
             check_axes_validity(axes)
 
         return axes
+
+    @field_validator("channels", mode="before")
+    @classmethod
+    def validate_channels(
+        cls,
+        channels: Sequence[int] | None,
+        info: ValidationInfo,
+    ) -> Sequence[int] | None:
+        """
+        Validate channels.
+
+        Channels must be a sequence of non-negative integers without duplicates. If
+        channels are not `None`, then `C` must be present in the axes.
+
+        Parameters
+        ----------
+        channels : Sequence of int or None
+            Channels to validate.
+        info : ValidationInfo
+            Validation information.
+
+        Returns
+        -------
+        Sequence of int or None
+            Validated channels.
+
+        Raises
+        ------
+        ValueError
+            If channels are not valid.
+        """
+        if channels is not None:
+            if "C" not in info.data["axes"]:
+                raise ValueError(
+                    "Channels were specified but 'C' is not present in the axes."
+                )
+
+            if isinstance(channels, int):
+                channels = [channels]
+
+            if not isinstance(channels, Sequence):
+                raise ValueError("Channels must be a sequence of integers.")
+
+            if len(channels) == 0:
+                return None
+
+            if not all(isinstance(ch, int) for ch in channels):
+                raise ValueError("Channels must be integers.")
+
+            if any(ch < 0 for ch in channels):
+                raise ValueError("Channels must be non-negative integers.")
+
+            if len(set(channels)) != len(channels):
+                raise ValueError("Channels must not contain duplicates.")
+        return channels
 
     @field_validator("train_dataloader_params")
     @classmethod

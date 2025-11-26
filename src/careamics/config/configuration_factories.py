@@ -357,12 +357,13 @@ def _create_microsplit_data_configuration(
     return MicroSplitDataConfig(**data)
 
 
-def _create_ng_data_configuration(
+def create_ng_data_configuration(
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    augmentations: list[SPATIAL_TRANSFORMS_UNION],
+    channels: Sequence[int] | None = None,
+    augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
     patch_overlaps: Sequence[int] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
@@ -382,8 +383,11 @@ def _create_ng_data_configuration(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
-    augmentations : list of transforms
-        List of transforms to apply.
+    channels : Sequence of int, default=None
+        List of channels to use. If `None`, all channels are used.
+    augmentations : list of transforms or None, default=None
+        List of transforms to apply. If `None`, default augmentations are applied
+        (flip in X and Y, rotations by 90 degrees in the XY plane).
     patch_overlaps : Sequence of int, default=None
         Overlaps between patches in each spatial dimension, only used with "sequential"
         patching. If `None`, no overlap is applied. The overlap must be smaller than
@@ -403,11 +407,15 @@ def _create_ng_data_configuration(
     NGDataConfig
         Next-Generation Data model with the specified parameters.
     """
+    if augmentations is None:
+        augmentations = _list_spatial_augmentations()
+
     # data model
     data = {
         "data_type": data_type,
         "axes": axes,
         "batch_size": batch_size,
+        "channels": channels,
         "transforms": augmentations,
         "seed": seed,
     }

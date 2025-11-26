@@ -31,7 +31,7 @@ class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
         self,
         data_idx: int,
         sample_idx: int,
-        channel_idx: int | None,
+        channels: Sequence[int] | None,
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
@@ -46,5 +46,5 @@ class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
             self.loaded_stacks.append(data_idx)
 
         return super().extract_channel_patch(
-            data_idx, sample_idx, channel_idx, coords, patch_size
+            data_idx, sample_idx, channels, coords, patch_size
         )
