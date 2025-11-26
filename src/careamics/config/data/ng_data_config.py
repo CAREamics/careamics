@@ -99,6 +99,30 @@ CoordFilters = Union[MaskFilterConfig]  # add more here as needed
 """Coordinate filters."""
 
 
+def default_in_memory(validated_params: dict[str, Any]) -> bool:
+    """Default factory for the `in_memory` field.
+
+    Based on the value of `data_type`, set the default for `in_memory` to `True` if
+    the data type is 'array', 'tiff', or 'custom', and to `False` otherwise (`zarr`
+    or 'czi').
+
+    Parameters
+    ----------
+    validated_params : dict of {str: Any}
+        Validated parameters.
+
+    Returns
+    -------
+    bool
+        Default value for the `in_memory` field.
+    """
+    data_type = validated_params.get("data_type")
+    if data_type in ("array", "tiff", "custom"):
+        return True
+    else:
+        return False
+
+
 class NGDataConfig(BaseModel):
     """Next-Generation Dataset configuration.
 
@@ -136,7 +160,7 @@ class NGDataConfig(BaseModel):
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
 
-    in_memory: bool = Field(default=None, validate_default=True)
+    in_memory: bool = Field(default_factory=default_in_memory, validate_default=True)
     """Whether to load all data into memory. This is only supported for 'array',
     'tiff' and 'custom' data types. Must be `True` for `array`. If `None`, defaults to
     `True` for 'array', 'tiff' and `custom`, and `False` for 'zarr' and 'czi' data
@@ -239,13 +263,13 @@ class NGDataConfig(BaseModel):
 
         return axes
 
-    @field_validator("in_memory", mode="before")
+    @field_validator("in_memory")
     @classmethod
     def validate_in_memory_with_data_type(cls, in_memory: bool, info: Any) -> bool:
         """
         Validate that in_memory is compatible with data_type.
 
-        in_memory can only be True for 'array', 'tiff' and 'custom' data types.
+        `in_memory` can only be True for 'array', 'tiff' and 'custom' data types.
 
         Parameters
         ----------
@@ -265,12 +289,6 @@ class NGDataConfig(BaseModel):
             If in_memory is True for unsupported data types.
         """
         data_type = info.data.get("data_type")
-
-        if in_memory is None:
-            if data_type in ("array", "tiff", "custom"):
-                return True
-            else:
-                return False
 
         if in_memory and data_type not in ("array", "tiff", "custom"):
             raise ValueError(

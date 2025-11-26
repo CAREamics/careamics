@@ -103,19 +103,24 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
                 patching={"name": SupportedPatchingStrategy.WHOLE},
             )
     else:
-        config = NGDataConfig(
-            data_type=data_type,
-            axes="YX" if data_type != "czi" else "SCYX",
-            in_memory=in_memory,
-            patching={"name": SupportedPatchingStrategy.WHOLE},
-        )
-
         # if in_memory is None, check the default value
         if in_memory is None:
+            config = NGDataConfig(
+                data_type=data_type,
+                axes="YX" if data_type != "czi" else "SCYX",
+                patching={"name": SupportedPatchingStrategy.WHOLE},
+            )
             if data_type in ("array", "tiff", "custom"):
                 assert config.in_memory is True
             else:
                 assert config.in_memory is False
+        else:
+            _ = NGDataConfig(
+                data_type=data_type,
+                axes="YX" if data_type != "czi" else "SCYX",
+                in_memory=in_memory,
+                patching={"name": SupportedPatchingStrategy.WHOLE},
+            )
 
 
 @pytest.mark.parametrize(
