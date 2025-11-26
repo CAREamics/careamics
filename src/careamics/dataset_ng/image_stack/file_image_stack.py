@@ -9,7 +9,7 @@ from numpy.typing import DTypeLike, NDArray
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.file_io.read import ReadFunc, read_tiff
 
-from .image_utils.image_stack_utils import pad_patch, reshaped_array_shape
+from .image_utils.image_stack_utils import channel_slice, pad_patch, reshape_array_shape
 
 
 class FileImageStack:
@@ -46,7 +46,7 @@ class FileImageStack:
     def extract_channel_patch(
         self,
         sample_idx: int,
-        channel_idx: int | None,  # `channel_idx = None` to select all channels
+        channels: Sequence[int] | None,  # `channels = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
@@ -66,7 +66,7 @@ class FileImageStack:
             (
                 sample_idx,  # type: ignore
                 # use channel slice so that channel dimension is kept
-                ... if channel_idx is None else slice(channel_idx, channel_idx + 1),  # type: ignore
+                channel_slice(channels),  # type: ignore
                 *[
                     slice(
                         np.clip(c, 0, self.data_shape[2 + i]),
@@ -118,7 +118,7 @@ class FileImageStack:
         """
         # TODO: think this is correct but need more examples to test
         file = tifffile.TiffFile(path)
-        data_shape = reshaped_array_shape(axes, file.series[0].shape)
+        data_shape = reshape_array_shape(axes, file.series[0].shape)
         dtype = file.series[0].dtype
         return cls(
             source=path,

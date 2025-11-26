@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from types import EllipsisType
 from typing import TypeVar
 
 import numpy as np
@@ -7,8 +8,36 @@ from numpy.typing import NDArray
 T = TypeVar("T", bound=np.generic)
 
 
+def channel_slice(
+    channel_idx: Sequence[int] | None,
+) -> EllipsisType | slice | Sequence[int]:
+    """Create a slice or sequence for indexing channels while preserving dimensions.
+
+    Parameters
+    ----------
+    channel_idx : Sequence[int] | None
+        The channel indices to select, or None to select all channels.
+
+    Returns
+    -------
+    EllipsisType | slice | Sequence[int]
+        An indexing object that can be used to index the channel dimension while
+        preserving its dimension.
+    """
+    if channel_idx is None:
+        return ...
+
+    if len(channel_idx) == 0:
+        raise ValueError("Channel index sequence cannot be empty.")
+
+    if len(channel_idx) == 1:
+        return slice(channel_idx[0], channel_idx[0] + 1)  # preserve dimension
+    else:
+        return channel_idx
+
+
 # TODO: move to dataset_utils, better name?
-def reshaped_array_shape(original_axes: str, shape: Sequence[int]) -> tuple[int, ...]:
+def reshape_array_shape(original_axes: str, shape: Sequence[int]) -> tuple[int, ...]:
     """Find resulting shape if reshaping array to SCZYX."""
     target_axes = "SCZYX"
     target_shape = []

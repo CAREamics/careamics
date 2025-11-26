@@ -21,7 +21,7 @@ class PatchConstructor(Protocol):
         self,
         image_stack: ImageStack,
         sample_idx: int,
-        channel_idx: int | None,  # `channel_idx = None` to select all channels
+        channels: Sequence[int] | None,  # `channels = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray[Any]:
@@ -49,13 +49,13 @@ class PatchConstructor(Protocol):
 def default_patch_constr(
     image_stack: ImageStack,
     sample_idx: int,
-    channel_idx: int | None,  # `channel_idx = None` to select all channels
+    channels: Sequence[int] | None,  # `channels = None` to select all channels
     coords: Sequence[int],
     patch_size: Sequence[int],
 ) -> NDArray[Any]:
     return image_stack.extract_channel_patch(
         sample_idx=sample_idx,
-        channel_idx=channel_idx,
+        channels=channels,
         coords=coords,
         patch_size=patch_size,
     )
@@ -92,13 +92,19 @@ def lateral_context_patch_constr(
     def constructor_func(
         image_stack: ImageStack,
         sample_idx: int,
-        channel_idx: int | None,  # `channel_idx = None` to select all channels
+        channels: Sequence[int] | None,  # `channels = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray[Any]:
+        if channels is not None and len(channels) > 1:
+            raise NotImplementedError(
+                "Lateral context patch constructor is only implemented for single-"
+                "channel images."
+            )
+
         shape = image_stack.data_shape
         spatial_shape = shape[2:]
-        n_channels = shape[1] if channel_idx is None else 1
+        n_channels = shape[1] if channels is None else 1
 
         # There will now be an additional lc dimension,
         # this has to be handled correctly by the dataset
@@ -120,7 +126,7 @@ def lateral_context_patch_constr(
             size_clipped = end_clipped - start_clipped
 
             lc_patch = image_stack.extract_channel_patch(
-                sample_idx, channel_idx, start_clipped, size_clipped
+                sample_idx, channels, start_clipped, size_clipped
             )
             pad_before = start_clipped - lc_start
             pad_after = lc_end - end_clipped

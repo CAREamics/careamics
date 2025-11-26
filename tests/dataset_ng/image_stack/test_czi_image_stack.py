@@ -7,6 +7,7 @@ import pytest
 from numpy.typing import NDArray
 
 from careamics.dataset_ng.image_stack import CziImageStack
+from careamics.dataset_ng.image_stack.image_utils import channel_slice
 
 # skip if fail imports
 pylib = pytest.importorskip("pylibCZIrw")
@@ -125,6 +126,52 @@ def test_extract_patch(
             coords[2] : coords[2] + patch_size[2],
         ]
     np.testing.assert_array_equal(extracted_patch, patch_ref)
+
+
+@pytest.mark.czi
+@pytest.mark.parametrize(
+    "shape, channels",
+    [
+        ((1, 1, 1, 32, 32), None),
+        ((1, 1, 1, 32, 32), [0]),
+        ((1, 3, 1, 32, 32), None),
+        ((1, 3, 1, 32, 32), [0, 2]),
+        ((1, 3, 1, 32, 32), [2]),
+    ],
+)
+def test_extract_channels(
+    tmp_path: Path,
+    shape: tuple[int, ...],
+    channels: list[int] | None,
+):
+    # reference data to compare against
+    data = np.random.randn(*shape).astype(np.float32)
+
+    # save data as a czi file to ininitialise image stack with
+    file_path = tmp_path / "test_czi.czi"
+    create_test_czi(file_path=file_path, data=data)
+
+    # initialise CziImageStack
+    image_stack = CziImageStack(data_path=file_path)
+
+    # extract patch
+    patch = image_stack.extract_channel_patch(
+        sample_idx=0,
+        channels=channels,
+        coords=(0, 0),
+        patch_size=(8, 8),
+    )
+    assert len(patch.shape) == 3  # no Z
+    assert patch.shape[0] == len(channels) if channels is not None else data.shape[0]
+
+    expected_patch = data[
+        0,
+        channel_slice(channels),
+        0,
+        0 : 0 + 8,
+        0 : 0 + 8,
+    ]
+    np.testing.assert_array_equal(patch, expected_patch)
 
 
 @pytest.mark.czi

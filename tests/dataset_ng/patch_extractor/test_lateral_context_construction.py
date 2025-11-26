@@ -107,3 +107,15 @@ def test_patch_extractor_lc_injection():
         lc_patch = patch_extractor.extract_patch(**patch_spec)
         assert lc_patch.shape[1] == multiscale_count
         _assert_lc_centralized(lc_patch)
+
+
+def test_lateral_context_constructor_with_channels():
+    """Test that the lateral context constructor raises an error with multiple
+    channels."""
+    rng = np.random.default_rng(seed=42)
+    data = rng.random((2, 512, 496))
+    image_stack = InMemoryImageStack.from_array(data, "CYX")
+
+    constructor_func = lateral_context_patch_constr(4, "reflect")
+    with pytest.raises(NotImplementedError):
+        constructor_func(image_stack, 0, [0, 1], (0, 0), (64, 64))

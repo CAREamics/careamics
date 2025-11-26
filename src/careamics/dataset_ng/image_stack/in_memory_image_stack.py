@@ -8,7 +8,7 @@ from numpy.typing import DTypeLike, NDArray
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.file_io.read import ReadFunc, read_tiff
 
-from .image_utils.image_stack_utils import pad_patch
+from .image_utils.image_stack_utils import channel_slice, pad_patch
 
 
 class InMemoryImageStack:
@@ -32,7 +32,7 @@ class InMemoryImageStack:
     def extract_channel_patch(
         self,
         sample_idx: int,
-        channel_idx: int | None,  # `channel_idx = None` to select all channels
+        channels: Sequence[int] | None,  # `channels = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
@@ -47,7 +47,7 @@ class InMemoryImageStack:
             (
                 sample_idx,  # type: ignore
                 # use channel slice so that channel dimension is kept
-                ... if channel_idx is None else slice(channel_idx, channel_idx + 1),  # type: ignore
+                channel_slice(channels),  # type: ignore
                 *[
                     slice(
                         np.clip(c, 0, self.data_shape[2 + i]),

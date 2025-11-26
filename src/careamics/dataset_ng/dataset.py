@@ -198,9 +198,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         for idx in tqdm(range(n_patches), desc="Computing statistics"):
             patch_spec = self.patching_strategy.get_patch_spec(idx)
-            patch = data_extractor.extract_patch(
+            patch = data_extractor.extract_channel_patch(
                 data_idx=patch_spec["data_idx"],
                 sample_idx=patch_spec["sample_idx"],
+                channels=self.config.channels,
                 coords=patch_spec["coords"],
                 patch_size=patch_spec["patch_size"],
             )
@@ -249,17 +250,20 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, patch_spec: PatchSpecs
     ) -> tuple[NDArray, NDArray | None]:
         """Extract input and target patches based on patch specifications."""
-        input_patch = self.input_extractor.extract_patch(
+        input_patch = self.input_extractor.extract_channel_patch(
             data_idx=patch_spec["data_idx"],
             sample_idx=patch_spec["sample_idx"],
+            channels=self.config.channels,
             coords=patch_spec["coords"],
             patch_size=patch_spec["patch_size"],
         )
 
         target_patch = (
-            self.target_extractor.extract_patch(
+            self.target_extractor.extract_channel_patch(
                 data_idx=patch_spec["data_idx"],
                 sample_idx=patch_spec["sample_idx"],
+                # TODO does not allow selecting different channels for target
+                channels=self.config.channels,
                 coords=patch_spec["coords"],
                 patch_size=patch_spec["patch_size"],
             )
