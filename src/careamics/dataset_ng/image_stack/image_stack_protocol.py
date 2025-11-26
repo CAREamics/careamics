@@ -68,7 +68,7 @@ class ImageStack(Protocol):
     def extract_channel_patch(
         self,
         sample_idx: int,
-        channel_idx: int | None,
+        channels: Sequence[int] | None,
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
@@ -80,8 +80,9 @@ class ImageStack(Protocol):
         sample_idx: int
             Sample index. The first dimension of the image data will be indexed at this
             value.
-        channel_idx: int
-            Channel index. The channel to extract a patch from.
+        channels: Sequence[int] | None
+            Channel indices to extract. If `None` is given all channels will be
+            extracted.
         coords: Sequence of int
             The coordinates that define the start of a patch.
         patch_size: Sequence of int

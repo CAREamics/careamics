@@ -116,3 +116,40 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
                 assert config.in_memory is True
             else:
                 assert config.in_memory is False
+
+
+@pytest.mark.parametrize(
+    "channels, error",
+    [
+        # valid
+        (None, False),
+        ([1], False),
+        ([0, 4, 6], False),
+        ((0, 1), False),
+        # validator changes to valid value
+        (3, False),
+        ([], False),
+        ((), False),
+        # not a sequence
+        ("invalid", True),
+        ([0, -1], True),
+        ([0, 3.3], True),
+        ([0, 3, 0], True),
+    ],
+)
+def test_channels(channels, error):
+    if error:
+        with pytest.raises(ValueError):
+            NGDataConfig(
+                data_type="array",
+                axes="CYX",
+                patching={"name": SupportedPatchingStrategy.WHOLE},
+                channels=channels,
+            )
+    else:
+        _ = NGDataConfig(
+            data_type="array",
+            axes="CYX",
+            patching={"name": SupportedPatchingStrategy.WHOLE},
+            channels=channels,
+        )

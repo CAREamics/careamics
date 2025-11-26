@@ -1,6 +1,6 @@
 import numpy as np
 
-from careamics.config.configuration_factories import _create_ng_data_configuration
+from careamics.config.configuration_factories import create_ng_data_configuration
 from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
@@ -57,7 +57,7 @@ def test_from_dataset():
     patch_size = (16, 16)
     data_shapes = [(64, 48), (55, 54), (71, 65)]
     input_data = [np.arange(np.prod(shape)).reshape(shape) for shape in data_shapes]
-    train_data_config = _create_ng_data_configuration(
+    train_data_config = create_ng_data_configuration(
         data_type="array",
         axes="YX",
         patch_size=patch_size,

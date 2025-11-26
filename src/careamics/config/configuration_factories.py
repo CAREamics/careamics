@@ -357,12 +357,13 @@ def _create_microsplit_data_configuration(
     return MicroSplitDataConfig(**data)
 
 
-def _create_ng_data_configuration(
+def create_ng_data_configuration(
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    augmentations: list[SPATIAL_TRANSFORMS_UNION],
+    augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
+    channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
     patch_overlaps: Sequence[int] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
@@ -385,11 +386,16 @@ def _create_ng_data_configuration(
         Batch size.
     augmentations : list of transforms
         List of transforms to apply.
+    channels : Sequence of int, default=None
+        List of channels to use. If `None`, all channels are used.
     in_memory : bool, default=None
         Whether to load all data into memory. This is only supported for 'array',
         'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
         'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
         for `array`.
+    augmentations : list of transforms or None, default=None
+        List of transforms to apply. If `None`, default augmentations are applied
+        (flip in X and Y, rotations by 90 degrees in the XY plane).
     patch_overlaps : Sequence of int, default=None
         Overlaps between patches in each spatial dimension, only used with "sequential"
         patching. If `None`, no overlap is applied. The overlap must be smaller than
@@ -409,11 +415,15 @@ def _create_ng_data_configuration(
     NGDataConfig
         Next-Generation Data model with the specified parameters.
     """
+    if augmentations is None:
+        augmentations = _list_spatial_augmentations()
+
     # data model
     data = {
         "data_type": data_type,
         "axes": axes,
         "batch_size": batch_size,
+        "channels": channels,
         "transforms": augmentations,
         "in_memory": in_memory,
         "seed": seed,
