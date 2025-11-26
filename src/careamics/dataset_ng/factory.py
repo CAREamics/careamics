@@ -131,7 +131,11 @@ def select_patch_extractor_type(
     type[PatchExtractor]
         The selected PatchExtractor type.
     """
-    if in_memory or data_type == SupportedData.ZARR or data_type == SupportedData.CZI:
+    if in_memory or data_type in (
+        SupportedData.ZARR,
+        SupportedData.CZI,
+        SupportedData.ARRAY,
+    ):
         return PatchExtractor
     else:
         return LimitFilesPatchExtractor
