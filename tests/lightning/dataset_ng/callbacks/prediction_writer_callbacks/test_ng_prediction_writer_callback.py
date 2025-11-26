@@ -10,7 +10,7 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from careamics.config import Configuration
-from careamics.config.configuration_factories import _create_ng_data_configuration
+from careamics.config.configuration_factories import create_ng_data_configuration
 from careamics.config.data import NGDataConfig
 from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     PredictionWriterCallback,
@@ -60,7 +60,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     cfg = Configuration(**minimum_n2v_configuration)
 
     # create NGDataset configuration
-    dataset_cfg = _create_ng_data_configuration(
+    dataset_cfg = create_ng_data_configuration(
         data_type=cfg.data_config.data_type,
         axes=cfg.data_config.axes,
         patch_size=cfg.data_config.patch_size,
@@ -157,7 +157,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
     cfg = Configuration(**minimum_n2v_configuration)
 
     # create NGDataset configuration
-    dataset_cfg = _create_ng_data_configuration(
+    dataset_cfg = create_ng_data_configuration(
         data_type=cfg.data_config.data_type,
         axes=cfg.data_config.axes,
         patch_size=cfg.data_config.patch_size,
@@ -249,7 +249,7 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
     cfg = Configuration(**minimum_n2v_configuration)
 
     # create NGDataset configuration
-    dataset_cfg = _create_ng_data_configuration(
+    dataset_cfg = create_ng_data_configuration(
         data_type="array",
         axes=cfg.data_config.axes,
         patch_size=cfg.data_config.patch_size,

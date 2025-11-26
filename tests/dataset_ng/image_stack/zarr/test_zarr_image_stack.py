@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.dataset_ng.image_stack import ZarrImageStack
+from careamics.dataset_ng.image_stack.image_utils import channel_slice
 
 # TODO test _reshaped_data_shape
 
@@ -75,3 +76,88 @@ def test_extract_patch_2D(
         coords[1] : coords[1] + patch_size[1],
     ]
     np.testing.assert_array_equal(extracted_patch, patch_ref)
+
+
+@pytest.mark.parametrize(
+    "axes, shape, channels",
+    [
+        ("CYX", (1, 32, 32), None),
+        ("CYX", (1, 32, 32), [0]),
+        ("CYX", (5, 32, 32), None),
+        ("CYX", (5, 32, 32), [1, 4]),
+        ("CYX", (5, 32, 32), [2]),
+    ],
+)
+def test_extract_channels(
+    tmp_path: Path,
+    axes: str,
+    shape: tuple[int, ...],
+    channels: int,
+):
+    # reference data to compare against, it is reshaped using careamics reshape_array
+    data = np.arange(np.prod(shape)).reshape(shape)
+
+    # save data as a zarr array to ininitialise image stack with
+    file_path = tmp_path / "test_zarr.zarr"
+    data_path = "image"
+
+    # initialise ZarrImageStack
+    group = create_zarr(file_path=file_path, data_path=data_path, data=data)
+    image_stack = ZarrImageStack(group=group, data_path=data_path, axes=axes)
+
+    # extract patch
+    patch = image_stack.extract_channel_patch(
+        sample_idx=0,
+        channels=channels,
+        coords=(0, 0),
+        patch_size=(8, 8),
+    )
+    assert len(patch.shape) == 3  # no Z
+    assert patch.shape[0] == len(channels) if channels is not None else data.shape[0]
+
+    expected_patch = data[
+        channel_slice(channels),
+        0 : 0 + 8,
+        0 : 0 + 8,
+    ]
+    np.testing.assert_array_equal(patch, expected_patch)
+
+
+@pytest.mark.parametrize(
+    "shape, axes, channels",
+    [
+        ((2, 3, 64, 64), "SCYX", [0, 4]),
+        ((2, 3, 64, 64), "SCYX", [3]),
+    ],
+)
+def test_extract_channel_error(
+    tmp_path: Path,
+    shape: tuple[int, ...],
+    axes: str,
+    channels: int,
+):
+    # reference data to compare against, it is reshaped using careamics reshape_array
+    data = np.arange(np.prod(shape)).reshape(shape)
+
+    # save data as a zarr array to ininitialise image stack with
+    file_path = tmp_path / "test_zarr.zarr"
+    data_path = "image"
+
+    # initialise ZarrImageStack
+    group = create_zarr(file_path=file_path, data_path=data_path, data=data)
+    image_stack = ZarrImageStack(group=group, data_path=data_path, axes=axes)
+
+    expected_msg = (
+        f"Channel index {channels[-1]} is out of bounds for data with "
+        f"{shape[1]} channels. Check the provided `channels` "
+        f"parameter in the configuration for erroneous channel "
+        f"indices."
+    )
+
+    with pytest.raises(ValueError, match=expected_msg):
+        image_stack.extract_channel_patch(
+            sample_idx=0,
+            channels=channels,
+            coords=(0, 0),
+            patch_size=(16, 16),
+        )

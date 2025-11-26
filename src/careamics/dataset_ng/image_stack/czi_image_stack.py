@@ -183,10 +183,22 @@ class CziImageStack:
     def extract_channel_patch(
         self,
         sample_idx: int,
-        channel_idx: int | None,  # `channel_idx = None` to select all channels
+        channels: Sequence[int] | None,  # `channels = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
+        # check that channels are within bounds
+        if channels is not None:
+            max_channel = self.data_shape[1] - 1  # channel is second dimension
+            for ch in channels:
+                if ch > max_channel:
+                    raise ValueError(
+                        f"Channel index {ch} is out of bounds for data with "
+                        f"{self.data_shape[1]} channels. Check the provided `channels` "
+                        f"parameter in the configuration for erroneous channel "
+                        f"indices."
+                    )
+
         # Determine 3rd dimension (T, Z or none)
         if len(coords) == 3:
             if len(self.axes) != 5:
@@ -212,7 +224,7 @@ class CziImageStack:
         )
 
         # Create output array of shape (C, Z, Y, X)
-        n_channels = self.data_shape[1] if channel_idx is None else 1
+        n_channels = self.data_shape[1] if channels is None else len(channels)
         patch = np.empty(
             (n_channels, third_dim_size, *patch_size[-2:]), dtype=np.float32
         )
@@ -228,24 +240,33 @@ class CziImageStack:
         }
 
         # Read XY planes sequentially
-        channels: Iterable
-        if channel_idx is None:
-            channels = range(self.data_shape[1])
+        channel_iter: Iterable
+        if channels is None:
+            channel_iter = range(self.data_shape[1])  # iter over number of requested C
         else:
-            channels = [channel_idx]
-        for channel in channels:
+            channel_iter = list(channels)
+
+        # for each channel
+        for patch_channel, data_channel in enumerate(channel_iter):
+            # pull plane with the given channel and 3rd dim index
             for third_dim_index in range(third_dim_size):
-                plane["C"] = channel
+                plane["C"] = data_channel
                 if third_dim is not None:
                     plane[third_dim] = third_dim_offset + third_dim_index
+
+                # read plane
                 extracted_roi = self._czi.read(roi=roi, plane=plane, scene=self.scene)
                 if extracted_roi.ndim == 3:
                     if extracted_roi.shape[-1] > 1:
                         raise ValueError(
                             "CZI files with RGB channels are currently not supported."
                         )
+
+                    # remove channel dimension
                     extracted_roi = extracted_roi.squeeze(-1)
-                patch[channel, third_dim_index] = extracted_roi
+
+                # add requested channel into the patch
+                patch[patch_channel, third_dim_index] = extracted_roi
 
         # Remove dummy 3rd dimension for 2-D data
         if third_dim is None:
