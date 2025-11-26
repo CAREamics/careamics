@@ -231,6 +231,7 @@ class TestCziImageStackChannels:
         ],
     )
     def test_extract_channels(
+        self,
         tmp_path: Path,
         shape: tuple[int, ...],
         channels: list[int] | None,
@@ -274,6 +275,7 @@ class TestCziImageStackChannels:
         ],
     )
     def test_extract_channel_error(
+        self,
         tmp_path: Path,
         shape: tuple[int, ...],
         channels: int,
