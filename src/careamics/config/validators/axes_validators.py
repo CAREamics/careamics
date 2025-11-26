@@ -1,10 +1,4 @@
-"""
-Validator functions.
-
-These functions are used to validate dimensions and axes of inputs.
-"""
-
-from collections.abc import Sequence
+"""Axes validation utilities."""
 
 _AXES = "STCZYX"
 
@@ -53,49 +47,45 @@ def check_axes_validity(axes: str) -> None:
             )
 
 
-def value_ge_than_8_power_of_2(
-    value: int,
-) -> None:
+def check_czi_axes_validity(axes: str) -> bool:
     """
-    Validate that the value is greater or equal than 8 and a power of 2.
+    Check if the provided axes string is valid for CZI files.
+
+    CZI axes is always in the "SC(Z/T)YX" format, where Z or T are optional, and S and C
+    can be singleton dimensions, but must be provided.
 
     Parameters
     ----------
-    value : int
-        Value to validate.
+    axes : str
+        The axes string to validate.
 
-    Raises
-    ------
-    ValueError
-        If the value is smaller than 8.
-    ValueError
-        If the value is not a power of 2.
+    Returns
+    -------
+    bool
+        True if the axes string is valid, False otherwise.
     """
-    if value < 8:
-        raise ValueError(f"Value must be greater than 8 (got {value}).")
+    valid_axes = {"S", "C", "Z", "T", "Y", "X"}
+    axes_set = set(axes)
 
-    if (value & (value - 1)) != 0:
-        raise ValueError(f"Value must be a power of 2 (got {value}).")
+    # check for invalid characters
+    if not axes_set.issubset(valid_axes):
+        return False
 
+    # check for mandatory axes
+    if not ({"S", "C", "Y", "X"}.issubset(axes_set)):
+        return False
 
-def patch_size_ge_than_8_power_of_2(
-    patch_list: Sequence[int] | None,
-) -> None:
-    """
-    Validate that each entry is greater or equal than 8 and a power of 2.
+    # check for mutually exclusive axes
+    if "Z" in axes_set and "T" in axes_set:
+        return False
 
-    Parameters
-    ----------
-    patch_list : Sequence of int, or None
-        Patch size.
+    # check for correct order
+    order = "SCZYX" if "Z" in axes else "SCTYX"
+    last_index = -1
+    for axis in axes:
+        current_index = order.find(axis)
+        if current_index < last_index:
+            return False
+        last_index = current_index
 
-    Raises
-    ------
-    ValueError
-        If the patch size if smaller than 8.
-    ValueError
-        If the patch size is not a power of 2.
-    """
-    if patch_list is not None:
-        for dim in patch_list:
-            value_ge_than_8_power_of_2(dim)
+    return True
