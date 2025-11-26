@@ -10,7 +10,7 @@ T = TypeVar("T", bound=np.generic)
 
 def channel_slice(
     channels: Sequence[int] | None,
-) -> EllipsisType | slice | Sequence[int]:
+) -> EllipsisType | Sequence[int]:
     """Create a slice or sequence for indexing channels while preserving dimensions.
 
     Parameters
@@ -20,9 +20,9 @@ def channel_slice(
 
     Returns
     -------
-    EllipsisType | slice | Sequence[int]
+    EllipsisType | Sequence[int]
         An indexing object that can be used to index the channel dimension while
-        preserving its dimension.
+        preserving it.
     """
     if channels is None:
         return ...
@@ -30,10 +30,7 @@ def channel_slice(
     if len(channels) == 0:
         raise ValueError("Channel index sequence cannot be empty.")
 
-    if len(channels) == 1:
-        return slice(channels[0], channels[0] + 1)  # preserve dimension
-    else:
-        return channels
+    return channels
 
 
 # TODO: move to dataset_utils, better name?
