@@ -241,22 +241,16 @@ class CziImageStack:
 
         # Read XY planes sequentially
         channel_iter: Iterable
-        channel_indices = []
         if channels is None:
             channel_iter = range(self.data_shape[1])  # iter over number of requested C
-            channel_indices = list(channel_iter)  # actual channel indices
         else:
-            channel_iter = range(len(channels))
-            channel_indices = list(channels)
+            channel_iter = list(channels)
 
         # for each channel
-        for channel in channel_iter:
-            # requested channel index
-            channel_idx = channel_indices[channel]
-
+        for path_channel, data_channel in enumerate(channel_iter):
             # pull plane with the given channel and 3rd dim index
             for third_dim_index in range(third_dim_size):
-                plane["C"] = channel_idx
+                plane["C"] = data_channel
                 if third_dim is not None:
                     plane[third_dim] = third_dim_offset + third_dim_index
 
@@ -272,7 +266,7 @@ class CziImageStack:
                     extracted_roi = extracted_roi.squeeze(-1)
 
                 # add requested channel into the patch
-                patch[channel, third_dim_index] = extracted_roi
+                patch[path_channel, third_dim_index] = extracted_roi
 
         # Remove dummy 3rd dimension for 2-D data
         if third_dim is None:
