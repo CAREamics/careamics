@@ -17,9 +17,12 @@ from pydantic import (
     ConfigDict,
     Field,
     PlainSerializer,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
+
+from careamics.dataset_ng.image_stack.image_utils import are_czi_axes_valid
 
 from ..transformations import XYFlipConfig, XYRandomRotate90Config
 from ..validators import check_axes_validity
@@ -121,11 +124,11 @@ class NGDataConfig(BaseModel):
     )
 
     # Dataset configuration
-    data_type: Literal["array", "tiff", "zarr", "czi", "custom"]
-    """Type of input data."""
-
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
+
+    data_type: Literal["array", "tiff", "zarr", "czi", "custom"]
+    """Type of input data."""
 
     patching: PatchingStrategies = Field(..., discriminator="name")
     """Patching strategy to use. Note that `random` is the only supported strategy for
@@ -188,7 +191,7 @@ class NGDataConfig(BaseModel):
 
     @field_validator("axes")
     @classmethod
-    def axes_valid(cls, axes: str) -> str:
+    def axes_valid(cls, axes: str, info: ValidationInfo) -> str:
         """
         Validate axes.
 
@@ -203,6 +206,8 @@ class NGDataConfig(BaseModel):
         ----------
         axes : str
             Axes to validate.
+        info : ValidationInfo
+            Validation information.
 
         Returns
         -------
@@ -216,6 +221,15 @@ class NGDataConfig(BaseModel):
         """
         # Validate axes
         check_axes_validity(axes)
+
+        # Additional validation for CZI files
+        if info.data["data_type"] == "czi":
+            if not are_czi_axes_valid(axes):
+                raise ValueError(
+                    f"Provided axes '{axes}' are not valid. Axes must be in the "
+                    f"`SC(Z/T)YX` format, where Z or T are optional, and S and C can be"
+                    f" singleton dimensions, but must be provided."
+                )
 
         return axes
 

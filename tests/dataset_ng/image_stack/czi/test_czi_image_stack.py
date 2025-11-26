@@ -8,7 +8,6 @@ from numpy.typing import NDArray
 
 from careamics.dataset_ng.image_stack.czi_image_stack import (
     CziImageStack,
-    are_axes_valid,
 )
 
 # skip if fail imports
@@ -218,20 +217,3 @@ class TestCziImageStack:
                 coords[2] : coords[2] + patch_size[2],
             ]
             np.testing.assert_array_equal(extracted_patch, patch_ref)
-
-
-@pytest.mark.parametrize(
-    "axes, expected",
-    [
-        ("SCZYX", True),
-        ("SCTYX", True),
-        ("SCYX", True),
-        ("CTYX", False),  # missing S axis
-        ("SCZ", False),  # missing YX axes
-        ("SCZYXT", False),  # extra axis
-        ("TCYX", False),  # wrong order
-    ],
-)
-def test_are_axes_valid(axes: str, expected: bool):
-    """Test `are_axes_valid` function."""
-    assert are_axes_valid(axes) == expected
