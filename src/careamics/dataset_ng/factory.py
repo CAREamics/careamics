@@ -131,14 +131,10 @@ def select_patch_extractor_type(
     type[PatchExtractor]
         The selected PatchExtractor type.
     """
-    if in_memory or data_type in (
-        SupportedData.ZARR,
-        SupportedData.CZI,
-        SupportedData.ARRAY,
-    ):
-        return PatchExtractor
-    else:
+    if not in_memory and data_type in (SupportedData.TIFF, SupportedData.CUSTOM):
         return LimitFilesPatchExtractor
+    else:
+        return PatchExtractor
 
 
 def select_image_stack_loader(
