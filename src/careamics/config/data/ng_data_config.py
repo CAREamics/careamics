@@ -52,6 +52,9 @@ from .patching_strategies import (
 # TODO: we can't tell that the patching strategy is correct
 #       - or is the responsibility of the creator (e.g. convenience functions)
 
+# TODO: this module is very long, can we split the validation somewhere else and
+#       leverage Pydantic to add validation directly to the declaration of each field?
+
 
 def generate_random_seed() -> int:
     """Generate a random seed for reproducibility.
@@ -714,16 +717,191 @@ class NGDataConfig(BaseModel):
             target_stds=target_stds,
         )
 
-    def convert_mode(self, new_mode: Mode) -> None:
+    # TODO should we expose a patch_size and overlaps parameters rather than
+    #   requiring a new patching strategy object? They could be replaced by the
+    #   training patches if not provided. Tiling could also be requested.
+    # TODO `channels=None` is ambigouous: all channels or same channels as in training?
+    # TODO this method could be private and we could have public `to_validation_config`
+    #   and `to_prediction_config` methods with appropriate parameters
+    # TODO any use for switching to training mode?
+    def convert_mode(
+        self,
+        new_mode: Literal[Mode.VALIDATING, Mode.PREDICTING],
+        new_patching_strategy: PatchingConfig | None = None,
+        new_batch_size: int | None = None,
+        new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        new_axes: str | None = None,
+        new_channels: Sequence[int] | None = None,
+        new_dataloader_params: dict[str, Any] | None = None,
+    ) -> NGDataConfig:
         """
-        Convert the dataset mode.
+        Convert a training dataset configuration to a different mode.
+
+        This method is intended to facilitate creating validation or prediction
+        configurations from a training configuration.
+
+        Switching mode to `predicting` without specifying `new_patching_strategy` will
+        apply the default patching strategy, namely `whole` image strategy.
+
+        New dataloader parameters will be placed in the appropriate dataloader params
+        field depending on the new mode.
+
+        To create a new training configuration, please use
+        `careamics.config.create_ng_data_configuration`.
 
         Parameters
         ----------
-        new_mode : Mode
-            The new dataset mode.
+        new_mode : Literal[Mode.VALIDATING, Mode.PREDICTING]
+            The new dataset mode, one of `validating` or `predicting`.
+        new_patching_strategy : PatchingConfig, optional
+            New patching strategy to use, by default None. If None and switching to
+            `predicting`, the `whole` image strategy will be used. If swtiching to
+            `validating`, only `fixed_random` is supported.
+        new_batch_size : int, optional
+            New batch size, by default None.
+        new_data_type : Literal['array', 'tiff', 'zarr', 'czi', 'custom'], optional
+            New data type, by default None.
+        new_axes : str, optional
+            New axes, by default None.
+        new_channels : Sequence of int, optional
+            New channels, by default None.
+        new_dataloader_params : dict of {str: Any}, optional
+            New dataloader parameters, by default None. These will be placed in the
+            appropriate dataloader params field depending on the new mode.
+
+        Returns
+        -------
+        NGDataConfig
+            New NGDataConfig with the updated mode and parameters.
         """
-        self._update(mode=new_mode)
+        if new_mode == Mode.TRAINING:
+            raise ValueError(
+                "Converting to 'training' mode is not supported. Create a new "
+                "NGDataConfig instead, for instance using "
+                "`create_ng_data_configuration`."
+            )
+        if self.mode != Mode.TRAINING:
+            raise ValueError(
+                f"Converting from mode '{self.mode}' to '{new_mode}' is not supported. "
+                f"Only conversion from 'training' mode is supported."
+            )
+
+        # sanity checks
+        # switching spatial axes
+        if new_axes is not None and ("Z" in new_axes) != (
+            "Z" in self.axes
+        ):  # switching 2D/3D
+            raise ValueError("Cannot switch between 2D and 3D axes.")
+
+        # switching channels
+        if (
+            new_axes is not None
+            and "C" in new_axes
+            and "C" not in self.axes  # adding C axis
+            and (
+                (new_channels is not None) and (len(new_channels) != 1)
+            )  # > 1 channels
+        ):
+            raise ValueError(
+                f"When switching to axes with 'C' (got {new_axes}) from axes "
+                f"{self.axes}, a single channel only must be selected using the "
+                f"`new_channels` parameter (got {new_channels})."
+            )
+        elif (
+            new_axes is not None
+            and ("C" in new_axes)
+            and ("C" not in self.axes)  # adding C axis
+            and new_channels is None  # might be a singleton dimension
+        ):
+            warn(
+                f"When switching to axes with 'C' (got {new_axes}) from axes "
+                f"{self.axes}, errors may be raised or degraded performances may be "
+                f"observed if the channel dimension in the data is not a singleton "
+                f"dimension. To select a specific channel, use the `new_channels` "
+                f"parameter (e.g. `new_channels=[1]`).",
+                stacklevel=1,
+            )
+        elif (
+            new_axes is not None
+            and ("C" not in new_axes)
+            and ("C" in self.axes)  # removing C axis
+            and ((self.channels is not None) and (len(self.channels) != 1))
+        ):
+            raise ValueError(
+                f"Cannot switch to axes without 'C' (got {new_axes}) from axes "
+                f"{self.axes} when multiple channels are specified."
+            )
+        elif (
+            new_axes is not None
+            and ("C" not in new_axes)
+            and ("C" in self.axes)  # removing C axis
+            and self.channels is None
+        ):
+            warn(
+                f"When switching to axes without 'C' (got {new_axes}) from axes "
+                f"{self.axes}, errors may be raised or degraded performances may be "
+                f"observed if the channel dimension in the data was not a singleton "
+                f"dimension. ",
+                stacklevel=1,
+            )
+
+        # TODO would the model accept different number of channels? or will it lead to
+        # errors?
+        # different number of channels
+        if new_channels is not None and self.channels is not None:
+            if len(new_channels) != len(self.channels):
+                raise ValueError(
+                    f"New channels length ({len(new_channels)}) does not match "
+                    f"current channels length ({len(self.channels)})."
+                )
+
+        if self.channels is None and new_channels is not None:
+            warn(
+                f"Switching from all channels (`channels=None`) to specifying channels "
+                f"{new_channels} may lead to errors or degraded performances if "
+                f"{new_channels} are not all channels.",
+                stacklevel=1,
+            )
+        # Not in the opposite case, self.channels is kept because new_channels is None
+
+        # apply default values
+        patching_strategy: PatchingConfig
+        if new_patching_strategy is None:
+            if new_mode == Mode.PREDICTING:
+                patching_strategy = WholePatchingConfig()
+            else:  # new_mode=validating
+                assert isinstance(self.patching, RandomPatchingConfig)
+
+                patching_strategy = FixedRandomPatchingConfig(
+                    patch_size=self.patching.patch_size,
+                    seed=self.seed,
+                )
+        else:
+            patching_strategy = new_patching_strategy
+
+        # create new config
+        model_dict = self.model_dump()
+        model_dict.update(
+            {
+                "mode": new_mode,
+                "patching": patching_strategy,
+                "batch_size": new_batch_size or self.batch_size,
+                "data_type": new_data_type or self.data_type,
+                "axes": new_axes or self.axes,
+                "channels": new_channels if new_channels is not None else self.channels,
+                "val_dataloader_params": (
+                    new_dataloader_params
+                    if new_mode == Mode.VALIDATING and new_dataloader_params is not None
+                    else self.val_dataloader_params
+                ),
+                "pred_dataloader_params": (
+                    new_dataloader_params
+                    if new_mode == Mode.PREDICTING and new_dataloader_params is not None
+                    else self.pred_dataloader_params
+                ),
+            }
+        )
+        return NGDataConfig(**model_dict)
 
     # def set_3D(self, axes: str, patch_size: list[int]) -> None:
     #     """
