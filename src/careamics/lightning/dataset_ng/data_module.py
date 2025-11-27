@@ -75,8 +75,6 @@ class CareamicsDataModule(L.LightningDataModule):
     val_minimum_split : int, default=5
         Minimum number of patches or files to split from the training data for
         validation. Only used if `val_data` is None.
-    use_in_memory : bool
-        Load data in memory dataset if possible, by default True.
 
 
     Attributes
@@ -87,8 +85,6 @@ class CareamicsDataModule(L.LightningDataModule):
         Type of data, one of SupportedData.
     batch_size : int
         Batch size for the dataloaders.
-    use_in_memory : bool
-        Whether to load data in memory if possible.
     extension_filter : str
         Filter for file extensions, by default "".
     read_source_func : Optional[Callable], default=None
@@ -142,7 +138,6 @@ class CareamicsDataModule(L.LightningDataModule):
         extension_filter: str = "",
         val_percentage: float | None = None,
         val_minimum_split: int = 5,
-        use_in_memory: bool = True,
     ) -> None: ...
 
     # with training mask for filtering
@@ -161,7 +156,6 @@ class CareamicsDataModule(L.LightningDataModule):
         extension_filter: str = "",
         val_percentage: float | None = None,
         val_minimum_split: int = 5,
-        use_in_memory: bool = True,
     ) -> None: ...
 
     # custom read function (no mask)
@@ -181,7 +175,6 @@ class CareamicsDataModule(L.LightningDataModule):
         extension_filter: str = "",
         val_percentage: float | None = None,
         val_minimum_split: int = 5,
-        use_in_memory: bool = True,
     ) -> None: ...
 
     # custom read function with training mask
@@ -202,7 +195,6 @@ class CareamicsDataModule(L.LightningDataModule):
         extension_filter: str = "",
         val_percentage: float | None = None,
         val_minimum_split: int = 5,
-        use_in_memory: bool = True,
     ) -> None: ...
 
     # image stack loader (no mask)
@@ -222,7 +214,6 @@ class CareamicsDataModule(L.LightningDataModule):
         extension_filter: str = "",
         val_percentage: float | None = None,
         val_minimum_split: int = 5,
-        use_in_memory: bool = True,
     ) -> None: ...
 
     # image stack loader with training mask
@@ -243,7 +234,6 @@ class CareamicsDataModule(L.LightningDataModule):
         extension_filter: str = "",
         val_percentage: float | None = None,
         val_minimum_split: int = 5,
-        use_in_memory: bool = True,
     ) -> None: ...
 
     def __init__(
@@ -264,7 +254,6 @@ class CareamicsDataModule(L.LightningDataModule):
         extension_filter: str = "",
         val_percentage: float | None = None,
         val_minimum_split: int = 5,
-        use_in_memory: bool = True,
     ) -> None:
         """
         Data module for Careamics dataset initialization.
@@ -315,8 +304,6 @@ class CareamicsDataModule(L.LightningDataModule):
         val_minimum_split : int
             Minimum number of patches or files to split from the training data for
             validation, by default 5. Only used if `val_data` is None.
-        use_in_memory : bool
-            Load data in memory dataset if possible, by default True.
         """
         super().__init__()
 
@@ -332,7 +319,6 @@ class CareamicsDataModule(L.LightningDataModule):
         self.config: NGDataConfig = data_config
         self.data_type: str = data_config.data_type
         self.batch_size: int = data_config.batch_size
-        self.use_in_memory: bool = use_in_memory
 
         self.extension_filter: str = (
             extension_filter  # list_files pulls the correct ext
@@ -390,11 +376,10 @@ class CareamicsDataModule(L.LightningDataModule):
         if stage == "fit":
             self.train_dataset = create_dataset(
                 mode=Mode.TRAINING,
+                config=self.config,
                 inputs=self.train_data,
                 targets=self.train_data_target,
                 masks=self.train_data_mask,
-                config=self.config,
-                in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
                 image_stack_loader=self.image_stack_loader,
@@ -410,10 +395,9 @@ class CareamicsDataModule(L.LightningDataModule):
             )
             self.val_dataset = create_dataset(
                 mode=Mode.VALIDATING,
+                config=self.config,
                 inputs=self.val_data,
                 targets=self.val_data_target,
-                config=self.config,
-                in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
                 image_stack_loader=self.image_stack_loader,
@@ -422,10 +406,9 @@ class CareamicsDataModule(L.LightningDataModule):
         elif stage == "validate":
             self.val_dataset = create_dataset(
                 mode=Mode.VALIDATING,
+                config=self.config,
                 inputs=self.val_data,
                 targets=self.val_data_target,
-                config=self.config,
-                in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
                 image_stack_loader=self.image_stack_loader,
@@ -435,10 +418,9 @@ class CareamicsDataModule(L.LightningDataModule):
         elif stage == "predict":
             self.predict_dataset = create_dataset(
                 mode=Mode.PREDICTING,
+                config=self.config,
                 inputs=self.pred_data,
                 targets=self.pred_data_target,
-                config=self.config,
-                in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
                 image_stack_loader=self.image_stack_loader,
@@ -451,7 +433,7 @@ class CareamicsDataModule(L.LightningDataModule):
     def _sampler(self, dataset: Literal["train", "val", "predict"]) -> Sampler | None:
         sampler: GroupedIndexSampler | None
         rng = np.random.default_rng(self.config.seed)
-        if not self.use_in_memory and self.config.data_type == SupportedData.TIFF:
+        if not self.config.in_memory and self.config.data_type == SupportedData.TIFF:
             match dataset:
                 case "train":
                     ds = self.train_dataset

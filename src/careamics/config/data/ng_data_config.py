@@ -99,6 +99,26 @@ CoordFilters = Union[MaskFilterConfig]  # add more here as needed
 """Coordinate filters."""
 
 
+def default_in_memory(validated_params: dict[str, Any]) -> bool:
+    """Default factory for the `in_memory` field.
+
+    Based on the value of `data_type`, set the default for `in_memory` to `True` if
+    the data type is 'array', 'tiff', or 'custom', and to `False` otherwise (`zarr`
+    or 'czi').
+
+    Parameters
+    ----------
+    validated_params : dict of {str: Any}
+        Validated parameters.
+
+    Returns
+    -------
+    bool
+        Default value for the `in_memory` field.
+    """
+    return validated_params.get("data_type") not in ("zarr", "czi")
+
+
 class NGDataConfig(BaseModel):
     """Next-Generation Dataset configuration.
 
@@ -135,6 +155,12 @@ class NGDataConfig(BaseModel):
     # Optional fields
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
+
+    in_memory: bool = Field(default_factory=default_in_memory, validate_default=True)
+    """Whether to load all data into memory. This is only supported for 'array',
+    'tiff' and 'custom' data types. Must be `True` for `array`. If `None`, defaults to
+    `True` for 'array', 'tiff' and `custom`, and `False` for 'zarr' and 'czi' data
+    types."""
 
     channels: Sequence[int] | None = Field(default=None)
     """Channels to use from the data. If `None`, all channels are used."""
@@ -232,6 +258,47 @@ class NGDataConfig(BaseModel):
             check_axes_validity(axes)
 
         return axes
+
+    @field_validator("in_memory")
+    @classmethod
+    def validate_in_memory_with_data_type(cls, in_memory: bool, info: Any) -> bool:
+        """
+        Validate that in_memory is compatible with data_type.
+
+        `in_memory` can only be True for 'array', 'tiff' and 'custom' data types.
+
+        Parameters
+        ----------
+        in_memory : bool
+            Whether to load data into memory.
+        info : Any
+            Additional information about the field being validated.
+
+        Returns
+        -------
+        bool
+            Validated in_memory value.
+
+        Raises
+        ------
+        ValueError
+            If in_memory is True for unsupported data types.
+        """
+        data_type = info.data.get("data_type")
+
+        if in_memory and data_type not in ("array", "tiff", "custom"):
+            raise ValueError(
+                f"`in_memory` can only be True for 'array', 'tiff' and 'custom' "
+                f"data types, got '{data_type}'. In memory loading of zarr and czi "
+                f"data types is not currently not implemented."
+            )
+
+        if not in_memory and data_type == "array":
+            raise ValueError(
+                "`in_memory` must be True for 'array' data type, got False."
+            )
+
+        return in_memory
 
     @field_validator("channels", mode="before")
     @classmethod
