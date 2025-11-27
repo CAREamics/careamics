@@ -13,7 +13,6 @@ from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
-from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset_ng.image_stack_loader import ImageStackLoader
@@ -389,11 +388,10 @@ class CareamicsDataModule(L.LightningDataModule):
         """
         if stage == "fit":
             self.train_dataset = create_dataset(
-                mode=Mode.TRAINING,
+                config=self.config,
                 inputs=self.train_data,
                 targets=self.train_data_target,
                 masks=self.train_data_mask,
-                config=self.config,
                 in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
@@ -408,11 +406,12 @@ class CareamicsDataModule(L.LightningDataModule):
                 self.train_dataset.target_stats.means,
                 self.train_dataset.target_stats.stds,
             )
+
+            # TODO: need to obtain validation configuration from training config
             self.val_dataset = create_dataset(
-                mode=Mode.VALIDATING,
+                config=self.config,
                 inputs=self.val_data,
                 targets=self.val_data_target,
-                config=self.config,
                 in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
@@ -420,11 +419,11 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
         elif stage == "validate":
+            # TODO check if configuration is validation, if train then convert
             self.val_dataset = create_dataset(
-                mode=Mode.VALIDATING,
+                config=self.config,
                 inputs=self.val_data,
                 targets=self.val_data_target,
-                config=self.config,
                 in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
@@ -434,10 +433,9 @@ class CareamicsDataModule(L.LightningDataModule):
             self.stats = self.val_dataset.input_stats
         elif stage == "predict":
             self.predict_dataset = create_dataset(
-                mode=Mode.PREDICTING,
+                config=self.config,
                 inputs=self.pred_data,
                 targets=self.pred_data_target,
-                config=self.config,
                 in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,

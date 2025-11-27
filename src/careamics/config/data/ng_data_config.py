@@ -714,6 +714,17 @@ class NGDataConfig(BaseModel):
             target_stds=target_stds,
         )
 
+    def convert_mode(self, new_mode: Mode) -> None:
+        """
+        Convert the dataset mode.
+
+        Parameters
+        ----------
+        new_mode : Mode
+            The new dataset mode.
+        """
+        self._update(mode=new_mode)
+
     # def set_3D(self, axes: str, patch_size: list[int]) -> None:
     #     """
     #     Set 3D parameters.

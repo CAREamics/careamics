@@ -103,7 +103,7 @@ def test_ng_data_config_strategy(patching_strategy, mode):
             {
                 "name": SupportedPatchingStrategy.WHOLE,
             },
-            "predicting",
+            "validating",
         ),
     ],
 )

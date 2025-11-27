@@ -19,6 +19,7 @@ def test_zarr_data_module(zarr_with_target_and_mask):
 
     # basic config
     config = NGDataConfig(
+        mode="training",
         data_type="zarr",
         axes="YX",
         patching={

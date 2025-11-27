@@ -46,6 +46,7 @@ def test_not_in_mem_tiff(tmp_path: Path):
 
     # basic config
     config = NGDataConfig(
+        mode="training",
         data_type="tiff",
         axes="YX",
         patching={
@@ -104,6 +105,7 @@ def test_sampler(tmp_path: Path, in_memory, correct_sampler):
 
     # basic config
     config = NGDataConfig(
+        mode="training",
         data_type="tiff",
         axes="YX",
         patching={
