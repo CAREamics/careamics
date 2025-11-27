@@ -12,7 +12,6 @@ from careamics.config.data.ng_data_config import NGDataConfig, WholePatchingConf
 from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
-from careamics.config.transformations import NormalizeConfig
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
 from careamics.transforms import Compose
@@ -29,6 +28,7 @@ from .patching_strategies import (
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
+from .normalization import create_normalization
 
 
 class Mode(str, Enum):
@@ -125,6 +125,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self.input_stats, self.target_stats = self._initialize_statistics()
 
         self.transforms = self._initialize_transforms()
+        self.normalization = create_normalization(self.config.normalization)
 
     def _initialize_patching_strategy(self) -> PatchingStrategy:
         patching_strategy: PatchingStrategy
@@ -177,18 +178,13 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         return patching_strategy
 
     def _initialize_transforms(self) -> Compose | None:
-        normalize = NormalizeConfig(
-            image_means=self.input_stats.means,
-            image_stds=self.input_stats.stds,
-            target_means=self.target_stats.means,
-            target_stds=self.target_stats.stds,
-        )
         if self.mode == Mode.TRAINING:
-            # TODO: initialize normalization separately depending on configuration
-            return Compose(transform_list=[normalize] + list(self.config.transforms))
+            return Compose(
+                list(self.config.transforms)
+            )
 
         # TODO: add TTA
-        return Compose(transform_list=[normalize])
+        return None
 
     def _calculate_stats(
         self, data_extractor: PatchExtractor[GenericImageStack]
@@ -309,6 +305,9 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, index: int
     ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
         input_patch, target_patch, patch_spec = self._get_filtered_patch(index)
+
+        # apply normalization
+        input_patch, target_patch = self.normalization(input_patch, target_patch)
 
         # apply transforms
         if self.transforms is not None:

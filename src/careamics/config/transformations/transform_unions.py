@@ -8,6 +8,10 @@ from .normalize_config import NormalizeConfig
 from .xy_flip_config import XYFlipConfig
 from .xy_random_rotate90_config import XYRandomRotate90Config
 
+from .normalization_config import StandardizeModel, NoNormModel, QuantileModel, MinMaxModel
+
+NORM_MODES = StandardizeModel | NoNormModel | QuantileModel | MinMaxModel
+
 NORM_AND_SPATIAL_UNION = Annotated[
     Union[
         NormalizeConfig,
