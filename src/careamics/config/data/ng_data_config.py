@@ -726,7 +726,7 @@ class NGDataConfig(BaseModel):
     # TODO any use for switching to training mode?
     def convert_mode(
         self,
-        new_mode: Literal[Mode.VALIDATING, Mode.PREDICTING],
+        new_mode: Literal["validating", "predicting"],
         new_patching_strategy: PatchingConfig | None = None,
         new_batch_size: int | None = None,
         new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
@@ -751,7 +751,7 @@ class NGDataConfig(BaseModel):
 
         Parameters
         ----------
-        new_mode : Literal[Mode.VALIDATING, Mode.PREDICTING]
+        new_mode : Literal["validating", "predicting"]
             The new dataset mode, one of `validating` or `predicting`.
         new_patching_strategy : PatchingConfig, optional
             New patching strategy to use, by default None. If None and switching to
@@ -901,6 +901,11 @@ class NGDataConfig(BaseModel):
                 ),
             }
         )
+
+        # remove patch and coord filters when switching to validation or prediction
+        del model_dict["patch_filter"]
+        del model_dict["coord_filter"]
+
         return NGDataConfig(**model_dict)
 
     # def set_3D(self, axes: str, patch_size: list[int]) -> None:

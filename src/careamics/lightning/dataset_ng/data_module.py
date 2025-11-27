@@ -387,6 +387,13 @@ class CareamicsDataModule(L.LightningDataModule):
             If stage is not one of "fit", "validate" or "predict".
         """
         if stage == "fit":
+            if self.config.mode != "training":
+                raise ValueError(
+                    f"CAREamicsDataModule configured for {self.config.mode} cannot be "
+                    f"used for training. Please create a new CareamicsDataModule with "
+                    f"a configuration with mode='training'."
+                )
+
             self.train_dataset = create_dataset(
                 config=self.config,
                 inputs=self.train_data,
@@ -407,9 +414,9 @@ class CareamicsDataModule(L.LightningDataModule):
                 self.train_dataset.target_stats.stds,
             )
 
-            # TODO: need to obtain validation configuration from training config
+            validation_config = self.config.convert_mode("validating")
             self.val_dataset = create_dataset(
-                config=self.config,
+                config=validation_config,
                 inputs=self.val_data,
                 targets=self.val_data_target,
                 in_memory=self.use_in_memory,
@@ -419,9 +426,9 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
         elif stage == "validate":
-            # TODO check if configuration is validation, if train then convert
+            validation_config = self.config.convert_mode("validating")
             self.val_dataset = create_dataset(
-                config=self.config,
+                config=validation_config,
                 inputs=self.val_data,
                 targets=self.val_data_target,
                 in_memory=self.use_in_memory,
@@ -432,8 +439,19 @@ class CareamicsDataModule(L.LightningDataModule):
             )
             self.stats = self.val_dataset.input_stats
         elif stage == "predict":
+            if self.config.mode == "validating":
+                raise ValueError(
+                    "CAREamicsDataModule configured for validating cannot be used for "
+                    "prediction. Please create a new CareamicsDataModule with a "
+                    "configuration with mode='predicting'."
+                )
+
             self.predict_dataset = create_dataset(
-                config=self.config,
+                config=(
+                    self.config.convert_mode("predicting")
+                    if self.config.mode == "training"
+                    else self.config
+                ),
                 inputs=self.pred_data,
                 targets=self.pred_data_target,
                 in_memory=self.use_in_memory,
