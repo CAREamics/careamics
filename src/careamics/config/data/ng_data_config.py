@@ -22,6 +22,8 @@ from pydantic import (
     model_validator,
 )
 
+from careamics.utils import BaseEnum
+
 from ..transformations import XYFlipConfig, XYRandomRotate90Config
 from ..validators import check_axes_validity, check_czi_axes_validity
 from .patch_filter import (
@@ -31,6 +33,7 @@ from .patch_filter import (
     ShannonFilterConfig,
 )
 from .patching_strategies import (
+    FixedRandomPatchingConfig,
     RandomPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
@@ -39,6 +42,9 @@ from .patching_strategies import (
 # TODO: Validate the specific sizes of tiles and overlaps given UNet constraints
 #   - needs to be done in the Configuration
 #   - patches and overlaps sizes must also be checked against dimensionality
+
+# TODO: How to have different validations for patching based on architecture?
+#   - Should we have a UNet and a LVAE NGDataConfig subclass with specific validations?
 
 # TODO: is 3D updated anywhere in the code in CAREamist/downstream?
 #       - this will be important when swapping the data config in Configuration
@@ -80,23 +86,31 @@ def np_float_to_scientific_str(x: float) -> str:
 Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type=str)]
 """Annotated float type, used to serialize floats to strings."""
 
-PatchingStrategies = Union[
+PatchingConfig = Union[
+    FixedRandomPatchingConfig,
     RandomPatchingConfig,
-    # SequentialPatchingConfig, # not supported yet
     TiledPatchingConfig,
     WholePatchingConfig,
 ]
-"""Patching strategies."""
+"""Patching strategy type."""
 
-PatchFilters = Union[
+PatchFilterConfig = Union[
     MaxFilterConfig,
     MeanSTDFilterConfig,
     ShannonFilterConfig,
 ]
-"""Patch filters."""
+"""Patch filter type."""
 
-CoordFilters = Union[MaskFilterConfig]  # add more here as needed
-"""Coordinate filters."""
+CoordFilterConfig = Union[MaskFilterConfig]  # add more here as needed
+"""Coordinate filter type."""
+
+
+class Mode(str, BaseEnum):
+    """Dataset mode."""
+
+    TRAINING = "training"
+    VALIDATING = "validating"
+    PREDICTING = "predicting"
 
 
 class NGDataConfig(BaseModel):
@@ -122,13 +136,16 @@ class NGDataConfig(BaseModel):
     )
 
     # Dataset configuration
+    mode: Mode
+    """Dataset mode, either training, validating or predicting."""
+
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"]
     """Type of input data."""
 
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
-    patching: PatchingStrategies = Field(..., discriminator="name")
+    patching: PatchingConfig = Field(..., discriminator="name")
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
 
@@ -139,13 +156,13 @@ class NGDataConfig(BaseModel):
     channels: Sequence[int] | None = Field(default=None)
     """Channels to use from the data. If `None`, all channels are used."""
 
-    patch_filter: PatchFilters | None = Field(default=None, discriminator="name")
-    """Patch filter to apply when using random patching. Only available during
-    training."""
+    patch_filter: PatchFilterConfig | None = Field(default=None, discriminator="name")
+    """Patch filter to apply when using random patching. Only available if
+    mode is `training`."""
 
-    coord_filter: CoordFilters | None = Field(default=None, discriminator="name")
-    """Coordinate filter to apply when using random patching. Only available during
-    training."""
+    coord_filter: CoordFilterConfig | None = Field(default=None, discriminator="name")
+    """Coordinate filter to apply when using random patching. Only available if
+    mode is `training`."""
 
     patch_filter_patience: int = Field(default=5, ge=1)
     """Number of consecutive patches not passing the filter before accepting the next
@@ -287,6 +304,91 @@ class NGDataConfig(BaseModel):
             if len(set(channels)) != len(channels):
                 raise ValueError("Channels must not contain duplicates.")
         return channels
+
+    @field_validator("patching")
+    @classmethod
+    def validate_patching_strategy_against_mode(
+        cls, patching: PatchingConfig, info: ValidationInfo
+    ) -> PatchingConfig:
+        """
+        Validate that the patching strategy is compatible with the dataset mode.
+
+        - If mode is `training`, patching strategy must be `random`.
+        - If mode is `validating`, patching must be `fixed_random`.
+        - If mode is `predicting`, patching strategy must be `tiled` or `whole`.
+
+        Parameters
+        ----------
+        patching : PatchingStrategies
+            Patching strategy to validate.
+        info : ValidationInfo
+            Validation information.
+
+        Returns
+        -------
+        PatchingStrategies
+            Validated patching strategy.
+
+        Raises
+        ------
+        ValueError
+            If the patching strategy is not compatible with the dataset mode.
+        """
+        mode = info.data["mode"]
+        if mode == Mode.TRAINING:
+            if patching.name != "random":
+                raise ValueError(
+                    f"Patching strategy '{patching.name}' is not compatible with "
+                    f"mode '{mode.value}'. Use 'random' for training."
+                )
+        elif mode == Mode.VALIDATING:
+            if patching.name != "fixed_random":
+                raise ValueError(
+                    f"Patching strategy '{patching.name}' is not compatible with "
+                    f"mode '{mode.value}'. Use 'fixed_random' for validating."
+                )
+        elif mode == Mode.PREDICTING:
+            if patching.name not in ["tiled", "whole"]:
+                raise ValueError(
+                    f"Patching strategy '{patching.name}' is not compatible with "
+                    f"mode '{mode.value}'. Use 'tiled' or 'whole' for predicting."
+                )
+        return patching
+
+    @field_validator("patch_filter", "coord_filter")
+    @classmethod
+    def validate_filters_against_mode(
+        cls,
+        filter_obj: PatchFilterConfig | CoordFilterConfig | None,
+        info: ValidationInfo,
+    ) -> PatchFilterConfig | CoordFilterConfig | None:
+        """
+        Validate that the filters are only used during training.
+
+        Parameters
+        ----------
+        filter_obj : PatchFilters or CoordFilters or None
+            Filter to validate.
+        info : ValidationInfo
+            Validation information.
+
+        Returns
+        -------
+        PatchFilters or CoordFilters or None
+            Validated filter.
+
+        Raises
+        ------
+        ValueError
+            If a filter is used in a mode other than training.
+        """
+        mode = info.data["mode"]
+        if filter_obj is not None and mode != Mode.TRAINING:
+            raise ValueError(
+                f"Filter '{filter_obj.name}' can only be used in 'training' mode, "
+                f"got mode '{mode.value}'."
+            )
+        return filter_obj
 
     @field_validator("train_dataloader_params")
     @classmethod
@@ -454,6 +556,24 @@ class NGDataConfig(BaseModel):
             for transform in self.transforms:
                 if hasattr(transform, "seed") and transform.seed is None:
                     transform.seed = self.seed
+        return self
+
+    @model_validator(mode="after")
+    def propagate_seed_to_patching(self: Self) -> Self:
+        """
+        Propagate the main seed to the patching strategy if it supports seeds.
+
+        This ensures that the patching strategy uses the same seed for reproducibility,
+        unless it already has a seed explicitly set.
+
+        Returns
+        -------
+        Self
+            Data model with propagated seed.
+        """
+        if self.seed is not None:
+            if hasattr(self.patching, "seed") and self.patching.seed is None:
+                self.patching.seed = self.seed
         return self
 
     @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
