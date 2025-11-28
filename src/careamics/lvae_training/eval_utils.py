@@ -645,9 +645,9 @@ def get_single_file_mmse(
     logvar_arr = []
     with torch.no_grad():
         for batch in tqdm(dloader, desc="Predicting tiles"):
-            inp, tar = batch
+            inp, *tar = batch
             inp = inp.to(device)
-            tar = tar.to(device)
+            # tar = tar.to(device)
 
             rec_img_list = []
             for _ in range(mmse_count):
