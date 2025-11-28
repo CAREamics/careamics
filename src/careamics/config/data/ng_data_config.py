@@ -795,6 +795,7 @@ class NGDataConfig(BaseModel):
         new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         new_axes: str | None = None,
         new_channels: Sequence[int] | None = None,
+        new_in_memory: bool | None = None,
         new_dataloader_params: dict[str, Any] | None = None,
     ) -> NGDataConfig:
         """
@@ -816,20 +817,22 @@ class NGDataConfig(BaseModel):
         ----------
         new_mode : Literal["validating", "predicting"]
             The new dataset mode, one of `validating` or `predicting`.
-        new_patching_strategy : PatchingConfig, optional
-            New patching strategy to use, by default None. If None and switching to
+        new_patching_strategy : PatchingConfig, default=None
+            New patching strategy to use. If None and switching to
             `predicting`, the `whole` image strategy will be used. If swtiching to
             `validating`, only `fixed_random` is supported.
-        new_batch_size : int, optional
-            New batch size, by default None.
-        new_data_type : Literal['array', 'tiff', 'zarr', 'czi', 'custom'], optional
-            New data type, by default None.
-        new_axes : str, optional
-            New axes, by default None.
-        new_channels : Sequence of int, optional
-            New channels, by default None.
-        new_dataloader_params : dict of {str: Any}, optional
-            New dataloader parameters, by default None. These will be placed in the
+        new_batch_size : int, default=None
+            New batch size.
+        new_data_type : Literal['array', 'tiff', 'zarr', 'czi', 'custom'], default=None
+            New data type.
+        new_axes : str, default=None
+            New axes.
+        new_channels : Sequence of int, default=None
+            New channels.
+        new_in_memory : bool, default=None
+            New in_memory value.
+        new_dataloader_params : dict of {str: Any}, default=None
+            New dataloader parameters. These will be placed in the
             appropriate dataloader params field depending on the new mode.
 
         Returns
@@ -950,6 +953,9 @@ class NGDataConfig(BaseModel):
                 "data_type": new_data_type or self.data_type,
                 "axes": new_axes or self.axes,
                 "channels": new_channels if new_channels is not None else self.channels,
+                "in_memory": (
+                    new_in_memory if new_in_memory is not None else self.in_memory
+                ),
                 "val_dataloader_params": (
                     new_dataloader_params
                     if new_mode == Mode.VALIDATING and new_dataloader_params is not None

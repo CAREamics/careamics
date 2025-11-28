@@ -376,11 +376,11 @@ class TestNGDataConfigConvertMode:
         val_config = original_config.convert_mode(
             "validating",
             new_batch_size=5,
-            new_data_type="zarr",
+            new_data_type="tiff",
         )
         assert val_config.mode == "validating"
         assert val_config.batch_size == 5
-        assert val_config.data_type == "zarr"
+        assert val_config.data_type == "tiff"
 
         pred_config = original_config.convert_mode(
             "predicting",
@@ -390,6 +390,30 @@ class TestNGDataConfigConvertMode:
         assert pred_config.mode == "predicting"
         assert pred_config.batch_size == 10
         assert pred_config.data_type == "tiff"
+
+    def test_in_memory_change(self):
+        """Test converting mode with in_memory change."""
+        original_config = NGDataConfig(
+            mode="training",
+            data_type="tiff",
+            axes="YX",
+            patching=default_patching("training"),
+            in_memory=True,
+        )
+
+        val_config = original_config.convert_mode(
+            "validating",
+            new_in_memory=False,
+        )
+        assert val_config.mode == "validating"
+        assert val_config.in_memory is False
+
+        pred_config = original_config.convert_mode(
+            "predicting",
+            new_in_memory=False,
+        )
+        assert pred_config.mode == "predicting"
+        assert pred_config.in_memory is False
 
     @pytest.mark.parametrize("mode", ["training", "validating", "predicting"])
     def test_convert_mode_to_training_error(self, mode):
