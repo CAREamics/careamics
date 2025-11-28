@@ -101,7 +101,7 @@ def test_patch_extractor_lc_injection():
 
     # use random patching strategy to generate patch specs and extract lc patches
     patch_size = (64, 64)
-    patching_strat = RandomPatchingStrategy(patch_extractor.shape, patch_size, seed=42)
+    patching_strat = RandomPatchingStrategy(patch_extractor.shapes, patch_size, seed=42)
     for idx in range(patching_strat.n_patches):
         patch_spec = patching_strat.get_patch_spec(idx)
         lc_patch = patch_extractor.extract_patch(**patch_spec)

@@ -7,7 +7,7 @@ from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
 
-from .dataset import CareamicsDataset, Mode
+from .dataset import CareamicsDataset
 from .image_stack import (
     GenericImageStack,
     ImageStack,
@@ -30,7 +30,6 @@ P = ParamSpec("P")
 # For lazy loading custom batch sampler also needs to be set.
 def create_dataset(
     config: NGDataConfig,
-    mode: Mode,
     inputs: Any,
     targets: Any,
     masks: Any = None,
@@ -46,8 +45,6 @@ def create_dataset(
     ----------
     config : DataConfig or InferenceConfig
         The data configuration.
-    mode : Mode
-        Whether to create the dataset in "training", "validation" or "predicting" mode.
     inputs : Any
         The input sources to the dataset.
     targets : Any, optional
@@ -93,7 +90,6 @@ def create_dataset(
         mask_extractor = None
     return CareamicsDataset(
         data_config=config,
-        mode=mode,
         input_extractor=input_extractor,
         target_extractor=target_extractor,
         mask_extractor=mask_extractor,

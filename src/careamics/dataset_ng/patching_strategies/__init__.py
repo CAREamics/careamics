@@ -8,8 +8,10 @@ __all__ = [
     "TileSpecs",
     "TilingStrategy",
     "WholeSamplePatchingStrategy",
+    "create_patching_strategy",
 ]
 
+from .patching_strategy_factory import create_patching_strategy
 from .patching_strategy_protocol import (
     PatchingStrategy,
     PatchSpecs,

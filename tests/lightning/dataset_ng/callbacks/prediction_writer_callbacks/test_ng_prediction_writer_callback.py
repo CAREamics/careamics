@@ -107,6 +107,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     stds = data.train_dataset.input_stats.stds
 
     pred_dataset_cfg = NGDataConfig(
+        mode="predicting",
         data_type="tiff",
         axes=cfg.data_config.axes,
         batch_size=4,
@@ -204,6 +205,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
     stds = data.train_dataset.input_stats.stds
 
     pred_dataset_cfg = NGDataConfig(
+        mode="predicting",
         data_type="tiff",
         axes=cfg.data_config.axes,
         batch_size=4,
@@ -296,6 +298,7 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
     stds = data.train_dataset.input_stats.stds
 
     pred_dataset_cfg = NGDataConfig(
+        mode="predicting",
         data_type="zarr",
         axes=cfg.data_config.axes,
         batch_size=4,

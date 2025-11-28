@@ -47,7 +47,7 @@ def tiles(n_data, shape, axes) -> list[ImageRegionData]:
             shape_with_sc = (1, 1, *shape)
 
     tiling_strategy = TilingStrategy(
-        data_shapes=[shape_with_sc] * n_data, tile_size=tile_size, overlaps=overlaps
+        data_shapes=[shape_with_sc] * n_data, patch_size=tile_size, overlaps=overlaps
     )
     n_tiles = tiling_strategy.n_patches
 

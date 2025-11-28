@@ -16,6 +16,8 @@ from careamics.dataset_ng.patch_extractor.limit_file_extractor import (
 from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 
 # TODO add tests for the various types, for mismatching input/target/mask lengths, etc.
+# TODO add tests for validation and prediction modes. can we use a single
+# datamodule for all 3 modes?
 
 
 def _patch_file_image_stacks(dataset: CareamicsDataset[FileImageStack]):
@@ -46,6 +48,7 @@ def test_not_in_mem_tiff(tmp_path: Path):
 
     # basic config
     config = NGDataConfig(
+        mode="training",
         data_type="tiff",
         axes="YX",
         patching={
@@ -104,6 +107,7 @@ def test_sampler(tmp_path: Path, in_memory, correct_sampler):
 
     # basic config
     config = NGDataConfig(
+        mode="training",
         data_type="tiff",
         axes="YX",
         patching={

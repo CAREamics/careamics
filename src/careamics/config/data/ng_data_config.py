@@ -22,6 +22,8 @@ from pydantic import (
     model_validator,
 )
 
+from careamics.utils import BaseEnum
+
 from ..transformations import XYFlipConfig, XYRandomRotate90Config
 from ..validators import check_axes_validity, check_czi_axes_validity
 from .patch_filter import (
@@ -31,6 +33,7 @@ from .patch_filter import (
     ShannonFilterConfig,
 )
 from .patching_strategies import (
+    FixedRandomPatchingConfig,
     RandomPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
@@ -39,12 +42,14 @@ from .patching_strategies import (
 # TODO: Validate the specific sizes of tiles and overlaps given UNet constraints
 #   - needs to be done in the Configuration
 #   - patches and overlaps sizes must also be checked against dimensionality
+#   - Should we have a UNet and a LVAE NGDataConfig subclass with specific validations?
 
 # TODO: is 3D updated anywhere in the code in CAREamist/downstream?
 #       - this will be important when swapping the data config in Configuration
 #       - `set_3D` currently not implemented here
-# TODO: we can't tell that the patching strategy is correct
-#       - or is the responsibility of the creator (e.g. convenience functions)
+
+# TODO: this module is very long, can we split the validation somewhere else and
+#       leverage Pydantic to add validation directly to the declaration of each field?
 
 
 def generate_random_seed() -> int:
@@ -80,23 +85,31 @@ def np_float_to_scientific_str(x: float) -> str:
 Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type=str)]
 """Annotated float type, used to serialize floats to strings."""
 
-PatchingStrategies = Union[
+PatchingConfig = Union[
+    FixedRandomPatchingConfig,
     RandomPatchingConfig,
-    # SequentialPatchingConfig, # not supported yet
     TiledPatchingConfig,
     WholePatchingConfig,
 ]
-"""Patching strategies."""
+"""Patching strategy type."""
 
-PatchFilters = Union[
+PatchFilterConfig = Union[
     MaxFilterConfig,
     MeanSTDFilterConfig,
     ShannonFilterConfig,
 ]
-"""Patch filters."""
+"""Patch filter type."""
 
-CoordFilters = Union[MaskFilterConfig]  # add more here as needed
-"""Coordinate filters."""
+CoordFilterConfig = Union[MaskFilterConfig]  # add more here as needed
+"""Coordinate filter type."""
+
+
+class Mode(str, BaseEnum):
+    """Dataset mode."""
+
+    TRAINING = "training"
+    VALIDATING = "validating"
+    PREDICTING = "predicting"
 
 
 def default_in_memory(validated_params: dict[str, Any]) -> bool:
@@ -142,13 +155,16 @@ class NGDataConfig(BaseModel):
     )
 
     # Dataset configuration
+    mode: Mode
+    """Dataset mode, either training, validating or predicting."""
+
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"]
     """Type of input data."""
 
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
-    patching: PatchingStrategies = Field(..., discriminator="name")
+    patching: PatchingConfig = Field(..., discriminator="name")
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
 
@@ -165,13 +181,13 @@ class NGDataConfig(BaseModel):
     channels: Sequence[int] | None = Field(default=None)
     """Channels to use from the data. If `None`, all channels are used."""
 
-    patch_filter: PatchFilters | None = Field(default=None, discriminator="name")
-    """Patch filter to apply when using random patching. Only available during
-    training."""
+    patch_filter: PatchFilterConfig | None = Field(default=None, discriminator="name")
+    """Patch filter to apply when using random patching. Only available if
+    mode is `training`."""
 
-    coord_filter: CoordFilters | None = Field(default=None, discriminator="name")
-    """Coordinate filter to apply when using random patching. Only available during
-    training."""
+    coord_filter: CoordFilterConfig | None = Field(default=None, discriminator="name")
+    """Coordinate filter to apply when using random patching. Only available if
+    mode is `training`."""
 
     patch_filter_patience: int = Field(default=5, ge=1)
     """Number of consecutive patches not passing the filter before accepting the next
@@ -355,6 +371,91 @@ class NGDataConfig(BaseModel):
                 raise ValueError("Channels must not contain duplicates.")
         return channels
 
+    @field_validator("patching")
+    @classmethod
+    def validate_patching_strategy_against_mode(
+        cls, patching: PatchingConfig, info: ValidationInfo
+    ) -> PatchingConfig:
+        """
+        Validate that the patching strategy is compatible with the dataset mode.
+
+        - If mode is `training`, patching strategy must be `random`.
+        - If mode is `validating`, patching must be `fixed_random`.
+        - If mode is `predicting`, patching strategy must be `tiled` or `whole`.
+
+        Parameters
+        ----------
+        patching : PatchingStrategies
+            Patching strategy to validate.
+        info : ValidationInfo
+            Validation information.
+
+        Returns
+        -------
+        PatchingStrategies
+            Validated patching strategy.
+
+        Raises
+        ------
+        ValueError
+            If the patching strategy is not compatible with the dataset mode.
+        """
+        mode = info.data["mode"]
+        if mode == Mode.TRAINING:
+            if patching.name != "random":
+                raise ValueError(
+                    f"Patching strategy '{patching.name}' is not compatible with "
+                    f"mode '{mode.value}'. Use 'random' for training."
+                )
+        elif mode == Mode.VALIDATING:
+            if patching.name != "fixed_random":
+                raise ValueError(
+                    f"Patching strategy '{patching.name}' is not compatible with "
+                    f"mode '{mode.value}'. Use 'fixed_random' for validating."
+                )
+        elif mode == Mode.PREDICTING:
+            if patching.name not in ["tiled", "whole"]:
+                raise ValueError(
+                    f"Patching strategy '{patching.name}' is not compatible with "
+                    f"mode '{mode.value}'. Use 'tiled' or 'whole' for predicting."
+                )
+        return patching
+
+    @field_validator("patch_filter", "coord_filter")
+    @classmethod
+    def validate_filters_against_mode(
+        cls,
+        filter_obj: PatchFilterConfig | CoordFilterConfig | None,
+        info: ValidationInfo,
+    ) -> PatchFilterConfig | CoordFilterConfig | None:
+        """
+        Validate that the filters are only used during training.
+
+        Parameters
+        ----------
+        filter_obj : PatchFilters or CoordFilters or None
+            Filter to validate.
+        info : ValidationInfo
+            Validation information.
+
+        Returns
+        -------
+        PatchFilters or CoordFilters or None
+            Validated filter.
+
+        Raises
+        ------
+        ValueError
+            If a filter is used in a mode other than training.
+        """
+        mode = info.data["mode"]
+        if filter_obj is not None and mode != Mode.TRAINING:
+            raise ValueError(
+                f"Filter '{filter_obj.name}' can only be used in 'training' mode, "
+                f"got mode '{mode.value}'."
+            )
+        return filter_obj
+
     @field_validator("train_dataloader_params")
     @classmethod
     def shuffle_train_dataloader(
@@ -523,6 +624,24 @@ class NGDataConfig(BaseModel):
                     transform.seed = self.seed
         return self
 
+    @model_validator(mode="after")
+    def propagate_seed_to_patching(self: Self) -> Self:
+        """
+        Propagate the main seed to the patching strategy if it supports seeds.
+
+        This ensures that the patching strategy uses the same seed for reproducibility,
+        unless it already has a seed explicitly set.
+
+        Returns
+        -------
+        Self
+            Data model with propagated seed.
+        """
+        if self.seed is not None:
+            if hasattr(self.patching, "seed") and self.patching.seed is None:
+                self.patching.seed = self.seed
+        return self
+
     @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
     @classmethod
     def set_default_pin_memory(
@@ -660,6 +779,212 @@ class NGDataConfig(BaseModel):
             target_means=target_means,
             target_stds=target_stds,
         )
+
+    # TODO should we expose a patch_size and overlaps parameters rather than
+    #   requiring a new patching strategy object? They could be replaced by the
+    #   training patches if not provided. Tiling could also be requested.
+    # TODO `channels=None` is ambigouous: all channels or same channels as in training?
+    # TODO this method could be private and we could have public `to_validation_config`
+    #   and `to_prediction_config` methods with appropriate parameters
+    # TODO any use for switching to training mode?
+    def convert_mode(
+        self,
+        new_mode: Literal["validating", "predicting"],
+        new_patching_strategy: PatchingConfig | None = None,
+        new_batch_size: int | None = None,
+        new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        new_axes: str | None = None,
+        new_channels: Sequence[int] | None = None,
+        new_in_memory: bool | None = None,
+        new_dataloader_params: dict[str, Any] | None = None,
+    ) -> NGDataConfig:
+        """
+        Convert a training dataset configuration to a different mode.
+
+        This method is intended to facilitate creating validation or prediction
+        configurations from a training configuration.
+
+        Switching mode to `predicting` without specifying `new_patching_strategy` will
+        apply the default patching strategy, namely `whole` image strategy.
+
+        New dataloader parameters will be placed in the appropriate dataloader params
+        field depending on the new mode.
+
+        To create a new training configuration, please use
+        `careamics.config.create_ng_data_configuration`.
+
+        This method compares the new parameters with the current ones and raises
+        errors if incompatible changes are requested, such as switching between 2D and
+        3D axes, or changing the number of channels. Incompatibility across parameters
+        may be delegated to Pydantic validation.
+
+        Parameters
+        ----------
+        new_mode : Literal["validating", "predicting"]
+            The new dataset mode, one of `validating` or `predicting`.
+        new_patching_strategy : PatchingConfig, default=None
+            New patching strategy to use. If None and switching to
+            `predicting`, the `whole` image strategy will be used. If swtiching to
+            `validating`, only `fixed_random` is supported.
+        new_batch_size : int, default=None
+            New batch size.
+        new_data_type : Literal['array', 'tiff', 'zarr', 'czi', 'custom'], default=None
+            New data type.
+        new_axes : str, default=None
+            New axes.
+        new_channels : Sequence of int, default=None
+            New channels.
+        new_in_memory : bool, default=None
+            New in_memory value.
+        new_dataloader_params : dict of {str: Any}, default=None
+            New dataloader parameters. These will be placed in the
+            appropriate dataloader params field depending on the new mode.
+
+        Returns
+        -------
+        NGDataConfig
+            New NGDataConfig with the updated mode and parameters.
+
+        Raises
+        ------
+        ValueError
+            If conversion to training mode is requested, or if incompatible changes
+            are requested.
+        """
+        if new_mode == Mode.TRAINING:
+            raise ValueError(
+                "Converting to 'training' mode is not supported. Create a new "
+                "NGDataConfig instead, for instance using "
+                "`create_ng_data_configuration`."
+            )
+        if self.mode != Mode.TRAINING:
+            raise ValueError(
+                f"Converting from mode '{self.mode}' to '{new_mode}' is not supported. "
+                f"Only conversion from 'training' mode is supported."
+            )
+
+        # sanity checks
+        # switching spatial axes
+        if new_axes is not None and ("Z" in new_axes) != (
+            "Z" in self.axes
+        ):  # switching 2D/3D
+            raise ValueError("Cannot switch between 2D and 3D axes.")
+
+        # switching channels
+        if (
+            new_axes is not None
+            and "C" in new_axes
+            and "C" not in self.axes  # adding C axis
+            and (
+                (new_channels is not None) and (len(new_channels) != 1)
+            )  # > 1 channels
+        ):
+            raise ValueError(
+                f"When switching to axes with 'C' (got {new_axes}) from axes "
+                f"{self.axes}, a single channel only must be selected using the "
+                f"`new_channels` parameter (got {new_channels})."
+            )
+        elif (
+            new_axes is not None
+            and ("C" in new_axes)
+            and ("C" not in self.axes)  # adding C axis
+            and new_channels is None  # might be a singleton dimension
+        ):
+            warn(
+                f"When switching to axes with 'C' (got {new_axes}) from axes "
+                f"{self.axes}, errors may be raised or degraded performances may be "
+                f"observed if the channel dimension in the data is not a singleton "
+                f"dimension. To select a specific channel, use the `new_channels` "
+                f"parameter (e.g. `new_channels=[1]`).",
+                stacklevel=1,
+            )
+        elif (
+            new_axes is not None
+            and ("C" not in new_axes)
+            and ("C" in self.axes)  # removing C axis
+            and ((self.channels is not None) and (len(self.channels) != 1))
+        ):
+            raise ValueError(
+                f"Cannot switch to axes without 'C' (got {new_axes}) from axes "
+                f"{self.axes} when multiple channels are specified."
+            )
+        elif (
+            new_axes is not None
+            and ("C" not in new_axes)
+            and ("C" in self.axes)  # removing C axis
+            and self.channels is None
+        ):
+            warn(
+                f"When switching to axes without 'C' (got {new_axes}) from axes "
+                f"{self.axes}, errors may be raised or degraded performances may be "
+                f"observed if the channel dimension in the data was not a singleton "
+                f"dimension. ",
+                stacklevel=1,
+            )
+
+        # different number of channels
+        if new_channels is not None and self.channels is not None:
+            if len(new_channels) != len(self.channels):
+                raise ValueError(
+                    f"New channels length ({len(new_channels)}) does not match "
+                    f"current channels length ({len(self.channels)})."
+                )
+
+        if self.channels is None and new_channels is not None:
+            warn(
+                f"Switching from all channels (`channels=None`) to specifying channels "
+                f"{new_channels} may lead to errors or degraded performances if "
+                f"{new_channels} are not all channels.",
+                stacklevel=1,
+            )
+        # Not in the opposite case, self.channels is kept because new_channels is None
+
+        # apply default values
+        patching_strategy: PatchingConfig
+        if new_patching_strategy is None:
+            if new_mode == Mode.PREDICTING:
+                patching_strategy = WholePatchingConfig()
+            else:  # new_mode=validating
+                assert isinstance(self.patching, RandomPatchingConfig)
+
+                patching_strategy = FixedRandomPatchingConfig(
+                    patch_size=self.patching.patch_size,
+                    seed=self.seed,
+                )
+        else:
+            patching_strategy = new_patching_strategy
+
+        # create new config
+        model_dict = self.model_dump()
+        model_dict.update(
+            {
+                "mode": new_mode,
+                "patching": patching_strategy,
+                "batch_size": new_batch_size or self.batch_size,
+                "data_type": new_data_type or self.data_type,
+                "axes": new_axes or self.axes,
+                "channels": new_channels if new_channels is not None else self.channels,
+                "in_memory": (
+                    new_in_memory if new_in_memory is not None else self.in_memory
+                ),
+                "val_dataloader_params": (
+                    new_dataloader_params
+                    if new_mode == Mode.VALIDATING and new_dataloader_params is not None
+                    else self.val_dataloader_params
+                ),
+                "pred_dataloader_params": (
+                    new_dataloader_params
+                    if new_mode == Mode.PREDICTING and new_dataloader_params is not None
+                    else self.pred_dataloader_params
+                ),
+            }
+        )
+
+        # remove patch and coord filters when switching to validation or prediction
+        del model_dict["patch_filter"]
+        del model_dict["coord_filter"]
+
+        return NGDataConfig(**model_dict)
 
     # def set_3D(self, axes: str, patch_size: list[int]) -> None:
     #     """

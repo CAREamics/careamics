@@ -53,7 +53,7 @@ class GroupedIndexSampler(Sampler):
         rng: numpy.random.Generator, optional
             Numpy random number generator that can be used to seed the sampler.
         """
-        n_data_samples = len(dataset.input_extractor.shape)
+        n_data_samples = len(dataset.input_extractor.shapes)
         grouped_indices: list[Sequence[int]] = [
             dataset.patching_strategy.get_patch_indices(i)
             for i in range(n_data_samples)

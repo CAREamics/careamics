@@ -88,7 +88,7 @@ def test_zarr_prediction_callback_identity(tmp_path):
 
     strategy = TilingStrategy(
         data_shapes=[(1, 1, 32, 32) for _ in range(len(array_uris))],
-        tile_size=(8, 8),
+        patch_size=(8, 8),
         overlaps=(4, 4),
     )
     assert strategy.n_patches == 6 * ((32 - 4) / (8 - 4)) ** 2

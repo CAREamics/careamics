@@ -1,7 +1,6 @@
 import numpy as np
 
 from careamics.config.configuration_factories import create_ng_data_configuration
-from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 
@@ -69,7 +68,6 @@ def test_from_dataset():
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=input_data,
         targets=None,
     )

@@ -113,5 +113,5 @@ class PatchExtractor(Generic[GenericImageStack]):
         )
 
     @property
-    def shape(self):
+    def shapes(self) -> list[Sequence[int]]:
         return [stack.data_shape for stack in self.image_stacks]

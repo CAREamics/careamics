@@ -48,7 +48,7 @@ def _create_tiling_strategy(
     else:
         raise ValueError
     return TilingStrategy(
-        data_shapes=data_shapes, tile_size=patch_size, overlaps=overlaps
+        data_shapes=data_shapes, patch_size=patch_size, overlaps=overlaps
     )
 
 
