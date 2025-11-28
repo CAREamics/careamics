@@ -362,8 +362,9 @@ def create_ng_data_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    channels: Sequence[int] | None = None,
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
+    channels: Sequence[int] | None = None,
+    in_memory: bool | None = None,
     patch_overlaps: Sequence[int] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
@@ -383,8 +384,15 @@ def create_ng_data_configuration(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
+    augmentations : list of transforms
+        List of transforms to apply.
     channels : Sequence of int, default=None
         List of channels to use. If `None`, all channels are used.
+    in_memory : bool, default=None
+        Whether to load all data into memory. This is only supported for 'array',
+        'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
+        'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
+        for `array`.
     augmentations : list of transforms or None, default=None
         List of transforms to apply. If `None`, default augmentations are applied
         (flip in X and Y, rotations by 90 degrees in the XY plane).
@@ -420,6 +428,10 @@ def create_ng_data_configuration(
         "transforms": augmentations,
         "seed": seed,
     }
+
+    if in_memory is not None:
+        data["in_memory"] = in_memory
+
     # don't override defaults set in DataConfig class
     if train_dataloader_params is not None:
         # the presence of `shuffle` key in the dataloader parameters is enforced

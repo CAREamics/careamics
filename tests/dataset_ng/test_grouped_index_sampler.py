@@ -62,6 +62,7 @@ def test_from_dataset():
         patch_size=patch_size,
         batch_size=1,
         augmentations=[],
+        in_memory=True,
         seed=42,
     )
 
@@ -69,7 +70,6 @@ def test_from_dataset():
         config=train_data_config,
         inputs=input_data,
         targets=None,
-        in_memory=True,
     )
 
     sampler = GroupedIndexSampler.from_dataset(train_dataset, rng=rng)

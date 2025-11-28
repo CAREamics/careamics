@@ -56,16 +56,16 @@ def test_not_in_mem_tiff(tmp_path: Path):
             "patch_size": (16, 16),
         },
         batch_size=4,
-        seed=42,
         image_means=[0],
         image_stds=[1],
+        in_memory=False,
+        seed=42,
     )
 
     datamodule = CareamicsDataModule(
         data_config=config,
         train_data=paths[:-1],
         val_data=[paths[-1]],
-        use_in_memory=False,
     )
     # simulate training call
     datamodule.setup(stage="fit")
@@ -115,13 +115,13 @@ def test_sampler(tmp_path: Path, in_memory, correct_sampler):
             "patch_size": (16, 16),
         },
         batch_size=4,
+        in_memory=in_memory,
     )
 
     datamodule = CareamicsDataModule(
         data_config=config,
         train_data=paths[:-1],
         val_data=[paths[-1]],
-        use_in_memory=in_memory,
     )
     datamodule.setup("fit")
 
