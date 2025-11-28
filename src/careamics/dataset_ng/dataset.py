@@ -17,6 +17,7 @@ from careamics.dataset.patching.patching import Stats
 from careamics.transforms import Compose
 
 from .image_stack import GenericImageStack
+from .normalization import create_normalization
 from .patch_extractor import PatchExtractor
 from .patch_filter import create_coord_filter, create_patch_filter
 from .patching_strategies import (
@@ -28,7 +29,6 @@ from .patching_strategies import (
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
-from .normalization import create_normalization
 
 
 class Mode(str, Enum):
@@ -179,9 +179,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     def _initialize_transforms(self) -> Compose | None:
         if self.mode == Mode.TRAINING:
-            return Compose(
-                list(self.config.transforms)
-            )
+            return Compose(list(self.config.transforms))
 
         # TODO: add TTA
         return None

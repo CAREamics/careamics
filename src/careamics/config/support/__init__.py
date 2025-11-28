@@ -11,12 +11,12 @@ __all__ = [
     "SupportedData",
     "SupportedLogger",
     "SupportedLoss",
+    "SupportedNormalization",
     "SupportedOptimizer",
     "SupportedPixelManipulation",
     "SupportedScheduler",
     "SupportedStructAxis",
     "SupportedTransform",
-    "SupportedNormalization",
 ]
 
 
@@ -26,8 +26,8 @@ from .supported_architectures import SupportedArchitecture
 from .supported_data import SupportedData
 from .supported_loggers import SupportedLogger
 from .supported_losses import SupportedLoss
+from .supported_normalization import SupportedNormalization
 from .supported_optimizers import SupportedOptimizer, SupportedScheduler
 from .supported_pixel_manipulations import SupportedPixelManipulation
 from .supported_struct_axis import SupportedStructAxis
 from .supported_transforms import SupportedTransform
-from .supported_normalization import SupportedNormalization

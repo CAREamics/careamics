@@ -8,9 +8,7 @@ class NormalizationProtocol(Protocol):
     """Protocol for normalization strategies."""
 
     def __call__(
-        self,
-        patch: NDArray,
-        target: NDArray | None = None
+        self, patch: NDArray, target: NDArray | None = None
     ) -> tuple[NDArray, NDArray | None]:
         """Apply the normalization to the patch and target.
 
