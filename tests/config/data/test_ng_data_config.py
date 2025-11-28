@@ -266,6 +266,31 @@ class TestNGDataConfigConvertMode:
         assert pred_config.data_type == original_config.data_type
         assert "shuffle" not in pred_config.pred_dataloader_params
 
+    def test_conservation_means_stds(self):
+        """Test converting mode conserves means and stds."""
+        original_config = NGDataConfig(
+            mode="training",
+            data_type="array",
+            axes="CYX",
+            patching=default_patching("training"),
+            image_means=[0.5],
+            image_stds=[0.2],
+            target_means=[0.3],
+            target_stds=[0.1],
+        )
+
+        val_config = original_config.convert_mode("validating")
+        assert val_config.image_means == original_config.image_means
+        assert val_config.image_stds == original_config.image_stds
+        assert val_config.target_means == original_config.target_means
+        assert val_config.target_stds == original_config.target_stds
+
+        pred_config = original_config.convert_mode("predicting")
+        assert pred_config.image_means == original_config.image_means
+        assert pred_config.image_stds == original_config.image_stds
+        assert pred_config.target_means == original_config.target_means
+        assert pred_config.target_stds == original_config.target_stds
+
     def test_with_dataloader_params(self):
         """Test converting mode with new dataloader parameters."""
         original_config = NGDataConfig(
