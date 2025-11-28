@@ -841,8 +841,6 @@ class NGDataConfig(BaseModel):
                 stacklevel=1,
             )
 
-        # TODO would the model accept different number of channels? or will it lead to
-        # errors?
         # different number of channels
         if new_channels is not None and self.channels is not None:
             if len(new_channels) != len(self.channels):
