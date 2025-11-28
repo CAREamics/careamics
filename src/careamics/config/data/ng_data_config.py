@@ -42,15 +42,11 @@ from .patching_strategies import (
 # TODO: Validate the specific sizes of tiles and overlaps given UNet constraints
 #   - needs to be done in the Configuration
 #   - patches and overlaps sizes must also be checked against dimensionality
-
-# TODO: How to have different validations for patching based on architecture?
 #   - Should we have a UNet and a LVAE NGDataConfig subclass with specific validations?
 
 # TODO: is 3D updated anywhere in the code in CAREamist/downstream?
 #       - this will be important when swapping the data config in Configuration
 #       - `set_3D` currently not implemented here
-# TODO: we can't tell that the patching strategy is correct
-#       - or is the responsibility of the creator (e.g. convenience functions)
 
 # TODO: this module is very long, can we split the validation somewhere else and
 #       leverage Pydantic to add validation directly to the declaration of each field?
