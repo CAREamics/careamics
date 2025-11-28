@@ -122,7 +122,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         self.patching_strategy = self._initialize_patching_strategy()
 
-        self.input_stats, self.target_stats = self._initialize_statistics()
+        # self.input_stats, self.target_stats = self._initialize_statistics()
 
         self.transforms = self._initialize_transforms()
         self.normalization = create_normalization(self.config.normalization)
@@ -205,20 +205,20 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         return Stats(image_means, image_stds)
 
     # TODO: add running stats
-    def _initialize_statistics(self) -> tuple[Stats, Stats]:
-        if self.config.image_means is not None and self.config.image_stds is not None:
-            input_stats = Stats(self.config.image_means, self.config.image_stds)
-        else:
-            input_stats = self._calculate_stats(self.input_extractor)
+    # def _initialize_statistics(self) -> tuple[Stats, Stats]:
+    #     if self.config.image_means is not None and self.config.image_stds is not None:
+    #         input_stats = Stats(self.config.image_means, self.config.image_stds)
+    #     else:
+    #         input_stats = self._calculate_stats(self.input_extractor)
 
-        target_stats = Stats((), ())
+    #     target_stats = Stats((), ())
 
-        if self.config.target_means is not None and self.config.target_stds is not None:
-            target_stats = Stats(self.config.target_means, self.config.target_stds)
-        elif self.target_extractor is not None:
-            target_stats = self._calculate_stats(self.target_extractor)
+    #     if self.config.target_means is not None and self.config.target_stds is not None:
+    #         target_stats = Stats(self.config.target_means, self.config.target_stds)
+    #     elif self.target_extractor is not None:
+    #         target_stats = self._calculate_stats(self.target_extractor)
 
-        return input_stats, target_stats
+    #     return input_stats, target_stats
 
     def __len__(self):
         return self.patching_strategy.n_patches

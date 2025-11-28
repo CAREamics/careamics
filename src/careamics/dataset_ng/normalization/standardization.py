@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -62,26 +60,26 @@ class Standardize(NormalizationProtocol):
 
     def __init__(
         self,
-        image_means: list[float],
-        image_stds: list[float],
-        target_means: Optional[list[float]] = None,
-        target_stds: Optional[list[float]] = None,
+        input_means: list[float],
+        input_stds: list[float],
+        target_means: list[float] | None = None,
+        target_stds: list[float] | None = None,
     ):
         """Constructor.
 
         Parameters
         ----------
-        image_means : list of float
+        input_means : list of float
             Mean value per channel.
-        image_stds : list of float
+        input_stds : list of float
             Standard deviation value per channel.
         target_means : list of float, optional
             Target mean value per channel, by default None.
         target_stds : list of float, optional
             Target standard deviation value per channel, by default None.
         """
-        self.image_means = image_means
-        self.image_stds = image_stds
+        self.input_means = input_means
+        self.input_stds = input_stds
         self.target_means = target_means
         self.target_stds = target_stds
 
@@ -90,8 +88,8 @@ class Standardize(NormalizationProtocol):
     def __call__(
         self,
         patch: np.ndarray,
-        target: Optional[NDArray] = None,
-    ) -> tuple[NDArray, Optional[NDArray]]:
+        target: NDArray | None = None,
+    ) -> tuple[NDArray, NDArray | None]:
         """Apply the transform to the source patch and the target (optional).
 
         Parameters
@@ -109,15 +107,15 @@ class Standardize(NormalizationProtocol):
         tuple of NDArray
             Transformed patch and target, the target can be returned as `None`.
         """
-        if len(self.image_means) != patch.shape[0]:
+        if len(self.input_means) != patch.shape[0]:
             raise ValueError(
-                f"Number of means (got a list of size {len(self.image_means)}) and "
+                f"Number of means (got a list of size {len(self.input_means)}) and "
                 f"number of channels (got shape {patch.shape} for C(Z)YX) do not match."
             )
 
         # reshape mean and std and apply the normalization to the patch
-        means = _reshape_stats(self.image_means, patch.ndim)
-        stds = _reshape_stats(self.image_stds, patch.ndim)
+        means = _reshape_stats(self.input_means, patch.ndim)
+        stds = _reshape_stats(self.input_stds, patch.ndim)
         norm_patch = self._apply_normalization(patch, means, stds)
 
         # same for the target patch
@@ -202,15 +200,15 @@ class Standardize(NormalizationProtocol):
         NDArray
             Transformed array.
         """
-        if len(self.image_means) != patch.shape[1]:
+        if len(self.input_means) != patch.shape[1]:
             raise ValueError(
-                f"Number of means (got a list of size {len(self.image_means)}) and "
+                f"Number of means (got a list of size {len(self.input_means)}) and "
                 f"number of channels (got shape {patch.shape} for BC(Z)YX) do not "
                 f"match."
             )
 
-        means = _reshape_stats(self.image_means, patch.ndim)
-        stds = _reshape_stats(self.image_stds, patch.ndim)
+        means = _reshape_stats(self.input_means, patch.ndim)
+        stds = _reshape_stats(self.input_stds, patch.ndim)
 
         denorm_array = self._apply_denormalization(
             patch,
