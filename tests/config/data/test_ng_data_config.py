@@ -177,6 +177,7 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
     if error:
         with pytest.raises(ValueError):
             NGDataConfig(
+                mode="predicting",
                 data_type=data_type,
                 axes="YX" if data_type != "czi" else "SCYX",
                 in_memory=in_memory,
@@ -186,6 +187,7 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
         # if in_memory is None, check the default value
         if in_memory is None:
             config = NGDataConfig(
+                mode="predicting",
                 data_type=data_type,
                 axes="YX" if data_type != "czi" else "SCYX",
                 patching={"name": SupportedPatchingStrategy.WHOLE},
@@ -196,6 +198,7 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
                 assert config.in_memory is False
         else:
             _ = NGDataConfig(
+                mode="predicting",
                 data_type=data_type,
                 axes="YX" if data_type != "czi" else "SCYX",
                 in_memory=in_memory,
