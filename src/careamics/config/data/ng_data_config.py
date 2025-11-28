@@ -813,6 +813,11 @@ class NGDataConfig(BaseModel):
         To create a new training configuration, please use
         `careamics.config.create_ng_data_configuration`.
 
+        This method compares the new parameters with the current ones and raises
+        errors if incompatible changes are requested, such as switching between 2D and
+        3D axes, or changing the number of channels. Incompatibility across parameters
+        may be delegated to Pydantic validation.
+
         Parameters
         ----------
         new_mode : Literal["validating", "predicting"]
@@ -839,6 +844,12 @@ class NGDataConfig(BaseModel):
         -------
         NGDataConfig
             New NGDataConfig with the updated mode and parameters.
+
+        Raises
+        ------
+        ValueError
+            If conversion to training mode is requested, or if incompatible changes
+            are requested.
         """
         if new_mode == Mode.TRAINING:
             raise ValueError(
