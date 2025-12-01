@@ -322,6 +322,35 @@ class TestNGDataConfigConvertMode:
         assert pred_config.data_type == original_config.data_type
         assert "shuffle" not in pred_config.pred_dataloader_params
 
+    def test_tiled_patching(self):
+        """Test converting mode for tiling."""
+        original_config = NGDataConfig(
+            mode="training",
+            data_type="array",
+            axes="CYX",
+            patching=default_patching("training"),
+        )
+
+        assert (
+            original_config.convert_mode("predicting").patching.name
+            == SupportedPatchingStrategy.WHOLE
+        )
+
+        assert (
+            original_config.convert_mode(
+                "predicting",
+                new_patch_size=[32, 32],
+                overlap_size=[8, 8],
+            ).patching.name
+            == SupportedPatchingStrategy.TILED
+        )
+
+        with pytest.raises(ValueError):
+            original_config.convert_mode(
+                "predicting",
+                new_patch_size=[32, 32],
+            )
+
     def test_conservation_means_stds(self):
         """Test converting mode conserves means and stds."""
         original_config = NGDataConfig(

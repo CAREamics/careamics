@@ -780,9 +780,6 @@ class NGDataConfig(BaseModel):
             target_stds=target_stds,
         )
 
-    # TODO should we expose a patch_size and overlaps parameters rather than
-    #   requiring a new patching strategy object? They could be replaced by the
-    #   training patches if not provided. Tiling could also be requested.
     # TODO `channels=None` is ambigouous: all channels or same channels as in training?
     # TODO this method could be private and we could have public `to_validation_config`
     #   and `to_prediction_config` methods with appropriate parameters
@@ -790,7 +787,8 @@ class NGDataConfig(BaseModel):
     def convert_mode(
         self,
         new_mode: Literal["validating", "predicting"],
-        new_patching_strategy: PatchingConfig | None = None,
+        new_patch_size: Sequence[int] | None = None,
+        overlap_size: Sequence[int] | None = None,
         new_batch_size: int | None = None,
         new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         new_axes: str | None = None,
@@ -804,8 +802,9 @@ class NGDataConfig(BaseModel):
         This method is intended to facilitate creating validation or prediction
         configurations from a training configuration.
 
-        Switching mode to `predicting` without specifying `new_patching_strategy` will
-        apply the default patching strategy, namely `whole` image strategy.
+        Switching mode to `predicting` without specifying `new_patch_size` and
+        `overlap_size` will apply the default patching strategy, namely `whole`
+        image strategy. `overlap_size` is only used when switching to `predicting`.
 
         New dataloader parameters will be placed in the appropriate dataloader params
         field depending on the new mode.
@@ -822,10 +821,11 @@ class NGDataConfig(BaseModel):
         ----------
         new_mode : Literal["validating", "predicting"]
             The new dataset mode, one of `validating` or `predicting`.
-        new_patching_strategy : PatchingConfig, default=None
-            New patching strategy to use. If None and switching to
-            `predicting`, the `whole` image strategy will be used. If swtiching to
-            `validating`, only `fixed_random` is supported.
+        new_patch_size : Sequence of int, default=None
+            New patch size. If None for `predicting`, uses default whole image strategy.
+        overlap_size : Sequence of int, default=None
+            New overlap size. Necessary when switching to `predicting` with tiled
+            patching.
         new_batch_size : int, default=None
             New batch size.
         new_data_type : Literal['array', 'tiff', 'zarr', 'czi', 'custom'], default=None
@@ -941,18 +941,28 @@ class NGDataConfig(BaseModel):
 
         # apply default values
         patching_strategy: PatchingConfig
-        if new_patching_strategy is None:
-            if new_mode == Mode.PREDICTING:
+        if new_mode == Mode.PREDICTING:
+            if new_patch_size is None:
                 patching_strategy = WholePatchingConfig()
-            else:  # new_mode=validating
-                assert isinstance(self.patching, RandomPatchingConfig)
-
-                patching_strategy = FixedRandomPatchingConfig(
-                    patch_size=self.patching.patch_size,
-                    seed=self.seed,
+            else:
+                if overlap_size is None:
+                    raise ValueError(
+                        "When switching to 'predicting' mode with 'tiled' patching, "
+                        "the `overlap_size` parameter must be specified."
+                    )
+                patching_strategy = TiledPatchingConfig(
+                    patch_size=list(new_patch_size), overlaps=list(overlap_size)
                 )
-        else:
-            patching_strategy = new_patching_strategy
+        else:  # validating
+            assert isinstance(self.patching, RandomPatchingConfig)  # for mypy
+
+            patching_strategy = FixedRandomPatchingConfig(
+                patch_size=(
+                    list(new_patch_size)
+                    if new_patch_size is not None
+                    else self.patching.patch_size
+                ),
+            )
 
         # create new config
         model_dict = self.model_dump()
