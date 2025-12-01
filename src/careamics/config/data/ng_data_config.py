@@ -871,14 +871,12 @@ class NGDataConfig(BaseModel):
             raise ValueError("Cannot switch between 2D and 3D axes.")
 
         # switching channels
-        if (
-            new_axes is not None
-            and "C" in new_axes
-            and "C" not in self.axes  # adding C axis
-            and (
-                (new_channels is not None) and (len(new_channels) != 1)
-            )  # > 1 channels
-        ):
+        adding_C_axis = (
+            new_axes is not None and "C" in new_axes and "C" not in self.axes
+        )
+        selecting_singleton_C = (new_channels is not None) and (len(new_channels) == 1)
+        if adding_C_axis and not selecting_singleton_C:
+            ...
             raise ValueError(
                 f"When switching to axes with 'C' (got {new_axes}) from axes "
                 f"{self.axes}, a single channel only must be selected using the "
