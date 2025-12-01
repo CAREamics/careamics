@@ -792,7 +792,7 @@ class NGDataConfig(BaseModel):
         new_batch_size: int | None = None,
         new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         new_axes: str | None = None,
-        new_channels: Sequence[int] | None = None,
+        new_channels: Sequence[int] | Literal["all"] | None = None,
         new_in_memory: bool | None = None,
         new_dataloader_params: dict[str, Any] | None = None,
     ) -> NGDataConfig:
@@ -805,6 +805,10 @@ class NGDataConfig(BaseModel):
         Switching mode to `predicting` without specifying `new_patch_size` and
         `overlap_size` will apply the default patching strategy, namely `whole`
         image strategy. `overlap_size` is only used when switching to `predicting`.
+
+        `channels=None` will retain the same channels as in the current configuration.
+        To select all channels, please specify all channels explicitly or pass
+        `channels='all'`.
 
         New dataloader parameters will be placed in the appropriate dataloader params
         field depending on the new mode.
@@ -832,7 +836,7 @@ class NGDataConfig(BaseModel):
             New data type.
         new_axes : str, default=None
             New axes.
-        new_channels : Sequence of int, default=None
+        new_channels : Sequence of int or "all", default=None
             New channels.
         new_in_memory : bool, default=None
             New in_memory value.
@@ -870,54 +874,53 @@ class NGDataConfig(BaseModel):
         ):  # switching 2D/3D
             raise ValueError("Cannot switch between 2D and 3D axes.")
 
+        # normalize new_channels parameter to lift ambiguity around `None`
+        #   - If None, keep previous parameter
+        #   - If "all", select all channels (None value internally)
+        if new_channels is None:
+            new_channels = self.channels
+        elif new_channels == "all":
+            new_channels = None  # all channels
+
         # switching channels
+        # if switching C axis:
+        # - removing C: original channels can be `None`, singleton or multiple. New
+        #   channels can be `None` if original were `None` or singleton, but not
+        #   multiple.
+        # - adding C: original channels can only be `None`. New channels can be `None`
+        #   (but we warn users that they need to have a singleton C axis in the data),
+        #   or singleton, but not multiple.
         adding_C_axis = (
-            new_axes is not None and "C" in new_axes and "C" not in self.axes
+            new_axes is not None and ("C" in new_axes) and ("C" not in self.axes)
         )
-        selecting_singleton_C = (new_channels is not None) and (len(new_channels) == 1)
-        if adding_C_axis and not selecting_singleton_C:
-            ...
-            raise ValueError(
-                f"When switching to axes with 'C' (got {new_axes}) from axes "
-                f"{self.axes}, a single channel only must be selected using the "
-                f"`new_channels` parameter (got {new_channels})."
-            )
-        elif (
-            new_axes is not None
-            and ("C" in new_axes)
-            and ("C" not in self.axes)  # adding C axis
-            and new_channels is None  # might be a singleton dimension
-        ):
-            warn(
-                f"When switching to axes with 'C' (got {new_axes}) from axes "
-                f"{self.axes}, errors may be raised or degraded performances may be "
-                f"observed if the channel dimension in the data is not a singleton "
-                f"dimension. To select a specific channel, use the `new_channels` "
-                f"parameter (e.g. `new_channels=[1]`).",
-                stacklevel=1,
-            )
-        elif (
-            new_axes is not None
-            and ("C" not in new_axes)
-            and ("C" in self.axes)  # removing C axis
-            and ((self.channels is not None) and (len(self.channels) != 1))
-        ):
+        removing_C_axis = (
+            new_axes is not None and ("C" not in new_axes) and ("C" in self.axes)
+        )
+        prev_channels_not_singleton = self.channels is not None and (
+            len(self.channels) != 1
+        )
+
+        if adding_C_axis:
+            if new_channels is None:
+                warn(
+                    f"When switching to axes with 'C' (got {new_axes}) from axes "
+                    f"{self.axes}, errors may be raised or degraded performances may be"
+                    f" observed if the channel dimension in the data is not a singleton"
+                    f" dimension. To select a specific channel, use the `new_channels` "
+                    f"parameter (e.g. `new_channels=[1]`).",
+                    stacklevel=1,
+                )
+            elif len(new_channels) != 1:
+                raise ValueError(
+                    f"When switching to axes with 'C' (got {new_axes}) from axes "
+                    f"{self.axes}, a single channel only must be selected using the "
+                    f"`new_channels` parameter (got {new_channels})."
+                )
+        elif removing_C_axis and prev_channels_not_singleton:
             raise ValueError(
                 f"Cannot switch to axes without 'C' (got {new_axes}) from axes "
-                f"{self.axes} when multiple channels are specified."
-            )
-        elif (
-            new_axes is not None
-            and ("C" not in new_axes)
-            and ("C" in self.axes)  # removing C axis
-            and self.channels is None
-        ):
-            warn(
-                f"When switching to axes without 'C' (got {new_axes}) from axes "
-                f"{self.axes}, errors may be raised or degraded performances may be "
-                f"observed if the channel dimension in the data was not a singleton "
-                f"dimension. ",
-                stacklevel=1,
+                f"{self.axes} when multiple channels were originally specified "
+                f"({self.channels})."
             )
 
         # different number of channels
@@ -934,8 +937,8 @@ class NGDataConfig(BaseModel):
                 f"{new_channels} may lead to errors or degraded performances if "
                 f"{new_channels} are not all channels.",
                 stacklevel=1,
-            )
-        # Not in the opposite case, self.channels is kept because new_channels is None
+            )  # Note that in the opposite case, self.channels is kept because
+            # new_channels is None
 
         # apply default values
         patching_strategy: PatchingConfig

@@ -473,8 +473,8 @@ class TestNGDataConfigConvertMode:
                 new_axes="CZYX",
             )
 
-    def test_adding_channels_error(self):
-        """Test converting mode while adding channels with >1 channels."""
+    def test_adding_channels(self):
+        """Test converting mode while adding channels."""
         original_config = NGDataConfig(
             mode="training",
             data_type="array",
@@ -482,6 +482,7 @@ class TestNGDataConfigConvertMode:
             patching=default_patching("training"),
         )
 
+        # adding "C" with multiple channels specified
         with pytest.raises(ValueError):
             _ = original_config.convert_mode(
                 "validating",
@@ -489,49 +490,26 @@ class TestNGDataConfigConvertMode:
                 new_channels=[0, 1],
             )
 
-    def test_adding_channels_warning(self):
-        """Test converting mode while adding channels in axes but not specifying
-        them."""
-        original_config = NGDataConfig(
-            mode="training",
-            data_type="array",
-            axes="YX",
-            patching=default_patching("training"),
-        )
-
+        # specifying all channels is ambiguous due to singleton case, warning is raised
         with pytest.warns(UserWarning):
             _ = original_config.convert_mode(
                 "validating",
                 new_axes="CYX",
+                new_channels="all",
             )
 
-    def test_removing_channels_error(self):
-        """Test converting mode while removing channels with >1 channels."""
+    def test_removing_channels(self):
+        """Test converting mode while removing channels."""
         original_config = NGDataConfig(
             mode="training",
             data_type="array",
             axes="CYX",
-            patching=default_patching("training"),
             channels=[0, 1],
-        )
-
-        with pytest.raises(ValueError):
-            _ = original_config.convert_mode(
-                "validating",
-                new_axes="YX",
-            )
-
-    def test_removing_channels_warning(self):
-        """Test converting mode while removing channels in axes while not having
-        specified channels."""
-        original_config = NGDataConfig(
-            mode="training",
-            data_type="array",
-            axes="CYX",
             patching=default_patching("training"),
         )
 
-        with pytest.warns(UserWarning):
+        #
+        with pytest.raises(ValueError):
             _ = original_config.convert_mode(
                 "validating",
                 new_axes="YX",
