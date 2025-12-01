@@ -39,7 +39,7 @@ class TilingStrategy:
         self.data_shapes = data_shapes
         self.patch_size = patch_size
         self.overlaps = overlaps
-        # tile_size and overlap should have same length validated in pydantic configs
+        # patch_size and overlap should have same length validated in pydantic configs
         self.tile_specs: list[TileSpecs] = self._generate_specs()
 
     @property
