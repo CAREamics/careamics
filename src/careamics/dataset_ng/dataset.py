@@ -17,7 +17,6 @@ from .image_stack import GenericImageStack
 from .patch_extractor import PatchExtractor
 from .patch_filter import create_coord_filter, create_patch_filter
 from .patching_strategies import (
-    PatchingStrategy,
     PatchSpecs,
     RegionSpecs,
     create_patching_strategy,
@@ -105,19 +104,14 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         )
         self.patch_filter_patience = self.config.patch_filter_patience
 
-        self.patching_strategy = self._initialize_patching_strategy()
-
-        self.input_stats, self.target_stats = self._initialize_statistics()
-
-        self.transforms = self._initialize_transforms()
-
-    def _initialize_patching_strategy(self) -> PatchingStrategy:
-        patching_strategy = create_patching_strategy(
+        self.patching_strategy = create_patching_strategy(
             data_shapes=self.input_extractor.shapes,
             patching_config=self.config.patching,
         )
 
-        return patching_strategy
+        self.input_stats, self.target_stats = self._initialize_statistics()
+
+        self.transforms = self._initialize_transforms()
 
     def _initialize_transforms(self) -> Compose | None:
         normalize = NormalizeConfig(
