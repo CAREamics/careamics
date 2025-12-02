@@ -1,11 +1,11 @@
 """Pydantic models for normalization strategies."""
 
-from typing import Literal, Self
+from typing import Annotated, Literal, Self, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, model_validator
 
 
-class StandardizeModel(BaseModel):
+class StandardizeConfig(BaseModel):
     """
     Standardization normalization configuration.
 
@@ -68,7 +68,7 @@ class StandardizeModel(BaseModel):
         return self
 
 
-class NoNormModel(BaseModel):
+class NoNormConfig(BaseModel):
     """
     No normalization configuration.
 
@@ -83,7 +83,7 @@ class NoNormModel(BaseModel):
     name: Literal["none"] = "none"
 
 
-class QuantileModel(BaseModel):
+class QuantileConfig(BaseModel):
     """
     Quantile normalization configuration.
 
@@ -152,7 +152,7 @@ class QuantileModel(BaseModel):
         return self
 
 
-class MinMaxModel(BaseModel):
+class MinMaxConfig(BaseModel):
     """
     Min-max normalization configuration.
 
@@ -208,3 +208,14 @@ class MinMaxModel(BaseModel):
                     "The number of target mins and maxes must be the same."
                 )
         return self
+
+
+NormalizationConfig = Annotated[
+    Union[
+        StandardizeConfig,
+        NoNormConfig,
+        QuantileConfig,
+        MinMaxConfig,
+    ],
+    Discriminator("name"),
+]

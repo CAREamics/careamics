@@ -1,9 +1,4 @@
-from careamics.config.data.normalization_config import (
-    MinMaxModel,
-    NoNormModel,
-    QuantileModel,
-    StandardizeModel,
-)
+from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.support import SupportedNormalization
 
 from .no_normalization import NoNormalization
@@ -11,10 +6,8 @@ from .normalization_protocol import NormalizationProtocol
 from .range_normalization import RangeNormalization
 from .standardization import Standardize
 
-NormalizationModels = StandardizeModel | NoNormModel | QuantileModel | MinMaxModel
 
-
-def create_normalization(norm_model: NormalizationModels) -> NormalizationProtocol:
+def create_normalization(norm_model: NormalizationConfig) -> NormalizationProtocol:
     """
     Build a normalization transform from a normalization model.
 
@@ -38,16 +31,16 @@ def create_normalization(norm_model: NormalizationModels) -> NormalizationProtoc
     elif norm_model.name == SupportedNormalization.QUANTILE:
         return RangeNormalization(
             input_mins=norm_model.input_lower_quantiles,
-            input_maxs=norm_model.input_upper_quantiles,
+            input_maxes=norm_model.input_upper_quantiles,
             target_mins=getattr(norm_model, "target_lower_quantiles", None),
-            target_maxs=getattr(norm_model, "target_upper_quantiles", None),
+            target_maxes=getattr(norm_model, "target_upper_quantiles", None),
         )
     elif norm_model.name == SupportedNormalization.MINMAX:
         return RangeNormalization(
             input_mins=norm_model.input_mins,
-            input_maxs=norm_model.input_maxs,
+            input_maxes=norm_model.input_maxes,
             target_mins=getattr(norm_model, "target_mins", None),
-            target_maxs=getattr(norm_model, "target_maxs", None),
+            target_maxes=getattr(norm_model, "target_maxes", None),
         )
     elif norm_model.name == SupportedNormalization.NONE:
         return NoNormalization()

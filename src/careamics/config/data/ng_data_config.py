@@ -22,12 +22,7 @@ from pydantic import (
 
 from ..transformations import XYFlipConfig, XYRandomRotate90Config
 from ..validators import check_axes_validity
-from .normalization_config import (
-    MinMaxModel,
-    NoNormModel,
-    QuantileModel,
-    StandardizeModel,
-)
+from .normalization_config import NormalizationConfig
 from .patch_filter import (
     MaskFilterConfig,
     MaxFilterConfig,
@@ -92,14 +87,6 @@ PatchingStrategies = Union[
 ]
 """Patching strategies."""
 
-NormalizationStrategies = Union[
-    StandardizeModel,
-    NoNormModel,
-    QuantileModel,
-    MinMaxModel,
-]
-"""Normalization strategies."""
-
 PatchFilters = Union[
     MaxFilterConfig,
     MeanSTDFilterConfig,
@@ -138,8 +125,8 @@ class NGDataConfig(BaseModel):
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
 
-    normalization: NormalizationStrategies = Field(..., discriminator="name")
-    """Normalization strategy to use."""
+    normalization: NormalizationConfig = Field(...)
+    """Normalization configuration to use."""
 
     # Optional fields
     batch_size: int = Field(default=1, ge=1, validate_default=True)
