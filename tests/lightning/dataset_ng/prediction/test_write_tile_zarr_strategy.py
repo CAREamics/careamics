@@ -151,4 +151,4 @@ def test_zarr_with_channels(tmp_path, zarr_tiles, channels):
     for tile in all_tiles:
         writer.write_tile(tmp_path, tile)
 
-    pass
+    # TODO check arrays
