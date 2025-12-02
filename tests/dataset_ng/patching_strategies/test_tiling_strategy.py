@@ -26,7 +26,7 @@ def _test_tiling_output(
     image_stacks = load_arrays(source=data, axes=axes)
     patch_extractor = PatchExtractor(image_stacks)
     tiling_strategy = TilingStrategy(
-        data_shapes=data_shapes, tile_size=patch_size, overlaps=overlaps
+        data_shapes=data_shapes, patch_size=patch_size, overlaps=overlaps
     )
     image_regions: list[ImageRegionData] = []
     n_tiles = tiling_strategy.n_patches
