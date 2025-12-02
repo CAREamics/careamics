@@ -372,7 +372,7 @@ def create_ng_data_configuration(
     seed: int | None = None,
 ) -> NGDataConfig:
     """
-    Create a dictionary with the parameters of the data model.
+    Create a training NGDatasetConfig.
 
     Parameters
     ----------
@@ -419,7 +419,8 @@ def create_ng_data_configuration(
         augmentations = _list_spatial_augmentations()
 
     # data model
-    data = {
+    data: dict[str, Any] = {
+        "mode": "training",
         "data_type": data_type,
         "axes": axes,
         "batch_size": batch_size,

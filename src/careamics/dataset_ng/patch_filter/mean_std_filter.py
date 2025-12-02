@@ -163,7 +163,7 @@ class MeanStdPatchFilter(PatchFilterProtocol):
         extractor = PatchExtractor(image_stacks)
         tiling = TilingStrategy(
             data_shapes=[(1, 1, *image.shape)],
-            tile_size=patch_size,
+            patch_size=patch_size,
             overlaps=(0,) * len(patch_size),  # no overlap
         )
 

@@ -13,7 +13,6 @@ from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
-from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset_ng.image_stack_loader import ImageStackLoader
@@ -374,8 +373,14 @@ class CareamicsDataModule(L.LightningDataModule):
             If stage is not one of "fit", "validate" or "predict".
         """
         if stage == "fit":
+            if self.config.mode != "training":
+                raise ValueError(
+                    f"CAREamicsDataModule configured for {self.config.mode} cannot be "
+                    f"used for training. Please create a new CareamicsDataModule with "
+                    f"a configuration with mode='training'."
+                )
+
             self.train_dataset = create_dataset(
-                mode=Mode.TRAINING,
                 config=self.config,
                 inputs=self.train_data,
                 targets=self.train_data_target,
@@ -393,9 +398,10 @@ class CareamicsDataModule(L.LightningDataModule):
                 self.train_dataset.target_stats.means,
                 self.train_dataset.target_stats.stds,
             )
+
+            validation_config = self.config.convert_mode("validating")
             self.val_dataset = create_dataset(
-                mode=Mode.VALIDATING,
-                config=self.config,
+                config=validation_config,
                 inputs=self.val_data,
                 targets=self.val_data_target,
                 read_func=self.read_source_func,
@@ -404,9 +410,9 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
         elif stage == "validate":
+            validation_config = self.config.convert_mode("validating")
             self.val_dataset = create_dataset(
-                mode=Mode.VALIDATING,
-                config=self.config,
+                config=validation_config,
                 inputs=self.val_data,
                 targets=self.val_data_target,
                 read_func=self.read_source_func,
@@ -416,9 +422,19 @@ class CareamicsDataModule(L.LightningDataModule):
             )
             self.stats = self.val_dataset.input_stats
         elif stage == "predict":
+            if self.config.mode == "validating":
+                raise ValueError(
+                    "CAREamicsDataModule configured for validating cannot be used for "
+                    "prediction. Please create a new CareamicsDataModule with a "
+                    "configuration with mode='predicting'."
+                )
+
             self.predict_dataset = create_dataset(
-                mode=Mode.PREDICTING,
-                config=self.config,
+                config=(
+                    self.config.convert_mode("predicting")
+                    if self.config.mode == "training"
+                    else self.config
+                ),
                 inputs=self.pred_data,
                 targets=self.pred_data_target,
                 read_func=self.read_source_func,
