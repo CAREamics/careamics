@@ -99,6 +99,10 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
     assert sample.data.shape[0] == data_shape[0] if channels is None else len(channels)
     assert target.data.shape[0] == data_shape[0] if channels is None else len(channels)
 
+    # test that image region data has the correct number of channels
+    assert sample.data_shape[1] == data_shape[0] if channels is None else len(channels)
+    assert target.data_shape[1] == data_shape[0] if channels is None else len(channels)
+
     if channels is not None:
         for sample, target in train_dataset:
             for i, ch in enumerate(channels):

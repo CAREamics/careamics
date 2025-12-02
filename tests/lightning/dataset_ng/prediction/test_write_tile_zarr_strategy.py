@@ -1,4 +1,7 @@
+from collections.abc import Sequence
+
 import numpy as np
+import pytest
 import zarr
 
 from careamics.dataset_ng.dataset import ImageRegionData
@@ -15,11 +18,15 @@ from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
 
 
 def create_image_region(
-    axes, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
+    axes,
+    patch: np.ndarray,
+    patch_spec: PatchSpecs,
+    extractor: PatchExtractor,
 ) -> ImageRegionData:
     data_idx = patch_spec["data_idx"]
     source = extractor.image_stacks[data_idx].source
     chunks = extractor.image_stacks[data_idx].chunks
+
     return ImageRegionData(
         data=patch,
         source=str(source),
@@ -31,7 +38,11 @@ def create_image_region(
     )
 
 
-def gen_image_regions(my_patch_extractor: PatchExtractor, my_strategy: TilingStrategy):
+def gen_image_regions(
+    my_patch_extractor: PatchExtractor,
+    my_strategy: TilingStrategy,
+    channels: Sequence[int] | None = None,
+):
     for i in range(my_strategy.n_patches):
         patch_spec: TileSpecs = my_strategy.get_patch_spec(i)
         patch = my_patch_extractor.extract_patch(
@@ -40,12 +51,18 @@ def gen_image_regions(my_patch_extractor: PatchExtractor, my_strategy: TilingStr
             coords=patch_spec["coords"],
             patch_size=patch_spec["patch_size"],
         )
-        region = create_image_region("YX", patch, patch_spec, my_patch_extractor)
+        region = create_image_region(
+            "YX",
+            patch,
+            patch_spec,
+            my_patch_extractor,
+        )
 
         yield region
 
 
 def test_zarr_prediction_callback_identity(tmp_path):
+    """Test writing tiles to zarr using sources at different levels."""
     # create data
     arrays = np.arange(6 * 32 * 32).reshape((6, 32, 32))
 
@@ -110,3 +127,28 @@ def test_zarr_prediction_callback_identity(tmp_path):
     assert (tmp_path / "source2_output.zarr").exists()
     g_output2 = zarr.open_group(tmp_path / "source2_output.zarr", mode="r")
     assert np.array_equal(g_output2["root_array"][:], arrays[5])
+
+
+@pytest.mark.parametrize("n_data", [1])
+@pytest.mark.parametrize("channels", [None, [1], [0, 2]])
+@pytest.mark.parametrize(
+    "shape, axes",
+    [
+        ((5, 32, 32), "CYX"),
+    ],
+)
+def test_zarr_with_channels(tmp_path, zarr_tiles, channels):
+    array, all_tiles = zarr_tiles
+
+    # remove data dim
+    array = array[0]
+
+    if channels is not None:
+        array = np.take(array, indices=channels, axis=0)  # adjust channels
+
+    # use writer to write predictions
+    writer = WriteTilesZarr()
+    for tile in all_tiles:
+        writer.write_tile(tmp_path, tile)
+
+    pass

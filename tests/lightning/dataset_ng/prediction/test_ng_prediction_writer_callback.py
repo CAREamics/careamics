@@ -133,9 +133,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     save_data = tifffile.imread(dirpath / file_name)
 
     # TODO save data does not have singleton channel axis?
-    np.testing.assert_array_equal(
-        save_data, predicted_images[0].squeeze(), verbose=True
-    )
+    np.testing.assert_array_equal(save_data, predicted_images[0], verbose=True)
 
 
 @pytest.mark.mps_gh_fail

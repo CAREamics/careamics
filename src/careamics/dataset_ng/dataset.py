@@ -38,14 +38,55 @@ class Mode(str, Enum):
 
 
 class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
-    data: NDArray
-    source: Union[str, Literal["array"]]
-    data_shape: Sequence[int]
-    dtype: str  # dtype should be str for collate
-    axes: str
-    region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
+    """
+    Data structure for arrays produced by the dataset and propagated through models.
 
-    chunks: Sequence[int] = (1,)  # default value for ImageStack without chunks
+    An ImageRegionData may be a patch during training/validation, a tile during
+    prediction with tiling, or a whole image during prediction without tiling.
+
+    `data_shape` may not correspond to the shape of the original data if a subset
+    of the channels has been requested, in which case the channel dimension may
+    be smaller than that of the original data and only correspond to the requested
+    number of channels.
+
+    ImageRegionData may be collated in batches during training by the DataLoader. In
+    that case:
+    - data: arrays are collated into NDArray of shape (B,C,Z,Y,X)
+    - source: list of str, length B
+    - data_shape: list of tuples of int, each tuple being of length B and representing
+        the shape of the original images in the corresponding dimension
+    - dtype: list of str, length B
+    - axes: list of str, length B
+    - region_spec: dict of {str: sequence}, each sequence being of length B
+    - chunks: either a single tuple (1,) or a list of tuples of length B (zarr source)
+
+    Description of the fields is given for the uncollated case (non-batched).
+    """
+
+    data: NDArray
+    """Patch, tile or image in C(Z)YX format."""
+
+    source: Union[str, Literal["array"]]
+    """Source of the data, e.g. file path, zarr URI, or "array" for in-memory arrays."""
+
+    data_shape: Sequence[int]
+    """Shape of the original image in SC(Z)YX format and order."""
+
+    dtype: str  # dtype should be str for collate
+    """Data type of the original image as a string."""
+
+    axes: str
+    """Axes of the original data array, in format SCZYX."""
+
+    region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
+    """Specifications of the region within the original image from where `data` is
+    extracted. Of type PatchSpecs during training/validation and prediction without
+    tiling, and TileSpecs during prediction with tiling.
+    """
+
+    chunks: Sequence[int] = ()  # default value for ImageStack without chunks
+    """Chunk sizes of the original image, only used for zarr sources. Default
+    otherwise to `()`."""
 
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
@@ -235,15 +276,21 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     ) -> ImageRegionData:
         data_idx = patch_spec["data_idx"]
         image_stack: GenericImageStack = extractor.image_stacks[data_idx]
+
+        # adjust the number of channels in data_shape if needed
+        data_shape = list(image_stack.data_shape)
+        if self.config.channels is not None:  # this means "C" is in axes
+            c_idx = self.config.axes.index("C")
+            data_shape[c_idx] = len(self.config.channels)
+
         return ImageRegionData(
             data=patch,
             source=str(image_stack.source),
             dtype=str(image_stack.data_dtype),
             data_shape=image_stack.data_shape,
-            chunks=image_stack.chunks,
-            # TODO: should it be axes of the original image instead?
             axes=self.config.axes,
             region_spec=patch_spec,
+            chunks=image_stack.chunks,
         )
 
     def _extract_patches(
