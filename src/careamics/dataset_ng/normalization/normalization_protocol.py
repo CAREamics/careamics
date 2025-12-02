@@ -1,6 +1,5 @@
 from typing import Protocol
 
-import numpy as np
 from numpy.typing import NDArray
 
 
@@ -26,7 +25,7 @@ class NormalizationProtocol(Protocol):
         """
         ...
 
-    def denormalize(self, patch: np.ndarray) -> NDArray:
+    def denormalize(self, patch: NDArray) -> NDArray:
         """Reverse the normalization operation for a batch of patches.
 
         Parameters

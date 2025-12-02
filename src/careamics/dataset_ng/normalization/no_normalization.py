@@ -25,10 +25,7 @@ class NoNormalization(NormalizationProtocol):
         pass
 
     def __call__(
-        self,
-        patch: NDArray,
-        target: NDArray | None = None,
-        **additional_arrays: NDArray,
+        self, patch: NDArray, target: NDArray | None = None
     ) -> tuple[NDArray, NDArray | None]:
         """Apply no normalization to the patch and target.
 
@@ -38,9 +35,6 @@ class NoNormalization(NormalizationProtocol):
             Patch, 2D or 3D, shape C(Z)YX.
         target : NDArray, optional
             Target for the patch, by default None.
-        **additional_arrays : NDArray
-            Additional arrays that will be transformed identically to `patch` and
-            `target`.
 
         Returns
         -------
