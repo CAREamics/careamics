@@ -79,6 +79,9 @@ class WriteImage(WriteStrategy):
         image_lst, sources = combine_samples(predictions)
 
         for i, image in enumerate(image_lst):
+            # remove singleton dimensions
+            image = image.squeeze()
+
             file_path = create_write_file_path(
                 dirpath=dirpath,
                 file_path=Path(sources[i]),

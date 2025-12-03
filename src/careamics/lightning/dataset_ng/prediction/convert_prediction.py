@@ -108,9 +108,11 @@ def combine_samples(
         # sort by sample idx
         image_regions.sort(key=lambda x: x.region_spec["sample_idx"])
 
-        # remove singleton dims and stack along S axis
-        combined_data = np.stack([img.data.squeeze() for img in image_regions], axis=0)
-        combined_predictions.append(combined_data)
+        # stack along S axis
+        combined_data = np.stack([img.data for img in image_regions], axis=0)
+
+        # squeeze remaining singleton dimensions
+        combined_predictions.append(combined_data.squeeze())
 
     return combined_predictions, combined_sources
 
@@ -157,7 +159,6 @@ def convert_prediction(
     if tiled:
         predictions_output, sources = stitch_prediction(decollated_predictions)
     else:
-        # TODO squeeze single output?
         predictions_output, sources = combine_samples(decollated_predictions)
 
     if set(sources) == {"array"}:

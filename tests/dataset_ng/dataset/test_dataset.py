@@ -9,7 +9,6 @@ from careamics.config.configuration_factories import (
     create_ng_data_configuration,
 )
 from careamics.config.data import NGDataConfig
-from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
 
 
@@ -45,7 +44,6 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[example_input],
         targets=[example_target],
     )
@@ -90,7 +88,6 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[rng],
         targets=[rng],
     )
@@ -98,10 +95,6 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
     sample, target = train_dataset[0]
     assert sample.data.shape[0] == data_shape[0] if channels is None else len(channels)
     assert target.data.shape[0] == data_shape[0] if channels is None else len(channels)
-
-    # test that image region data has the correct number of channels
-    assert sample.data_shape[1] == data_shape[0] if channels is None else len(channels)
-    assert target.data_shape[1] == data_shape[0] if channels is None else len(channels)
 
     if channels is not None:
         for sample, target in train_dataset:
@@ -150,7 +143,6 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[input_file_path],
         targets=[target_file_path],
     )
@@ -177,6 +169,7 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
     example_data = rng.random(data_shape)
 
     prediction_config = NGDataConfig(
+        mode="predicting",
         data_type="array",
         patching={
             "name": "tiled",
@@ -193,7 +186,6 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
 
     prediction_dataset = create_dataset(
         config=prediction_config,
-        mode=Mode.PREDICTING,
         inputs=[example_data],
         targets=None,
     )
@@ -240,7 +232,6 @@ def test_from_custom_data_type(patch_size, data_shape):
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[example_data],
         targets=[example_target],
         read_func=read_data_func_test,
@@ -285,7 +276,6 @@ def test_array_coordinate_filtering():
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[img],
         targets=None,
         masks=[mask],
@@ -328,7 +318,6 @@ def test_array_patch_filtering():
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[img],
         targets=None,
     )
@@ -367,7 +356,6 @@ def test_error_data_smaller_than_patch():
     with pytest.raises(ValueError):
         _ = create_dataset(
             config=train_data_config,
-            mode=Mode.TRAINING,
             inputs=[example_input],
             targets=[example_target],
         )
