@@ -15,7 +15,7 @@ from careamics.lightning.dataset_ng.prediction import (
 @pytest.fixture
 def batches(source_name: str) -> list[ImageRegionData]:
     """
-    Fixture providing batches of `ImageRegionData`.
+    Fixture providing batches of `ImageRegionData` to test decollate.
 
     Returns
     -------

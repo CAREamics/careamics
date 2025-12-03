@@ -121,6 +121,7 @@ class WriteTilesZarr:
 
             shape = [i for i in shape if i != 1]
 
+            # TODO currently this prevents predicting from anything else than zarr
             if chunks == (1,):  # guard against the ImageRegionData default
                 raise ValueError("Chunks cannot be (1,).")
 
