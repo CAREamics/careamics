@@ -410,6 +410,7 @@ def _create_ng_data_configuration(
         "batch_size": batch_size,
         "transforms": augmentations,
         "seed": seed,
+        "normalization": {"name": "standardize"},
     }
     # don't override defaults set in DataConfig class
     if train_dataloader_params is not None:

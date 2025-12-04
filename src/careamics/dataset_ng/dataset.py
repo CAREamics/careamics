@@ -6,18 +6,16 @@ from typing import Any, Generic, Literal, NamedTuple, Union
 import numpy as np
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
-from tqdm.auto import tqdm
 
 from careamics.config.data.ng_data_config import NGDataConfig, WholePatchingConfig
 from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
-from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
-from careamics.dataset.patching.patching import Stats
 from careamics.transforms import Compose
 
 from .image_stack import GenericImageStack
 from .normalization import create_normalization
+from .normalization.statistics import resolve_normalization_config
 from .patch_extractor import PatchExtractor
 from .patch_filter import create_coord_filter, create_patch_filter
 from .patching_strategies import (
@@ -122,10 +120,15 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         self.patching_strategy = self._initialize_patching_strategy()
 
-        # self.input_stats, self.target_stats = self._initialize_statistics()
-
+        self._resolved_norm_config = resolve_normalization_config(
+            norm_config=self.config.normalization,
+            patching_strategy=self.patching_strategy,
+            input_extractor=self.input_extractor,
+            target_extractor=self.target_extractor,
+        )
+        self.normalization = create_normalization(self._resolved_norm_config)
+        
         self.transforms = self._initialize_transforms()
-        self.normalization = create_normalization(self.config.normalization)
 
     def _initialize_patching_strategy(self) -> PatchingStrategy:
         patching_strategy: PatchingStrategy
@@ -183,43 +186,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         # TODO: add TTA
         return None
-
-    def _calculate_stats(
-        self, data_extractor: PatchExtractor[GenericImageStack]
-    ) -> Stats:
-        image_stats = WelfordStatistics()
-        n_patches = self.patching_strategy.n_patches
-
-        for idx in tqdm(range(n_patches), desc="Computing statistics"):
-            patch_spec = self.patching_strategy.get_patch_spec(idx)
-            patch = data_extractor.extract_patch(
-                data_idx=patch_spec["data_idx"],
-                sample_idx=patch_spec["sample_idx"],
-                coords=patch_spec["coords"],
-                patch_size=patch_spec["patch_size"],
-            )
-            # TODO: statistics accept SCYX format, while patch is CYX
-            image_stats.update(patch[None, ...], sample_idx=idx)
-
-        image_means, image_stds = image_stats.finalize()
-        return Stats(image_means, image_stds)
-
-    # TODO: add running stats
-    # def _initialize_statistics(self) -> tuple[Stats, Stats]:
-    #     if self.config.image_means is not None and self.config.image_stds is not None:
-    #         input_stats = Stats(self.config.image_means, self.config.image_stds)
-    #     else:
-    #         input_stats = self._calculate_stats(self.input_extractor)
-
-    #     target_stats = Stats((), ())
-
-    #     if self.config.target_means is not None and self.config.target_stds is not None:
-    #         target_stats = Stats(self.config.target_means, self.config.target_stds)
-    #     elif self.target_extractor is not None:
-    #         target_stats = self._calculate_stats(self.target_extractor)
-
-    #     return input_stats, target_stats
-
+    
     def __len__(self):
         return self.patching_strategy.n_patches
 

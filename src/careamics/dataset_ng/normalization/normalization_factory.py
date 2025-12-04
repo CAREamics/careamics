@@ -13,8 +13,8 @@ def create_normalization(norm_model: NormalizationConfig) -> NormalizationProtoc
 
     Parameters
     ----------
-    norm_model : dict
-        The normalization model.
+    norm_model : NormalizationConfig
+        The normalization configuration.
 
     Returns
     -------
@@ -30,10 +30,10 @@ def create_normalization(norm_model: NormalizationConfig) -> NormalizationProtoc
         )
     elif norm_model.name == SupportedNormalization.QUANTILE:
         return RangeNormalization(
-            input_mins=norm_model.input_lower_quantiles,
-            input_maxes=norm_model.input_upper_quantiles,
-            target_mins=getattr(norm_model, "target_lower_quantiles", None),
-            target_maxes=getattr(norm_model, "target_upper_quantiles", None),
+            input_mins=norm_model.input_lower_quantile_values,
+            input_maxes=norm_model.input_upper_quantile_values,
+            target_mins=getattr(norm_model, "target_lower_quantile_values", None),
+            target_maxes=getattr(norm_model, "target_upper_quantile_values", None),
         )
     elif norm_model.name == SupportedNormalization.MINMAX:
         return RangeNormalization(
