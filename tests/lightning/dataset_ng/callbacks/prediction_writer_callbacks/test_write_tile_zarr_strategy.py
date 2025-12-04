@@ -19,6 +19,7 @@ def create_image_region(
 ) -> ImageRegionData:
     data_idx = patch_spec["data_idx"]
     source = extractor.image_stacks[data_idx].source
+    shards = extractor.image_stacks[data_idx].shards
     chunks = extractor.image_stacks[data_idx].chunks
     return ImageRegionData(
         data=patch,
@@ -27,6 +28,7 @@ def create_image_region(
         data_shape=extractor.image_stacks[data_idx].data_shape,
         axes=axes,
         region_spec=patch_spec,
+        shards=shards,
         chunks=chunks,
     )
 
@@ -48,6 +50,8 @@ def gen_image_regions(my_patch_extractor: PatchExtractor, my_strategy: TilingStr
 def test_zarr_prediction_callback_identity(tmp_path):
     # create data
     arrays = np.arange(6 * 32 * 32).reshape((6, 32, 32))
+    shards = (16, 16)
+    chunks = (8, 8)
 
     # write zarr sources to two different zarrs, at different levels
     path = tmp_path / "source.zarr"
@@ -57,7 +61,8 @@ def test_zarr_prediction_callback_identity(tmp_path):
     single_array = image1_group.create_array(
         name="single_image",
         data=arrays[0],
-        chunks=(32, 32),
+        shards=shards,
+        chunks=chunks,
     )
     array_uris = [single_array.store_path]  # uris to the arrays
 
@@ -66,7 +71,8 @@ def test_zarr_prediction_callback_identity(tmp_path):
         array = image2_group.create_array(
             name=f"image_stack_{i}",
             data=arrays[i],
-            chunks=(32, 32),
+            shards=shards,
+            chunks=chunks,
         )
         array_uris.append(array.store_path)
 
@@ -75,7 +81,8 @@ def test_zarr_prediction_callback_identity(tmp_path):
     array_root = g2.create_array(
         name="root_array",
         data=arrays[5],
-        chunks=(32, 32),
+        shards=shards,
+        chunks=chunks,
     )
     array_uris.append(array_root.store_path)
 
@@ -103,10 +110,16 @@ def test_zarr_prediction_callback_identity(tmp_path):
 
     g_output = zarr.open_group(tmp_path / "source_output.zarr", mode="r")
     assert np.array_equal(g_output["images1/single_image"][:], arrays[0])
+    assert g_output["images1/single_image"].shards == shards
+    assert g_output["images1/single_image"].chunks == chunks
     for i in range(1, 5):
         assert np.array_equal(g_output[f"images2/image_stack_{i}"][:], arrays[i])
+        assert g_output[f"images2/image_stack_{i}"].shards == shards
+        assert g_output[f"images2/image_stack_{i}"].chunks == chunks
 
     # check that the array has been written correctly to the second zarr
     assert (tmp_path / "source2_output.zarr").exists()
     g_output2 = zarr.open_group(tmp_path / "source2_output.zarr", mode="r")
     assert np.array_equal(g_output2["root_array"][:], arrays[5])
+    assert g_output2["root_array"].shards == shards
+    assert g_output2["root_array"].chunks == chunks

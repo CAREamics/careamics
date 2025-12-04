@@ -19,6 +19,8 @@ class ImageStack(Protocol):
         The data type of the image data.
     chunks: Sequence[int]
         The chunk size of the image data.
+    shards: Sequence[int]
+        The shard size of the image data.
     """
 
     @property
@@ -40,6 +42,11 @@ class ImageStack(Protocol):
     def chunks(self) -> Sequence[int]: ...
 
     """Chunk size of the image data."""
+
+    @property
+    def shards(self) -> Sequence[int]: ...
+
+    """Shard size of the image data."""
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]

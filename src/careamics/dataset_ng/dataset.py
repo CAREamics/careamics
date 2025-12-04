@@ -31,7 +31,9 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     axes: str
     region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
 
+    # zarr specific
     chunks: Sequence[int] = (1,)  # default value for ImageStack without chunks
+    shards: Sequence[int] = (1,)  # default value for ImageStack without shards
 
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]

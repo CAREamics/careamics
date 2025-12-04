@@ -96,6 +96,7 @@ class WriteTilesZarr:
         self,
         array_name: str,
         shape: Sequence[int],
+        shards: Sequence[int] | None,
         chunks: Sequence[int],
     ) -> None:
         """Create a new array in an existing zarr group.
@@ -106,6 +107,8 @@ class WriteTilesZarr:
             Name of the array within the zarr group.
         shape : Sequence[int]
             Shape of the array.
+        shards : Sequence[int] or None
+            Shard size for the array.
         chunks : Sequence[int]
             Chunk size for the array.
 
@@ -124,13 +127,27 @@ class WriteTilesZarr:
             if chunks == (1,):  # guard against the ImageRegionData default
                 raise ValueError("Chunks cannot be (1,).")
 
+            if shards == (1,):  # guard against the ImageRegionData default
+                shards = None  # no sharding
+            elif shards is not None:
+                shards = tuple(shards)  # for mypy
+
             if len(shape) != len(chunks):
                 raise ValueError(
                     f"Shape {shape} and chunks {chunks} have different lengths."
                 )
 
+            if shards is not None and len(shape) != len(shards):
+                raise ValueError(
+                    f"Shape {shape} and shards {shards} have different lengths."
+                )
+
             self.current_array = self.current_group.create_array(
-                name=array_name, shape=shape, chunks=tuple(chunks), dtype=float32
+                name=array_name,
+                shape=shape,
+                shards=shards,
+                chunks=tuple(chunks),
+                dtype=float32,
             )
         else:
             current_array = self.current_group[array_name]
@@ -164,7 +181,8 @@ class WriteTilesZarr:
         if self.current_array is None or self.current_array.basename != array_name:
             shape = region.data_shape
             chunks = region.chunks
-            self._create_array(array_name, shape, chunks)
+            shards = region.shards
+            self._create_array(array_name, shape, shards, chunks)
 
         tile_spec: TileSpecs = region.region_spec  # type: ignore[assignment]
         crop_coords = tile_spec["crop_coords"]

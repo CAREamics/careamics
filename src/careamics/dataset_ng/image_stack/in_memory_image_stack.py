@@ -23,6 +23,7 @@ class InMemoryImageStack:
         self.data_shape: Sequence[int] = self._data.shape
         self.data_dtype: DTypeLike = self._data.dtype
         self.chunks: Sequence[int] = (1,)  # ImageStack protocol, unused here
+        self.shards: Sequence[int] = (1,)  # same
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]

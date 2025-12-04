@@ -42,6 +42,7 @@ class ZarrImageStack:
         self.data_shape = reshape_array_shape(axes, self._original_data_shape)
         self._data_dtype = self._array.dtype
         self._chunk_size = self._array.chunks
+        self._shard_size = self._array.shards
 
     # Used to identify the source of the data and write to similar path during pred
     @property
@@ -52,6 +53,12 @@ class ZarrImageStack:
     @property
     def chunks(self) -> Sequence[int]:
         return self._chunk_size
+
+    @property
+    def shards(self) -> Sequence[int]:
+        if self._shard_size is None:
+            return (1,)  # default ImageRegionData shard size, should be ignored later
+        return self._shard_size
 
     @property
     def data_dtype(self) -> DTypeLike:

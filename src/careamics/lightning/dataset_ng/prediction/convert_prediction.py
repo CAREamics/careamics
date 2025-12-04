@@ -24,6 +24,7 @@ def decollate_image_region_data(
     - axes: list of str, length B
     - region_spec: dict of {str: sequence}, each sequence being of length B
     - chunks: either a single tuple (1,) or a sequence of tuples of length B
+    - shards: either a single tuple (1,) or a sequence of tuples of length B
 
     Parameters
     ----------
@@ -54,6 +55,12 @@ def decollate_image_region_data(
         else:
             chunks = batch.chunks
 
+        # same for shards
+        if isinstance(batch.shards, list):
+            shards: Sequence[int] = tuple(int(val[i]) for val in batch.shards)
+        else:
+            shards = batch.shards
+
         # data shape
         assert isinstance(batch.data_shape, list)
         data_shape = tuple(int(dim[i]) for dim in batch.data_shape)
@@ -66,6 +73,7 @@ def decollate_image_region_data(
             axes=batch.axes[i],
             region_spec=region_spec,  # type: ignore
             chunks=chunks,
+            shards=shards,
         )
         decollated.append(image_region)
 

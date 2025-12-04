@@ -149,6 +149,7 @@ class CziImageStack:
 
         # unsused mandatory member
         self.chunks: Sequence[int] = (1,)  # ImageStack protocol
+        self.shards: Sequence[int] = (1,)  # same
 
     def __del__(self):
         if hasattr(self, "_czi"):
