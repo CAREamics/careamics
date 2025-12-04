@@ -129,8 +129,6 @@ class WriteTilesZarr:
 
             if shards == (1,):  # guard against the ImageRegionData default
                 shards = None  # no sharding
-            elif shards is not None:
-                shards = tuple(shards)  # for mypy
 
             if len(shape) != len(chunks):
                 raise ValueError(
@@ -145,7 +143,7 @@ class WriteTilesZarr:
             self.current_array = self.current_group.create_array(
                 name=array_name,
                 shape=shape,
-                shards=shards,
+                shards=shards,  # type: ignore[arg-type]
                 chunks=tuple(chunks),
                 dtype=float32,
             )
