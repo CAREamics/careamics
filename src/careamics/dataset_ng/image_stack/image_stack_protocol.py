@@ -17,10 +17,6 @@ class ImageStack(Protocol):
         The shape of the data, it is expected to be in the order (SC(Z)YX).
     data_dtype: DTypeLike
         The data type of the image data.
-    chunks: Sequence[int]
-        The chunk size of the image data.
-    shards: Sequence[int]
-        The shard size of the image data.
     """
 
     @property
@@ -37,16 +33,6 @@ class ImageStack(Protocol):
     def data_dtype(self) -> DTypeLike: ...
 
     """Data type of the image data."""
-
-    @property
-    def chunks(self) -> Sequence[int]: ...
-
-    """Chunk size of the image data."""
-
-    @property
-    def shards(self) -> Sequence[int]: ...
-
-    """Shard size of the image data."""
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]

@@ -1,7 +1,5 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
-from collections.abc import Sequence
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -23,8 +21,7 @@ def decollate_image_region_data(
     - dtype: list of numpy.dtype, length B
     - axes: list of str, length B
     - region_spec: dict of {str: sequence}, each sequence being of length B
-    - chunks: either a single tuple (1,) or a sequence of tuples of length B
-    - shards: either a single tuple (1,) or a sequence of tuples of length B
+    - additional_metadata: dict of {str: sequence}, each sequence being of length B
 
     Parameters
     ----------
@@ -49,17 +46,10 @@ def decollate_image_region_data(
             for key, value in batch.region_spec.items()
         }
 
-        # handle chunks being either a single tuple or a sequence of tuples
-        if isinstance(batch.chunks, list):
-            chunks: Sequence[int] = tuple(int(val[i]) for val in batch.chunks)
-        else:
-            chunks = batch.chunks
-
-        # same for shards
-        if isinstance(batch.shards, list):
-            shards: Sequence[int] = tuple(int(val[i]) for val in batch.shards)
-        else:
-            shards = batch.shards
+        # handle additional metadata
+        additional_metadata = {
+            key: str(value[i]) for key, value in batch.additional_metadata.items()
+        }
 
         # data shape
         assert isinstance(batch.data_shape, list)
@@ -72,8 +62,7 @@ def decollate_image_region_data(
             data_shape=data_shape,
             axes=batch.axes[i],
             region_spec=region_spec,  # type: ignore
-            chunks=chunks,
-            shards=shards,
+            additional_metadata=additional_metadata,
         )
         decollated.append(image_region)
 

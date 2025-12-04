@@ -55,9 +55,7 @@ class ZarrImageStack:
         return self._chunk_size
 
     @property
-    def shards(self) -> Sequence[int]:
-        if self._shard_size is None:
-            return (1,)  # default ImageRegionData shard size, should be ignored later
+    def shards(self) -> Sequence[int] | None:
         return self._shard_size
 
     @property

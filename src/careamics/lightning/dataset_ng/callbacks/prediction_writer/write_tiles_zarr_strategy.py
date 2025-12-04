@@ -1,5 +1,6 @@
 """Tile Zarr writing strategy."""
 
+import ast
 import builtins
 from collections.abc import Sequence
 from pathlib import Path
@@ -7,11 +8,81 @@ from pathlib import Path
 import zarr
 from numpy import float32
 
+from careamics.dataset.dataset_utils.dataset_utils import get_axes_order
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.image_stack_loader.zarr_utils import decipher_zarr_uri
 from careamics.dataset_ng.patching_strategies import TileSpecs
 
 OUTPUT_KEY = "_output"
+
+
+def _update_data_shape(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
+    """Update data shape to remove non existing dimensions.
+
+    Parameters
+    ----------
+    axes : str
+        Axes string of the original data.
+    data_shape : Sequence[int]
+        Shape of the array in SC(Z)YX order with potential singleton dimensions.
+
+    Returns
+    -------
+    tuple[int, ...]
+        Updated shape with non-existing axes removed.
+    """
+    new_shape = []
+
+    if "S" in axes:
+        new_shape.append(data_shape[0])
+
+    if "C" in axes:
+        new_shape.append(data_shape[1])
+
+    for idx in range(2, len(data_shape)):
+        new_shape.append(data_shape[idx])
+
+    return tuple(new_shape)
+
+
+def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
+    """Generate automatic chunk sizes based on axes and shape.
+
+    Parameters
+    ----------
+    axes : str
+        Axes string of the original data.
+    data_shape : Sequence[int]
+        Shape of the array in SC(Z)YX order with potential singleton dimensions.
+
+    Returns
+    -------
+    tuple[int, ...]
+        Chunk sizes for each dimension in SC(Z)YX order, but excluding dimensions that
+        are not in the axes string.
+    """
+    chunk_sizes = []
+
+    # axes reshaping indices
+    indices = get_axes_order(axes)
+
+    sczyx_offset = 0
+    if "S" not in axes:
+        sczyx_offset = 1  # singleton S dim added to data_shape
+
+    if "C" not in axes:
+        sczyx_offset += 1  # singleton C dim added to data_shape
+
+    for sczyx_index, original_index in enumerate(indices):
+        axis = axes[original_index]
+
+        if axis in ("Z", "Y", "X"):
+            dim_size = data_shape[sczyx_index + sczyx_offset]
+            chunk_sizes.append(min(64, dim_size))
+        else:
+            chunk_sizes.append(1)
+
+    return tuple(chunk_sizes)
 
 
 def _add_output_key(dirpath: Path, path: str | Path) -> Path:
@@ -95,9 +166,10 @@ class WriteTilesZarr:
     def _create_array(
         self,
         array_name: str,
-        shape: Sequence[int],
-        shards: Sequence[int] | None,
-        chunks: Sequence[int],
+        axes: str,
+        data_shape: Sequence[int],
+        shards: tuple[int, ...] | None,
+        chunks: tuple[int, ...] | None,
     ) -> None:
         """Create a new array in an existing zarr group.
 
@@ -105,11 +177,13 @@ class WriteTilesZarr:
         ----------
         array_name : str
             Name of the array within the zarr group.
-        shape : Sequence[int]
+        axes : str
+            Axes string in SC(Z)YX format with original data order.
+        data_shape : Sequence[int]
             Shape of the array.
-        shards : Sequence[int] or None
+        shards : tuple[int, ...] or None
             Shard size for the array.
-        chunks : Sequence[int]
+        chunks : tuple[int, ...] or None
             Chunk size for the array.
 
         Raises
@@ -121,29 +195,30 @@ class WriteTilesZarr:
             raise RuntimeError("Zarr group not initialized.")
 
         if array_name not in self.current_group:
+            # TODO what happens if T is in axes?
+            # get shape without non-existing axes (S or C)
+            updated_shape = _update_data_shape(axes, data_shape)
 
-            shape = [i for i in shape if i != 1]
-
-            if chunks == (1,):  # guard against the ImageRegionData default
-                raise ValueError("Chunks cannot be (1,).")
-
-            if shards == (1,):  # guard against the ImageRegionData default
-                shards = None  # no sharding
-
-            if len(shape) != len(chunks):
+            if chunks is not None and len(updated_shape) != len(chunks):
                 raise ValueError(
-                    f"Shape {shape} and chunks {chunks} have different lengths."
+                    f"Shape {updated_shape} and chunks {chunks} have different lengths."
                 )
 
-            if shards is not None and len(shape) != len(shards):
+            if chunks is None:
+                chunks = _auto_chunks(axes, data_shape)
+
+            # TODO if we auto_chunks, we probably want to auto shards as well
+            # there is shards="auto" in zarr, where array.target_shard_size_bytes
+            # needs to be used (see zarr-python docs)
+            if shards is not None and len(chunks) != len(shards):
                 raise ValueError(
-                    f"Shape {shape} and shards {shards} have different lengths."
+                    f"Chunks {chunks} and shards {shards} have different lengths."
                 )
 
             self.current_array = self.current_group.create_array(
                 name=array_name,
-                shape=shape,
-                shards=shards,  # type: ignore[arg-type]
+                shape=updated_shape,
+                shards=shards,
                 chunks=tuple(chunks),
                 dtype=float32,
             )
@@ -178,23 +253,31 @@ class WriteTilesZarr:
 
         if self.current_array is None or self.current_array.basename != array_name:
             shape = region.data_shape
-            chunks = region.chunks
-            shards = region.shards
-            self._create_array(array_name, shape, shards, chunks)
+            chunks: tuple[int, ...] = ast.literal_eval(
+                region.additional_metadata.get("chunks", "None")
+            )
+            shards: tuple[int, ...] | None = ast.literal_eval(
+                region.additional_metadata.get("shards", "None")
+            )
+            self._create_array(array_name, region.axes, shape, shards, chunks)
 
         tile_spec: TileSpecs = region.region_spec  # type: ignore[assignment]
         crop_coords = tile_spec["crop_coords"]
         crop_size = tile_spec["crop_size"]
         stitch_coords = tile_spec["stitch_coords"]
 
-        crop_slices: tuple[builtins.ellipsis | slice, ...] = (
+        # compute sample slice
+        sample_idx = tile_spec["sample_idx"]
+
+        # TODO there is duplicated code in stitch_prediction
+        crop_slices: tuple[builtins.ellipsis | slice | int, ...] = (
             ...,
             *[
                 slice(start, start + length)
                 for start, length in zip(crop_coords, crop_size, strict=True)
             ],
         )
-        stitch_slices: tuple[builtins.ellipsis | slice, ...] = (
+        stitch_slices: tuple[builtins.ellipsis | slice | int, ...] = (
             ...,
             *[
                 slice(start, start + length)
@@ -203,7 +286,20 @@ class WriteTilesZarr:
         )
 
         if self.current_array is not None:
-            self.current_array[stitch_slices] = region.data.squeeze()[crop_slices]
+            # region.data has shape C(Z)YX, broadcast can fail with singleton dims
+            crop = region.data[crop_slices]
+
+            if region.data.shape[0] == 1:
+                # singleton C dim, need to remove it before writing
+                crop = crop[0]
+
+            if "S" in region.axes:
+                if "C" in region.axes:
+                    stitch_slices = (sample_idx, *stitch_slices[0:])
+                else:
+                    stitch_slices = (sample_idx, *stitch_slices[1:])
+
+            self.current_array[stitch_slices] = crop
         else:
             raise RuntimeError("Zarr array not initialized.")
 

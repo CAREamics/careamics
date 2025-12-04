@@ -33,6 +33,7 @@ def channel_slice(
     return channels
 
 
+# TODO: add tests
 # TODO: move to dataset_utils, better name?
 def reshape_array_shape(original_axes: str, shape: Sequence[int]) -> tuple[int, ...]:
     """Find resulting shape if reshaping array to SCZYX."""
@@ -42,6 +43,7 @@ def reshape_array_shape(original_axes: str, shape: Sequence[int]) -> tuple[int, 
         if d in original_axes:
             idx = original_axes.index(d)
             target_shape.append(shape[idx])
+        # TODO is d!=original_axes an error? shouldn't it be "not in"?
         elif (d != original_axes) and (d != "Z"):
             target_shape.append(1)
         else:

@@ -13,7 +13,7 @@ from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
 from careamics.transforms import Compose
 
-from .image_stack import GenericImageStack
+from .image_stack import GenericImageStack, ZarrImageStack
 from .patch_extractor import PatchExtractor
 from .patch_filter import create_coord_filter, create_patch_filter
 from .patching_strategies import (
@@ -31,9 +31,10 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     axes: str
     region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
 
-    # zarr specific
-    chunks: Sequence[int] = (1,)  # default value for ImageStack without chunks
-    shards: Sequence[int] = (1,)  # default value for ImageStack without shards
+    additional_metadata: dict[str, str]
+    """Additional metadata to be stored with the image region. Values should be strings
+    to be collated properly. Currently used to store chunk and shard information for
+    zarr image stacks."""
 
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
@@ -174,15 +175,29 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     ) -> ImageRegionData:
         data_idx = patch_spec["data_idx"]
         image_stack: GenericImageStack = extractor.image_stacks[data_idx]
+
+        # TODO if `channels` is not None or covering all channels, then there might
+        # be a mismatch if chunks or shards do not have singleton dimensions on
+        # channels
+        if isinstance(image_stack, ZarrImageStack):
+            additional_metadata = {
+                "chunks": str(image_stack.chunks),
+            }
+
+            if image_stack.shards is not None:
+                additional_metadata["shards"] = str(image_stack.shards)
+        else:
+            additional_metadata = {}
+
         return ImageRegionData(
             data=patch,
             source=str(image_stack.source),
             dtype=str(image_stack.data_dtype),
             data_shape=image_stack.data_shape,
-            chunks=image_stack.chunks,
             # TODO: should it be axes of the original image instead?
             axes=self.config.axes,
             region_spec=patch_spec,
+            additional_metadata=additional_metadata,
         )
 
     def _extract_patches(

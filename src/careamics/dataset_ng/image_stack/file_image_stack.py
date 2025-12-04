@@ -36,8 +36,6 @@ class FileImageStack:
         self.read_func = read_func
         self.read_kwargs = read_kwargs
         self._data: NDArray | None = None
-        self.chunks: Sequence[int] = (1,)  # ImageStack protocol, unused here
-        self.shards: Sequence[int] = (1,)  # same
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
