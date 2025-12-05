@@ -48,6 +48,9 @@ def _update_data_shape(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
 def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
     """Generate automatic chunk sizes based on axes and shape.
 
+    Spatial dimensions will be chunked with a maximum size of 64, other dimensions
+    will have chunk size 1.
+
     Parameters
     ----------
     axes : str
