@@ -176,9 +176,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         data_idx = patch_spec["data_idx"]
         image_stack: GenericImageStack = extractor.image_stacks[data_idx]
 
-        # TODO if `channels` is not None or covering all channels, then there might
-        # be a mismatch if chunks or shards do not have singleton dimensions on
-        # channels
         if isinstance(image_stack, ZarrImageStack):
             additional_metadata = {
                 "chunks": str(image_stack.chunks),
