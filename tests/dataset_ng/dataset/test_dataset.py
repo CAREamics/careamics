@@ -81,11 +81,13 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
     )
 
     n_channels = len(channels) if channels is not None else data_shape[0]
-    train_data_config.set_means_and_stds(
-        [0 for _ in range(n_channels)],
-        [1 for _ in range(n_channels)],
-        [0 for _ in range(n_channels)],
-        [1 for _ in range(n_channels)],
+    train_data_config.normalization.set_input_stats(
+        means=[0 for _ in range(n_channels)],
+        stds=[1 for _ in range(n_channels)],
+    )
+    train_data_config.normalization.set_target_stats(
+        means=[0 for _ in range(n_channels)],
+        stds=[1 for _ in range(n_channels)],
     )
 
     train_dataset = create_dataset(

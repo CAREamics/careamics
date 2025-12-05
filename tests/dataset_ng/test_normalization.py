@@ -1,7 +1,6 @@
 import numpy as np
 
 from careamics.config.data import NGDataConfig
-from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
 
 
@@ -10,6 +9,7 @@ def test_standardization_with_known_stats():
     data = rng.normal(loc=100.0, scale=25.0, size=(64, 64)).astype(np.float32)
 
     config = NGDataConfig(
+        mode="predicting",
         data_type="array",
         axes="YX",
         patching={"name": "whole"},
@@ -19,9 +19,7 @@ def test_standardization_with_known_stats():
             "input_stds": [25.0],
         },
     )
-    dataset = create_dataset(
-        config=config, mode=Mode.PREDICTING, inputs=[data], targets=None, in_memory=True
-    )
+    dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
     assert np.abs(sample.data.mean()) < 0.5
@@ -36,14 +34,13 @@ def test_standardization_auto_computes_stats():
     data = rng.integers(0, 255, size=(64, 64), dtype=np.uint8).astype(np.float32)
 
     config = NGDataConfig(
+        mode="predicting",
         data_type="array",
         axes="YX",
         patching={"name": "whole"},
         normalization={"name": "standardize"},
     )
-    dataset = create_dataset(
-        config=config, mode=Mode.PREDICTING, inputs=[data], targets=None, in_memory=True
-    )
+    dataset = create_dataset(config=config, inputs=[data], targets=None)
 
     assert config.normalization.input_means is not None
     assert config.normalization.input_stds is not None
@@ -60,6 +57,7 @@ def test_minmax_with_known_range():
     data = rng.integers(10, 200, size=(64, 64), dtype=np.uint8).astype(np.float32)
 
     config = NGDataConfig(
+        mode="predicting",
         data_type="array",
         axes="YX",
         patching={"name": "whole"},
@@ -69,9 +67,7 @@ def test_minmax_with_known_range():
             "input_maxes": [255.0],
         },
     )
-    dataset = create_dataset(
-        config=config, mode=Mode.PREDICTING, inputs=[data], targets=None, in_memory=True
-    )
+    dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
     assert sample.data.min() >= 0.0
@@ -86,14 +82,13 @@ def test_minmax_auto_computes_range():
     data = rng.integers(50, 200, size=(64, 64), dtype=np.uint8).astype(np.float32)
 
     config = NGDataConfig(
+        mode="predicting",
         data_type="array",
         axes="YX",
         patching={"name": "whole"},
         normalization={"name": "minmax"},
     )
-    dataset = create_dataset(
-        config=config, mode=Mode.PREDICTING, inputs=[data], targets=None, in_memory=True
-    )
+    dataset = create_dataset(config=config, inputs=[data], targets=None)
 
     assert config.normalization.input_mins is not None
     assert config.normalization.input_maxes is not None
@@ -112,6 +107,7 @@ def test_quantile_clips_outliers():
     data[0, 1] = 255.0
 
     config = NGDataConfig(
+        mode="predicting",
         data_type="array",
         axes="YX",
         patching={"name": "whole"},
@@ -121,9 +117,7 @@ def test_quantile_clips_outliers():
             "upper_quantile": 0.99,
         },
     )
-    dataset = create_dataset(
-        config=config, mode=Mode.PREDICTING, inputs=[data], targets=None, in_memory=True
-    )
+    dataset = create_dataset(config=config, inputs=[data], targets=None)
 
     assert config.normalization.input_lower_quantile_values is not None
     assert config.normalization.input_upper_quantile_values is not None
@@ -138,14 +132,13 @@ def test_no_normalization_preserves_values():
     data = rng.integers(0, 255, size=(64, 64), dtype=np.uint8).astype(np.float32)
 
     config = NGDataConfig(
+        mode="predicting",
         data_type="array",
         axes="YX",
         patching={"name": "whole"},
         normalization={"name": "none"},
     )
-    dataset = create_dataset(
-        config=config, mode=Mode.PREDICTING, inputs=[data], targets=None, in_memory=True
-    )
+    dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
     assert np.allclose(sample.data[0], data)
@@ -162,6 +155,7 @@ def test_standardization_per_channel():
     data = np.stack([ch0, ch1, ch2], axis=0)
 
     config = NGDataConfig(
+        mode="predicting",
         data_type="array",
         axes="CYX",
         patching={"name": "whole"},
@@ -171,9 +165,7 @@ def test_standardization_per_channel():
             "input_stds": [10.0, 20.0, 5.0],
         },
     )
-    dataset = create_dataset(
-        config=config, mode=Mode.PREDICTING, inputs=[data], targets=None, in_memory=True
-    )
+    dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
     for ch in range(3):
@@ -188,6 +180,7 @@ def test_minmax_per_channel_different_ranges():
     data = np.stack([ch0, ch1], axis=0)
 
     config = NGDataConfig(
+        mode="predicting",
         data_type="array",
         axes="CYX",
         patching={"name": "whole"},
@@ -197,9 +190,7 @@ def test_minmax_per_channel_different_ranges():
             "input_maxes": [100.0, 1000.0],
         },
     )
-    dataset = create_dataset(
-        config=config, mode=Mode.PREDICTING, inputs=[data], targets=None, in_memory=True
-    )
+    dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
     for ch in range(2):
@@ -213,6 +204,7 @@ def test_input_and_target_have_independent_stats():
     target_data = rng.normal(loc=150, scale=30, size=(64, 64)).astype(np.float32)
 
     config = NGDataConfig(
+        mode="training",
         data_type="array",
         axes="YX",
         patching={"name": "random", "patch_size": (32, 32)},
@@ -226,10 +218,8 @@ def test_input_and_target_have_independent_stats():
     )
     dataset = create_dataset(
         config=config,
-        mode=Mode.TRAINING,
         inputs=[input_data],
         targets=[target_data],
-        in_memory=True,
     )
     input_sample, target_sample = dataset[0]
 
