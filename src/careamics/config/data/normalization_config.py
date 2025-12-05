@@ -102,8 +102,8 @@ class StandardizeConfig(BaseModel):
         stds : list[float]
             Standard deviation values per channel.
         """
-        self.__dict__["input_means"] = means
-        self.__dict__["input_stds"] = stds
+        self.__dict__["input_means"] = [float(m) for m in means]
+        self.__dict__["input_stds"] = [float(s) for s in stds]
         self.__class__.model_validate(self)
 
     def set_target_stats(self, means: list[float], stds: list[float]) -> None:
@@ -117,8 +117,8 @@ class StandardizeConfig(BaseModel):
         stds : list[float]
             Standard deviation values per channel.
         """
-        self.__dict__["target_means"] = means
-        self.__dict__["target_stds"] = stds
+        self.__dict__["target_means"] = [float(m) for m in means]
+        self.__dict__["target_stds"] = [float(s) for s in stds]
         self.__class__.model_validate(self)
 
 
@@ -319,8 +319,8 @@ class QuantileConfig(BaseModel):
         upper : list[float]
             Upper quantile values per channel.
         """
-        self.__dict__["input_lower_quantile_values"] = lower
-        self.__dict__["input_upper_quantile_values"] = upper
+        self.__dict__["input_lower_quantile_values"] = [float(v) for v in lower]
+        self.__dict__["input_upper_quantile_values"] = [float(v) for v in upper]
         self.__class__.model_validate(self)
 
     def set_target_quantile_values(
@@ -336,8 +336,8 @@ class QuantileConfig(BaseModel):
         upper : list[float]
             Upper quantile values per channel.
         """
-        self.__dict__["target_lower_quantile_values"] = lower
-        self.__dict__["target_upper_quantile_values"] = upper
+        self.__dict__["target_lower_quantile_values"] = [float(v) for v in lower]
+        self.__dict__["target_upper_quantile_values"] = [float(v) for v in upper]
         self.__class__.model_validate(self)
 
 
@@ -430,8 +430,8 @@ class MinMaxConfig(BaseModel):
         maxes : list[float]
             Maximum values per channel.
         """
-        self.__dict__["input_mins"] = mins
-        self.__dict__["input_maxes"] = maxes
+        self.__dict__["input_mins"] = [float(v) for v in mins]
+        self.__dict__["input_maxes"] = [float(v) for v in maxes]
         self.__class__.model_validate(self)
 
     def set_target_range(self, mins: list[float], maxes: list[float]) -> None:
@@ -445,8 +445,8 @@ class MinMaxConfig(BaseModel):
         maxes : list[float]
             Maximum values per channel.
         """
-        self.__dict__["target_mins"] = mins
-        self.__dict__["target_maxes"] = maxes
+        self.__dict__["target_mins"] = [float(v) for v in mins]
+        self.__dict__["target_maxes"] = [float(v) for v in maxes]
         self.__class__.model_validate(self)
 
 
