@@ -39,9 +39,6 @@ def prediction_writer_callback(write_strategy: WriteStrategy, dirpath: Path | st
     return PredictionWriterCallback(write_strategy=write_strategy, dirpath=dirpath)
 
 
-# TODO: smoke test with tiff (& example custom save func?)
-
-
 @pytest.mark.mps_gh_fail
 def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     rng = np.random.default_rng(42)

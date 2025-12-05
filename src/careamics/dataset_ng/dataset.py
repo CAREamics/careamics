@@ -31,10 +31,9 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     axes: str
     region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
 
-    additional_metadata: dict[str, str]
-    """Additional metadata to be stored with the image region. Values should be strings
-    to be collated properly. Currently used to store chunk and shard information for
-    zarr image stacks."""
+    additional_metadata: dict[str, Any]
+    """Additional metadata to be stored with the image region. Currently used to store
+    chunk and shard information for zarr image stacks."""
 
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
@@ -178,11 +177,11 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         if isinstance(image_stack, ZarrImageStack):
             additional_metadata = {
-                "chunks": str(image_stack.chunks),
+                "chunks": image_stack.chunks,
             }
 
             if image_stack.shards is not None:
-                additional_metadata["shards"] = str(image_stack.shards)
+                additional_metadata["shards"] = image_stack.shards
         else:
             additional_metadata = {}
 

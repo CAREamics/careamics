@@ -1,6 +1,5 @@
 """Tile Zarr writing strategy."""
 
-import ast
 import builtins
 from collections.abc import Sequence
 from pathlib import Path
@@ -263,11 +262,11 @@ class WriteTilesZarr:
 
         if self.current_array is None or self.current_array.basename != array_name:
             shape = region.data_shape
-            chunks: tuple[int, ...] = ast.literal_eval(
-                region.additional_metadata.get("chunks", "None")
+            chunks: tuple[int, ...] | None = region.additional_metadata.get(
+                "chunks", None
             )
-            shards: tuple[int, ...] | None = ast.literal_eval(
-                region.additional_metadata.get("shards", "None")
+            shards: tuple[int, ...] | None = region.additional_metadata.get(
+                "shards", None
             )
             self._create_array(array_name, region.axes, shape, shards, chunks)
 

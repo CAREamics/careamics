@@ -33,8 +33,8 @@ def create_image_region(
         axes=axes,
         region_spec=patch_spec,
         additional_metadata={
-            "shards": str(shards),
-            "chunks": str(chunks),
+            "shards": shards,
+            "chunks": chunks,
         },
     )
 
@@ -169,11 +169,9 @@ def test_write_tile_identity(tmp_path, zarr_path, axes):
 
 
 # TODO test chunking and sharding errors and handling (e.g. when missing)
-# TODO test that different chunk sizes are handled correctly
-# TODO test writing different arrays, and in different groups and zarr files
 
 
-# TODO refactor this test to make simpler
+# TODO refactor this test to make it simpler
 def test_zarr_prediction_callback_identity(tmp_path):
     """Test writing multiple arrays in a different hierarchy levels."""
     # create data

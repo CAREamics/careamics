@@ -45,8 +45,8 @@ def batches(source_name: str) -> list[ImageRegionData]:
                         "patch_size": (4, i),
                     },
                     additional_metadata={
-                        "chunks": str((1, 1, 16, 16)),
-                        "shards": str((1, 1, 32, 32)),
+                        "chunks": (1, 1, 16, 16),
+                        "shards": (1, 1, 32, 32),
                     },
                 )
             )
@@ -127,8 +127,8 @@ def test_decollate_image_region_data(n_batch) -> None:
                     "patch_size": (4, 4),
                 },
                 additional_metadata={
-                    "chunks": f"(1, 1, 16, {i})",
-                    "shards": f"(1, 1, 32, {i*2})",
+                    "chunks": (1, 1, 16, i),
+                    "shards": (1, 1, 32, i * 2),
                 },
             )
         )
