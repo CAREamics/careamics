@@ -78,7 +78,9 @@ def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
 
         if axis in ("Z", "Y", "X"):
             dim_size = data_shape[sczyx_index + sczyx_offset]
-            chunk_sizes.append(min(64, dim_size))
+            chunk_sizes.append(
+                min(64, dim_size)
+            )  # TODO arbitrary value, need benchmark
         else:
             chunk_sizes.append(1)
 
