@@ -112,6 +112,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             patching_strategy=self.patching_strategy,
             input_extractor=self.input_extractor,
             target_extractor=self.target_extractor,
+            channels=self.config.channels,
         )
         self.normalization = create_normalization(self.config.normalization)
 

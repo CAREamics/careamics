@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import numpy as np
 from numpy.typing import NDArray
 from tqdm import tqdm
@@ -18,6 +20,7 @@ from careamics.dataset_ng.patching_strategies import PatchingStrategy
 def _compute_mean_std(
     data_extractor: PatchExtractor,
     patching_strategy: PatchingStrategy,
+    channels: Sequence[int] | None = None,
 ) -> tuple[list[float], list[float]]:
     """Compute mean and std from data."""
     image_stats = WelfordStatistics()
@@ -25,9 +28,10 @@ def _compute_mean_std(
 
     for idx in tqdm(range(n_patches), desc="Computing mean/std statistics"):
         patch_spec = patching_strategy.get_patch_spec(idx)
-        patch = data_extractor.extract_patch(
+        patch = data_extractor.extract_channel_patch(
             data_idx=patch_spec["data_idx"],
             sample_idx=patch_spec["sample_idx"],
+            channels=channels,
             coords=patch_spec["coords"],
             patch_size=patch_spec["patch_size"],
         )
@@ -40,6 +44,7 @@ def _compute_mean_std(
 def _compute_min_max(
     data_extractor: PatchExtractor,
     patching_strategy: PatchingStrategy,
+    channels: Sequence[int] | None = None,
 ) -> tuple[list[float], list[float]]:
     """Compute min and max from data."""
     n_patches = patching_strategy.n_patches
@@ -59,9 +64,10 @@ def _compute_min_max(
 
     for idx in tqdm(range(1, n_patches), desc="Computing min/max statistics"):
         patch_spec = patching_strategy.get_patch_spec(idx)
-        patch = data_extractor.extract_patch(
+        patch = data_extractor.extract_channel_patch(
             data_idx=patch_spec["data_idx"],
             sample_idx=patch_spec["sample_idx"],
+            channels=channels,
             coords=patch_spec["coords"],
             patch_size=patch_spec["patch_size"],
         )
@@ -78,25 +84,9 @@ def _compute_quantiles(
     patching_strategy: PatchingStrategy,
     lower_quantiles: list[float],
     upper_quantiles: list[float],
+    channels: Sequence[int] | None = None,
 ) -> tuple[list[float], list[float]]:
-    """Compute quantile values from data.
-
-    Parameters
-    ----------
-    data_extractor : PatchExtractor
-        Extractor for data patches.
-    patching_strategy : PatchingStrategy
-        Strategy for iterating over patches.
-    lower_quantiles : list[float]
-        Lower quantile levels, one per channel.
-    upper_quantiles : list[float]
-        Upper quantile levels, one per channel.
-
-    Returns
-    -------
-    tuple[list[float], list[float]]
-        Lower and upper quantile values, one per channel.
-    """
+    """Compute quantile values from data."""
     estimator = QuantileEstimator(
         lower_quantiles=lower_quantiles,
         upper_quantiles=upper_quantiles,
@@ -105,9 +95,10 @@ def _compute_quantiles(
     n_patches = patching_strategy.n_patches
     for idx in tqdm(range(n_patches), desc="Computing quantile statistics"):
         patch_spec = patching_strategy.get_patch_spec(idx)
-        patch = data_extractor.extract_patch(
+        patch = data_extractor.extract_channel_patch(
             data_idx=patch_spec["data_idx"],
             sample_idx=patch_spec["sample_idx"],
+            channels=channels,
             coords=patch_spec["coords"],
             patch_size=patch_spec["patch_size"],
         )
@@ -122,6 +113,7 @@ def resolve_normalization_config(
     patching_strategy: PatchingStrategy,
     input_extractor: PatchExtractor,
     target_extractor: PatchExtractor | None = None,
+    channels: Sequence[int] | None = None,
 ) -> NormalizationConfig:
     """
     Resolve a normalization config by computing any missing statistics.
@@ -135,6 +127,8 @@ def resolve_normalization_config(
         The normalization configuration (may have missing statistics).
     patching_strategy : PatchingStrategy
         Strategy for iterating over patches.
+    channels : list[int]
+        Channels to compute statistics for.
     input_extractor : PatchExtractor
         Extractor for input data.
     target_extractor : PatchExtractor, optional
@@ -151,13 +145,13 @@ def resolve_normalization_config(
     if isinstance(norm_config, StandardizeConfig):
         if norm_config.needs_computation():
             input_means, input_stds = _compute_mean_std(
-                input_extractor, patching_strategy
+                input_extractor, patching_strategy, channels
             )
             norm_config.set_input_stats(input_means, input_stds)
 
         if target_extractor is not None and norm_config.target_means is None:
             target_means, target_stds = _compute_mean_std(
-                target_extractor, patching_strategy
+                target_extractor, patching_strategy, channels
             )
             norm_config.set_target_stats(target_means, target_stds)
 
@@ -166,13 +160,13 @@ def resolve_normalization_config(
     if isinstance(norm_config, MinMaxConfig):
         if norm_config.needs_computation():
             input_mins, input_maxes = _compute_min_max(
-                input_extractor, patching_strategy
+                input_extractor, patching_strategy, channels
             )
             norm_config.set_input_range(input_mins, input_maxes)
 
         if target_extractor is not None and norm_config.target_mins is None:
             target_mins, target_maxes = _compute_min_max(
-                target_extractor, patching_strategy
+                target_extractor, patching_strategy, channels
             )
             norm_config.set_target_range(target_mins, target_maxes)
 
@@ -181,9 +175,10 @@ def resolve_normalization_config(
     if isinstance(norm_config, QuantileConfig):
         if norm_config.needs_computation():
             first_spec = patching_strategy.get_patch_spec(0)
-            first_patch = input_extractor.extract_patch(
+            first_patch = input_extractor.extract_channel_patch(
                 data_idx=first_spec["data_idx"],
                 sample_idx=first_spec["sample_idx"],
+                channels=channels,
                 coords=first_spec["coords"],
                 patch_size=first_spec["patch_size"],
             )
@@ -197,6 +192,7 @@ def resolve_normalization_config(
                 patching_strategy,
                 lower_levels,
                 upper_levels,
+                channels=channels,
             )
             norm_config.set_input_quantile_values(lower_values, upper_values)
 
@@ -205,9 +201,10 @@ def resolve_normalization_config(
             and norm_config.target_lower_quantile_values is None
         ):
             first_spec = patching_strategy.get_patch_spec(0)
-            first_patch = target_extractor.extract_patch(
+            first_patch = target_extractor.extract_channel_patch(
                 data_idx=first_spec["data_idx"],
                 sample_idx=first_spec["sample_idx"],
+                channels=channels,
                 coords=first_spec["coords"],
                 patch_size=first_spec["patch_size"],
             )
@@ -221,6 +218,7 @@ def resolve_normalization_config(
                 patching_strategy,
                 lower_levels,
                 upper_levels,
+                channels=channels,
             )
             norm_config.set_target_quantile_values(target_lower, target_upper)
 
