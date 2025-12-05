@@ -28,10 +28,13 @@ def test_zarr_data_module(zarr_with_target_and_mask):
         coord_filter={"name": "mask"},
         batch_size=1,
         seed=42,
-        image_means=[0],
-        image_stds=[1],
-        target_means=[0],
-        target_stds=[1],
+        normalization={
+            "name": "standardize",
+            "input_means": [0],
+            "input_stds": [1],
+            "target_means": [0],
+            "target_stds": [1],
+        },
     )
 
     datamodule = CareamicsDataModule(

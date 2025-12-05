@@ -35,11 +35,13 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         seed=42,
     )
 
-    train_data_config.set_means_and_stds(
-        [example_input.mean()],
-        [example_input.std()],
-        [example_target.mean()],
-        [example_target.std()],
+    train_data_config.normalization.set_input_stats(
+        means=[example_input.mean()],
+        stds=[example_input.std()],
+    )
+    train_data_config.normalization.set_target_stats(
+        means=[example_target.mean()],
+        stds=[example_target.std()],
     )
 
     train_dataset = create_dataset(
@@ -86,11 +88,13 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
         seed=42,
     )
 
-    train_data_config.set_means_and_stds(
-        [example_input.mean()],
-        [example_input.std()],
-        [example_target.mean()],
-        [example_target.std()],
+    train_data_config.normalization.set_input_stats(
+        means=[example_input.mean()],
+        stds=[example_input.std()],
+    )
+    train_data_config.normalization.set_target_stats(
+        means=[example_target.mean()],
+        stds=[example_target.std()],
     )
 
     train_dataset = create_dataset(
@@ -130,8 +134,11 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
             "overlaps": tile_overlap,
         },
         axes="YX",
-        image_means=[example_data.mean()],
-        image_stds=[example_data.std()],
+        normalization={
+            "name": "standardize",
+            "input_means": [example_data.mean()],
+            "input_stds": [example_data.std()],
+        },
         transforms=_list_spatial_augmentations(),
         batch_size=1,
         seed=42,
@@ -174,11 +181,13 @@ def test_from_custom_data_type(patch_size, data_shape):
         seed=42,
     )
 
-    train_data_config.set_means_and_stds(
-        [example_data.mean()],
-        [example_data.std()],
-        [example_target.mean()],
-        [example_target.std()],
+    train_data_config.normalization.set_input_stats(
+        means=[example_data.mean()],
+        stds=[example_data.std()],
+    )
+    train_data_config.normalization.set_target_stats(
+        means=[example_target.mean()],
+        stds=[example_target.std()],
     )
 
     def read_data_func_test(data):
@@ -240,8 +249,9 @@ def test_array_coordinate_filtering():
 
     # check that we only get patches with at least half of 255 pixels
     threshold = 255 // 2
-    stats = train_dataset.input_stats
-    normed_thresh = (threshold - stats.means[0]) / stats.stds[0]
+    means = train_dataset.normalization.input_means
+    stds = train_dataset.normalization.input_stds
+    normed_thresh = (threshold - means[0]) / stds[0]
     for i in range(len(train_dataset)):
         (sample,) = train_dataset[i]
         assert sample.data.mean() > normed_thresh
@@ -281,8 +291,9 @@ def test_array_patch_filtering():
     )
 
     # check that we only get the full 255 patch (in normalized units)
-    stats = train_dataset.input_stats
-    normed_thresh = (threshold - stats.means[0]) / stats.stds[0]
+    means = train_dataset.normalization.input_means
+    stds = train_dataset.normalization.input_stds
+    normed_thresh = (threshold - means[0]) / stds[0]
     for i in range(len(train_dataset)):
         (sample,) = train_dataset[i]
         assert sample.data.mean() >= normed_thresh

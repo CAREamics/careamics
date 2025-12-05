@@ -103,8 +103,8 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
 
     # predict
     predict_writer.set_writing_strategy(write_type="tiff", tiled=True)
-    means = data.train_dataset.input_stats.means
-    stds = data.train_dataset.input_stats.stds
+    means = data.train_dataset.config.normalization.input_means
+    stds = data.train_dataset.config.normalization.input_stds
 
     pred_dataset_cfg = NGDataConfig(
         data_type="tiff",
@@ -116,8 +116,11 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
             "overlaps": (2, 2),
         },
         transforms=[],
-        image_means=means,
-        image_stds=stds,
+        normalization={
+            "name": "standardize",
+            "input_means": means,
+            "input_stds": stds,
+        },
     )
     predict_data = CareamicsDataModule(
         data_config=pred_dataset_cfg,
@@ -200,8 +203,8 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
 
     # predict
     predict_writer.set_writing_strategy(write_type="tiff", tiled=False)
-    means = data.train_dataset.input_stats.means
-    stds = data.train_dataset.input_stats.stds
+    means = data.train_dataset.config.normalization.input_means
+    stds = data.train_dataset.config.normalization.input_stds
 
     pred_dataset_cfg = NGDataConfig(
         data_type="tiff",
@@ -211,8 +214,11 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
             "name": "whole",
         },
         transforms=[],
-        image_means=means,
-        image_stds=stds,
+        normalization={
+            "name": "standardize",
+            "input_means": means,
+            "input_stds": stds,
+        },
     )
     predict_data = CareamicsDataModule(
         data_config=pred_dataset_cfg,
@@ -292,8 +298,8 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
 
     # predict
     predict_writer.set_writing_strategy(write_type="zarr", tiled=True)
-    means = data.train_dataset.input_stats.means
-    stds = data.train_dataset.input_stats.stds
+    means = data.train_dataset.config.normalization.input_means
+    stds = data.train_dataset.config.normalization.input_stds
 
     pred_dataset_cfg = NGDataConfig(
         data_type="zarr",
@@ -305,8 +311,11 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
             "overlaps": (2, 2),
         },
         transforms=[],
-        image_means=means,
-        image_stds=stds,
+        normalization={
+            "name": "standardize",
+            "input_means": means,
+            "input_stds": stds,
+        },
     )
     predict_data = CareamicsDataModule(
         data_config=pred_dataset_cfg,
