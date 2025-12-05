@@ -5,11 +5,10 @@ import pytest
 import tifffile
 
 from careamics.config.configuration_factories import (
-    _create_ng_data_configuration,
     _list_spatial_augmentations,
+    create_ng_data_configuration,
 )
 from careamics.config.data import NGDataConfig
-from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
 
 
@@ -26,12 +25,13 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
     example_input = rng.random(data_shape)
     example_target = rng.random(data_shape)
 
-    train_data_config = _create_ng_data_configuration(
+    train_data_config = create_ng_data_configuration(
         data_type="array",
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
         augmentations=_list_spatial_augmentations(),
+        in_memory=True,
         seed=42,
     )
 
@@ -46,10 +46,8 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[example_input],
         targets=[example_target],
-        in_memory=True,
     )
 
     assert len(train_dataset) == expected_dataset_len
@@ -58,6 +56,55 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
     sample, target = output
     assert sample.data.shape == (1, *patch_size)
     assert target.data.shape == (1, *patch_size)
+
+
+@pytest.mark.parametrize(
+    "data_shape, patch_size, channels",
+    [
+        ((3, 32, 32), (8, 8), None),
+        ((3, 32, 32), (8, 8), [1]),
+        ((3, 32, 32), (8, 8), [0, 2]),
+    ],
+)
+def test_from_array_with_channels(data_shape, patch_size, channels):
+    rng = np.arange(np.prod(data_shape)).reshape(data_shape)
+    for i in range(data_shape[0]):
+        rng[0] *= i * 1_000
+
+    train_data_config = create_ng_data_configuration(
+        data_type="array",
+        axes="CYX",
+        patch_size=patch_size,
+        batch_size=1,
+        channels=channels,
+        seed=42,
+    )
+
+    n_channels = len(channels) if channels is not None else data_shape[0]
+    train_data_config.set_means_and_stds(
+        [0 for _ in range(n_channels)],
+        [1 for _ in range(n_channels)],
+        [0 for _ in range(n_channels)],
+        [1 for _ in range(n_channels)],
+    )
+
+    train_dataset = create_dataset(
+        config=train_data_config,
+        inputs=[rng],
+        targets=[rng],
+    )
+
+    sample, target = train_dataset[0]
+    assert sample.data.shape[0] == data_shape[0] if channels is None else len(channels)
+    assert target.data.shape[0] == data_shape[0] if channels is None else len(channels)
+
+    if channels is not None:
+        for sample, target in train_dataset:
+            for i, ch in enumerate(channels):
+                assert np.all(ch * 1000 <= sample.data[i])
+                assert np.all((ch + 1) * 1000 >= sample.data[i])
+                assert np.all(ch * 1000 <= target.data[i])
+                assert np.all((ch + 1) * 1000 >= target.data[i])
 
 
 @pytest.mark.parametrize(
@@ -79,12 +126,13 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
     tifffile.imwrite(input_file_path, example_input)
     tifffile.imwrite(target_file_path, example_target)
 
-    train_data_config = _create_ng_data_configuration(
+    train_data_config = create_ng_data_configuration(
         data_type="tiff",
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
         augmentations=_list_spatial_augmentations(),
+        in_memory=True,
         seed=42,
     )
 
@@ -99,10 +147,8 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[input_file_path],
         targets=[target_file_path],
-        in_memory=True,
     )
 
     assert len(train_dataset) == expected_dataset_len
@@ -127,6 +173,7 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
     example_data = rng.random(data_shape)
 
     prediction_config = NGDataConfig(
+        mode="predicting",
         data_type="array",
         patching={
             "name": "tiled",
@@ -146,10 +193,8 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
 
     prediction_dataset = create_dataset(
         config=prediction_config,
-        mode=Mode.PREDICTING,
         inputs=[example_data],
         targets=None,
-        in_memory=True,
     )
 
     assert len(prediction_dataset) > 0
@@ -172,12 +217,13 @@ def test_from_custom_data_type(patch_size, data_shape):
     example_data = rng.random(data_shape)
     example_target = rng.random(data_shape)
 
-    train_data_config = _create_ng_data_configuration(
+    train_data_config = create_ng_data_configuration(
         data_type="custom",
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
         augmentations=_list_spatial_augmentations(),
+        in_memory=True,
         seed=42,
     )
 
@@ -195,10 +241,8 @@ def test_from_custom_data_type(patch_size, data_shape):
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[example_data],
         targets=[example_target],
-        in_memory=True,
         read_func=read_data_func_test,
         read_kwargs={},
     )
@@ -223,12 +267,13 @@ def test_array_coordinate_filtering():
     mask[coords] = 1
     img[coords] = 255
 
-    train_data_config = _create_ng_data_configuration(
+    train_data_config = create_ng_data_configuration(
         data_type="array",
         axes="YX",
         patch_size=(8, 8),
         batch_size=1,
         augmentations=[],
+        in_memory=True,
         seed=42,
     )
 
@@ -240,11 +285,9 @@ def test_array_coordinate_filtering():
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[img],
         targets=None,
         masks=[mask],
-        in_memory=True,
     )
 
     # check that we only get patches with at least half of 255 pixels
@@ -267,12 +310,13 @@ def test_array_patch_filtering():
     coords = (slice(8, 24), slice(8, 24))
     img[coords] = 255
 
-    train_data_config = _create_ng_data_configuration(
+    train_data_config = create_ng_data_configuration(
         data_type="array",
         axes="YX",
         patch_size=(8, 8),
         batch_size=1,
         augmentations=[],
+        in_memory=True,
         seed=42,
     )
     threshold = 255 // 2
@@ -284,10 +328,8 @@ def test_array_patch_filtering():
 
     train_dataset = create_dataset(
         config=train_data_config,
-        mode=Mode.TRAINING,
         inputs=[img],
         targets=None,
-        in_memory=True,
     )
 
     # check that we only get the full 255 patch (in normalized units)
@@ -312,20 +354,19 @@ def test_error_data_smaller_than_patch():
     example_input = rng.random(data_shape)
     example_target = rng.random(data_shape)
 
-    train_data_config = _create_ng_data_configuration(
+    train_data_config = create_ng_data_configuration(
         data_type="array",
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
         augmentations=_list_spatial_augmentations(),
+        in_memory=True,
         seed=42,
     )
 
     with pytest.raises(ValueError):
         _ = create_dataset(
             config=train_data_config,
-            mode=Mode.TRAINING,
             inputs=[example_input],
             targets=[example_target],
-            in_memory=True,
         )

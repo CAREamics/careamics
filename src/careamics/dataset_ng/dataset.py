@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from enum import Enum
 from pathlib import Path
 from typing import Any, Generic, Literal, NamedTuple, Union
 
@@ -7,10 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
-from careamics.config.data.ng_data_config import NGDataConfig, WholePatchingConfig
-from careamics.config.support.supported_patching_strategies import (
-    SupportedPatchingStrategy,
-)
+from careamics.config.data.ng_data_config import Mode, NGDataConfig, WholePatchingConfig
 from careamics.transforms import Compose
 
 from .image_stack import GenericImageStack
@@ -19,20 +15,10 @@ from .normalization.statistics import resolve_normalization_config
 from .patch_extractor import PatchExtractor
 from .patch_filter import create_coord_filter, create_patch_filter
 from .patching_strategies import (
-    FixedRandomPatchingStrategy,
-    PatchingStrategy,
     PatchSpecs,
-    RandomPatchingStrategy,
     RegionSpecs,
-    TilingStrategy,
-    WholeSamplePatchingStrategy,
+    create_patching_strategy,
 )
-
-
-class Mode(str, Enum):
-    TRAINING = "training"
-    VALIDATING = "validating"
-    PREDICTING = "predicting"
 
 
 class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
@@ -79,7 +65,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
         data_config: NGDataConfig,
-        mode: Mode,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
         mask_extractor: PatchExtractor[GenericImageStack] | None = None,
@@ -89,7 +74,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         data_shapes = [
             image_stack.data_shape for image_stack in input_extractor.image_stacks
         ]
-        if mode != Mode.PREDICTING:
+        if data_config.mode != Mode.PREDICTING:
             if not isinstance(
                 data_config.patching, WholePatchingConfig
             ) and not _patch_size_within_data_shapes(
@@ -101,7 +86,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 )
 
         self.config = data_config
-        self.mode = mode
 
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
@@ -118,7 +102,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         )
         self.patch_filter_patience = self.config.patch_filter_patience
 
-        self.patching_strategy = self._initialize_patching_strategy()
+        self.patching_strategy = create_patching_strategy(
+            data_shapes=self.input_extractor.shapes,
+            patching_config=self.config.patching,
+        )
 
         resolve_normalization_config(
             norm_config=self.config.normalization,
@@ -130,58 +117,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         self.transforms = self._initialize_transforms()
 
-    def _initialize_patching_strategy(self) -> PatchingStrategy:
-        patching_strategy: PatchingStrategy
-        if self.mode == Mode.TRAINING:
-            if self.config.patching.name != SupportedPatchingStrategy.RANDOM:
-                raise ValueError(
-                    f"Only `random` patching strategy supported during training, got "
-                    f"{self.config.patching.name}."
-                )
-
-            patching_strategy = RandomPatchingStrategy(
-                data_shapes=self.input_extractor.shape,
-                patch_size=self.config.patching.patch_size,
-                seed=self.config.seed,
-            )
-        elif self.mode == Mode.VALIDATING:
-            if self.config.patching.name != SupportedPatchingStrategy.RANDOM:
-                raise ValueError(
-                    f"Only `random` patching strategy supported during training, got "
-                    f"{self.config.patching.name}."
-                )
-
-            patching_strategy = FixedRandomPatchingStrategy(
-                data_shapes=self.input_extractor.shape,
-                patch_size=self.config.patching.patch_size,
-                seed=self.config.seed,
-            )
-        elif self.mode == Mode.PREDICTING:
-            if (
-                self.config.patching.name != SupportedPatchingStrategy.TILED
-                and self.config.patching.name != SupportedPatchingStrategy.WHOLE
-            ):
-                raise ValueError(
-                    f"Only `tiled` and `whole` patching strategy supported during "
-                    f"training, got {self.config.patching.name}."
-                )
-            elif self.config.patching.name == SupportedPatchingStrategy.TILED:
-                patching_strategy = TilingStrategy(
-                    data_shapes=self.input_extractor.shape,
-                    tile_size=self.config.patching.patch_size,
-                    overlaps=self.config.patching.overlaps,
-                )
-            else:
-                patching_strategy = WholeSamplePatchingStrategy(
-                    data_shapes=self.input_extractor.shape
-                )
-        else:
-            raise ValueError(f"Unrecognised dataset mode {self.mode}.")
-
-        return patching_strategy
-
     def _initialize_transforms(self) -> Compose | None:
-        if self.mode == Mode.TRAINING:
+        if self.config.mode == Mode.TRAINING:
             return Compose(list(self.config.transforms))
 
         # TODO: add TTA
@@ -210,17 +147,20 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, patch_spec: PatchSpecs
     ) -> tuple[NDArray, NDArray | None]:
         """Extract input and target patches based on patch specifications."""
-        input_patch = self.input_extractor.extract_patch(
+        input_patch = self.input_extractor.extract_channel_patch(
             data_idx=patch_spec["data_idx"],
             sample_idx=patch_spec["sample_idx"],
+            channels=self.config.channels,
             coords=patch_spec["coords"],
             patch_size=patch_spec["patch_size"],
         )
 
         target_patch = (
-            self.target_extractor.extract_patch(
+            self.target_extractor.extract_channel_patch(
                 data_idx=patch_spec["data_idx"],
                 sample_idx=patch_spec["sample_idx"],
+                # TODO does not allow selecting different channels for target
+                channels=self.config.channels,
                 coords=patch_spec["coords"],
                 patch_size=patch_spec["patch_size"],
             )
@@ -233,7 +173,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any] | None, PatchSpecs]:
         """Extract a patch that passes filtering criteria with retry logic."""
-        should_filter = self.mode == Mode.TRAINING and (
+        should_filter = self.config.mode == Mode.TRAINING and (
             self.patch_filter is not None or self.coord_filter is not None
         )
         empty_patch = True

@@ -46,10 +46,31 @@ class PatchExtractor(Generic[GenericImageStack]):
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
+        """Extract a patch from the specified image stack across all channels.
+
+        Eqauivalent to calling `extract_channel_patch` with `channels=None`.
+
+        Parameters
+        ----------
+        data_idx : int
+            Index of the image stack to extract the patch from.
+        sample_idx : int
+            Sample index. The first dimension of the image data will be indexed at this
+            value.
+        coords : Sequence of int
+            The coordinates that define the start of a patch.
+        patch_size : Sequence of int
+            The size of the patch in each spatial dimension.
+
+        Returns
+        -------
+        numpy.ndarray
+            The extracted patch.
+        """
         return self.extract_channel_patch(
             data_idx=data_idx,
             sample_idx=sample_idx,
-            channel_idx=None,
+            channels=None,
             coords=coords,
             patch_size=patch_size,
         )
@@ -58,18 +79,39 @@ class PatchExtractor(Generic[GenericImageStack]):
         self,
         data_idx: int,
         sample_idx: int,
-        channel_idx: int | None,
+        channels: Sequence[int] | None,
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
+        """Extract a patch from the specified image stack.
+
+        Parameters
+        ----------
+        data_idx : int
+            Index of the image stack to extract the patch from.
+        sample_idx : int
+            Sample index. The first dimension of the image data will be indexed at this
+            value.
+        channels : Sequence of int | None
+            Channels to extract. If `None`, all channels are extracted.
+        coords : Sequence of int
+            The coordinates that define the start of a patch.
+        patch_size : Sequence of int
+            The size of the patch in each spatial dimension.
+
+        Returns
+        -------
+        numpy.ndarray
+            The extracted patch.
+        """
         return self.patch_constructor(
             self.image_stacks[data_idx],
             sample_idx=sample_idx,
-            channel_idx=channel_idx,
+            channels=channels,
             coords=coords,
             patch_size=patch_size,
         )
 
     @property
-    def shape(self):
+    def shapes(self) -> list[Sequence[int]]:
         return [stack.data_shape for stack in self.image_stacks]

@@ -63,11 +63,11 @@ def _assert_lc_centralized(lc_patch: NDArray[Any]):
         ((2, 512, 497, 129), (32, 64, 64), "CYXZ"),
     ],
 )
-@pytest.mark.parametrize("channel_idx", [0, None])
+@pytest.mark.parametrize("channels", [[0], None])
 def test_lateral_context_constructor(
     data_shape: tuple[int, ...],
     patch_size: tuple[int, ...],
-    channel_idx: int | None,
+    channels: int | None,
     axes: str,
 ):
     """Test the lateral context patch constructor function."""
@@ -80,7 +80,7 @@ def test_lateral_context_constructor(
     # test coord at edge (which will have padded lc) and coord at centre
     coords = [tuple(0 for _ in patch_size), tuple(ps // 2 for ps in (patch_size))]
     for coord in coords:
-        lc_patch = constructor_func(image_stack, 0, channel_idx, coord, patch_size)
+        lc_patch = constructor_func(image_stack, 0, channels, coord, patch_size)
         assert lc_patch.shape[1] == multiscale_count
         _assert_lc_centralized(lc_patch)
 
@@ -101,9 +101,21 @@ def test_patch_extractor_lc_injection():
 
     # use random patching strategy to generate patch specs and extract lc patches
     patch_size = (64, 64)
-    patching_strat = RandomPatchingStrategy(patch_extractor.shape, patch_size, seed=42)
+    patching_strat = RandomPatchingStrategy(patch_extractor.shapes, patch_size, seed=42)
     for idx in range(patching_strat.n_patches):
         patch_spec = patching_strat.get_patch_spec(idx)
         lc_patch = patch_extractor.extract_patch(**patch_spec)
         assert lc_patch.shape[1] == multiscale_count
         _assert_lc_centralized(lc_patch)
+
+
+def test_lateral_context_constructor_with_channels():
+    """Test that the lateral context constructor raises an error with multiple
+    channels."""
+    rng = np.random.default_rng(seed=42)
+    data = rng.random((2, 512, 496))
+    image_stack = InMemoryImageStack.from_array(data, "CYX")
+
+    constructor_func = lateral_context_patch_constr(4, "reflect")
+    with pytest.raises(NotImplementedError):
+        constructor_func(image_stack, 0, [0, 1], (0, 0), (64, 64))

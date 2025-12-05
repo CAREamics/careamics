@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import pytest
 from numpy.typing import NDArray
@@ -41,7 +43,7 @@ def tiles(n_data, shape, axes) -> tuple[NDArray, list[ImageRegionData]]:
             shape_with_sc = (1, 1, *shape)
 
     tiling_strategy = TilingStrategy(
-        data_shapes=[shape_with_sc] * n_data, tile_size=tile_size, overlaps=overlaps
+        data_shapes=[shape_with_sc] * n_data, patch_size=tile_size, overlaps=overlaps
     )
     n_tiles = tiling_strategy.n_patches
 
@@ -62,7 +64,7 @@ def tiles(n_data, shape, axes) -> tuple[NDArray, list[ImageRegionData]]:
         tiles.append(
             ImageRegionData(
                 data=tile,
-                source="array",
+                source=str(tile_spec["data_idx"]),  # for testing purposes
                 dtype=str(tile.dtype),
                 data_shape=shape,
                 axes=axes,
@@ -80,7 +82,7 @@ def tiles(n_data, shape, axes) -> tuple[NDArray, list[ImageRegionData]]:
         ((32, 32), "YX"),
     ],
 )
-def test_sort_tiles_by_data_index(tiles):
+def test_group_tiles_by_data_index(tiles):
     array, tile_list = tiles
     n_data = array.shape[0]
 
@@ -97,7 +99,7 @@ def test_sort_tiles_by_data_index(tiles):
         (1, (5, 32, 32), "SYX"),
     ],
 )
-def test_sort_tiles_by_sample_index(tiles):
+def test_group_tiles_by_sample_index(tiles):
     array, tile_list = tiles
     n_data = array.shape[1]
 
@@ -164,11 +166,36 @@ def test_stitching_single_prediction(tiles):
         ((5, 3, 8, 32, 32), "SCZYX"),
     ],
 )
-def test_stitching_predicition(tiles):
+def test_stitching_prediction(tiles):
     array, tile_list = tiles
     array = array.squeeze()  # remove sample dim if S=1
 
-    stitched_arrays = stitch_prediction(tile_list)
-    prediction = np.stack(stitched_arrays)
+    stitched_arrays, data_indices = stitch_prediction(tile_list)
 
+    prediction = np.stack(stitched_arrays)
     np.testing.assert_array_equal(prediction, array)
+
+    assert data_indices == [str(i) for i in range(array.shape[0])]
+
+
+# parameters are injected automatically in the tiles fixture
+@pytest.mark.parametrize("n_data", [4])
+@pytest.mark.parametrize(
+    "shape, axes",
+    [
+        ((32, 32), "YX"),
+    ],
+)
+def test_stitching_prediction_ordering(tiles):
+    array, tile_list = tiles
+    array = array.squeeze()  # remove sample dim since S=1
+
+    # shuffle tiles to test ordering
+    random.shuffle(tile_list)
+
+    stitched_arrays, sources = stitch_prediction(tile_list)
+
+    # check that data indices are in order
+    for i, data_idx_str in enumerate(sources):
+        assert data_idx_str == str(i)
+        np.testing.assert_array_equal(stitched_arrays[i], array[i])

@@ -10,8 +10,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .dataset import ImageRegionData
+from .image_stack import ImageStack
 from .patch_extractor import PatchExtractor
-from .patch_extractor.image_stack import ImageStack
 from .patch_filter import PatchFilterProtocol
 from .patching_strategies import PatchingStrategy, PatchSpecs
 
@@ -302,7 +302,7 @@ def get_empty_channel_patches(
             patch = patch_extractor.extract_channel_patch(
                 data_idx=patch_spec["data_idx"],
                 sample_idx=patch_spec["sample_idx"],
-                channel_idx=c,
+                channels=[c],
                 coords=patch_spec["coords"],
                 patch_size=patch_spec["patch_size"],
             )[0]
@@ -350,7 +350,7 @@ def extract_microsplit_patch(
                 patch_extractor.extract_channel_patch(
                     data_idx=patch_spec["data_idx"],
                     sample_idx=patch_spec["sample_idx"],
-                    channel_idx=c,
+                    channels=[c],
                     coords=patch_spec["coords"],
                     patch_size=patch_spec["patch_size"],
                 )

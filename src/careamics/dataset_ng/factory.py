@@ -7,7 +7,7 @@ from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
 
-from .dataset import CareamicsDataset, Mode
+from .dataset import CareamicsDataset
 from .image_stack import (
     GenericImageStack,
     ImageStack,
@@ -30,10 +30,8 @@ P = ParamSpec("P")
 # For lazy loading custom batch sampler also needs to be set.
 def create_dataset(
     config: NGDataConfig,
-    mode: Mode,
     inputs: Any,
     targets: Any,
-    in_memory: bool,
     masks: Any = None,
     read_func: ReadFunc | None = None,
     read_kwargs: dict[str, Any] | None = None,
@@ -47,15 +45,10 @@ def create_dataset(
     ----------
     config : DataConfig or InferenceConfig
         The data configuration.
-    mode : Mode
-        Whether to create the dataset in "training", "validation" or "predicting" mode.
     inputs : Any
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
-    in_memory : bool
-        Whether all the data should be loaded into memory. This is argument is ignored
-        unless the `data_type` in `config` is "tiff" or "custom".
     masks : Any, optional
         The mask sources used to filter patches.
     read_func : ReadFunc, optional
@@ -71,13 +64,15 @@ def create_dataset(
     """
     image_stack_loader = select_image_stack_loader(
         data_type=SupportedData(config.data_type),
-        in_memory=in_memory,
+        in_memory=config.in_memory,
         read_func=read_func,
         read_kwargs=read_kwargs,
         image_stack_loader=image_stack_loader,
         image_stack_loader_kwargs=image_stack_loader_kwargs,
     )
-    patch_extractor_type = select_patch_extractor_type(in_memory)
+    patch_extractor_type = select_patch_extractor_type(
+        data_type=SupportedData(config.data_type), in_memory=config.in_memory
+    )
     input_extractor = init_patch_extractor(
         patch_extractor_type, image_stack_loader, inputs, config.axes
     )
@@ -95,7 +90,6 @@ def create_dataset(
         mask_extractor = None
     return CareamicsDataset(
         data_config=config,
-        mode=mode,
         input_extractor=input_extractor,
         target_extractor=target_extractor,
         mask_extractor=mask_extractor,
@@ -112,11 +106,31 @@ def init_patch_extractor(
     return patch_extractor(image_stacks)
 
 
-def select_patch_extractor_type(in_memory: bool) -> type[PatchExtractor]:
-    if in_memory:
-        return PatchExtractor
-    else:
+def select_patch_extractor_type(
+    data_type: SupportedData,
+    in_memory: bool,
+) -> type[PatchExtractor]:
+    """Select the appropriate PatchExtractor type based on data type and memory mode.
+
+    If `in_memory` is True, or `data_type` is ZARR or CZI, the standard
+    `PatchExtractor` is selected, otherwise the `LimitFilesPatchExtractor` will be used.
+
+    Parameters
+    ----------
+    data_type : SupportedData
+        The type of data being handled.
+    in_memory : bool
+        Indicates whether data is to be loaded into memory.
+
+    Returns
+    -------
+    type[PatchExtractor]
+        The selected PatchExtractor type.
+    """
+    if not in_memory and data_type in (SupportedData.TIFF, SupportedData.CUSTOM):
         return LimitFilesPatchExtractor
+    else:
+        return PatchExtractor
 
 
 def select_image_stack_loader(

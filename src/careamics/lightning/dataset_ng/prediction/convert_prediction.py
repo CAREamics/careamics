@@ -1,6 +1,5 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
-from collections import defaultdict
 from collections.abc import Sequence
 
 import numpy as np
@@ -8,7 +7,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset_ng.dataset import ImageRegionData
 
-from .stitch_prediction import stitch_prediction
+from .stitch_prediction import group_tiles_by_key, stitch_prediction
 
 
 def decollate_image_region_data(
@@ -95,16 +94,15 @@ def combine_samples(
         List of sources, one per unique `data_idx`.
     """
     # group predictions by data idx
-    predictions_by_data_idx: defaultdict[int, list[ImageRegionData]] = defaultdict(list)
-    for image_region in predictions:
-        data_idx = image_region.region_spec["data_idx"]
-        predictions_by_data_idx[data_idx].append(image_region)
+    grouped_prediction: dict[int, list[ImageRegionData]] = group_tiles_by_key(
+        predictions, key="data_idx"
+    )
 
     # sort predictions by sample idx
     combined_predictions: list[NDArray] = []
     combined_sources: list[str] = []
-    for data_idx in sorted(predictions_by_data_idx.keys()):
-        image_regions = predictions_by_data_idx[data_idx]
+    for data_idx in sorted(grouped_prediction.keys()):
+        image_regions = grouped_prediction[data_idx]
         combined_sources.append(image_regions[0].source)
 
         # sort by sample idx
@@ -120,12 +118,15 @@ def combine_samples(
 def convert_prediction(
     predictions: list[ImageRegionData],
     tiled: bool,
-) -> list[NDArray]:
+) -> tuple[list[NDArray], list[str]]:
     """
     Convert the Lightning trainer outputs to the desired form.
 
     This method allows decollating batches and stitching back together tiled
     predictions.
+
+    If the `source` of all predictions is "array" (see `InMemoryImageStack`), then the
+    returned sources list will be empty.
 
     Parameters
     ----------
@@ -137,8 +138,9 @@ def convert_prediction(
     Returns
     -------
     list of numpy.ndarray
-        list of arrays with the axes SC(Z)YX. If there is only 1 output it will not
-        be in a list.
+        List of arrays with the axes SC(Z)YX.
+    list of str
+        List of sources, one per output or empty if all equal to `array`.
     """
     # decollate batches
     decollated_predictions: list[ImageRegionData] = []
@@ -153,8 +155,12 @@ def convert_prediction(
         )
 
     if tiled:
-        predictions_output = stitch_prediction(decollated_predictions)
+        predictions_output, sources = stitch_prediction(decollated_predictions)
     else:
-        predictions_output, _ = combine_samples(decollated_predictions)
-    # TODO squeeze single output?
-    return predictions_output
+        # TODO squeeze single output?
+        predictions_output, sources = combine_samples(decollated_predictions)
+
+    if set(sources) == {"array"}:
+        sources = []
+
+    return predictions_output, sources

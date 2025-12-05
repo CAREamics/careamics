@@ -10,7 +10,7 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from careamics.config import Configuration
-from careamics.config.configuration_factories import _create_ng_data_configuration
+from careamics.config.configuration_factories import create_ng_data_configuration
 from careamics.config.data import NGDataConfig
 from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     PredictionWriterCallback,
@@ -60,7 +60,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     cfg = Configuration(**minimum_n2v_configuration)
 
     # create NGDataset configuration
-    dataset_cfg = _create_ng_data_configuration(
+    dataset_cfg = create_ng_data_configuration(
         data_type=cfg.data_config.data_type,
         axes=cfg.data_config.axes,
         patch_size=cfg.data_config.patch_size,
@@ -107,6 +107,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     stds = data.train_dataset.config.normalization.input_stds
 
     pred_dataset_cfg = NGDataConfig(
+        mode="predicting",
         data_type="tiff",
         axes=cfg.data_config.axes,
         batch_size=4,
@@ -129,7 +130,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
 
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
-    predicted_images = convert_prediction(predicted, tiled=True)
+    predicted_images, _ = convert_prediction(predicted, tiled=True)
 
     # assert predicted file exists
     assert (dirpath / file_name).is_file()
@@ -160,7 +161,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
     cfg = Configuration(**minimum_n2v_configuration)
 
     # create NGDataset configuration
-    dataset_cfg = _create_ng_data_configuration(
+    dataset_cfg = create_ng_data_configuration(
         data_type=cfg.data_config.data_type,
         axes=cfg.data_config.axes,
         patch_size=cfg.data_config.patch_size,
@@ -207,6 +208,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
     stds = data.train_dataset.config.normalization.input_stds
 
     pred_dataset_cfg = NGDataConfig(
+        mode="predicting",
         data_type="tiff",
         axes=cfg.data_config.axes,
         batch_size=4,
@@ -227,7 +229,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
 
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
-    predicted_images = convert_prediction(predicted, tiled=False)
+    predicted_images, _ = convert_prediction(predicted, tiled=False)
 
     # assert predicted file exists
     assert (dirpath / file_name).is_file()
@@ -255,7 +257,7 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
     cfg = Configuration(**minimum_n2v_configuration)
 
     # create NGDataset configuration
-    dataset_cfg = _create_ng_data_configuration(
+    dataset_cfg = create_ng_data_configuration(
         data_type="array",
         axes=cfg.data_config.axes,
         patch_size=cfg.data_config.patch_size,
@@ -302,6 +304,7 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
     stds = data.train_dataset.config.normalization.input_stds
 
     pred_dataset_cfg = NGDataConfig(
+        mode="predicting",
         data_type="zarr",
         axes=cfg.data_config.axes,
         batch_size=4,
@@ -324,7 +327,7 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
 
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
-    predicted_images = convert_prediction(predicted, tiled=True)
+    predicted_images, _ = convert_prediction(predicted, tiled=True)
 
     # assert predicted file exists
     z_out = zarr.open(dirpath / "train_output.zarr")

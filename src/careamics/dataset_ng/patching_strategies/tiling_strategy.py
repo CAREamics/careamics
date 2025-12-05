@@ -17,7 +17,7 @@ class TilingStrategy:
     def __init__(
         self,
         data_shapes: Sequence[Sequence[int]],
-        tile_size: Sequence[int],
+        patch_size: Sequence[int],
         overlaps: Sequence[int],
     ):
         """
@@ -30,16 +30,16 @@ class TilingStrategy:
         data_shapes : sequence of (sequence of int)
             The shapes of the underlying data. Each element is the dimension of the
             axes SC(Z)YX.
-        tile_size : sequence of int
+        patch_size : sequence of int
             The size of the tile. The sequence will have length 2 or 3, for 2D and 3D
             data respectively.
         overlaps : sequence of int
             How much a tile will overlap with adjacent tiles in each spatial dimension.
         """
         self.data_shapes = data_shapes
-        self.tile_size = tile_size
+        self.patch_size = patch_size
         self.overlaps = overlaps
-        # tile_size and overlap should have same length validated in pydantic configs
+        # patch_size and overlap should have same length validated in pydantic configs
         self.tile_specs: list[TileSpecs] = self._generate_specs()
 
     @property
@@ -99,7 +99,7 @@ class TilingStrategy:
             # spec info for each axis
             axis_specs: list[tuple[list[int], list[int], list[int], list[int]]] = [
                 self._compute_1d_coords(
-                    axis_size, self.tile_size[axis_idx], self.overlaps[axis_idx]
+                    axis_size, self.patch_size[axis_idx], self.overlaps[axis_idx]
                 )
                 for axis_idx, axis_size in enumerate(spatial_shape)
             ]
@@ -128,7 +128,7 @@ class TilingStrategy:
                             "data_idx": data_idx,
                             "sample_idx": sample_idx,
                             "coords": coords,
-                            "patch_size": self.tile_size,
+                            "patch_size": self.patch_size,
                             # TileSpecs additional fields
                             "crop_coords": crop_coords,
                             "crop_size": crop_size,
@@ -141,7 +141,7 @@ class TilingStrategy:
 
     @staticmethod
     def _compute_1d_coords(
-        axis_size: int, tile_size: int, overlap: int
+        axis_size: int, patch_size: int, overlap: int
     ) -> tuple[list[int], list[int], list[int], list[int]]:
         """
         Computes the TileSpec information for a single axis.
@@ -150,7 +150,7 @@ class TilingStrategy:
         ----------
         axis_size : int
             The size of the axis.
-        tile_size : int
+        patch_size : int
             The tile size.
         overlap : int
             The tile overlap.
@@ -174,27 +174,27 @@ class TilingStrategy:
         crop_coords: list[int] = []
         crop_size: list[int] = []
 
-        step = tile_size - overlap
+        step = patch_size - overlap
         for i in range(0, max(1, axis_size - overlap), step):
             if i == 0:
                 coords.append(i)
                 crop_coords.append(0)
                 stitch_coords.append(0)
-                if axis_size <= tile_size:
+                if axis_size <= patch_size:
                     crop_size.append(axis_size)
                 else:
-                    crop_size.append(tile_size - overlap // 2)
-            elif (0 < i) and (i + tile_size < axis_size):
+                    crop_size.append(patch_size - overlap // 2)
+            elif (0 < i) and (i + patch_size < axis_size):
                 coords.append(i)
                 crop_coords.append(overlap // 2)
                 stitch_coords.append(coords[-1] + crop_coords[-1])
-                crop_size.append(tile_size - overlap)
+                crop_size.append(patch_size - overlap)
             else:
                 previous_crop_size = crop_size[-1] if crop_size else 1
                 previous_stitch_coord = stitch_coords[-1] if stitch_coords else 0
                 previous_tile_end = previous_stitch_coord + previous_crop_size
 
-                coords.append(max(0, axis_size - tile_size))
+                coords.append(max(0, axis_size - patch_size))
                 stitch_coords.append(previous_tile_end)
                 crop_coords.append(stitch_coords[-1] - coords[-1])
                 crop_size.append(axis_size - stitch_coords[-1])

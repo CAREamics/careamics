@@ -5,7 +5,7 @@ from numpy.typing import DTypeLike, NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
 
-from .image_utils.image_stack_utils import pad_patch, reshaped_array_shape
+from .image_utils.image_stack_utils import channel_slice, pad_patch, reshape_array_shape
 
 
 class ZarrImageStack:
@@ -39,7 +39,7 @@ class ZarrImageStack:
         #   - must be subset of STCZYX
         self._original_axes = axes
         self._original_data_shape: tuple[int, ...] = self._array.shape
-        self.data_shape = reshaped_array_shape(axes, self._original_data_shape)
+        self.data_shape = reshape_array_shape(axes, self._original_data_shape)
         self._data_dtype = self._array.dtype
         self._chunk_size = self._array.chunks
 
@@ -65,7 +65,7 @@ class ZarrImageStack:
     def extract_channel_patch(
         self,
         sample_idx: int,
-        channel_idx: int | None,  # `channel_idx = None` to select all channels,
+        channels: Sequence[int] | None,  # `channels = None` to select all channels,
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
@@ -83,6 +83,18 @@ class ZarrImageStack:
                     f"{self.data_shape[0]}"
                 )
 
+        # check that channels are within bounds
+        if channels is not None:
+            max_channel = self.data_shape[1] - 1  # channel is second dimension
+            for ch in channels:
+                if ch > max_channel:
+                    raise ValueError(
+                        f"Channel index {ch} is out of bounds for data with "
+                        f"{self.data_shape[1]} channels. Check the provided `channels` "
+                        f"parameter in the configuration for erroneous channel "
+                        f"indices."
+                    )
+
         patch_slice: list[int | slice] = []
         for d in self._original_axes:
             if d == "S":
@@ -90,11 +102,7 @@ class ZarrImageStack:
             elif d == "T":
                 patch_slice.append(self._get_T_index(sample_idx))
             elif d == "C":
-                if channel_idx is None:
-                    patch_slice.append(slice(None, None))
-                else:
-                    # use slice here so that channel dimension is kept
-                    patch_slice.append(slice(channel_idx, channel_idx + 1))
+                patch_slice.append(channel_slice(channels))  # type: ignore
             elif d == "Z":
                 patch_slice.append(slice(coords[0], coords[0] + patch_size[0]))
             elif d == "Y":
