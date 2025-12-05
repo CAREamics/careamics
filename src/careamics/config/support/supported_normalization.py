@@ -1,3 +1,5 @@
+"""Supported normalization strategies for CAREamics."""
+
 from careamics.utils import BaseEnum
 
 

@@ -400,8 +400,6 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
-            # Use normalization config computed from training data for validation
-            self.config.normalization = self.train_dataset._resolved_norm_config
 
             self.val_dataset = create_dataset(
                 mode=Mode.VALIDATING,

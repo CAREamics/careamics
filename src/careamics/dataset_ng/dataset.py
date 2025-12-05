@@ -120,14 +120,14 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         self.patching_strategy = self._initialize_patching_strategy()
 
-        self._resolved_norm_config = resolve_normalization_config(
+        resolve_normalization_config(
             norm_config=self.config.normalization,
             patching_strategy=self.patching_strategy,
             input_extractor=self.input_extractor,
             target_extractor=self.target_extractor,
         )
-        self.normalization = create_normalization(self._resolved_norm_config)
-        
+        self.normalization = create_normalization(self.config.normalization)
+
         self.transforms = self._initialize_transforms()
 
     def _initialize_patching_strategy(self) -> PatchingStrategy:
@@ -185,8 +185,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             return Compose(list(self.config.transforms))
 
         # TODO: add TTA
-        return None
-    
+        return Compose([])
+
     def __len__(self):
         return self.patching_strategy.n_patches
 

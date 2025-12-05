@@ -19,11 +19,13 @@ class StandardizeConfig(BaseModel):
     input_means : list[float] | None
         Means of input channels/features, or None for automatic computation.
     input_stds : list[float] | None
-        Standard deviations of input channels/features, or None for automatic computation.
+        Standard deviations of input channels/features,
+        or None for automatic computation.
     target_means : list[float] | None
         Means of target channels/features, or None for automatic computation.
     target_stds : list[float] | None
-        Standard deviations of target channels/features, or None for automatic computation.
+        Standard deviations of target channels/features,
+        or None for automatic computation.
     """
 
     model_config = ConfigDict(validate_assignment=True)
@@ -36,9 +38,12 @@ class StandardizeConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_means_stds(self: Self) -> Self:
-        """
-        Validate that means and standard deviations are provided in pairs 
-        or set to None.
+        """Validate that means and stds are provided in pairs or set to None.
+
+        Returns
+        -------
+        Self
+            The validated model instance.
 
         Raises
         ------
@@ -86,9 +91,7 @@ class StandardizeConfig(BaseModel):
         """
         return self.input_means is not None and self.input_stds is not None
 
-    def set_input_stats(
-        self, means: list[float], stds: list[float]
-    ) -> None:
+    def set_input_stats(self, means: list[float], stds: list[float]) -> None:
         """
         Set input means and stds together to avoid validation errors.
 
@@ -103,9 +106,7 @@ class StandardizeConfig(BaseModel):
         self.__dict__["input_stds"] = stds
         self.__class__.model_validate(self)
 
-    def set_target_stats(
-        self, means: list[float], stds: list[float]
-    ) -> None:
+    def set_target_stats(self, means: list[float], stds: list[float]) -> None:
         """
         Set target means and stds together to avoid validation errors.
 
@@ -162,9 +163,23 @@ class QuantileConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_quantile_levels(self: Self) -> Self:
-        """Validate quantile levels are in valid range and properly ordered."""
-        lower = self.lower_quantile if isinstance(self.lower_quantile, list) else [self.lower_quantile]
-        upper = self.upper_quantile if isinstance(self.upper_quantile, list) else [self.upper_quantile]
+        """Validate quantile levels are in valid range and properly ordered.
+
+        Returns
+        -------
+        Self
+            The validated model instance.
+        """
+        lower = (
+            self.lower_quantile
+            if isinstance(self.lower_quantile, list)
+            else [self.lower_quantile]
+        )
+        upper = (
+            self.upper_quantile
+            if isinstance(self.upper_quantile, list)
+            else [self.upper_quantile]
+        )
 
         for lq in lower:
             if not (0.0 <= lq < 1.0):
@@ -173,22 +188,28 @@ class QuantileConfig(BaseModel):
             if not (0.0 < uq <= 1.0):
                 raise ValueError(f"upper_quantile values must be in (0, 1], got {uq}")
 
-        if isinstance(self.lower_quantile, list) and isinstance(self.upper_quantile, list):
-            if len(self.lower_quantile) != len(self.upper_quantile):
+        if len(lower) != len(upper):
+            raise ValueError(
+                f"lower_quantile and upper_quantile lists must have same length, "
+                f"got {len(lower)} and {len(upper)}"
+            )
+        for i, (lq, uq) in enumerate(zip(lower, upper, strict=True)):
+            if lq >= uq:
                 raise ValueError(
-                    f"lower_quantile and upper_quantile lists must have same length, "
-                    f"got {len(self.lower_quantile)} and {len(self.upper_quantile)}"
+                    f"lower_quantile[{i}] ({lq}) must be less than "
+                    f"upper_quantile[{i}] ({uq})"
                 )
-            for i, (lq, uq) in enumerate(zip(self.lower_quantile, self.upper_quantile)):
-                if lq >= uq:
-                    raise ValueError(
-                        f"lower_quantile[{i}] ({lq}) must be less than upper_quantile[{i}] ({uq})"
-                    )
         return self
 
     @model_validator(mode="after")
     def validate_quantile_values(self: Self) -> Self:
-        """Validate that computed quantile value lists are provided in pairs."""
+        """Validate that computed quantile value lists are provided in pairs.
+
+        Returns
+        -------
+        Self
+            The validated model instance.
+        """
         if (self.input_lower_quantile_values is None) != (
             self.input_upper_quantile_values is None
         ):
@@ -218,7 +239,18 @@ class QuantileConfig(BaseModel):
         return self
 
     def get_lower_quantiles_for_channels(self, n_channels: int) -> list[float]:
-        """Get lower quantile levels expanded to n_channels."""
+        """Get lower quantile levels expanded to n_channels.
+
+        Parameters
+        ----------
+        n_channels : int
+            Number of channels in the data.
+
+        Returns
+        -------
+        list[float]
+            Lower quantile levels for each channel.
+        """
         if isinstance(self.lower_quantile, list):
             if len(self.lower_quantile) != n_channels:
                 raise ValueError(
@@ -229,7 +261,18 @@ class QuantileConfig(BaseModel):
         return [self.lower_quantile] * n_channels
 
     def get_upper_quantiles_for_channels(self, n_channels: int) -> list[float]:
-        """Get upper quantile levels expanded to n_channels."""
+        """Get upper quantile levels expanded to n_channels.
+
+        Parameters
+        ----------
+        n_channels : int
+            Number of channels in the data.
+
+        Returns
+        -------
+        list[float]
+            Upper quantile levels for each channel.
+        """
         if isinstance(self.upper_quantile, list):
             if len(self.upper_quantile) != n_channels:
                 raise ValueError(
@@ -240,22 +283,32 @@ class QuantileConfig(BaseModel):
         return [self.upper_quantile] * n_channels
 
     def needs_computation(self) -> bool:
-        """Check if quantile values need to be computed."""
+        """Check if quantile values need to be computed.
+
+        Returns
+        -------
+        bool
+            True if quantile values need to be computed.
+        """
         return (
             self.input_lower_quantile_values is None
             or self.input_upper_quantile_values is None
         )
 
     def is_resolved(self) -> bool:
-        """Check if all required quantile values are present."""
+        """Check if all required quantile values are present.
+
+        Returns
+        -------
+        bool
+            True if all required quantile values are present.
+        """
         return (
             self.input_lower_quantile_values is not None
             and self.input_upper_quantile_values is not None
         )
 
-    def set_input_quantile_values(
-        self, lower: list[float], upper: list[float]
-    ) -> None:
+    def set_input_quantile_values(self, lower: list[float], upper: list[float]) -> None:
         """
         Set input quantile values together to avoid validation errors.
 
@@ -292,7 +345,7 @@ class MinMaxConfig(BaseModel):
     """
     Min-max normalization configuration.
 
-    Stores minimum and maximum statistics for scaling data into a desired range. 
+    Stores minimum and maximum statistics for scaling data into a desired range.
     If not provided, statistics can be computed from the data.
 
     Attributes
@@ -319,7 +372,13 @@ class MinMaxConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_mins_maxes(self: Self) -> Self:
-        """Validate that mins and maxes are provided in pairs or both None."""
+        """Validate that mins and maxes are provided in pairs or both None.
+
+        Returns
+        -------
+        Self
+            The validated model instance.
+        """
         if (self.input_mins is None) != (self.input_maxes is None):
             raise ValueError(
                 "input_mins and input_maxes must be both provided or both None."
@@ -360,9 +419,7 @@ class MinMaxConfig(BaseModel):
         """
         return self.input_mins is not None and self.input_maxes is not None
 
-    def set_input_range(
-        self, mins: list[float], maxes: list[float]
-    ) -> None:
+    def set_input_range(self, mins: list[float], maxes: list[float]) -> None:
         """
         Set input mins and maxes together to avoid validation errors.
 
@@ -377,9 +434,7 @@ class MinMaxConfig(BaseModel):
         self.__dict__["input_maxes"] = maxes
         self.__class__.model_validate(self)
 
-    def set_target_range(
-        self, mins: list[float], maxes: list[float]
-    ) -> None:
+    def set_target_range(self, mins: list[float], maxes: list[float]) -> None:
         """
         Set target mins and maxes together to avoid validation errors.
 
@@ -400,7 +455,7 @@ class NoNormConfig(BaseModel):
     No normalization configuration.
 
     Indicates that no normalization should be applied.
-    
+
     Attributes
     ----------
     name : Literal["none"]
@@ -410,7 +465,8 @@ class NoNormConfig(BaseModel):
     name: Literal["none"] = "none"
 
     def needs_computation(self) -> bool:
-        """
+        """Check if statistics need to be computed.
+
         Returns
         -------
         bool
@@ -419,7 +475,8 @@ class NoNormConfig(BaseModel):
         return False
 
     def is_resolved(self) -> bool:
-        """
+        """Check if the configuration is fully resolved.
+
         Returns
         -------
         bool

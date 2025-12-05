@@ -25,22 +25,22 @@ def create_normalization(norm_model: NormalizationConfig) -> NormalizationProtoc
         return Standardize(
             input_means=norm_model.input_means,
             input_stds=norm_model.input_stds,
-            target_means=getattr(norm_model, "target_means", None),
-            target_stds=getattr(norm_model, "target_stds", None),
+            target_means=norm_model.target_means,
+            target_stds=norm_model.target_stds,
         )
     elif norm_model.name == SupportedNormalization.QUANTILE:
         return RangeNormalization(
             input_mins=norm_model.input_lower_quantile_values,
             input_maxes=norm_model.input_upper_quantile_values,
-            target_mins=getattr(norm_model, "target_lower_quantile_values", None),
-            target_maxes=getattr(norm_model, "target_upper_quantile_values", None),
+            target_mins=norm_model.target_lower_quantile_values,
+            target_maxes=norm_model.target_upper_quantile_values,
         )
     elif norm_model.name == SupportedNormalization.MINMAX:
         return RangeNormalization(
             input_mins=norm_model.input_mins,
             input_maxes=norm_model.input_maxes,
-            target_mins=getattr(norm_model, "target_mins", None),
-            target_maxes=getattr(norm_model, "target_maxes", None),
+            target_mins=norm_model.target_mins,
+            target_maxes=norm_model.target_maxes,
         )
     elif norm_model.name == SupportedNormalization.NONE:
         return NoNormalization()

@@ -4,8 +4,8 @@ from tqdm import tqdm
 
 from careamics.config.data.normalization_config import (
     MinMaxConfig,
-    NormalizationConfig,
     NoNormConfig,
+    NormalizationConfig,
     QuantileConfig,
     StandardizeConfig,
 )
@@ -200,7 +200,10 @@ def resolve_normalization_config(
             )
             norm_config.set_input_quantile_values(lower_values, upper_values)
 
-        if target_extractor is not None and norm_config.target_lower_quantile_values is None:
+        if (
+            target_extractor is not None
+            and norm_config.target_lower_quantile_values is None
+        ):
             first_spec = patching_strategy.get_patch_spec(0)
             first_patch = target_extractor.extract_patch(
                 data_idx=first_spec["data_idx"],

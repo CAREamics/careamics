@@ -40,9 +40,9 @@ class QuantileEstimator:
         self._exact_values: dict[int, list[NDArray]] = {
             ch: [] for ch in range(self.n_channels)
         }
-        self._use_histogram: dict[int, bool] = {
-            ch: False for ch in range(self.n_channels)
-        }
+        self._use_histogram: dict[int, bool] = dict.fromkeys(
+            range(self.n_channels), False
+        )
 
         # Histogram storage for large datasets
         self.histograms = {
@@ -114,7 +114,7 @@ class QuantileEstimator:
                     for k in range(min(counts_to_add, len(sorted_indices))):
                         int_counts[sorted_indices[k]] += 1
 
-                for j, count in zip(target_indices, int_counts):
+                for j, count in zip(target_indices, int_counts, strict=True):
                     new_hist[j] += count
 
         # Final verification and correction if needed

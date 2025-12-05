@@ -1,3 +1,4 @@
+import numpy as np
 from numpy.typing import NDArray
 
 from .normalization_protocol import NormalizationProtocol
@@ -28,14 +29,14 @@ class RangeNormalization(NormalizationProtocol):
     ) -> tuple[NDArray, NDArray | None]:
         if len(self.input_mins) != patch.shape[0]:
             raise ValueError(
-                f"Number of mins (got a list of size {len(self.input_mins)}) and "
-                f"number of channels (got shape {patch.shape} for C(Z)YX) do not match."
+                f"Number of mins ({len(self.input_mins)}) and number of "
+                f"channels ({patch.shape[0]} in {patch.shape}) do not match."
             )
 
         if len(self.input_maxes) != patch.shape[0]:
             raise ValueError(
-                f"Number of max values (got a list of size {len(self.input_maxes)}) and "
-                f"number of channels (got shape {patch.shape} for C(Z)YX) do not match."
+                f"Number of max values ({len(self.input_maxes)}) and number of "
+                f"channels ({patch.shape[0]} in {patch.shape}) do not match."
             )
 
         min_val = _reshape_stats(self.input_mins, patch.ndim)
@@ -51,13 +52,14 @@ class RangeNormalization(NormalizationProtocol):
                 )
             if len(self.target_mins) != target.shape[0]:
                 raise ValueError(
-                    f"Number of mins (got a list of size {len(self.target_mins)}) and "
-                    f"number of channels (got shape {target.shape} for C(Z)YX) do not match."
+                    f"Number of target mins ({len(self.target_mins)}) and number of "
+                    f"channels ({target.shape[0]} in {target.shape}) do not match."
                 )
+
             if len(self.target_maxes) != target.shape[0]:
                 raise ValueError(
-                    f"Number of max values (got a list of size {len(self.target_maxes)}) and "
-                    f"number of channels (got shape {target.shape} for C(Z)YX) do not match."
+                    f"Number of target maxes ({len(self.target_maxes)}) and number "
+                    f"of channels ({target.shape[0]} in {target.shape}) do not match."
                 )
             target_mins = _reshape_stats(self.target_mins, target.ndim)
             target_maxes = _reshape_stats(self.target_maxes, target.ndim)
@@ -65,9 +67,24 @@ class RangeNormalization(NormalizationProtocol):
 
         return norm_patch, norm_target
 
-    # TODO: check axes CZYX vs BCZYX!
-    # TODO: check if we need to swap axes for CZYX case!
     def denormalize(self, patch: NDArray) -> NDArray:
+        """Reverse the normalization operation.
+
+        Expects BCZYX input (batch dimension present).
+
+        Parameters
+        ----------
+        patch : NDArray
+            Normalized patch with shape BCZYX.
+
+        Returns
+        -------
+        NDArray
+            Denormalized patch.
+        """
         input_mins = _reshape_stats(self.input_mins, patch.ndim)
         input_maxes = _reshape_stats(self.input_maxes, patch.ndim)
+        # Swap axes to align stats with channel axis (axis 1 in BCZYX)
+        input_mins = np.swapaxes(input_mins, 0, 1)
+        input_maxes = np.swapaxes(input_maxes, 0, 1)
         return patch * (input_maxes - input_mins) + input_mins
