@@ -66,7 +66,7 @@ def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
     """
     chunk_sizes = []
 
-    # axes reshaping indices
+    # axes reshaping indices in the order SC(Z)YX
     indices = get_axes_order(axes)
 
     sczyx_offset = 0
@@ -76,11 +76,16 @@ def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
     if "C" not in axes:
         sczyx_offset += 1  # singleton C dim added to data_shape
 
-    for sczyx_index, original_index in enumerate(indices):
+    # loop through the original axes in order SC(Z)YX
+    #   - original_index is the index of the axis in the original `axes` string
+    #   - idx is the index in SC(Z)YX order of the axes present in `axes`
+    #   - since all non spatial are treated the same, we can recover the spatial dims
+    # index in SC(Z)YX order by using sczyx_offset
+    for idx, original_index in enumerate(indices):
         axis = axes[original_index]
 
         if axis in ("Z", "Y", "X"):
-            dim_size = data_shape[sczyx_index + sczyx_offset]
+            dim_size = data_shape[idx + sczyx_offset]
             chunk_sizes.append(
                 min(64, dim_size)
             )  # TODO arbitrary value, need benchmark
