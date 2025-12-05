@@ -44,7 +44,10 @@ def batches(source_name: str) -> list[ImageRegionData]:
                         "coords": (0, i * 4),
                         "patch_size": (4, i),
                     },
-                    chunks=(1, 1, 8, i * 8),
+                    additional_metadata={
+                        "chunks": (1, 1, 16, 16),
+                        "shards": (1, 1, 32, 32),
+                    },
                 )
             )
 
@@ -108,7 +111,7 @@ def test_decollate_image_region_data(n_batch) -> None:
     ordered_array : NDArray
         Ordered array fixture.
     """
-    batch = []
+    batch: list[ImageRegionData] = []
     for i in range(n_batch):
         batch.append(
             ImageRegionData(
@@ -123,7 +126,10 @@ def test_decollate_image_region_data(n_batch) -> None:
                     "coords": (0, i * 4),
                     "patch_size": (4, 4),
                 },
-                chunks=(1, 1, 8, 8),
+                additional_metadata={
+                    "chunks": (1, 1, 16, i),
+                    "shards": (1, 1, 32, i * 2),
+                },
             )
         )
 
@@ -138,6 +144,14 @@ def test_decollate_image_region_data(n_batch) -> None:
         assert decollated[i].dtype == batch[i].dtype
         assert decollated[i].axes == batch[i].axes
         assert decollated[i].region_spec == batch[i].region_spec
+        assert (
+            decollated[i].additional_metadata["chunks"]
+            == batch[i].additional_metadata["chunks"]
+        )
+        assert (
+            decollated[i].additional_metadata["shards"]
+            == batch[i].additional_metadata["shards"]
+        )
 
 
 class TestConvertPrediction:

@@ -69,6 +69,7 @@ def tiles(n_data, shape, axes) -> tuple[NDArray, list[ImageRegionData]]:
                 data_shape=shape,
                 axes=axes,
                 region_spec=tile_spec,
+                additional_metadata={},
             )
         )
     return array, tiles

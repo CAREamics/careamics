@@ -194,7 +194,7 @@ class UnetModule(L.LightningModule):
             dtype=x.dtype,
             axes=x.axes,
             region_spec=x.region_spec,
-            chunks=x.chunks,
+            additional_metadata={},
         )
         return output_batch
 
