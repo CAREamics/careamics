@@ -38,7 +38,7 @@ class InMemoryImageStack:
         if (coord_dims := len(coords)) != (patch_dims := len(patch_size)):
             raise ValueError(
                 "Patch coordinates and patch size must have the same dimensions but "
-                f"found {coord_dims} and {patch_dims}."
+                f"found {coord_dims} ({coords}) and {patch_dims} ({patch_size})."
             )
 
         # check that channels are within bounds

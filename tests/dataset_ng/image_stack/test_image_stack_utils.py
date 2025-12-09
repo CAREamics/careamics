@@ -4,6 +4,7 @@ import pytest
 from careamics.dataset_ng.image_stack.image_utils.image_stack_utils import (
     channel_slice,
     pad_patch,
+    reshape_array_shape,
 )
 
 data = np.array(
@@ -76,3 +77,34 @@ def test_error_empty_channel_slice():
     """Test that channel_slice raises an error for empty channel list."""
     with pytest.raises(ValueError):
         _ = channel_slice([])
+
+
+@pytest.mark.parametrize(
+    "axes, shape, expected_shape, add_singleton",
+    [
+        # axes order (no T)
+        ("YZSXC", (1, 2, 3, 4, 5), (3, 5, 2, 1, 4), False),
+        ("YZSXC", (1, 2, 3, 4, 5), (3, 5, 2, 1, 4), True),
+        ("XYZS", (1, 2, 3, 4), (4, 3, 2, 1), False),
+        ("XYZS", (1, 2, 3, 4), (4, 1, 3, 2, 1), True),
+        # multiplex S and T
+        ("STCYX", (2, 3, 4, 5, 6), (6, 4, 5, 6), False),
+        ("STCYX", (2, 3, 4, 5, 6), (6, 4, 5, 6), True),
+        ("CTYSX", (2, 3, 4, 5, 6), (15, 2, 4, 6), False),
+        ("CTYSX", (2, 3, 4, 5, 6), (15, 2, 4, 6), True),
+        # T but no S
+        ("TYXC", (2, 3, 4, 5), (2, 5, 3, 4), False),
+        ("TYXC", (2, 3, 4, 5), (2, 5, 3, 4), True),
+        # missing S, C, or T (singleton added or not)
+        ("YX", (32, 32), (1, 1, 32, 32), True),
+        ("YX", (32, 32), (32, 32), False),
+        ("YXC", (32, 32, 3), (1, 3, 32, 32), True),
+        ("YXC", (32, 32, 3), (3, 32, 32), False),
+        ("SYX", (2, 32, 32), (2, 1, 32, 32), True),
+        ("SYX", (2, 32, 32), (2, 32, 32), False),
+    ],
+)
+def test_reshape_array_shape(axes, shape, expected_shape, add_singleton):
+    """Test reshape_array_shape utility function."""
+    reshaped_shape = reshape_array_shape(axes, shape, add_singleton)
+    assert reshaped_shape == expected_shape

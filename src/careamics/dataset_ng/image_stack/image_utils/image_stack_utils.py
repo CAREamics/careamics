@@ -35,8 +35,15 @@ def channel_slice(
 
 # TODO: add tests
 # TODO: move to dataset_utils, better name?
-def reshape_array_shape(original_axes: str, shape: Sequence[int]) -> tuple[int, ...]:
-    """Find resulting shape if reshaping array to SCZYX."""
+def reshape_array_shape(
+    original_axes: str, shape: Sequence[int], add_singleton: bool = True
+) -> tuple[int, ...]:
+    """Find resulting shape if reshaping array to SC(Z)YX.
+
+    If `T` is present in the original axes, its size is multiplied into `S`, as both
+    axes are multiplexed.
+
+    """
     target_axes = "SCZYX"
     target_shape = []
     for d in target_axes:
@@ -45,13 +52,15 @@ def reshape_array_shape(original_axes: str, shape: Sequence[int]) -> tuple[int, 
             target_shape.append(shape[idx])
         # TODO is d!=original_axes an error? shouldn't it be "not in"?
         elif (d != original_axes) and (d != "Z"):
-            target_shape.append(1)
-        else:
-            pass
+            if add_singleton:
+                target_shape.append(1)
 
     if "T" in original_axes:
         idx = original_axes.index("T")
-        target_shape[0] = target_shape[0] * shape[idx]
+        if "S" in original_axes or add_singleton:
+            target_shape[0] = target_shape[0] * shape[idx]
+        else:
+            target_shape.insert(0, shape[idx])
 
     return tuple(target_shape)
 

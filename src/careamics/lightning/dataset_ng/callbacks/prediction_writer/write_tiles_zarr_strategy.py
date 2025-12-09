@@ -9,7 +9,10 @@ from numpy import float32
 
 from careamics.dataset.dataset_utils.dataset_utils import get_axes_order
 from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.image_stack_loader.zarr_utils import decipher_zarr_uri
+from careamics.dataset_ng.image_stack_loader.zarr_utils import (
+    decipher_zarr_uri,
+    is_valid_uri,
+)
 from careamics.dataset_ng.patching_strategies import TileSpecs
 
 OUTPUT_KEY = "_output"
@@ -44,6 +47,32 @@ def _update_data_shape(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
     return tuple(new_shape)
 
 
+def _update_T_axis(axes: str) -> str:
+    """Update axes string to account for multiplexed S and T dimensions.
+
+    If only `T` is present, then it is relabeled as `S`. If both `S` and `T` are
+    present, then `T` is removed.
+
+    Parameters
+    ----------
+    axes : str
+        Axes string of the original data.
+
+    Returns
+    -------
+    str
+        Updated axes string.
+    """
+    if "T" in axes:
+        if "S" in axes:
+            # remove T
+            axes = axes.replace("T", "")
+        else:
+            # relabel T as S
+            axes = axes.replace("T", "S")
+    return axes
+
+
 def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
     """Generate automatic chunk sizes based on axes and shape.
 
@@ -65,14 +94,18 @@ def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
     """
     chunk_sizes = []
 
+    # axes may contain T, which is now multiplexed with S
+    updated_axes = _update_T_axis(axes)
+
     # axes reshaping indices in the order SC(Z)YX
-    indices = get_axes_order(axes)
+    indices = get_axes_order(updated_axes, ref_axes="SCZYX")
 
     sczyx_offset = 0
-    if "S" not in axes:
+
+    if "S" not in updated_axes:
         sczyx_offset = 1  # singleton S dim added to data_shape
 
-    if "C" not in axes:
+    if "C" not in updated_axes:
         sczyx_offset += 1  # singleton C dim added to data_shape
 
     # loop through the original axes in order SC(Z)YX
@@ -81,7 +114,7 @@ def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
     #   - since all non spatial are treated the same, we can recover the spatial dims
     # index in SC(Z)YX order by using sczyx_offset
     for idx, original_index in enumerate(indices):
-        axis = axes[original_index]
+        axis = updated_axes[original_index]
 
         if axis in ("Z", "Y", "X"):
             dim_size = data_shape[idx + sczyx_offset]
@@ -247,8 +280,14 @@ class WriteTilesZarr:
         region : ImageRegionData
             Image region data containing tile information.
         """
-        store_path, parent_path, array_name = decipher_zarr_uri(region.source)
-        output_store_path = _add_output_key(dirpath, store_path)
+        if is_valid_uri(region.source):
+            store_path, parent_path, array_name = decipher_zarr_uri(region.source)
+            output_store_path = _add_output_key(dirpath, store_path)
+        else:
+            raise NotImplementedError(
+                f"Invalid zarr URI: {region.source}. Currently, only predicting from "
+                f"Zarr files is supported when writing Zarr tiles."
+            )
 
         if (
             self.current_group is None
@@ -261,6 +300,9 @@ class WriteTilesZarr:
             self._create_group(parent_path)
 
         if self.current_array is None or self.current_array.basename != array_name:
+            # data_shape, chunks and shards are in SC(Z)YX order since they are reshaped
+            # in the zarr image stack loader
+            # If the source is not a Zarr file, then chunks and shards will be `None`.
             shape = region.data_shape
             chunks: tuple[int, ...] | None = region.additional_metadata.get(
                 "chunks", None

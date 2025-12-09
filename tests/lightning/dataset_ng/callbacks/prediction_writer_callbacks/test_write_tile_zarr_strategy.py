@@ -1,10 +1,11 @@
 import numpy as np
 import pytest
+import tifffile
 import zarr
 
 import careamics.lightning.dataset_ng.callbacks.prediction_writer as pd_writer
 from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.image_stack_loader import load_zarrs
+from careamics.dataset_ng.image_stack_loader import load_arrays, load_tiffs, load_zarrs
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patching_strategies import (
     PatchSpecs,
@@ -23,8 +24,16 @@ def create_image_region(
 ) -> ImageRegionData:
     data_idx = patch_spec["data_idx"]
     source = extractor.image_stacks[data_idx].source
-    shards = extractor.image_stacks[data_idx].shards
-    chunks = extractor.image_stacks[data_idx].chunks
+    shards = (
+        extractor.image_stacks[data_idx].shards
+        if hasattr(extractor.image_stacks[data_idx], "shards")
+        else None
+    )
+    chunks = (
+        extractor.image_stacks[data_idx].chunks
+        if hasattr(extractor.image_stacks[data_idx], "chunks")
+        else None
+    )
     return ImageRegionData(
         data=patch,
         source=str(source),
@@ -115,6 +124,11 @@ def test_update_data_shape(axes, data_shape, expected_shape):
         ("SYXZ", (1, 1, 32, 64, 64), (1, 32, 64, 64)),
         ("CSYX", (8, 5, 64, 64), (1, 1, 64, 64)),
         ("SZCYX", (8, 5, 32, 64, 64), (1, 1, 32, 64, 64)),
+        # T dimension
+        ("TYX", (5, 1, 64, 64), (1, 64, 64)),
+        ("TCYX", (5, 3, 64, 64), (1, 1, 64, 64)),
+        ("STYX", (5, 1, 64, 64), (1, 64, 64)),  # S and T together
+        ("STCYX", (5, 3, 64, 64), (1, 1, 64, 64)),
     ],
 )
 def test_auto_chunks(axes, data_shape, expected_chunks):
@@ -250,3 +264,54 @@ def test_zarr_prediction_callback_identity(tmp_path):
     assert np.array_equal(g_output2["root_array"][:], arrays[5])
     assert g_output2["root_array"].shards == shards
     assert g_output2["root_array"].chunks == chunks
+
+
+# TODO update test once array sources is supported
+def test_write_from_array(tmp_path):
+    """Test that writing from an array source raises an error."""
+    arrays = [np.random.rand(32, 32).astype(np.float32) for _ in range(2)]
+    image_stacks = load_arrays(
+        source=arrays,
+        axes="YX",
+    )
+    patch_extractor = PatchExtractor(image_stacks)
+
+    strategy = TilingStrategy(
+        data_shapes=[image_stacks[0].data_shape],
+        patch_size=(8, 8),
+        overlaps=(4, 4),
+    )
+
+    # use writer to write predictionsz
+    writer = WriteTilesZarr()
+    with pytest.raises(NotImplementedError):
+        for region in gen_image_regions("YX", patch_extractor, strategy):
+            writer.write_tile(tmp_path, region)
+
+
+# TODO update test once tiff sources is supported
+def test_write_from_tiff(tmp_path):
+    """Test that writing from a tiff source raises an error."""
+    # save tiffs
+    arrays = [np.random.rand(32, 32).astype(np.float32) for _ in range(2)]
+    files = [tmp_path / f"test_{i}.tiff" for i in range(2)]
+    for file, array in zip(files, arrays, strict=True):
+        tifffile.imwrite(file, array)
+
+    image_stacks = load_tiffs(
+        source=files,
+        axes="YX",
+    )
+    patch_extractor = PatchExtractor(image_stacks)
+
+    strategy = TilingStrategy(
+        data_shapes=[image_stacks[0].data_shape],
+        patch_size=(8, 8),
+        overlaps=(4, 4),
+    )
+
+    # use writer to write predictions
+    writer = WriteTilesZarr()
+    with pytest.raises(NotImplementedError):
+        for region in gen_image_regions("YX", patch_extractor, strategy):
+            writer.write_tile(tmp_path, region)

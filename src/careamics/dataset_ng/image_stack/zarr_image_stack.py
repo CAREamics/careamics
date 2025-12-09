@@ -41,8 +41,14 @@ class ZarrImageStack:
         self._original_data_shape: tuple[int, ...] = self._array.shape
         self.data_shape = reshape_array_shape(axes, self._original_data_shape)
         self._data_dtype = self._array.dtype
-        self._chunk_size = self._array.chunks
-        self._shard_size = self._array.shards
+        self._chunk_size = reshape_array_shape(
+            axes, self._array.chunks, add_singleton=False
+        )
+        self._shard_size = (
+            reshape_array_shape(axes, self._array.shards, add_singleton=False)
+            if self._array.shards is not None
+            else None
+        )
 
     # Used to identify the source of the data and write to similar path during pred
     @property
@@ -52,10 +58,12 @@ class ZarrImageStack:
 
     @property
     def chunks(self) -> Sequence[int]:
+        """Chunks size in the order of data_shape (SC(Z)YX)."""
         return self._chunk_size
 
     @property
     def shards(self) -> Sequence[int] | None:
+        """Shard size in the order of data_shape (SC(Z)YX)."""
         return self._shard_size
 
     @property
