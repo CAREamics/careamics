@@ -41,6 +41,8 @@ class RangeNormalization(NormalizationProtocol):
 
         min_val = _reshape_stats(self.input_mins, patch.ndim)
         max_val = _reshape_stats(self.input_maxes, patch.ndim)
+        min_val = min_val.astype(patch.dtype)
+        max_val = max_val.astype(patch.dtype)
 
         norm_patch = (patch - min_val) / (max_val - min_val)
 
@@ -87,4 +89,6 @@ class RangeNormalization(NormalizationProtocol):
         # Swap axes to align stats with channel axis (axis 1 in BCZYX)
         input_mins = np.swapaxes(input_mins, 0, 1)
         input_maxes = np.swapaxes(input_maxes, 0, 1)
+        input_mins = input_mins.astype(patch.dtype)
+        input_maxes = input_maxes.astype(patch.dtype)
         return patch * (input_maxes - input_mins) + input_mins

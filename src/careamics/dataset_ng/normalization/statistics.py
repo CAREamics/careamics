@@ -38,7 +38,7 @@ def _compute_mean_std(
         image_stats.update(patch[None, ...], sample_idx=idx)
 
     means, stds = image_stats.finalize()
-    return list(means), list(stds)
+    return means.tolist(), stds.tolist()
 
 
 def _compute_min_max(
@@ -76,7 +76,7 @@ def _compute_min_max(
         min_vals = np.minimum(min_vals, current_mins)
         max_vals = np.maximum(max_vals, current_maxes)
 
-    return list(min_vals), list(max_vals)
+    return min_vals.tolist(), max_vals.tolist()
 
 
 def _compute_quantiles(
@@ -105,7 +105,7 @@ def _compute_quantiles(
         estimator.update(patch)
 
     lower_values, upper_values = estimator.finalize()
-    return list(lower_values), list(upper_values)
+    return lower_values.tolist(), upper_values.tolist()
 
 
 def resolve_normalization_config(

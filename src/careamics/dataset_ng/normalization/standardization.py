@@ -116,6 +116,8 @@ class Standardize(NormalizationProtocol):
         # reshape mean and std and apply the normalization to the patch
         means = _reshape_stats(self.input_means, patch.ndim)
         stds = _reshape_stats(self.input_stds, patch.ndim)
+        means = means.astype(patch.dtype)
+        stds = stds.astype(patch.dtype)
         norm_patch = self._apply_normalization(patch, means, stds)
 
         # same for the target patch
@@ -209,6 +211,8 @@ class Standardize(NormalizationProtocol):
 
         means = _reshape_stats(self.input_means, patch.ndim)
         stds = _reshape_stats(self.input_stds, patch.ndim)
+        means = means.astype(patch.dtype)
+        stds = stds.astype(patch.dtype)
 
         denorm_array = self._apply_denormalization(
             patch,
