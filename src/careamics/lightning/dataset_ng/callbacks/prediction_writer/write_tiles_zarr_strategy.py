@@ -260,7 +260,7 @@ class WriteTilesZarr:
                 name=array_name,
                 shape=updated_shape,
                 shards=shards,
-                chunks=tuple(chunks),
+                chunks=chunks,
                 dtype=float32,
             )
         else:
