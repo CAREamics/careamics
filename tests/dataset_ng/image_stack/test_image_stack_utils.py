@@ -102,6 +102,8 @@ def test_error_empty_channel_slice():
         ("YXC", (32, 32, 3), (3, 32, 32), False),
         ("SYX", (2, 32, 32), (2, 1, 32, 32), True),
         ("SYX", (2, 32, 32), (2, 32, 32), False),
+        # random letters
+        ("SABYX", (2, 3, 4, 5, 6), (2, 1, 5, 6), True),
     ],
 )
 def test_reshape_array_shape(axes, shape, expected_shape, add_singleton):

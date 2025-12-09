@@ -63,8 +63,7 @@ def reshape_array_shape(
         if d in original_axes:
             idx = original_axes.index(d)
             target_shape.append(shape[idx])
-        # TODO is d!=original_axes an error? shouldn't it be "not in"?
-        elif (d != original_axes) and (d != "Z"):
+        elif d != "Z":
             if add_singleton:
                 target_shape.append(1)
 
