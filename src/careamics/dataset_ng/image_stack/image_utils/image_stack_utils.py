@@ -43,6 +43,19 @@ def reshape_array_shape(
     If `T` is present in the original axes, its size is multiplied into `S`, as both
     axes are multiplexed.
 
+    Setting `add_singleton` to `False` will only include axes that are present in
+    `original_axes` in the output shape.
+
+    Parameters
+    ----------
+    original_axes : str
+        The axes of the original array, e.g. "TCZYX", "SCYX", etc.
+    shape : Sequence[int]
+        The shape of the original array.
+    add_singleton : bool, default=True
+        Whether to add singleton dimensions for missing axes. When `False`, only axes
+        present in `original_axes` will be included in the output shape. When `True`,
+        missing mandatory axes (`S` and `C`) will be added as singleton dimensions.
     """
     target_axes = "SCZYX"
     target_shape = []
