@@ -37,6 +37,9 @@ def _decollate_batch_dict(
     """
     item_dict = {
         key: (
+            # cast to int otherwise we have Tensor scalars
+            # TODO for additional types (e.g. axes in additional_metadata), we will need
+            # to handle it differently
             tuple(int(value[idx][index]) for idx in range(len(value)))
             if isinstance(value, list)
             else int(value[index])
