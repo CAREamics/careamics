@@ -143,7 +143,7 @@ def _add_output_key(dirpath: Path, path: str | Path) -> Path:
         Zarr path with `output` key added.
     """
     p = Path(path)
-    new_name = p.stem + OUTPUT_KEY + p.suffix
+    new_name = p.stem + OUTPUT_KEY + ".zarr"
     return dirpath / new_name
 
 
