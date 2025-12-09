@@ -7,11 +7,125 @@ from pathlib import Path
 import zarr
 from numpy import float32
 
+from careamics.dataset.dataset_utils.dataset_utils import get_axes_order
 from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.image_stack_loader.zarr_utils import decipher_zarr_uri
+from careamics.dataset_ng.image_stack_loader.zarr_utils import (
+    decipher_zarr_uri,
+    is_valid_uri,
+)
 from careamics.dataset_ng.patching_strategies import TileSpecs
 
 OUTPUT_KEY = "_output"
+
+
+def _update_data_shape(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
+    """Update data shape to remove non existing dimensions.
+
+    Parameters
+    ----------
+    axes : str
+        Axes string of the original data.
+    data_shape : Sequence[int]
+        Shape of the array in SC(Z)YX order with potential singleton dimensions.
+
+    Returns
+    -------
+    tuple[int, ...]
+        Updated shape with non-existing axes removed.
+    """
+    new_shape = []
+
+    if "S" in axes:
+        new_shape.append(data_shape[0])
+
+    if "C" in axes:
+        new_shape.append(data_shape[1])
+
+    for idx in range(2, len(data_shape)):
+        new_shape.append(data_shape[idx])
+
+    return tuple(new_shape)
+
+
+def _update_T_axis(axes: str) -> str:
+    """Update axes string to account for multiplexed S and T dimensions.
+
+    If only `T` is present, then it is relabeled as `S`. If both `S` and `T` are
+    present, then `T` is removed.
+
+    Parameters
+    ----------
+    axes : str
+        Axes string of the original data.
+
+    Returns
+    -------
+    str
+        Updated axes string.
+    """
+    if "T" in axes:
+        if "S" in axes:
+            # remove T
+            axes = axes.replace("T", "")
+        else:
+            # relabel T as S
+            axes = axes.replace("T", "S")
+    return axes
+
+
+# TODO does `channels` have an impact here?
+def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
+    """Generate automatic chunk sizes based on axes and shape.
+
+    Spatial dimensions will be chunked with a maximum size of 64, other dimensions
+    will have chunk size 1.
+
+    Parameters
+    ----------
+    axes : str
+        Axes string of the original data.
+    data_shape : Sequence[int]
+        Shape of the array in SC(Z)YX order with potential singleton dimensions.
+
+    Returns
+    -------
+    tuple[int, ...]
+        Chunk sizes for each dimension in SC(Z)YX order, but excluding dimensions that
+        are not in the axes string.
+    """
+    chunk_sizes = []
+
+    # axes may contain T, which is now multiplexed with S
+    updated_axes = _update_T_axis(axes)
+
+    # axes reshaping indices in the order SC(Z)YX
+    indices = get_axes_order(updated_axes, ref_axes="SCZYX")
+
+    sczyx_offset = 0
+
+    if "S" not in updated_axes:
+        sczyx_offset = 1  # singleton S dim added to data_shape
+
+    if "C" not in updated_axes:
+        sczyx_offset += 1  # singleton C dim added to data_shape
+
+    # loop through the original axes in order SC(Z)YX
+    #   - original_index is the index of the axis in the original `axes` string
+    #   - idx is the index in SC(Z)YX order of the axes present in `axes`
+    #   - since all non spatial are treated the same, we can recover the spatial dims
+    # index in SC(Z)YX order by using sczyx_offset
+    for idx, original_index in enumerate(indices):
+        axis = updated_axes[original_index]
+
+        if axis in ("Z", "Y", "X"):
+            dim_size = data_shape[idx + sczyx_offset]
+            chunk_sizes.append(
+                min(64, dim_size)
+            )  # TODO arbitrary value, need benchmark
+        else:
+            chunk_sizes.append(1)
+
+    return tuple(chunk_sizes)
 
 
 def _add_output_key(dirpath: Path, path: str | Path) -> Path:
@@ -30,7 +144,7 @@ def _add_output_key(dirpath: Path, path: str | Path) -> Path:
         Zarr path with `output` key added.
     """
     p = Path(path)
-    new_name = p.stem + OUTPUT_KEY + p.suffix
+    new_name = p.stem + OUTPUT_KEY + ".zarr"
     return dirpath / new_name
 
 
@@ -95,8 +209,10 @@ class WriteTilesZarr:
     def _create_array(
         self,
         array_name: str,
-        shape: Sequence[int],
-        chunks: Sequence[int],
+        axes: str,
+        data_shape: Sequence[int],
+        shards: tuple[int, ...] | None,
+        chunks: tuple[int, ...] | None,
     ) -> None:
         """Create a new array in an existing zarr group.
 
@@ -104,9 +220,13 @@ class WriteTilesZarr:
         ----------
         array_name : str
             Name of the array within the zarr group.
-        shape : Sequence[int]
+        axes : str
+            Axes string in SC(Z)YX format with original data order.
+        data_shape : Sequence[int]
             Shape of the array.
-        chunks : Sequence[int]
+        shards : tuple[int, ...] or None
+            Shard size for the array.
+        chunks : tuple[int, ...] or None
             Chunk size for the array.
 
         Raises
@@ -118,20 +238,31 @@ class WriteTilesZarr:
             raise RuntimeError("Zarr group not initialized.")
 
         if array_name not in self.current_group:
+            # get shape without non-existing axes (S or C)
+            updated_shape = _update_data_shape(axes, data_shape)
 
-            shape = [i for i in shape if i != 1]
-
-            # TODO currently this prevents predicting from anything else than zarr
-            if chunks == (1,):  # guard against the ImageRegionData default
-                raise ValueError("Chunks cannot be (1,).")
-
-            if len(shape) != len(chunks):
+            if chunks is not None and len(updated_shape) != len(chunks):
                 raise ValueError(
-                    f"Shape {shape} and chunks {chunks} have different lengths."
+                    f"Shape {updated_shape} and chunks {chunks} have different lengths."
+                )
+
+            if chunks is None:
+                chunks = _auto_chunks(axes, data_shape)
+
+            # TODO if we auto_chunks, we probably want to auto shards as well
+            # there is shards="auto" in zarr, where array.target_shard_size_bytes
+            # needs to be used (see zarr-python docs)
+            if shards is not None and len(chunks) != len(shards):
+                raise ValueError(
+                    f"Chunks {chunks} and shards {shards} have different lengths."
                 )
 
             self.current_array = self.current_group.create_array(
-                name=array_name, shape=shape, chunks=tuple(chunks), dtype=float32
+                name=array_name,
+                shape=updated_shape,
+                shards=shards,
+                chunks=chunks,
+                dtype=float32,
             )
         else:
             current_array = self.current_group[array_name]
@@ -149,8 +280,14 @@ class WriteTilesZarr:
         region : ImageRegionData
             Image region data containing tile information.
         """
-        store_path, parent_path, array_name = decipher_zarr_uri(region.source)
-        output_store_path = _add_output_key(dirpath, store_path)
+        if is_valid_uri(region.source):
+            store_path, parent_path, array_name = decipher_zarr_uri(region.source)
+            output_store_path = _add_output_key(dirpath, store_path)
+        else:
+            raise NotImplementedError(
+                f"Invalid zarr URI: {region.source}. Currently, only predicting from "
+                f"Zarr files is supported when writing Zarr tiles."
+            )
 
         if (
             self.current_group is None
@@ -163,23 +300,35 @@ class WriteTilesZarr:
             self._create_group(parent_path)
 
         if self.current_array is None or self.current_array.basename != array_name:
+            # data_shape, chunks and shards are in SC(Z)YX order since they are reshaped
+            # in the zarr image stack loader
+            # If the source is not a Zarr file, then chunks and shards will be `None`.
             shape = region.data_shape
-            chunks = region.chunks
-            self._create_array(array_name, shape, chunks)
+            chunks: tuple[int, ...] | None = region.additional_metadata.get(
+                "chunks", None
+            )
+            shards: tuple[int, ...] | None = region.additional_metadata.get(
+                "shards", None
+            )
+            self._create_array(array_name, region.axes, shape, shards, chunks)
 
         tile_spec: TileSpecs = region.region_spec  # type: ignore[assignment]
         crop_coords = tile_spec["crop_coords"]
         crop_size = tile_spec["crop_size"]
         stitch_coords = tile_spec["stitch_coords"]
 
-        crop_slices: tuple[builtins.ellipsis | slice, ...] = (
+        # compute sample slice
+        sample_idx = tile_spec["sample_idx"]
+
+        # TODO there is duplicated code in stitch_prediction
+        crop_slices: tuple[builtins.ellipsis | slice | int, ...] = (
             ...,
             *[
                 slice(start, start + length)
                 for start, length in zip(crop_coords, crop_size, strict=True)
             ],
         )
-        stitch_slices: tuple[builtins.ellipsis | slice, ...] = (
+        stitch_slices: tuple[builtins.ellipsis | slice | int, ...] = (
             ...,
             *[
                 slice(start, start + length)
@@ -188,7 +337,20 @@ class WriteTilesZarr:
         )
 
         if self.current_array is not None:
-            self.current_array[stitch_slices] = region.data.squeeze()[crop_slices]
+            # region.data has shape C(Z)YX, broadcast can fail with singleton dims
+            crop = region.data[crop_slices]
+
+            if region.data.shape[0] == 1:
+                # singleton C dim, need to remove it before writing
+                crop = crop[0]
+
+            if "S" in region.axes:
+                if "C" in region.axes:
+                    stitch_slices = (sample_idx, *stitch_slices[0:])
+                else:
+                    stitch_slices = (sample_idx, *stitch_slices[1:])
+
+            self.current_array[stitch_slices] = crop
         else:
             raise RuntimeError("Zarr array not initialized.")
 

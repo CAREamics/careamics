@@ -74,6 +74,7 @@ def tiles(n_data, shape, axes, channels) -> list[ImageRegionData]:
                 data_shape=shape,
                 axes=axes,
                 region_spec=tile_spec,
+                additional_metadata={},
             )
         )
     return tiles

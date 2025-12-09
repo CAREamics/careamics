@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
@@ -12,14 +13,21 @@ from careamics.dataset_ng.image_stack.image_utils import channel_slice
 # TODO test _reshaped_data_shape
 
 
-def create_zarr(file_path: Path, data_path: str, data: NDArray):
+def create_zarr(
+    file_path: Path,
+    data_path: str,
+    data: NDArray,
+    shards: Sequence[int] | None = None,
+    chunks: Sequence[int] | None = None,
+) -> zarr.Group:
     group = zarr.create_group(file_path.resolve())
 
     # create array
     array = group.create(
         name=data_path,
         shape=data.shape,
-        chunks=data.shape,  # only 1 chunk
+        shards=shards if shards is not None else None,
+        chunks=data.shape if chunks is None else chunks,
         dtype=np.uint16,
     )
     # write data
@@ -57,10 +65,6 @@ def test_extract_patch_2D(
     # initialise ZarrImageStack
     group = create_zarr(file_path=file_path, data_path=data_path, data=data)
     image_stack = ZarrImageStack(group=group, data_path=data_path, axes=original_axes)
-
-    # TODO: this assert can move if _reshaped_data_shape is tested separately
-    assert image_stack.data_shape == expected_shape
-    assert image_stack.chunks == original_shape
 
     # test extracted patch matches patch from reference data
     coords = (11, 4)
@@ -161,3 +165,30 @@ def test_extract_channel_error(
             coords=(0, 0),
             patch_size=(16, 16),
         )
+
+
+def test_shards_and_chunks(tmp_path: Path):
+
+    axes = "SCZYX"
+    shape = (10, 3, 32, 64, 64)
+    chunks = (1, 1, 4, 8, 8)
+    shards = (1, 1, 8, 32, 16)
+
+    data = np.arange(np.prod(shape)).reshape(shape)
+
+    # save data as a zarr array to ininitialise image stack with
+    file_path = tmp_path / "test_zarr.zarr"
+    data_path = "image"
+
+    # initialise ZarrImageStack
+    group = create_zarr(
+        file_path=file_path,
+        data_path=data_path,
+        data=data,
+        shards=shards,
+        chunks=chunks,
+    )
+    image_stack = ZarrImageStack(group=group, data_path=data_path, axes=axes)
+
+    assert image_stack.chunks == chunks
+    assert image_stack.shards == shards

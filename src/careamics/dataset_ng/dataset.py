@@ -13,7 +13,7 @@ from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
 from careamics.transforms import Compose
 
-from .image_stack import GenericImageStack
+from .image_stack import GenericImageStack, ZarrImageStack
 from .patch_extractor import PatchExtractor
 from .patch_filter import create_coord_filter, create_patch_filter
 from .patching_strategies import (
@@ -44,7 +44,7 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     - dtype: list of str, length B
     - axes: list of str, length B
     - region_spec: dict of {str: sequence}, each sequence being of length B
-    - chunks: either a single tuple (1,) or a list of tuples of length B (zarr source)
+    - additional_metadata: list of dict
 
     Description of the fields is given for the uncollated case (non-batched).
     """
@@ -72,9 +72,9 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     tiling, and TileSpecs during prediction with tiling.
     """
 
-    chunks: Sequence[int] = ()  # default value for ImageStack without chunks
-    """Chunk sizes of the original image, only used for zarr sources. Default
-    otherwise to `()`."""
+    additional_metadata: dict[str, Any]
+    """Additional metadata to be stored with the image region. Currently used to store
+    chunk and shard information for zarr image stacks."""
 
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
@@ -104,6 +104,35 @@ def _patch_size_within_data_shapes(
         for data_shape in data_shapes
     ]
     return all(smaller_than_shapes)
+
+
+def _adjust_shape_for_channels(
+    shape: Sequence[int],
+    channels: Sequence[int] | None,
+    value: int | Literal["channels"] = "channels",
+) -> Sequence[int]:
+    """Adjust shape to account for channel subsetting.
+
+    Parameters
+    ----------
+    shape : Sequence[int]
+        The original data shape in SC(Z)YX format.
+    channels : Sequence[int] | None
+        The list of channels to select. If None, no adjustment is made.
+    value : int | Literal["channels"], default="channels"
+        The value to replace the channel dimension with. If "channels", the length
+        of the channels list is used, by default "channels".
+
+    Returns
+    -------
+    Sequence[int]
+        The adjusted data shape in SC(Z)YX format.
+    """
+    if channels is not None:
+        adjusted_shape = list(shape)
+        adjusted_shape[1] = len(channels) if value == "channels" else value
+        return adjusted_shape
+    return shape
 
 
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
@@ -217,24 +246,46 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         image_stack: GenericImageStack = extractor.image_stacks[data_idx]
 
         # adjust the number of channels in data_shape if needed
-        data_shape = list(image_stack.data_shape)
-        if self.config.channels is not None:
-            # adjusting channels: image stacks have shape SC(Z)YX, therefore channel is
-            # at index 1.
-            data_shape[1] = len(self.config.channels)
+        data_shape = _adjust_shape_for_channels(
+            shape=image_stack.data_shape,
+            channels=self.config.channels,
+        )
 
-        # remove singleton dimensions from data_shape, as it is used to create
-        # inference arrays (e.g. prediction writer)
-        data_shape_tpl = tuple(dim for dim in data_shape if dim != 1)
+        # build additional metadata, adjusting for channels if needed
+        if isinstance(image_stack, ZarrImageStack):
+            # We replace the channel dimension in chunks and shards with 1
+            #   - channel independent chunking/sharding
+            #   - shard size is a multiple of chunks, we would otherwise have to
+            #     recompute the shard size
+            #   - in general shard and chunk sizes > 1 for channels is not recommended
+            chunks = _adjust_shape_for_channels(
+                shape=image_stack.chunks,
+                channels=self.config.channels,
+                value=1,
+            )
+
+            additional_metadata = {
+                "chunks": chunks,
+            }
+
+            if image_stack.shards is not None:
+                shards = _adjust_shape_for_channels(
+                    shape=image_stack.shards,
+                    channels=self.config.channels,
+                    value=1,
+                )
+                additional_metadata["shards"] = shards
+        else:
+            additional_metadata = {}
 
         return ImageRegionData(
             data=patch,
             source=str(image_stack.source),
             dtype=str(image_stack.data_dtype),
-            data_shape=data_shape_tpl,
+            data_shape=data_shape,
             axes=self.config.axes,
             region_spec=patch_spec,
-            chunks=image_stack.chunks,
+            additional_metadata=additional_metadata,
         )
 
     def _extract_patches(
