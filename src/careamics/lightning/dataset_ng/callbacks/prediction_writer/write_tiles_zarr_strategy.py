@@ -237,7 +237,6 @@ class WriteTilesZarr:
             raise RuntimeError("Zarr group not initialized.")
 
         if array_name not in self.current_group:
-            # TODO what happens if T is in axes?
             # get shape without non-existing axes (S or C)
             updated_shape = _update_data_shape(axes, data_shape)
 
