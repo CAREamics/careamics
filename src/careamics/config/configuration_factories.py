@@ -1338,8 +1338,10 @@ def create_n2v_configuration(
          (`ModelCheckpoint`) for the list of available parameters.
      n_data_channels : int, default=1
          Number of data channels to mask, starting from index 0. Only used if
-         `data_channel_indices` is None. For example, if `n_data_channels=2`, channels
-         0 and 1 will be masked.
+         `data_channel_indices` is None. **Note**: For multi-channel data (`n_channels` > 1),
+         this automatically defaults to `n_channels` to train all channels. For example,
+         if `n_channels=2`, both channels 0 and 1 will be masked by default. To train only
+         a subset of channels, use `data_channel_indices` instead.
      data_channel_indices : list of int or None, default=None
          Specific channel indices to mask (e.g., [0, 3, 5]). If specified, takes
          precedence over `n_data_channels`. Useful when you have auxiliary channels
@@ -1613,6 +1615,25 @@ def create_n2v_configuration(
                 )
     else:
         spatial_transforms = _list_spatial_augmentations(augmentations)
+
+    # Auto-detect n_data_channels from n_channels if not explicitly customized
+    # This ensures multi-channel data trains all channels by default
+    if data_channel_indices is None and n_channels is not None:
+        # If user didn't specify channel indices, default to training all channels
+        # User can still explicitly set n_data_channels=1 if they only want channel 0,
+        # but for multi-channel data, the intuitive default is to train all channels
+        if n_data_channels == 1 and n_channels > 1:
+            n_data_channels = n_channels
+
+    # Set up model_params with Fourier configuration
+    if model_params is None:
+        model_params = {}
+
+    # Add fourier parameter to model_params if use_fourier is True
+    if use_fourier:
+        model_params.setdefault("fourier", True)
+        model_params.setdefault("n_data_channels_fft", n_data_channels)
+        model_params.setdefault("data_channel_indices_fft", data_channel_indices)
 
     # create the N2VManipulate transform using the supplied parameters
     n2v_transform = N2VManipulateConfig(
