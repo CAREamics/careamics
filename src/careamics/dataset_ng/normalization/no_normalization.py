@@ -1,5 +1,6 @@
 from typing import Any
 
+import numpy as np
 from numpy.typing import NDArray
 
 from .normalization_protocol import NormalizationProtocol
@@ -41,6 +42,9 @@ class NoNormalization(NormalizationProtocol):
         tuple of NDArray
             Transformed patch and target, the target can be returned as `None`.
         """
+        patch = patch.astype(np.float32)
+        if target is not None:
+            target = target.astype(np.float32)
         return patch, target
 
     def denormalize(self, patch: NDArray) -> NDArray:
@@ -57,4 +61,4 @@ class NoNormalization(NormalizationProtocol):
         NDArray
             Denormalized patch.
         """
-        return patch
+        return patch.astype(np.float32)

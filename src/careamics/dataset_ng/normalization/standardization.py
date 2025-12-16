@@ -4,25 +4,27 @@ from numpy.typing import NDArray
 from .normalization_protocol import NormalizationProtocol
 
 
-def _reshape_stats(stats: list[float], ndim: int) -> NDArray:
+def _reshape_stats(stats: list[float], ndim: int, channel_axis: int = 0) -> NDArray:
     """Reshape stats to match the number of dimensions of the input image.
-
-    This allows to broadcast the stats (mean or std) to the image dimensions, and
-    thus directly perform a vectorial calculation.
 
     Parameters
     ----------
     stats : list of float
-        List of stats, mean or standard deviation.
+        List of per-channel statistic values.
     ndim : int
-        Number of dimensions of the image, including the C channel.
+        Number of dimensions in the image.
+    channel_axis : int, optional
+        Position of the channel axis in the image.
 
     Returns
     -------
     NDArray
-        Reshaped stats.
+        Stats array reshaped, with the channel dimension
+        at the specified axis and singleton dimensions elsewhere.
     """
-    return np.array(stats)[(..., *[np.newaxis] * (ndim - 1))]
+    shape = [1] * ndim
+    shape[channel_axis] = len(stats)
+    return np.array(stats, dtype=np.float32).reshape(shape)
 
 
 class Standardize(NormalizationProtocol):
@@ -32,14 +34,14 @@ class Standardize(NormalizationProtocol):
     Normalization is a zero mean and unit variance. This transform expects C(Z)YX
     dimensions.
 
-    Not that an epsilon value of 1e-6 is added to the standard deviation to avoid
+    Note that an epsilon value of 1e-6 is added to the standard deviation to avoid
     division by zero and that it returns a float32 image.
 
     Parameters
     ----------
-    image_means : list of float
+    input_means : list of float
         Mean value per channel.
-    image_stds : list of float
+    input_stds : list of float
         Standard deviation value per channel.
     target_means : list of float, optional
         Target mean value per channel, by default None.
@@ -48,11 +50,11 @@ class Standardize(NormalizationProtocol):
 
     Attributes
     ----------
-    image_means : list of float
+    input_means : list of float
         Mean value per channel.
-    image_stds : list of float
+    input_stds : list of float
         Standard deviation value per channel.
-    target_means :list of float, optional
+    target_means : list of float, optional
         Target mean value per channel, by default None.
     target_stds : list of float, optional
         Target standard deviation value per channel, by default None.
@@ -98,9 +100,6 @@ class Standardize(NormalizationProtocol):
             Patch, 2D or 3D, shape C(Z)YX.
         target : NDArray, optional
             Target for the patch, by default None.
-        **additional_arrays : NDArray
-            Additional arrays that will be transformed identically to `patch` and
-            `target`.
 
         Returns
         -------
@@ -113,11 +112,13 @@ class Standardize(NormalizationProtocol):
                 f"number of channels (got shape {patch.shape} for C(Z)YX) do not match."
             )
 
+        patch = patch.astype(np.float32)
+        if target is not None:
+            target = target.astype(np.float32)
+
         # reshape mean and std and apply the normalization to the patch
-        means = _reshape_stats(self.input_means, patch.ndim)
-        stds = _reshape_stats(self.input_stds, patch.ndim)
-        means = means.astype(patch.dtype)
-        stds = stds.astype(patch.dtype)
+        means = _reshape_stats(self.input_means, patch.ndim, channel_axis=0)
+        stds = _reshape_stats(self.input_stds, patch.ndim, channel_axis=0)
         norm_patch = self._apply_normalization(patch, means, stds)
 
         # same for the target patch
@@ -129,18 +130,10 @@ class Standardize(NormalizationProtocol):
                     "Target means and standard deviations must be provided "
                     "if target is not None."
                 )
-            if len(self.target_means) == 0 and len(self.target_stds) == 0:
-                raise ValueError(
-                    "Target means and standard deviations must be provided "
-                    "if target is not None."
-                )
-            if len(self.target_means) != target.shape[0]:
-                raise ValueError(
-                    "Target means and standard deviations must have the same length "
-                    "as the target."
-                )
-            target_means = _reshape_stats(self.target_means, target.ndim)
-            target_stds = _reshape_stats(self.target_stds, target.ndim)
+            target_means = _reshape_stats(
+                self.target_means, target.ndim, channel_axis=0
+            )
+            target_stds = _reshape_stats(self.target_stds, target.ndim, channel_axis=0)
             norm_target = self._apply_normalization(target, target_means, target_stds)
 
         return norm_patch, norm_target
@@ -165,7 +158,7 @@ class Standardize(NormalizationProtocol):
         NDArray
             Normalized image patch.
         """
-        return ((patch - mean) / (std + self.eps)).astype(np.float32)
+        return (patch - mean) / (std + self.eps)
 
     def _apply_denormalization(
         self, array: NDArray, mean: NDArray, std: NDArray
@@ -209,15 +202,11 @@ class Standardize(NormalizationProtocol):
                 f"match."
             )
 
-        means = _reshape_stats(self.input_means, patch.ndim)
-        stds = _reshape_stats(self.input_stds, patch.ndim)
-        means = means.astype(patch.dtype)
-        stds = stds.astype(patch.dtype)
+        patch = patch.astype(np.float32)
 
-        denorm_array = self._apply_denormalization(
-            patch,
-            np.swapaxes(means, 0, 1),  # swap axes as C channel is axis 1
-            np.swapaxes(stds, 0, 1),
-        )
+        means = _reshape_stats(self.input_means, patch.ndim, channel_axis=1)
+        stds = _reshape_stats(self.input_stds, patch.ndim, channel_axis=1)
 
-        return denorm_array.astype(np.float32)
+        denorm_array = self._apply_denormalization(patch, means, stds)
+
+        return denorm_array
