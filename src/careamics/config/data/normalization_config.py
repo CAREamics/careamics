@@ -80,17 +80,6 @@ class StandardizeConfig(BaseModel):
         """
         return self.input_means is None or self.input_stds is None
 
-    def is_resolved(self) -> bool:
-        """
-        Check if all required statistics are populated.
-
-        Returns
-        -------
-        bool
-            True if input statistics are provided, False otherwise.
-        """
-        return self.input_means is not None and self.input_stds is not None
-
     def set_input_stats(self, means: list[float], stds: list[float]) -> None:
         """
         Set input means and stds together to avoid validation errors.
@@ -295,19 +284,6 @@ class QuantileConfig(BaseModel):
             or self.input_upper_quantile_values is None
         )
 
-    def is_resolved(self) -> bool:
-        """Check if all required quantile values are present.
-
-        Returns
-        -------
-        bool
-            True if all required quantile values are present.
-        """
-        return (
-            self.input_lower_quantile_values is not None
-            and self.input_upper_quantile_values is not None
-        )
-
     def set_input_quantile_values(self, lower: list[float], upper: list[float]) -> None:
         """
         Set input quantile values together to avoid validation errors.
@@ -408,17 +384,6 @@ class MinMaxConfig(BaseModel):
         """
         return self.input_mins is None or self.input_maxes is None
 
-    def is_resolved(self) -> bool:
-        """
-        Check if all required min/max values are present.
-
-        Returns
-        -------
-        bool
-            True if input statistics are present, False otherwise.
-        """
-        return self.input_mins is not None and self.input_maxes is not None
-
     def set_input_range(self, mins: list[float], maxes: list[float]) -> None:
         """
         Set input mins and maxes together to avoid validation errors.
@@ -473,16 +438,6 @@ class NoNormConfig(BaseModel):
             Always False, as no statistics are required.
         """
         return False
-
-    def is_resolved(self) -> bool:
-        """Check if the configuration is fully resolved.
-
-        Returns
-        -------
-        bool
-            Always True, as this configuration requires nothing.
-        """
-        return True
 
 
 NormalizationConfig = Annotated[
