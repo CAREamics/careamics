@@ -427,6 +427,7 @@ def create_ng_data_configuration(
         "channels": channels,
         "transforms": augmentations,
         "seed": seed,
+        "normalization": {"name": "standardize"},
     }
 
     if in_memory is not None:

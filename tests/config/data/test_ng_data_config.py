@@ -5,6 +5,8 @@ from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
 
+DEFAULT_NORM = {"name": "standardize"}
+
 
 def default_patching(mode: str) -> dict:
     """Return default patching strategy based on mode."""
@@ -46,15 +48,13 @@ def default_patching(mode: str) -> dict:
     ],
 )
 def test_ng_data_config_strategy(patching_strategy, mode):
-
-    # Test the DataModel class
     data_config = NGDataConfig(
         mode=mode,
         data_type="array",
         axes="YX",
         patching=patching_strategy,
+        normalization=DEFAULT_NORM,
     )
-
     assert data_config.patching.name == patching_strategy["name"]
 
 
@@ -108,13 +108,13 @@ def test_ng_data_config_strategy(patching_strategy, mode):
     ],
 )
 def test_ng_data_wrong_config_strategy(patching_strategy, mode):
-    # Test the DataModel class
     with pytest.raises(ValueError):
         _ = NGDataConfig(
             mode=mode,
             data_type="array",
             axes="YX",
             patching=patching_strategy,
+            normalization=DEFAULT_NORM,
         )
 
 
@@ -140,13 +140,13 @@ def test_ng_data_wrong_config_strategy(patching_strategy, mode):
     ],
 )
 def test_ng_dataset_invalid_axes_patch(axes, patching_strategy):
-
     with pytest.raises(ValueError):
         NGDataConfig(
             mode="training",
             data_type="array",
             axes=axes,
             patching=patching_strategy,
+            normalization=DEFAULT_NORM,
         )
 
 
@@ -182,15 +182,16 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
                 axes="YX" if data_type != "czi" else "SCYX",
                 in_memory=in_memory,
                 patching={"name": SupportedPatchingStrategy.WHOLE},
+                normalization=DEFAULT_NORM,
             )
     else:
-        # if in_memory is None, check the default value
         if in_memory is None:
             config = NGDataConfig(
                 mode="predicting",
                 data_type=data_type,
                 axes="YX" if data_type != "czi" else "SCYX",
                 patching={"name": SupportedPatchingStrategy.WHOLE},
+                normalization=DEFAULT_NORM,
             )
             if data_type in ("array", "tiff", "custom"):
                 assert config.in_memory is True
@@ -203,6 +204,7 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
                 axes="YX" if data_type != "czi" else "SCYX",
                 in_memory=in_memory,
                 patching={"name": SupportedPatchingStrategy.WHOLE},
+                normalization=DEFAULT_NORM,
             )
 
 
@@ -234,6 +236,7 @@ def test_channels(channels, error):
                 axes="CYX",
                 patching=default_patching("predicting"),
                 channels=channels,
+                normalization=DEFAULT_NORM,
             )
     else:
         _ = NGDataConfig(
@@ -242,6 +245,7 @@ def test_channels(channels, error):
             axes="CYX",
             patching=default_patching("predicting"),
             channels=channels,
+            normalization=DEFAULT_NORM,
         )
 
 
@@ -258,6 +262,7 @@ def test_propagate_seed():
         },
         transforms=[{"name": "XYFlip"}],
         seed=global_seed,
+        normalization=DEFAULT_NORM,
     )
 
     assert config.seed == global_seed
@@ -276,7 +281,6 @@ def test_propagate_seed():
     ],
 )
 def test_validate_coord_filters(filter_config, mode, error):
-
     if error:
         with pytest.raises(ValueError):
             NGDataConfig(
@@ -285,6 +289,7 @@ def test_validate_coord_filters(filter_config, mode, error):
                 axes="CYX",
                 patching=default_patching(mode),
                 coord_filter=filter_config,
+                normalization=DEFAULT_NORM,
             )
     else:
         _ = NGDataConfig(
@@ -293,6 +298,7 @@ def test_validate_coord_filters(filter_config, mode, error):
             axes="CYX",
             patching=default_patching(mode),
             coord_filter=filter_config,
+            normalization=DEFAULT_NORM,
         )
 
 
@@ -305,6 +311,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="CYX",
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
         val_config = original_config.convert_mode("validating")
@@ -329,6 +336,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="CYX",
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
         assert (
@@ -352,29 +360,32 @@ class TestNGDataConfigConvertMode:
             )
 
     def test_conservation_means_stds(self):
-        """Test converting mode conserves means and stds."""
+        """Test converting mode conserves means and stds in normalization."""
         original_config = NGDataConfig(
             mode="training",
             data_type="array",
             axes="CYX",
             patching=default_patching("training"),
-            image_means=[0.5],
-            image_stds=[0.2],
-            target_means=[0.3],
-            target_stds=[0.1],
+            normalization={
+                "name": "standardize",
+                "input_means": [0.5],
+                "input_stds": [0.2],
+                "target_means": [0.3],
+                "target_stds": [0.1],
+            },
         )
 
         val_config = original_config.convert_mode("validating")
-        assert val_config.image_means == original_config.image_means
-        assert val_config.image_stds == original_config.image_stds
-        assert val_config.target_means == original_config.target_means
-        assert val_config.target_stds == original_config.target_stds
+        assert val_config.normalization.input_means == [0.5]
+        assert val_config.normalization.input_stds == [0.2]
+        assert val_config.normalization.target_means == [0.3]
+        assert val_config.normalization.target_stds == [0.1]
 
         pred_config = original_config.convert_mode("predicting")
-        assert pred_config.image_means == original_config.image_means
-        assert pred_config.image_stds == original_config.image_stds
-        assert pred_config.target_means == original_config.target_means
-        assert pred_config.target_stds == original_config.target_stds
+        assert pred_config.normalization.input_means == [0.5]
+        assert pred_config.normalization.input_stds == [0.2]
+        assert pred_config.normalization.target_means == [0.3]
+        assert pred_config.normalization.target_stds == [0.1]
 
     def test_with_dataloader_params(self):
         """Test converting mode with new dataloader parameters."""
@@ -385,6 +396,7 @@ class TestNGDataConfigConvertMode:
             patching=default_patching("training"),
             val_dataloader_params={"pin_memory": True},
             pred_dataloader_params={"num_workers": 2},
+            normalization=DEFAULT_NORM,
         )
 
         val_config = original_config.convert_mode("validating")
@@ -400,6 +412,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="YX",
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
         val_config = original_config.convert_mode(
@@ -428,6 +441,7 @@ class TestNGDataConfigConvertMode:
             axes="YX",
             patching=default_patching("training"),
             in_memory=True,
+            normalization=DEFAULT_NORM,
         )
 
         val_config = original_config.convert_mode(
@@ -452,6 +466,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="CYX",
             patching=default_patching(mode),
+            normalization=DEFAULT_NORM,
         )
 
         with pytest.raises(ValueError):
@@ -465,6 +480,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="CYX",
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
         with pytest.raises(ValueError):
@@ -480,6 +496,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="YX",
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
         # adding "C" with multiple channels specified
@@ -506,9 +523,9 @@ class TestNGDataConfigConvertMode:
             axes="CYX",
             channels=[0, 1],
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
-        #
         with pytest.raises(ValueError):
             _ = original_config.convert_mode(
                 "validating",
