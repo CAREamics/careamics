@@ -9,7 +9,7 @@ INPUT = str | Path
 
 def is_valid_uri(path: str | Path) -> bool:
     """
-    Check if a path is a Zarr URI.
+    Check if a path is a valid URI.
 
     Parameters
     ----------
@@ -19,7 +19,7 @@ def is_valid_uri(path: str | Path) -> bool:
     Returns
     -------
     bool
-        True if the path is a Zarr URI, False otherwise.
+        True if the path is valid URI, False otherwise.
     """
     parsed = urlparse(str(path))
 

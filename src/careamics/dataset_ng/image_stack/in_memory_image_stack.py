@@ -17,12 +17,11 @@ class InMemoryImageStack:
     """
 
     def __init__(self, source: Union[Path, Literal["array"]], data: NDArray):
-        self.source: Union[Path, Literal["array"]] = source
+        self.source: Union[str, Path, Literal["array"]] = source
         # data expected to be in SC(Z)YX shape, reason to use from_array constructor
         self._data: NDArray = data
         self.data_shape: Sequence[int] = self._data.shape
         self.data_dtype: DTypeLike = self._data.dtype
-        self.chunks: Sequence[int] = (1,)  # ImageStack protocol, unused here
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
@@ -39,7 +38,7 @@ class InMemoryImageStack:
         if (coord_dims := len(coords)) != (patch_dims := len(patch_size)):
             raise ValueError(
                 "Patch coordinates and patch size must have the same dimensions but "
-                f"found {coord_dims} and {patch_dims}."
+                f"found {coord_dims} ({coords}) and {patch_dims} ({patch_size})."
             )
 
         # check that channels are within bounds
