@@ -116,11 +116,12 @@ def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
     for idx, original_index in enumerate(indices):
         axis = updated_axes[original_index]
 
+        # TODO we should probably not chunk on Z (#658)
         if axis in ("Z", "Y", "X"):
             dim_size = data_shape[idx + sczyx_offset]
             chunk_sizes.append(
-                min(64, dim_size)
-            )  # TODO arbitrary value, need benchmark
+                min(128, dim_size)
+            )  # TODO arbitrary value, about 1MB for float64
         else:
             chunk_sizes.append(1)
 
