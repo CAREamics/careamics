@@ -1,7 +1,7 @@
 """A module to contain type definitions relating to patching strategies."""
 
 from collections.abc import Sequence
-from typing import Protocol, TypedDict, TypeVar
+from typing import Protocol, TypedDict, TypeGuard, TypeVar
 
 RegionSpecs = TypeVar("RegionSpecs", bound="PatchSpecs")
 
@@ -62,6 +62,28 @@ class TileSpecs(PatchSpecs):
     crop_size: Sequence[int]
     stitch_coords: Sequence[int]
     total_tiles: int
+
+
+def is_tile_specs(specs: PatchSpecs) -> TypeGuard[TileSpecs]:
+    """Determine whether a given PatchSpecs is a TileSpecs.
+
+    Used for type checking.
+
+    Parameters
+    ----------
+    specs : PatchSpecs
+        A patch specification.
+
+    Returns
+    -------
+    bool
+        Whether the given specs is a TileSpecs.
+    """
+    return (
+        ("crop_coords" in specs)
+        and ("crop_size" in specs)
+        and ("stitch_coords" in specs)
+    )
 
 
 class PatchingStrategy(Protocol):

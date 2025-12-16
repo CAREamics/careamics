@@ -13,7 +13,7 @@ from careamics.dataset_ng.image_stack_loader.zarr_utils import (
     decipher_zarr_uri,
     is_valid_uri,
 )
-from careamics.dataset_ng.patching_strategies import TileSpecs
+from careamics.dataset_ng.patching_strategies import TileSpecs, is_tile_specs
 
 OUTPUT_KEY = "_output"
 
@@ -311,7 +311,8 @@ class WriteTilesZarr:
             )
             self._create_array(array_name, region.axes, shape, shards, chunks)
 
-        tile_spec: TileSpecs = region.region_spec  # type: ignore[assignment]
+        assert is_tile_specs(region.region_spec)  # for mypy
+        tile_spec: TileSpecs = region.region_spec
         crop_coords = tile_spec["crop_coords"]
         crop_size = tile_spec["crop_size"]
         stitch_coords = tile_spec["stitch_coords"]
