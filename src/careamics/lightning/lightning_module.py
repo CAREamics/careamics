@@ -757,7 +757,11 @@ class VAEModule(L.LightningModule):
                     target_channel_indices = self.n2v_preprocess.data_channel_indices
 
             # Fallback: For FCNModule, algorithm_config is not saved as attribute, need to get from hparams
-            if target_channel_indices is None and hasattr(self, "hparams") and "algorithm_config" in self.hparams:
+            if (
+                target_channel_indices is None
+                and hasattr(self, "hparams")
+                and "algorithm_config" in self.hparams
+            ):
                 alg_config = self.hparams["algorithm_config"]
                 if isinstance(alg_config, dict) and "n2v_config" in alg_config:
                     n2v_config = alg_config["n2v_config"]
