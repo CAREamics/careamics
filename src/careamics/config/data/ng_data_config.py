@@ -802,9 +802,11 @@ class NGDataConfig(BaseModel):
         This method is intended to facilitate creating validation or prediction
         configurations from a training configuration.
 
-        Switching mode to `predicting` without specifying `new_patch_size` and
-        `overlap_size` will apply the default patching strategy, namely `whole`
-        image strategy. `overlap_size` is only used when switching to `predicting`.
+        To perform tile prediction when switching to `predicting` mode, please provide
+        both `new_patch_size` and `overlap_size`. Switching mode to `predicting` without
+        specifying `new_patch_size` and `overlap_size` will apply the default patching
+        strategy, namely `whole` image strategy. `new_patch_size` and `overlap_size` are
+        only used when switching to `predicting`.
 
         `channels=None` will retain the same channels as in the current configuration.
         To select all channels, please specify all channels explicitly or pass
