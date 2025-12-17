@@ -82,7 +82,7 @@ dev = [
     "sybil",  # doctesting
 
     # libraries used in some tests
-    "onnxscript<=0.5.6",
+    "onnxscript<=0.5.7",
     "ml_dtypes>=0.5.0",  # required by onnx, causes issues in gh runners with py313
     'pylibCZIrw>=4.1.2,<6.0.0',  # czi files testing
 ]
