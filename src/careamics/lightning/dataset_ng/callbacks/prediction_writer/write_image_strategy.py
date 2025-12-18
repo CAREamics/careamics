@@ -13,6 +13,9 @@ from .file_path_utils import create_write_file_path
 from .write_strategy import WriteStrategy
 
 
+# TODO bug: batch is over samples for whole images, if one batch does not cover
+# all samples, it will write an incomplete image, then overwrite it whith the next
+# batch
 class WriteImage(WriteStrategy):
     """
     A strategy for writing image predictions (i.e. un-tiled predictions).
@@ -76,6 +79,7 @@ class WriteImage(WriteStrategy):
             Decollated predictions.
         """
         assert predictions is not None
+
         image_lst, sources = combine_samples(predictions)
 
         for i, image in enumerate(image_lst):
