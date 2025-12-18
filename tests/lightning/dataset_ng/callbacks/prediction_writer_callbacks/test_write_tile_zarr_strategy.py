@@ -107,7 +107,7 @@ def data_config(axes, shape, channels) -> NGDataConfig:
 # TODO this is very similar to the fixture in test_ng_stitch_prediction.py, refactor
 @pytest.fixture
 def tiles(
-    tmp_path, data_config: NGDataConfig, n_data, shape, axes, shards, chunks
+    tmp_path, data_config: NGDataConfig, n_data, shape, shards, chunks
 ) -> tuple[NDArray, list[ImageRegionData]]:
     """Create tiles.
 
@@ -155,13 +155,13 @@ def tiles(
         )
         sources.append(arr.store_path)
 
-    if "S" in axes:
-        if "C" in axes:
+    if "S" in data_config.axes:
+        if "C" in data_config.axes:
             shape_with_sc = shape
         else:
             shape_with_sc = (shape[0], 1, *shape[1:])
     else:
-        if "C" in axes:
+        if "C" in data_config.axes:
             shape_with_sc = (1, *shape)
         else:
             shape_with_sc = (1, 1, *shape)
@@ -174,7 +174,7 @@ def tiles(
     n_tiles = tiling_strategy.n_patches
 
     # create patch extractor
-    image_stacks = load_zarrs(source=sources, axes=axes)
+    image_stacks = load_zarrs(source=sources, axes=data_config.axes)
     patch_extractor = PatchExtractor(image_stacks)
 
     # create dataset
@@ -189,7 +189,7 @@ def tiles(
         tiles.append(dataset[i][0])
 
     # reshape array for testing
-    arrays = [reshape_array(array[i], axes) for i in range(array.shape[0])]
+    arrays = [reshape_array(array[i], data_config.axes) for i in range(array.shape[0])]
 
     return np.stack(arrays, axis=0), tiles
 
