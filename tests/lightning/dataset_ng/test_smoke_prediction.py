@@ -1,7 +1,5 @@
 """Test prediction conversion and callback."""
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 import tifffile
@@ -12,29 +10,12 @@ from careamics.config import N2VAlgorithm
 from careamics.config.configuration_factories import create_ng_data_configuration
 from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     PredictionWriterCallback,
-    WriteStrategy,
 )
 from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 from careamics.lightning.dataset_ng.lightning_modules import N2VModule
 from careamics.lightning.dataset_ng.prediction import convert_prediction
 
-
-@pytest.fixture
-def write_strategy(mocker):
-    """Mock `WriteFunc`."""
-    return mocker.Mock(spec=WriteStrategy)
-
-
-@pytest.fixture
-def dirpath(tmp_path: Path):
-    """Directory path."""
-    return tmp_path / "predictions"
-
-
-@pytest.fixture
-def prediction_writer_callback(write_strategy: WriteStrategy, dirpath: Path | str):
-    """Initialized `PredictionWriterCallback`."""
-    return PredictionWriterCallback(write_strategy=write_strategy, dirpath=dirpath)
+# TODO add zarr tests, from zarr, arrays and from tiff
 
 
 @pytest.mark.mps_gh_fail

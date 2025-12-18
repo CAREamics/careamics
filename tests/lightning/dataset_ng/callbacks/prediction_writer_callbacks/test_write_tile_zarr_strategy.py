@@ -1,10 +1,15 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 import tifffile
 import zarr
+from numpy.typing import NDArray
 
 import careamics.lightning.dataset_ng.callbacks.prediction_writer as pd_writer
-from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.config.data import NGDataConfig
+from careamics.dataset.dataset_utils import reshape_array
+from careamics.dataset_ng.dataset import CareamicsDataset, ImageRegionData
 from careamics.dataset_ng.image_stack_loader import load_arrays, load_tiffs, load_zarrs
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patching_strategies import (
@@ -17,6 +22,8 @@ from careamics.dataset_ng.patching_strategies import (
 WriteTilesZarr = pd_writer.write_tiles_zarr_strategy.WriteTilesZarr
 _auto_chunks = pd_writer.write_tiles_zarr_strategy._auto_chunks
 _update_data_shape = pd_writer.write_tiles_zarr_strategy._update_data_shape
+
+# TODO test chunking and sharding errors and handling (e.g. when missing)
 
 
 def create_image_region(
@@ -65,19 +72,126 @@ def gen_image_regions(
 
 
 @pytest.fixture
-def zarr_path(tmp_path, shape, shards, chunks):
-    array = np.random.rand(*shape).astype(np.float32)
+def data_config(axes, shape, channels) -> NGDataConfig:
+    # create tiling strategy
+    if "Z" in axes:
+        tile_size = (8, 16, 16)
+        overlaps = (2, 4, 4)
+    else:
+        tile_size = (16, 16)
+        overlaps = (4, 4)
 
-    path = tmp_path / "test.zarr"
-    g = zarr.create_group(path)
-    array = g.create_array(
-        name="image_stack",
-        data=array,
-        shards=shards,
-        chunks=chunks,
+    if "C" in axes:
+        n_channels = shape[axes.index("C")]
+
+        if channels is not None:
+            n_channels = len(channels)
+    else:
+        n_channels = 1
+
+    return NGDataConfig(
+        mode="predicting",
+        data_type="zarr",
+        patching={
+            "name": "tiled",
+            "patch_size": tile_size,
+            "overlaps": overlaps,
+        },
+        axes=axes,
+        channels=channels,
+        image_means=[0.0 for _ in range(n_channels)],
+        image_stds=[1.0 for _ in range(n_channels)],
     )
 
-    return path
+
+# TODO this is very similar to the fixture in test_ng_stitch_prediction.py, refactor
+@pytest.fixture
+def tiles(
+    tmp_path, data_config: NGDataConfig, n_data, shape, axes, shards, chunks
+) -> tuple[NDArray, list[ImageRegionData]]:
+    """Create tiles.
+
+    Note that the tiles will be slightly different because the dataset changes the dtype
+    of the data and performs normalization.
+
+    We must use np.testing.assert_allclose(stitched_array, array, rtol=1e-5, atol=0),
+    with relative tolerance as the errors scale with the values and we use
+    np.arange to create the data.
+
+    Returns
+    -------
+    np.ndarray
+        Original array of shape DSC(Z)YX, where D is data.
+    list of ImageRegionData
+        Extracted tiles.
+    """
+    # create data
+    array = np.arange(n_data * np.prod(shape)).reshape((n_data, *shape))
+
+    sources = []
+    root = tmp_path / "input_data"
+    root.mkdir(parents=True, exist_ok=True)
+
+    even = root / "even.zarr"
+    odd = root / "odd.zarr"
+
+    for i in range(n_data):
+        if i % 2 == 0:
+            pth = even
+        else:
+            pth = odd
+
+        if not pth.exists():
+            g = zarr.create_group(pth)
+        else:
+            g = zarr.open(pth, mode="a")
+
+        # write array
+        arr = g.create_array(
+            name=f"array_{i}",
+            data=array[i],
+            shards=shards,
+            chunks=chunks,
+        )
+        sources.append(arr.store_path)
+
+    if "S" in axes:
+        if "C" in axes:
+            shape_with_sc = shape
+        else:
+            shape_with_sc = (shape[0], 1, *shape[1:])
+    else:
+        if "C" in axes:
+            shape_with_sc = (1, *shape)
+        else:
+            shape_with_sc = (1, 1, *shape)
+
+    tiling_strategy = TilingStrategy(
+        data_shapes=[shape_with_sc] * n_data,
+        patch_size=data_config.patching.patch_size,
+        overlaps=data_config.patching.overlaps,
+    )
+    n_tiles = tiling_strategy.n_patches
+
+    # create patch extractor
+    image_stacks = load_zarrs(source=sources, axes=axes)
+    patch_extractor = PatchExtractor(image_stacks)
+
+    # create dataset
+    dataset = CareamicsDataset(
+        data_config=data_config,
+        input_extractor=patch_extractor,
+    )
+
+    # extract tiles
+    tiles: list[ImageRegionData] = []
+    for i in range(n_tiles):
+        tiles.append(dataset[i][0])
+
+    # reshape array for testing
+    arrays = [reshape_array(array[i], axes) for i in range(array.shape[0])]
+
+    return np.stack(arrays, axis=0), tiles
 
 
 @pytest.mark.parametrize(
@@ -136,134 +250,72 @@ def test_auto_chunks(axes, data_shape, expected_chunks):
     assert chunks == expected_chunks
 
 
+@pytest.mark.parametrize("n_data", [1, 3])
 @pytest.mark.parametrize(
-    "axes, shape, shards, chunks",
+    "axes, shape, shards, chunks, channels",
     [
-        ("YX", (32, 32), (16, 16), (8, 8)),
-        ("ZYX", (16, 32, 32), (8, 16, 16), (4, 8, 8)),
-        ("CYX", (3, 32, 32), (1, 16, 16), (1, 8, 8)),
-        ("CZYX", (3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8)),
-        ("SCYX", (2, 3, 32, 32), (1, 1, 16, 16), (1, 1, 8, 8)),
-        ("SCZYX", (2, 3, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8)),
+        ("YX", (32, 32), (16, 16), (8, 8), None),
+        ("CYX", (3, 32, 32), (1, 16, 16), (1, 8, 8), None),
+        ("CYX", (3, 32, 32), (1, 16, 16), (1, 8, 8), [1]),
+        ("CYX", (3, 32, 32), (1, 16, 16), (1, 8, 8), [0, 2]),
+        ("ZYX", (16, 32, 32), (8, 16, 16), (4, 8, 8), None),
+        ("CZYX", (3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), None),
+        ("CZYX", (3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), [1]),
+        ("CZYX", (3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), [0, 2]),
+        ("SZYX", (5, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), None),
+        ("SCZYX", (5, 3, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), None),
+        ("SCZYX", (5, 3, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), [1]),
+        ("SCZYX", (5, 3, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), [0, 2]),
     ],
 )
-def test_write_tile_identity(tmp_path, zarr_path, axes):
+def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
     """Test that `write_tile` correctly writes the data.
 
     No need to test with different axes order since the data coming to the writer
     is always in C(Z)YX format, with potential singleton dimensions.
     """
-    # create extractor and tiling strategy
-    image_stacks = load_zarrs(
-        source=[str(zarr_path)],
-        axes=axes,
-    )
-    patch_extractor = PatchExtractor(image_stacks)
+    arrays, tiles_list = tiles
 
-    strategy = TilingStrategy(
-        data_shapes=[image_stacks[0].data_shape],
-        patch_size=(8, 8) if "Z" not in axes else (4, 8, 8),
-        overlaps=(4, 4) if "Z" not in axes else (2, 4, 4),
-    )
+    source_set = {tile.source for tile in tiles_list}
 
     # use writer to write predictions
     writer = WriteTilesZarr()
-    for region in gen_image_regions(axes, patch_extractor, strategy):
+    for region in tiles_list:
         writer.write_tile(tmp_path, region)
 
-    # check that the array has been writtent correctly
-    assert (tmp_path / "test_output.zarr").exists()
+    for src in source_set:
+        filename = Path(src[len("file://") :]).parent.stem
+        array_name = Path(src[len("file://") :]).name
 
-    g_output = zarr.open_group(tmp_path / "test_output.zarr", mode="r")
+        # check if zarr prediction exists
+        zarr_path = tmp_path / f"{filename}_output.zarr"
+        assert zarr_path.exists()
 
-    # group["array"][:] forces loading the full array into memory
-    assert np.array_equal(g_output["image_stack"][:], image_stacks[0]._array[:])
-    assert g_output["image_stack"].shards == image_stacks[0].shards
-    assert g_output["image_stack"].chunks == image_stacks[0].chunks
+        # load array and compare with original
+        g = zarr.open(zarr_path, mode="r")
 
+        # check sharding and chunking
+        if shards is not None:
+            assert g[array_name].shards == shards
+        if chunks is not None:
+            assert g[array_name].chunks == chunks
 
-# TODO test chunking and sharding errors and handling (e.g. when missing)
+        # pull array
+        pred_array = g[array_name][:]
+        data_idx = int(array_name.split("_")[-1])
+        expected_array = arrays[data_idx]
 
+        # if channels
+        if channels is not None:
+            expected_array = expected_array[:, channels]
 
-# TODO refactor this test to make it simpler
-def test_zarr_prediction_callback_identity(tmp_path):
-    """Test writing multiple arrays in a different hierarchy levels."""
-    # create data
-    arrays = np.arange(6 * 5 * 32 * 32).reshape((6, 5, 32, 32))
-    shards = (1, 16, 16)
-    chunks = (1, 8, 8)
-    axes = "SYX"
+        # zarr file writer does not save singleton dims if not present in original data
+        if "C" not in axes:
+            expected_array = expected_array.squeeze(axis=1)
+        if "S" not in axes:
+            expected_array = expected_array.squeeze(axis=0)
 
-    # write zarr sources to two different zarrs, at different levels
-    path = tmp_path / "source.zarr"
-    g = zarr.create_group(path)
-
-    image1_group = g.create_group("images1")
-    single_array = image1_group.create_array(
-        name="single_image",
-        data=arrays[0],
-        shards=shards,
-        chunks=chunks,
-    )
-    array_uris = [single_array.store_path]  # uris to the arrays
-
-    image2_group = g.create_group("images2")
-    for i in range(1, 5):
-        array = image2_group.create_array(
-            name=f"image_stack_{i}",
-            data=arrays[i],
-            shards=shards,
-            chunks=chunks,
-        )
-        array_uris.append(array.store_path)
-
-    path2 = tmp_path / "source2.zarr"
-    g2 = zarr.create_group(path2)
-    array_root = g2.create_array(
-        name="root_array",
-        data=arrays[5],
-        shards=shards,
-        chunks=chunks,
-    )
-    array_uris.append(array_root.store_path)
-
-    # create extractor and tiling strategy
-    image_stacks = load_zarrs(
-        source=array_uris,
-        axes=axes,
-    )
-    patch_extractor = PatchExtractor(image_stacks)
-
-    strategy = TilingStrategy(
-        data_shapes=[(5, 1, 32, 32) for _ in range(len(array_uris))],
-        patch_size=(8, 8),
-        overlaps=(4, 4),
-    )
-    assert strategy.n_patches == 6 * 5 * ((32 - 4) / (8 - 4)) ** 2
-
-    # use writer to write predictions
-    writer = WriteTilesZarr()
-    for region in gen_image_regions(axes, patch_extractor, strategy):
-        writer.write_tile(tmp_path, region)
-
-    # check that the arrays have been writtent correctly to the first zarr
-    assert (tmp_path / "source_output.zarr").exists()
-
-    g_output = zarr.open_group(tmp_path / "source_output.zarr", mode="r")
-    assert np.array_equal(g_output["images1/single_image"][:], arrays[0])
-    assert g_output["images1/single_image"].shards == shards
-    assert g_output["images1/single_image"].chunks == chunks
-    for i in range(1, 5):
-        assert np.array_equal(g_output[f"images2/image_stack_{i}"][:], arrays[i])
-        assert g_output[f"images2/image_stack_{i}"].shards == shards
-        assert g_output[f"images2/image_stack_{i}"].chunks == chunks
-
-    # check that the array has been written correctly to the second zarr
-    assert (tmp_path / "source2_output.zarr").exists()
-    g_output2 = zarr.open_group(tmp_path / "source2_output.zarr", mode="r")
-    assert np.array_equal(g_output2["root_array"][:], arrays[5])
-    assert g_output2["root_array"].shards == shards
-    assert g_output2["root_array"].chunks == chunks
+        np.testing.assert_allclose(pred_array, expected_array, rtol=1e-5, atol=0)
 
 
 # TODO update test once array sources is supported

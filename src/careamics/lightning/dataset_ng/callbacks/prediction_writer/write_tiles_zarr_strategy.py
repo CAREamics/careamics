@@ -341,7 +341,7 @@ class WriteTilesZarr:
             # region.data has shape C(Z)YX, broadcast can fail with singleton dims
             crop = region.data[crop_slices]
 
-            if region.data.shape[0] == 1:
+            if region.data.shape[0] == 1 and "C" not in region.axes:
                 # singleton C dim, need to remove it before writing
                 crop = crop[0]
 

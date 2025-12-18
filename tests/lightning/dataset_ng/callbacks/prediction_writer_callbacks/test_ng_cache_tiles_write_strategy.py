@@ -19,8 +19,6 @@ from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     create_write_file_path,
 )
 
-# TODO simulate real batches
-
 
 @pytest.fixture
 def tiles(n_data, shape, axes, channels=None) -> list[ImageRegionData]:
