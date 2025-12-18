@@ -79,7 +79,7 @@ def stitch_single_prediction(
     """
     Stitch tiles back together to form a full image.
 
-    Tiles are of dimensions SC(Z)YX, where C is the number of channels and can be a
+    Tiles are of dimensions C(Z)YX, where C is the number of channels and can be a
     singleton dimension.
 
     Parameters
@@ -111,7 +111,7 @@ def stitch_single_prediction(
             predicted_image[sample_slice] = stitched_sample.astype(np.float32)
     else:
         # stitch as a single sample
-        predicted_image = stitch_single_sample(tiles)
+        predicted_image[0] = stitch_single_sample(tiles)
 
     return predicted_image
 
@@ -135,10 +135,8 @@ def stitch_single_sample(
     numpy.ndarray
         Full sample, with dimensions C(Z)YX.
     """
-    data_shape = tiles[0].data_shape
-    len_patches = len(tiles[0].data.squeeze().shape)
-
-    predicted_sample = np.zeros(data_shape[-len_patches:], dtype=np.float32)
+    data_shape = tiles[0].data_shape  # SC(Z)YX
+    predicted_sample = np.zeros(data_shape[1:], dtype=np.float32)
 
     for tile in tiles:
         # compute crop coordinates and stitiching coordinates

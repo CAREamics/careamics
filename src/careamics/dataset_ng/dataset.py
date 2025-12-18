@@ -84,7 +84,7 @@ def _adjust_shape_for_channels(
     shape: Sequence[int],
     channels: Sequence[int] | None,
     value: int | Literal["channels"] = "channels",
-) -> Sequence[int]:
+) -> tuple[int, ...]:
     """Adjust shape to account for channel subsetting.
 
     Parameters
@@ -99,14 +99,14 @@ def _adjust_shape_for_channels(
 
     Returns
     -------
-    Sequence[int]
+    tuple[int, ...]
         The adjusted data shape in SC(Z)YX format.
     """
     if channels is not None:
         adjusted_shape = list(shape)
         adjusted_shape[1] = len(channels) if value == "channels" else value
-        return adjusted_shape
-    return shape
+        return tuple(adjusted_shape)
+    return tuple(shape)
 
 
 def _patch_size_within_data_shapes(
