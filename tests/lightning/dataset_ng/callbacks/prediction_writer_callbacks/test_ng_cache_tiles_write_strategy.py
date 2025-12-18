@@ -20,8 +20,11 @@ from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
 )
 
 
+# TODO code is very similar to test_ng_stitching_prediction fixture, refactor
+# Also this is going to be hard to maintain if anything changes in the way the dataset
+# produces tiles
 @pytest.fixture
-def tiles(n_data, shape, axes, channels=None) -> list[ImageRegionData]:
+def tiles(n_data, shape, axes) -> list[ImageRegionData]:
     # create data
     array = np.arange(n_data * np.prod(shape)).reshape((n_data, *shape))
 
@@ -60,7 +63,7 @@ def tiles(n_data, shape, axes, channels=None) -> list[ImageRegionData]:
         tile = patch_extractor.extract_channel_patch(
             data_idx=tile_spec["data_idx"],
             sample_idx=tile_spec["sample_idx"],
-            channels=channels,
+            channels=None,
             coords=tile_spec["coords"],
             patch_size=tile_spec["patch_size"],
         )
@@ -69,7 +72,7 @@ def tiles(n_data, shape, axes, channels=None) -> list[ImageRegionData]:
                 data=tile,
                 source=f"array_{i}.tif",
                 dtype=str(tile.dtype),
-                data_shape=shape,
+                data_shape=shape_with_sc,
                 axes=axes,
                 region_spec=tile_spec,
                 additional_metadata={},
@@ -104,7 +107,7 @@ def update_cache(cache_strategy: CachedTiles, tiles: list[ImageRegionData]):
         cache_strategy.tile_cache[tile.region_spec["data_idx"]].append(tile)
 
 
-@pytest.mark.parametrize("n_data, shape, axes, channels", [(1, (32, 32), "YX", None)])
+@pytest.mark.parametrize("n_data, shape, axes", [(1, (32, 32), "YX")])
 def test_write_batch_incomplete(
     tiles: list[ImageRegionData], cache_tiles_strategy: CachedTiles
 ):
@@ -131,14 +134,12 @@ def test_write_batch_incomplete(
 
 
 # TODO mock as in previous versions of the test?
-@pytest.mark.parametrize("n_data, shape, axes, channels", [(2, (28, 28), "YX", None)])
+@pytest.mark.parametrize("n_data, shape, axes", [(2, (28, 28), "YX")])
 def test_write_batch_no_full_image(
     tiles: list[ImageRegionData], cache_tiles_strategy: CachedTiles, tmp_path: Path
 ):
     """
-    Test `CacheTiles.write_batch` when there is no last tile added to the cache.
-
-    Expected behaviour is that the batch is added to the cache.
+    Test `CacheTiles.write_batch` when the new batch contains the last tile.
     """
     n_tiles = len(tiles) // 2 - 1
     batch_size = 2
@@ -175,7 +176,7 @@ def test_write_batch_no_full_image(
         )
 
 
-@pytest.mark.parametrize("n_data, shape, axes, channels", [(4, (28, 28), "YX", None)])
+@pytest.mark.parametrize("n_data, shape, axes", [(4, (28, 28), "YX")])
 def test_get_full_images(
     tiles: list[ImageRegionData], cache_tiles_strategy: CachedTiles
 ):
@@ -191,7 +192,7 @@ def test_get_full_images(
     assert set(data_indices) == {0, 1}
 
 
-@pytest.mark.parametrize("n_data, shape, axes, channels", [(1, (28, 28), "YX", None)])
+@pytest.mark.parametrize("n_data, shape, axes", [(1, (28, 28), "YX")])
 def test_get_full_images_too_many(
     tiles: list[ImageRegionData], cache_tiles_strategy: CachedTiles
 ):

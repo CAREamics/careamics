@@ -780,6 +780,8 @@ class NGDataConfig(BaseModel):
             target_stds=target_stds,
         )
 
+    # TODO: if switching from a state in which in_memory=True to an incompatible state
+    # an error will be raised. Should that automatically be set to False instead?
     # TODO `channels=None` is ambigouous: all channels or same channels as in training?
     # TODO this method could be private and we could have public `to_validation_config`
     #   and `to_prediction_config` methods with appropriate parameters
