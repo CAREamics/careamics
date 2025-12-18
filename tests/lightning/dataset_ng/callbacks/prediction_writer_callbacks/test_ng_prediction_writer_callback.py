@@ -9,8 +9,7 @@ import zarr
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from careamics.config import Configuration
-from careamics.config.configuration_factories import create_ng_data_configuration
+from careamics.config import Configuration, create_ng_data_configuration
 from careamics.config.data import NGDataConfig
 from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     PredictionWriterCallback,

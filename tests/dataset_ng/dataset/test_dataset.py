@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 import tifffile
 
+from careamics.config import create_ng_data_configuration
 from careamics.config.configuration_factories import (
     _list_spatial_augmentations,
-    create_ng_data_configuration,
 )
 from careamics.config.data import NGDataConfig
 from careamics.dataset_ng.factory import create_dataset
