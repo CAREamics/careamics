@@ -343,6 +343,7 @@ class WriteTilesZarr:
 
             if region.data.shape[0] == 1 and "C" not in region.axes:
                 # singleton C dim, need to remove it before writing
+                # unless it was present in the original axes
                 crop = crop[0]
 
             if "S" in region.axes:

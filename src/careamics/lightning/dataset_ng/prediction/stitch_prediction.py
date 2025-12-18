@@ -111,6 +111,7 @@ def stitch_single_prediction(
             predicted_image[sample_slice] = stitched_sample.astype(np.float32)
     else:
         # stitch as a single sample
+        # predicted_image has singleton sample dimension
         predicted_image[0] = stitch_single_sample(tiles)
 
     return predicted_image
