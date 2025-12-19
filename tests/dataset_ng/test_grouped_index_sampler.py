@@ -1,6 +1,6 @@
 import numpy as np
 
-from careamics.config.configuration_factories import create_ng_data_configuration
+from careamics.config import create_ng_data_configuration
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 

@@ -13,7 +13,7 @@ from careamics.config.algorithms import (
     PN2VAlgorithm,
 )
 from careamics.config.architectures import LVAEConfig, UNetConfig
-from careamics.config.data import DataConfig, NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.config.lightning.training_config import TrainingConfig
 from careamics.config.losses.loss_config import LVAELossConfig
 from careamics.config.noise_model.likelihood_config import (
@@ -355,99 +355,6 @@ def _create_microsplit_data_configuration(
         data["val_dataloader_params"] = val_dataloader_params
 
     return MicroSplitDataConfig(**data)
-
-
-def create_ng_data_configuration(
-    data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
-    axes: str,
-    patch_size: Sequence[int],
-    batch_size: int,
-    augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
-    channels: Sequence[int] | None = None,
-    in_memory: bool | None = None,
-    train_dataloader_params: dict[str, Any] | None = None,
-    val_dataloader_params: dict[str, Any] | None = None,
-    pred_dataloader_params: dict[str, Any] | None = None,
-    seed: int | None = None,
-) -> NGDataConfig:
-    """
-    Create a training NGDatasetConfig.
-
-    Parameters
-    ----------
-    data_type : {"array", "tiff", "zarr", "czi", "custom"}
-        Type of the data.
-    axes : str
-        Axes of the data.
-    patch_size : list of int
-        Size of the patches along the spatial dimensions.
-    batch_size : int
-        Batch size.
-    augmentations : list of transforms
-        List of transforms to apply.
-    channels : Sequence of int, default=None
-        List of channels to use. If `None`, all channels are used.
-    in_memory : bool, default=None
-        Whether to load all data into memory. This is only supported for 'array',
-        'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
-        'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
-        for `array`.
-    augmentations : list of transforms or None, default=None
-        List of transforms to apply. If `None`, default augmentations are applied
-        (flip in X and Y, rotations by 90 degrees in the XY plane).
-    train_dataloader_params : dict
-        Parameters for the training dataloader, see PyTorch notes, by default None.
-    val_dataloader_params : dict
-        Parameters for the validation dataloader, see PyTorch notes, by default None.
-    pred_dataloader_params : dict
-        Parameters for the test dataloader, see PyTorch notes, by default None.
-    seed : int, default=None
-        Random seed for reproducibility. If `None`, no seed is set.
-
-    Returns
-    -------
-    NGDataConfig
-        Next-Generation Data model with the specified parameters.
-    """
-    if augmentations is None:
-        augmentations = _list_spatial_augmentations()
-
-    # data model
-    data: dict[str, Any] = {
-        "mode": "training",
-        "data_type": data_type,
-        "axes": axes,
-        "batch_size": batch_size,
-        "channels": channels,
-        "transforms": augmentations,
-        "seed": seed,
-    }
-
-    if in_memory is not None:
-        data["in_memory"] = in_memory
-
-    # don't override defaults set in DataConfig class
-    if train_dataloader_params is not None:
-        # the presence of `shuffle` key in the dataloader parameters is enforced
-        # by the NGDataConfig class
-        if "shuffle" not in train_dataloader_params:
-            train_dataloader_params["shuffle"] = True
-
-        data["train_dataloader_params"] = train_dataloader_params
-
-    if val_dataloader_params is not None:
-        data["val_dataloader_params"] = val_dataloader_params
-
-    if pred_dataloader_params is not None:
-        data["pred_dataloader_params"] = pred_dataloader_params
-
-    # add training patching
-    data["patching"] = {
-        "name": "random",
-        "patch_size": patch_size,
-    }
-
-    return NGDataConfig(**data)
 
 
 def _create_training_configuration(

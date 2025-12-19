@@ -568,10 +568,13 @@ class NGDataConfig(BaseModel):
                 hasattr(self.patching, "patch_size")
                 and len(self.patching.patch_size) != 2
             ):
-                raise ValueError(
-                    f"`patch_size` in `patching` must have 2 dimensions if the data is"
-                    f" 3D, got axes {self.axes})."
-                )
+                if "T" in self.axes and self.data_type == "czi":
+                    pass  # Allow 3D patch size for CZI time series data
+                else:
+                    raise ValueError(
+                        f"`patch_size` in `patching` must have 2 dimensions if the data"
+                        f" is 3D, got axes {self.axes})."
+                    )
 
         return self
 
@@ -779,6 +782,35 @@ class NGDataConfig(BaseModel):
             target_means=target_means,
             target_stds=target_stds,
         )
+
+    def is_3D(self) -> bool:
+        """
+        Check if the data is 3D based on the axes.
+
+        Either "Z" is in the axes and patching `patch_size` has 3 dimensions, or for CZI
+        data, "Z" is in the axes or "T" is in the axes and patching `patch_size` has
+        3 dimensions.
+
+        This method is used during NGConfiguration validation to cross checks dimensions
+        with the algorithm configuration.
+
+        Returns
+        -------
+        bool
+            True if the data is 3D, False otherwise.
+        """
+        if self.data_type == "czi":
+            if hasattr(self.patching, "patch_size"):
+                return ("Z" in self.axes or "T" in self.axes) and len(
+                    self.patching.patch_size
+                ) == 3
+            else:
+                return "Z" in self.axes or "T" in self.axes
+        else:
+            if hasattr(self.patching, "patch_size"):
+                return ("Z" in self.axes) and len(self.patching.patch_size) == 3
+            else:
+                return "Z" in self.axes
 
     # TODO: if switching from a state in which in_memory=True to an incompatible state
     # an error will be raised. Should that automatically be set to False instead?
