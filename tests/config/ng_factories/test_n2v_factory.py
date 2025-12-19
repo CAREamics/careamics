@@ -361,7 +361,7 @@ class TestN2VConfiguration:
             n_channels=1,
         )
         assert config.data_config.axes == "SCTYX"
-        assert len(config.data_config.patch_size) == 3
+        assert len(config.data_config.patching.patch_size) == 3
         assert config.algorithm_config.model.conv_dims == 3
 
     @pytest.mark.parametrize(
