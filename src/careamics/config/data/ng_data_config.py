@@ -791,6 +791,9 @@ class NGDataConfig(BaseModel):
         data, "Z" is in the axes or "T" is in the axes and patching `patch_size` has
         3 dimensions.
 
+        This method is used during NGConfiguration validation to cross checks dimensions
+        with the algorithm configuration.
+
         Returns
         -------
         bool
