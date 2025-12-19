@@ -296,6 +296,48 @@ def test_validate_coord_filters(filter_config, mode, error):
         )
 
 
+@pytest.mark.parametrize(
+    "data_type, mode, axes, patching, patch_size, is_3D",
+    [
+        ("array", "training", "CYX", "random", [16, 16], False),
+        ("array", "training", "CZYX", "random", [8, 16, 16], True),
+        ("array", "predicting", "CYX", "tiled", [16, 16], False),
+        ("array", "predicting", "CZYX", "tiled", [8, 16, 16], True),
+        ("array", "predicting", "CYX", "whole", None, False),
+        ("array", "predicting", "CZYX", "whole", None, True),
+        # czi has some specificities due to T being a 3D axis
+        ("czi", "training", "SCYX", "random", [16, 16], False),
+        ("czi", "training", "SCZYX", "random", [8, 16, 16], True),
+        ("czi", "training", "SCTYX", "random", [8, 16, 16], True),
+        ("czi", "predicting", "SCYX", "tiled", [16, 16], False),
+        ("czi", "predicting", "SCZYX", "tiled", [8, 16, 16], True),
+        ("czi", "predicting", "SCTYX", "tiled", [8, 16, 16], True),
+        ("czi", "predicting", "SCYX", "whole", None, False),
+        ("czi", "predicting", "SCZYX", "whole", None, True),
+        ("czi", "predicting", "SCTYX", "whole", None, True),
+    ],
+)
+def test_is_3D(data_type, mode, axes, patching, patch_size, is_3D):
+    if patching == "random":
+        patching = {"name": SupportedPatchingStrategy.RANDOM, "patch_size": patch_size}
+    elif patching == "tiled":
+        patching = {
+            "name": SupportedPatchingStrategy.TILED,
+            "patch_size": patch_size,
+            "overlaps": [4 for _ in patch_size],
+        }
+    else:
+        patching = {"name": SupportedPatchingStrategy.WHOLE}
+
+    config_2D = NGDataConfig(
+        mode=mode,
+        data_type=data_type,
+        axes=axes,
+        patching=patching,
+    )
+    assert config_2D.is_3D() == is_3D
+
+
 class TestNGDataConfigConvertMode:
 
     def test_default(self):

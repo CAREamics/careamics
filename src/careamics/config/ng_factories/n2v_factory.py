@@ -206,9 +206,22 @@ def create_n2v_configuration(
         struct_mask_span=struct_n2v_span,
     )
 
+    # data
+    data_config = create_ng_data_configuration(
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        augmentations=spatial_transforms,
+        channels=channels,
+        in_memory=in_memory,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
+    )
+
     # algorithm
     algorithm_params = create_algorithm_configuration(
-        axes=axes,
+        dimensions=3 if data_config.is_3D() else 2,
         algorithm="n2v",
         loss="n2v",
         independent_channels=independent_channels,
@@ -222,19 +235,6 @@ def create_n2v_configuration(
         lr_scheduler_params=lr_scheduler_params,
     )
     algorithm_params["n2v_config"] = n2v_transform
-
-    # data
-    data_params = create_ng_data_configuration(
-        data_type=data_type,
-        axes=axes,
-        patch_size=patch_size,
-        batch_size=batch_size,
-        augmentations=spatial_transforms,
-        channels=channels,
-        in_memory=in_memory,
-        train_dataloader_params=train_dataloader_params,
-        val_dataloader_params=val_dataloader_params,
-    )
 
     # training
     final_trainer_params = update_trainer_params(
@@ -251,6 +251,6 @@ def create_n2v_configuration(
     return N2VConfiguration(
         experiment_name=experiment_name,
         algorithm_config=algorithm_params,
-        data_config=data_params,
+        data_config=data_config,
         training_config=training_params,
     )

@@ -40,56 +40,10 @@ def algorithm_factory(
     return adapter.validate_python(algorithm)
 
 
-def _create_unet_configuration(
-    axes: str,
-    n_channels_in: int,
-    n_channels_out: int,
-    independent_channels: bool,
-    use_n2v2: bool,
-    model_params: dict[str, Any] | None = None,
-) -> UNetConfig:
-    """
-    Create a dictionary with the parameters of the UNet model.
-
-    Parameters
-    ----------
-    axes : str
-        Axes of the data.
-    n_channels_in : int
-        Number of input channels.
-    n_channels_out : int
-        Number of output channels.
-    independent_channels : bool
-        Whether to train all channels independently.
-    use_n2v2 : bool
-        Whether to use N2V2.
-    model_params : dict
-        UNetModel parameters.
-
-    Returns
-    -------
-    UNetModel
-        UNet model with the specified parameters.
-    """
-    if model_params is None:
-        model_params = {}
-
-    model_params["n2v2"] = use_n2v2
-    model_params["conv_dims"] = 3 if "Z" in axes else 2
-    model_params["in_channels"] = n_channels_in
-    model_params["num_classes"] = n_channels_out
-    model_params["independent_channels"] = independent_channels
-
-    return UNetConfig(
-        architecture=SupportedArchitecture.UNET.value,
-        **model_params,
-    )
-
-
 def create_algorithm_configuration(
-    axes: str,
-    algorithm: Literal["n2v", "care", "n2n", "pn2v"],
-    loss: Literal["n2v", "mae", "mse", "pn2v"],
+    dimensions: Literal[2, 3],
+    algorithm: Literal["n2v", "care", "n2n"],
+    loss: Literal["n2v", "mae", "mse"],
     independent_channels: bool,
     n_channels_in: int,
     n_channels_out: int,
@@ -105,11 +59,11 @@ def create_algorithm_configuration(
 
     Parameters
     ----------
-    axes : str
-        Axes of the data.
-    algorithm : {"n2v", "care", "n2n", "pn2v"}
+    dimensions : {2, 3}
+        Dimension of the model, either 2D or 3D.
+    algorithm : {"n2v", "care", "n2n"}
         Algorithm to use.
-    loss : {"n2v", "mae", "mse", "pn2v"}
+    loss : {"n2v", "mae", "mse"}
         Loss function to use.
     independent_channels : bool
         Whether to train all channels independently.
@@ -137,14 +91,18 @@ def create_algorithm_configuration(
     dict
         Algorithm model as dictionnary with the specified parameters.
     """
-    # model
-    unet_model = _create_unet_configuration(
-        axes=axes,
-        n_channels_in=n_channels_in,
-        n_channels_out=n_channels_out,
-        independent_channels=independent_channels,
-        use_n2v2=use_n2v2,
-        model_params=model_params,
+    # create dictionary to ensure priority of explicit parameters over model_params
+    # and prevent multiple same parameters being passed to UNetConfig
+    model_params = {} if model_params is None else model_params
+    model_params["n2v2"] = use_n2v2
+    model_params["conv_dims"] = dimensions
+    model_params["in_channels"] = n_channels_in
+    model_params["num_classes"] = n_channels_out
+    model_params["independent_channels"] = independent_channels
+
+    unet_model = UNetConfig(
+        architecture=SupportedArchitecture.UNET.value,
+        **model_params,
     )
 
     return {

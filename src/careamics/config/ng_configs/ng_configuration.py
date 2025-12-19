@@ -139,24 +139,21 @@ class NGConfiguration(BaseModel):
     @model_validator(mode="after")
     def validate_3D(self: Self) -> Self:
         """
-        Change algorithm dimensions to match data.axes.
+        Validate algorithm dimensions to match data dimensions.
 
         Returns
         -------
         Self
             Validated configuration.
         """
-        if "Z" in self.data_config.axes and not self.algorithm_config.model.is_3D():
+        if self.data_config.is_3D() != self.algorithm_config.model.is_3D():
             raise ValueError(
-                "The data axes contain a Z dimension, but the algorithm is set to 2D. "
-                "Either change the data axes to not contain Z, or set the algorithm to "
-                "3D."
-            )
-        elif "Z" not in self.data_config.axes and self.algorithm_config.model.is_3D():
-            raise ValueError(
-                "The data axes do not contain a Z dimension, but the algorithm is set "
-                "to 3D. Either change the data axes to contain Z, or set the algorithm "
-                "to 2D."
+                f"Mismatch between data ({'3D' if self.data_config.is_3D() else '2D'}) "
+                f"and algorithm ("
+                f"{'3D' if self.algorithm_config.model.is_3D() else '2D'}). Data "
+                f"dimensionality is determined by the axes ({self.data_config.axes}), "
+                f"as well as patch size (if applicable) and data type (if data type "
+                f"is 'czi', which uses 3D when 'T' axis is specified)."
             )
 
         return self
