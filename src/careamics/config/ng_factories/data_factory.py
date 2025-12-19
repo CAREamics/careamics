@@ -1,3 +1,5 @@
+"""Convenience functions to create NG data configurations."""
+
 from collections.abc import Sequence
 from typing import Any, Literal
 

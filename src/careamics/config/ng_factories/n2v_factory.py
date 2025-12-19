@@ -1,7 +1,9 @@
-from collections.abc import Sequence
-from typing import Any, Literal, Union
+"""Convenience function to create N2V configurations."""
 
-from careamics.config.ng_configuration import NGConfiguration
+from collections.abc import Sequence
+from typing import Any, Literal
+
+from careamics.config.ng_configs import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedTransform,
@@ -14,41 +16,7 @@ from careamics.config.transformations import (
 
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import create_ng_data_configuration, list_spatial_augmentations
-
-
-# TODO refactor somehwere else
-def update_trainer_params(
-    trainer_params: dict[str, Any] | None = None,
-    num_epochs: int | None = None,
-    num_steps: int | None = None,
-) -> dict[str, Any]:
-    """
-    Update trainer parameters with num_epochs and num_steps.
-
-    Parameters
-    ----------
-    trainer_params : dict, optional
-        Parameters for Lightning Trainer class, by default None.
-    num_epochs : int, optional
-        Number of epochs to train for. If provided, this will be added as max_epochs
-        to trainer_params, by default None.
-    num_steps : int, optional
-        Number of batches in 1 epoch. If provided, this will be added as
-        limit_train_batches to trainer_params, by default None.
-
-    Returns
-    -------
-    dict
-        Updated trainer parameters dictionary.
-    """
-    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
-
-    if num_epochs is not None:
-        final_trainer_params["max_epochs"] = num_epochs
-    if num_steps is not None:
-        final_trainer_params["limit_train_batches"] = num_steps
-
-    return final_trainer_params
+from .training_factory import create_training_configuration, update_trainer_params
 
 
 def create_n2v_configuration(
@@ -59,7 +27,7 @@ def create_n2v_configuration(
     batch_size: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
-    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
+    augmentations: list[XYFlipConfig | XYRandomRotate90Config] | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
     independent_channels: bool = True,
@@ -79,7 +47,7 @@ def create_n2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
-) -> NGConfiguration:
+) -> N2VConfiguration:
     """
     Create a configuration for training Noise2Void.
 
@@ -195,20 +163,24 @@ def create_n2v_configuration(
 
     Returns
     -------
-    Configuration
+    N2VConfiguration
         Configuration for training N2V.
     """
     # if there are channels, we need to specify their number
-    if "C" in axes and (n_channels is None):
-        raise ValueError("Number of channels must be specified when using channels.")
-    elif "C" not in axes and (n_channels is not None and n_channels > 1):
+    channels_present = "C" in axes
+
+    if channels_present and (n_channels is None and channels is not None):
+        raise ValueError(
+            "`n_channels` or `channels` must be specified when using channels."
+        )
+    elif not channels_present and (n_channels is not None and n_channels > 1):
         raise ValueError(
             f"C is not present in the axes, but number of channels is specified "
             f"(got {n_channels} channel)."
         )
 
     if n_channels is None:
-        n_channels = 1
+        n_channels = 1 if channels is None else len(channels)
 
     # augmentations
     spatial_transforms = list_spatial_augmentations(augmentations)
@@ -251,6 +223,8 @@ def create_n2v_configuration(
         patch_size=patch_size,
         batch_size=batch_size,
         augmentations=spatial_transforms,
+        channels=channels,
+        in_memory=in_memory,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
     )
@@ -261,13 +235,13 @@ def create_n2v_configuration(
         num_epochs=num_epochs,
         num_steps=num_steps,
     )
-    training_params = _create_training_configuration(
+    training_params = create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
     )
 
-    return NGConfiguration(
+    return N2VConfiguration(
         experiment_name=experiment_name,
         algorithm_config=algorithm_params,
         data_config=data_params,

@@ -1,4 +1,4 @@
-"""Pydantic CAREamics configuration."""
+"""CAREamics configuration compatible with the NG Dataset."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import re
 from pprint import pformat
 from typing import Any, Literal, Self, Union
 
-import numpy as np
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -137,51 +136,6 @@ class NGConfiguration(BaseModel):
 
         return name
 
-    # TODO move to child
-    @model_validator(mode="after")
-    def validate_n2v_mask_pixel_perc(self: Self) -> Self:
-        """
-        Validate that there will always be at least one blind-spot pixel in every patch.
-
-        The probability of creating a blind-spot pixel is a function of the chosen
-        masked pixel percentage and patch size.
-
-        Returns
-        -------
-        Self
-            Validated configuration.
-
-        Raises
-        ------
-        ValueError
-            If the probability of masking a pixel within a patch is less than 1 for the
-            chosen masked pixel percentage and patch size.
-        """
-        # No validation needed for non n2v algorithms # TODO: why ?
-        if not isinstance(self.algorithm_config, N2VAlgorithm):
-            return self
-
-        mask_pixel_perc = self.algorithm_config.n2v_config.masked_pixel_percentage
-        patch_size = self.data_config.patch_size
-        expected_area_per_pixel = 1 / (mask_pixel_perc / 100)
-
-        n_dims = 3 if self.algorithm_config.model.is_3D() else 2
-        patch_size_lower_bound = int(np.ceil(expected_area_per_pixel ** (1 / n_dims)))
-        required_patch_size = tuple(
-            2 ** int(np.ceil(np.log2(patch_size_lower_bound))) for _ in range(n_dims)
-        )
-        required_mask_pixel_perc = (1 / np.prod(patch_size)) * 100
-        if expected_area_per_pixel > np.prod(patch_size):
-            raise ValueError(
-                "The probability of creating a blind-spot pixel within a patch is "
-                f"below 1, for a patch size of {patch_size} with a masked pixel "
-                f"percentage of {mask_pixel_perc}%. Either increase the patch size to "
-                f"{required_patch_size} or increase the masked pixel percentage to "
-                f"at least {required_mask_pixel_perc}%."
-            )
-
-        return self
-
     @model_validator(mode="after")
     def validate_3D(self: Self) -> Self:
         """
@@ -193,11 +147,17 @@ class NGConfiguration(BaseModel):
             Validated configuration.
         """
         if "Z" in self.data_config.axes and not self.algorithm_config.model.is_3D():
-            # change algorithm to 3D
-            self.algorithm_config.model.set_3D(True)
+            raise ValueError(
+                "The data axes contain a Z dimension, but the algorithm is set to 2D. "
+                "Either change the data axes to not contain Z, or set the algorithm to "
+                "3D."
+            )
         elif "Z" not in self.data_config.axes and self.algorithm_config.model.is_3D():
-            # change algorithm to 2D
-            self.algorithm_config.model.set_3D(False)
+            raise ValueError(
+                "The data axes do not contain a Z dimension, but the algorithm is set "
+                "to 3D. Either change the data axes to contain Z, or set the algorithm "
+                "to 2D."
+            )
 
         return self
 
@@ -211,26 +171,6 @@ class NGConfiguration(BaseModel):
             Pretty string.
         """
         return pformat(self.model_dump())
-
-    def set_3D(self, is_3D: bool, axes: str, patch_size: list[int]) -> None:
-        """
-        Set 3D flag and axes.
-
-        Parameters
-        ----------
-        is_3D : bool
-            Whether the algorithm is 3D or not.
-        axes : str
-            Axes of the data.
-        patch_size : list[int]
-            Patch size.
-        """
-        # set the flag and axes (this will not trigger validation at the config level)
-        self.algorithm_config.model.set_3D(is_3D)
-        self.data_config.set_3D(axes, patch_size)
-
-        # cheap hack: trigger validation
-        self.algorithm_config = self.algorithm_config
 
     def get_algorithm_friendly_name(self) -> str:
         """
