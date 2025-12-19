@@ -190,7 +190,6 @@ def convert_prediction(
     if tiled:
         predictions_output, sources = stitch_prediction(decollated_predictions)
     else:
-        # TODO squeeze single output?
         predictions_output, sources = combine_samples(decollated_predictions)
 
     if set(sources) == {"array"}:

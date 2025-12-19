@@ -9,7 +9,23 @@ from careamics.config.configuration_factories import (
     _list_spatial_augmentations,
 )
 from careamics.config.data import NGDataConfig
+from careamics.dataset_ng.dataset import _adjust_shape_for_channels
 from careamics.dataset_ng.factory import create_dataset
+
+
+@pytest.mark.parametrize(
+    "shape, channels, expected_shape",
+    [
+        ((1, 1, 32, 32), None, (1, 1, 32, 32)),
+        ((1, 1, 32, 32), [0], (1, 1, 32, 32)),
+        ((5, 4, 32, 32), None, (5, 4, 32, 32)),
+        ((5, 4, 32, 32), [1], (5, 1, 32, 32)),
+        ((5, 4, 32, 32), [1, 3], (5, 2, 32, 32)),
+    ],
+)
+def test_adjust_shape_for_channels(shape, channels, expected_shape):
+    adjusted_shape = _adjust_shape_for_channels(shape, channels)
+    assert adjusted_shape == expected_shape
 
 
 @pytest.mark.parametrize(
@@ -103,6 +119,9 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
                 assert np.all((ch + 1) * 1000 >= sample.data[i])
                 assert np.all(ch * 1000 <= target.data[i])
                 assert np.all((ch + 1) * 1000 >= target.data[i])
+
+            # test that channels are properly adjusted in data_shape
+            assert sample.data_shape[1] == len(channels)
 
 
 @pytest.mark.parametrize(
