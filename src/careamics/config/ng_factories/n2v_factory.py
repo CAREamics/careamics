@@ -192,20 +192,6 @@ def create_n2v_configuration(
     # augmentations
     spatial_transforms = list_spatial_augmentations(augmentations)
 
-    # create the N2VManipulate transform using the supplied parameters
-    n2v_transform = N2VManipulateConfig(
-        name=SupportedTransform.N2V_MANIPULATE.value,
-        strategy=(
-            SupportedPixelManipulation.MEDIAN.value
-            if use_n2v2
-            else SupportedPixelManipulation.UNIFORM.value
-        ),
-        roi_size=roi_size,
-        masked_pixel_percentage=masked_pixel_percentage,
-        struct_mask_axis=struct_n2v_axis,
-        struct_mask_span=struct_n2v_span,
-    )
-
     # data
     data_config = create_ng_data_configuration(
         data_type=data_type,
@@ -233,6 +219,20 @@ def create_n2v_configuration(
         optimizer_params=optimizer_params,
         lr_scheduler=lr_scheduler,
         lr_scheduler_params=lr_scheduler_params,
+    )
+
+    # create the N2VManipulate transform using the supplied parameters
+    n2v_transform = N2VManipulateConfig(
+        name=SupportedTransform.N2V_MANIPULATE.value,
+        strategy=(
+            SupportedPixelManipulation.MEDIAN.value
+            if use_n2v2
+            else SupportedPixelManipulation.UNIFORM.value
+        ),
+        roi_size=roi_size,
+        masked_pixel_percentage=masked_pixel_percentage,
+        struct_mask_axis=struct_n2v_axis,
+        struct_mask_span=struct_n2v_span,
     )
     algorithm_params["n2v_config"] = n2v_transform
 
