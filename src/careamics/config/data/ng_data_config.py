@@ -568,10 +568,13 @@ class NGDataConfig(BaseModel):
                 hasattr(self.patching, "patch_size")
                 and len(self.patching.patch_size) != 2
             ):
-                raise ValueError(
-                    f"`patch_size` in `patching` must have 2 dimensions if the data is"
-                    f" 3D, got axes {self.axes})."
-                )
+                if "T" in self.axes and self.data_type == "czi":
+                    pass  # Allow 3D patch size for CZI time series data
+                else:
+                    raise ValueError(
+                        f"`patch_size` in `patching` must have 2 dimensions if the data"
+                        f" is 3D, got axes {self.axes})."
+                    )
 
         return self
 

@@ -356,7 +356,7 @@ class TestN2VConfiguration:
             experiment_name="test",
             data_type="czi",
             axes="SCTYX",
-            patch_size=[64, 64],
+            patch_size=[32, 64, 64],
             batch_size=8,
             n_channels=1,
         )
