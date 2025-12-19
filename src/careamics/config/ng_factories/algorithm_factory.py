@@ -14,6 +14,7 @@ from careamics.config.architectures import UNetConfig
 from careamics.config.support.supported_architectures import SupportedArchitecture
 
 
+# TODO rename so that it does not bear the same name as the module?
 def algorithm_factory(
     algorithm: dict[str, Any],
 ) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]:

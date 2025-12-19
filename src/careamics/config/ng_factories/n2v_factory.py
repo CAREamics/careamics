@@ -169,7 +169,7 @@ def create_n2v_configuration(
     # if there are channels, we need to specify their number
     channels_present = "C" in axes
 
-    if channels_present and (n_channels is None and channels is not None):
+    if channels_present and (n_channels is None and channels is None):
         raise ValueError(
             "`n_channels` or `channels` must be specified when using channels."
         )
@@ -178,6 +178,13 @@ def create_n2v_configuration(
             f"C is not present in the axes, but number of channels is specified "
             f"(got {n_channels} channel)."
         )
+
+    if n_channels is not None and channels is not None:
+        if n_channels != len(channels):
+            raise ValueError(
+                f"Number of channels ({n_channels}) does not match length of "
+                f"`channels` ({len(channels)}). Only specify `channels`."
+            )
 
     if n_channels is None:
         n_channels = 1 if channels is None else len(channels)

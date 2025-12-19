@@ -12,7 +12,6 @@ def check_axes_validity(axes: str) -> None:
     - must not contain duplicates
     - must contain at least 2 contiguous axes: X and Y
     - must contain at most 4 axes
-    - cannot contain both S and T axes
 
     Axes do not need to be in the order 'STCZYX', as this depends on the user data.
 
