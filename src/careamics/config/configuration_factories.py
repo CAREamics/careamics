@@ -1273,8 +1273,8 @@ def create_n2v_configuration(
      If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
      will be applied to each manipulated pixel.
 
-     Parameters
-     ----------
+    Parameters
+    ----------
      experiment_name : str
          Name of the experiment.
      data_type : Literal["array", "tiff", "czi", "custom"]
@@ -1371,13 +1371,13 @@ def create_n2v_configuration(
          the model to not over-rely on noisy auxiliary channels. Combined with
          auxiliary_mask_percentage, this implements Formulation 2C.
 
-     Returns
-     -------
+    Returns
+    -------
      Configuration
          Configuration for training N2V.
 
-     Examples
-     --------
+    Examples
+    --------
      Minimum example:
      >>> config = create_n2v_configuration(
      ...     experiment_name="n2v_experiment",
@@ -1601,7 +1601,7 @@ def create_n2v_configuration(
     if is_1d:
         # For 1D data, we don't apply 2D spatial transforms
         if augmentations is None:
-            spatial_transforms = []  # No default transforms for 1D
+            spatial_transforms: list[SPATIAL_TRANSFORMS_UNION] = []
         else:
             # Filter out 2D transforms, warn user
             import warnings
@@ -1624,16 +1624,6 @@ def create_n2v_configuration(
         # but for multi-channel data, the intuitive default is to train all channels
         if n_data_channels == 1 and n_channels > 1:
             n_data_channels = n_channels
-
-    # Set up model_params with Fourier configuration
-    if model_params is None:
-        model_params = {}
-
-    # Add fourier parameter to model_params if use_fourier is True
-    if use_fourier:
-        model_params.setdefault("fourier", True)
-        model_params.setdefault("n_data_channels_fft", n_data_channels)
-        model_params.setdefault("data_channel_indices_fft", data_channel_indices)
 
     # create the N2VManipulate transform using the supplied parameters
     n2v_transform = N2VManipulateConfig(

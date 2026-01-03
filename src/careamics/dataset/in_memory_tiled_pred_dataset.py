@@ -1,38 +1,33 @@
 """In-memory tiled prediction dataset."""
 
-from pathlib import Path
-from typing import Union
-
 import numpy as np
 import torch
 from numpy.typing import NDArray
+from torch.utils.data import Dataset
 
-from careamics.config.inference_model import InferenceConfig
-from careamics.config.tile_information import TileInformation
-from careamics.config.transformations import NormalizeModel
+from careamics.config.data.inference_config import InferenceConfig
+from careamics.config.data.tile_information import TileInformation
+from careamics.config.transformations import NormalizeConfig
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.dataset.tiling.tiled_patching import extract_tiles
 from careamics.transforms import Compose
-from careamics.utils import get_logger
 
-logger = get_logger(__name__)
 
-class InMemoryTiledPredDataset:
-    """
-    In-memory prediction dataset for tiled prediction.
+class InMemoryTiledPredDataset(Dataset):
+    """Prediction dataset storing data in memory and returning tiles of each image.
 
     Parameters
     ----------
     prediction_config : InferenceConfig
         Prediction configuration.
-    inputs : Union[str, Path, NDArray]
-        Path to the folder containing the images or numpy array.
+    inputs : NDArray
+        Input data.
     """
 
     def __init__(
         self,
         prediction_config: InferenceConfig,
-        inputs: Union[str, Path, NDArray],
+        inputs: NDArray,
     ) -> None:
         """
         Constructor.
@@ -41,13 +36,13 @@ class InMemoryTiledPredDataset:
         ----------
         prediction_config : InferenceConfig
             Prediction configuration.
-        inputs : Union[str, Path, NDArray]
-            Path to the folder containing the images or numpy array.
+        inputs : NDArray
+            Input data array.
 
         Raises
         ------
         ValueError
-            If data_path is not a directory.
+            If no tiles are generated.
         """
         # config
         self.pred_config = prediction_config
@@ -58,7 +53,7 @@ class InMemoryTiledPredDataset:
         # data
         reshaped_data = reshape_array(
             inputs,
-            self.pred_config.axes,  
+            self.pred_config.axes,
         )
         self.reshaped_data = reshaped_data
 
@@ -81,7 +76,7 @@ class InMemoryTiledPredDataset:
                 )
             ],
         )
-        
+
     def _prepare_tiles(self) -> list[tuple[NDArray, TileInformation]]:
         """
         Prepare tiles for prediction.
@@ -90,9 +85,20 @@ class InMemoryTiledPredDataset:
         -------
         list of tuples of NDArray and TileInformation
             List of tuples containing the tiles and their information.
+
+        Raises
+        ------
+        ValueError
+            If tile_size or tile_overlap are not specified, or if no tiles generated.
         """
         # iterate over all samples
         reshaped_sample = self.reshaped_data
+
+        # Ensure tile_size and tile_overlap are specified
+        if self.tile_size is None or self.tile_overlap is None:
+            raise ValueError(
+                "tile_size and tile_overlap must be specified for tiled prediction"
+            )
 
         # generate patches, which returns a generator
         patch_generator = extract_tiles(
@@ -138,7 +144,7 @@ class InMemoryTiledPredDataset:
         # The transforms expect numpy arrays and handle tensor conversion internally
         if isinstance(sample, torch.Tensor):
             sample = sample.numpy()
-        
+
         # Ensure it's a numpy array with correct dtype
         if not isinstance(sample, np.ndarray):
             sample = np.array(sample)
@@ -158,13 +164,14 @@ class InMemoryTiledPredDataset:
 
         # Validate sample shape based on axes
         # Determine expected number of dimensions from axes
-        spatial_axes = [ax for ax in self.pred_config.axes if ax in 'XYZ']
+        spatial_axes = [ax for ax in self.pred_config.axes if ax in "XYZ"]
         expected_ndims = len(spatial_axes) + 1  # +1 for channel dimension
 
         if len(sample.shape) != expected_ndims:
             raise ValueError(
-                f"Expected {expected_ndims}D tensor for axes '{self.pred_config.axes}', "
-                f"got shape {sample.shape} ({len(sample.shape)}D)"
+                f"Expected {expected_ndims}D tensor for axes "
+                f"'{self.pred_config.axes}', got shape {sample.shape} "
+                f"({len(sample.shape)}D)"
             )
 
         return (sample,), tile_info
