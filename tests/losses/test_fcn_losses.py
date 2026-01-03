@@ -1,7 +1,8 @@
 """Tests for FCN (Fully Convolutional Network) losses."""
 
+from collections.abc import Callable
 from contextlib import nullcontext as does_not_raise
-from typing import Callable, Union
+from typing import Union
 
 import pytest
 import torch
@@ -69,7 +70,9 @@ def test_n2v_poisson_loss(batch_size: int, n_channels: int, img_size: int):
     # Predictions should be positive (photon rates)
     manipulated = torch.rand(batch_size, n_channels, img_size, img_size) * 100
     # Original should be counts (non-negative integers, but we use floats)
-    original = torch.randint(0, 200, (batch_size, n_channels, img_size, img_size)).float()
+    original = torch.randint(
+        0, 200, (batch_size, n_channels, img_size, img_size)
+    ).float()
     mask = torch.randint(0, 2, (batch_size, n_channels, img_size, img_size))
 
     # Compute loss
@@ -111,7 +114,9 @@ def test_n2v_loss_multi_channel(batch_size: int, out_channels: int, in_channels:
 
     # Only some channels have masks (data channels)
     mask = torch.zeros(batch_size, in_channels, img_size, img_size)
-    mask[:, :out_channels, :, :] = torch.randint(0, 2, (batch_size, out_channels, img_size, img_size))
+    mask[:, :out_channels, :, :] = torch.randint(
+        0, 2, (batch_size, out_channels, img_size, img_size)
+    )
 
     # Compute loss
     loss = n2v_loss(manipulated, original, mask)
@@ -125,17 +130,23 @@ def test_n2v_loss_multi_channel(batch_size: int, out_channels: int, in_channels:
 @pytest.mark.parametrize("batch_size", [1, 4])
 @pytest.mark.parametrize("out_channels", [1, 2])
 @pytest.mark.parametrize("in_channels", [2, 3])
-def test_n2v_poisson_loss_multi_channel(batch_size: int, out_channels: int, in_channels: int):
+def test_n2v_poisson_loss_multi_channel(
+    batch_size: int, out_channels: int, in_channels: int
+):
     """Test N2V Poisson loss with different input/output channel counts."""
     img_size = 32
 
     # Output has fewer channels than input
     manipulated = torch.rand(batch_size, out_channels, img_size, img_size) * 100
-    original = torch.randint(0, 200, (batch_size, in_channels, img_size, img_size)).float()
+    original = torch.randint(
+        0, 200, (batch_size, in_channels, img_size, img_size)
+    ).float()
 
     # Only some channels have masks (data channels)
     mask = torch.zeros(batch_size, in_channels, img_size, img_size)
-    mask[:, :out_channels, :, :] = torch.randint(0, 2, (batch_size, out_channels, img_size, img_size))
+    mask[:, :out_channels, :, :] = torch.randint(
+        0, 2, (batch_size, out_channels, img_size, img_size)
+    )
 
     # Compute loss
     loss = n2v_poisson_loss(manipulated, original, mask)
@@ -183,7 +194,7 @@ def test_mae_loss(batch_size: int, n_channels: int, img_size: int):
 
 
 def test_softplus_activation():
-    """Test that Softplus activation is properly registered and outputs positive values."""
+    """Test Softplus activation is registered and outputs positive values."""
     # Get the activation
     activation = get_activation(SupportedActivation.SOFTPLUS)
     assert activation is not None
@@ -199,4 +210,6 @@ def test_softplus_activation():
     # Test that it's smooth (no zeros like ReLU would produce)
     x_negative = torch.tensor([-10.0, -1.0, -0.1, 0.0, 0.1, 1.0, 10.0])
     output_negative = activation(x_negative)
-    assert torch.all(output_negative > 0), "Softplus should be positive even for negative inputs"
+    assert torch.all(
+        output_negative > 0
+    ), "Softplus should be positive even for negative inputs"

@@ -45,11 +45,11 @@ def n2v_loss(
     Parameters
     ----------
     manipulated_batch : torch.Tensor
-        Batch after manipulation function applied. Shape: (B, C_out, ...)
+        Batch after manipulation function applied. Shape: (B, C_out, ...).
     original_batch : torch.Tensor
-        Original images. Shape: (B, C_in, ...)
+        Original images. Shape: (B, C_in, ...).
     masks : torch.Tensor
-        Coordinates of changed pixels. Shape: (B, C_in, ...)
+        Coordinates of changed pixels. Shape: (B, C_in, ...).
     *args : Any
         Additional arguments.
 
@@ -110,11 +110,11 @@ def n2v_poisson_loss(
     Parameters
     ----------
     manipulated_batch : torch.Tensor
-        Predicted photon rates (must be positive). Shape: (B, C_out, ...)
+        Predicted photon rates (must be positive). Shape: (B, C_out, ...).
     original_batch : torch.Tensor
-        Observed photon counts. Shape: (B, C_in, ...)
+        Observed photon counts. Shape: (B, C_in, ...).
     masks : torch.Tensor
-        Binary mask indicating which pixels were masked. Shape: (B, C_in, ...)
+        Binary mask indicating which pixels were masked. Shape: (B, C_in, ...).
     *args : Any
         Additional arguments.
 
@@ -177,8 +177,9 @@ def n2v_poisson_loss(
         pred_denormalized = (manipulated_batch * stds) + means
         target_counts = (original_batch * stds) + means
 
-        # Apply ReLU + epsilon to ensure predictions are positive (required for Poisson λ > 0)
-        # ReLU has NO floor (unlike Softplus floor ~0.693), crucial for sparse data!
+        # Apply ReLU + epsilon to ensure predictions are positive
+        # (required for Poisson λ > 0)
+        # ReLU has NO floor (unlike Softplus floor ~0.693), crucial for sparse data
         # Small epsilon (1e-6) prevents log(0) in Poisson NLL computation
         pred_counts = F.relu(pred_denormalized) + 1e-6
 
@@ -198,7 +199,7 @@ def n2v_poisson_loss(
         target_counts,
         log_input=False,  # Predictions are photon rates (not log rates)
         full=False,
-        reduction='none'
+        reduction="none",
     )
 
     # Apply mask and compute mean over masked pixels only
