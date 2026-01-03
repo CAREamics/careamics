@@ -21,6 +21,7 @@ class SupportedActivation(str, BaseEnum):
     NONE = "None"
     SIGMOID = "Sigmoid"
     SOFTMAX = "Softmax"
+    SOFTPLUS = "Softplus"
     TANH = "Tanh"
     RELU = "ReLU"
     LEAKYRELU = "LeakyReLU"
