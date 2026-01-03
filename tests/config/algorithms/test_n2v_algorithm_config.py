@@ -21,18 +21,22 @@ def test_n_channels_n2v():
 
 
 def test_channels(minimum_algorithm_n2v: dict):
-    """Check that error is thrown if the number of channels are different."""
+    """Check that different channel configurations are allowed."""
     minimum_algorithm_n2v["model"] = {
         "architecture": "UNet",
         "in_channels": 2,
         "num_classes": 2,
         "n2v2": False,
     }
-    N2VAlgorithm(**minimum_algorithm_n2v)
+    config = N2VAlgorithm(**minimum_algorithm_n2v)
+    assert config.model.in_channels == 2
+    assert config.model.num_classes == 2
 
+    # Mismatching channels now allowed for pixel embedding
     minimum_algorithm_n2v["model"]["num_classes"] = 3
-    with pytest.raises(ValueError):
-        N2VAlgorithm(**minimum_algorithm_n2v)
+    config = N2VAlgorithm(**minimum_algorithm_n2v)
+    assert config.model.in_channels == 2
+    assert config.model.num_classes == 3
 
 
 def test_no_final_activation(minimum_algorithm_n2v: dict):
