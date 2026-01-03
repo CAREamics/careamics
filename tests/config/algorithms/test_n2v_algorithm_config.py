@@ -5,8 +5,7 @@ from careamics.config.support import SupportedPixelManipulation
 
 
 def test_n_channels_n2v():
-    """Check that an error is raised if n2v has different number of channels in
-    input and output."""
+    """Check that mismatching in/out channels are allowed (for pixel embedding)."""
     model = {
         "architecture": "UNet",
         "in_channels": 1,
@@ -15,8 +14,10 @@ def test_n_channels_n2v():
     }
     loss = "n2v"
 
-    with pytest.raises(ValueError):
-        N2VAlgorithm(algorithm="n2v", loss=loss, model=model)
+    # Mismatching channels now allowed for pixel embedding support
+    config = N2VAlgorithm(algorithm="n2v", loss=loss, model=model)
+    assert config.model.in_channels == 1
+    assert config.model.num_classes == 2
 
 
 def test_channels(minimum_algorithm_n2v: dict):
