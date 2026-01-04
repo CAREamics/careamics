@@ -164,7 +164,7 @@ def _create_unet_configuration(
 def _create_algorithm_configuration(
     axes: str,
     algorithm: Literal["n2v", "care", "n2n", "pn2v"],
-    loss: Literal["n2v", "mae", "mse", "pn2v"],
+    loss: Literal["n2v", "n2v_poisson", "mae", "mse", "pn2v"],
     independent_channels: bool,
     n_channels_in: int,
     n_channels_out: int,
@@ -1164,6 +1164,7 @@ def create_n2v_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
+    loss: Literal["n2v", "n2v_poisson"] = "n2v",
     trainer_params: dict | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: dict | None = None,
@@ -1253,6 +1254,9 @@ def create_n2v_configuration(
         Axis along which to apply structN2V mask, by default "none".
     struct_n2v_span : int, optional
         Span of the structN2V mask, by default 5.
+    loss : Literal["n2v", "n2v_poisson"], default="n2v"
+        Loss function to use. "n2v" for MSE-based loss, "n2v_poisson" for Poisson
+        negative log-likelihood loss.
     trainer_params : dict, optional
         Parameters for the trainer, see the relevant documentation.
     logger : Literal["wandb", "tensorboard", "none"], optional
@@ -1438,7 +1442,7 @@ def create_n2v_configuration(
     algorithm_params = _create_algorithm_configuration(
         axes=axes,
         algorithm="n2v",
-        loss="n2v",
+        loss=loss,
         independent_channels=independent_channels,
         n_channels_in=n_channels,
         n_channels_out=n_channels,
