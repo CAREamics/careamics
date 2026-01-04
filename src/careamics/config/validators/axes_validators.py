@@ -2,6 +2,7 @@
 
 _AXES = "STCZYX"
 
+
 def check_axes_validity_1d(axes: str) -> None:
     """
       Sanity check on axes.
@@ -13,7 +14,8 @@ def check_axes_validity_1d(axes: str) -> None:
     - must contain at most 4 axes
     - cannot contain both S and T axes
 
-    Axes do not need to be in the order 'STCZYX', as this depends on the user data.    This function validates axes strings that include 1D spatial data.
+    Axes do not need to be in the order 'STCZYX', as this depends on the user data.
+    This function validates axes strings that include 1D spatial data.
 
     Parameters
     ----------
@@ -25,6 +27,9 @@ def check_axes_validity_1d(axes: str) -> None:
     ValueError
         If the axes are invalid.
     """
+    # Normalize to uppercase
+    axes = axes.upper()
+
     # Check for valid characters
     valid_chars = set("STCZYX")
     if not set(axes).issubset(valid_chars):
@@ -49,11 +54,11 @@ def check_axes_validity_1d(axes: str) -> None:
 
     # Must have at least one spatial axis
     if len(spatial_axes) == 0:
-        raise ValueError(f"Axes must contain at least one spatial axis (X, Y, or Z)")
+        raise ValueError("Axes must contain at least one spatial axis (X, Y, or Z)")
 
-    # Check for both S and T (not allowed)
-    if "S" in axes and "T" in axes:
-        raise ValueError("Axes cannot contain both 'S' and 'T'")
+    # # Check for both S and T (not allowed)
+    # if "S" in axes and "T" in axes:
+    #     raise ValueError("Axes cannot contain both 'S' and 'T'")
 
 
 def check_axes_validity(axes: str) -> None:

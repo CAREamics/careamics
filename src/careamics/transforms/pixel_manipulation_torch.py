@@ -398,7 +398,8 @@ def median_manipulate_torch(
 
         if struct_params.axis >= n_spatial_dims:
             raise ValueError(
-                f"Struct axis {struct_params.axis} out of bounds for {n_spatial_dims}D spatial data"
+                f"Struct axis {struct_params.axis} out of bounds for {n_spatial_dims}D "
+                f"spatial data"
             )
 
         # Logic to mask out the 'span' along the axis

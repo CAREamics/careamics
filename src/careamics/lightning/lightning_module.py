@@ -395,16 +395,31 @@ class FCNModule(L.LightningModule):
         if isinstance(self.algorithm_config, PN2VAlgorithm):
             assert self.noise_model is not None, "Noise model required for PN2V"
             likelihoods = self.noise_model.likelihood(
-                torch.tensor(denormalized_input), torch.tensor(denormalized_output_tensor)
+                torch.tensor(denormalized_input),
+                torch.tensor(denormalized_output_tensor),
             )
             mse_estimate = torch.sum(
-                (torch.tensor(denormalized_input) - torch.tensor(denormalized_output_tensor)) ** 2, dim=1
+                (
+                    torch.tensor(denormalized_input)
+                    - torch.tensor(denormalized_output_tensor)
+                )
+                ** 2,
+                dim=1,
             ) / (denormalized_input.shape[1] * denormalized_input.shape[2])
 
             if len(aux) > 0:
-                return denormalized_output, likelihoods.cpu().numpy(), mse_estimate.cpu().numpy(), *aux
+                return (
+                    denormalized_output,
+                    likelihoods.cpu().numpy(),
+                    mse_estimate.cpu().numpy(),
+                    *aux,
+                )
             else:
-                return denormalized_output, likelihoods.cpu().numpy(), mse_estimate.cpu().numpy()
+                return (
+                    denormalized_output,
+                    likelihoods.cpu().numpy(),
+                    mse_estimate.cpu().numpy(),
+                )
 
         # Regular return for non-PN2V
         if len(aux) > 0:
@@ -749,14 +764,16 @@ class VAEModule(L.LightningModule):
             std = torch.stack(mmse_list).std(0)  # TODO why?
             # TODO better way to unpack if pred logvar
             # Denormalize the output
-            # Get target channel indices for per-channel models (not used for microsplit)
+            # Get target channel indices for per-channel models
+            # (not used for microsplit)
             target_channel_indices = None
             # For FCNModule: Check if we have N2V preprocessing which stores the config
             if hasattr(self, "n2v_preprocess") and self.n2v_preprocess is not None:
                 if hasattr(self.n2v_preprocess, "data_channel_indices"):
                     target_channel_indices = self.n2v_preprocess.data_channel_indices
 
-            # Fallback: For FCNModule, algorithm_config is not saved as attribute, need to get from hparams
+            # Fallback: For FCNModule, algorithm_config is not saved as attribute,
+            # need to get from hparams
             if (
                 target_channel_indices is None
                 and hasattr(self, "hparams")

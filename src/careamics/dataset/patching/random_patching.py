@@ -70,9 +70,7 @@ def extract_patches_random(
 
         # calculate the number of patches
         if num_patches_per_sample is None:
-            n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(
-                int
-            )
+            n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
         else:
             n_patches = num_patches_per_sample
 

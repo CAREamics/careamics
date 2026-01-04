@@ -120,7 +120,8 @@ class DataConfig(BaseModel):
     """Number of patches to extract per sample when using random patching. If None,
     automatically calculated as ceil(total_pixels / patch_pixels). Setting this higher
     extracts more patches with potential overlap (better training diversity), lower
-    extracts fewer patches (faster training). Only used when patching_strategy is 'random'."""
+    extracts fewer patches (faster training). Only used when patching_
+    strategy is 'random'."""
 
     # Optional fields
     image_means: list[Float] | None = Field(default=None, min_length=0, max_length=32)
@@ -215,21 +216,22 @@ class DataConfig(BaseModel):
         ValueError
             If axes are not valid.
         """
-        from ..validators import check_axes_validity, check_axes_validity_1d 
+        from ..validators import check_axes_validity_1d
+
         # Modified validation to support 1D
         # Count spatial dimensions
-        spatial_axes = [ax for ax in axes if ax in 'XYZ']
-        print(f"Spatial axes: {spatial_axes}") 
+        spatial_axes = [ax for ax in axes if ax in "XYZ"]
+        print(f"Spatial axes: {spatial_axes}")
         # Allow 1D data with single spatial axis
-            # Allow 1D data with single spatial axis
+        # Allow 1D data with single spatial axis
         if len(spatial_axes) == 1:
             check_axes_validity_1d(axes)
         else:
             # For 2D+, use existing validation
             check_axes_validity(axes)
-            
+
         return axes
-    
+
     @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
     @classmethod
     def set_default_pin_memory(
@@ -404,9 +406,9 @@ class DataConfig(BaseModel):
             If the transforms are not valid.
         """
         # Count spatial dimensions
-        spatial_axes = [ax for ax in self.axes if ax in 'XYZ']
+        spatial_axes = [ax for ax in self.axes if ax in "XYZ"]
         n_spatial_dims = len(spatial_axes)
-        
+
         # Validate patch size matches spatial dimensions
         if len(self.patch_size) != n_spatial_dims:
             raise ValueError(
@@ -418,16 +420,18 @@ class DataConfig(BaseModel):
         if n_spatial_dims == 1:
             # Check if any 2D transforms are present
             has_2d_transforms = any(
-                isinstance(transform, (XYFlipModel, XYRandomRotate90Model))
+                isinstance(transform, (XYFlipConfig, XYRandomRotate90Config))
                 for transform in self.transforms
             )
             if has_2d_transforms:
                 # Warn and filter out 2D transforms
                 import warnings
+
                 warnings.warn(
                     "2D transforms (XYFlip, XYRandomRotate90) are not compatible "
                     "with 1D data. These transforms will be ignored.",
-                    UserWarning
+                    UserWarning,
+                    stacklevel=2,
                 )
                 # Filter out 2D transforms
                 self.transforms = []
@@ -510,7 +514,7 @@ class DataConfig(BaseModel):
             Patch size.
         """
         self._update(axes=axes, patch_size=patch_size)
-        
+
     def set_1D(self, axes: str, patch_size: list[int]) -> None:
         """
         Set 1D parameters.

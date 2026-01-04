@@ -67,7 +67,9 @@ def n2v_loss(
     if manipulated_batch.shape[1] < original_batch.shape[1]:
         # Find which channels have non-zero masks
         # Sum over all dimensions except channel dimension
-        channel_has_mask = masks.sum(dim=[d for d in range(len(masks.shape)) if d != 1]) > 0
+        channel_has_mask = (
+            masks.sum(dim=[d for d in range(len(masks.shape)) if d != 1]) > 0
+        )
 
         # Get indices of channels with masks
         masked_channel_indices = torch.where(channel_has_mask)[0]
@@ -79,7 +81,9 @@ def n2v_loss(
         # If model outputs 1 channel and there are multiple masked channels,
         # we need to expand the prediction to match
         if manipulated_batch.shape[1] == 1 and original_batch.shape[1] > 1:
-            manipulated_batch = manipulated_batch.expand(-1, original_batch.shape[1], *[-1]*(len(original_batch.shape)-2))
+            manipulated_batch = manipulated_batch.expand(
+                -1, original_batch.shape[1], *[-1] * (len(original_batch.shape) - 2)
+            )
 
     errors = (original_batch - manipulated_batch) ** 2
     # Average over pixels and batch

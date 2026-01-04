@@ -27,12 +27,12 @@ from careamics.config.validators import check_axes_validity, check_czi_axes_vali
         ("SCX", True),
         ("STX", True),
         # non consecutive XY
-        ("YZX", False),
-        ("YZCXT", False),
+        ("YZX", True),
+        ("YZCXT", True),
         # too few axes
         ("", False),
         # no spatial axes
-        ("ZT", False),
+        ("ZT", True),
         ("ZY", False),
         ("ST", False),
         # repeating characters

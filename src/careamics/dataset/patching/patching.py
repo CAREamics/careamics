@@ -11,8 +11,8 @@ from numpy.typing import NDArray
 from ...utils.logging import get_logger
 from ..dataset_utils import reshape_array
 from ..dataset_utils.running_stats import compute_normalization_stats
-from .sequential_patching import extract_patches_sequential
 from .random_patching import extract_patches_random
+from .sequential_patching import extract_patches_sequential
 
 logger = get_logger(__name__)
 
@@ -216,7 +216,8 @@ def prepare_patches_unsupervised(
 
             # generate patches - use axes parameter for 1D compatibility
             if patching_strategy == "random":
-                # extract_patches_random returns a generator, so we need to collect results
+                # extract_patches_random returns a generator, so we need to collect
+                # results
                 patch_generator = extract_patches_random(
                     sample,
                     patch_size=patch_size,

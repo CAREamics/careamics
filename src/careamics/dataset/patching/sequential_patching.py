@@ -6,8 +6,9 @@ import numpy as np
 from numpy.typing import NDArray
 from skimage.util import view_as_windows
 
-from .validate_patch_dimension import validate_patch_dimensions
 from careamics.utils.logging import get_logger
+
+from .validate_patch_dimension import validate_patch_dimensions
 
 logger = get_logger(__name__)
 
@@ -15,8 +16,8 @@ logger = get_logger(__name__)
 def extract_patches_sequential(
     arr: np.ndarray,
     patch_size: Union[list[int], tuple[int, ...]],
-    target: np.ndarray = None,
-    axes: str = None,
+    target: np.ndarray | None = None,
+    axes: str | None = None,
 ) -> tuple[np.ndarray, np.ndarray | None]:
     """
     Extract patches from a single image sequentially with support for 1D, 2D, and 3D data.
@@ -36,7 +37,7 @@ def extract_patches_sequential(
     -------
     tuple[np.ndarray, np.ndarray | None]
         Patches and targets (if provided) as numpy arrays.
-    """
+    """  # noqa: E501
     # Convert patch_size to list for consistency
     if isinstance(patch_size, tuple):
         patch_size = list(patch_size)
@@ -236,14 +237,15 @@ def _extract_patches_1d(
             target = target[:, np.newaxis, :]
     elif arr.ndim != 3:
         raise ValueError(
-            f"Expected 2D or 3D array for 1D patching, got {arr.ndim}D with shape {arr.shape}"
+            f"Expected 2D or 3D array for 1D patching, got {arr.ndim}D "
+            f"with shape {arr.shape}"
         )
 
-    n_samples, n_channels, length = arr.shape
+    _n_samples, n_channels, length = arr.shape
 
     if patch_size > length:
         raise ValueError(
-            f"Patch size ({patch_size}) cannot be larger than sequence length ({length})"
+            f"Patch size ({patch_size}) cannot be larger than sequence length ({length})"  # noqa: E501
         )
     full_patch_size = [1, n_channels, patch_size]
     overlaps = _compute_overlap(arr_shape=arr.shape, patch_sizes=full_patch_size)
@@ -299,7 +301,7 @@ def _extract_patches_1d(
 def _extract_patches_2d(
     arr: np.ndarray,
     patch_size: Union[list[int], tuple[int, ...]],
-    target: np.ndarray = None,
+    target: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray | None]:
     """
     Extract 2D patches sequentially using the original algorithm.
@@ -348,7 +350,7 @@ def _extract_patches_2d(
 def _extract_patches_3d(
     arr: np.ndarray,
     patch_size: Union[list[int], tuple[int, ...]],
-    target: np.ndarray = None,
+    target: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray | None]:
     """
     Extract 3D patches sequentially using the original algorithm.

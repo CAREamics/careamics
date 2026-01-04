@@ -6,7 +6,11 @@ from typing import Any, Literal, Self, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..validators import check_axes_validity, check_axes_validity_1d, patch_size_ge_than_8_power_of_2
+from ..validators import (
+    check_axes_validity,
+    check_axes_validity_1d,
+    patch_size_ge_than_8_power_of_2,
+)
 
 
 class InferenceConfig(BaseModel):
@@ -17,11 +21,15 @@ class InferenceConfig(BaseModel):
     data_type: Literal["array", "tiff", "czi", "custom"]  # As defined in SupportedData
     """Type of input data: numpy.ndarray (array) or path (tiff, czi, or custom)."""
 
-    tile_size: Union[list[int]] | None = Field(default=None, min_length=1, max_length=3)  # Changed min_length from 2 to 1
+    tile_size: Union[list[int]] | None = Field(
+        default=None, min_length=1, max_length=3
+    )  # Changed min_length from 2 to 1
     """Tile size of prediction, only effective if `tile_overlap` is specified."""
 
     tile_overlap: Union[list[int]] | None = Field(
-        default=None, min_length=1, max_length=3  # Changed min_length from 2 to 1
+        default=None,
+        min_length=1,
+        max_length=3,  # Changed min_length from 2 to 1
     )
     """Overlap between tiles, only effective if `tile_size` is specified."""
 
@@ -137,7 +145,7 @@ class InferenceConfig(BaseModel):
             If axes are not valid.
         """
         # Check for 1D data first
-        spatial_axes = [ax for ax in axes if ax in 'XYZ']
+        spatial_axes = [ax for ax in axes if ax in "XYZ"]
         if len(spatial_axes) == 1:
             # Use 1D validation
             check_axes_validity_1d(axes)
@@ -158,7 +166,7 @@ class InferenceConfig(BaseModel):
             Validated prediction model.
         """
         # Count spatial dimensions from axes
-        spatial_axes = [ax for ax in self.axes if ax in 'XYZ']
+        spatial_axes = [ax for ax in self.axes if ax in "XYZ"]
         expected_len = len(spatial_axes)
 
         if self.tile_size is not None and self.tile_overlap is not None:
@@ -211,9 +219,7 @@ class InferenceConfig(BaseModel):
         elif (self.image_means is not None and self.image_stds is not None) and (
             len(self.image_means) != len(self.image_stds)
         ):
-            raise ValueError(
-                "Mean and std must be specified for each " "input channel."
-            )
+            raise ValueError("Mean and std must be specified for each input channel.")
 
         return self
 

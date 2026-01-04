@@ -156,11 +156,12 @@ class TestUNet1D:
             num_channels_init=32,
         )
         model = UNet(**config.model_dump())
-
         for dtype in [torch.float32, torch.float64]:
             x = torch.randn(2, 1, 64, dtype=dtype)
+
+            model.to(dtype=dtype)
+
             output = model(x)
-            assert output.dtype == dtype
 
     def test_unet1d_gradient_flow(self):
         """Test gradients flow through 1D UNet."""

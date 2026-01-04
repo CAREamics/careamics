@@ -37,7 +37,9 @@ class UNetConfig(ArchitectureConfig):
 
     # parameters
     # validate_defaults allow ignoring default values in the dump if they were not set
-    conv_dims: Literal[1, 2, 3] = Field(default=2, validate_default=True)  # Added 1D support
+    conv_dims: Literal[1, 2, 3] = Field(
+        default=2, validate_default=True
+    )  # Added 1D support
     """Dimensions (1D, 2D or 3D) of the convolutional layers."""
 
     num_classes: int = Field(default=1, ge=1, validate_default=True)
@@ -101,7 +103,7 @@ class UNetConfig(ArchitectureConfig):
         return num_channels_init
 
     @model_validator(mode="after")
-    def validate_dimensionality_constraints(self) -> "UNetModel":
+    def validate_dimensionality_constraints(self) -> UNetConfig:
         """
         Validate constraints specific to different dimensionalities.
 
@@ -120,29 +122,35 @@ class UNetConfig(ArchitectureConfig):
             # For 1D, recommend smaller depth to avoid over-downsampling
             if self.depth > 4:
                 import warnings
+
                 warnings.warn(
                     f"Depth of {self.depth} may be too large for 1D data. "
                     f"Consider using depth <= 4 for better performance.",
-                    UserWarning
+                    UserWarning,
+                    stacklevel=2,
                 )
 
             # N2V2 with 1D may not be optimal
             if self.n2v2:
                 import warnings
+
                 warnings.warn(
                     "N2V2 blur-pool layers may not be optimal for 1D data. "
                     "Consider using standard N2V (n2v2=False) for 1D applications.",
-                    UserWarning
+                    UserWarning,
+                    stacklevel=2,
                 )
 
         # 3D-specific validations (existing)
         elif self.conv_dims == 3:
             if self.depth > 4:
                 import warnings
+
                 warnings.warn(
                     f"Depth of {self.depth} may be too large for 3D data. "
                     f"Consider using depth <= 4 to manage memory usage.",
-                    UserWarning
+                    UserWarning,
+                    stacklevel=2,
                 )
 
         return self

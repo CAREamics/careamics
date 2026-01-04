@@ -42,9 +42,7 @@ def test_denormalize_with_target_indices_single_channel():
     prediction = np.zeros((2, 1, 64, 64), dtype=np.float32)
 
     # Test with channel 2
-    denorm = Denormalize(
-        image_means=means, image_stds=stds, target_channel_indices=[2]
-    )
+    denorm = Denormalize(image_means=means, image_stds=stds, target_channel_indices=[2])
     output = denorm(prediction)
 
     # Input is all zeros (mean=0 in normalized space)

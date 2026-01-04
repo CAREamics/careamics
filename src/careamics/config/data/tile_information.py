@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Union
+from typing import Annotated
 
 from pydantic import BaseModel, Field
-from typing_extensions import Annotated
 
 # Updated to support 1D data (minimum 2 dimensions: C, X)
 DimTuple = Annotated[

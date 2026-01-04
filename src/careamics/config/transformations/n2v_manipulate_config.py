@@ -1,6 +1,6 @@
 """Pydantic model for the N2VManipulate transform."""
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator
 
@@ -28,15 +28,10 @@ class N2VManipulateConfig(TransformConfig):
     struct_mask_span : int
         Span of the structN2V mask, by default 5.
     data_channel_indices : Optional[list[int]]
-        Specific channel indices to mask (e.g., [0, 3, 5]). If None, uses first n_data_channels.
+        Specific channel indices to mask (e.g., [0, 3, 5]). If None,
+        uses first n_data_channels.
     n_data_channels : int
         Number of data channels to mask (used when data_channel_indices is None).
-    auxiliary_mask_percentage : float
-        Percentage of pixels to mask in auxiliary (non-data) channels, by default 0.05.
-        Lower values prevent direct copying while preserving spatial information.
-    auxiliary_dropout_probability : float
-        Probability of dropping an auxiliary channel per sample, by default 0.0.
-        Regularizes against over-reliance on noisy auxiliary channels.
     """
 
     model_config = ConfigDict(
@@ -63,37 +58,19 @@ class N2VManipulateConfig(TransformConfig):
     struct_mask_span: int = Field(default=5, ge=3, le=15)
     """Size of the structN2V mask."""
 
-    data_channel_indices: Optional[list[int]] = Field(
+    data_channel_indices: list[int] | None = Field(
         default=None,
-        description="Specific channel indices to mask (e.g., [0, 3, 5]). If None, uses first n_data_channels channels.",
+        description="Specific channel indices to mask (e.g., [0, 3, 5]). If None, uses "
+        "first n_data_channels channels.",
     )
     """Specific channel indices to mask. If None, uses first n_data_channels."""
 
     n_data_channels: int = Field(
         default=1,
         ge=1,
-        description="Number of data channels to mask starting from index 0 (used when data_channel_indices is None)",
+        description="Number of data channels to mask starting from index 0 (used when "
+        "data_channel_indices is None)",
     )
-
-    auxiliary_mask_percentage: float = Field(
-        default=0.00,
-        ge=0.0,
-        le=1.0,
-        description="Percentage of pixels to mask in auxiliary channels (non-data channels). "
-        "Set to 0.0 to disable masking of auxiliary channels. Lower values (e.g., 0.05) "
-        "prevent direct copying while preserving spatial information.",
-    )
-    """Mask percentage for auxiliary channels to prevent noise copying."""
-
-    auxiliary_dropout_probability: float = Field(
-        default=0.0,
-        ge=0.0,
-        le=1.0,
-        description="Probability of completely dropping an auxiliary channel per sample. "
-        "Set to 0.0 to disable channel dropout. Typical values: 0.2-0.5. "
-        "This regularizes the model to not over-rely on noisy auxiliary channels.",
-    )
-    """Probability of randomly dropping entire auxiliary channels during training."""
 
     @field_validator("roi_size", "struct_mask_span")
     @classmethod
@@ -122,7 +99,7 @@ class N2VManipulateConfig(TransformConfig):
 
     @field_validator("data_channel_indices")
     @classmethod
-    def validate_channel_indices(cls, v: Optional[list[int]]) -> Optional[list[int]]:
+    def validate_channel_indices(cls, v: list[int] | None) -> list[int] | None:
         """
         Validate and sort data_channel_indices.
 
@@ -145,7 +122,9 @@ class N2VManipulateConfig(TransformConfig):
             return v
 
         if len(v) == 0:
-            raise ValueError("data_channel_indices cannot be an empty list. Use None instead.")
+            raise ValueError(
+                "data_channel_indices cannot be an empty list. Use None instead."
+            )
 
         if any(idx < 0 for idx in v):
             raise ValueError("Channel indices must be non-negative.")

@@ -37,10 +37,6 @@ class N2VManipulateTorch:
     ----------
     masked_pixel_percentage : float
         Percentage of pixels to mask in data channels.
-    auxiliary_mask_percentage : float
-        Percentage of pixels to mask in auxiliary channels.
-    auxiliary_dropout_probability : float
-        Probability of dropping an auxiliary channel per sample.
     roi_size : int
         Size of the replacement area.
     strategy : Literal[ "uniform", "median" ]
@@ -85,8 +81,6 @@ class N2VManipulateTorch:
         self.n_data_channels = len(self.data_channel_indices)
 
         self.masked_pixel_percentage = n2v_manipulate_config.masked_pixel_percentage
-        self.auxiliary_mask_percentage = n2v_manipulate_config.auxiliary_mask_percentage
-        self.auxiliary_dropout_probability = n2v_manipulate_config.auxiliary_dropout_probability
         self.roi_size = n2v_manipulate_config.roi_size
         self.strategy = n2v_manipulate_config.strategy
         self.remove_center = n2v_manipulate_config.remove_center
@@ -151,21 +145,6 @@ class N2VManipulateTorch:
         # Create a set of data channel indices for faster lookup
         data_channels_set = set(self.data_channel_indices)
 
-        # Generate auxiliary channel dropout mask per sample
-        # Shape: (batch_size, n_channels)
-        if self.auxiliary_dropout_probability > 0:
-            dropout_mask = torch.rand(
-                batch_size, n_channels,
-                generator=self.rng,
-                device=batch.device
-            ) < self.auxiliary_dropout_probability
-        else:
-            dropout_mask = torch.zeros(
-                batch_size, n_channels,
-                dtype=torch.bool,
-                device=batch.device
-            )
-
         if self.strategy == SupportedPixelManipulation.UNIFORM:
             # Iterate over batch and channels
             for b in range(batch_size):
@@ -173,38 +152,20 @@ class N2VManipulateTorch:
                     # Check if this is a data channel
                     is_data_channel = c in data_channels_set
 
-                    # Check if this auxiliary channel should be dropped
-                    if not is_data_channel and dropout_mask[b, c]:
-                        # Drop this auxiliary channel (set to zero)
-                        masked[b, c, ...] = torch.zeros_like(batch[b, c, ...])
-                        # No mask for dropped channels
-                        continue
-
-                    # Determine masking percentage
                     if is_data_channel:
-                        mask_pct = self.masked_pixel_percentage
-                    else:
-                        mask_pct = self.auxiliary_mask_percentage
-
-                    # Apply masking (skip if auxiliary_mask_percentage is 0)
-                    if mask_pct > 0:
-
+                        # Apply masking to data channels
                         masked_result, mask_result = uniform_manipulate_torch(
                             patch=batch[b, c, ...],
-                            mask_pixel_percentage=mask_pct,
+                            mask_pixel_percentage=self.masked_pixel_percentage,
                             subpatch_size=self.roi_size,
                             remove_center=self.remove_center,
                             struct_params=self.struct_mask,
                             rng=self.rng,
                         )
                         masked[b, c, ...] = masked_result
-
-                        # Only set mask for data channels (used in loss computation)
-                        if is_data_channel:
-                            mask[b, c, ...] = mask_result
-                        # For auxiliary channels: mask stays zero (no loss computed)
+                        mask[b, c, ...] = mask_result
                     else:
-                        # No masking, just copy
+                        # Auxiliary channels: no masking, just copy
                         masked[b, c, ...] = batch[b, c, ...]
 
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
@@ -213,30 +174,19 @@ class N2VManipulateTorch:
                 for c in range(n_channels):
                     is_data_channel = c in data_channels_set
 
-                    if not is_data_channel and dropout_mask[b, c]:
-                        masked[b, c, ...] = torch.zeros_like(batch[b, c, ...])
-                        continue
-
                     if is_data_channel:
-                        mask_pct = self.masked_pixel_percentage
-                    else:
-                        mask_pct = self.auxiliary_mask_percentage
-
-                    if mask_pct > 0:
+                        # Apply masking to data channels
                         masked_result, mask_result = median_manipulate_torch(
                             batch=batch[b, c, ...],
-                            mask_pixel_percentage=mask_pct,
+                            mask_pixel_percentage=self.masked_pixel_percentage,
                             subpatch_size=self.roi_size,
                             struct_params=self.struct_mask,
                             rng=self.rng,
                         )
                         masked[b, c, ...] = masked_result
-
-                        # Only set mask for data channels (used in loss computation)
-                        if is_data_channel:
-                            mask[b, c, ...] = mask_result
-                        # For auxiliary channels: mask stays zero (no loss computed)
+                        mask[b, c, ...] = mask_result
                     else:
+                        # Auxiliary channels: no masking, just copy
                         masked[b, c, ...] = batch[b, c, ...]
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")

@@ -625,6 +625,12 @@ def _create_supervised_config_dict(
         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
+    patching_strategy : {"sequential", "random"}, default="sequential"
+        Patching strategy to use during data preparation.
+    patching_seed : int or None, default=None
+        Random seed for random patching.
+    num_patches_per_sample : int or None, default=None
+        Number of patches to extract per sample when using random patching.
 
     Returns
     -------
@@ -818,6 +824,12 @@ def create_care_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    patching_strategy : {"sequential", "random"}, default="sequential"
+        Patching strategy to use during data preparation.
+    patching_seed : int or None, default=None
+        Random seed for random patching.
+    num_patches_per_sample : int or None, default=None
+        Number of patches to extract per sample when using random patching.
 
     Returns
     -------
@@ -1061,6 +1073,13 @@ def create_n2n_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    patching_strategy : {"sequential", "random"}, default="sequential"
+        Patching strategy to use during data preparation.
+    patching_seed : int or None, default=None
+        Random seed for random patching.
+    num_patches_per_sample : int or None, default=None
+        Number of patches to extract per sample when using random patching.
+
 
     Returns
     -------
@@ -1229,8 +1248,6 @@ def create_n2v_configuration(
     patching_strategy: Literal["sequential", "random"] = "sequential",
     patching_seed: int | None = None,
     num_patches_per_sample: int | None = None,
-    auxiliary_mask_percentage: float = 0.00,
-    auxiliary_dropout_probability: float = 0.0,
 ) -> Configuration:
     """
      Create a configuration for training Noise2Void.
@@ -1244,18 +1261,18 @@ def create_n2v_configuration(
      or horizontal correlations are present in the noise; it applies an additional mask
      to the manipulated pixel neighbors.
 
-     If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
-     2.
+     If "Z" is present in `axes`, then `patch_size` must be a list of length 3,
+     otherwise 2.
 
-     If "C" is present in `axes`, then you need to set `n_channels` to the number of
-     channels.
+     If "C" is present in `axes`, then you need to set `n_channels` to the number
+     of channels.
 
-     By default, all channels are trained independently. To train all channels together,
-     set `independent_channels` to False.
+     By default, all channels are trained independently. To train all channels
+     together, set `independent_channels` to False.
 
-     By default, the transformations applied are a random flip along X or Y, and a random
-     90 degrees rotation in the XY plane. Normalization is always applied, as well as the
-     N2V manipulation.
+     By default, the transformations applied are a random flip along X or Y, and
+     a random 90 degrees rotation in the XY plane. Normalization is always
+     applied, as well as the N2V manipulation.
 
      By setting `augmentations` to `None`, the default transformations (flip in X and Y,
      rotations by 90 degrees in the XY plane) are applied. Rather than the default
@@ -1289,7 +1306,8 @@ def create_n2v_configuration(
          Number of epochs to train for. If provided, this will be added to
          trainer_params.
      num_steps : int, optional
-         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+         Number of batches in 1 epoch. If provided, this will be added to
+         trainer_params.
          Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
          documentation for more details.
      augmentations : list of transforms, default=None
@@ -1330,7 +1348,8 @@ def create_n2v_configuration(
          If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
          the `GeneralDataConfig`.
      val_dataloader_params : dict, optional
-         Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+         Parameters for the validation dataloader, see PyTorch the docs for
+         `DataLoader`.
          If left as `None`, the empty dict `{}` will be used, this is set in the
          `GeneralDataConfig`.
      checkpoint_params : dict, default=None
@@ -1338,10 +1357,12 @@ def create_n2v_configuration(
          (`ModelCheckpoint`) for the list of available parameters.
      n_data_channels : int, default=1
          Number of data channels to mask, starting from index 0. Only used if
-         `data_channel_indices` is None. **Note**: For multi-channel data (`n_channels` > 1),
+         `data_channel_indices` is None. **Note**: For multi-channel data
+         (`n_channels` > 1),
          this automatically defaults to `n_channels` to train all channels. For example,
-         if `n_channels=2`, both channels 0 and 1 will be masked by default. To train only
-         a subset of channels, use `data_channel_indices` instead.
+         if `n_channels=2`, both channels 0 and 1 will be masked by default.
+         To train only a subset of channels,
+         use `data_channel_indices` instead.
      data_channel_indices : list of int or None, default=None
          Specific channel indices to mask (e.g., [0, 3, 5]). If specified, takes
          precedence over `n_data_channels`. Useful when you have auxiliary channels
@@ -1359,17 +1380,6 @@ def create_n2v_configuration(
          automatically calculated as ceil(total_pixels / patch_pixels). Setting higher
          extracts more patches with overlap (better diversity), lower extracts fewer
          (faster training). Only used when patching_strategy is 'random'.
-     auxiliary_mask_percentage : float, default=0.05
-         Percentage of pixels to mask in auxiliary (non-data) channels. Set to 0.0 to
-         disable masking of auxiliary channels (backward compatible). Lower values (e.g.,
-         0.05) prevent direct copying of noisy auxiliary channels while preserving spatial
-         information. Used in Formulation 2C for multi-channel denoising with auxiliary
-         information.
-     auxiliary_dropout_probability : float, default=0.0
-         Probability of completely dropping an auxiliary channel per training sample. Set
-         to 0.0 to disable (backward compatible). Typical values: 0.2-0.5. This regularizes
-         the model to not over-rely on noisy auxiliary channels. Combined with
-         auxiliary_mask_percentage, this implements Formulation 2C.
 
     Returns
     -------
@@ -1459,7 +1469,8 @@ def create_n2v_configuration(
      ...     struct_n2v_span=7
      ... )
 
-     If you are training multiple channels they will be trained independently by default,
+     If you are training multiple channels they will be trained
+     independently by default,
      you simply need to specify the number of channels:
      >>> config = create_n2v_configuration(
      ...     experiment_name="n2v_experiment",
@@ -1526,8 +1537,9 @@ def create_n2v_configuration(
      ...     patching_seed=42  # Optional: for reproducibility
      ... )
 
-     For multi-channel denoising with auxiliary channels (Formulation 2C), use asymmetric
-     masking and channel dropout to prevent noise contamination from auxiliary channels:
+     For multi-channel denoising with auxiliary channels (Formulation 2C),
+     use asymmetric masking and channel dropout to prevent
+     noise contamination from auxiliary channels:
      >>> config = create_n2v_configuration(
      ...     experiment_name="n2v_formulation_2c",
      ...     data_type="array",
@@ -1570,7 +1582,7 @@ def create_n2v_configuration(
     spatial_axes = [ax for ax in axes if ax in "XYZ"]
     is_1d = len(spatial_axes) == 1
 
-    n_spatial_dims = len(spatial_axes)
+    # n_spatial_dims = len(spatial_axes)
     # if there are channels, we need to specify their number
     if "C" in axes and n_channels is None:
         raise ValueError("Number of channels must be specified when using channels.")
@@ -1588,8 +1600,10 @@ def create_n2v_configuration(
         import warnings
 
         warnings.warn(
-            "StructN2V is not applicable to 1D data. Setting struct_n2v_axis to 'none'.",
+            "StructN2V is not applicable to 1D data. Setting struct_n2v_axis "
+            "to 'none'.",
             UserWarning,
+            stacklevel=2,
         )
         struct_n2v_axis = "none"
 
@@ -1612,6 +1626,7 @@ def create_n2v_configuration(
                     "2D spatial transforms (XYFlip, XYRandomRotate90) are not "
                     "applicable to 1D data. No spatial transforms will be applied.",
                     UserWarning,
+                    stacklevel=2,
                 )
     else:
         spatial_transforms = _list_spatial_augmentations(augmentations)
@@ -1639,8 +1654,6 @@ def create_n2v_configuration(
         struct_mask_span=struct_n2v_span,
         n_data_channels=n_data_channels,
         data_channel_indices=data_channel_indices,
-        auxiliary_mask_percentage=auxiliary_mask_percentage,
-        auxiliary_dropout_probability=auxiliary_dropout_probability,
     )
 
     # algorithm

@@ -318,7 +318,7 @@ def _get_pascal_kernel_nd(
     kernel = [
         get_pascal_kernel_1d(kd, device=device, dtype=dtype) for kd in kernel_dims
     ]
-    
+
     # implement for 1d
     if dim == 1:
         kernel = kernel[0]
@@ -333,6 +333,7 @@ def _get_pascal_kernel_nd(
     if norm:
         kernel = kernel / torch.sum(kernel)
     return kernel
+
 
 def _max_blur_pool_by_kernel1d(
     x: torch.Tensor,

@@ -261,8 +261,12 @@ class Denormalize:
             if self.target_channel_indices is not None:
                 if len(self.target_channel_indices) == n_output_channels:
                     # Use statistics for the specific target channels
-                    image_means = [self.image_means[i] for i in self.target_channel_indices]
-                    image_stds = [self.image_stds[i] for i in self.target_channel_indices]
+                    image_means = [
+                        self.image_means[i] for i in self.target_channel_indices
+                    ]
+                    image_stds = [
+                        self.image_stds[i] for i in self.target_channel_indices
+                    ]
                 else:
                     # Mismatch: fall back to first N statistics
                     image_means = self.image_means[:n_output_channels]
