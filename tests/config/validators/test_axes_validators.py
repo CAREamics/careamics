@@ -6,7 +6,7 @@ from careamics.config.validators import check_axes_validity, check_czi_axes_vali
 @pytest.mark.parametrize(
     "axes, valid",
     [
-        # Passing
+        # Passing 2D/3D
         ("yx", True),
         ("Yx", True),
         ("Zyx", True),
@@ -19,18 +19,26 @@ from careamics.config.validators import check_axes_validity, check_czi_axes_vali
         ("XY", True),
         ("YXT", True),
         ("ZTYX", True),
+        # Passing 1D
+        ("X", True),
+        ("SX", True),
+        ("TX", True),
+        ("CX", True),
+        ("SCX", True),
+        ("STX", True),
         # non consecutive XY
         ("YZX", False),
         ("YZCXT", False),
         # too few axes
         ("", False),
-        ("X", False),
-        # no yx axes
+        # no spatial axes
         ("ZT", False),
         ("ZY", False),
+        ("ST", False),
         # repeating characters
         ("YYX", False),
         ("YXY", False),
+        ("XX", False),
         # invalid characters
         ("YXm", False),
         ("1YX", False),
