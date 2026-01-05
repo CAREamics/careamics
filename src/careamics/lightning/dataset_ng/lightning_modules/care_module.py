@@ -36,9 +36,9 @@ class CAREModule(UnetModule):
         """
         super().__init__(algorithm_config)
         assert isinstance(
-            algorithm_config, CAREAlgorithm | N2NAlgorithm
+            self.config, CAREAlgorithm | N2NAlgorithm
         ), "algorithm_config must be a CAREAlgorithm or a N2NAlgorithm"
-        loss = algorithm_config.loss
+        loss = self.config.loss
         if loss == SupportedLoss.MAE:
             self.loss_func: Callable = mae_loss
         elif loss == SupportedLoss.MSE:

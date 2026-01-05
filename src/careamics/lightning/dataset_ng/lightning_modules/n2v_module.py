@@ -37,11 +37,11 @@ class N2VModule(UnetModule):
         super().__init__(algorithm_config)
 
         assert isinstance(
-            algorithm_config, N2VAlgorithm
+            self.config, N2VAlgorithm
         ), "algorithm_config must be a N2VAlgorithm"
 
         self.n2v_manipulate = N2VManipulateTorch(
-            n2v_manipulate_config=algorithm_config.n2v_config
+            n2v_manipulate_config=self.config.n2v_config
         )
         self.loss_func = n2v_loss
 

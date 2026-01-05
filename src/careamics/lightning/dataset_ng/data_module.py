@@ -237,7 +237,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: NGDataConfig,
+        data_config: NGDataConfig | dict[str, Any],
         *,
         train_data: Any | None = None,
         train_data_target: Any | None = None,
@@ -315,9 +315,14 @@ class CareamicsDataModule(L.LightningDataModule):
                 "If one of train_data or val_data is provided, both must be provided."
             )
 
-        self.config: NGDataConfig = data_config
-        self.data_type: str = data_config.data_type
-        self.batch_size: int = data_config.batch_size
+        if isinstance(data_config, NGDataConfig):
+            self.config = data_config
+        else:
+            self.config = NGDataConfig.model_validate(data_config)
+        self.save_hyperparameters({"data_config": self.config.model_dump(mode="json")})
+
+        self.data_type: str = self.config.data_type
+        self.batch_size: int = self.config.batch_size
 
         self.extension_filter: str = (
             extension_filter  # list_files pulls the correct ext

@@ -36,7 +36,7 @@ class UnetModule(L.LightningModule):
     def __init__(
         self,
         algorithm_config: Union[
-            CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, PN2VAlgorithm, dict
+            CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, PN2VAlgorithm, dict[str, Any]
         ],
     ) -> None:
         """Instantiate UNet DataModule.
@@ -52,8 +52,12 @@ class UnetModule(L.LightningModule):
 
         if isinstance(algorithm_config, dict):
             algorithm_config = algorithm_factory(algorithm_config)
-
         self.config = algorithm_config
+
+        self.save_hyperparameters(
+            {"algorithm_config": self.config.model_dump(mode="json")}
+        )
+
         self.model: nn.Module = UNet(**algorithm_config.model.model_dump())
 
         self._best_checkpoint_loaded = False
