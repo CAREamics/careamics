@@ -554,27 +554,26 @@ class NGDataConfig(BaseModel):
         ValueError
             If the patch size dimension is not compatible with the axes.
         """
-        if "Z" in self.axes:
-            if (
-                hasattr(self.patching, "patch_size")
-                and len(self.patching.patch_size) != 3
-            ):
-                raise ValueError(
-                    f"`patch_size` in `patching` must have 3 dimensions if the data is"
-                    f" 3D, got axes {self.axes})."
-                )
+        # "whole" patching does not have dimensions to validate
+        if not hasattr(self.patching, "patch_size"):
+            return self
+
+        if self.data_type == "czi":
+            # Z and T are both depth axes for CZI data
+            expected_dims = 3 if ("Z" in self.axes or "T" in self.axes) else 2
+            additional_message = " (`Z` and `T` are depth axes for CZI data)"
         else:
-            if (
-                hasattr(self.patching, "patch_size")
-                and len(self.patching.patch_size) != 2
-            ):
-                if "T" in self.axes and self.data_type == "czi":
-                    pass  # Allow 3D patch size for CZI time series data
-                else:
-                    raise ValueError(
-                        f"`patch_size` in `patching` must have 2 dimensions if the data"
-                        f" is 3D, got axes {self.axes})."
-                    )
+            expected_dims = 3 if "Z" in self.axes else 2
+            additional_message = ""
+
+        # infer dimension from requested patch size
+        actual_dims = len(self.patching.patch_size)
+        if actual_dims != expected_dims:
+            raise ValueError(
+                f"`patch_size` in `patching` must have {expected_dims} dimensions, "
+                f"got {self.patching.patch_size} with axes {self.axes}"
+                f"{additional_message}."
+            )
 
         return self
 
@@ -800,17 +799,9 @@ class NGDataConfig(BaseModel):
             True if the data is 3D, False otherwise.
         """
         if self.data_type == "czi":
-            if hasattr(self.patching, "patch_size"):
-                return ("Z" in self.axes or "T" in self.axes) and len(
-                    self.patching.patch_size
-                ) == 3
-            else:
-                return "Z" in self.axes or "T" in self.axes
+            return "Z" in self.axes or "T" in self.axes
         else:
-            if hasattr(self.patching, "patch_size"):
-                return ("Z" in self.axes) and len(self.patching.patch_size) == 3
-            else:
-                return "Z" in self.axes
+            return "Z" in self.axes
 
     # TODO: if switching from a state in which in_memory=True to an incompatible state
     # an error will be raised. Should that automatically be set to False instead?
