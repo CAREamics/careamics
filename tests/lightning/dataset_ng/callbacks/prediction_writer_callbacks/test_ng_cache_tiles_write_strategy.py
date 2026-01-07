@@ -19,9 +19,10 @@ from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     create_write_file_path,
 )
 
-# TODO simulate real batches
 
-
+# TODO code is very similar to test_ng_stitching_prediction fixture, refactor
+# Also this is going to be hard to maintain if anything changes in the way the dataset
+# produces tiles
 @pytest.fixture
 def tiles(n_data, shape, axes) -> list[ImageRegionData]:
     # create data
@@ -59,9 +60,10 @@ def tiles(n_data, shape, axes) -> list[ImageRegionData]:
     tiles: list[ImageRegionData] = []
     for i in range(n_tiles):
         tile_spec: TileSpecs = tiling_strategy.get_patch_spec(i)
-        tile = patch_extractor.extract_patch(
+        tile = patch_extractor.extract_channel_patch(
             data_idx=tile_spec["data_idx"],
             sample_idx=tile_spec["sample_idx"],
+            channels=None,
             coords=tile_spec["coords"],
             patch_size=tile_spec["patch_size"],
         )
@@ -70,9 +72,10 @@ def tiles(n_data, shape, axes) -> list[ImageRegionData]:
                 data=tile,
                 source=f"array_{i}.tif",
                 dtype=str(tile.dtype),
-                data_shape=shape,
+                data_shape=shape_with_sc,
                 axes=axes,
                 region_spec=tile_spec,
+                additional_metadata={},
             )
         )
     return tiles
@@ -136,9 +139,7 @@ def test_write_batch_no_full_image(
     tiles: list[ImageRegionData], cache_tiles_strategy: CachedTiles, tmp_path: Path
 ):
     """
-    Test `CacheTiles.write_batch` when there is no last tile added to the cache.
-
-    Expected behaviour is that the batch is added to the cache.
+    Test `CacheTiles.write_batch` when the new batch contains the last tile.
     """
     n_tiles = len(tiles) // 2 - 1
     batch_size = 2

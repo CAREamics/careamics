@@ -365,7 +365,6 @@ def create_ng_data_configuration(
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
-    patch_overlaps: Sequence[int] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     pred_dataloader_params: dict[str, Any] | None = None,
@@ -396,11 +395,6 @@ def create_ng_data_configuration(
     augmentations : list of transforms or None, default=None
         List of transforms to apply. If `None`, default augmentations are applied
         (flip in X and Y, rotations by 90 degrees in the XY plane).
-    patch_overlaps : Sequence of int, default=None
-        Overlaps between patches in each spatial dimension, only used with "sequential"
-        patching. If `None`, no overlap is applied. The overlap must be smaller than
-        the patch size in each spatial dimension, and the number of dimensions be either
-        2 or 3.
     train_dataloader_params : dict
         Parameters for the training dataloader, see PyTorch notes, by default None.
     val_dataloader_params : dict
@@ -452,7 +446,6 @@ def create_ng_data_configuration(
     data["patching"] = {
         "name": "random",
         "patch_size": patch_size,
-        "overlaps": patch_overlaps,
     }
 
     return NGDataConfig(**data)

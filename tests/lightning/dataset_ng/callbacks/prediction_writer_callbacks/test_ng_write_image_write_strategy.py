@@ -74,6 +74,7 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
                 "coords": (0, 0),
                 "patch_size": (8, 8),
             },
+            additional_metadata={},
         )
         for i in range(array.shape[0])
     ]

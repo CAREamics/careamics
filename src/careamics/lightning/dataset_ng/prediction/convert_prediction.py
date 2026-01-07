@@ -1,6 +1,6 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
@@ -8,6 +8,46 @@ from numpy.typing import NDArray
 from careamics.dataset_ng.dataset import ImageRegionData
 
 from .stitch_prediction import group_tiles_by_key, stitch_prediction
+
+if TYPE_CHECKING:
+    from torch import Tensor
+
+
+def _decollate_batch_dict(
+    batched_dict: "dict[str, list | Tensor]",
+    index: int,
+) -> dict[str, int | tuple[int, ...]]:
+    """
+    Decollate element `index` from a batched_dict.
+
+    This method is only compatible with integer elements.
+
+    Parameters
+    ----------
+    batched_dict : dict of {str: list or Tensor}
+        Batch dictionary where each value is a list of elements of length B or a
+        Tensor of shape (B,).
+    index : int
+        Index of the element to extract.
+
+    Returns
+    -------
+    dict of {str: int | tuple[int, ...]}
+        Dictionary of the `index` element in the collated batch.
+    """
+    item_dict = {
+        key: (
+            # cast to int otherwise we have Tensor scalars
+            # TODO for additional types (e.g. axes in additional_metadata), we will need
+            # to handle it differently
+            tuple(int(value[idx][index]) for idx in range(len(value)))
+            if isinstance(value, list)
+            else int(value[index])
+        )  # handles tensor (1D) vs list of 1D tensors (2D)
+        for key, value in batched_dict.items()
+    }
+
+    return item_dict
 
 
 def decollate_image_region_data(
@@ -23,7 +63,7 @@ def decollate_image_region_data(
     - dtype: list of numpy.dtype, length B
     - axes: list of str, length B
     - region_spec: dict of {str: sequence}, each sequence being of length B
-    - chunks: either a single tuple (1,) or a sequence of tuples of length B
+    - additional_metadata: dict of {str: Any}, each sequence being of length B
 
     Parameters
     ----------
@@ -39,20 +79,13 @@ def decollate_image_region_data(
     decollated: list[ImageRegionData] = []
     for i in range(batch_size):
         # unpack region spec irrespective of whether it is a PatchSpecs or TileSpecs
-        region_spec = {
-            key: (
-                tuple(int(value[idx][i]) for idx in range(len(value)))
-                if isinstance(value, list)
-                else int(value[i])
-            )  # handles tensor (1D) vs list of tensors/tuples (2D)
-            for key, value in batch.region_spec.items()
-        }
+        region_spec = _decollate_batch_dict(batch.region_spec, i)
 
-        # handle chunks being either a single tuple or a sequence of tuples
-        if isinstance(batch.chunks, list):
-            chunks: Sequence[int] = tuple(int(val[i]) for val in batch.chunks)
-        else:
-            chunks = batch.chunks
+        # handle additional metadata
+        # currently only zarr chunks and shards may be stored there, as tuples.
+        # TODO if additional metadata becomes used for anything else, this function
+        # call may not be appropriate anymore.
+        additional_metadata = _decollate_batch_dict(batch.additional_metadata, i)
 
         # data shape
         assert isinstance(batch.data_shape, list)
@@ -65,7 +98,7 @@ def decollate_image_region_data(
             data_shape=data_shape,
             axes=batch.axes[i],
             region_spec=region_spec,  # type: ignore
-            chunks=chunks,
+            additional_metadata=additional_metadata,
         )
         decollated.append(image_region)
 
@@ -157,7 +190,6 @@ def convert_prediction(
     if tiled:
         predictions_output, sources = stitch_prediction(decollated_predictions)
     else:
-        # TODO squeeze single output?
         predictions_output, sources = combine_samples(decollated_predictions)
 
     if set(sources) == {"array"}:

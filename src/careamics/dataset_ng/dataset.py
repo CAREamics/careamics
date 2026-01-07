@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from careamics.config.data.ng_data_config import Mode, NGDataConfig, WholePatchingConfig
 from careamics.transforms import Compose
 
-from .image_stack import GenericImageStack
+from .image_stack import GenericImageStack, ZarrImageStack
 from .normalization import create_normalization
 from .normalization.statistics import resolve_normalization_config
 from .patch_extractor import PatchExtractor
@@ -22,17 +22,88 @@ from .patching_strategies import (
 
 
 class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
-    data: NDArray
-    source: Union[str, Literal["array"]]
-    data_shape: Sequence[int]
-    dtype: str  # dtype should be str for collate
-    axes: str
-    region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
+    """
+    Data structure for arrays produced by the dataset and propagated through models.
 
-    chunks: Sequence[int] = (1,)  # default value for ImageStack without chunks
+    An ImageRegionData may be a patch during training/validation, a tile during
+    prediction with tiling, or a whole image during prediction without tiling.
+
+    `data_shape` may not correspond to the shape of the original data if a subset
+    of the channels has been requested, in which case the channel dimension may
+    be smaller than that of the original data and only correspond to the requested
+    number of channels.
+
+    ImageRegionData may be collated in batches during training by the DataLoader. In
+    that case:
+    - data: arrays are collated into NDArray of shape (B,C,Z,Y,X)
+    - source: list of str, length B
+    - data_shape: list of tuples of int, each tuple being of length B and representing
+        the shape of the original images in the corresponding dimension
+    - dtype: list of str, length B
+    - axes: list of str, length B
+    - region_spec: dict of {str: sequence}, each sequence being of length B
+    - additional_metadata: list of dict
+
+    Description of the fields is given for the uncollated case (non-batched).
+    """
+
+    data: NDArray
+    """Patch, tile or image in C(Z)YX format."""
+
+    source: Union[str, Literal["array"]]
+    """Source of the data, e.g. file path, zarr URI, or "array" for in-memory arrays."""
+
+    data_shape: Sequence[int]
+    """Shape of the original image in (SCZ)YX format and order. If channels are
+    subsetted, the channel dimension corresponds to the number of requested channels."""
+
+    dtype: str  # dtype should be str for collate
+    """Data type of the original image as a string."""
+
+    axes: str
+    """Axes of the original data array, in format SCZYX."""
+
+    region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
+    """Specifications of the region within the original image from where `data` is
+    extracted. Of type PatchSpecs during training/validation and prediction without
+    tiling, and TileSpecs during prediction with tiling.
+    """
+
+    additional_metadata: dict[str, Any]
+    """Additional metadata to be stored with the image region. Currently used to store
+    chunk and shard information for zarr image stacks."""
 
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
+
+
+def _adjust_shape_for_channels(
+    shape: Sequence[int],
+    channels: Sequence[int] | None,
+    value: int | Literal["channels"] = "channels",
+) -> tuple[int, ...]:
+    """Adjust shape to account for channel subsetting.
+
+    Parameters
+    ----------
+    shape : Sequence[int]
+        The original data shape in SC(Z)YX format.
+    channels : Sequence[int] | None
+        The list of channels to select. If None, no adjustment is made.
+    value : int | Literal["channels"], default="channels"
+        The value to replace the channel dimension with. If "channels", the length
+        of the channels list is used, by default "channels".
+
+    Returns
+    -------
+    tuple[int, ...]
+        The adjusted data shape in SC(Z)YX format.
+    """
+    if channels is not None:
+        adjusted_shape = list(shape)
+        adjusted_shape[1] = len(channels) if value == "channels" else value
+        return tuple(adjusted_shape)
+    return tuple(shape)
 
 
 def _patch_size_within_data_shapes(
@@ -133,15 +204,33 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     ) -> ImageRegionData:
         data_idx = patch_spec["data_idx"]
         image_stack: GenericImageStack = extractor.image_stacks[data_idx]
+
+        # adjust the number of channels in data_shape if needed
+        data_shape = _adjust_shape_for_channels(
+            shape=image_stack.data_shape,
+            channels=self.config.channels,
+        )
+
+        # additional metadata for zarr image stacks
+        if isinstance(image_stack, ZarrImageStack):
+            additional_metadata = {
+                "chunks": image_stack.chunks,
+            }
+
+            if image_stack.shards is not None:
+                additional_metadata["shards"] = image_stack.shards
+        else:
+            additional_metadata = {}
+
         return ImageRegionData(
             data=patch,
             source=str(image_stack.source),
             dtype=str(image_stack.data_dtype),
-            data_shape=image_stack.data_shape,
-            chunks=image_stack.chunks,
+            data_shape=data_shape,
             # TODO: should it be axes of the original image instead?
             axes=self.config.axes,
             region_spec=patch_spec,
+            additional_metadata=additional_metadata,
         )
 
     def _extract_patches(
