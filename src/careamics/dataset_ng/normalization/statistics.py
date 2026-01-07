@@ -5,11 +5,11 @@ from numpy.typing import NDArray
 from tqdm import tqdm
 
 from careamics.config.data.normalization_config import (
+    MeanStdConfig,
     MinMaxConfig,
     NoNormConfig,
     NormalizationConfig,
     QuantileConfig,
-    StandardizeConfig,
 )
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset_ng.normalization.running_quantile import QuantileEstimator
@@ -142,7 +142,7 @@ def resolve_normalization_config(
     if isinstance(norm_config, NoNormConfig):
         return norm_config
 
-    if isinstance(norm_config, StandardizeConfig):
+    if isinstance(norm_config, MeanStdConfig):
         if norm_config.needs_computation():
             input_means, input_stds = _compute_mean_std(
                 input_extractor, patching_strategy, channels

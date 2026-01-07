@@ -184,7 +184,7 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
         },
         axes="YX",
         normalization={
-            "name": "standardize",
+            "name": "mean_std",
             "input_means": [example_data.mean()],
             "input_stds": [example_data.std()],
         },

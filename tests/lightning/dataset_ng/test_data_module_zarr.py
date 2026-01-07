@@ -30,7 +30,7 @@ def test_zarr_data_module(zarr_with_target_and_mask):
         batch_size=1,
         seed=42,
         normalization={
-            "name": "standardize",
+            "name": "mean_std",
             "input_means": [0],
             "input_stds": [1],
             "target_means": [0],

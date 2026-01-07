@@ -5,17 +5,17 @@ from typing import Annotated, Literal, Self, Union
 from pydantic import BaseModel, ConfigDict, Discriminator, Field, model_validator
 
 
-class StandardizeConfig(BaseModel):
+class MeanStdConfig(BaseModel):
     """
-    Standardization normalization configuration.
+    Mean and standard deviation normalization configuration.
 
     Holds mean and standard deviation statistics for input and target, used to
-    standardize data. If not provided, statistics can be computed later.
+    normalize data. If not provided, statistics can be computed later.
 
     Attributes
     ----------
-    name : Literal["standardize"]
-        Identifier for the standardization scheme.
+    name : Literal["mean_std"]
+        Identifier for the mean-std normalization scheme.
     input_means : list[float] | None
         Means of input channels/features, or None for automatic computation.
     input_stds : list[float] | None
@@ -30,7 +30,7 @@ class StandardizeConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
-    name: Literal["standardize"] = "standardize"
+    name: Literal["mean_std"] = "mean_std"
     input_means: list[float] | None = Field(default=None, min_length=0, max_length=32)
     input_stds: list[float] | None = Field(default=None, min_length=0, max_length=32)
     target_means: list[float] | None = Field(default=None, min_length=0, max_length=32)
@@ -217,6 +217,18 @@ class QuantileConfig(BaseModel):
                     "input_lower_quantile_values and input_upper_quantile_values "
                     "must have same length."
                 )
+            for i, (lower, upper) in enumerate(
+                zip(
+                    self.input_lower_quantile_values,
+                    self.input_upper_quantile_values,
+                    strict=True,
+                )
+            ):
+                if lower >= upper:
+                    raise ValueError(
+                        f"input_lower_quantile_values[{i}] ({lower}) must be less than "
+                        f"input_upper_quantile_values[{i}] ({upper})"
+                    )
 
         if (self.target_lower_quantile_values is None) != (
             self.target_upper_quantile_values is None
@@ -225,6 +237,29 @@ class QuantileConfig(BaseModel):
                 "target_lower_quantile_values and target_upper_quantile_values "
                 "must be both provided or both None."
             )
+        if (
+            self.target_lower_quantile_values is not None
+            and self.target_upper_quantile_values is not None
+        ):
+            if len(self.target_lower_quantile_values) != len(
+                self.target_upper_quantile_values
+            ):
+                raise ValueError(
+                    "target_lower_quantile_values and target_upper_quantile_values "
+                    "must have same length."
+                )
+            for i, (lower, upper) in enumerate(
+                zip(
+                    self.target_lower_quantile_values,
+                    self.target_upper_quantile_values,
+                    strict=True,
+                )
+            ):
+                if lower >= upper:
+                    raise ValueError(
+                        f"target_lower_quantile_values[{i}] ({lower}) must be less "
+                        f"than target_upper_quantile_values[{i}] ({upper})"
+                    )
         return self
 
     def get_lower_quantiles_for_channels(self, n_channels: int) -> list[float]:
@@ -441,6 +476,6 @@ class NoNormConfig(BaseModel):
 
 
 NormalizationConfig = Annotated[
-    Union[StandardizeConfig, NoNormConfig, QuantileConfig, MinMaxConfig],
+    Union[MeanStdConfig, NoNormConfig, QuantileConfig, MinMaxConfig],
     Discriminator("name"),
 ]

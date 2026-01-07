@@ -1,8 +1,8 @@
 import numpy as np
 from numpy.typing import NDArray
 
+from .mean_std_normalization import _reshape_stats
 from .normalization_protocol import NormalizationProtocol
-from .standardization import _reshape_stats
 
 
 class RangeNormalization(NormalizationProtocol):

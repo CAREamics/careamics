@@ -5,7 +5,7 @@ from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
 
-DEFAULT_NORM = {"name": "standardize"}
+DEFAULT_NORM = {"name": "mean_std"}
 
 
 def default_patching(mode: str) -> dict:
@@ -367,7 +367,7 @@ class TestNGDataConfigConvertMode:
             axes="CYX",
             patching=default_patching("training"),
             normalization={
-                "name": "standardize",
+                "name": "mean_std",
                 "input_means": [0.5],
                 "input_stds": [0.2],
                 "target_means": [0.3],

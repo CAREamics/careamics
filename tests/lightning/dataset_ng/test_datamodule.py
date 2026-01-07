@@ -59,7 +59,7 @@ def test_not_in_mem_tiff(tmp_path: Path):
         in_memory=False,
         seed=42,
         normalization={
-            "name": "standardize",
+            "name": "mean_std",
             "input_means": [0],
             "input_stds": [1],
         },
@@ -120,7 +120,7 @@ def test_sampler(tmp_path: Path, in_memory, correct_sampler):
         batch_size=4,
         in_memory=in_memory,
         normalization={
-            "name": "standardize",
+            "name": "mean_std",
             "input_means": [0],
             "input_stds": [1],
         },

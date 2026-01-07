@@ -118,7 +118,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
         },
         transforms=[],
         normalization={
-            "name": "standardize",
+            "name": "mean_std",
             "input_means": means,
             "input_stds": stds,
         },
@@ -217,7 +217,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
         },
         transforms=[],
         normalization={
-            "name": "standardize",
+            "name": "mean_std",
             "input_means": means,
             "input_stds": stds,
         },
@@ -315,7 +315,7 @@ def test_smoke_n2v_tiled_zarr(tmp_path, minimum_n2v_configuration):
         },
         transforms=[],
         normalization={
-            "name": "standardize",
+            "name": "mean_std",
             "input_means": means,
             "input_stds": stds,
         },

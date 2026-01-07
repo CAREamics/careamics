@@ -27,7 +27,7 @@ def _reshape_stats(stats: list[float], ndim: int, channel_axis: int = 0) -> NDAr
     return np.array(stats, dtype=np.float32).reshape(shape)
 
 
-class Standardize(NormalizationProtocol):
+class MeanStdNormalization(NormalizationProtocol):
     """
     Normalize an image or image patch.
 

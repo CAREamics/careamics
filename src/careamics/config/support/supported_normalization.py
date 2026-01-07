@@ -6,7 +6,7 @@ from careamics.utils import BaseEnum
 class SupportedNormalization(str, BaseEnum):
     """Normalization strategies supported by Careamics."""
 
-    MEAN_STD = "standardize"
+    MEAN_STD = "mean_std"
     """Mean and std normalization strategy."""
 
     QUANTILE = "quantile"

@@ -4,7 +4,7 @@ from careamics.config.data import NGDataConfig
 from careamics.dataset_ng.factory import create_dataset
 
 
-def test_standardization_with_known_stats():
+def test_mean_std_with_known_stats():
     rng = np.random.default_rng(42)
     data = rng.normal(loc=100.0, scale=25.0, size=(64, 64)).astype(np.float32)
 
@@ -14,7 +14,7 @@ def test_standardization_with_known_stats():
         axes="YX",
         patching={"name": "whole"},
         normalization={
-            "name": "standardize",
+            "name": "mean_std",
             "input_means": [100.0],
             "input_stds": [25.0],
         },
@@ -29,7 +29,7 @@ def test_standardization_with_known_stats():
     assert np.allclose(denormalized[0, 0], data, atol=1e-4)
 
 
-def test_standardization_auto_computes_stats():
+def test_mean_std_auto_computes_stats():
     rng = np.random.default_rng(42)
     data = rng.integers(0, 255, size=(64, 64), dtype=np.uint8).astype(np.float32)
 
@@ -38,7 +38,7 @@ def test_standardization_auto_computes_stats():
         data_type="array",
         axes="YX",
         patching={"name": "whole"},
-        normalization={"name": "standardize"},
+        normalization={"name": "mean_std"},
     )
     dataset = create_dataset(config=config, inputs=[data], targets=None)
 
@@ -147,7 +147,7 @@ def test_no_normalization_preserves_values():
     assert np.allclose(denormalized, sample.data)
 
 
-def test_standardization_per_channel():
+def test_mean_std_per_channel():
     rng = np.random.default_rng(42)
     ch0 = rng.normal(loc=50, scale=10, size=(64, 64)).astype(np.float32)
     ch1 = rng.normal(loc=100, scale=20, size=(64, 64)).astype(np.float32)
@@ -160,7 +160,7 @@ def test_standardization_per_channel():
         axes="CYX",
         patching={"name": "whole"},
         normalization={
-            "name": "standardize",
+            "name": "mean_std",
             "input_means": [50.0, 100.0, 200.0],
             "input_stds": [10.0, 20.0, 5.0],
         },
@@ -209,7 +209,7 @@ def test_input_and_target_have_independent_stats():
         axes="YX",
         patching={"name": "random", "patch_size": (32, 32)},
         normalization={
-            "name": "standardize",
+            "name": "mean_std",
             "input_means": [50.0],
             "input_stds": [10.0],
             "target_means": [150.0],

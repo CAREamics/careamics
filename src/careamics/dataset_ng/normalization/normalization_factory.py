@@ -1,10 +1,10 @@
 from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.support import SupportedNormalization
 
+from .mean_std_normalization import MeanStdNormalization
 from .no_normalization import NoNormalization
 from .normalization_protocol import NormalizationProtocol
 from .range_normalization import RangeNormalization
-from .standardization import Standardize
 
 
 def create_normalization(norm_model: NormalizationConfig) -> NormalizationProtocol:
@@ -22,7 +22,7 @@ def create_normalization(norm_model: NormalizationConfig) -> NormalizationProtoc
         The normalization transform.
     """
     if norm_model.name == SupportedNormalization.MEAN_STD:
-        return Standardize(
+        return MeanStdNormalization(
             input_means=norm_model.input_means,
             input_stds=norm_model.input_stds,
             target_means=norm_model.target_means,
