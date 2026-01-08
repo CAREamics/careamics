@@ -45,7 +45,7 @@ def default_patching(mode: str) -> dict:
         ),
     ],
 )
-def test_ng_data_config_strategy(patching_strategy, mode):
+def test_config_strategy(patching_strategy, mode):
 
     # Test the DataModel class
     data_config = NGDataConfig(
@@ -107,45 +107,13 @@ def test_ng_data_config_strategy(patching_strategy, mode):
         ),
     ],
 )
-def test_ng_data_wrong_config_strategy(patching_strategy, mode):
+def test_wrong_config_strategy(patching_strategy, mode):
     # Test the DataModel class
     with pytest.raises(ValueError):
         _ = NGDataConfig(
             mode=mode,
             data_type="array",
             axes="YX",
-            patching=patching_strategy,
-        )
-
-
-@pytest.mark.parametrize(
-    "axes, patching_strategy",
-    [
-        ("ZYX", {"name": SupportedPatchingStrategy.RANDOM, "patch_size": [16, 16]}),
-        ("YX", {"name": SupportedPatchingStrategy.RANDOM, "patch_size": [16, 16, 16]}),
-        (
-            "ZYX",
-            {
-                "name": SupportedPatchingStrategy.RANDOM,
-                "patch_size": [16, 16],
-            },
-        ),
-        (
-            "SYX",
-            {
-                "name": SupportedPatchingStrategy.RANDOM,
-                "patch_size": [16, 16, 16],
-            },
-        ),
-    ],
-)
-def test_ng_dataset_invalid_axes_patch(axes, patching_strategy):
-
-    with pytest.raises(ValueError):
-        NGDataConfig(
-            mode="training",
-            data_type="array",
-            axes=axes,
             patching=patching_strategy,
         )
 
@@ -173,7 +141,7 @@ def test_ng_dataset_invalid_axes_patch(axes, patching_strategy):
         (True, "czi", True),
     ],
 )
-def test_ng_data_config_in_memory(in_memory, data_type, error):
+def test_config_in_memory(in_memory, data_type, error):
     if error:
         with pytest.raises(ValueError):
             NGDataConfig(
@@ -296,7 +264,139 @@ def test_validate_coord_filters(filter_config, mode, error):
         )
 
 
-class TestNGDataConfigConvertMode:
+class TestDimensions:
+
+    @pytest.mark.parametrize(
+        "mode, axes, patching, patch_size",
+        [
+            ("training", "ZYX", "random", [16, 16]),
+            ("training", "CYX", "random", [16, 16, 16]),
+            ("training", "SYX", "random", [16, 16, 16]),
+            ("predicting", "ZYX", "tiled", [16, 16]),
+            ("predicting", "CYX", "tiled", [16, 16, 16]),
+            ("predicting", "SYX", "tiled", [16, 16, 16]),
+        ],
+    )
+    def test_dimensions(self, mode, axes, patching, patch_size):
+        if patching == "random":
+            patching = {
+                "name": SupportedPatchingStrategy.RANDOM,
+                "patch_size": patch_size,
+            }
+        elif patching == "tiled":
+            patching = {
+                "name": SupportedPatchingStrategy.TILED,
+                "patch_size": patch_size,
+                "overlaps": [4 for _ in patch_size],
+            }
+        else:
+            patching = {"name": SupportedPatchingStrategy.WHOLE}
+
+        with pytest.raises(ValueError):
+            NGDataConfig(
+                mode=mode,
+                data_type="array",
+                axes=axes,
+                patching=patching,
+            )
+
+    @pytest.mark.parametrize(
+        "data_type, mode, axes, patching, patch_size, is_3D",
+        [
+            ("array", "training", "CYX", "random", [16, 16], False),
+            ("array", "training", "CZYX", "random", [8, 16, 16], True),
+            ("array", "predicting", "CYX", "tiled", [16, 16], False),
+            ("array", "predicting", "CZYX", "tiled", [8, 16, 16], True),
+            ("array", "predicting", "CYX", "whole", None, False),
+            ("array", "predicting", "CZYX", "whole", None, True),
+            # czi has some specificities due to T being a 3D axis
+            ("czi", "training", "SCYX", "random", [16, 16], False),
+            ("czi", "training", "SCZYX", "random", [8, 16, 16], True),
+            ("czi", "training", "SCTYX", "random", [8, 16, 16], True),
+            ("czi", "predicting", "SCYX", "tiled", [16, 16], False),
+            ("czi", "predicting", "SCZYX", "tiled", [8, 16, 16], True),
+            ("czi", "predicting", "SCTYX", "tiled", [8, 16, 16], True),
+            ("czi", "predicting", "SCYX", "whole", None, False),
+            ("czi", "predicting", "SCZYX", "whole", None, True),
+            ("czi", "predicting", "SCTYX", "whole", None, True),
+        ],
+    )
+    def test_is_3D(self, data_type, mode, axes, patching, patch_size, is_3D):
+        if patching == "random":
+            patching = {
+                "name": SupportedPatchingStrategy.RANDOM,
+                "patch_size": patch_size,
+            }
+        elif patching == "tiled":
+            patching = {
+                "name": SupportedPatchingStrategy.TILED,
+                "patch_size": patch_size,
+                "overlaps": [4 for _ in patch_size],
+            }
+        else:
+            patching = {"name": SupportedPatchingStrategy.WHOLE}
+
+        config_2D = NGDataConfig(
+            mode=mode,
+            data_type=data_type,
+            axes=axes,
+            patching=patching,
+        )
+        assert config_2D.is_3D() == is_3D
+
+    @pytest.mark.parametrize(
+        "mode, axes, patching, patch_size, error",
+        [
+            # accepted combinations
+            ("training", "SCYX", "random", [16, 16], False),
+            ("training", "SCZYX", "random", [8, 16, 16], False),
+            ("training", "SCTYX", "random", [8, 16, 16], False),
+            ("predicting", "SCYX", "tiled", [16, 16], False),
+            ("predicting", "SCZYX", "tiled", [8, 16, 16], False),
+            ("predicting", "SCTYX", "tiled", [8, 16, 16], False),
+            ("predicting", "SCYX", "whole", None, False),
+            ("predicting", "SCZYX", "whole", None, False),
+            ("predicting", "SCTYX", "whole", None, False),
+            # validation errors
+            ("training", "SCZYX", "random", [16, 16], True),
+            ("training", "SCTYX", "random", [16, 16], True),
+            ("predicting", "SCZYX", "tiled", [16, 16], True),
+            ("predicting", "SCTYX", "tiled", [16, 16], True),
+        ],
+    )
+    def test_czi_zt_3D(self, mode, axes, patching, patch_size, error):
+        if patching == "random":
+            patching = {
+                "name": SupportedPatchingStrategy.RANDOM,
+                "patch_size": patch_size,
+            }
+        elif patching == "tiled":
+            patching = {
+                "name": SupportedPatchingStrategy.TILED,
+                "patch_size": patch_size,
+                "overlaps": [4 for _ in patch_size],
+            }
+        else:
+            patching = {"name": SupportedPatchingStrategy.WHOLE}
+
+        if error:
+            with pytest.raises(ValueError):
+                _ = NGDataConfig(
+                    mode=mode,
+                    data_type="czi",
+                    axes=axes,
+                    patching=patching,
+                )
+        else:
+            NGDataConfig(
+                mode=mode,
+                data_type="czi",
+                axes=axes,
+                patching=patching,
+            )
+
+
+class TestConvertMode:
 
     def test_default(self):
         """Test converting mode with default parameters."""

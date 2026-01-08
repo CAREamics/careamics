@@ -114,6 +114,9 @@ class UNetConfig(ArchitectureConfig):
         """
         Return whether the model is 3D or not.
 
+        This method is used in the NG configuration validation to check that the model
+        dimensions match the data dimensions.
+
         Returns
         -------
         bool

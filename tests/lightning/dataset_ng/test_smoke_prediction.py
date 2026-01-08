@@ -7,8 +7,7 @@ import zarr
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from careamics.config import N2VAlgorithm
-from careamics.config.configuration_factories import create_ng_data_configuration
+from careamics.config import N2VAlgorithm, create_ng_data_configuration
 from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     PredictionWriterCallback,
 )

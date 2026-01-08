@@ -554,24 +554,26 @@ class NGDataConfig(BaseModel):
         ValueError
             If the patch size dimension is not compatible with the axes.
         """
-        if "Z" in self.axes:
-            if (
-                hasattr(self.patching, "patch_size")
-                and len(self.patching.patch_size) != 3
-            ):
-                raise ValueError(
-                    f"`patch_size` in `patching` must have 3 dimensions if the data is"
-                    f" 3D, got axes {self.axes})."
-                )
+        # "whole" patching does not have dimensions to validate
+        if not hasattr(self.patching, "patch_size"):
+            return self
+
+        if self.data_type == "czi":
+            # Z and T are both depth axes for CZI data
+            expected_dims = 3 if ("Z" in self.axes or "T" in self.axes) else 2
+            additional_message = " (`Z` and `T` are depth axes for CZI data)"
         else:
-            if (
-                hasattr(self.patching, "patch_size")
-                and len(self.patching.patch_size) != 2
-            ):
-                raise ValueError(
-                    f"`patch_size` in `patching` must have 2 dimensions if the data is"
-                    f" 3D, got axes {self.axes})."
-                )
+            expected_dims = 3 if "Z" in self.axes else 2
+            additional_message = ""
+
+        # infer dimension from requested patch size
+        actual_dims = len(self.patching.patch_size)
+        if actual_dims != expected_dims:
+            raise ValueError(
+                f"`patch_size` in `patching` must have {expected_dims} dimensions, "
+                f"got {self.patching.patch_size} with axes {self.axes}"
+                f"{additional_message}."
+            )
 
         return self
 
@@ -779,6 +781,27 @@ class NGDataConfig(BaseModel):
             target_means=target_means,
             target_stds=target_stds,
         )
+
+    def is_3D(self) -> bool:
+        """
+        Check if the data is 3D based on the axes.
+
+        Either "Z" is in the axes and patching `patch_size` has 3 dimensions, or for CZI
+        data, "Z" is in the axes or "T" is in the axes and patching `patch_size` has
+        3 dimensions.
+
+        This method is used during NGConfiguration validation to cross checks dimensions
+        with the algorithm configuration.
+
+        Returns
+        -------
+        bool
+            True if the data is 3D, False otherwise.
+        """
+        if self.data_type == "czi":
+            return "Z" in self.axes or "T" in self.axes
+        else:
+            return "Z" in self.axes
 
     # TODO: if switching from a state in which in_memory=True to an incompatible state
     # an error will be raised. Should that automatically be set to False instead?
