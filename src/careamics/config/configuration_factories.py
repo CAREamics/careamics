@@ -17,7 +17,8 @@ from careamics.config.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.loss_model import LVAELossConfig
+from careamics.config.loss_model import KLLossConfig, LVAELossConfig
+from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
 from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.config.support import (
     SupportedArchitecture,
@@ -1892,28 +1893,40 @@ def create_hdn_configuration(
 
 def create_microsplit_configuration(
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
-    axes: str,
+    data_type: Literal["array", "tiff", "custom"], #TODO not used yet, but should be after refactoring
+    axes: str, #TODO not used yet, but should be after refactoring
     patch_size: Sequence[int],
     batch_size: int,
+    lr: float = 1e-3,
     num_epochs: int = 100,
     num_steps: int | None = None,
+    #Model and algo parameters
     encoder_conv_strides: tuple[int, ...] = (2, 2),
     decoder_conv_strides: tuple[int, ...] = (2, 2),
-    multiscale_count: int = 3,
-    grid_size: int = 32,  # TODO most likely can be derived from patch size
-    z_dims: tuple[int, ...] = (128, 128),
-    output_channels: int = 1,
     encoder_n_filters: int = 32,
     decoder_n_filters: int = 32,
-    encoder_dropout: float = 0.0,
-    decoder_dropout: float = 0.0,
+    multiscale_count: int = 3,
+    grid_size: int = 32,
+    z_dims: tuple[int, ...] = (128, 128),
+    output_channels: int = 1,
+    encoder_dropout: float = 0.1,
+    decoder_dropout: float = 0.1,
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
-    ] = "ReLU",  # TODO do we need all these?
+    ] = "ELU",
     analytical_kl: bool = False,
     predict_logvar: Literal["pixelwise"] = "pixelwise",
-    logvar_lowerbound: Union[float, None] = None,
+    logvar_lowerbound: float | None = -5.0,
+    loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"] = "denoisplit_musplit",
+    kl_type: Literal["kl", "kl_restricted"] = "kl_restricted",
+    reconstruction_weight: float = 1.0,
+    kl_weight: float = 1.0,
+    musplit_weight: float = 0.1, #Should be 
+    denoisplit_weight: float = 0.9,
+    mmse_count: int = 10,
+    # Training parameters
+    optimizer: Literal["Adam", "SGD", "Adamax"] = "Adamax",
+    lr_scheduler_patience: int = 30,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     trainer_params: dict | None = None,
     augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
@@ -1966,13 +1979,39 @@ def create_microsplit_configuration(
     decoder_dropout : float, optional
         Dropout rate for the decoder, by default 0.0.
     nonlinearity : Literal, optional
-        Nonlinearity to use in the model, by default "ReLU".
+        Nonlinearity to use in the model, by default "ELU".
     analytical_kl : bool, optional
         Whether to use analytical KL divergence, by default False.
-    predict_logvar : Literal["pixelwise"] | None, optional
-        Type of log-variance prediction, by default None.
-    logvar_lowerbound : Union[float, None], optional
-        Lower bound for the log variance, by default None.
+    predict_logvar : Literal["pixelwise"], optional
+        Type of log-variance prediction, by default "pixelwise".
+    logvar_lowerbound : float | None, optional
+        Lower bound for the log variance, by default -5.0.
+    loss_type : Literal["musplit", "denoisplit", "denoisplit_musplit"], optional
+        Type of loss function, by default "denoisplit_musplit".
+    kl_type : Literal["kl", "kl_restricted"], optional
+        Type of KL divergence, by default "kl_restricted".
+    reconstruction_weight : float, optional
+        Weight for reconstruction loss, by default 1.0.
+    kl_weight : float, optional
+        Weight for KL loss, by default 1.0.
+    musplit_weight : float, optional
+        Weight for muSplit loss, by default 0.1.
+    denoisplit_weight : float, optional
+        Weight for denoiSplit loss, by default 0.9.
+    mmse_count : int, optional
+        Number of MMSE samples to use, by default 10.
+    lr : float, optional
+        Learning rate, by default 1e-3.
+    optimizer : Literal["Adam", "SGD", "Adamax"], optional
+        Optimizer to use, by default "Adamax".
+    lr_scheduler_patience : int, optional
+        Patience for learning rate scheduler, by default 30.
+    precision : Literal["16-mixed", "32", "64"] | None, optional
+        Training precision, by default "16-mixed".
+    gradient_clip_algorithm : Literal["value", "norm"] | None, optional
+        Gradient clipping algorithm, by default "value".
+    gradient_clip_val : float | None, optional
+        Gradient clipping value, by default 0.5.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use for training, by default "none".
     trainer_params : dict, optional
@@ -2019,13 +2058,17 @@ def create_microsplit_configuration(
     transform_list = _list_spatial_augmentations(augmentations)
 
     loss_config = LVAELossConfig(
-        loss_type="denoisplit_musplit", denoisplit_weight=0.9, musplit_weight=0.1
-    )  # TODO losses need to be refactored! just for example. Add validator if sum to 1
+        loss_type=loss_type,
+        reconstruction_weight=reconstruction_weight,
+        kl_weight=kl_weight,
+        musplit_weight=musplit_weight,
+        denoisplit_weight=denoisplit_weight,
+        kl_params=KLLossConfig(loss_type=kl_type),
+    )
 
-    # Create likelihood configurations
     gaussian_likelihood_config, noise_model_config, nm_likelihood_config = (
         get_likelihood_config(
-            loss_type="denoisplit_musplit",
+            loss_type=loss_type,
             predict_logvar=predict_logvar,
             logvar_lowerbound=logvar_lowerbound,
             nm_paths=nm_paths,
@@ -2050,7 +2093,22 @@ def create_microsplit_configuration(
         analytical_kl=analytical_kl,
     )
 
-    # Create the MicroSplit algorithm configuration
+    optimizer_config = OptimizerModel(
+        name=optimizer,
+        parameters={"lr": lr, "weight_decay": 0},
+    )
+
+    lr_scheduler_config = LrSchedulerModel(
+        name="ReduceLROnPlateau",
+        parameters={
+            "mode": "min",
+            "factor": 0.5,
+            "patience": lr_scheduler_patience,
+            "verbose": True,
+            "min_lr": 1e-12,
+        },
+    )
+
     algorithm_params = {
         "algorithm": "microsplit",
         "loss": loss_config,
@@ -2058,9 +2116,11 @@ def create_microsplit_configuration(
         "gaussian_likelihood": gaussian_likelihood_config,
         "noise_model": noise_model_config,
         "noise_model_likelihood": nm_likelihood_config,
+        "optimizer": optimizer_config,
+        "lr_scheduler": lr_scheduler_config,
+        "mmse_count": mmse_count,
     }
 
-    # Convert to MicroSplitAlgorithm instance
     algorithm_config = MicroSplitAlgorithm(**algorithm_params)
 
     # data
