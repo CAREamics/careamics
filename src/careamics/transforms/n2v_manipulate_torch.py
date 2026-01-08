@@ -17,9 +17,12 @@ from .struct_mask_parameters import StructMaskParameters
 
 class N2VManipulateTorch:
     """
-    Default augmentation for the N2V model.
+    N2V manipulation with asymmetric masking and channel dropout.
 
-    This transform expects C(Z)YX dimensions.
+    This transform expects C(Z)YX dimensions and supports:
+    - Standard N2V masking on data channels
+    - Asymmetric masking on auxiliary channels (lighter masking)
+    - Channel dropout regularization
 
     Parameters
     ----------
@@ -33,7 +36,7 @@ class N2VManipulateTorch:
     Attributes
     ----------
     masked_pixel_percentage : float
-        Percentage of pixels to mask.
+        Percentage of pixels to mask in data channels.
     roi_size : int
         Size of the replacement area.
     strategy : Literal[ "uniform", "median" ]
@@ -51,6 +54,7 @@ class N2VManipulateTorch:
         n2v_manipulate_config: N2VManipulateConfig,
         seed: int | None = None,
         device: str | None = None,
+        n_data_channels: int = 1,
     ):
         """Constructor.
 
@@ -62,7 +66,20 @@ class N2VManipulateTorch:
             Random seed, by default None.
         device : str
             The device on which operations take place, e.g. "cuda", "cpu" or "mps".
+        n_data_channels : int
+            Number of data channels (used when data_channel_indices is None in config).
         """
+        # Determine which channels to mask
+        if n2v_manipulate_config.data_channel_indices is not None:
+            self.data_channel_indices = n2v_manipulate_config.data_channel_indices
+        else:
+            # Fallback to first n_data_channels
+            n_channels = n2v_manipulate_config.n_data_channels
+            self.data_channel_indices = list(range(n_channels))
+
+        # Keep for backward compatibility
+        self.n_data_channels = len(self.data_channel_indices)
+
         self.masked_pixel_percentage = n2v_manipulate_config.masked_pixel_percentage
         self.roi_size = n2v_manipulate_config.roi_size
         self.strategy = n2v_manipulate_config.strategy
@@ -103,7 +120,7 @@ class N2VManipulateTorch:
     def __call__(
         self, batch: torch.Tensor, *args: Any, **kwargs: Any
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Apply the transform to the image.
+        """Apply the transform to the image with asymmetric masking and channel dropout.
 
         Parameters
         ----------
@@ -119,30 +136,58 @@ class N2VManipulateTorch:
         tuple[torch.Tensor, torch.Tensor, torch.Tensor]
             Masked patch, original patch, and mask.
         """
+        batch_size = batch.shape[0]
+        n_channels = batch.shape[1]
+
         masked = torch.zeros_like(batch)
         mask = torch.zeros_like(batch, dtype=torch.uint8)
 
+        # Create a set of data channel indices for faster lookup
+        data_channels_set = set(self.data_channel_indices)
+
         if self.strategy == SupportedPixelManipulation.UNIFORM:
-            # Iterate over the channels to apply manipulation separately
-            for c in range(batch.shape[1]):
-                masked[:, c, ...], mask[:, c, ...] = uniform_manipulate_torch(
-                    patch=batch[:, c, ...],
-                    mask_pixel_percentage=self.masked_pixel_percentage,
-                    subpatch_size=self.roi_size,
-                    remove_center=self.remove_center,
-                    struct_params=self.struct_mask,
-                    rng=self.rng,
-                )
+            # Iterate over batch and channels
+            for b in range(batch_size):
+                for c in range(n_channels):
+                    # Check if this is a data channel
+                    is_data_channel = c in data_channels_set
+
+                    if is_data_channel:
+                        # Apply masking to data channels
+                        masked_result, mask_result = uniform_manipulate_torch(
+                            patch=batch[b, c, ...],
+                            mask_pixel_percentage=self.masked_pixel_percentage,
+                            subpatch_size=self.roi_size,
+                            remove_center=self.remove_center,
+                            struct_params=self.struct_mask,
+                            rng=self.rng,
+                        )
+                        masked[b, c, ...] = masked_result
+                        mask[b, c, ...] = mask_result
+                    else:
+                        # Auxiliary channels: no masking, just copy
+                        masked[b, c, ...] = batch[b, c, ...]
+
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
-            # Iterate over the channels to apply manipulation separately
-            for c in range(batch.shape[1]):
-                masked[:, c, ...], mask[:, c, ...] = median_manipulate_torch(
-                    batch=batch[:, c, ...],
-                    mask_pixel_percentage=self.masked_pixel_percentage,
-                    subpatch_size=self.roi_size,
-                    struct_params=self.struct_mask,
-                    rng=self.rng,
-                )
+            # Iterate over batch and channels
+            for b in range(batch_size):
+                for c in range(n_channels):
+                    is_data_channel = c in data_channels_set
+
+                    if is_data_channel:
+                        # Apply masking to data channels
+                        masked_result, mask_result = median_manipulate_torch(
+                            batch=batch[b, c, ...],
+                            mask_pixel_percentage=self.masked_pixel_percentage,
+                            subpatch_size=self.roi_size,
+                            struct_params=self.struct_mask,
+                            rng=self.rng,
+                        )
+                        masked[b, c, ...] = masked_result
+                        mask[b, c, ...] = mask_result
+                    else:
+                        # Auxiliary channels: no masking, just copy
+                        masked[b, c, ...] = batch[b, c, ...]
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
 

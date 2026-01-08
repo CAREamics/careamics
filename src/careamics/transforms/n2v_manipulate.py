@@ -25,7 +25,7 @@ class N2VManipulate(Transform):
     masked_pixel_percentage : float, optional
         Percentage of pixels to mask, by default 0.2.
     strategy : Literal[ "uniform", "median" ], optional
-        Replaccement strategy, uniform or median, by default uniform.
+        Replacement strategy, uniform or median, by default uniform.
     remove_center : bool, optional
         Whether to remove central pixel from patch, by default True.
     struct_mask_axis : Literal["horizontal", "vertical", "none"], optional
@@ -34,21 +34,8 @@ class N2VManipulate(Transform):
         StructN2V mask span, by default 5.
     seed : Optional[int], optional
         Random seed, by default None.
-
-    Attributes
-    ----------
-    masked_pixel_percentage : float
-        Percentage of pixels to mask.
-    roi_size : int
-        Size of the replacement area.
-    strategy : Literal[ "uniform", "median" ]
-        Replaccement strategy, uniform or median.
-    remove_center : bool
-        Whether to remove central pixel from patch.
-    struct_mask : Optional[StructMaskParameters]
-        StructN2V mask parameters.
-    rng : Generator
-        Random number generator.
+    data_channel_indices : Optional[list[int]], optional
+        List of channel indices to apply manipulation to, by default None (all).
     """
 
     def __init__(
@@ -62,31 +49,18 @@ class N2VManipulate(Transform):
         struct_mask_axis: Literal["horizontal", "vertical", "none"] = "none",
         struct_mask_span: int = 5,
         seed: int | None = None,
+        data_channel_indices: list[int] | None = None,  # <--- Added this argument
+        n_data_channels: int | None = None,
     ):
-        """Constructor.
+        """Constructor."""
+        super().__init__()
 
-        Parameters
-        ----------
-        roi_size : int, optional
-            Size of the replacement area, by default 11.
-        masked_pixel_percentage : float, optional
-            Percentage of pixels to mask, by default 0.2.
-        strategy : Literal[ "uniform", "median" ], optional
-            Replaccement strategy, uniform or median, by default uniform.
-        remove_center : bool, optional
-            Whether to remove central pixel from patch, by default True.
-        struct_mask_axis : Literal["horizontal", "vertical", "none"], optional
-            StructN2V mask axis, by default "none".
-        struct_mask_span : int, optional
-            StructN2V mask span, by default 5.
-        seed : Optional[int], optional
-            Random seed, by default None.
-        """
         self.masked_pixel_percentage = masked_pixel_percentage
         self.roi_size = roi_size
         self.strategy = strategy
-        self.remove_center = remove_center  # TODO is this ever used?
-
+        self.remove_center = remove_center
+        self.data_channel_indices = data_channel_indices  # <--- Store it
+        self.data_channel_indices = data_channel_indices
         if struct_mask_axis == SupportedStructAxis.NONE:
             self.struct_mask: StructMaskParameters | None = None
         else:
@@ -107,21 +81,28 @@ class N2VManipulate(Transform):
         ----------
         patch : np.ndarray
             Image patch, 2D or 3D, shape C(Z)YX.
-        *args : Any
-            Additional arguments, unused.
-        **kwargs : Any
-            Additional keyword arguments, unused.
-
-        Returns
-        -------
-        tuple[np.ndarray, np.ndarray, np.ndarray]
-            Masked patch, original patch, and mask.
         """
         masked = np.zeros_like(patch)
         mask = np.zeros_like(patch)
+
+        # Determine which channels to iterate over
+        # If indices are provided, only loop over those. Otherwise, do all.
+        n_channels = patch.shape[0]
+        channels_to_process = (
+            self.data_channel_indices
+            if self.data_channel_indices is not None
+            else range(n_channels)
+        )
+
+        # First copy original data to masked (so skipped channels remain untouched)
+        masked[...] = patch[...]
+
         if self.strategy == SupportedPixelManipulation.UNIFORM:
-            # Iterate over the channels to apply manipulation separately
-            for c in range(patch.shape[0]):
+            for c in channels_to_process:
+                # Safety check in case config has bad indices
+                if c >= n_channels:
+                    continue
+
                 masked[c, ...], mask[c, ...] = uniform_manipulate(
                     patch=patch[c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
@@ -131,8 +112,10 @@ class N2VManipulate(Transform):
                     rng=self.rng,
                 )
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
-            # Iterate over the channels to apply manipulation separately
-            for c in range(patch.shape[0]):
+            for c in channels_to_process:
+                if c >= n_channels:
+                    continue
+
                 masked[c, ...], mask[c, ...] = median_manipulate(
                     patch=patch[c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
@@ -143,8 +126,4 @@ class N2VManipulate(Transform):
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
 
-        # TODO: Output does not match other transforms, how to resolve?
-        #     - Don't include in Compose and apply after if algorithm is N2V?
-        #     - or just don't return patch? but then mask is in the target position
-        # TODO why return patch?
         return masked, patch, mask

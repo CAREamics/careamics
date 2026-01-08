@@ -211,6 +211,10 @@ class Denormalize:
         Mean value per channel.
     image_stds : list or tuple of float
         Standard deviation value per channel.
+    target_channel_indices : list of int, optional
+        Indices of channels that were used as targets during training. This parameter
+        is only used when the output has fewer channels than the stored statistics,
+        indicating a subset of channels was predicted.
 
     """
 
@@ -218,18 +222,12 @@ class Denormalize:
         self,
         image_means: list[float],
         image_stds: list[float],
+        target_channel_indices: list[int] | None = None,
     ):
-        """Constructor.
-
-        Parameters
-        ----------
-        image_means : list of float
-            Mean value per channel.
-        image_stds : list of float
-            Standard deviation value per channel.
-        """
+        """Constructor."""
         self.image_means = image_means
         self.image_stds = image_stds
+        self.target_channel_indices = target_channel_indices
 
         self.eps = 1e-6
 
@@ -246,42 +244,57 @@ class Denormalize:
         NDArray
             Transformed array.
         """
-        # if len(self.image_means) != patch.shape[1]:
-        #     raise ValueError(
-        #         f"Number of means (got a list of size {len(self.image_means)}) and "
-        #         f"number of channels (got shape {patch.shape} for BC(Z)YX) do not "
-        #         f"match."
-        #     )
-        # TODO for pn2v channel handling needs to be changed
-        means = _reshape_stats(self.image_means, patch.ndim)
-        stds = _reshape_stats(self.image_stds, patch.ndim)
+        n_output_channels = patch.shape[1]
+        n_stored_stats = len(self.image_means)
+
+        # Determine which statistics to use based on output channel count
+        if n_output_channels == n_stored_stats:
+            # Output has same number of channels as stored statistics.
+            # Use all statistics regardless of target_channel_indices.
+            # This is the common case for standard N2V where all channels
+            # are processed together.
+            image_means = self.image_means
+            image_stds = self.image_stds
+        elif n_output_channels < n_stored_stats:
+            # Output has fewer channels than stored statistics.
+            # This happens when only a subset of channels was predicted.
+            if self.target_channel_indices is not None:
+                if len(self.target_channel_indices) == n_output_channels:
+                    # Use statistics for the specific target channels
+                    image_means = [
+                        self.image_means[i] for i in self.target_channel_indices
+                    ]
+                    image_stds = [
+                        self.image_stds[i] for i in self.target_channel_indices
+                    ]
+                else:
+                    # Mismatch: fall back to first N statistics
+                    image_means = self.image_means[:n_output_channels]
+                    image_stds = self.image_stds[:n_output_channels]
+            else:
+                # No target indices specified: use first N statistics
+                image_means = self.image_means[:n_output_channels]
+                image_stds = self.image_stds[:n_output_channels]
+        else:
+            # More output channels than stored statistics: error
+            raise ValueError(
+                f"Number of output channels ({n_output_channels}) exceeds "
+                f"number of stored statistics ({n_stored_stats})."
+            )
+
+        means = _reshape_stats(image_means, patch.ndim)
+        stds = _reshape_stats(image_stds, patch.ndim)
 
         denorm_array = self._apply(
             patch,
-            np.swapaxes(means, 0, 1),  # swap axes as C channel is axis 1
+            np.swapaxes(means, 0, 1),
             np.swapaxes(stds, 0, 1),
         )
 
         return denorm_array.astype(np.float32)
 
     def _apply(self, array: NDArray, mean: NDArray, std: NDArray) -> NDArray:
-        """
-        Apply the transform to the image.
-
-        Parameters
-        ----------
-        array : NDArray
-            Image patch, 2D or 3D, shape C(Z)YX.
-        mean : NDArray
-            Mean values.
-        std : NDArray
-            Standard deviations.
-
-        Returns
-        -------
-        NDArray
-            Denormalized image array.
-        """
+        """Apply denormalization: output = normalized * (std + eps) + mean."""
         return array * (std + self.eps) + mean
 
 

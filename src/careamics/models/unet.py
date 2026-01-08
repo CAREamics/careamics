@@ -4,6 +4,7 @@ UNet model.
 A UNet encoder, decoder and complete model.
 """
 
+import logging
 from typing import Any, Union
 
 import torch
@@ -12,6 +13,33 @@ import torch.nn as nn
 from ..config.support import SupportedActivation
 from .activation import get_activation
 from .layers import Conv_Block, MaxBlurPool
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+### WIP: Self-Attention module for 1D data
+# class SelfAttention1D(nn.Module):
+#     def __init__(self, channels: int, num_heads: int = 8):
+#         super().__init__()
+#         self.attention = nn.MultiheadAttention(
+#             embed_dim=channels, num_heads=num_heads, batch_first=True
+#         )
+#         self.norm = nn.LayerNorm(channels)
+
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+#         # x shape: (batch, channels, length)
+#         # Transpose to (batch, length, channels) for attention
+#         x_t = x.transpose(1, 2)
+
+#         # Self-attention
+#         attn_out, _ = self.attention(x_t, x_t, x_t)
+
+#         # Residual connection and norm
+#         out = self.norm(x_t + attn_out)
+
+#         # Transpose back to (batch, channels, length)
+#         return out.transpose(1, 2)
 
 
 class UnetEncoder(nn.Module):
@@ -52,6 +80,8 @@ class UnetEncoder(nn.Module):
         pool_kernel: int = 2,
         n2v2: bool = False,
         groups: int = 1,
+        # use_attention: bool = False,
+        # num_heads: int = 8,
     ) -> None:
         """
         Constructor.
@@ -59,7 +89,8 @@ class UnetEncoder(nn.Module):
         Parameters
         ----------
         conv_dim : int
-            Number of dimension of the convolution layers, 2 for 2D or 3 for 3D.
+            Number of dimension of the convolution layers, 1 for 1D, 2 for 2D
+            or 3 for 3D.
         in_channels : int, optional
             Number of input channels, by default 1.
         depth : int, optional
@@ -86,6 +117,22 @@ class UnetEncoder(nn.Module):
             else MaxBlurPool(dim=conv_dim, kernel_size=3, max_pool_size=pool_kernel)
         )
 
+        # Initialise attention layers before encoder blocks.
+        # Every depth has its own attention
+        # if use_attention:
+        #     logger.info("Using self-attention layers in UNet encoder.")
+        #     self.attention_layers = nn.ModuleList(
+        #         [
+        #             SelfAttention1D(
+        #                 channels=num_channels_init * (2**i) * groups,
+        #                 num_heads=num_heads,
+        #             )
+        #             for i in range(depth)
+        #         ]
+        #     )
+        # else:
+        #     self.attention_layers = None
+
         encoder_blocks = []
 
         for n in range(depth):
@@ -106,24 +153,41 @@ class UnetEncoder(nn.Module):
 
     def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         """
-        Forward pass.
+        Forward pass through encoder with optional self-attention.
+
+        Processes input through alternating convolution and pooling layers,
+        applying self-attention after convolution when enabled. Features are
+        collected after convolution (and attention) for skip connections.
 
         Parameters
         ----------
         x : torch.Tensor
-            Input tensor.
+            Input tensor with shape (batch, channels, spatial_dims).
 
         Returns
         -------
         list[torch.Tensor]
-            Output of each encoder block (skip connections) and final output of the
-            encoder.
+            List containing [bottleneck_output, *skip_connections] where
+            skip_connections are ordered from deepest to shallowest level.
         """
         encoder_features = []
-        for module in self.encoder_blocks:
+        # attention_idx = 0
+
+        for _i, module in enumerate(self.encoder_blocks):
             x = module(x)
+
+            # Conv_Block appears at even indices (0, 2, 4, ...)
+            # Pooling appears at odd indices (1, 3, 5, ...)
             if isinstance(module, Conv_Block):
+                # Apply attention immediately after convolution, before pooling
+                # if self.attention_layers is not None:
+                #     x = self.attention_layers[attention_idx](x)
+                #     attention_idx += 1
+
+                # Save features for skip connections after attention is applied
                 encoder_features.append(x)
+
+        # Return format: [final_pooled_output, skip_3, skip_2, skip_1]
         features = [x, *encoder_features]
         return features
 
@@ -184,9 +248,16 @@ class UnetDecoder(nn.Module):
         """
         super().__init__()
 
-        upsampling = nn.Upsample(
-            scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
-        )
+        # Fix upsampling mode based on conv_dim
+        if conv_dim == 1:
+            upsampling = nn.Upsample(scale_factor=2, mode="linear")
+        elif conv_dim == 2:
+            upsampling = nn.Upsample(scale_factor=2, mode="bilinear")
+        elif conv_dim == 3:
+            upsampling = nn.Upsample(scale_factor=2, mode="trilinear")
+        else:
+            raise ValueError(f"Unsupported conv_dim: {conv_dim}")
+
         in_channels = out_channels = num_channels_init * groups * (2 ** (depth - 1))
 
         self.n2v2 = n2v2
@@ -362,6 +433,8 @@ class UNet(nn.Module):
         final_activation: Union[SupportedActivation, str] = SupportedActivation.NONE,
         n2v2: bool = False,
         independent_channels: bool = True,
+        # use_attention: bool = False,
+        # num_heads: int = 8,
         **kwargs: Any,
     ) -> None:
         """
@@ -397,6 +470,10 @@ class UNet(nn.Module):
         """
         super().__init__()
 
+        # 1. Store attributes for tests/inspection
+        self.depth = depth
+        self.num_channels_init = num_channels_init
+
         groups = in_channels if independent_channels else 1
 
         self.encoder = UnetEncoder(
@@ -409,6 +486,8 @@ class UNet(nn.Module):
             pool_kernel=pool_kernel,
             n2v2=n2v2,
             groups=groups,
+            # use_attention=use_attention,
+            # num_heads=num_heads,
         )
 
         self.decoder = UnetDecoder(
@@ -420,11 +499,20 @@ class UNet(nn.Module):
             n2v2=n2v2,
             groups=groups,
         )
+
+        # 2. Fix: Handle collapsing independent channels to a single output
+        # If we have independent channels (groups > 1) but only 1 output class,
+        # we must set groups=1 for the final layer to mix them.
+        if groups > 1 and num_classes % groups == 0:
+            final_groups = groups
+        else:
+            final_groups = 1
+
         self.final_conv = getattr(nn, f"Conv{conv_dims}d")(
             in_channels=num_channels_init * groups,
             out_channels=num_classes,
             kernel_size=1,
-            groups=groups,
+            groups=final_groups,
         )
         self.final_activation = get_activation(final_activation)
 

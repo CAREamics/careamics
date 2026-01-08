@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-def compute_normalization_stats(image: NDArray) -> tuple[NDArray, NDArray]:
+def compute_normalization_stats(image: NDArray | None) -> tuple[NDArray, NDArray]:
     """
     Compute mean and standard deviation of an array.
 
@@ -24,10 +24,13 @@ def compute_normalization_stats(image: NDArray) -> tuple[NDArray, NDArray]:
     # Define the lists for storing mean and std values
     means, stds = [], []
     # Iterate over the channels dimension and compute mean and std
-    for ax in range(image.shape[1]):
-        means.append(image[:, ax, ...].mean())
-        stds.append(image[:, ax, ...].std())
-    return np.stack(means), np.stack(stds)
+    if image is not None:
+        for ax in range(image.shape[1]):
+            means.append(image[:, ax, ...].mean())
+            stds.append(image[:, ax, ...].std())
+        return np.stack(means), np.stack(stds)
+    else:
+        return np.array([]), np.array([])
 
 
 def update_iterative_stats(

@@ -20,13 +20,18 @@ class N2VManipulateConfig(TransformConfig):
     roi_size : int
         Size of the masking region, by default 11.
     masked_pixel_percentage : float
-        Percentage of masked pixels, by default 0.2.
+        Percentage of masked pixels in data channels, by default 0.2.
     strategy : Literal["uniform", "median"]
         Strategy pixel value replacement, by default "uniform".
     struct_mask_axis : Literal["horizontal", "vertical", "none"]
         Axis of the structN2V mask, by default "none".
     struct_mask_span : int
         Span of the structN2V mask, by default 5.
+    data_channel_indices : Optional[list[int]]
+        Specific channel indices to mask (e.g., [0, 3, 5]). If None,
+        uses first n_data_channels.
+    n_data_channels : int
+        Number of data channels to mask (used when data_channel_indices is None).
     """
 
     model_config = ConfigDict(
@@ -53,6 +58,20 @@ class N2VManipulateConfig(TransformConfig):
     struct_mask_span: int = Field(default=5, ge=3, le=15)
     """Size of the structN2V mask."""
 
+    data_channel_indices: list[int] | None = Field(
+        default=None,
+        description="Specific channel indices to mask (e.g., [0, 3, 5]). If None, uses "
+        "first n_data_channels channels.",
+    )
+    """Specific channel indices to mask. If None, uses first n_data_channels."""
+
+    n_data_channels: int = Field(
+        default=1,
+        ge=1,
+        description="Number of data channels to mask starting from index 0 (used when "
+        "data_channel_indices is None)",
+    )
+
     @field_validator("roi_size", "struct_mask_span")
     @classmethod
     def odd_value(cls, v: int) -> int:
@@ -77,3 +96,42 @@ class N2VManipulateConfig(TransformConfig):
         if v % 2 == 0:
             raise ValueError("Size must be an odd number.")
         return v
+
+    @field_validator("data_channel_indices")
+    @classmethod
+    def validate_channel_indices(cls, v: list[int] | None) -> list[int] | None:
+        """
+        Validate and sort data_channel_indices.
+
+        Parameters
+        ----------
+        v : Optional[list[int]]
+            Channel indices to validate.
+
+        Returns
+        -------
+        Optional[list[int]]
+            The validated and sorted channel indices.
+
+        Raises
+        ------
+        ValueError
+            If channel indices are invalid (negative, duplicates, or empty list).
+        """
+        if v is None:
+            return v
+
+        if len(v) == 0:
+            raise ValueError(
+                "data_channel_indices cannot be an empty list. Use None instead."
+            )
+
+        if any(idx < 0 for idx in v):
+            raise ValueError("Channel indices must be non-negative.")
+
+        if len(v) != len(set(v)):
+            raise ValueError("data_channel_indices cannot contain duplicates.")
+
+        # Sort indices to ensure predictable mapping to output channels
+        # Model output channel i will correspond to data_channel_indices[i]
+        return sorted(v)

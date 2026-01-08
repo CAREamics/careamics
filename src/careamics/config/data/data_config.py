@@ -101,11 +101,27 @@ class DataConfig(BaseModel):
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
-    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
+    patch_size: Union[list[int]] = Field(..., min_length=1, max_length=3)
     """Patch size, as used during training."""
 
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
+
+    patching_strategy: Literal["sequential", "random"] = Field(default="sequential")
+    """Patching strategy to use during data preparation. 'sequential' extracts patches
+    in a sequential manner with potential overlap, while 'random' extracts patches
+    randomly from the data."""
+
+    patching_seed: int | None = Field(default=None, gt=0)
+    """Random seed for random patching. Only used when patching_strategy is 'random'.
+    If None, patches will be extracted randomly without a fixed seed."""
+
+    num_patches_per_sample: int | None = Field(default=None, gt=0)
+    """Number of patches to extract per sample when using random patching. If None,
+    automatically calculated as ceil(total_pixels / patch_pixels). Setting this higher
+    extracts more patches with potential overlap (better training diversity), lower
+    extracts fewer patches (faster training). Only used when patching_
+    strategy is 'random'."""
 
     # Optional fields
     image_means: list[Float] | None = Field(default=None, min_length=0, max_length=32)
@@ -200,8 +216,19 @@ class DataConfig(BaseModel):
         ValueError
             If axes are not valid.
         """
-        # Validate axes
-        check_axes_validity(axes)
+        from ..validators import check_axes_validity_1d
+
+        # Modified validation to support 1D
+        # Count spatial dimensions
+        spatial_axes = [ax for ax in axes if ax in "XYZ"]
+        print(f"Spatial axes: {spatial_axes}")
+        # Allow 1D data with single spatial axis
+        # Allow 1D data with single spatial axis
+        if len(spatial_axes) == 1:
+            check_axes_validity_1d(axes)
+        else:
+            # For 2D+, use existing validation
+            check_axes_validity(axes)
 
         return axes
 
@@ -378,19 +405,36 @@ class DataConfig(BaseModel):
         ValueError
             If the transforms are not valid.
         """
-        if "Z" in self.axes:
-            if len(self.patch_size) != 3:
-                raise ValueError(
-                    f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({self.axes})."
-                )
+        # Count spatial dimensions
+        spatial_axes = [ax for ax in self.axes if ax in "XYZ"]
+        n_spatial_dims = len(spatial_axes)
 
-        else:
-            if len(self.patch_size) != 2:
-                raise ValueError(
-                    f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({self.axes})."
+        # Validate patch size matches spatial dimensions
+        if len(self.patch_size) != n_spatial_dims:
+            raise ValueError(
+                f"Patch size must have {n_spatial_dims} dimensions to match "
+                f"spatial axes in '{self.axes}' (got {len(self.patch_size)})."
+            )
+
+        # For 1D data, disable 2D transforms
+        if n_spatial_dims == 1:
+            # Check if any 2D transforms are present
+            has_2d_transforms = any(
+                isinstance(transform, (XYFlipConfig, XYRandomRotate90Config))
+                for transform in self.transforms
+            )
+            if has_2d_transforms:
+                # Warn and filter out 2D transforms
+                import warnings
+
+                warnings.warn(
+                    "2D transforms (XYFlip, XYRandomRotate90) are not compatible "
+                    "with 1D data. These transforms will be ignored.",
+                    UserWarning,
+                    stacklevel=2,
                 )
+                # Filter out 2D transforms
+                self.transforms = []
 
         return self
 
@@ -468,5 +512,18 @@ class DataConfig(BaseModel):
             Axes.
         patch_size : list of int
             Patch size.
+        """
+        self._update(axes=axes, patch_size=patch_size)
+
+    def set_1D(self, axes: str, patch_size: list[int]) -> None:
+        """
+        Set 1D parameters.
+
+        Parameters
+        ----------
+        axes : str
+            Axes (should be single spatial axis like 'X', 'Y', or 'Z').
+        patch_size : list of int
+            Patch size (should be single element list).
         """
         self._update(axes=axes, patch_size=patch_size)
