@@ -310,6 +310,7 @@ class TestDimensions:
                 data_type="array",
                 axes=axes,
                 patching=patching,
+                normalization=DEFAULT_NORM,
             )
 
     @pytest.mark.parametrize(
@@ -353,6 +354,7 @@ class TestDimensions:
             data_type=data_type,
             axes=axes,
             patching=patching,
+            normalization=DEFAULT_NORM,
         )
         assert config_2D.is_3D() == is_3D
 
@@ -398,6 +400,7 @@ class TestDimensions:
                     data_type="czi",
                     axes=axes,
                     patching=patching,
+                    normalization=DEFAULT_NORM,
                 )
         else:
             NGDataConfig(
@@ -405,6 +408,7 @@ class TestDimensions:
                 data_type="czi",
                 axes=axes,
                 patching=patching,
+                normalization=DEFAULT_NORM,
             )
 
 
