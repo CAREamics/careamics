@@ -99,8 +99,11 @@ def data_config(axes, shape, channels) -> NGDataConfig:
         },
         axes=axes,
         channels=channels,
-        image_means=[0.0 for _ in range(n_channels)],
-        image_stds=[1.0 for _ in range(n_channels)],
+        normalization={
+            "name": "mean_std",
+            "input_means": [0.0 for _ in range(n_channels)],
+            "input_stds": [1.0 for _ in range(n_channels)],
+        },
     )
 
 
