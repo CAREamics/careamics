@@ -18,8 +18,8 @@ from careamics.config.likelihood_model import (
     NMLikelihoodConfig,
 )
 from careamics.config.loss_model import KLLossConfig, LVAELossConfig
-from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
 from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
@@ -1893,14 +1893,16 @@ def create_hdn_configuration(
 
 def create_microsplit_configuration(
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"], #TODO not used yet, but should be after refactoring
-    axes: str, #TODO not used yet, but should be after refactoring
+    data_type: Literal[
+        "array", "tiff", "custom"
+    ],  # TODO not used yet, but should be after refactoring
+    axes: str,  # TODO not used yet, but should be after refactoring
     patch_size: Sequence[int],
     batch_size: int,
     lr: float = 1e-3,
     num_epochs: int = 100,
     num_steps: int | None = None,
-    #Model and algo parameters
+    # Model and algo parameters
     encoder_conv_strides: tuple[int, ...] = (2, 2),
     decoder_conv_strides: tuple[int, ...] = (2, 2),
     encoder_n_filters: int = 32,
@@ -1917,11 +1919,13 @@ def create_microsplit_configuration(
     analytical_kl: bool = False,
     predict_logvar: Literal["pixelwise"] = "pixelwise",
     logvar_lowerbound: float | None = -5.0,
-    loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"] = "denoisplit_musplit",
+    loss_type: Literal[
+        "musplit", "denoisplit", "denoisplit_musplit"
+    ] = "denoisplit_musplit",
     kl_type: Literal["kl", "kl_restricted"] = "kl_restricted",
     reconstruction_weight: float = 1.0,
     kl_weight: float = 1.0,
-    musplit_weight: float = 0.1, #Should be 
+    musplit_weight: float = 0.1,
     denoisplit_weight: float = 0.9,
     mmse_count: int = 10,
     # Training parameters
@@ -1950,6 +1954,8 @@ def create_microsplit_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    lr : float, optional
+        Learning rate, by default 1e-3.
     num_epochs : int, default=100
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
@@ -1961,6 +1967,10 @@ def create_microsplit_configuration(
         Strides for the encoder convolutional layers, by default (2, 2).
     decoder_conv_strides : tuple[int, ...], optional
         Strides for the decoder convolutional layers, by default (2, 2).
+    encoder_n_filters : int, optional
+        Number of filters in the encoder, by default 32.
+    decoder_n_filters : int, optional
+        Number of filters in the decoder, by default 32.
     multiscale_count : int, optional
         Number of multiscale levels, by default 1.
     grid_size : int, optional
@@ -1970,10 +1980,6 @@ def create_microsplit_configuration(
         (128, 128).
     output_channels : int, optional
         Number of output channels for the model, by default 1.
-    encoder_n_filters : int, optional
-        Number of filters in the encoder, by default 32.
-    decoder_n_filters : int, optional
-        Number of filters in the decoder, by default 32.
     encoder_dropout : float, optional
         Dropout rate for the encoder, by default 0.0.
     decoder_dropout : float, optional
@@ -2000,18 +2006,10 @@ def create_microsplit_configuration(
         Weight for denoiSplit loss, by default 0.9.
     mmse_count : int, optional
         Number of MMSE samples to use, by default 10.
-    lr : float, optional
-        Learning rate, by default 1e-3.
     optimizer : Literal["Adam", "SGD", "Adamax"], optional
         Optimizer to use, by default "Adamax".
     lr_scheduler_patience : int, optional
         Patience for learning rate scheduler, by default 30.
-    precision : Literal["16-mixed", "32", "64"] | None, optional
-        Training precision, by default "16-mixed".
-    gradient_clip_algorithm : Literal["value", "norm"] | None, optional
-        Gradient clipping algorithm, by default "value".
-    gradient_clip_val : float | None, optional
-        Gradient clipping value, by default 0.5.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use for training, by default "none".
     trainer_params : dict, optional

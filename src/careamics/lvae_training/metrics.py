@@ -354,9 +354,7 @@ def compute_stats(
         mssim_scores = [
             microssim_obj.score(gt_ch[i], pred_ch[i]) for i in range(len(gt_ch))
         ]
-        microssim_list.append(
-            (float(np.mean(mssim_scores)), compute_SE(mssim_scores))
-        )
+        microssim_list.append((float(np.mean(mssim_scores)), compute_SE(mssim_scores)))
 
         m3sim_obj = MicroMS3IM()
         m3sim_obj.fit(gt_ch, pred_ch)
@@ -389,6 +387,7 @@ def compute_stats(
         msssim_list.append((float(np.mean(ms_ssim_scores)), compute_SE(ms_ssim_scores)))
 
     if verbose:
+
         def ssim_str(values: ChannelStats) -> str:
             return f"{np.round(values[0], 3):.3f}+-{np.round(values[1], 3):.3f}"
 

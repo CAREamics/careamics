@@ -13,7 +13,6 @@ from torch.utils.data import DataLoader
 from careamics.dataset.dataset_utils.dataset_utils import reshape_array
 from careamics.lvae_training.dataset import (
     DataSplitType,
-    DataType,
     LCMultiChDloader,
     MicroSplitDataConfig,
 )
@@ -158,7 +157,7 @@ def get_train_val_data(
     #     val_fraction, test_fraction, len(data)
     # )
     # val_idx = test_idx = 0
-    # train_idx = 
+    # train_idx =
     # if datasplit_type == DataSplitType.All:
     #     data = data.astype(np.float64)
     # elif datasplit_type == DataSplitType.Train:
@@ -171,7 +170,7 @@ def get_train_val_data(
     # else:
     #     raise Exception("invalid datasplit")
 
-    return data#[0][None, ...] # TODO probably a hack
+    return data  # [0][None, ...] # TODO probably a hack
 
 
 class MicroSplitDataModule(L.LightningDataModule):
@@ -404,7 +403,7 @@ def create_microsplit_train_datamodule(
     """
     # Create dataset configs with only valid parameters
     dataset_config_params = {
-        "data_type": "HTLIF24Data", # TODO remove, hardcoded for this example
+        "data_type": "HTLIF24Data",  # TODO remove, hardcoded for this example
         "image_size": patch_size,
         "num_channels": num_channels,
         "depth3D": depth3D,
@@ -583,7 +582,7 @@ def create_microsplit_predict_datamodule(
 
     # Create prediction config with only valid parameters
     prediction_config_params = {
-        "data_type": "HTLIF24Data", # TODO remove, hardcoded for this example
+        "data_type": "HTLIF24Data",  # TODO remove, hardcoded for this example
         "image_size": tile_size,
         "num_channels": num_channels,
         "depth3D": depth3D,
