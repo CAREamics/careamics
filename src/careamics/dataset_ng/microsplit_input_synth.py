@@ -347,7 +347,7 @@ def extract_microsplit_patch(
         context at multiple scales.
     """
     if isinstance(patch_specs, list):
-        patches = np.concat(
+        patches = np.concatenate(
             [
                 patch_extractor.extract_channel_patch(
                     data_idx=patch_spec["data_idx"],

@@ -6,7 +6,7 @@ from typing import Union
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.config.tile_information import TileInformation
+from careamics.config.data.tile_information import TileInformation
 from careamics.lvae_training.dataset.types import TilingMode
 
 

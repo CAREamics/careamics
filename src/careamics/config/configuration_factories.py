@@ -14,14 +14,17 @@ from careamics.config.algorithms import (
 )
 from careamics.config.architectures import LVAEConfig, UNetConfig
 from careamics.config.data import DataConfig
+from careamics.config.lightning.optimizer_configs import (
+    LrSchedulerConfig,
+    OptimizerConfig,
+)
 from careamics.config.lightning.training_config import TrainingConfig
-from careamics.config.loss_model import KLLossConfig, LVAELossConfig
-from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.losses.loss_config import KLLossConfig, LVAELossConfig
+from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
@@ -2034,12 +2037,12 @@ def create_microsplit_configuration(
         analytical_kl=analytical_kl,
     )
 
-    optimizer_config = OptimizerModel(
+    optimizer_config = OptimizerConfig(
         name=optimizer,
         parameters={"lr": lr, "weight_decay": 0},
     )
 
-    lr_scheduler_config = LrSchedulerModel(
+    lr_scheduler_config = LrSchedulerConfig(
         name="ReduceLROnPlateau",
         parameters={
             "mode": "min",
