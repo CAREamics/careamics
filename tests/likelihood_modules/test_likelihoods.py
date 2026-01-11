@@ -5,13 +5,16 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.config.likelihood_model import (
+from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.noise_model.noise_model_config import (
+    GaussianMixtureNMConfig,
+    MultiChannelNMConfig,
+)
 from careamics.models.lvae.likelihoods import likelihood_factory
-from careamics.models.lvae.noise_models import noise_model_factory
+from careamics.models.lvae.noise_models import multichannel_noise_model_factory
 
 pytestmark = pytest.mark.lvae
 
@@ -68,7 +71,7 @@ def test_noise_model_likelihood(
         # all other params are default
     )
     noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
-    nm = noise_model_factory(noise_model_config)
+    nm = multichannel_noise_model_factory(noise_model_config)
 
     # Instantiate the likelihood
     inp_shape = (batch_size, target_ch, img_size, img_size)

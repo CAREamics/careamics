@@ -13,7 +13,7 @@ from careamics.file_io.read import read_tiff
 from careamics.transforms import Compose
 
 from ..config import InferenceConfig
-from ..config.transformations import NormalizeModel
+from ..config.transformations import NormalizeConfig
 from .dataset_utils import iterate_over_files
 
 
@@ -88,7 +88,7 @@ class IterablePredDataset(IterableDataset):
         # instantiate normalize transform
         self.patch_transform = Compose(
             transform_list=[
-                NormalizeModel(
+                NormalizeConfig(
                     image_means=self.image_means,
                     image_stds=self.image_stds,
                 )

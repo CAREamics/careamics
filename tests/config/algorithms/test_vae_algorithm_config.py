@@ -1,0 +1,82 @@
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+from careamics.config import VAEBasedAlgorithm
+from careamics.config.architectures import LVAEConfig
+from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.noise_model.noise_model_config import (
+    GaussianMixtureNMConfig,
+    MultiChannelNMConfig,
+)
+from careamics.config.support import SupportedLoss
+
+
+@pytest.mark.skip(
+    reason="VAEAlgorithmConfig model is not currently serializable.\n"
+    "The line `schema = VAEAlgorithmConfig.model_json_schema()` currently results "
+    "in the following error:\n"
+    "PydanticInvalidForJsonSchema: Cannot generate a JsonSchema for "
+    "core_schema.IsInstanceSchema (<class 'torch.nn.modules.module.Module'>)"
+)
+def test_all_losses_are_supported():
+    """Test that all losses defined in the Literal are supported."""
+    # list of supported losses
+    losses = list(SupportedLoss)
+
+    # Algorithm json schema
+    schema = VAEBasedAlgorithm.model_json_schema()
+
+    # check that all losses are supported
+    for loss in schema["properties"]["loss"]["enum"]:
+        assert loss in losses
+
+
+@pytest.mark.skip("Needs to be updated!")
+def test_noise_model_usplit(minimum_algorithm_musplit):
+    """Test that the noise model is correctly provided."""
+    config = VAEBasedAlgorithm(**minimum_algorithm_musplit)
+    assert config.noise_model is None
+
+
+@pytest.mark.skip("Needs to be updated!")
+def test_noise_model_denoisplit(tmp_path: Path, create_dummy_noise_model):
+    """Test that the noise model is correctly provided."""
+    # TODO this construct with the minimum_config dicts is increasingly annoying
+
+    # Create a dummy noise model
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    # Instantiate the noise model
+    gmm = GaussianMixtureNMConfig(
+        model_type="GaussianMixtureNoiseModel",
+        path=tmp_path / "dummy_noise_model.npz",
+        # all other params are default
+    )
+    config = VAEBasedAlgorithm(
+        algorithm="denoisplit",
+        loss="denoisplit",
+        model=LVAEConfig(architecture="LVAE"),
+        noise_model=MultiChannelNMConfig(noise_models=[gmm]),
+    )
+    assert config.noise_model is not None
+
+
+def test_no_noise_model_error_denoisplit(minimum_algorithm_denoisplit):
+    """Test that the noise model is correctly provided."""
+    minimum_algorithm_denoisplit["noise_model"] = None
+    with pytest.raises(ValueError):
+        VAEBasedAlgorithm(**minimum_algorithm_denoisplit)
+
+
+def test_microsplit_algorithm(minimum_algorithm_microsplit):
+    """Test that the MicroSplit algorithm can be instantiated correctly."""
+    loss = LVAELossConfig(
+        loss_type="denoisplit_musplit", denoisplit_weight=0.9, musplit_weight=0.1
+    )  # TODO losses need to be refactored! This is just for example
+    minimum_algorithm_microsplit["loss"] = loss
+    config = VAEBasedAlgorithm(**minimum_algorithm_microsplit)
+    assert config.algorithm == "microsplit"
+    assert config.model.architecture == "LVAE"
+    assert config.likelihood is not None

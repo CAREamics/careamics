@@ -16,9 +16,10 @@ from careamics.config.algorithms import (
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
 )
 from careamics.config.data import DataConfig
-from careamics.config.training_model import TrainingConfig
+from careamics.config.lightning.training_config import TrainingConfig
 from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 ALGORITHMS = Union[
@@ -27,6 +28,7 @@ ALGORITHMS = Union[
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
 ]
 
 
@@ -203,8 +205,8 @@ class Configuration(BaseModel):
             If the probability of masking a pixel within a patch is less than 1 for the
             chosen masked pixel percentage and patch size.
         """
-        # No validation needed for non n2v algorithms
-        if not isinstance(self.algorithm_config, N2VAlgorithm):
+        # No validation needed for non n2v algorithms # TODO: why ?
+        if not isinstance(self.algorithm_config, N2VAlgorithm | PN2VAlgorithm):
             return self
 
         mask_pixel_perc = self.algorithm_config.n2v_config.masked_pixel_percentage

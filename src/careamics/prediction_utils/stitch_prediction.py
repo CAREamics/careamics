@@ -10,21 +10,20 @@ from careamics.config.tile_information import TileInformation
 from careamics.lvae_training.dataset.types import TilingMode
 
 
-def stitch_prediction_vae(predictions, dset) -> NDArray:
-    """
-    Stitch predictions back together using dataset's index manager.
+def stitch_prediction_vae(predictions, dset):
+    """Stitch predictions back together using dataset's index manager.
 
     Parameters
     ----------
-    predictions : np.ndarray
+    predictions : numpy.ndarray
         Array of predictions with shape (n_tiles, channels, height, width).
     dset : Dataset
         Dataset object with idx_manager containing tiling information.
 
     Returns
     -------
-    np.ndarray
-        Stitched array with shape matching the original data shape.
+    numpy.ndarray
+        Stitched predictions.
     """
     mng = dset.idx_manager
 

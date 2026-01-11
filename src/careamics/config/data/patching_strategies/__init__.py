@@ -1,14 +1,15 @@
 """Patching strategies Pydantic models."""
 
 __all__ = [
-    "RandomPatchingModel",
-    "SequentialPatchingModel",
-    "TiledPatchingModel",
-    "WholePatchingModel",
+    "FixedRandomPatchingConfig",
+    "RandomPatchingConfig",
+    "SequentialPatchingConfig",
+    "TiledPatchingConfig",
+    "WholePatchingConfig",
 ]
 
 
-from .random_patching_model import RandomPatchingModel
-from .sequential_patching_model import SequentialPatchingModel
-from .tiled_patching_model import TiledPatchingModel
-from .whole_patching_model import WholePatchingModel
+from .random_patching_config import FixedRandomPatchingConfig, RandomPatchingConfig
+from .sequential_patching_config import SequentialPatchingConfig
+from .tiled_patching_config import TiledPatchingConfig
+from .whole_patching_config import WholePatchingConfig

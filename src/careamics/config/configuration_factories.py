@@ -10,27 +10,28 @@ from careamics.config.algorithms import (
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
 )
-from careamics.config.architectures import LVAEModel, UNetModel
-from careamics.config.data import DataConfig, NGDataConfig
-from careamics.config.likelihood_model import (
+from careamics.config.architectures import LVAEConfig, UNetConfig
+from careamics.config.data import DataConfig
+from careamics.config.lightning.training_config import TrainingConfig
+from careamics.config.loss_model import KLLossConfig, LVAELossConfig
+from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.loss_model import KLLossConfig, LVAELossConfig
-from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
     SupportedTransform,
 )
-from careamics.config.training_model import TrainingConfig
 from careamics.config.transformations import (
     SPATIAL_TRANSFORMS_UNION,
-    N2VManipulateModel,
-    XYFlipModel,
-    XYRandomRotate90Model,
+    N2VManipulateConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
 )
 from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
@@ -39,7 +40,7 @@ from .configuration import Configuration
 
 def algorithm_factory(
     algorithm: dict[str, Any],
-) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]:
+) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, PN2VAlgorithm]:
     """
     Create an algorithm model for training CAREamics.
 
@@ -50,12 +51,12 @@ def algorithm_factory(
 
     Returns
     -------
-    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm
+    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm or PN2VAlgorithm
         Algorithm model for training CAREamics.
     """
     adapter: TypeAdapter = TypeAdapter(
         Annotated[
-            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm],
+            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, PN2VAlgorithm],
             Field(discriminator="algorithm"),
         ]
     )
@@ -71,8 +72,8 @@ def _list_spatial_augmentations(
     Parameters
     ----------
     augmentations : list of transforms, optional
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model.
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config.
 
     Returns
     -------
@@ -82,24 +83,24 @@ def _list_spatial_augmentations(
     Raises
     ------
     ValueError
-        If the transforms are not XYFlipModel or XYRandomRotate90Model.
+        If the transforms are not XYFlipConfig or XYRandomRotate90Config.
     ValueError
         If there are duplicate transforms.
     """
     if augmentations is None:
         transform_list: list[SPATIAL_TRANSFORMS_UNION] = [
-            XYFlipModel(),
-            XYRandomRotate90Model(),
+            XYFlipConfig(),
+            XYRandomRotate90Config(),
         ]
     else:
         # throw error if not all transforms are pydantic models
         if not all(
-            isinstance(t, XYFlipModel) or isinstance(t, XYRandomRotate90Model)
+            isinstance(t, XYFlipConfig) or isinstance(t, XYRandomRotate90Config)
             for t in augmentations
         ):
             raise ValueError(
-                "Accepted transforms are either XYFlipModel or "
-                "XYRandomRotate90Model."
+                "Accepted transforms are either XYFlipConfig or "
+                "XYRandomRotate90Config."
             )
 
         # check that there is no duplication
@@ -119,7 +120,7 @@ def _create_unet_configuration(
     independent_channels: bool,
     use_n2v2: bool,
     model_params: dict[str, Any] | None = None,
-) -> UNetModel:
+) -> UNetConfig:
     """
     Create a dictionary with the parameters of the UNet model.
 
@@ -152,7 +153,7 @@ def _create_unet_configuration(
     model_params["num_classes"] = n_channels_out
     model_params["independent_channels"] = independent_channels
 
-    return UNetModel(
+    return UNetConfig(
         architecture=SupportedArchitecture.UNET.value,
         **model_params,
     )
@@ -160,8 +161,8 @@ def _create_unet_configuration(
 
 def _create_algorithm_configuration(
     axes: str,
-    algorithm: Literal["n2v", "care", "n2n"],
-    loss: Literal["n2v", "mae", "mse"],
+    algorithm: Literal["n2v", "care", "n2n", "pn2v"],
+    loss: Literal["n2v", "mae", "mse", "pn2v"],
     independent_channels: bool,
     n_channels_in: int,
     n_channels_out: int,
@@ -179,9 +180,9 @@ def _create_algorithm_configuration(
     ----------
     axes : str
         Axes of the data.
-    algorithm : {"n2v", "care", "n2n"}
+    algorithm : {"n2v", "care", "n2n", "pn2v"}
         Algorithm to use.
-    loss : {"n2v", "mae", "mse"}
+    loss : {"n2v", "mae", "mse", "pn2v"}
         Loss function to use.
     independent_channels : bool
         Whether to train all channels independently.
@@ -313,9 +314,9 @@ def _create_microsplit_data_configuration(
     patch_size : list of int
         Size of the patches along the spatial dimensions.
     grid_size : int
-        Grid size for patch extraction.
+        Size of the grid for multiscale data configuration.
     multiscale_count : int
-        Number of LC scales.
+        Number of multiscale levels.
     batch_size : int
         Batch size.
     augmentations : list of transforms
@@ -354,85 +355,6 @@ def _create_microsplit_data_configuration(
     return MicroSplitDataConfig(**data)
 
 
-def _create_ng_data_configuration(
-    data_type: Literal["array", "tiff", "custom"],
-    axes: str,
-    patch_size: Sequence[int],
-    batch_size: int,
-    augmentations: list[SPATIAL_TRANSFORMS_UNION],
-    patch_overlaps: Sequence[int] | None = None,
-    train_dataloader_params: dict[str, Any] | None = None,
-    val_dataloader_params: dict[str, Any] | None = None,
-    test_dataloader_params: dict[str, Any] | None = None,
-    seed: int | None = None,
-) -> NGDataConfig:
-    """
-    Create a dictionary with the parameters of the data model.
-
-    Parameters
-    ----------
-    data_type : {"array", "tiff", "custom"}
-        Type of the data.
-    axes : str
-        Axes of the data.
-    patch_size : list of int
-        Size of the patches along the spatial dimensions.
-    batch_size : int
-        Batch size.
-    augmentations : list of transforms
-        List of transforms to apply.
-    patch_overlaps : Sequence of int, default=None
-        Overlaps between patches in each spatial dimension, only used with "sequential"
-        patching. If `None`, no overlap is applied. The overlap must be smaller than
-        the patch size in each spatial dimension, and the number of dimensions be either
-        2 or 3.
-    train_dataloader_params : dict
-        Parameters for the training dataloader, see PyTorch notes, by default None.
-    val_dataloader_params : dict
-        Parameters for the validation dataloader, see PyTorch notes, by default None.
-    test_dataloader_params : dict
-        Parameters for the test dataloader, see PyTorch notes, by default None.
-    seed : int, default=None
-        Random seed for reproducibility. If `None`, no seed is set.
-
-    Returns
-    -------
-    NGDataConfig
-        Next-Generation Data model with the specified parameters.
-    """
-    # data model
-    data = {
-        "data_type": data_type,
-        "axes": axes,
-        "batch_size": batch_size,
-        "transforms": augmentations,
-        "seed": seed,
-    }
-    # don't override defaults set in DataConfig class
-    if train_dataloader_params is not None:
-        # the presence of `shuffle` key in the dataloader parameters is enforced
-        # by the NGDataConfig class
-        if "shuffle" not in train_dataloader_params:
-            train_dataloader_params["shuffle"] = True
-
-        data["train_dataloader_params"] = train_dataloader_params
-
-    if val_dataloader_params is not None:
-        data["val_dataloader_params"] = val_dataloader_params
-
-    if test_dataloader_params is not None:
-        data["test_dataloader_params"] = test_dataloader_params
-
-    # add training patching
-    data["patching"] = {
-        "name": "random",
-        "patch_size": patch_size,
-        "overlaps": patch_overlaps,
-    }
-
-    return NGDataConfig(**data)
-
-
 def _create_training_configuration(
     trainer_params: dict,
     logger: Literal["wandb", "tensorboard", "none"],
@@ -461,6 +383,40 @@ def _create_training_configuration(
         logger=None if logger == "none" else logger,
         checkpoint_callback={} if checkpoint_params is None else checkpoint_params,
     )
+
+
+def update_trainer_params(
+    trainer_params: dict[str, Any] | None = None,
+    num_epochs: int | None = None,
+    num_steps: int | None = None,
+) -> dict[str, Any]:
+    """
+    Update trainer parameters with num_epochs and num_steps.
+
+    Parameters
+    ----------
+    trainer_params : dict, optional
+        Parameters for Lightning Trainer class, by default None.
+    num_epochs : int, optional
+        Number of epochs to train for. If provided, this will be added as max_epochs
+        to trainer_params, by default None.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added as
+        limit_train_batches to trainer_params, by default None.
+
+    Returns
+    -------
+    dict
+        Updated trainer parameters dictionary.
+    """
+    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
+
+    if num_epochs is not None:
+        final_trainer_params["max_epochs"] = num_epochs
+    if num_steps is not None:
+        final_trainer_params["limit_train_batches"] = num_steps
+
+    return final_trainer_params
 
 
 # TODO reconsider naming once we officially support LVAE approaches
@@ -509,8 +465,8 @@ def _create_supervised_config_dict(
     trainer_params : dict
         Parameters for the training configuration.
     augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
@@ -604,16 +560,12 @@ def _create_supervised_config_dict(
         val_dataloader_params=val_dataloader_params,
     )
 
-    # Handle trainer parameters with num_epochs and num_steps
-    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
-
-    # Add num_epochs and num_steps if provided
-    if num_epochs is not None:
-        final_trainer_params["max_epochs"] = num_epochs
-    if num_steps is not None:
-        final_trainer_params["limit_train_batches"] = num_steps
-
     # training
+    final_trainer_params = update_trainer_params(
+        trainer_params=trainer_params,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,
@@ -636,7 +588,7 @@ def create_care_configuration(
     batch_size: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int | None = None,
@@ -655,7 +607,7 @@ def create_care_configuration(
     """
     Create a configuration for training CARE.
 
-    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
     2.
 
     If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
@@ -693,8 +645,8 @@ def create_care_configuration(
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
     augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
@@ -771,7 +723,7 @@ def create_care_configuration(
 
     A list of transforms can be passed to the `augmentations` parameter to replace the
     default augmentations:
-    >>> from careamics.config.transformations import XYFlipModel
+    >>> from careamics.config.transformations import XYFlipConfig
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
     ...     data_type="array",
@@ -781,7 +733,7 @@ def create_care_configuration(
     ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
-    ...         XYFlipModel(flip_x = False, flip_y = True)
+    ...         XYFlipConfig(flip_x = False, flip_y = True)
     ...     ]
     ... )
 
@@ -873,7 +825,7 @@ def create_n2n_configuration(
     batch_size: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int | None = None,
@@ -892,7 +844,7 @@ def create_n2n_configuration(
     """
     Create a configuration for training Noise2Noise.
 
-    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
     2.
 
     If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
@@ -930,8 +882,8 @@ def create_n2n_configuration(
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
     augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
@@ -1007,7 +959,7 @@ def create_n2n_configuration(
     ... )
 
     A list of transforms can be passed to the `augmentations` parameter:
-    >>> from careamics.config.transformations import XYFlipModel
+    >>> from careamics.config.transformations import XYFlipConfig
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
     ...     data_type="array",
@@ -1017,7 +969,7 @@ def create_n2n_configuration(
     ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
-    ...         XYFlipModel(flip_x = False, flip_y = True)
+    ...         XYFlipConfig(flip_x = False, flip_y = True)
     ...     ]
     ... )
 
@@ -1109,7 +1061,7 @@ def create_n2v_configuration(
     batch_size: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
     n_channels: int | None = None,
@@ -1140,7 +1092,7 @@ def create_n2v_configuration(
     or horizontal correlations are present in the noise; it applies an additional mask
     to the manipulated pixel neighbors.
 
-    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
     2.
 
     If "C" is present in `axes`, then you need to set `n_channels` to the number of
@@ -1189,8 +1141,8 @@ def create_n2v_configuration(
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
     augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        List of transforms to apply, either both or one of XYFlipConfig and
+        XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels together, by default True.
@@ -1272,7 +1224,7 @@ def create_n2v_configuration(
     ... )
 
     A list of transforms can be passed to the `augmentations` parameter:
-    >>> from careamics.config.transformations import XYFlipModel
+    >>> from careamics.config.transformations import XYFlipConfig
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
@@ -1282,7 +1234,7 @@ def create_n2v_configuration(
     ...     num_epochs=100,
     ...     augmentations=[
     ...         # No rotation and only Y flipping
-    ...         XYFlipModel(flip_x = False, flip_y = True)
+    ...         XYFlipConfig(flip_x = False, flip_y = True)
     ...     ]
     ... )
 
@@ -1374,7 +1326,7 @@ def create_n2v_configuration(
     spatial_transforms = _list_spatial_augmentations(augmentations)
 
     # create the N2VManipulate transform using the supplied parameters
-    n2v_transform = N2VManipulateModel(
+    n2v_transform = N2VManipulateConfig(
         name=SupportedTransform.N2V_MANIPULATE.value,
         strategy=(
             SupportedPixelManipulation.MEDIAN.value
@@ -1416,15 +1368,11 @@ def create_n2v_configuration(
     )
 
     # training
-    # Handle trainer parameters with num_epochs and nun_steps
-    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
-
-    # Add num_epochs and nun_steps if provided
-    if num_epochs is not None:
-        final_trainer_params["max_epochs"] = num_epochs
-    if num_steps is not None:
-        final_trainer_params["limit_train_batches"] = num_steps
-
+    final_trainer_params = update_trainer_params(
+        trainer_params=trainer_params,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,
@@ -1455,7 +1403,7 @@ def _create_vae_configuration(
     ],
     predict_logvar: Literal[None, "pixelwise"],
     analytical_kl: bool,
-) -> LVAEModel:
+) -> LVAEConfig:
     """Create a dictionary with the parameters of the vae based algorithm model.
 
     Parameters
@@ -1492,7 +1440,7 @@ def _create_vae_configuration(
     LVAEModel
         LVAE model with the specified parameters.
     """
-    return LVAEModel(
+    return LVAEConfig(
         architecture=SupportedArchitecture.LVAE.value,
         input_shape=input_shape,
         encoder_conv_strides=encoder_conv_strides,
@@ -1640,12 +1588,12 @@ def get_likelihood_config(
 
     Returns
     -------
-    GaussianLikelihoodConfig or None
-        Configuration for the Gaussian likelihood model.
-    MultiChannelNMConfig or None
-        Configuration for the multi-channel noise model.
-    NMLikelihoodConfig or None
-        Configuration for the noise model likelihood.
+    gaussian_lik_config : GaussianLikelihoodConfig | None
+        Gaussian likelihood configuration for musplit losses, or None.
+    nm_config : MultiChannelNMConfig | None
+        Multi-channel noise model configuration for denoisplit losses, or None.
+    nm_lik_config : NMLikelihoodConfig | None
+        Noise model likelihood configuration for denoisplit losses, or None.
 
     Raises
     ------
@@ -1655,7 +1603,7 @@ def get_likelihood_config(
     # gaussian likelihood
     if loss_type in ["musplit", "denoisplit_musplit"]:
         # if predict_logvar is None:
-        #    raise ValueError(f"predict_logvar is required for loss_type '{loss_type}'")
+        #     raise ValueError(f"predict_logvar is required for '{loss_type}'")
         # TODO validators should be in pydantic models
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
@@ -1716,14 +1664,14 @@ def create_hdn_configuration(
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     trainer_params: dict | None = None,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
 ) -> Configuration:
     """
     Create a configuration for training HDN.
 
-    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
     2.
 
     If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
@@ -1792,7 +1740,7 @@ def create_hdn_configuration(
         Logger to use for training, by default "none".
     trainer_params : dict, optional
         Parameters for the trainer class, see PyTorch Lightning documentation.
-    augmentations : Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]], optional
+    augmentations : list[XYFlipConfig | XYRandomRotate90Config] | None, optional
         List of augmentations to apply, by default None.
     train_dataloader_params : Optional[dict[str, Any]], optional
         Parameters for the training dataloader, by default None.
@@ -1868,16 +1816,12 @@ def create_hdn_configuration(
         val_dataloader_params=val_dataloader_params,
     )
 
-    # Handle trainer parameters with num_epochs and num_steps
-    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
-
-    # Add num_epochs and num_steps if provided
-    if num_epochs is not None:
-        final_trainer_params["max_epochs"] = num_epochs
-    if num_steps is not None:
-        final_trainer_params["limit_train_batches"] = num_steps
-
     # training
+    final_trainer_params = update_trainer_params(
+        trainer_params=trainer_params,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,
@@ -1933,7 +1877,7 @@ def create_microsplit_configuration(
     lr_scheduler_patience: int = 30,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     trainer_params: dict | None = None,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]] | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
     nm_paths: list[str] | None = None,
     data_stats: tuple[float, float] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
@@ -1972,12 +1916,11 @@ def create_microsplit_configuration(
     decoder_n_filters : int, optional
         Number of filters in the decoder, by default 32.
     multiscale_count : int, optional
-        Number of multiscale levels, by default 1.
+        Number of multiscale levels, by default 3.
     grid_size : int, optional
-        Size of the grid for the lateral context, by default 32.
+        Size of the grid for multiscale training, by default 32.
     z_dims : tuple[int, ...], optional
-        List of latent dimensions for each hierarchy level in the LVAE, by default
-        (128, 128).
+        List of latent dims for each hierarchy level in the LVAE, default (128, 128).
     output_channels : int, optional
         Number of output channels for the model, by default 1.
     encoder_dropout : float, optional
@@ -2014,7 +1957,7 @@ def create_microsplit_configuration(
         Logger to use for training, by default "none".
     trainer_params : dict, optional
         Parameters for the trainer class, see PyTorch Lightning documentation.
-    augmentations : list[Union[XYFlipModel, XYRandomRotate90Model]] | None, optional
+    augmentations : list[Union[XYFlipConfig, XYRandomRotate90Config]] | None, optional
         List of augmentations to apply, by default None.
     nm_paths : list[str] | None, optional
         Paths to the noise model files, by default None.
@@ -2134,19 +2077,374 @@ def create_microsplit_configuration(
         val_dataloader_params=val_dataloader_params,
     )
 
-    # Handle trainer parameters with num_epochs and num_steps
-    final_trainer_params = {} if trainer_params is None else trainer_params.copy()
-
-    # Add num_epochs and num_steps if provided
-    if num_epochs is not None:
-        final_trainer_params["max_epochs"] = num_epochs
-    if num_steps is not None:
-        final_trainer_params["limit_train_batches"] = num_steps
-
     # training
+    final_trainer_params = update_trainer_params(
+        trainer_params=trainer_params,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
     training_params = _create_training_configuration(
         trainer_params=final_trainer_params,
         logger=logger,
+    )
+
+    return Configuration(
+        experiment_name=experiment_name,
+        algorithm_config=algorithm_config,
+        data_config=data_params,
+        training_config=training_params,
+    )
+
+
+def create_pn2v_configuration(
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "czi", "custom"],
+    axes: str,
+    patch_size: Sequence[int],
+    batch_size: int,
+    nm_path: str,
+    num_epochs: int = 100,
+    num_steps: int | None = None,
+    augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
+    independent_channels: bool = True,
+    use_n2v2: bool = False,
+    num_in_channels: int = 1,
+    num_out_channels: int = 100,
+    roi_size: int = 11,
+    masked_pixel_percentage: float = 0.2,
+    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
+    struct_n2v_span: int = 5,
+    trainer_params: dict | None = None,
+    logger: Literal["wandb", "tensorboard", "none"] = "none",
+    model_params: dict | None = None,
+    optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
+    optimizer_params: dict[str, Any] | None = None,
+    lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
+    lr_scheduler_params: dict[str, Any] | None = None,
+    train_dataloader_params: dict[str, Any] | None = None,
+    val_dataloader_params: dict[str, Any] | None = None,
+    checkpoint_params: dict[str, Any] | None = None,
+) -> Configuration:
+    """
+    Create a configuration for training Probabilistic Noise2Void (PN2V).
+
+    PN2V extends N2V by incorporating a probabilistic noise model to estimate the
+    posterior distibution of each pixel more precisely.
+
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
+    If "C" is present in `axes`, then you need to set `num_in_channels` to the number of
+    channels.
+
+    By default, all channels are trained independently. To train all channels together,
+    set `independent_channels` to False. When training independently, each input channel
+    will have `num_out_channels` outputs (default 400). When training together, all
+    input channels will share `num_out_channels` outputs.
+
+    By default, the transformations applied are a random flip along X or Y, and a random
+    90 degrees rotation in the XY plane. Normalization is always applied, as well as the
+    N2V manipulation.
+
+    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    rotations by 90 degrees in the XY plane) are applied. Rather than the default
+    transforms, a list of transforms can be passed to the `augmentations` parameter. To
+    disable the transforms, simply pass an empty list.
+
+    The `roi_size` parameter specifies the size of the area around each pixel that will
+    be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
+    pixels per patch will be manipulated.
+
+    The parameters of the UNet can be specified in the `model_params` (passed as a
+    parameter-value dictionary). Note that `use_n2v2`, `num_in_channels`, and
+    `num_out_channels` override the corresponding parameters passed in `model_params`.
+
+    If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
+    will be applied to each manipulated pixel.
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "czi", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : List[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    nm_path : str
+        Path to the noise model file.
+    num_epochs : int, default=100
+        Number of epochs to train for. If provided, this will be added to
+        trainer_params.
+    num_steps : int, optional
+        Number of batches in 1 epoch. If provided, this will be added to trainer_params.
+        Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
+        documentation for more details.
+    augmentations : list of transforms, default=None
+        List of transforms to apply, either both or one of XYFlipModel and
+        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        and XYRandomRotate90 (in XY) to the images.
+    independent_channels : bool, optional
+        Whether to train all channels independently, by default True. If True, each
+        input channel will correspond to num_out_channels output channels (e.g., 3
+        input channels with num_out_channels=400 results in 1200 total output
+        channels).
+    use_n2v2 : bool, optional
+        Whether to use N2V2, by default False.
+    num_in_channels : int, default=1
+        Number of input channels.
+    num_out_channels : int, default=400
+        Number of output channels per input channel when independent_channels is True,
+        or total number of output channels when independent_channels is False.
+    roi_size : int, optional
+        N2V pixel manipulation area, by default 11.
+    masked_pixel_percentage : float, optional
+        Percentage of pixels masked in each patch, by default 0.2.
+    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
+        Axis along which to apply structN2V mask, by default "none".
+    struct_n2v_span : int, optional
+        Span of the structN2V mask, by default 5.
+    trainer_params : dict, optional
+        Parameters for the trainer, see the relevant documentation.
+    logger : Literal["wandb", "tensorboard", "none"], optional
+        Logger to use, by default "none".
+    model_params : dict, default=None
+        UNetModel parameters.
+    optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
+        Optimizer to use.
+    optimizer_params : dict, default=None
+        Parameters for the optimizer, see PyTorch documentation for more details.
+    lr_scheduler : Literal["ReduceLROnPlateau", "StepLR"], default="ReduceLROnPlateau"
+        Learning rate scheduler to use.
+    lr_scheduler_params : dict, default=None
+        Parameters for the learning rate scheduler, see PyTorch documentation for more
+        details.
+    train_dataloader_params : dict, optional
+        Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
+        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
+        the `GeneralDataConfig`.
+    val_dataloader_params : dict, optional
+        Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+        If left as `None`, the empty dict `{}` will be used, this is set in the
+        `GeneralDataConfig`.
+    checkpoint_params : dict, default=None
+        Parameters for the checkpoint callback, see PyTorch Lightning documentation
+        (`ModelCheckpoint`) for the list of available parameters.
+
+    Returns
+    -------
+    Configuration
+        Configuration for training PN2V.
+
+    Examples
+    --------
+    Minimum example:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100
+    # ... )
+
+    # You can also limit the number of batches per epoch:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_steps=100  # limit to 100 batches per epoch
+    # ... )
+
+    # To disable transforms, simply set `augmentations` to an empty list:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     augmentations=[]
+    # ... )
+
+    # A list of transforms can be passed to the `augmentations` parameter:
+    # >>> from careamics.config.transformations import XYFlipModel
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     augmentations=[
+    # ...         # No rotation and only Y flipping
+    # ...         XYFlipModel(flip_x = False, flip_y = True)
+    # ...     ]
+    # ... )
+
+    # To use N2V2, simply pass the `use_n2v2` parameter:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v2_experiment",
+    # ...     data_type="tiff",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     use_n2v2=True
+    # ... )
+
+    # For structN2V, there are two parameters to set, `struct_n2v_axis` and
+    # `struct_n2v_span`:
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="structpn2v_experiment",
+    # ...     data_type="tiff",
+    # ...     axes="YX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     struct_n2v_axis="horizontal",
+    # ...     struct_n2v_span=7
+    # ... )
+
+    # If you are training multiple channels they will be trained independently by
+    # default, you simply need to specify the number of input channels. Each input
+    # channel will correspond to num_out_channels outputs (1200 total for 3
+    # channels with default num_out_channels=400):
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YXC",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     num_in_channels=3
+    # ... )
+
+    # If instead you want to train multiple channels together, you need to turn
+    # off the `independent_channels` parameter (resulting in 400 total output
+    # channels regardless of the number of input channels):
+    # >>> config = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="array",
+    # ...     axes="YXC",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     independent_channels=False,
+    # ...     num_in_channels=3
+    # ... )
+
+    # >>> config_2d = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="czi",
+    # ...     axes="SCYX",
+    # ...     patch_size=[64, 64],
+    # ...     batch_size=32,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     num_in_channels=1,
+    # ... )
+    # >>> config_3d = create_pn2v_configuration(
+    # ...     experiment_name="pn2v_experiment",
+    # ...     data_type="czi",
+    # ...     axes="SCZYX",
+    # ...     patch_size=[16, 64, 64],
+    # ...     batch_size=16,
+    # ...     nm_path="path/to/noise_model.npz",
+    # ...     num_epochs=100,
+    # ...     num_in_channels=1,
+    # ... )
+    """
+    # Validate channel configuration
+    if "C" in axes and num_in_channels < 1:
+        raise ValueError("num_in_channels must be at least 1 when using channels.")
+    elif "C" not in axes and num_in_channels > 1:
+        raise ValueError(
+            f"C is not present in the axes, but num_in_channels is specified "
+            f"(got {num_in_channels} channels)."
+        )
+
+    # Calculate total output channels based on independent_channels setting
+    if independent_channels:
+        total_out_channels = num_in_channels * num_out_channels
+    else:
+        total_out_channels = num_out_channels
+
+    # augmentations
+    spatial_transforms = _list_spatial_augmentations(augmentations)
+
+    # create the N2VManipulate transform using the supplied parameters
+    n2v_transform = N2VManipulateConfig(
+        name=SupportedTransform.N2V_MANIPULATE.value,
+        strategy=(
+            SupportedPixelManipulation.MEDIAN.value
+            if use_n2v2
+            else SupportedPixelManipulation.UNIFORM.value
+        ),
+        roi_size=roi_size,
+        masked_pixel_percentage=masked_pixel_percentage,
+        struct_mask_axis=struct_n2v_axis,
+        struct_mask_span=struct_n2v_span,
+    )
+
+    # Create noise model configuration
+    noise_model_config = GaussianMixtureNMConfig(path=nm_path)
+
+    # algorithm
+    algorithm_params = _create_algorithm_configuration(
+        axes=axes,
+        algorithm="pn2v",
+        loss="pn2v",
+        independent_channels=independent_channels,
+        n_channels_in=num_in_channels,
+        n_channels_out=total_out_channels,
+        use_n2v2=use_n2v2,
+        model_params=model_params,
+        optimizer=optimizer,
+        optimizer_params=optimizer_params,
+        lr_scheduler=lr_scheduler,
+        lr_scheduler_params=lr_scheduler_params,
+    )
+    algorithm_params["n2v_config"] = n2v_transform
+    algorithm_params["noise_model"] = noise_model_config
+
+    # Convert to PN2VAlgorithm instance
+    algorithm_config = PN2VAlgorithm(**algorithm_params)
+
+    # data
+    data_params = _create_data_configuration(
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        augmentations=spatial_transforms,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
+    )
+
+    # training
+    final_trainer_params = update_trainer_params(
+        trainer_params=trainer_params,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+    )
+    training_params = _create_training_configuration(
+        trainer_params=final_trainer_params,
+        logger=logger,
+        checkpoint_params=checkpoint_params,
     )
 
     return Configuration(

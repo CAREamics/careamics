@@ -7,6 +7,28 @@ from careamics.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+def get_axes_order(axes_in, ref_axes="STCZYX"):
+    """
+    Get the order of axes based on a reference axes string.
+
+    Parameters
+    ----------
+    axes_in : str
+        Input axes string.
+    ref_axes : str
+        Reference axes string.
+
+    Returns
+    -------
+    list[int]
+        Indices of axes in the reference axes order.
+    """
+    indices = [axes_in.find(k) for k in ref_axes]
+    # remove all non-existing axes (index == -1)
+    new_indices = list(filter(lambda k: k != -1, indices))
+    return new_indices
+
+
 def _get_shape_order(
     shape_in: tuple[int, ...], axes_in: str, ref_axes: str = "STCZYX"
 ) -> tuple[tuple[int, ...], str, list[int]]:
@@ -27,10 +49,7 @@ def _get_shape_order(
     tuple[tuple[int, ...], str, list[int]]
         New shape, new axes, indices of axes in the new axes order.
     """
-    indices = [axes_in.find(k) for k in ref_axes]
-
-    # remove all non-existing axes (index == -1)
-    new_indices = list(filter(lambda k: k != -1, indices))
+    new_indices = get_axes_order(axes_in, ref_axes)
 
     # find axes order and get new shape
     new_axes = [axes_in[ind] for ind in new_indices]
@@ -50,7 +69,7 @@ def reshape_array(x: np.ndarray, axes: str) -> np.ndarray:
     x : np.ndarray
         Input array.
     axes : str
-        Description of axes in format `STCZYX`.
+        Description of current axes in format `STCZYX`.
 
     Returns
     -------

@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from enum import Enum
 from pathlib import Path
 from typing import Any, Generic, Literal, NamedTuple, Union
 
@@ -8,42 +7,105 @@ from numpy.typing import NDArray
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from careamics.config.data.ng_data_model import NGDataConfig, WholePatchingModel
-from careamics.config.support.supported_patching_strategies import (
-    SupportedPatchingStrategy,
-)
-from careamics.config.transformations import NormalizeModel
+from careamics.config.data.ng_data_config import Mode, NGDataConfig, WholePatchingConfig
+from careamics.config.transformations import NormalizeConfig
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
-from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
-from careamics.dataset_ng.patch_filter import create_coord_filter, create_patch_filter
-from careamics.dataset_ng.patching_strategies import (
-    FixedRandomPatchingStrategy,
-    PatchingStrategy,
-    PatchSpecs,
-    RandomPatchingStrategy,
-    TilingStrategy,
-    WholeSamplePatchingStrategy,
-)
 from careamics.transforms import Compose
 
+from .image_stack import GenericImageStack, ZarrImageStack
+from .patch_extractor import PatchExtractor
+from .patch_filter import create_coord_filter, create_patch_filter
+from .patching_strategies import (
+    PatchSpecs,
+    RegionSpecs,
+    create_patching_strategy,
+)
 
-class Mode(str, Enum):
-    TRAINING = "training"
-    VALIDATING = "validating"
-    PREDICTING = "predicting"
 
+class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
+    """
+    Data structure for arrays produced by the dataset and propagated through models.
 
-class ImageRegionData(NamedTuple):
+    An ImageRegionData may be a patch during training/validation, a tile during
+    prediction with tiling, or a whole image during prediction without tiling.
+
+    `data_shape` may not correspond to the shape of the original data if a subset
+    of the channels has been requested, in which case the channel dimension may
+    be smaller than that of the original data and only correspond to the requested
+    number of channels.
+
+    ImageRegionData may be collated in batches during training by the DataLoader. In
+    that case:
+    - data: arrays are collated into NDArray of shape (B,C,Z,Y,X)
+    - source: list of str, length B
+    - data_shape: list of tuples of int, each tuple being of length B and representing
+        the shape of the original images in the corresponding dimension
+    - dtype: list of str, length B
+    - axes: list of str, length B
+    - region_spec: dict of {str: sequence}, each sequence being of length B
+    - additional_metadata: list of dict
+
+    Description of the fields is given for the uncollated case (non-batched).
+    """
+
     data: NDArray
+    """Patch, tile or image in C(Z)YX format."""
+
     source: Union[str, Literal["array"]]
+    """Source of the data, e.g. file path, zarr URI, or "array" for in-memory arrays."""
+
     data_shape: Sequence[int]
+    """Shape of the original image in (SCZ)YX format and order. If channels are
+    subsetted, the channel dimension corresponds to the number of requested channels."""
+
     dtype: str  # dtype should be str for collate
+    """Data type of the original image as a string."""
+
     axes: str
-    region_spec: PatchSpecs
+    """Axes of the original data array, in format SCZYX."""
+
+    region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
+    """Specifications of the region within the original image from where `data` is
+    extracted. Of type PatchSpecs during training/validation and prediction without
+    tiling, and TileSpecs during prediction with tiling.
+    """
+
+    additional_metadata: dict[str, Any]
+    """Additional metadata to be stored with the image region. Currently used to store
+    chunk and shard information for zarr image stacks."""
 
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
+
+
+def _adjust_shape_for_channels(
+    shape: Sequence[int],
+    channels: Sequence[int] | None,
+    value: int | Literal["channels"] = "channels",
+) -> tuple[int, ...]:
+    """Adjust shape to account for channel subsetting.
+
+    Parameters
+    ----------
+    shape : Sequence[int]
+        The original data shape in SC(Z)YX format.
+    channels : Sequence[int] | None
+        The list of channels to select. If None, no adjustment is made.
+    value : int | Literal["channels"], default="channels"
+        The value to replace the channel dimension with. If "channels", the length
+        of the channels list is used, by default "channels".
+
+    Returns
+    -------
+    tuple[int, ...]
+        The adjusted data shape in SC(Z)YX format.
+    """
+    if channels is not None:
+        adjusted_shape = list(shape)
+        adjusted_shape[1] = len(channels) if value == "channels" else value
+        return tuple(adjusted_shape)
+    return tuple(shape)
 
 
 def _patch_size_within_data_shapes(
@@ -76,7 +138,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
         data_config: NGDataConfig,
-        mode: Mode,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
         mask_extractor: PatchExtractor[GenericImageStack] | None = None,
@@ -86,9 +147,9 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         data_shapes = [
             image_stack.data_shape for image_stack in input_extractor.image_stacks
         ]
-        if mode != Mode.PREDICTING:
+        if data_config.mode != Mode.PREDICTING:
             if not isinstance(
-                data_config.patching, WholePatchingModel
+                data_config.patching, WholePatchingConfig
             ) and not _patch_size_within_data_shapes(
                 data_shapes, data_config.patching.patch_size
             ):
@@ -98,7 +159,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 )
 
         self.config = data_config
-        self.mode = mode
 
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
@@ -115,70 +175,23 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         )
         self.patch_filter_patience = self.config.patch_filter_patience
 
-        self.patching_strategy = self._initialize_patching_strategy()
+        self.patching_strategy = create_patching_strategy(
+            data_shapes=self.input_extractor.shapes,
+            patching_config=self.config.patching,
+        )
 
         self.input_stats, self.target_stats = self._initialize_statistics()
 
         self.transforms = self._initialize_transforms()
 
-    def _initialize_patching_strategy(self) -> PatchingStrategy:
-        patching_strategy: PatchingStrategy
-        if self.mode == Mode.TRAINING:
-            if self.config.patching.name != SupportedPatchingStrategy.RANDOM:
-                raise ValueError(
-                    f"Only `random` patching strategy supported during training, got "
-                    f"{self.config.patching.name}."
-                )
-
-            patching_strategy = RandomPatchingStrategy(
-                data_shapes=self.input_extractor.shape,
-                patch_size=self.config.patching.patch_size,
-                seed=self.config.seed,
-            )
-        elif self.mode == Mode.VALIDATING:
-            if self.config.patching.name != SupportedPatchingStrategy.RANDOM:
-                raise ValueError(
-                    f"Only `random` patching strategy supported during training, got "
-                    f"{self.config.patching.name}."
-                )
-
-            patching_strategy = FixedRandomPatchingStrategy(
-                data_shapes=self.input_extractor.shape,
-                patch_size=self.config.patching.patch_size,
-                seed=self.config.seed,
-            )
-        elif self.mode == Mode.PREDICTING:
-            if (
-                self.config.patching.name != SupportedPatchingStrategy.TILED
-                and self.config.patching.name != SupportedPatchingStrategy.WHOLE
-            ):
-                raise ValueError(
-                    f"Only `tiled` and `whole` patching strategy supported during "
-                    f"training, got {self.config.patching.name}."
-                )
-            elif self.config.patching.name == SupportedPatchingStrategy.TILED:
-                patching_strategy = TilingStrategy(
-                    data_shapes=self.input_extractor.shape,
-                    tile_size=self.config.patching.patch_size,
-                    overlaps=self.config.patching.overlaps,
-                )
-            else:
-                patching_strategy = WholeSamplePatchingStrategy(
-                    data_shapes=self.input_extractor.shape
-                )
-        else:
-            raise ValueError(f"Unrecognised dataset mode {self.mode}.")
-
-        return patching_strategy
-
     def _initialize_transforms(self) -> Compose | None:
-        normalize = NormalizeModel(
+        normalize = NormalizeConfig(
             image_means=self.input_stats.means,
             image_stds=self.input_stats.stds,
             target_means=self.target_stats.means,
             target_stds=self.target_stats.stds,
         )
-        if self.mode == Mode.TRAINING:
+        if self.config.mode == Mode.TRAINING:
             # TODO: initialize normalization separately depending on configuration
             return Compose(transform_list=[normalize] + list(self.config.transforms))
 
@@ -193,9 +206,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         for idx in tqdm(range(n_patches), desc="Computing statistics"):
             patch_spec = self.patching_strategy.get_patch_spec(idx)
-            patch = data_extractor.extract_patch(
+            patch = data_extractor.extract_channel_patch(
                 data_idx=patch_spec["data_idx"],
                 sample_idx=patch_spec["sample_idx"],
+                channels=self.config.channels,
                 coords=patch_spec["coords"],
                 patch_size=patch_spec["patch_size"],
             )
@@ -228,32 +242,54 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
     ) -> ImageRegionData:
         data_idx = patch_spec["data_idx"]
-        source = extractor.image_stacks[data_idx].source
+        image_stack: GenericImageStack = extractor.image_stacks[data_idx]
+
+        # adjust the number of channels in data_shape if needed
+        data_shape = _adjust_shape_for_channels(
+            shape=image_stack.data_shape,
+            channels=self.config.channels,
+        )
+
+        # additional metadata for zarr image stacks
+        if isinstance(image_stack, ZarrImageStack):
+            additional_metadata = {
+                "chunks": image_stack.chunks,
+            }
+
+            if image_stack.shards is not None:
+                additional_metadata["shards"] = image_stack.shards
+        else:
+            additional_metadata = {}
+
         return ImageRegionData(
             data=patch,
-            source=str(source),
-            dtype=str(extractor.image_stacks[data_idx].data_dtype),
-            data_shape=extractor.image_stacks[data_idx].data_shape,
+            source=str(image_stack.source),
+            dtype=str(image_stack.data_dtype),
+            data_shape=data_shape,
             # TODO: should it be axes of the original image instead?
             axes=self.config.axes,
             region_spec=patch_spec,
+            additional_metadata=additional_metadata,
         )
 
     def _extract_patches(
         self, patch_spec: PatchSpecs
     ) -> tuple[NDArray, NDArray | None]:
         """Extract input and target patches based on patch specifications."""
-        input_patch = self.input_extractor.extract_patch(
+        input_patch = self.input_extractor.extract_channel_patch(
             data_idx=patch_spec["data_idx"],
             sample_idx=patch_spec["sample_idx"],
+            channels=self.config.channels,
             coords=patch_spec["coords"],
             patch_size=patch_spec["patch_size"],
         )
 
         target_patch = (
-            self.target_extractor.extract_patch(
+            self.target_extractor.extract_channel_patch(
                 data_idx=patch_spec["data_idx"],
                 sample_idx=patch_spec["sample_idx"],
+                # TODO does not allow selecting different channels for target
+                channels=self.config.channels,
                 coords=patch_spec["coords"],
                 patch_size=patch_spec["patch_size"],
             )
@@ -266,7 +302,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any] | None, PatchSpecs]:
         """Extract a patch that passes filtering criteria with retry logic."""
-        should_filter = self.mode == Mode.TRAINING and (
+        should_filter = self.config.mode == Mode.TRAINING and (
             self.patch_filter is not None or self.coord_filter is not None
         )
         empty_patch = True
@@ -280,7 +316,13 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             if should_filter and self.coord_filter is not None:
                 if self.coord_filter.filter_out(patch_spec):
                     patch_filter_patience -= 1
-                    continue
+
+                    # TODO should we raise an error rather than silently accept patches?
+                    # if patience runs out without ever finding coordinates
+                    # then we need to guard against an exist before defining
+                    # input_patch and target_patch
+                    if patch_filter_patience != 0:
+                        continue
 
             input_patch, target_patch = self._extract_patches(patch_spec)
 

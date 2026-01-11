@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 from torch.utils.data.dataloader import default_collate
 
-from careamics.config.tile_information import TileInformation
+from careamics.config.data.tile_information import TileInformation
 
 
 def collate_tiles(batch: list[tuple[np.ndarray, TileInformation]]) -> Any:

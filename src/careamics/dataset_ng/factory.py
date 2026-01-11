@@ -1,126 +1,37 @@
-from collections.abc import Sequence
-from enum import Enum
-from pathlib import Path
+from functools import partial
 from typing import Any
 
-from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
-from careamics.config.data.ng_data_model import NGDataConfig
+from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
-from careamics.dataset_ng.patch_extractor import ImageStackLoader, PatchExtractor
-from careamics.dataset_ng.patch_extractor.image_stack import (
-    CziImageStack,
-    GenericImageStack,
-    ImageStack,
-    InMemoryImageStack,
-    ZarrImageStack,
-)
-from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
-    create_array_extractor,
-    create_custom_file_extractor,
-    create_custom_image_stack_extractor,
-    create_czi_extractor,
-    create_ome_zarr_extractor,
-    create_tiff_extractor,
-)
 from careamics.file_io.read import ReadFunc
 
-from .dataset import CareamicsDataset, Mode
+from .dataset import CareamicsDataset
+from .image_stack import (
+    GenericImageStack,
+    ImageStack,
+)
+from .image_stack_loader import (
+    ImageStackLoader,
+    load_arrays,
+    load_custom_file,
+    load_czis,
+    load_iter_tiff,
+    load_tiffs,
+    load_zarrs,
+)
+from .patch_extractor import LimitFilesPatchExtractor, PatchExtractor
 
 P = ParamSpec("P")
-
-
-# Enum class used to determine which loading functions should be used
-class DatasetType(Enum):
-    """Labels for the dataset based on the underlying data and how it is loaded."""
-
-    ARRAY = "array"
-    IN_MEM_TIFF = "in_mem_tiff"
-    LAZY_TIFF = "lazy_tiff"
-    IN_MEM_CUSTOM_FILE = "in_mem_custom_file"
-    OME_ZARR = "ome_zarr"
-    CZI = "czi"
-    CUSTOM_IMAGE_STACK = "custom_image_stack"
-
-
-# bit of a mess of if-else statements
-def determine_dataset_type(
-    data_type: SupportedData,
-    in_memory: bool,
-    read_func: ReadFunc | None = None,
-    image_stack_loader: ImageStackLoader | None = None,
-) -> DatasetType:
-    """Determine what the dataset type should be based on the input arguments.
-
-    Parameters
-    ----------
-    data_type : SupportedData
-        The underlying datatype.
-    in_memory : bool
-        Whether all the data should be loaded into memory. This is argument is ignored
-        unless the `data_type` is "tiff" or "custom".
-    read_func : ReadFunc, optional
-        A function that can be used to load custom data. This argument is
-        ignored unless the `data_type` is "custom".
-    image_stack_loader : ImageStackLoader, optional
-        A function for custom image stack loading. This argument is ignored unless the
-        `data_type` is "custom".
-
-    Returns
-    -------
-    DatasetType
-        The Dataset type.
-
-    Raises
-    ------
-    NotImplementedError
-        For lazy-loading (`in_memory=False`) of a custom file type.
-    ValueError
-        If the `data_type` is "custom" but both `read_func` and `image_stack_loader` are
-        None.
-    ValueError
-        If the `data_type` is unrecognized.
-    """
-    if data_type == SupportedData.ARRAY:
-        # TODO: ignoring in_memory arg, error if False?
-        return DatasetType.ARRAY
-    elif data_type == SupportedData.TIFF:
-        if in_memory:
-            return DatasetType.IN_MEM_TIFF
-        else:
-            return DatasetType.LAZY_TIFF
-    elif data_type == SupportedData.CZI:
-        return DatasetType.CZI
-    elif data_type == SupportedData.CUSTOM:
-        if read_func is not None:
-            if in_memory:
-                return DatasetType.IN_MEM_CUSTOM_FILE
-            else:
-                raise NotImplementedError(
-                    "Lazy loading has not been implemented for custom file types yet."
-                )
-        elif image_stack_loader is not None:
-            # TODO: ignoring im_memory arg
-            return DatasetType.CUSTOM_IMAGE_STACK
-        else:
-            raise ValueError(
-                "Found `data_type='custom'` but no `read_func` or `image_stack_loader` "
-                "has been provided."
-            )
-    # TODO: ZARR
-    else:
-        raise ValueError(f"Unrecognized `data_type`, '{data_type}'.")
 
 
 # convenience function but should use `create_dataloader` function instead
 # For lazy loading custom batch sampler also needs to be set.
 def create_dataset(
     config: NGDataConfig,
-    mode: Mode,
     inputs: Any,
     targets: Any,
-    in_memory: bool,
     masks: Any = None,
     read_func: ReadFunc | None = None,
     read_kwargs: dict[str, Any] | None = None,
@@ -134,15 +45,10 @@ def create_dataset(
     ----------
     config : DataConfig or InferenceConfig
         The data configuration.
-    mode : Mode
-        Whether to create the dataset in "training", "validation" or "predicting" mode.
     inputs : Any
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
-    in_memory : bool
-        Whether all the data should be loaded into memory. This is argument is ignored
-        unless the `data_type` in `config` is "tiff" or "custom".
     masks : Any, optional
         The mask sources used to filter patches.
     read_func : ReadFunc, optional
@@ -155,380 +61,120 @@ def create_dataset(
         `data_type` in the `config` is "custom".
     image_stack_loader_kwargs : {str, Any}, optional
         Additional key-word arguments to pass to the `image_stack_loader`.
-
-    Returns
-    -------
-    CareamicsDataset[ImageStack]
-        The CAREamicsDataset.
-
-    Raises
-    ------
-    ValueError
-        For an unrecognized `data_type` in the `config`.
     """
-    data_type = SupportedData(config.data_type)
-    dataset_type = determine_dataset_type(
-        data_type, in_memory, read_func, image_stack_loader
+    image_stack_loader = select_image_stack_loader(
+        data_type=SupportedData(config.data_type),
+        in_memory=config.in_memory,
+        read_func=read_func,
+        read_kwargs=read_kwargs,
+        image_stack_loader=image_stack_loader,
+        image_stack_loader_kwargs=image_stack_loader_kwargs,
     )
-    if dataset_type == DatasetType.ARRAY:
-        return create_array_dataset(config, mode, inputs, targets, masks)
-    elif dataset_type == DatasetType.IN_MEM_TIFF:
-        return create_tiff_dataset(config, mode, inputs, targets, masks)
-    # TODO: Lazy tiff
-    elif dataset_type == DatasetType.CZI:
-        return create_czi_dataset(config, mode, inputs, targets, masks)
-    elif dataset_type == DatasetType.IN_MEM_CUSTOM_FILE:
-        if read_kwargs is None:
-            read_kwargs = {}
-        assert read_func is not None  # should be true from `determine_dataset_type`
-        return create_custom_file_dataset(
-            config,
-            mode,
-            inputs,
-            targets,
-            masks,
-            read_func=read_func,
-            read_kwargs=read_kwargs,
-        )
-    elif dataset_type == DatasetType.CUSTOM_IMAGE_STACK:
-        if image_stack_loader_kwargs is None:
-            image_stack_loader_kwargs = {}
-        assert image_stack_loader is not None  # should be true
-        return create_custom_image_stack_dataset(
-            config,
-            mode,
-            inputs,
-            targets,
-            image_stack_loader,
-            masks,
-            **image_stack_loader_kwargs,
-        )
-    else:
-        raise ValueError(f"Unrecognized dataset type, {dataset_type}.")
-
-
-def create_array_dataset(
-    config: NGDataConfig,
-    mode: Mode,
-    inputs: Sequence[NDArray[Any]],
-    targets: Sequence[NDArray[Any]] | None,
-    masks: Sequence[NDArray[Any]] | None = None,
-) -> CareamicsDataset[InMemoryImageStack]:
-    """
-    Create a CAREamicsDataset from array data.
-
-    Parameters
-    ----------
-    config : DataConfig or InferenceConfig
-        The data configuration.
-    mode : Mode
-        Whether to create the dataset in "training", "validation" or "predicting" mode.
-    inputs : Any
-        The input sources to the dataset.
-    targets : Any, optional
-        The target sources to the dataset.
-    masks : Any, optional
-        The mask sources used to filter patches.
-
-    Returns
-    -------
-    CareamicsDataset[InMemoryImageStack]
-        A CAREamicsDataset.
-    """
-    input_extractor = create_array_extractor(source=inputs, axes=config.axes)
-    target_extractor: PatchExtractor[InMemoryImageStack] | None
+    patch_extractor_type = select_patch_extractor_type(
+        data_type=SupportedData(config.data_type), in_memory=config.in_memory
+    )
+    input_extractor = init_patch_extractor(
+        patch_extractor_type, image_stack_loader, inputs, config.axes
+    )
     if targets is not None:
-        target_extractor = create_array_extractor(source=targets, axes=config.axes)
-    else:
-        target_extractor = None
-    mask_extractor: PatchExtractor[InMemoryImageStack] | None
-    if masks is not None:
-        mask_extractor = create_array_extractor(source=masks, axes=config.axes)
-    else:
-        mask_extractor = None
-    return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, mask_extractor
-    )
-
-
-def create_tiff_dataset(
-    config: NGDataConfig,
-    mode: Mode,
-    inputs: Sequence[Path],
-    targets: Sequence[Path] | None,
-    masks: Sequence[Path] | None = None,
-) -> CareamicsDataset[InMemoryImageStack]:
-    """
-    Create a CAREamicsDataset from tiff files that will be loaded into memory.
-
-    Parameters
-    ----------
-    config : DataConfig or InferenceConfig
-        The data configuration.
-    mode : Mode
-        Whether to create the dataset in "training", "validation" or "predicting" mode.
-    inputs : Sequence[Path]
-        The input sources to the dataset.
-    targets : Sequence[Path], optional
-        The target sources to the dataset.
-    masks : Sequence[Path], optional
-        The mask sources used to filter patches.
-
-    Returns
-    -------
-    CareamicsDataset[InMemoryImageStack]
-        A CAREamicsDataset.
-    """
-    input_extractor = create_tiff_extractor(
-        source=inputs,
-        axes=config.axes,
-    )
-    target_extractor: PatchExtractor[InMemoryImageStack] | None
-    if targets is not None:
-        target_extractor = create_tiff_extractor(source=targets, axes=config.axes)
-    else:
-        target_extractor = None
-    mask_extractor: PatchExtractor[InMemoryImageStack] | None
-    if masks is not None:
-        mask_extractor = create_tiff_extractor(source=masks, axes=config.axes)
-    else:
-        mask_extractor = None
-
-    return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, mask_extractor
-    )
-
-
-def create_czi_dataset(
-    config: NGDataConfig,
-    mode: Mode,
-    inputs: Sequence[Path],
-    targets: Sequence[Path] | None,
-    masks: Sequence[Path] | None = None,
-) -> CareamicsDataset[CziImageStack]:
-    """
-    Create a dataset from CZI files.
-
-    Parameters
-    ----------
-    config : DataConfig or InferenceConfig
-        The data configuration.
-    mode : Mode
-        Whether to create the dataset in "training", "validation" or "predicting" mode.
-    inputs : Any
-        The input sources to the dataset.
-    targets : Any, optional
-        The target sources to the dataset.
-    masks : Any, optional
-        The mask sources used to filter patches.
-
-    Returns
-    -------
-    CareamicsDataset[CziImageStack]
-        A CAREamicsDataset.
-    """
-
-    input_extractor = create_czi_extractor(source=inputs, axes=config.axes)
-    target_extractor: PatchExtractor[CziImageStack] | None
-    if targets is not None:
-        target_extractor = create_czi_extractor(source=targets, axes=config.axes)
-    else:
-        target_extractor = None
-    mask_extractor: PatchExtractor[CziImageStack] | None
-    if masks is not None:
-        mask_extractor = create_czi_extractor(source=masks, axes=config.axes)
-    else:
-        mask_extractor = None
-
-    return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, mask_extractor
-    )
-
-
-def create_ome_zarr_dataset(
-    config: NGDataConfig,
-    mode: Mode,
-    inputs: Sequence[Path],
-    targets: Sequence[Path] | None,
-    masks: Sequence[Path] | None = None,
-) -> CareamicsDataset[ZarrImageStack]:
-    """
-    Create a dataset from OME ZARR files.
-
-    Parameters
-    ----------
-    config : DataConfig or InferenceConfig
-        The data configuration.
-    mode : Mode
-        Whether to create the dataset in "training", "validation" or "predicting" mode.
-    inputs : Any
-        The input sources to the dataset.
-    targets : Any, optional
-        The target sources to the dataset.
-    masks : Any, optional
-        The mask sources used to filter patches.
-
-    Returns
-    -------
-    CareamicsDataset[ZarrImageStack]
-        A CAREamicsDataset.
-    """
-
-    input_extractor = create_ome_zarr_extractor(source=inputs, axes=config.axes)
-    target_extractor: PatchExtractor[ZarrImageStack] | None
-    if targets is not None:
-        target_extractor = create_ome_zarr_extractor(source=targets, axes=config.axes)
-    else:
-        target_extractor = None
-    mask_extractor: PatchExtractor[ZarrImageStack] | None
-    if masks is not None:
-        mask_extractor = create_ome_zarr_extractor(source=masks, axes=config.axes)
-    else:
-        mask_extractor = None
-
-    return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, mask_extractor
-    )
-
-
-def create_custom_file_dataset(
-    config: NGDataConfig,
-    mode: Mode,
-    inputs: Sequence[Path],
-    targets: Sequence[Path] | None,
-    masks: Sequence[Path] | None = None,
-    *,
-    read_func: ReadFunc,
-    read_kwargs: dict[str, Any],
-) -> CareamicsDataset[InMemoryImageStack]:
-    """
-    Create a CAREamicsDataset from custom files that will be all loaded into memory.
-
-    Parameters
-    ----------
-    config : DataConfig or InferenceConfig
-        The data configuration.
-    mode : Mode
-        Whether to create the dataset in "training", "validation" or "predicting" mode.
-    inputs : Any
-        The input sources to the dataset.
-    targets : Any, optional
-        The target sources to the dataset.
-    masks : Any, optional
-        The mask sources used to filter patches.
-    read_func : Optional[ReadFunc], optional
-        A function that can that can be used to load custom data. This argument is
-        ignored unless the `data_type` is "custom".
-    image_stack_loader : Optional[ImageStackLoader], optional
-        A function for custom image stack loading. This argument is ignored unless the
-        `data_type` is "custom".
-
-    Returns
-    -------
-    CareamicsDataset[InMemoryImageStack]
-        A CAREamicsDataset.
-    """
-    input_extractor = create_custom_file_extractor(
-        source=inputs, axes=config.axes, read_func=read_func, read_kwargs=read_kwargs
-    )
-    target_extractor: PatchExtractor[InMemoryImageStack] | None
-    if targets is not None:
-        target_extractor = create_custom_file_extractor(
-            source=targets,
-            axes=config.axes,
-            read_func=read_func,
-            read_kwargs=read_kwargs,
+        target_extractor = init_patch_extractor(
+            patch_extractor_type, image_stack_loader, targets, config.axes
         )
     else:
         target_extractor = None
-
-    mask_extractor: PatchExtractor[InMemoryImageStack] | None
     if masks is not None:
-        mask_extractor = create_custom_file_extractor(
-            source=masks,
-            axes=config.axes,
-            read_func=read_func,
-            read_kwargs=read_kwargs,
+        mask_extractor = init_patch_extractor(
+            patch_extractor_type, image_stack_loader, masks, config.axes
         )
     else:
         mask_extractor = None
-
     return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, mask_extractor
+        data_config=config,
+        input_extractor=input_extractor,
+        target_extractor=target_extractor,
+        mask_extractor=mask_extractor,
     )
 
 
-def create_custom_image_stack_dataset(
-    config: NGDataConfig,
-    mode: Mode,
-    inputs: Any,
-    targets: Any | None,
-    image_stack_loader: ImageStackLoader[P, GenericImageStack],
-    masks: Any | None = None,
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> CareamicsDataset[GenericImageStack]:
-    """
-    Create a CAREamicsDataset from a custom `ImageStack` class.
+def init_patch_extractor(
+    patch_extractor: type[PatchExtractor],
+    image_stack_loader: ImageStackLoader[..., GenericImageStack],
+    source: Any,
+    axes: str,
+) -> PatchExtractor[GenericImageStack]:
+    image_stacks = image_stack_loader(source, axes)
+    return patch_extractor(image_stacks)
 
-    The custom `ImageStack` class can be loaded using the `image_stack_loader` function.
+
+def select_patch_extractor_type(
+    data_type: SupportedData,
+    in_memory: bool,
+) -> type[PatchExtractor]:
+    """Select the appropriate PatchExtractor type based on data type and memory mode.
+
+    If `in_memory` is True, or `data_type` is ZARR or CZI, the standard
+    `PatchExtractor` is selected, otherwise the `LimitFilesPatchExtractor` will be used.
 
     Parameters
     ----------
-    config : DataConfig or InferenceConfig
-        The data configuration.
-    mode : Mode
-        Whether to create the dataset in "training", "validation" or "predicting" mode.
-    inputs : Any
-        The input sources to the dataset.
-    targets : Any, optional
-        The target sources to the dataset.
-    image_stack_loader : ImageStackLoader
-        A function for custom image stack loading. This argument is ignored unless the
-        `data_type` is "custom".
-    masks : Any, optional
-        The mask sources used to filter patches.
-    *args : Any
-        Positional arguments to pass to the `image_stack_loader`.
-    **kwargs : Any
-        Key-word arguments to pass to the `image_stack_loader`.
+    data_type : SupportedData
+        The type of data being handled.
+    in_memory : bool
+        Indicates whether data is to be loaded into memory.
 
     Returns
     -------
-    CareamicsDataset[GenericImageStack]
-        A CAREamicsDataset.
+    type[PatchExtractor]
+        The selected PatchExtractor type.
     """
-    input_extractor = create_custom_image_stack_extractor(
-        inputs,
-        config.axes,
-        image_stack_loader,
-        *args,
-        **kwargs,
-    )
-    target_extractor: PatchExtractor[GenericImageStack] | None
-    if targets is not None:
-        target_extractor = create_custom_image_stack_extractor(
-            targets,
-            config.axes,
-            image_stack_loader,
-            *args,
-            **kwargs,
-        )
+    if not in_memory and data_type in (SupportedData.TIFF, SupportedData.CUSTOM):
+        return LimitFilesPatchExtractor
     else:
-        target_extractor = None
+        return PatchExtractor
 
-    mask_extractor: PatchExtractor[GenericImageStack] | None
-    if masks is not None:
-        mask_extractor = create_custom_image_stack_extractor(
-            masks,
-            config.axes,
-            image_stack_loader,
-            *args,
-            **kwargs,
-        )
-    else:
-        mask_extractor = None
 
-    return CareamicsDataset(
-        config, mode, input_extractor, target_extractor, mask_extractor
-    )
+def select_image_stack_loader(
+    data_type: SupportedData,
+    in_memory: bool,
+    read_func: ReadFunc | None = None,
+    read_kwargs: dict[str, Any] | None = None,
+    image_stack_loader: ImageStackLoader | None = None,
+    image_stack_loader_kwargs: dict[str, Any] | None = None,
+) -> ImageStackLoader:
+    match data_type:
+        case SupportedData.ARRAY:
+            return load_arrays
+        case SupportedData.TIFF:
+            if in_memory:
+                return load_tiffs
+            else:
+                return load_iter_tiff
+        case SupportedData.CUSTOM:
+            if (read_func is not None) and (image_stack_loader is None):
+                read_kwargs = {} if read_kwargs is None else read_kwargs
+                return partial(
+                    load_custom_file, read_func=read_func, read_kwargs=read_kwargs
+                )
+            elif (read_func is None) and (image_stack_loader is not None):
+                image_stack_loader_kwargs = (
+                    {}
+                    if image_stack_loader_kwargs is None
+                    else image_stack_loader_kwargs
+                )
+                return partial(image_stack_loader, **image_stack_loader_kwargs)
+            else:
+                raise ValueError(
+                    "Found `data_type='custom'` **one** of `read_func` or "
+                    "`image_stack_loader` must be provided."
+                )
+        case SupportedData.ZARR:
+            # TODO: in_memory or not
+            return load_zarrs
+        case SupportedData.CZI:
+            # TODO: in_memory or not
+            return load_czis
+        case _:
+            raise NotImplementedError(
+                f"Selecting an image stack for data type '{data_type}' has not been "
+                "implemented yet."
+            )

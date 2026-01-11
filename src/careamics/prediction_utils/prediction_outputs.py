@@ -5,7 +5,7 @@ from typing import Any, Literal, Union, overload
 import numpy as np
 from numpy.typing import NDArray
 
-from ..config.tile_information import TileInformation
+from ..config.data.tile_information import TileInformation
 from .stitch_prediction import stitch_prediction, stitch_prediction_vae
 
 
@@ -41,15 +41,72 @@ def convert_outputs(predictions: list[Any], tiled: bool) -> list[NDArray]:
     return predictions_output
 
 
+def convert_outputs_pn2v(
+    predictions: list[Any], tiled: bool
+) -> tuple[list[NDArray], list[NDArray]]:
+    """
+    Convert the Lightning trainer outputs to the desired form.
+
+    This method allows stitching back together tiled predictions.
+
+    Parameters
+    ----------
+    predictions : list
+        Predictions that are output from `Trainer.predict`. Length of list the total
+        number of tiles divided by the batch size. Each element consists of a tuple of
+        ((prediction, mse), tile_info_list). 1st dimension of each tensor is the bs.
+        Length of tile info list is the batch size.
+
+    tiled : bool
+        Whether the predictions are tiled.
+
+    Returns
+    -------
+    tuple[list[NDArray], list[NDArray]]
+        Tuple of (predictions, mmse) where each is a list of arrays with axes SC(Z)YX.
+    """
+    if len(predictions) == 0:
+        return [], []
+    # TODO test with multi_channel predictions
+    if tiled:
+        # Separate predictions and mmse, keeping tile info for each
+        pred_with_tiles = [
+            (pred, tile_info_list) for (pred, _), tile_info_list in predictions
+        ]
+        mse_with_tiles = [
+            (mse, tile_info_list) for (_, mse), tile_info_list in predictions
+        ]
+
+        # Process predictions
+        pred_comb = combine_batches(pred_with_tiles, tiled)
+        predictions_output = stitch_prediction(*pred_comb)
+
+        # Process mmse
+        mse_comb = combine_batches(mse_with_tiles, tiled)
+        mse_output = stitch_prediction(*mse_comb)
+
+        return predictions_output, mse_output
+    else:
+        # Separate predictions and mmse for non-tiled case
+        pred_only_tuple, mse_only_tuple = zip(*predictions, strict=False)
+        pred_only_list: list[NDArray] = list(pred_only_tuple)
+        mse_only_list: list[NDArray] = list(mse_only_tuple)
+
+        predictions_output = combine_batches(pred_only_list, tiled=False)
+        mse_output = combine_batches(mse_only_list, tiled=False)
+
+        return predictions_output, mse_output
+
+
 def convert_outputs_microsplit(
     predictions: list[tuple[NDArray, NDArray]], dataset
 ) -> tuple[NDArray, NDArray]:
     """
     Convert microsplit Lightning trainer outputs using eval_utils stitching functions.
 
-    This function processes microsplit predictions that return (tile_prediction,
-    tile_std) tuples and stitches them back together using the same logic as
-    get_single_file_mmse.
+    This function processes microsplit predictions that return
+    (tile_prediction, tile_std) tuples and stitches them back together using the same
+    logic as get_single_file_mmse.
 
     Parameters
     ----------

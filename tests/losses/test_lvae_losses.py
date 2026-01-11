@@ -14,11 +14,11 @@ from careamics.config import (
     LVAELossConfig,
     MultiChannelNMConfig,
 )
-from careamics.config.likelihood_model import (
+from careamics.config.losses.loss_config import KLLossConfig
+from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.loss_model import KLLossConfig
 from careamics.losses.loss_factory import (
     SupportedLoss,
     loss_factory,
@@ -32,7 +32,7 @@ from careamics.losses.lvae.losses import (
     musplit_loss,
 )
 from careamics.models.lvae.likelihoods import likelihood_factory
-from careamics.models.lvae.noise_models import noise_model_factory
+from careamics.models.lvae.noise_models import multichannel_noise_model_factory
 
 if TYPE_CHECKING:
     from careamics.models.lvae.noise_models import MultiChannelNoiseModel
@@ -71,7 +71,7 @@ def init_noise_model(
         # all other params are default
     )
     noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
-    return noise_model_factory(noise_model_config)
+    return multichannel_noise_model_factory(noise_model_config)
 
 
 @pytest.mark.parametrize(

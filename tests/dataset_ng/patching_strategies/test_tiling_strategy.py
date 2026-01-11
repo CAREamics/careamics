@@ -2,10 +2,9 @@ import numpy as np
 import pytest
 
 from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.dataset_ng.image_stack_loader import load_arrays
 from careamics.dataset_ng.legacy_interoperability import imageregions_to_tileinfos
-from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
-    create_array_extractor,
-)
+from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patching_strategies import TilingStrategy
 from careamics.prediction_utils.stitch_prediction import stitch_prediction
 
@@ -24,9 +23,10 @@ def _test_tiling_output(
     data = [
         np.arange(np.prod(data_shape)).reshape(data_shape) for data_shape in data_shapes
     ]
-    patch_extractor = create_array_extractor(source=data, axes=axes)
+    image_stacks = load_arrays(source=data, axes=axes)
+    patch_extractor = PatchExtractor(image_stacks)
     tiling_strategy = TilingStrategy(
-        data_shapes=data_shapes, tile_size=patch_size, overlaps=overlaps
+        data_shapes=data_shapes, patch_size=patch_size, overlaps=overlaps
     )
     image_regions: list[ImageRegionData] = []
     n_tiles = tiling_strategy.n_patches
@@ -48,6 +48,7 @@ def _test_tiling_output(
             data_shape=patch_extractor.image_stacks[tile_spec["data_idx"]].data_shape,
             axes=axes,
             region_spec=tile_spec,
+            additional_metadata={},
         )
         image_regions.append(image_region)
 

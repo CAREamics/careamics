@@ -6,9 +6,8 @@ import numpy as np
 from skimage.measure import shannon_entropy
 from tqdm import tqdm
 
-from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
-    create_array_extractor,
-)
+from careamics.dataset_ng.image_stack_loader import load_arrays
+from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterProtocol
 from careamics.dataset_ng.patching_strategies import TilingStrategy
 
@@ -137,10 +136,11 @@ class ShannonPatchFilter(PatchFilterProtocol):
 
         shannon_img = np.zeros_like(image, dtype=float)
 
-        extractor = create_array_extractor(source=[image], axes=axes)
+        image_stacks = load_arrays(source=[image], axes=axes)
+        extractor = PatchExtractor(image_stacks)
         tiling = TilingStrategy(
             data_shapes=[(1, 1, *image.shape)],
-            tile_size=patch_size,
+            patch_size=patch_size,
             overlaps=(0,) * len(patch_size),  # no overlap
         )
 

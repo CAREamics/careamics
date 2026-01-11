@@ -115,6 +115,33 @@ class RandomPatchingStrategy:
             "patch_size": self.patch_size,
         }
 
+    # Note: this is used by the FileIterSampler
+    def get_patch_indices(self, data_idx: int) -> Sequence[int]:
+        """
+        Get the patch indices will return patches for a specific `image_stack`.
+
+        The `image_stack` corresponds to the given `data_idx`.
+
+        Parameters
+        ----------
+        data_idx : int
+            An index that corresponds to a given `image_stack`.
+
+        Returns
+        -------
+        sequence of int
+            A sequence of patch indices, that when used to index the `CAREamicsDataset
+            will return a patch that comes from the `image_stack` corresponding to the
+            given `data_idx`.
+        """
+        # return all the values in the corresponding bin
+        if data_idx == 0:
+            start = 0
+        else:
+            start = self.image_stack_cumulative_patches[data_idx - 1]
+
+        return np.arange(start, self.image_stack_cumulative_patches[data_idx]).tolist()
+
     @staticmethod
     def _calc_bins(
         data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
@@ -258,6 +285,31 @@ class FixedRandomPatchingStrategy:
             )
         # simply index the pre-generated patches to get the correct patch
         return self.fixed_patch_specs[index]
+
+    # Note: this is used by the FileIterSampler
+    def get_patch_indices(self, data_idx: int) -> Sequence[int]:
+        """
+        Get the patch indices will return patches for a specific `image_stack`.
+
+        The `image_stack` corresponds to the given `data_idx`.
+
+        Parameters
+        ----------
+        data_idx : int
+            An index that corresponds to a given `image_stack`.
+
+        Returns
+        -------
+        sequence of int
+            A sequence of patch indices, that when used to index the `CAREamicsDataset
+            will return a patch that comes from the `image_stack` corresponding to the
+            given `data_idx`.
+        """
+        return [
+            i
+            for i, patch_spec in enumerate(self.fixed_patch_specs)
+            if patch_spec["data_idx"] == data_idx
+        ]
 
 
 def _generate_random_coords(

@@ -48,7 +48,7 @@ def _create_tiling_strategy(
     else:
         raise ValueError
     return TilingStrategy(
-        data_shapes=data_shapes, tile_size=patch_size, overlaps=overlaps
+        data_shapes=data_shapes, patch_size=patch_size, overlaps=overlaps
     )
 
 
@@ -120,7 +120,7 @@ def test_patches_cover_50percent(
     patch_size: Sequence[int],
 ):
     # Testing more than 50% because some patching strategies are random (but seeded)
-    """Test that more than 50% of the data is covered by the sampled pathches"""
+    """Test that more than 50% of the data is covered by the sampled patches"""
     patching_strategy = strategy_constr(data_shapes, patch_size)
 
     # track where patches have been sampled from
@@ -147,3 +147,30 @@ def test_patches_cover_50percent(
         total_covered += np.count_nonzero(tracking_array)
         total_size += tracking_array.size
     assert total_covered / total_size > 0.5
+
+
+@pytest.mark.parametrize("strategy_constr", PATCHING_STRATEGY_CONSTR)
+@pytest.mark.parametrize(
+    "data_shapes,patch_size",
+    [
+        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 8)],
+        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 5)],
+        [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 8, 8)],
+        [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 5, 7)],
+    ],
+)
+def test_get_patch_indices(
+    strategy_constr: PatchingStrategyConstr,
+    data_shapes: Sequence[Sequence[int]],
+    patch_size: Sequence[int],
+):
+    """
+    Test that `get_patch_indices` returns indices belonging to correct image stack.
+    """
+    patching_strategy = strategy_constr(data_shapes, patch_size)
+    n_data = len(data_shapes)
+    for data_idx in range(n_data):
+        indices = patching_strategy.get_patch_indices(data_idx=data_idx)
+        for idx in indices:
+            patch_spec = patching_strategy.get_patch_spec(idx)
+            assert patch_spec["data_idx"] == data_idx

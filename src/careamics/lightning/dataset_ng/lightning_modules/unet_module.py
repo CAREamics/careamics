@@ -9,7 +9,12 @@ from torchmetrics import MetricCollection
 from torchmetrics.image import PeakSignalNoiseRatio
 
 from careamics.config import algorithm_factory
-from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from careamics.config.algorithms import (
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    PN2VAlgorithm,
+)
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.models.unet import UNet
 from careamics.transforms import Denormalize
@@ -30,7 +35,10 @@ class UnetModule(L.LightningModule):
     """
 
     def __init__(
-        self, algorithm_config: Union[CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, dict]
+        self,
+        algorithm_config: Union[
+            CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, PN2VAlgorithm, dict
+        ],
     ) -> None:
         """Instantiate UNet DataModule.
 
@@ -186,6 +194,7 @@ class UnetModule(L.LightningModule):
             dtype=x.dtype,
             axes=x.axes,
             region_spec=x.region_spec,
+            additional_metadata={},
         )
         return output_batch
 
