@@ -1,5 +1,6 @@
 from typing import Protocol
 
+import torch
 from numpy.typing import NDArray
 
 
@@ -25,12 +26,12 @@ class NormalizationProtocol(Protocol):
         """
         ...
 
-    def denormalize(self, patch: NDArray) -> NDArray:
+    def denormalize(self, patch: torch.Tensor) -> torch.Tensor:
         """Reverse the normalization operation for a batch of patches.
 
         Parameters
         ----------
-        patch : NDArray
+        patch : torch.Tensor
             Patch, 2D or 3D, shape BC(Z)YX.
         """
         ...

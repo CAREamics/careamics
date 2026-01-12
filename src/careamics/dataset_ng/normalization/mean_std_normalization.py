@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from numpy.typing import NDArray
 
 from .normalization_protocol import NormalizationProtocol
@@ -161,14 +162,14 @@ class MeanStdNormalization(NormalizationProtocol):
         return (patch - mean) / (std + self.eps)
 
     def _apply_denormalization(
-        self, array: NDArray, mean: NDArray, std: NDArray
-    ) -> NDArray:
+        self, array: torch.Tensor, mean: NDArray, std: NDArray
+    ) -> torch.Tensor:
         """
         Apply the transform to the image.
 
         Parameters
         ----------
-        array : NDArray
+        array : torch.Tensor
             Image patch, 2D or 3D, shape BC(Z)YX.
         mean : NDArray
             Mean values.
@@ -177,22 +178,22 @@ class MeanStdNormalization(NormalizationProtocol):
 
         Returns
         -------
-        NDArray
+        torch.Tensor
             Denormalized image array.
         """
         return array * (std + self.eps) + mean
 
-    def denormalize(self, patch: NDArray) -> NDArray:
+    def denormalize(self, patch: torch.Tensor) -> torch.Tensor:
         """Reverse the normalization operation for a batch of patches.
 
         Parameters
         ----------
-        patch : NDArray
+        patch : torch.Tensor
             Patch, 2D or 3D, shape BC(Z)YX.
 
         Returns
         -------
-        NDArray
+        torch.Tensor
             Transformed array.
         """
         if len(self.input_means) != patch.shape[1]:
@@ -202,7 +203,7 @@ class MeanStdNormalization(NormalizationProtocol):
                 f"match."
             )
 
-        patch = patch.astype(np.float32)
+        patch = patch.to(dtype=torch.float32)
 
         means = _reshape_stats(self.input_means, patch.ndim, channel_axis=1)
         stds = _reshape_stats(self.input_stds, patch.ndim, channel_axis=1)

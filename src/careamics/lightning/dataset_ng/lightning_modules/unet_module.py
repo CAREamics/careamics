@@ -176,10 +176,10 @@ class UnetModule(L.LightningModule):
 
         x = batch[0]
         # TODO: add TTA
-        prediction = self.model(x.data).cpu().numpy()
+        prediction = self.model(x.data)
 
         normalization = self._trainer.datamodule.predict_dataset.normalization
-        denormalized_output = normalization.denormalize(prediction)
+        denormalized_output = normalization.denormalize(prediction).cpu().numpy()
 
         output_batch = ImageRegionData(
             data=denormalized_output,

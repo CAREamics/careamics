@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from numpy.typing import NDArray
 
 from .mean_std_normalization import _reshape_stats
@@ -114,17 +115,17 @@ class RangeNormalization(NormalizationProtocol):
 
         return norm_patch, norm_target
 
-    def denormalize(self, patch: NDArray) -> NDArray:
+    def denormalize(self, patch: torch.Tensor) -> torch.Tensor:
         """Reverse the normalization operation for a batch of patches.
 
         Parameters
         ----------
-        patch : NDArray
+        patch : torch.Tensor
             Normalized patch with shape BC(Z)YX.
 
         Returns
         -------
-        NDArray
+        torch.Tensor
             Denormalized patch.
         """
         if len(self.input_mins) != patch.shape[1]:
@@ -134,7 +135,7 @@ class RangeNormalization(NormalizationProtocol):
                 "do not match."
             )
 
-        patch = patch.astype(np.float32)
+        patch = patch.to(dtype=torch.float32)
 
         input_mins = _reshape_stats(self.input_mins, patch.ndim, channel_axis=1)
         input_maxes = _reshape_stats(self.input_maxes, patch.ndim, channel_axis=1)

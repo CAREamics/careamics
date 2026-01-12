@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from careamics.config.data import NGDataConfig
 from careamics.dataset_ng.factory import create_dataset
@@ -25,7 +26,8 @@ def test_mean_std_with_known_stats():
     assert np.abs(sample.data.mean()) < 0.5
     assert np.abs(sample.data.std() - 1.0) < 0.2
 
-    denormalized = dataset.normalization.denormalize(sample.data[np.newaxis, ...])
+    normalized_tensor = torch.from_numpy(sample.data).unsqueeze(0)
+    denormalized = dataset.normalization.denormalize(normalized_tensor)
     assert np.allclose(denormalized[0, 0], data, atol=1e-4)
 
 
@@ -73,7 +75,8 @@ def test_minmax_with_known_range():
     assert sample.data.min() >= 0.0
     assert sample.data.max() <= 1.0
 
-    denormalized = dataset.normalization.denormalize(sample.data[np.newaxis, ...])
+    normalized_tensor = torch.from_numpy(sample.data).unsqueeze(0)
+    denormalized = dataset.normalization.denormalize(normalized_tensor)
     assert np.allclose(denormalized[0, 0], data, atol=1e-4)
 
 
@@ -143,8 +146,9 @@ def test_no_normalization_preserves_values():
 
     assert np.allclose(sample.data[0], data)
 
-    denormalized = dataset.normalization.denormalize(sample.data)
-    assert np.allclose(denormalized, sample.data)
+    normalized_tensor = torch.from_numpy(sample.data).unsqueeze(0)
+    denormalized = dataset.normalization.denormalize(normalized_tensor)
+    assert np.allclose(denormalized[0, 0], data)
 
 
 def test_mean_std_per_channel():

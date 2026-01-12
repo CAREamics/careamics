@@ -1,6 +1,7 @@
 from typing import Any
 
 import numpy as np
+import torch
 from numpy.typing import NDArray
 
 from .normalization_protocol import NormalizationProtocol
@@ -47,18 +48,18 @@ class NoNormalization(NormalizationProtocol):
             target = target.astype(np.float32)
         return patch, target
 
-    def denormalize(self, patch: NDArray) -> NDArray:
+    def denormalize(self, patch: torch.Tensor) -> torch.Tensor:
         """
         Reverse the normalization operation for a batch of patches.
 
         Parameters
         ----------
-        patch : NDArray
+        patch : torch.Tensor
             Patch, 2D or 3D, shape BC(Z)YX.
 
         Returns
         -------
-        NDArray
+        torch.Tensor
             Denormalized patch.
         """
-        return patch.astype(np.float32)
+        return patch.to(dtype=torch.float32)
