@@ -22,6 +22,8 @@ from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 logger = get_logger(__name__)
 
+UNetAlgorithmConfig = CAREAlgorithm | N2VAlgorithm | N2NAlgorithm | PN2VAlgorithm
+
 
 class UnetModule(L.LightningModule):
     """CAREamics PyTorch Lightning module for UNet based algorithms.
@@ -35,9 +37,7 @@ class UnetModule(L.LightningModule):
 
     def __init__(
         self,
-        algorithm_config: Union[
-            CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, PN2VAlgorithm, dict[str, Any]
-        ],
+        algorithm_config: UNetAlgorithmConfig | dict[str, Any],
     ) -> None:
         """Instantiate UNet DataModule.
 

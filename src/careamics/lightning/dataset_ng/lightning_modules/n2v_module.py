@@ -25,7 +25,7 @@ class N2VModule(UnetModule):
         dictionary.
     """
 
-    def __init__(self, algorithm_config: Union[N2VAlgorithm, dict]) -> None:
+    def __init__(self, algorithm_config: N2VAlgorithm | dict[str, Any]) -> None:
         """Instantiate N2V DataModule.
 
         Parameters
