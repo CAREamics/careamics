@@ -174,10 +174,6 @@ class MultiChDloader(Dataset):
 
             self._rotation_transform = A.Compose([A.Flip(), A.RandomRotate90()])
 
-        # TODO: remove print log messages
-        # if print_vars:
-        #     msg = self._init_msg()
-        #     print(msg)
 
     def disable_noise(self):
         assert (
@@ -208,8 +204,6 @@ class MultiChDloader(Dataset):
             test_fraction=test_fraction,
             allow_generation=allow_generation,
         )
-
-        # self._data = self._data[..., ::-1]
 
         self._loaded_data_preprocessing(data_config)
 

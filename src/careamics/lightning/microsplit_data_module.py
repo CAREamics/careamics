@@ -152,24 +152,7 @@ def get_train_val_data(
         Split data array.
     """
     data = load_data(datadir)
-    # train_idx, val_idx, test_idx = get_datasplit_tuples(
-    #     val_fraction, test_fraction, len(data)
-    # )
-    # val_idx = test_idx = 0
-    # train_idx =
-    # if datasplit_type == DataSplitType.All:
-    #     data = data.astype(np.float64)
-    # elif datasplit_type == DataSplitType.Train:
-    #     data = data[train_idx].astype(np.float64)
-    # elif datasplit_type == DataSplitType.Val:
-    #     data = data[val_idx].astype(np.float64)
-    # elif datasplit_type == DataSplitType.Test:
-    #     # TODO this is only used for prediction, and only because old dataset uses it
-    #     data = data[test_idx].astype(np.float64)
-    # else:
-    #     raise Exception("invalid datasplit")
-
-    return data  # [0][None, ...] # TODO probably a hack
+    return data
 
 
 class MicroSplitDataModule(L.LightningDataModule):
@@ -416,11 +399,6 @@ def create_microsplit_train_datamodule(
         **dataset_config_params,
         datasplit_type=DataSplitType.Train,
     )
-    # val_config = MicroSplitDataConfig(
-    #     **dataset_config_params,
-    #     datasplit_type=DataSplitType.Val,
-    # )
-    # TODO, data config is duplicated here and in configuration
 
     return MicroSplitDataModule(
         data_config=train_config,
@@ -498,10 +476,6 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
         )
         self.predict_dataset.set_mean_std(*self.pred_config.data_stats)
 
-    # def prepare_data(self) -> None:
-    #     """Hook used to prepare the data before calling `setup`."""
-    #     # # TODO currently data preparation is handled in dataset creation, revisit!
-    #     pass
 
     def predict_dataloader(self) -> DataLoader:
         """
