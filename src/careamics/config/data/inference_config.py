@@ -6,7 +6,11 @@ from typing import Any, Literal, Self, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..validators import check_axes_validity, patch_size_ge_than_8_power_of_2
+from ..validators import (
+    check_axes_validity,
+    check_axes_validity_1d,
+    patch_size_ge_than_8_power_of_2,
+)
 
 
 class InferenceConfig(BaseModel):
@@ -17,11 +21,15 @@ class InferenceConfig(BaseModel):
     data_type: Literal["array", "tiff", "czi", "custom"]  # As defined in SupportedData
     """Type of input data: numpy.ndarray (array) or path (tiff, czi, or custom)."""
 
-    tile_size: Union[list[int]] | None = Field(default=None, min_length=2, max_length=3)
+    tile_size: Union[list[int]] | None = Field(
+        default=None, min_length=1, max_length=3
+    )  # Changed min_length from 2 to 1
     """Tile size of prediction, only effective if `tile_overlap` is specified."""
 
     tile_overlap: Union[list[int]] | None = Field(
-        default=None, min_length=2, max_length=3
+        default=None,
+        min_length=1,
+        max_length=3,  # Changed min_length from 2 to 1
     )
     """Overlap between tiles, only effective if `tile_size` is specified."""
 
@@ -136,22 +144,30 @@ class InferenceConfig(BaseModel):
         ValueError
             If axes are not valid.
         """
-        # Validate axes
-        check_axes_validity(axes)
+        # Check for 1D data first
+        spatial_axes = [ax for ax in axes if ax in "XYZ"]
+        if len(spatial_axes) == 1:
+            # Use 1D validation
+            check_axes_validity_1d(axes)
+        else:
+            # Use standard validation
+            check_axes_validity(axes)
 
         return axes
 
     @model_validator(mode="after")
     def validate_dimensions(self: Self) -> Self:
         """
-        Validate 2D/3D dimensions between axes and tile size.
+        Validate 1D/2D/3D dimensions between axes and tile size.
 
         Returns
         -------
         Self
             Validated prediction model.
         """
-        expected_len = 3 if "Z" in self.axes else 2
+        # Count spatial dimensions from axes
+        spatial_axes = [ax for ax in self.axes if ax in "XYZ"]
+        expected_len = len(spatial_axes)
 
         if self.tile_size is not None and self.tile_overlap is not None:
             if len(self.tile_size) != expected_len:
@@ -203,9 +219,7 @@ class InferenceConfig(BaseModel):
         elif (self.image_means is not None and self.image_stds is not None) and (
             len(self.image_means) != len(self.image_stds)
         ):
-            raise ValueError(
-                "Mean and std must be specified for each " "input channel."
-            )
+            raise ValueError("Mean and std must be specified for each input channel.")
 
         return self
 
@@ -224,6 +238,21 @@ class InferenceConfig(BaseModel):
     def set_3D(self, axes: str, tile_size: list[int], tile_overlap: list[int]) -> None:
         """
         Set 3D parameters.
+
+        Parameters
+        ----------
+        axes : str
+            Axes.
+        tile_size : list of int
+            Tile size.
+        tile_overlap : list of int
+            Tile overlap.
+        """
+        self._update(axes=axes, tile_size=tile_size, tile_overlap=tile_overlap)
+
+    def set_1D(self, axes: str, tile_size: list[int], tile_overlap: list[int]) -> None:
+        """
+        Set 1D parameters.
 
         Parameters
         ----------

@@ -14,12 +14,14 @@ def extract_patches_random(
     patch_size: Union[list[int], tuple[int, ...]],
     target: np.ndarray | None = None,
     seed: int | None = None,
+    num_patches_per_sample: int | None = None,
 ) -> Generator[tuple[np.ndarray, np.ndarray | None], None, None]:
     """
     Generate patches from an array in a random manner.
 
-    The method calculates how many patches the image can be divided into and then
-    extracts an equal number of random patches.
+    By default, the method calculates how many patches the image can be divided into
+    and extracts an equal number of random patches. Optionally, you can specify the
+    exact number of patches to extract per sample.
 
     It returns a generator that yields the following:
 
@@ -37,6 +39,10 @@ def extract_patches_random(
         Target array, by default None.
     seed : int or None, default=None
         Random seed.
+    num_patches_per_sample : int or None, default=None
+        Number of patches to extract per sample. If None, automatically calculated
+        as ceil(total_pixels / patch_pixels). Setting this to a higher value extracts
+        more patches (with potential overlap), lower value extracts fewer patches.
 
     Yields
     ------
@@ -63,7 +69,10 @@ def extract_patches_random(
             target_sample: np.ndarray = target[sample_idx, ...]
 
         # calculate the number of patches
-        n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
+        if num_patches_per_sample is None:
+            n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
+        else:
+            n_patches = num_patches_per_sample
 
         # iterate over the number of patches
         for _ in range(n_patches):

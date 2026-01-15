@@ -35,6 +35,10 @@ def _apply_struct_mask_torch(
     torch.Tensor
         Patch with the structN2V mask applied.
     """
+    # Handle empty coordinates
+    if len(coords) == 0:
+        return patch
+
     if rng is None:
         rng = torch.Generator(device=patch.device)
 
@@ -66,14 +70,21 @@ def _apply_struct_mask_torch(
 
     mins = patch.min(-1)[0].min(-1)[0]
     maxs = patch.max(-1)[0].max(-1)[0]
+
+    # Iterate over batch dimension
+    # Note: If input was 1D (L,), it should be reshaped to (1, L) before calling this
+    # to avoid iterating L times.
     for i in range(patch.shape[0]):
         batch_coords = mix[mix[:, 0] == i]
+        if len(batch_coords) == 0:
+            continue
+
         min_ = mins[i].item()
         max_ = maxs[i].item()
         random_values = torch.empty(len(batch_coords), device=patch.device).uniform_(
             min_, max_, generator=rng
         )
-        patch[tuple(batch_coords[:, i] for i in range(patch.ndim))] = random_values
+        patch[tuple(batch_coords[:, j] for j in range(patch.ndim))] = random_values
 
     return patch
 
@@ -96,28 +107,26 @@ def _get_stratified_coords_torch(
     mask_pixel_perc : float
         Expected value for percentage of masked pixels across the whole image.
     shape : tuple[int, ...]
-        Shape of the input patch.
+        Shape of the input patch including batch dimension.
+        (B, Y, X) or (B, Z, Y, X) or (B, L).
     rng : torch.Generator or None
         Random number generator.
 
     Returns
     -------
-    np.ndarray
-        Array of coordinates of the masked pixels.
+    torch.Tensor
+        Array of coordinates of the masked pixels with shape (n_points, n_dims).
+        The first column is the batch index.
     """
-    # Implementation logic:
-    #    find a box size s.t sampling 1 pixel within the box will result in the desired
-    # pixel percentage. Make a grid of these boxes that cover the patch (the area of
-    # the grid will be greater than or equal to the area of the patch) and sample 1
-    # pixel in each box. The density of masked pixels is an intensive property therefore
-    # any subset of this area will have the desired expected masked pixel percentage.
-    # We can get our desired patch with our desired expected masked pixel percentage by
-    # simply filtering out masked pixels that lie outside of our patch bounds.
+    # Handle edge case where mask percentage is 0
+    if mask_pixel_perc <= 0:
+        return torch.empty((0, len(shape)), dtype=torch.int32, device=rng.device)
 
+    # Assume shape is always (Batch, Spatial...) due to normalization in caller
     batch_size = shape[0]
     spatial_shape = shape[1:]
-
     n_dims = len(spatial_shape)
+
     expected_area_per_pixel = 1 / (mask_pixel_perc / 100)
 
     # keep the grid size in floats for a more accurate expected masked pixel percentage
@@ -125,10 +134,14 @@ def _get_stratified_coords_torch(
     grid_dims = torch.ceil(torch.tensor(spatial_shape) / grid_size).int()
 
     # coords on a fixed grid (top left corner)
+    # This meshgrid includes the Batch dimension as the first dimension
     coords = torch.stack(
         torch.meshgrid(
             torch.arange(batch_size, dtype=torch.float),
-            *[torch.arange(0, grid_dims[i].item()) * grid_size for i in range(n_dims)],
+            *[
+                torch.arange(0, grid_dims[i].item(), dtype=torch.float) * grid_size
+                for i in range(n_dims)
+            ],
             indexing="ij",
         ),
         -1,
@@ -140,15 +153,19 @@ def _get_stratified_coords_torch(
         torch.rand((len(coords), n_dims), device=rng.device, generator=rng) * grid_size
     )
     coords = coords.to(rng.device)
+
+    # Add offset to spatial dimensions only (indices 1 to end)
     coords[:, 1:] += offset
     coords = torch.floor(coords).int()
 
     # filter pixels out of bounds
+    # Check spatial dimensions against spatial shape
     out_of_bounds = (
         coords[:, 1:]
         >= torch.tensor(spatial_shape, device=rng.device).reshape(1, n_dims)
     ).any(1)
     coords = coords[~out_of_bounds]
+
     return coords
 
 
@@ -163,94 +180,109 @@ def uniform_manipulate_torch(
     """
     Manipulate pixels by replacing them with a neighbor values.
 
-    # TODO add more details, especially about batch
-
-    Manipulated pixels are selected uniformly selected in a subpatch, away from a grid
+    Manipulated pixels are selected uniformly in a subpatch, away from a grid
     with an approximate uniform probability to be selected across the whole patch.
     If `struct_params` is not None, an additional structN2V mask is applied to the
     data, replacing the pixels in the mask with random values (excluding the pixel
     already manipulated).
 
+    Supports 1D, 2D, and 3D data.
+
     Parameters
     ----------
     patch : torch.Tensor
-        Image patch, 2D or 3D, shape (y, x) or (z, y, x). # TODO batch and channel.
+        Image patch, 1D, 2D or 3D, shape (L,), (B, Y, X), or (B, Z, Y, X).
     mask_pixel_percentage : float
         Approximate percentage of pixels to be masked.
     subpatch_size : int
         Size of the subpatch the new pixel value is sampled from, by default 11.
     remove_center : bool
-        Whether to remove the center pixel from the subpatch, by default False.
+        Whether to remove the center pixel from the subpatch, by default True.
     struct_params : StructMaskParameters or None
         Parameters for the structN2V mask (axis and span).
-    rng : torch.default_generator or None
+    rng : torch.Generator or None
         Random number generator.
 
     Returns
     -------
     tuple[torch.Tensor, torch.Tensor]
-        tuple containing the manipulated patch and the corresponding mask.
+        Tuple containing the manipulated patch and the corresponding mask.
     """
     if rng is None:
         rng = torch.Generator(device=patch.device)
-        # TODO do we need seed ?
 
-    # create a copy of the patch
+    # 1. Normalize Input: Enforce (Batch, Spatial...) structure
+    # If input is 1D unbatched (L,), unsqueeze to (1, L)
+    is_unbatched_1d = len(patch.shape) == 1
+    if is_unbatched_1d:
+        patch = patch.unsqueeze(0)
+
     transformed_patch = patch.clone()
 
-    # get the coordinates of the pixels to be masked
+    # 2. Get Coordinates
+    # _get_stratified_coords_torch now always returns (N, 1+SpatialDims)
     subpatch_centers = _get_stratified_coords_torch(
         mask_pixel_percentage, patch.shape, rng
-    )
-    subpatch_centers = subpatch_centers.to(device=patch.device)
+    ).to(device=patch.device)
 
-    # TODO refactor with non negative indices?
-    # arrange the list of indices to represent the ROI around the pixel to be masked
+    # If no pixels to mask, return early
+    if len(subpatch_centers) == 0:
+        mask = torch.zeros_like(transformed_patch, dtype=torch.uint8)
+        if is_unbatched_1d:
+            return transformed_patch.squeeze(0), mask.squeeze(0)
+        return transformed_patch, mask
+
     roi_span_full = torch.arange(
         -(subpatch_size // 2),
         subpatch_size // 2 + 1,
         dtype=torch.int32,
         device=patch.device,
     )
-
-    # remove the center pixel from the ROI
     roi_span = roi_span_full[roi_span_full != 0] if remove_center else roi_span_full
 
-    # create a random increment to select the replacement value
-    # this increment is added to the center coordinates
+    # 3. Calculate Random Increments
+    # We only increment spatial dimensions (dim 1 onwards)
+    n_spatial_dims = patch.ndim - 1
+
     random_increment = roi_span[
         torch.randint(
-            low=min(roi_span),
-            high=max(roi_span) + 1,
-            # one less coord dim: we shouldn't add a random increment to the batch coord
-            size=(subpatch_centers.shape[0], subpatch_centers.shape[1] - 1),
+            low=0,
+            high=len(roi_span),
+            size=(subpatch_centers.shape[0], n_spatial_dims),
             generator=rng,
             device=patch.device,
         )
     ]
 
-    # compute the replacement pixel coordinates
     replacement_coords = subpatch_centers.clone()
-    # only add random increment to the spatial dimensions, not the batch dimension
-    replacement_coords[:, 1:] = torch.clamp(
-        replacement_coords[:, 1:] + random_increment,
-        torch.zeros_like(torch.tensor(patch.shape[1:])).to(device=patch.device),
-        torch.tensor([v - 1 for v in patch.shape[1:]]).to(device=patch.device),
+
+    # Calculate limits for spatial dims
+    spatial_limits = torch.tensor(
+        [v - 1 for v in patch.shape[1:]], dtype=torch.int32, device=patch.device
     )
 
-    # replace the pixels in the patch
-    # tuples and transpose are needed for proper indexing
+    # Add increments and clamp
+    replacement_coords[:, 1:] = torch.clamp(
+        replacement_coords[:, 1:] + random_increment,
+        min=torch.zeros(n_spatial_dims, dtype=torch.int32, device=patch.device),
+        max=spatial_limits,
+    )
+
+    # 4. Apply Replacement
     replacement_pixels = patch[tuple(replacement_coords.T)]
     transformed_patch[tuple(subpatch_centers.T)] = replacement_pixels
 
-    # create a mask representing the masked pixels
     mask = (transformed_patch != patch).to(dtype=torch.uint8)
 
-    # apply structN2V mask if needed
+    # 5. Apply Struct Mask
     if struct_params is not None:
         transformed_patch = _apply_struct_mask_torch(
             transformed_patch, subpatch_centers, struct_params, rng
         )
+
+    # 6. Restore Input Shape
+    if is_unbatched_1d:
+        return transformed_patch.squeeze(0), mask.squeeze(0)
 
     return transformed_patch, mask
 
@@ -268,121 +300,148 @@ def median_manipulate_torch(
     N2V2 version, manipulated pixels are selected randomly away from a grid with an
     approximate uniform probability to be selected across the whole patch.
 
-    If `struct_params` is not None, an additional structN2V mask is applied to the data,
-    replacing the pixels in the mask with random values (excluding the pixel already
-    manipulated).
+    Supports 1D, 2D, and 3D data.
 
     Parameters
     ----------
     batch : torch.Tensor
-        Image patch, 2D or 3D, shape (y, x) or (z, y, x).
+        Patch data, 1D, 2D or 3D, shape (L,), (B, Y, X), or (B, Z, Y, X).
     mask_pixel_percentage : float
         Approximate percentage of pixels to be masked.
     subpatch_size : int
         Size of the subpatch the new pixel value is sampled from, by default 11.
-    struct_params : StructMaskParameters or None, optional
+    struct_params : StructMaskParameters | None, optional
         Parameters for the structN2V mask (axis and span).
     rng : torch.default_generator or None, optional
         Random number generator, by default None.
 
     Returns
     -------
-    tuple[torch.Tensor, torch.Tensor, torch.Tensor]
-           tuple containing the manipulated patch, the original patch and the mask.
+    tuple[torch.Tensor, torch.Tensor]
+        Tuple containing the manipulated patch and the mask.
     """
-    # get the coordinates of the future ROI centers
+    if rng is None:
+        rng = torch.Generator(device=batch.device)
+
+    # 1. Normalize Input: Enforce (Batch, Spatial...) structure
+    is_unbatched_1d = len(batch.shape) == 1
+    if is_unbatched_1d:
+        batch = batch.unsqueeze(0)
+
+    # 2. Get Coordinates
     subpatch_center_coordinates = _get_stratified_coords_torch(
         mask_pixel_percentage, batch.shape, rng
-    ).to(
-        device=batch.device
-    )  # (num_coordinates, batch + num_spatial_dims)
+    ).to(device=batch.device)
 
-    # Calculate the padding value for the input tensor
+    if len(subpatch_center_coordinates) == 0:
+        mask = torch.zeros_like(batch, dtype=torch.uint8)
+        output_batch = batch.clone()
+        if is_unbatched_1d:
+            return output_batch.squeeze(0), mask.squeeze(0)
+        return output_batch, mask
+
+    # 3. Create Offsets for ROIs
     pad_value = subpatch_size // 2
+    n_spatial_dims = batch.ndim - 1
 
-    # Generate all offsets for the ROIs. Iteration starting from 1 to skip the batch
-    offsets = torch.meshgrid(
-        [
-            torch.arange(-pad_value, pad_value + 1, device=batch.device)
-            for _ in range(1, subpatch_center_coordinates.shape[1])
-        ],
-        indexing="ij",
-    )
-    offsets = torch.stack(
-        [axis_offset.flatten() for axis_offset in offsets], dim=1
-    )  # (subpatch_size**2, num_spatial_dims)
+    offset_tensors = [
+        torch.arange(-pad_value, pad_value + 1, device=batch.device)
+        for _ in range(n_spatial_dims)
+    ]
 
-    # Create the list to assemble coordinates of the ROIs centers for each axis
+    if n_spatial_dims == 1:
+        # Special case for 1D spatial dim
+        offsets = offset_tensors[0].unsqueeze(1)  # (subpatch_size, 1)
+    else:
+        offsets = torch.stack(
+            torch.meshgrid(*offset_tensors, indexing="ij"), dim=-1
+        ).reshape(-1, n_spatial_dims)
+
+    # 4. Gather ROIs (Regions of Interest)
     coords_axes = []
-    # Create the list to assemble the span of coordinates defining the ROIs for each
-    # axis
     coords_expands = []
-    for d in range(subpatch_center_coordinates.shape[1]):
+
+    # Iterate over all dimensions (0 is batch, 1..N are spatial)
+    for d in range(batch.ndim):
         coords_axes.append(subpatch_center_coordinates[:, d])
         if d == 0:
-            # For batch dimension coordinates are not expanded (no offsets)
+            # Batch dimension: expand without numerical offset
             coords_expands.append(
                 subpatch_center_coordinates[:, d]
                 .unsqueeze(1)
-                .expand(-1, subpatch_size ** offsets.shape[1])
-            )  # (num_coordinates, subpatch_size**num_spacial_dims)
+                .expand(-1, offsets.shape[0])
+            )
         else:
-            # For spatial dimensions, coordinates are expanded with offsets, creating
-            # spans
+            # Spatial dimensions: add offsets
+            # offsets column index is d-1 because offsets tensor has no batch dim
             coords_expands.append(
                 (
                     subpatch_center_coordinates[:, d].unsqueeze(1) + offsets[:, d - 1]
                 ).clamp(0, batch.shape[d] - 1)
-            )  # (num_coordinates, subpatch_size**num_spacial_dims)
+            )
 
-    # create array of rois by indexing the batch with gathered coordinates
-    rois = batch[
-        tuple(coords_expands)
-    ]  # (num_coordinates, subpatch_size**num_spacial_dims)
+    rois = batch[tuple(coords_expands)]
 
+    # 5. Filter ROIs (Struct or Center Pixel)
     if struct_params is not None:
-        # Create the structN2V mask
-        h, w = torch.meshgrid(
-            torch.arange(subpatch_size), torch.arange(subpatch_size), indexing="ij"
+        # Create grid for the subpatch to determine which pixels to mask out
+        spatial_grids = torch.meshgrid(
+            *[
+                torch.arange(subpatch_size, device=batch.device)
+                for _ in range(n_spatial_dims)
+            ],
+            indexing="ij",
         )
+
         center_idx = subpatch_size // 2
         halfspan = (struct_params.span - 1) // 2
 
-        # Determine the axis along which to apply the mask
-        if struct_params.axis == 0:
-            center_axis = h
-            span_axis = w
-        else:
-            center_axis = w
-            span_axis = h
-
-        # Create the mask
-        struct_mask = (
-            ~(
-                (center_axis == center_idx)
-                & (span_axis >= center_idx - halfspan)
-                & (span_axis <= center_idx + halfspan)
+        if struct_params.axis >= n_spatial_dims:
+            raise ValueError(
+                f"Struct axis {struct_params.axis} out of bounds for {n_spatial_dims}D "
+                f"spatial data"
             )
-        ).flatten()
-        rois_filtered = rois[:, struct_mask]
+
+        # Logic to mask out the 'span' along the axis
+        # We want to keep pixels that are NOT in the struct mask line
+        mask_condition = torch.ones(
+            spatial_grids[0].shape, dtype=torch.bool, device=batch.device
+        )
+
+        for i in range(n_spatial_dims):
+            if i == struct_params.axis:
+                # The masked axis must be within the span
+                mask_condition &= (spatial_grids[i] >= center_idx - halfspan) & (
+                    spatial_grids[i] <= center_idx + halfspan
+                )
+            else:
+                # Other axes must be exactly at the center
+                mask_condition &= spatial_grids[i] == center_idx
+
+        keep_mask = (~mask_condition).flatten()
+        rois_filtered = rois[:, keep_mask]
     else:
-        # Remove the center pixel value from the rois
-        center_idx = (subpatch_size ** offsets.shape[1]) // 2
+        # Simple N2V: Remove center pixel
+        center_idx = (subpatch_size**n_spatial_dims) // 2
         rois_filtered = torch.cat(
             [rois[:, :center_idx], rois[:, center_idx + 1 :]], dim=1
         )
 
-    # compute the medians.
-    medians = rois_filtered.median(dim=1).values  # (num_coordinates,)
+    # 6. Compute Median and Update
+    medians = rois_filtered.median(dim=1).values
 
-    # Update the output tensor with medians
     output_batch = batch.clone()
     output_batch[tuple(coords_axes)] = medians
     mask = torch.where(output_batch != batch, 1, 0).to(torch.uint8)
 
+    # 7. Apply Struct Mask (if active)
     if struct_params is not None:
         output_batch = _apply_struct_mask_torch(
-            output_batch, subpatch_center_coordinates, struct_params
+            output_batch, subpatch_center_coordinates, struct_params, rng
         )
+
+    # 8. Restore Input Shape
+    if is_unbatched_1d:
+        return output_batch.squeeze(0), mask.squeeze(0)
 
     return output_batch, mask

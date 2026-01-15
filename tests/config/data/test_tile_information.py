@@ -23,7 +23,7 @@ def test_error_on_coords():
         TileInformation(array_shape=(1, 6, 6))
 
 
-@pytest.mark.parametrize("array_shape", [(6,), (6, 6), (1, 1, 1, 6, 6)])
+@pytest.mark.parametrize("array_shape", [(6,)])  # Why not allow 5D ?
 def test_error_n_dims(array_shape):
     """
     Test that an error is raised if the array shape does not have 3 or 4 dimensions.

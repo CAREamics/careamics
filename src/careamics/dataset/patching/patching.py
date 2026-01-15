@@ -11,6 +11,7 @@ from numpy.typing import NDArray
 from ...utils.logging import get_logger
 from ..dataset_utils import reshape_array
 from ..dataset_utils.running_stats import compute_normalization_stats
+from .random_patching import extract_patches_random
 from .sequential_patching import extract_patches_sequential
 
 logger = get_logger(__name__)
@@ -57,13 +58,15 @@ class PatchedOutput:
     """Statistics of the target patches."""
 
 
-# called by in memory dataset
 def prepare_patches_supervised(
     train_files: list[Path],
     target_files: list[Path],
     axes: str,
     patch_size: Union[list[int], tuple[int, ...]],
     read_source_func: Callable,
+    patching_strategy: str = "sequential",
+    patching_seed: int | None = None,
+    num_patches_per_sample: int | None = None,
 ) -> PatchedOutput:
     """
     Iterate over data source and create an array of patches and corresponding targets.
@@ -82,11 +85,18 @@ def prepare_patches_supervised(
         Size of the patches.
     read_source_func : Callable
         Function to read the data.
+    patching_strategy : str, default="sequential"
+        Patching strategy to use. Options are "sequential" or "random".
+    patching_seed : int or None, default=None
+        Random seed for random patching. Only used when patching_strategy is "random".
+    num_patches_per_sample : int or None, default=None
+        Number of patches to extract per sample when using random patching. If None,
+        automatically calculated. Only used when patching_strategy is "random".
 
     Returns
     -------
-    np.ndarray
-        Array of patches.
+    PatchedOutput
+        Patched output with supervised patches and targets.
     """
     means, stds, num_samples = 0, 0, 0
     all_patches, all_targets = [], []
@@ -102,25 +112,39 @@ def prepare_patches_supervised(
             sample = reshape_array(sample, axes)
             target = reshape_array(target, axes)
 
-            # generate patches, return a generator
-            patches, targets = extract_patches_sequential(
-                sample, patch_size=patch_size, target=target
-            )
+            # generate patches with axes parameter
+            if patching_strategy == "random":
+                # extract_patches_random returns a generator, collect results
+                patch_generator = extract_patches_random(
+                    sample,
+                    patch_size=patch_size,
+                    target=target,
+                    seed=patching_seed,
+                    num_patches_per_sample=num_patches_per_sample,
+                )
+                patches_list = []
+                targets_list = []
+                for patch, target_patch in patch_generator:
+                    patches_list.append(patch)
+                    if target_patch is not None:
+                        targets_list.append(target_patch)
+                patches = np.array(patches_list)
+                targets = np.array(targets_list) if targets_list else None
+            else:
+                patches, targets = extract_patches_sequential(
+                    sample, patch_size=patch_size, target=target, axes=axes
+                )
 
-            # convert generator to list and add to all_patches
             all_patches.append(patches)
 
-            # ensure targets are not None (type checking)
             if targets is not None:
                 all_targets.append(targets)
             else:
                 raise ValueError(f"No target found for {target_filename}.")
 
         except Exception as e:
-            # emit warning and continue
             logger.error(f"Failed to read {train_filename} or {target_filename}: {e}")
 
-    # raise error if no valid samples found
     if num_samples == 0 or len(all_patches) == 0:
         raise ValueError(
             f"No valid samples found in the input data: {train_files} and "
@@ -142,12 +166,14 @@ def prepare_patches_supervised(
     )
 
 
-# called by in_memory_dataset
 def prepare_patches_unsupervised(
     train_files: list[Path],
     axes: str,
     patch_size: Union[list[int], tuple[int]],
     read_source_func: Callable,
+    patching_strategy: str = "sequential",
+    patching_seed: int | None = None,
+    num_patches_per_sample: int | None = None,
 ) -> PatchedOutput:
     """Iterate over data source and create an array of patches.
 
@@ -163,6 +189,13 @@ def prepare_patches_unsupervised(
         Size of the patches.
     read_source_func : Callable
         Function to read the data.
+    patching_strategy : str, default="sequential"
+        Patching strategy to use. Options are "sequential" or "random".
+    patching_seed : int or None, default=None
+        Random seed for random patching. Only used when patching_strategy is "random".
+    num_patches_per_sample : int or None, default=None
+        Number of patches to extract per sample when using random patching. If None,
+        automatically calculated. Only used when patching_strategy is "random".
 
     Returns
     -------
@@ -181,16 +214,26 @@ def prepare_patches_unsupervised(
             # reshape array
             sample = reshape_array(sample, axes)
 
-            # generate patches, return a generator
-            patches, _ = extract_patches_sequential(sample, patch_size=patch_size)
+            # generate patches - use axes parameter for 1D compatibility
+            if patching_strategy == "random":
+                # extract_patches_random returns a generator, so we need to collect
+                # results
+                patch_generator = extract_patches_random(
+                    sample,
+                    patch_size=patch_size,
+                    seed=patching_seed,
+                    num_patches_per_sample=num_patches_per_sample,
+                )
+                patches = np.array([patch for patch, _ in patch_generator])
+            else:
+                patches, _ = extract_patches_sequential(
+                    sample, patch_size=patch_size, axes=axes
+                )
 
-            # convert generator to list and add to all_patches
             all_patches.append(patches)
         except Exception as e:
-            # emit warning and continue
             logger.error(f"Failed to read {filename}: {e}")
 
-    # raise error if no valid samples found
     if num_samples == 0:
         raise ValueError(f"No valid samples found in the input data: {train_files}.")
 
@@ -204,97 +247,135 @@ def prepare_patches_unsupervised(
     )
 
 
-# called on arrays by in memory dataset
 def prepare_patches_supervised_array(
     data: NDArray,
     axes: str,
     data_target: NDArray,
     patch_size: Union[list[int], tuple[int]],
+    patching_strategy: str = "sequential",
+    patching_seed: int | None = None,
+    num_patches_per_sample: int | None = None,
 ) -> PatchedOutput:
-    """Iterate over data source and create an array of patches.
+    """
+    Prepare patches for supervised training from arrays.
 
-    This method expects an array of shape SC(Z)YX, where S and C can be singleton
-    dimensions.
-
-    Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
+    Updated to support 1D, 2D, and 3D data through axes parameter.
 
     Parameters
     ----------
-    data : numpy.ndarray
-        Input data array.
+    data : NDArray
+        Input data.
     axes : str
-        Axes of the data.
-    data_target : numpy.ndarray
-        Target data array.
-    patch_size : list or tuple of int
-        Size of the patches.
+        Axes string describing data dimensions.
+    data_target : NDArray
+        Target data.
+    patch_size : Union[list[int], tuple[int]]
+        Patch size for spatial dimensions.
+    patching_strategy : str, default="sequential"
+        Patching strategy to use. Options are "sequential" or "random".
+    patching_seed : int or None, default=None
+        Random seed for random patching. Only used when patching_strategy is "random".
+    num_patches_per_sample : int or None, default=None
+        Number of patches to extract per sample when using random patching. If None,
+        automatically calculated. Only used when patching_strategy is "random".
 
     Returns
     -------
     PatchedOutput
-        Dataclass holding the source and target patches, with their statistics.
+        Patched output with supervised patches and targets.
     """
-    # reshape array
+    # reshape the data
     reshaped_sample = reshape_array(data, axes)
     reshaped_target = reshape_array(data_target, axes)
 
+    # extract patches with axes parameter
+    if patching_strategy == "random":
+        # extract_patches_random returns a generator, collect results
+        patch_generator = extract_patches_random(
+            reshaped_sample,
+            patch_size=patch_size,
+            target=reshaped_target,
+            seed=patching_seed,
+            num_patches_per_sample=num_patches_per_sample,
+        )
+        patches_list = []
+        targets_list = []
+        for patch, target_patch in patch_generator:
+            patches_list.append(patch)
+            if target_patch is not None:
+                targets_list.append(target_patch)
+        patches = np.array(patches_list)
+        targets = np.array(targets_list) if targets_list else None
+    else:
+        patches, targets = extract_patches_sequential(
+            reshaped_sample, patch_size=patch_size, target=reshaped_target, axes=axes
+        )
+
     # compute statistics
-    image_means, image_stds = compute_normalization_stats(reshaped_sample)
-    target_means, target_stds = compute_normalization_stats(reshaped_target)
-
-    # generate patches, return a generator
-    patches, patch_targets = extract_patches_sequential(
-        reshaped_sample, patch_size=patch_size, target=reshaped_target
-    )
-
-    if patch_targets is None:
-        raise ValueError("No target extracted.")
+    means, stds = compute_normalization_stats(patches)
+    target_means, target_stds = compute_normalization_stats(targets)
 
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
 
     return PatchedOutput(
-        patches,
-        patch_targets,
-        Stats(image_means, image_stds),
-        Stats(target_means, target_stds),
+        patches=patches,
+        targets=targets,
+        image_stats=Stats(means=means, stds=stds),
+        target_stats=Stats(means=target_means, stds=target_stds),
     )
 
 
-# called by in memory dataset
 def prepare_patches_unsupervised_array(
     data: NDArray,
     axes: str,
     patch_size: Union[list[int], tuple[int]],
+    patching_strategy: str = "sequential",
+    patching_seed: int | None = None,
+    num_patches_per_sample: int | None = None,
 ) -> PatchedOutput:
     """
-    Iterate over data source and create an array of patches.
-
-    This method expects an array of shape SC(Z)YX, where S and C can be singleton
-    dimensions.
-
-    Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
+    Prepare patches from array for unsupervised training.
 
     Parameters
     ----------
-    data : numpy.ndarray
-        Input data array.
+    data : NDArray
+        Input array.
     axes : str
-        Axes of the data.
-    patch_size : list or tuple of int
-        Size of the patches.
+        Axes description.
+    patch_size : list of int or tuple of int
+        Patch size.
+    patching_strategy : str, default="sequential"
+        Patching strategy to use. Options are "sequential" or "random".
+    patching_seed : int or None, default=None
+        Random seed for random patching. Only used when patching_strategy is "random".
+    num_patches_per_sample : int or None, default=None
+        Number of patches to extract per sample when using random patching. If None,
+        automatically calculated. Only used when patching_strategy is "random".
 
     Returns
     -------
     PatchedOutput
-        Dataclass holding the patches and their statistics.
+        Patches output.
     """
     # reshape array
     reshaped_sample = reshape_array(data, axes)
 
-    # calculate mean and std
     means, stds = compute_normalization_stats(reshaped_sample)
 
-    # generate patches, return a generator
-    patches, _ = extract_patches_sequential(reshaped_sample, patch_size=patch_size)
+    # generate patches based on strategy
+    if patching_strategy == "random":
+        # extract_patches_random returns a generator, so we need to collect results
+        patch_generator = extract_patches_random(
+            reshaped_sample,
+            patch_size=patch_size,
+            seed=patching_seed,
+            num_patches_per_sample=num_patches_per_sample,
+        )
+        patches = np.array([patch for patch, _ in patch_generator])
+    else:
+        patches, _ = extract_patches_sequential(
+            reshaped_sample, patch_size=patch_size, axes=axes
+        )
 
+    logger.info(f"Final: {patches.shape[0]} patches from input array.")
     return PatchedOutput(patches, None, Stats(means, stds), Stats((), ()))

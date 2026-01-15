@@ -181,9 +181,17 @@ class UnetModule(L.LightningModule):
 
         means = self._trainer.datamodule.stats.means
         stds = self._trainer.datamodule.stats.stds
+
+        # Get target channel indices for per-channel models (e.g., N2V)
+        target_channel_indices = None
+        if hasattr(self.config, "n2v_config") and self.config.n2v_config is not None:
+            if hasattr(self.config.n2v_config, "data_channel_indices"):
+                target_channel_indices = self.config.n2v_config.data_channel_indices
+
         denormalize = Denormalize(
             image_means=means,
             image_stds=stds,
+            target_channel_indices=target_channel_indices,
         )
         denormalized_output = denormalize(prediction)
 
