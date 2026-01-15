@@ -30,8 +30,8 @@ class N2VModule(L.LightningModule):
         dictionary.
     """
 
-    def __init__(self, algorithm_config: N2VAlgorithm | dict) -> None:
-        """Instantiate N2V Module.
+    def __init__(self, algorithm_config: N2VAlgorithm | dict[str, Any]) -> None:
+        """Instantiate N2V DataModule.
 
         Parameters
         ----------
