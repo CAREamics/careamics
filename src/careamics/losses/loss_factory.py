@@ -18,6 +18,7 @@ from .lvae.losses import (
     denoisplit_loss,
     denoisplit_musplit_loss,
     hdn_loss,
+    microsplit_loss,
     musplit_loss,
 )
 
@@ -75,6 +76,9 @@ def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
 
     elif loss == SupportedLoss.DENOISPLIT_MUSPLIT:
         return denoisplit_musplit_loss
+
+    elif loss == SupportedLoss.MICROSPLIT:
+        return microsplit_loss
 
     else:
         raise NotImplementedError(f"Loss {loss} is not yet supported.")

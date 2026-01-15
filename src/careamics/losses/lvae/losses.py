@@ -359,7 +359,7 @@ def musplit_loss(
     targets: torch.Tensor,
     config: LVAELossConfig,
     gaussian_likelihood: GaussianLikelihood | None,
-    noise_model_likelihood: NoiseModelLikelihood | None = None,  # TODO: ugly
+    noise_model_likelihood: NoiseModelLikelihood | None = None,
 ) -> dict[str, torch.Tensor] | None:
     """Loss function for muSplit.
 
@@ -516,7 +516,7 @@ def denoisplit_musplit_loss(
     gaussian_likelihood: GaussianLikelihood,
     noise_model_likelihood: NoiseModelLikelihood,
 ) -> dict[str, torch.Tensor] | None:
-    """Loss function for DenoiSplit.
+    """Loss function for DenoiSplit-muSplit.
 
     Parameters
     ----------
@@ -583,6 +583,162 @@ def denoisplit_musplit_loss(
         "kl_loss": kl_loss.detach(),
     }
     # https://github.com/openai/vdvae/blob/main/train.py#L26
+    if torch.isnan(net_loss).any():
+        return None
+
+    return output
+
+
+def microsplit_loss(
+    model_outputs: tuple[torch.Tensor, dict[str, Any]],
+    targets: torch.Tensor,
+    config: LVAELossConfig,
+    gaussian_likelihood: GaussianLikelihood | None = None,
+    noise_model_likelihood: NoiseModelLikelihood | None = None,
+) -> dict[str, torch.Tensor] | None:
+    """Unified loss function for MicroSplit (muSplit, denoiSplit, muSplit-denoiSplit).
+
+    This function unifies the loss computation for all MicroSplit variants:
+    - muSplit: gaussian_weight > 0, nm_weight = 0 (Gaussian likelihood only)
+    - denoiSplit: nm_weight > 0, gaussian_weight = 0 (noise model likelihood only)
+    - muSplit-denoiSplit: both weights > 0 (weighted combination)
+
+    Parameters
+    ----------
+    model_outputs : tuple[torch.Tensor, dict[str, Any]]
+        Tuple containing the model predictions (shape is (B, `target_ch`, [Z], Y, X))
+        and the top-down layer data (e.g., sampled latents, KL-loss values, etc.).
+    targets : torch.Tensor
+        The target image used to compute the reconstruction loss. Shape is
+        (B, `target_ch`, [Z], Y, X).
+    config : LVAELossConfig
+        The config for loss function containing all loss hyperparameters.
+        Uses `musplit_weight` as gaussian_weight and `denoisplit_weight` as nm_weight.
+    gaussian_likelihood : GaussianLikelihood | None
+        The Gaussian likelihood object. Required if musplit_weight > 0.
+    noise_model_likelihood : NoiseModelLikelihood | None
+        The noise model likelihood object. Required if denoisplit_weight > 0.
+
+    Returns
+    -------
+    output : dict[str, torch.Tensor] | None
+        A dictionary containing the overall loss `["loss"]`, the reconstruction loss
+        `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
+        Returns None if loss contains NaN values.
+    """
+    predictions, td_data = model_outputs
+    img_shape = targets.shape[2:]
+
+    gaussian_weight = config.musplit_weight
+    nm_weight = config.denoisplit_weight
+
+    if gaussian_weight > 0 and gaussian_likelihood is None:
+        raise ValueError("gaussian_likelihood required when musplit_weight > 0")
+    if nm_weight > 0 and noise_model_likelihood is None:
+        raise ValueError("noise_model_likelihood required when denoisplit_weight > 0")
+
+    recons_loss: torch.Tensor | float = 0.0
+    if nm_weight > 0 and gaussian_weight > 0:
+        if predictions.shape[1] == 2 * targets.shape[1]:
+            pred_mean, _ = predictions.chunk(2, dim=1)
+        else:
+            pred_mean = predictions
+
+        recons_loss_nm = get_reconstruction_loss(
+            reconstruction=pred_mean,
+            target=targets,
+            likelihood_obj=noise_model_likelihood,
+        )
+        recons_loss_gm = get_reconstruction_loss(
+            reconstruction=predictions,
+            target=targets,
+            likelihood_obj=gaussian_likelihood,
+        )
+        recons_loss = nm_weight * recons_loss_nm + gaussian_weight * recons_loss_gm
+
+    elif nm_weight > 0:
+        recons_loss = get_reconstruction_loss(
+            reconstruction=predictions,
+            target=targets,
+            likelihood_obj=noise_model_likelihood,
+        )
+
+    elif gaussian_weight > 0:
+        recons_loss = get_reconstruction_loss(
+            reconstruction=predictions,
+            target=targets,
+            likelihood_obj=gaussian_likelihood,
+        )
+
+    recons_loss = config.reconstruction_weight * recons_loss
+    if isinstance(recons_loss, torch.Tensor) and torch.isnan(recons_loss).any():
+        recons_loss = 0.0
+
+    kl_weight = get_kl_weight(
+        config.kl_params.annealing,
+        config.kl_params.start,
+        config.kl_params.annealtime,
+        config.kl_weight,
+        config.kl_params.current_epoch,
+    )
+
+    if nm_weight > 0 and gaussian_weight > 0:
+        denoisplit_kl = get_kl_divergence_loss(
+            kl_type=config.kl_params.loss_type,
+            topdown_data=td_data,
+            rescaling="image_dim",
+            aggregation="sum",
+            free_bits_coeff=1.0,
+            img_shape=img_shape,
+        )
+        musplit_kl = get_kl_divergence_loss(
+            kl_type="kl",
+            topdown_data=td_data,
+            rescaling="latent_dim",
+            aggregation="mean",
+            free_bits_coeff=0.0,
+            img_shape=img_shape,
+        )
+        kl_loss = nm_weight * denoisplit_kl + gaussian_weight * musplit_kl
+        kl_loss = kl_weight * kl_loss
+
+    elif nm_weight > 0:
+        kl_loss = (
+            get_kl_divergence_loss(
+                kl_type=config.kl_params.loss_type,
+                topdown_data=td_data,
+                rescaling="image_dim",
+                aggregation="sum",
+                free_bits_coeff=1.0,
+                img_shape=img_shape,
+            )
+            * kl_weight
+        )
+
+    else:
+        kl_loss = (
+            get_kl_divergence_loss(
+                kl_type="kl",
+                topdown_data=td_data,
+                rescaling="latent_dim",
+                aggregation="mean",
+                free_bits_coeff=0.0,
+                img_shape=img_shape,
+            )
+            * kl_weight
+        )
+
+    net_loss = recons_loss + kl_loss
+    output = {
+        "loss": net_loss,
+        "reconstruction_loss": (
+            recons_loss.detach()
+            if isinstance(recons_loss, torch.Tensor)
+            else recons_loss
+        ),
+        "kl_loss": kl_loss.detach(),
+    }
+
     if torch.isnan(net_loss).any():
         return None
 

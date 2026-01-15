@@ -268,6 +268,44 @@ class MultiChannelNoiseModel(nn.Module):
             )
         return torch.cat(ll_list, dim=1)
 
+    def sample_observation(self, signal: NDArray) -> NDArray:
+        """Sample noisy observations from the learned noise models.
+
+        For each channel, samples noisy observations using the corresponding
+        channel's noise model.
+
+        Parameters
+        ----------
+        signal : NDArray
+            Clean signal data with shape (..., C, Y, X) where C is the number
+            of channels matching the number of noise models.
+
+        Returns
+        -------
+        NDArray
+            Sampled noisy observation with same shape as input signal.
+        """
+        if signal.ndim < 3:
+            raise ValueError(
+                f"Signal must have at least 3 dimensions (C, Y, X), got {signal.ndim}D"
+            )
+
+        n_channels = signal.shape[-3]
+        if n_channels != self._nm_cnt:
+            raise ValueError(
+                f"Number of channels ({n_channels}) must match number of "
+                f"noise models ({self._nm_cnt})"
+            )
+
+        samples_list = []
+        for ch_idx in range(n_channels):
+            nmodel = getattr(self, f"nmodel_{ch_idx}")
+            channel_signal = signal[..., ch_idx, :, :]
+            channel_sample = nmodel.sample_observation_from_signal(channel_signal)
+            samples_list.append(channel_sample)
+
+        return np.stack(samples_list, axis=-3)
+
 
 class GaussianMixtureNoiseModel(nn.Module):
     """Define a noise model parameterized as a mixture of gaussians.
@@ -661,57 +699,73 @@ class GaussianMixtureNoiseModel(nn.Module):
         return train_losses
 
     def sample_observation_from_signal(self, signal: NDArray) -> NDArray:
-        """
-        Sample an instance of observation based on an input signal using a
-        learned Gaussian Mixture Model. For each pixel in the input signal,
-        samples a corresponding noisy pixel.
+        """Sample noisy observations from the learned noise model.
+
+        For each pixel in the input signal, samples a corresponding noisy
+        pixel from the Gaussian Mixture Model.
 
         Parameters
         ----------
-        signal: numpy array
-            Clean 2D signal data.
+        signal : NDArray
+            Clean signal data. Can be 2D (Y, X) or higher dimensional.
+            For 3D+ arrays, sampling is performed independently for each 2D slice.
 
         Returns
         -------
-        observation: numpy array
-            An instance of noisy observation data based on the input signal.
+        NDArray
+            Sampled noisy observation with same shape as input signal.
         """
-        assert len(signal.shape) == 2, "Only 2D inputs are supported."
+        if signal.ndim < 2:
+            raise ValueError(f"Signal must be at least 2D, got {signal.ndim}D")
 
+        if signal.ndim == 2:
+            return self._sample_2d(signal)
+
+        original_shape = signal.shape
+        flat_signal = signal.reshape(-1, *signal.shape[-2:])
+        samples = np.stack(
+            [self._sample_2d(s) for s in flat_signal], axis=0
+        )
+        return samples.reshape(original_shape)
+
+    def _sample_2d(self, signal: NDArray) -> NDArray:
+        """Sample noisy observation for a single 2D image.
+
+        Parameters
+        ----------
+        signal : NDArray
+            Clean 2D signal data with shape (Y, X).
+
+        Returns
+        -------
+        NDArray
+            Sampled noisy observation with shape (Y, X).
+        """
         signal_tensor = torch.from_numpy(signal).to(torch.float32)
         height, width = signal_tensor.shape
 
         with torch.no_grad():
-            # Get gaussian parameters for each pixel
             gaussian_params = self.get_gaussian_parameters(signal_tensor)
             means = np.array(gaussian_params[: self.n_gaussian])
             stds = np.array(gaussian_params[self.n_gaussian : self.n_gaussian * 2])
             alphas = np.array(gaussian_params[self.n_gaussian * 2 :])
 
             if self.n_gaussian == 1:
-                # Single gaussian case
                 observation = np.random.normal(
                     loc=means[0], scale=stds[0], size=(height, width)
                 )
             else:
-                # Multiple gaussians: sample component for each pixel
                 uniform = np.random.rand(1, height, width)
-                # Compute cumulative probabilities for component selection
-                cumulative_alphas = np.cumsum(
-                    alphas, axis=0
-                )  # Shape: (n_gaussian, height, width)
+                cumulative_alphas = np.cumsum(alphas, axis=0)
                 selected_component = np.argmax(
                     uniform < cumulative_alphas, axis=0, keepdims=True
                 )
 
-                # For every pixel, choose the corresponding gaussian
-                # and get the learned mu and sigma
                 selected_mus = np.take_along_axis(means, selected_component, axis=0)
                 selected_stds = np.take_along_axis(stds, selected_component, axis=0)
                 selected_mus = selected_mus.squeeze(0)
                 selected_stds = selected_stds.squeeze(0)
 
-                # Sample from the normal distribution with learned mu and sigma
                 observation = np.random.normal(
                     selected_mus, selected_stds, size=(height, width)
                 )

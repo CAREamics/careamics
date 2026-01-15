@@ -29,6 +29,7 @@ from careamics.losses.lvae.losses import (
     denoisplit_musplit_loss,
     get_kl_divergence_loss,
     get_reconstruction_loss,
+    microsplit_loss,
     musplit_loss,
 )
 from careamics.models.lvae.likelihoods import likelihood_factory
@@ -80,9 +81,11 @@ def init_noise_model(
         (SupportedLoss.MUSPLIT, musplit_loss, does_not_raise()),
         (SupportedLoss.DENOISPLIT, denoisplit_loss, does_not_raise()),
         (SupportedLoss.DENOISPLIT_MUSPLIT, denoisplit_musplit_loss, does_not_raise()),
+        (SupportedLoss.MICROSPLIT, microsplit_loss, does_not_raise()),
         ("musplit", musplit_loss, does_not_raise()),
         ("denoisplit", denoisplit_loss, does_not_raise()),
         ("denoisplit_musplit", denoisplit_musplit_loss, does_not_raise()),
+        ("microsplit", microsplit_loss, does_not_raise()),
         ("made_up_loss", None, pytest.raises(NotImplementedError)),
     ],
 )
