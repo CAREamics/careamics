@@ -476,7 +476,6 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
         )
         self.predict_dataset.set_mean_std(*self.pred_config.data_stats)
 
-
     def predict_dataloader(self) -> DataLoader:
         """
         Create a dataloader for prediction.

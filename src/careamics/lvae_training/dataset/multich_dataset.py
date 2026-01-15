@@ -174,7 +174,6 @@ class MultiChDloader(Dataset):
 
             self._rotation_transform = A.Compose([A.Flip(), A.RandomRotate90()])
 
-
     def disable_noise(self):
         assert (
             self._poisson_noise_factor is None
