@@ -111,7 +111,7 @@ def _adjust_shape_for_channels(
 def _patch_size_within_data_shapes(
     data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
 ) -> bool:
-    """Determine whether all the data_shapes are greater than the patch size.
+    """Determine whether all the data_shapes are greater or equal than the patch size.
 
     Parameters
     ----------
@@ -124,11 +124,11 @@ def _patch_size_within_data_shapes(
     Returns
     -------
     bool
-        If all the data shapes are greater than the patch size.
+        If all the data shapes are greater or equal than the patch size.
     """
     smaller_than_shapes = [
         # skip sample and channel dimension in data_shape
-        (np.array(patch_size) < np.array(data_shape[2:])).all()
+        (np.array(patch_size) <= np.array(data_shape[2:])).all()
         for data_shape in data_shapes
     ]
     return all(smaller_than_shapes)
@@ -154,8 +154,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 data_shapes, data_config.patching.patch_size
             ):
                 raise ValueError(
-                    "Not all images sizes are greater than the patch size for training "
-                    "and validation."
+                    "Not all images sizes are greater or equal than the patch size for "
+                    "training and validation."
                 )
 
         self.config = data_config
