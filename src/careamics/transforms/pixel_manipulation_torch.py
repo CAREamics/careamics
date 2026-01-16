@@ -64,12 +64,13 @@ def _apply_struct_mask_torch(
     )
     mix = mix[valid_indices]
 
-    mins = patch.min(-1)[0].min(-1)[0]
-    maxs = patch.max(-1)[0].max(-1)[0]
+    # flatten in spatial dims to find min and max for each patch in the batch
+    batch_mins = patch.view(patch.shape[0], -1).min(dim=-1).values
+    batch_maxs = patch.view(patch.shape[0], -1).max(dim=-1).values
     for i in range(patch.shape[0]):
         batch_coords = mix[mix[:, 0] == i]
-        min_ = mins[i].item()
-        max_ = maxs[i].item()
+        min_ = batch_mins[i].item()
+        max_ = batch_maxs[i].item()
         random_values = torch.empty(len(batch_coords), device=patch.device).uniform_(
             min_, max_, generator=rng
         )
