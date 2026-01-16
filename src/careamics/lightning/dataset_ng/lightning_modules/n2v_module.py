@@ -34,14 +34,17 @@ class N2VModule(UnetModule):
             Configuration for the N2V algorithm, either as an N2VAlgorithm instance or a
             dictionary.
         """
+        # parent init instantiates config
         super().__init__(algorithm_config)
 
-        assert isinstance(
-            algorithm_config, N2VAlgorithm
-        ), "algorithm_config must be a N2VAlgorithm"
+        if not isinstance(self.config, N2VAlgorithm):
+            raise ValueError(
+                f"Parameter algorithm_config must be a N2VAlgorithm or dictionary "
+                f"representing a N2VAlgorithm. Got {type(self.config)} instead."
+            )
 
         self.n2v_manipulate = N2VManipulateTorch(
-            n2v_manipulate_config=algorithm_config.n2v_config
+            n2v_manipulate_config=self.config.n2v_config
         )
         self.loss_func = n2v_loss
 

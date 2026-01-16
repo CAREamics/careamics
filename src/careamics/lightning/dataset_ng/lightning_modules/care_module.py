@@ -34,17 +34,23 @@ class CAREModule(UnetModule):
             Configuration for the CARE algorithm, either as a CAREAlgorithm instance or
             a dictionary.
         """
+        # parent init instantiates config
         super().__init__(algorithm_config)
-        assert isinstance(
-            algorithm_config, CAREAlgorithm | N2NAlgorithm
-        ), "algorithm_config must be a CAREAlgorithm or a N2NAlgorithm"
-        loss = algorithm_config.loss
+
+        if not isinstance(self.config, CAREAlgorithm | N2NAlgorithm):
+            raise ValueError(
+                f"Parameter algorithm_config must be a CAREAlgorithm or a "
+                f"N2NAlgorithm or a dictionary representing one of those. Got "
+                f"{type(self.config)} instead."
+            )
+
+        loss = self.config.loss
         if loss == SupportedLoss.MAE:
             self.loss_func: Callable = mae_loss
         elif loss == SupportedLoss.MSE:
             self.loss_func = mse_loss
         else:
-            raise ValueError(f"Unsupported loss for Care: {loss}")
+            raise ValueError(f"Unsupported loss for CARE or Noise2Noise: {loss}")
 
     def training_step(
         self,

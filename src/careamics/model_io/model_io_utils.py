@@ -26,8 +26,10 @@ def load_pretrained(
 
     Returns
     -------
-    tuple[CAREamicsKiln, Configuration]
-        tuple of CAREamics model and its configuration.
+    FCNModule or VAEModule
+        Model instance.
+    Configuration
+        CAREamics configuration.
 
     Raises
     ------
@@ -59,8 +61,10 @@ def _load_checkpoint(
 
     Returns
     -------
-    tuple[CAREamicsKiln, Configuration]
-        tuple of CAREamics model and its configuration.
+    FCNModule or VAEModule
+        Model instance.
+    Configuration
+        CAREamics configuration.
 
     Raises
     ------
@@ -70,6 +74,7 @@ def _load_checkpoint(
     # load checkpoint
     # here we might run into issues between devices
     # see https://pytorch.org/tutorials/recipes/recipes/save_load_across_devices.html
+    # TODO replace with utils device handling
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     checkpoint: dict = torch.load(path, map_location=device)
 

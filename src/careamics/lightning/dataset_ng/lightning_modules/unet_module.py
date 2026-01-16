@@ -36,9 +36,7 @@ class UnetModule(L.LightningModule):
 
     def __init__(
         self,
-        algorithm_config: Union[
-            CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, PN2VAlgorithm, dict
-        ],
+        algorithm_config: Union[CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, dict],
     ) -> None:
         """Instantiate UNet DataModule.
 
@@ -52,7 +50,12 @@ class UnetModule(L.LightningModule):
         super().__init__()
 
         if isinstance(algorithm_config, dict):
-            algorithm_config = algorithm_factory(algorithm_config)
+            config = algorithm_factory(algorithm_config)
+
+            # TODO once PN2V is supported, remove this check and simplify logic
+            if isinstance(config, PN2VAlgorithm):
+                raise ValueError("PN2VAlgorithm is not supported in UnetModule.")
+            algorithm_config = config
 
         self.config = algorithm_config
         self.model: nn.Module = UNet(**algorithm_config.model.model_dump())
