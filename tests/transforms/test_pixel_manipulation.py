@@ -428,10 +428,16 @@ def test_median_manipulate_torch(ordered_array, shape):
 @pytest.mark.parametrize(
     "patch_shape, coords, struct_axis, struct_span",
     [
+        # 2D
         ((4, 10, 10), (2, 2, 2), 1, 5),
         ((4, 10, 10), (3, 3, 4), 0, 5),
         ((4, 10, 10), (1, 9, 0), 0, 5),
         ((4, 10, 10), ((1, 1, 2), (1, 3, 4)), 1, 5),
+        # 3D
+        ((4, 10, 10, 10), (2, 2, 2, 2), 1, 5),
+        ((4, 10, 10, 10), (3, 3, 4, 5), 0, 5),
+        ((4, 10, 10, 10), (1, 9, 0, 0), 0, 5),
+        ((4, 10, 10, 10), ((1, 1, 2, 3), (1, 3, 4, 5)), 1, 5),
     ],
 )
 def test_apply_struct_mask_torch(patch_shape, coords, struct_axis, struct_span):
@@ -470,7 +476,7 @@ def test_apply_struct_mask_torch(patch_shape, coords, struct_axis, struct_span):
 
     # Check that the transformed pixels correspond to the masked pixels
     transformed = []
-    axis = -2 + 1 - struct_axis
+    axis = -1 - struct_axis
 
     for i in range(coords.shape[0]):
         # get indices to mask
@@ -483,84 +489,14 @@ def test_apply_struct_mask_torch(patch_shape, coords, struct_axis, struct_span):
             if c != coords[i, axis]
         ]
 
-        # add to transform
-        if struct_axis == 0:
-            transformed.append(
-                transform_patch[coords[i, 0], coords[i, 1]][indices_to_mask]
-            )
-        else:
-            transformed.append(
-                transform_patch[coords[i, 0], :, coords[i, 2]][indices_to_mask]
-            )
-
-    assert torch.equal(
-        torch.sort(changed_values).values, torch.sort(torch.cat(transformed)).values
-    )
-
-
-@pytest.mark.parametrize(
-    "coords, struct_axis, struct_span",
-    [
-        ((1, 2, 2), 1, 5),
-        ((2, 3, 4), 0, 5),
-        ((0, 9, 0), 0, 5),
-        (((2, 1, 2), (1, 9, 0), (0, 3, 4)), 1, 5),
-    ],
-)
-def test_apply_struct_mask_3D_torch(coords, struct_axis, struct_span):
-    """Test the _apply_struct_mask function.
-
-    Ensures that the mask corresponds to the manipulated pixels, and that the
-    manipulated pixels have a value taken from a ROI surrounding them.
-    """
-    rng = torch.Generator().manual_seed(42)
-
-    struct_params = StructMaskParameters(axis=struct_axis, span=struct_span)
-
-    # Create tensor
-    patch = torch.arange(100 * 3).reshape(3, 10, 10).float()
-
-    # Make a copy of the original patch for comparison
-    original_patch = patch.clone()
-    coords = torch.tensor(coords, dtype=torch.int32)
-
-    # Expand the coords if only one ROI is given
-    if coords.ndim == 1:
-        coords = coords.unsqueeze(0)
-
-    # Manipulate the tensor
-    transform_patch = _apply_struct_mask_torch(
-        patch,
-        coords=coords,
-        struct_params=struct_params,
-        rng=rng,
-    )
-    changed_values = patch[original_patch != transform_patch]
-
-    # Check that the transformed pixels correspond to the masked pixels
-    transformed = []
-    axis = -2 + 1 - struct_axis
-    for i in range(coords.shape[0]):
-        # Get indices to mask
-        indices_to_mask = [
-            c
-            for c in range(
-                max(0, coords[i, axis] - struct_span // 2),
-                min(transform_patch.shape[1] - 1, coords[i, axis] + struct_span // 2)
-                + 1,
-            )
-            if c != coords[i, axis]
-        ]
-
-        # add to transform
-        if struct_axis == 0:
-            transformed.append(
-                transform_patch[coords[i, 0], coords[i, 1]][indices_to_mask]
-            )
-        else:
-            transformed.append(
-                transform_patch[coords[i, 0], :, coords[i, 2]][indices_to_mask]
-            )
+        ndims = patch.ndim
+        # axis_slice slices the patch along the struct axis, at the masked coord
+        # indices_to_mask then selects the pixels in this row/col that have been masked
+        axis_slice = tuple(
+            coords[i, d] if d != axis else slice(None, None, None)
+            for d in range(-ndims, 0, 1)
+        )
+        transformed.append(transform_patch[*axis_slice][indices_to_mask])
 
     assert torch.equal(
         torch.sort(changed_values).values, torch.sort(torch.cat(transformed)).values
