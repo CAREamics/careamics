@@ -1,11 +1,30 @@
 """I/O functions for Configuration objects."""
 
 from pathlib import Path
-from typing import Union
+from typing import Annotated, Any, Union
 
 import yaml
+from pydantic import Discriminator, Tag, TypeAdapter
 
 from careamics.config import Configuration
+from careamics.config.ng_configs import N2VConfiguration
+from careamics.config.support import SupportedAlgorithm
+
+
+def config_disciminator(v: Any) -> SupportedAlgorithm | None:
+    if not isinstance(v, dict):
+        return None
+    alg_config = v.get("algorithm_config", None)
+    if not isinstance(alg_config, dict):
+        return None
+    return alg_config.get("algorithm", None)
+
+
+# union
+NGConfiguration = Annotated[
+    Union[Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],],
+    Discriminator(config_disciminator),
+]
 
 
 def load_configuration(path: Union[str, Path]) -> Configuration:
@@ -36,6 +55,36 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
     dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
 
     return Configuration(**dictionary)
+
+
+def load_configuration_ng(path: Union[str, Path]) -> NGConfiguration:
+    """
+    Load configuration from a yaml file.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the configuration.
+
+    Returns
+    -------
+    Configuration
+        Configuration.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the configuration file does not exist.
+    """
+    # load dictionary from yaml
+    if not Path(path).exists():
+        raise FileNotFoundError(
+            f"Configuration file {path} does not exist in " f" {Path.cwd()!s}"
+        )
+
+    dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
+
+    return TypeAdapter(NGConfiguration).validate_python(dictionary)
 
 
 def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
