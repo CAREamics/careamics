@@ -140,4 +140,7 @@ class RangeNormalization(NormalizationProtocol):
         input_mins = _reshape_stats(self.input_mins, patch.ndim, channel_axis=1)
         input_maxes = _reshape_stats(self.input_maxes, patch.ndim, channel_axis=1)
 
+        input_mins = torch.from_numpy(input_mins).to(patch.device)
+        input_maxes = torch.from_numpy(input_maxes).to(patch.device)
+
         return patch * (input_maxes - input_mins) + input_mins

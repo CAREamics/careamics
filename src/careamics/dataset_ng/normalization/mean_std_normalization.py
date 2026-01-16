@@ -181,7 +181,9 @@ class MeanStdNormalization(NormalizationProtocol):
         torch.Tensor
             Denormalized image array.
         """
-        return array * (std + self.eps) + mean
+        mean_tensor = torch.from_numpy(mean).to(array.device)
+        std_tensor = torch.from_numpy(std).to(array.device)
+        return array * (std_tensor + self.eps) + mean_tensor
 
     def denormalize(self, patch: torch.Tensor) -> torch.Tensor:
         """Reverse the normalization operation for a batch of patches.

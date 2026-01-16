@@ -151,13 +151,13 @@ class QuantileEstimator:
         if self.total_counts[ch] == 0:
             return 0.0
 
+        if quantile == 0:
+            return float(self.mins[ch])
+        if quantile == 1:
+            return float(self.maxes[ch])
+
         cumsum = np.cumsum(self.histograms[ch])
         target_count = self.total_counts[ch] * quantile
-
-        if target_count <= 0:
-            return float(self.mins[ch])
-        if target_count >= self.total_counts[ch]:
-            return float(self.maxes[ch])
 
         bin_idx = int(np.searchsorted(cumsum, target_count))
         bin_idx = max(0, min(bin_idx, len(self.histograms[ch]) - 1))
