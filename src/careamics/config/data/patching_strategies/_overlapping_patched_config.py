@@ -60,8 +60,8 @@ class _OverlappingPatchedConfig(_PatchedConfig):
 
         if "patch_size" not in values.data:
             raise ValueError(
-                "Cannot validate overlaps because of undefined patch size, check "
-                "validation errors in `patch_size`."
+                "Cannot validate overlaps because of undefined patch size. There may  "
+                "be validation errors in `patch_size`."
             )
 
         patch_size = values.data["patch_size"]
