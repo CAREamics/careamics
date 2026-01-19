@@ -15,6 +15,9 @@ from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 from careamics.models.lvae.utils import allow_numpy
 
 try:
+    from microssim import MicroMS3IM, MicroSSIM
+except ImportError as exc:
+    raise ImportError(...) from exc
     _microssim = importlib.import_module("microssim")
 except ImportError as exc:
     raise ImportError(
