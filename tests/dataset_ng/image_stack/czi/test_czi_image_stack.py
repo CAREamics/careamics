@@ -218,6 +218,58 @@ class TestCziImageStack:
 
 
 @pytest.mark.czi
+@pytest.mark.parametrize("axis", ["Z", "T"])
+def test_z_padding(tmp_path: Path, axis):
+    """Test that Z padding is applied to CziImageStack when requesting data outside
+    the Z range."""
+    if "Z" == axis:
+        shape = (1, 2, 4, 4, 4)  # (T, C, Z, Y, X)
+    else:
+        shape = (4, 2, 1, 4, 4)  # (Z, C, T, Y, X)
+
+    data = np.random.randn(*shape).astype(np.float32)
+
+    file_path = tmp_path / "test_czi.czi"
+    create_test_czi(file_path=file_path, data=data)
+
+    # initialise CziImageStack
+    image_stack = CziImageStack(data_path=file_path, depth_axis=axis)
+
+    # extract patches
+    sample_idx = 0
+    channel_idx = 1
+    patch_size = (4, 4, 4)
+    z_length = shape[2] if "Z" == axis else shape[0]
+    coordinates = [(-2, 0, 0), (2, 0, 0)]
+    for coord in coordinates:
+        patch = image_stack.extract_channel_patch(
+            sample_idx=sample_idx,
+            channels=[channel_idx],
+            coords=coord,
+            patch_size=patch_size,
+        )
+
+        # build expected array
+        z_start = max(coord[0], 0)
+        z_end = min(coord[0] + patch_size[0], z_length)
+        z_start_pad = z_start - coord[0]
+        z_end_pad = z_end - coord[0]
+
+        expected_patch = np.zeros(patch_size, dtype=np.float32)
+
+        if "Z" == axis:
+            expected_patch[z_start_pad:z_end_pad, :, :] = data[
+                sample_idx, channel_idx, z_start:z_end, :, :
+            ]
+        else:  # T
+            expected_patch[z_start_pad:z_end_pad, :, :] = data[
+                z_start:z_end, channel_idx, sample_idx, :, :
+            ]
+
+        np.testing.assert_array_equal(patch[0], expected_patch)
+
+
+@pytest.mark.czi
 class TestCziImageStackChannels:
 
     @pytest.mark.parametrize(
@@ -239,7 +291,7 @@ class TestCziImageStackChannels:
         # reference data to compare against
         data = np.random.randn(*shape).astype(np.float32)
 
-        # save data as a czi file to ininitialise image stack with
+        # save data as a czi file to initialize image stack with
         file_path = tmp_path / "test_czi.czi"
         create_test_czi(file_path=file_path, data=data)
 
