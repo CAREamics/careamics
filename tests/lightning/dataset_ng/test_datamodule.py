@@ -56,10 +56,13 @@ def test_not_in_mem_tiff(tmp_path: Path):
             "patch_size": (16, 16),
         },
         batch_size=4,
-        image_means=[0],
-        image_stds=[1],
         in_memory=False,
         seed=42,
+        normalization={
+            "name": "mean_std",
+            "input_means": [0],
+            "input_stds": [1],
+        },
     )
 
     datamodule = CareamicsDataModule(
@@ -116,6 +119,11 @@ def test_sampler(tmp_path: Path, in_memory, correct_sampler):
         },
         batch_size=4,
         in_memory=in_memory,
+        normalization={
+            "name": "mean_std",
+            "input_means": [0],
+            "input_stds": [1],
+        },
     )
 
     datamodule = CareamicsDataModule(
