@@ -28,9 +28,16 @@ repos:
     rev: 1.37.1
     hooks:
       - id: basedpyright
+        pass_filenames: false
         files: "^src/"
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py"
-        pass_filenames: false
+        args:
+          - --project
+          - .
+          - --baselinefile
+          - ./.basedpyright/baseline.json
+          - --baselinemode
+          - lock
 
   # check docstrings
   - repo: https://github.com/numpy/numpydoc
