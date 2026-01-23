@@ -30,6 +30,7 @@ repos:
       - id: basedpyright
         files: "^src/"
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py"
+        pass_filenames: false
 
   # check docstrings
   - repo: https://github.com/numpy/numpydoc
