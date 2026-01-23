@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import torch
 from skimage.metrics import peak_signal_noise_ratio
+from torchmetrics import MetricCollection
 from torchmetrics.image import PeakSignalNoiseRatio
 
 from careamics.lightning.dataset_ng.metrics import (
@@ -311,3 +312,24 @@ def test_rangeless_psnr(shape, batch_size):
         np.testing.assert_almost_equal(
             sipsnr.numpy(), expected_psnr_torchmetrics, decimal=4
         )
+
+
+def test_torchmetrics_collection():
+    """Test that the PSNR metrics can be used in a torchmetrics MetricCollection."""
+    metrics = MetricCollection(
+        {
+            "glob_sipsnr": GlobSIPSNR(n_channels=3),
+            "loc_sipsnr": LocalSIPSNR(n_channels=3),
+            "rangeless_psnr": RangelessPSNR(n_channels=3),
+        }
+    )
+
+    shape = (2, 3, 8, 64, 64)
+    gts, preds = create_toy_data(shape)
+
+    metrics.update(preds, gts)
+    results = metrics.compute()
+
+    assert "glob_sipsnr" in results
+    assert "loc_sipsnr" in results
+    assert "rangeless_psnr" in results
