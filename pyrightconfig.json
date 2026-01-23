@@ -8,7 +8,7 @@
     "src/careamics/config/likelihood_model.py",
     "src/careamics/losses/loss_factory.py",
     "src/careamics/losses/lvae/losses.py",
-    "**/*.ipynb",
+    "**/*.ipynb"
   ],
   "pythonVersion": "3.12",
   "pythonPlatform": "All",
