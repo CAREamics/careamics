@@ -1,0 +1,30 @@
+{
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/careamics/lvae_training",
+    "src/careamics/models/lvae",
+    "src/careamics/config/likelihood_model.py",
+    "src/careamics/losses/loss_factory.py",
+    "src/careamics/losses/lvae/losses.py",
+    "**/*.ipynb",
+  ],
+  "pythonVersion": "3.12",
+  "pythonPlatform": "All",
+  "typeCheckingMode": "standard",
+  "stubPath": "src",
+  "venvPath": ".",
+  "venv": ".venv",
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "reportUnnecessaryTypeIgnoreComment": true,
+  "reportAttributeAccessIssue": true,
+  "strictDictionaryInference": true,
+  "strictListInference": true,
+  "reportMatchNotExhaustive": true,
+  "strictSetInference": true,
+  "reportDeprecated": true,
+  "reportUnnecessaryIsInstance": false,
+  "reportUnreachable": true
+}

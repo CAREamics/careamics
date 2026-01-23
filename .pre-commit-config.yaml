@@ -24,19 +24,12 @@ repos:
     hooks:
       - id: black
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
+  - repo: https://github.com/DetachHead/basedpyright-pre-commit-mirror
+    rev: 1.37.1
     hooks:
-      - id: mypy
+      - id: basedpyright
         files: "^src/"
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py"
-        args: ["--config-file", "mypy.ini"]
-        additional_dependencies:
-          - numpy
-          - pydantic
-          - types-PyYAML
-          - types-setuptools
-          - zarr
 
   # check docstrings
   - repo: https://github.com/numpy/numpydoc
