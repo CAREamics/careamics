@@ -27,7 +27,7 @@ class DataStatsCallback(Callback):
             # Get data statistics from datamodule
             (data_mean, data_std), _ = trainer.datamodule.get_data_stats()
 
-            # Set data statistics in the model's likelihood module
-            module.noise_model_likelihood.set_data_stats(
+            # Set data statistics in the module
+            module.set_data_stats(
                 data_mean=data_mean["target"], data_std=data_std["target"]
             )

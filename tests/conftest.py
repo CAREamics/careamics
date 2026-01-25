@@ -150,7 +150,7 @@ def minimum_algorithm_microsplit() -> dict:
             "architecture": "LVAE",
             "z_dims": (128, 128, 128),
             "multiscale_count": 2,
-            "predict_logvar": "pixelwise",
+            "predict_logvar": True,
         },
         "likelihood": {
             "type": "GaussianLikelihoodConfig",

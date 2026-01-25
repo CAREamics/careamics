@@ -73,8 +73,8 @@ def test_no_noise_model_error_denoisplit(minimum_algorithm_denoisplit):
 def test_microsplit_algorithm(minimum_algorithm_microsplit):
     """Test that the MicroSplit algorithm can be instantiated correctly."""
     loss = LVAELossConfig(
-        loss_type="denoisplit_musplit", denoisplit_weight=0.9, musplit_weight=0.1
-    )  # TODO losses need to be refactored! This is just for example
+        loss_type="microsplit", denoisplit_weight=0.9, musplit_weight=0.1
+    )
     minimum_algorithm_microsplit["loss"] = loss
     config = VAEBasedAlgorithm(**minimum_algorithm_microsplit)
     assert config.algorithm == "microsplit"

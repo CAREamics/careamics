@@ -15,11 +15,8 @@ from torch import Tensor as tensor
 from ..config.support import SupportedLoss
 from .fcn.losses import mae_loss, mse_loss, n2v_loss, pn2v_loss
 from .lvae.losses import (
-    denoisplit_loss,
-    denoisplit_musplit_loss,
     hdn_loss,
     microsplit_loss,
-    musplit_loss,
 )
 
 
@@ -67,15 +64,6 @@ def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
 
     elif loss == SupportedLoss.HDN:
         return hdn_loss
-
-    elif loss == SupportedLoss.MUSPLIT:
-        return musplit_loss
-
-    elif loss == SupportedLoss.DENOISPLIT:
-        return denoisplit_loss
-
-    elif loss == SupportedLoss.DENOISPLIT_MUSPLIT:
-        return denoisplit_musplit_loss
 
     elif loss == SupportedLoss.MICROSPLIT:
         return microsplit_loss

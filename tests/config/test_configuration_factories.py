@@ -1148,8 +1148,6 @@ def test_checkpoint_model_save_top_k_cross_algorithm_consistency():
 
 def test_microsplit_configuration(tmp_path: Path, create_dummy_noise_model):
     """Test that MicroSplit configuration can be created."""
-    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
-
     config = create_microsplit_configuration(
         experiment_name="test",
         data_type="tiff",
@@ -1157,12 +1155,237 @@ def test_microsplit_configuration(tmp_path: Path, create_dummy_noise_model):
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
-        predict_logvar="pixelwise",
-        nm_paths=[tmp_path / "dummy_noise_model.npz"],
-        data_stats=[0, 0],
+        predict_logvar=True,
         train_dataloader_params={"num_workers": 0},
     )
     assert config.algorithm_config.algorithm == "microsplit"
     assert isinstance(config.algorithm_config, MicroSplitAlgorithm)
     assert config.algorithm_config.model.architecture == "LVAE"
-    assert config.algorithm_config.noise_model_likelihood is not None
+    assert config.algorithm_config.model.predict_logvar is True
+
+
+def test_microsplit_configuration_without_noise_model(tmp_path: Path):
+    """Test MicroSplit configuration without noise model (muSplit-only mode)."""
+    config = create_microsplit_configuration(
+        experiment_name="test_musplit_only",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        predict_logvar=True,
+        train_dataloader_params={"num_workers": 0},
+    )
+    assert config.algorithm_config.algorithm == "microsplit"
+    assert isinstance(config.algorithm_config, MicroSplitAlgorithm)
+    assert config.algorithm_config.model.architecture == "LVAE"
+    assert config.algorithm_config.model.predict_logvar is True
+    # Without noise model, muSplit-only mode uses Gaussian likelihood
+    assert config.algorithm_config.loss.musplit_weight == 0.0
+
+
+def test_microsplit_configuration_multichannel(tmp_path: Path, create_dummy_noise_model):
+    """Test MicroSplit configuration with multiple channels."""
+    # Create multiple noise model files
+    for i in range(3):
+        np.savez(tmp_path / f"dummy_noise_model_{i}.npz", **create_dummy_noise_model)
+
+    config = create_microsplit_configuration(
+        experiment_name="test_multichannel",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        predict_logvar=True,
+        output_channels=3,
+        train_dataloader_params={"num_workers": 0},
+    )
+    assert config.algorithm_config.algorithm == "microsplit"
+    assert config.algorithm_config.model.output_channels == 3
+
+
+def test_microsplit_configuration_weight_combinations(
+    tmp_path: Path, create_dummy_noise_model
+):
+    """Test MicroSplit configuration with various weight combinations."""
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    # Test different weight combinations
+    weight_configs = [
+        (1.0, 0.0),  # Pure muSplit
+        (0.0, 1.0),  # Pure denoiSplit
+        (0.5, 0.5),  # Balanced
+        (0.3, 0.7),  # Weighted towards denoiSplit
+    ]
+
+    for musplit_weight, denoisplit_weight in weight_configs:
+        config = create_microsplit_configuration(
+            experiment_name=f"test_weights_{musplit_weight}_{denoisplit_weight}",
+            data_type="tiff",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            num_epochs=100,
+            predict_logvar=True,
+            musplit_weight=musplit_weight,
+            denoisplit_weight=denoisplit_weight,
+            train_dataloader_params={"num_workers": 0},
+        )
+        assert config.algorithm_config.algorithm == "microsplit"
+        assert config.algorithm_config.loss.musplit_weight == musplit_weight
+        assert config.algorithm_config.loss.denoisplit_weight == denoisplit_weight
+
+
+def test_microsplit_configuration_predict_logvar_false(
+    tmp_path: Path, create_dummy_noise_model
+):
+    """Test MicroSplit configuration with predict_logvar=False (no per-pixel variance)."""
+    config = create_microsplit_configuration(
+        experiment_name="test_no_logvar",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        predict_logvar=False,
+        train_dataloader_params={"num_workers": 0},
+    )
+    assert config.algorithm_config.algorithm == "microsplit"
+    assert config.algorithm_config.model.predict_logvar is False
+    assert config.algorithm_config.loss.predict_logvar is False
+
+
+def test_microsplit_configuration_3d(tmp_path: Path, create_dummy_noise_model):
+    """Test MicroSplit configuration with 3D data."""
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    config = create_microsplit_configuration(
+        experiment_name="test_3d",
+        data_type="tiff",
+        axes="ZYX",
+        patch_size=[16, 64, 64],
+        batch_size=4,
+        num_epochs=100,
+        predict_logvar=True,
+        train_dataloader_params={"num_workers": 0},
+    )
+    assert config.algorithm_config.algorithm == "microsplit"
+    assert config.data_config.axes == "ZYX"
+    assert len(config.data_config.patch_size) == 3
+    assert config.data_config.patch_size == [16, 64, 64]
+
+
+def test_microsplit_configuration_trainer_params(
+    tmp_path: Path, create_dummy_noise_model
+):
+    """Test MicroSplit configuration with custom trainer parameters."""
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    trainer_params = {
+        "accelerator": "cpu",
+        "devices": 1,
+        "precision": "32-true",
+        "gradient_clip_val": 0.5,
+    }
+
+    config = create_microsplit_configuration(
+        experiment_name="test_trainer_params",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        predict_logvar=True,
+        trainer_params=trainer_params,
+        train_dataloader_params={"num_workers": 0},
+    )
+    assert config.algorithm_config.algorithm == "microsplit"
+    for key, value in trainer_params.items():
+        assert config.training_config.lightning_trainer_config[key] == value
+
+
+def test_microsplit_configuration_checkpoint_params(
+    tmp_path: Path, create_dummy_noise_model
+):
+    """Test MicroSplit configuration with custom checkpoint parameters."""
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    checkpoint_params = {
+        "save_top_k": 5,
+        "monitor": "val_loss",
+        "mode": "min",
+        "every_n_epochs": 2,
+    }
+
+    config = create_microsplit_configuration(
+        experiment_name="test_checkpoint_params",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        predict_logvar=True,
+        checkpoint_params=checkpoint_params,
+        train_dataloader_params={"num_workers": 0},
+    )
+    assert config.algorithm_config.algorithm == "microsplit"
+    assert config.training_config.checkpoint_callback.save_top_k == 5
+    assert config.training_config.checkpoint_callback.monitor == "val_loss"
+    assert config.training_config.checkpoint_callback.mode == "min"
+    assert config.training_config.checkpoint_callback.every_n_epochs == 2
+
+
+def test_microsplit_configuration_model_params(
+    tmp_path: Path, create_dummy_noise_model
+):
+    """Test MicroSplit configuration with custom model parameters."""
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    model_params = {
+        "z_dims": [64, 64, 64],
+        "multiscale_count": 2,
+        "encoder_n_filters": 32,
+        "decoder_n_filters": 32,
+    }
+
+    config = create_microsplit_configuration(
+        experiment_name="test_model_params",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        predict_logvar=True,
+        model_params=model_params,
+        train_dataloader_params={"num_workers": 0},
+    )
+    assert config.algorithm_config.algorithm == "microsplit"
+    assert config.algorithm_config.model.z_dims == [64, 64, 64]
+    assert config.algorithm_config.model.multiscale_count == 2
+    assert config.algorithm_config.model.encoder_n_filters == 32
+    assert config.algorithm_config.model.decoder_n_filters == 32
+
+
+def test_microsplit_configuration_num_steps(tmp_path: Path, create_dummy_noise_model):
+    """Test MicroSplit configuration with num_steps parameter."""
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    num_steps = 500
+
+    config = create_microsplit_configuration(
+        experiment_name="test_num_steps",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        num_steps=num_steps,
+        predict_logvar=True,
+        train_dataloader_params={"num_workers": 0},
+    )
+    assert config.algorithm_config.algorithm == "microsplit"
+    assert (
+        config.training_config.lightning_trainer_config["limit_train_batches"]
+        == num_steps
+    )
