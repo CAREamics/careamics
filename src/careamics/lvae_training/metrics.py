@@ -2,31 +2,17 @@
 
 from __future__ import annotations
 
-import importlib
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 
 import numpy as np
 import torch
+from microssim import MicroMS3IM, MicroSSIM
 from skimage.metrics import structural_similarity
 from torch import Tensor
 from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 
 from careamics.models.lvae.utils import allow_numpy
-
-try:
-    from microssim import MicroMS3IM, MicroSSIM
-except ImportError as exc:
-    raise ImportError(...) from exc
-    _microssim = importlib.import_module("microssim")
-except ImportError as exc:
-    raise ImportError(
-        "microssim is required for LVAE metrics; "
-        "install it via `pip install microssim`."
-    ) from exc
-
-MicroMS3IM = _microssim.MicroMS3IM
-MicroSSIM = _microssim.MicroSSIM
 
 ArrayBatch = np.ndarray | Tensor
 ArrayCollection = ArrayBatch | Sequence[np.ndarray]
