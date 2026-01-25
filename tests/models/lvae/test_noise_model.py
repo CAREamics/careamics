@@ -3,10 +3,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
+from careamics.models.lvae.likelihoods import NoiseModelLikelihood
 from scipy.stats import wasserstein_distance
 
 from careamics.config import GaussianMixtureNMConfig, MultiChannelNMConfig
-from careamics.models.lvae.likelihoods import NoiseModelLikelihood
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,

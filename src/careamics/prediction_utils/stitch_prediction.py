@@ -7,14 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from careamics.config.data.tile_information import TileInformation
-
-
-class TilingMode:
-    """Enum for the tiling mode."""
-
-    TrimBoundary = 0
-    PadBoundary = 1
-    ShiftBoundary = 2
+from careamics.lvae_training.dataset.types import TilingMode
 
 
 def stitch_prediction_vae(predictions, dset):
