@@ -390,16 +390,9 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
-            # TODO: ugly, need to find a better solution
-            self.stats = self.train_dataset.input_stats
-            self.config.set_means_and_stds(
-                self.train_dataset.input_stats.means,
-                self.train_dataset.input_stats.stds,
-                self.train_dataset.target_stats.means,
-                self.train_dataset.target_stats.stds,
-            )
 
             validation_config = self.config.convert_mode("validating")
+
             self.val_dataset = create_dataset(
                 config=validation_config,
                 inputs=self.val_data,
@@ -420,7 +413,6 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
-            self.stats = self.val_dataset.input_stats
         elif stage == "predict":
             if self.config.mode == "validating":
                 raise ValueError(
@@ -442,7 +434,6 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
-            self.stats = self.predict_dataset.input_stats
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 

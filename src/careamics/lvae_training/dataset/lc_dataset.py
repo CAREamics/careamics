@@ -261,7 +261,7 @@ class LCMultiChDloader(MultiChDloader):
 
         norm_target = self.normalize_target(target)
 
-        output = [inp, norm_target, index]
+        output = [inp, norm_target]
 
         if self._return_alpha:
             output.append(alpha)
