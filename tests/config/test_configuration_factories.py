@@ -1184,7 +1184,9 @@ def test_microsplit_configuration_without_noise_model(tmp_path: Path):
     assert config.algorithm_config.loss.musplit_weight == 0.0
 
 
-def test_microsplit_configuration_multichannel(tmp_path: Path, create_dummy_noise_model):
+def test_microsplit_configuration_multichannel(
+    tmp_path: Path, create_dummy_noise_model
+):
     """Test MicroSplit configuration with multiple channels."""
     # Create multiple noise model files
     for i in range(3):

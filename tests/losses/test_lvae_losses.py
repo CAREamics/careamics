@@ -8,16 +8,15 @@ from typing import TYPE_CHECKING, Literal, Union
 import numpy as np
 import pytest
 import torch
-
-from careamics.config import (
-    GaussianMixtureNMConfig,
-    LVAELossConfig,
-    MultiChannelNMConfig,
-)
-from careamics.config.losses.loss_config import KLLossConfig
 from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
+)
+from careamics.models.lvae.likelihoods import likelihood_factory
+
+from careamics.config import (
+    GaussianMixtureNMConfig,
+    MultiChannelNMConfig,
 )
 from careamics.losses.loss_factory import (
     SupportedLoss,
@@ -28,7 +27,6 @@ from careamics.losses.lvae.losses import (
     get_reconstruction_loss,
     microsplit_loss,
 )
-from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import multichannel_noise_model_factory
 
 if TYPE_CHECKING:
@@ -225,4 +223,3 @@ def test_KL_divergence_loss(
     )
     assert isinstance(kl_loss, torch.Tensor)
     assert isinstance(kl_loss.item(), float)
-

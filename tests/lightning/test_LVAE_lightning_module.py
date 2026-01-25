@@ -6,6 +6,11 @@ from typing import Literal
 import numpy as np
 import pytest
 import torch
+from careamics.config.noise_model.likelihood_config import (
+    GaussianLikelihoodConfig,
+    NMLikelihoodConfig,
+)
+from careamics.models.lvae.likelihoods import GaussianLikelihood, NoiseModelLikelihood
 from pydantic import ValidationError
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader, Dataset
@@ -13,10 +18,6 @@ from torch.utils.data import DataLoader, Dataset
 from careamics.config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEConfig
 from careamics.config.losses.loss_config import LVAELossConfig
-from careamics.config.noise_model.likelihood_config import (
-    GaussianLikelihoodConfig,
-    NMLikelihoodConfig,
-)
 from careamics.config.noise_model.noise_model_config import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
@@ -26,7 +27,6 @@ from careamics.losses import (
     hdn_loss,
     microsplit_loss,
 )
-from careamics.models.lvae.likelihoods import GaussianLikelihood, NoiseModelLikelihood
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
 )
@@ -85,9 +85,8 @@ def create_vae_lightning_model(
         loss_config = LVAELossConfig(loss_type=loss_type)
 
     # gaussian likelihood - needed for hdn or microsplit with musplit_weight > 0
-    needs_gaussian = (
-        loss_type == "hdn"
-        or (loss_type == "microsplit" and loss_config.musplit_weight > 0)
+    needs_gaussian = loss_type == "hdn" or (
+        loss_type == "microsplit" and loss_config.musplit_weight > 0
     )
     if needs_gaussian:
         if loss_type == "hdn" and ll_type == "nm":
@@ -101,9 +100,8 @@ def create_vae_lightning_model(
         gaussian_lik_config = None
 
     # noise model likelihood - needed for hdn with nm or microsplit with denoisplit_weight > 0
-    needs_nm = (
-        (loss_type == "hdn" and ll_type == "nm")
-        or (loss_type == "microsplit" and loss_config.denoisplit_weight > 0)
+    needs_nm = (loss_type == "hdn" and ll_type == "nm") or (
+        loss_type == "microsplit" and loss_config.denoisplit_weight > 0
     )
     if needs_nm:
         create_dummy_noise_model(tmp_path, 3, 3)

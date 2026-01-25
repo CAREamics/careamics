@@ -14,10 +14,11 @@ from careamics.models.lvae import LadderVAE as LVAE
 # TODO: Remove this after refactoring prediction code to not use likelihood objects
 class LikelihoodModule(Protocol):
     """Protocol for backward compatibility."""
-    
+
     def get_mean_lv(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
         """Get mean and log variance from output."""
         ...
+
 
 # TODO: convert these functions to lightning module `predict_step`
 #   -> mmse_count will have to be an instance attribute?

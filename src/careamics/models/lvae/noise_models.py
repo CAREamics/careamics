@@ -723,9 +723,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         original_shape = signal.shape
         flat_signal = signal.reshape(-1, *signal.shape[-2:])
-        samples = np.stack(
-            [self._sample_2d(s) for s in flat_signal], axis=0
-        )
+        samples = np.stack([self._sample_2d(s) for s in flat_signal], axis=0)
         return samples.reshape(original_shape)
 
     def _sample_2d(self, signal: NDArray) -> NDArray:

@@ -5,16 +5,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
+from careamics.config.noise_model.likelihood_config import (
+    GaussianLikelihoodConfig,
+    NMLikelihoodConfig,
+)
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader, Dataset
 
 from careamics.config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEConfig
 from careamics.config.losses.loss_config import LVAELossConfig
-from careamics.config.noise_model.likelihood_config import (
-    GaussianLikelihoodConfig,
-    NMLikelihoodConfig,
-)
 from careamics.config.noise_model.noise_model_config import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
@@ -462,4 +462,3 @@ def test_musplit_denoisplit_weights_integration(tmp_path: Path) -> None:
         assert train_loss is not None
         assert isinstance(train_loss, dict)
         assert "loss" in train_loss
-

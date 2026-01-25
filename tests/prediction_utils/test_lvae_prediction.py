@@ -1,13 +1,13 @@
 import numpy as np
 import pytest
 import torch
+from careamics.models.lvae.likelihoods import GaussianLikelihood
 from torch.utils.data import DataLoader
 
 from careamics.config.data.inference_config import InferenceConfig
 from careamics.config.data.tile_information import TileInformation
 from careamics.dataset import InMemoryTiledPredDataset
 from careamics.dataset.tiling.collate_tiles import collate_tiles
-from careamics.models.lvae.likelihoods import GaussianLikelihood
 from careamics.models.lvae.lvae import LadderVAE
 from careamics.prediction_utils import convert_outputs
 from careamics.prediction_utils.lvae_prediction import (

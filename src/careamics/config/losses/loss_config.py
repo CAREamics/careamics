@@ -22,7 +22,8 @@ class LVAELossConfig(BaseModel):
     )
 
     loss_type: Literal[
-        "hdn", "microsplit",
+        "hdn",
+        "microsplit",
     ]
     """Type of loss to use for LVAE"""
 

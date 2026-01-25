@@ -20,7 +20,7 @@ from careamics.config.lightning.optimizer_configs import (
 )
 from careamics.config.lightning.training_config import TrainingConfig
 from careamics.config.losses.loss_config import KLLossConfig, LVAELossConfig
-from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
@@ -1537,8 +1537,6 @@ def _create_vae_based_algorithm(
         "loss": loss,
         "model": network_model,
     }
-
-
 
 
 # TODO wrap parameters into model, loss etc

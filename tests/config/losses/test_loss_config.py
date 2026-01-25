@@ -139,8 +139,6 @@ def test_lvae_loss_config_hdn_loss_type() -> None:
     assert config.kl_weight == 1.0
 
 
-
-
 def test_lvae_loss_config_full_config() -> None:
     """Test complete configuration with all parameters."""
     kl_config = KLLossConfig(current_epoch=10)
@@ -180,4 +178,3 @@ def test_lvae_loss_config_kl_params_modification() -> None:
     config.kl_params.current_epoch = 25
     # Verify modifications
     assert config.kl_params.current_epoch == 25
-
