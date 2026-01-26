@@ -643,7 +643,17 @@ class VAEModule(L.LightningModule):
             mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
             std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
 
-            tile_prediction = mmse_imgs.cpu().numpy()
+            # Denormalize the output using target channel statistics
+            mean_dict, std_dict = (
+                self._trainer.datamodule.predict_dataset.get_mean_std()
+            )
+            means_list = np.atleast_1d(mean_dict["target"].squeeze()).tolist()
+            stds_list = np.atleast_1d(std_dict["target"].squeeze()).tolist()
+            denorm = Denormalize(
+                image_means=means_list,
+                image_stds=stds_list,
+            )
+            tile_prediction = denorm(patch=mmse_imgs.cpu().numpy())
             tile_std = std_imgs.cpu().numpy()
 
             return tile_prediction, tile_std

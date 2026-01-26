@@ -131,7 +131,7 @@ def lateral_context_patch_constr(
             )
             pad_before = start_clipped - lc_start
             pad_after = lc_end - end_clipped
-            pad_width = np.concat(
+            pad_width = np.concatenate(
                 [
                     # zeros to not pad the channel axis
                     np.zeros((1, 2), dtype=int),
