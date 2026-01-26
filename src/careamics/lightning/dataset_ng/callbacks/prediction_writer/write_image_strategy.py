@@ -83,9 +83,17 @@ class WriteImage(WriteStrategy):
         image_lst, sources = combine_samples(predictions)
 
         for i, image in enumerate(image_lst):
+            source_path = Path(sources[i])
+
+            # Handle array sources by adding postfix
+            postfix = ""
+            if source_path.stem == "array":
+                postfix = f"_{i}"
+
             file_path = create_write_file_path(
                 dirpath=dirpath,
-                file_path=Path(sources[i]),
+                file_path=source_path,
                 write_extension=self.write_extension,
+                postfix=postfix,
             )
             self.write_func(file_path=file_path, img=image, **self.write_func_kwargs)

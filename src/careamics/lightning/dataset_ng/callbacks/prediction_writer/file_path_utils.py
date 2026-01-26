@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def create_write_file_path(
-    dirpath: Path, file_path: Path, write_extension: str
+    dirpath: Path, file_path: Path, write_extension: str, postfix: str = ""
 ) -> Path:
     """
     Create the file name for the output file.
@@ -20,6 +20,8 @@ def create_write_file_path(
         The original file path.
     write_extension : str
         The extension that output files should have.
+    postfix : str, optional
+        Appends to filename before extension, default is empty string.
 
     Returns
     -------
@@ -27,7 +29,6 @@ def create_write_file_path(
         The output file path.
     """
     file_path = Path(file_path)  # as a guard against str input
-
-    file_name = Path(file_path.stem).with_suffix(write_extension)
-    file_path = dirpath / file_name
+    file_name = f"{file_path.stem}{postfix}"
+    file_path = dirpath / Path(file_name).with_suffix(write_extension)
     return file_path
