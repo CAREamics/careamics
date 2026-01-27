@@ -80,7 +80,7 @@ class GaussianMixtureNMConfig(BaseModel):
     max_signal: float = Field(default=1.0, ge=0.0)
     """Maximum signal intensity expected in the image."""
 
-    min_sigma: float = Field(default=200.0, ge=0.0)  # TODO took from nb in pn2v
+    min_sigma: float = Field(default=125.0, ge=0.0)  # TODO took from nb in pn2v
     """Minimum value of `standard deviation` allowed in the GMM.
     All values of `standard deviation` below this are clamped to this value."""
 

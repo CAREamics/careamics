@@ -13,7 +13,6 @@ from torch.utils.data import DataLoader
 from careamics.dataset.dataset_utils.dataset_utils import reshape_array
 from careamics.lvae_training.dataset import (
     DataSplitType,
-    DataType,
     LCMultiChDloader,
     MicroSplitDataConfig,
 )
@@ -153,22 +152,6 @@ def get_train_val_data(
         Split data array.
     """
     data = load_data(datadir)
-    train_idx, val_idx, test_idx = get_datasplit_tuples(
-        val_fraction, test_fraction, len(data)
-    )
-
-    if datasplit_type == DataSplitType.All:
-        data = data.astype(np.float64)
-    elif datasplit_type == DataSplitType.Train:
-        data = data[train_idx].astype(np.float64)
-    elif datasplit_type == DataSplitType.Val:
-        data = data[val_idx].astype(np.float64)
-    elif datasplit_type == DataSplitType.Test:
-        # TODO this is only used for prediction, and only because old dataset uses it
-        data = data[test_idx].astype(np.float64)
-    else:
-        raise Exception("invalid datasplit")
-
     return data
 
 
@@ -336,8 +319,6 @@ class MicroSplitDataModule(L.LightningDataModule):
 def create_microsplit_train_datamodule(
     train_data: str,
     patch_size: tuple,
-    data_type: DataType,
-    axes: str,  # TODO should be there after refactoring
     batch_size: int,
     val_data: str | None = None,
     num_channels: int = 2,
@@ -345,7 +326,6 @@ def create_microsplit_train_datamodule(
     grid_size: tuple | None = None,
     multiscale_count: int | None = None,
     tiling_mode: TilingMode = TilingMode.ShiftBoundary,
-    read_source_func: Callable | None = None,  # TODO should be there after refactoring
     extension_filter: str = "",
     val_percentage: float = 0.1,
     val_minimum_split: int = 5,
@@ -364,10 +344,6 @@ def create_microsplit_train_datamodule(
         Path to training data.
     patch_size : tuple
         Size of one patch of data.
-    data_type : DataType
-        Type of the dataset (must be a DataType enum value).
-    axes : str
-        Axes of the data (e.g., 'SYX').
     batch_size : int
         Batch size for dataloaders.
     val_data : str, optional
@@ -382,8 +358,6 @@ def create_microsplit_train_datamodule(
         Number of LC scales.
     tiling_mode : TilingMode, default=ShiftBoundary
         Tiling mode for patch extraction.
-    read_source_func : Callable, optional
-        Function to read the source data.
     extension_filter : str, optional
         File extension filter.
     val_percentage : float, default=0.1
@@ -408,7 +382,7 @@ def create_microsplit_train_datamodule(
     """
     # Create dataset configs with only valid parameters
     dataset_config_params = {
-        "data_type": data_type,
+        "data_type": "HTLIF24Data",  # TODO remove, hardcoded for this example
         "image_size": patch_size,
         "num_channels": num_channels,
         "depth3D": depth3D,
@@ -425,11 +399,6 @@ def create_microsplit_train_datamodule(
         **dataset_config_params,
         datasplit_type=DataSplitType.Train,
     )
-    # val_config = MicroSplitDataConfig(
-    #     **dataset_config_params,
-    #     datasplit_type=DataSplitType.Val,
-    # )
-    # TODO, data config is duplicated here and in configuration
 
     return MicroSplitDataModule(
         data_config=train_config,
@@ -498,22 +467,6 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
         self.read_source_func = read_source_func or get_train_val_data
         self.extension_filter = extension_filter
         self.dataloader_params = dataloader_params
-
-    def prepare_data(self) -> None:
-        """Hook used to prepare the data before calling `setup`."""
-        # # TODO currently data preparation is handled in dataset creation, revisit!
-        pass
-
-    def setup(self, stage: str | None = None) -> None:
-        """
-        Hook called at the beginning of predict.
-
-        Parameters
-        ----------
-        stage : Optional[str], optional
-            Stage, by default None.
-        """
-        # Create prediction dataset using LCMultiChDloader
         self.predict_dataset = LCMultiChDloader(
             self.pred_config,
             self.pred_data,
@@ -532,22 +485,22 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
         DataLoader
             Prediction dataloader.
         """
+        params = {**self.dataloader_params}
+        params["shuffle"] = False
         return DataLoader(
             self.predict_dataset,
             batch_size=self.pred_config.batch_size,
-            **self.dataloader_params,
+            **params,
         )
 
 
 def create_microsplit_predict_datamodule(
     pred_data: Union[str, Path, NDArray],
     tile_size: tuple,
-    data_type: DataType,
-    axes: str,
     batch_size: int = 1,
     num_channels: int = 2,
     depth3D: int = 1,
-    grid_size: int | None = None,
+    grid_size: tuple | None = None,
     multiscale_count: int | None = None,
     data_stats: tuple | None = None,
     tiling_mode: TilingMode = TilingMode.ShiftBoundary,
@@ -565,10 +518,6 @@ def create_microsplit_predict_datamodule(
         Prediction data, can be a path to a folder, a file or a numpy array.
     tile_size : tuple
         Size of one tile of data.
-    data_type : DataType
-        Type of the dataset (must be a DataType enum value).
-    axes : str
-        Axes of the data (e.g., 'SYX').
     batch_size : int, default=1
         Batch size for prediction dataloader.
     num_channels : int, default=2
@@ -602,7 +551,7 @@ def create_microsplit_predict_datamodule(
 
     # Create prediction config with only valid parameters
     prediction_config_params = {
-        "data_type": data_type,
+        "data_type": "HTLIF24Data",  # TODO remove, hardcoded for this example
         "image_size": tile_size,
         "num_channels": num_channels,
         "depth3D": depth3D,
@@ -611,6 +560,7 @@ def create_microsplit_predict_datamodule(
         "data_stats": data_stats,
         "tiling_mode": tiling_mode,
         "batch_size": batch_size,
+        "enable_random_cropping": False,
         "datasplit_type": DataSplitType.Test,  # For prediction, use all data
         **dataset_kwargs,
     }
