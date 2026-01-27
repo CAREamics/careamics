@@ -99,7 +99,7 @@ def load_best_checkpoint(module: L.LightningModule) -> bool:
         logger.warning("No checkpoint callback found, cannot load best checkpoint.")
         return False
 
-    best_model_path = module.trainer.checkpoint_callback.best_model_path
+    best_model_path = module.trainer.checkpoint_callback.best_model_path  # type: ignore[attr-defined]
     if best_model_path and best_model_path != "":
         logger.info(f"Loading best checkpoint from: {best_model_path}")
         model_state = torch.load(best_model_path, weights_only=True)["state_dict"]

@@ -44,15 +44,18 @@ class CAREModule(L.LightningModule):
         super().__init__()
 
         if isinstance(algorithm_config, dict):
-            algorithm_config = algorithm_factory(algorithm_config)
-        if not isinstance(algorithm_config, CAREAlgorithm | N2NAlgorithm):
+            config = algorithm_factory(algorithm_config)
+        else:
+            config = algorithm_config
+
+        if not isinstance(config, (CAREAlgorithm, N2NAlgorithm)):
             raise TypeError(
                 "algorithm_config must be a CAREAlgorithm or a N2NAlgorithm"
             )
 
-        self.config = algorithm_config
-        self.model: nn.Module = UNet(**algorithm_config.model.model_dump())
-        loss = algorithm_config.loss
+        self.config = config
+        self.model: nn.Module = UNet(**self.config.model.model_dump())
+        loss = self.config.loss
         if loss == SupportedLoss.MAE:
             self.loss_func: Callable = mae_loss
         elif loss == SupportedLoss.MSE:
@@ -60,9 +63,9 @@ class CAREModule(L.LightningModule):
         else:
             raise ValueError(f"Unsupported loss for Care: {loss}")
 
-        self.metrics = MetricCollection(PeakSignalNoiseRatio())
+        self.metrics: MetricCollection = MetricCollection(PeakSignalNoiseRatio())
 
-        self._best_checkpoint_loaded = False
+        self._best_checkpoint_loaded: bool = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -161,7 +164,7 @@ class CAREModule(L.LightningModule):
         # TODO: add TTA
         prediction = self.model(x.data)
 
-        normalization = self._trainer.datamodule.predict_dataset.normalization
+        normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
         denormalized_output = normalization.denormalize(prediction).cpu().numpy()
 
         output_batch = ImageRegionData(
@@ -175,7 +178,7 @@ class CAREModule(L.LightningModule):
         )
         return output_batch
 
-    def configure_optimizers(self) -> dict[str, Any]:
+    def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]
         """Configure optimizer and learning rate scheduler.
 
         Returns
@@ -184,12 +187,12 @@ class CAREModule(L.LightningModule):
             A dictionary containing the optimizer and learning rate scheduler.
         """
         optimizer_func = get_optimizer(self.config.optimizer.name)
-        optimizer = optimizer_func(
+        optimizer = optimizer_func(  # type: ignore[operator]
             self.model.parameters(), **self.config.optimizer.parameters
         )
 
         scheduler_func = get_scheduler(self.config.lr_scheduler.name)
-        scheduler = scheduler_func(optimizer, **self.config.lr_scheduler.parameters)
+        scheduler = scheduler_func(optimizer, **self.config.lr_scheduler.parameters)  # type: ignore[operator]
 
         return {
             "optimizer": optimizer,

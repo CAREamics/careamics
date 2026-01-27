@@ -1,6 +1,6 @@
 """Noise2Void Lightning Module."""
 
-from typing import Any
+from typing import Any, cast
 
 import pytorch_lightning as L
 import torch
@@ -43,14 +43,17 @@ class N2VModule(L.LightningModule):
         super().__init__()
 
         if isinstance(algorithm_config, dict):
-            algorithm_config = algorithm_factory(algorithm_config)
-        if not isinstance(algorithm_config, N2VAlgorithm):
+            config = algorithm_factory(algorithm_config)
+        else:
+            config = algorithm_config
+
+        if not isinstance(config, N2VAlgorithm):
             raise TypeError("algorithm_config must be a N2VAlgorithm")
 
-        self.config = algorithm_config
-        self.model: nn.Module = UNet(**algorithm_config.model.model_dump())
+        self.config = config
+        self.model: nn.Module = UNet(**self.config.model.model_dump())
         self.n2v_manipulate = N2VManipulateTorch(
-            n2v_manipulate_config=algorithm_config.n2v_config
+            n2v_manipulate_config=self.config.n2v_config
         )
         self.loss_func = n2v_loss
 
@@ -92,11 +95,12 @@ class N2VModule(L.LightningModule):
             The loss value for the current training step.
         """
         x = batch[0]
-        x_masked, x_original, mask = self.n2v_manipulate(x.data)
+        x_data = cast(torch.Tensor, x.data)
+        x_masked, x_original, mask = self.n2v_manipulate(x_data)
         prediction = self.model(x_masked)
         loss = self.loss_func(prediction, x_original, mask)
 
-        log_training_stats(self, loss, batch_size=x.data.shape[0])
+        log_training_stats(self, loss, batch_size=x_data.shape[0])
 
         return loss
 
@@ -115,14 +119,13 @@ class N2VModule(L.LightningModule):
             The index of the current batch in the validation loop.
         """
         x = batch[0]
-
-        x_masked, x_original, mask = self.n2v_manipulate(x.data)
+        x_data = cast(torch.Tensor, x.data)
+        x_masked, x_original, mask = self.n2v_manipulate(x_data)
         prediction = self.model(x_masked)
-
         val_loss = self.loss_func(prediction, x_original, mask)
         self.metrics(prediction, x_original)
         log_validation_stats(
-            self, val_loss, batch_size=x.data.shape[0], metrics=self.metrics
+            self, val_loss, batch_size=x_data.shape[0], metrics=self.metrics
         )
 
     def predict_step(
@@ -145,10 +148,11 @@ class N2VModule(L.LightningModule):
             The output batch containing the predictions.
         """
         x = batch[0]
+        x_data = cast(torch.Tensor, x.data)
         # TODO: add TTA
-        prediction = self.model(x.data)
+        prediction = self.model(x_data)
 
-        normalization = self._trainer.datamodule.predict_dataset.normalization
+        normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
         denormalized_output = normalization.denormalize(prediction).cpu().numpy()
 
         output_batch = ImageRegionData(
@@ -162,7 +166,7 @@ class N2VModule(L.LightningModule):
         )
         return output_batch
 
-    def configure_optimizers(self) -> dict[str, Any]:
+    def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]
         """Configure optimizer and learning rate scheduler.
 
         Returns
@@ -172,11 +176,11 @@ class N2VModule(L.LightningModule):
         """
         optimizer_func = get_optimizer(self.config.optimizer.name)
         optimizer = optimizer_func(
-            self.model.parameters(), **self.config.optimizer.parameters
+            self.model.parameters(), **self.config.optimizer.parameters  # type: ignore[operator]
         )
 
         scheduler_func = get_scheduler(self.config.lr_scheduler.name)
-        scheduler = scheduler_func(optimizer, **self.config.lr_scheduler.parameters)
+        scheduler = scheduler_func(optimizer, **self.config.lr_scheduler.parameters)  # type: ignore[operator]
 
         return {
             "optimizer": optimizer,
