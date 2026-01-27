@@ -85,10 +85,12 @@ class WriteImage(WriteStrategy):
         for i, image in enumerate(image_lst):
             source_path = Path(sources[i])
 
-            # Handle array sources by adding postfix
+            # Handle array sources by using data_idx from predictions
             postfix = ""
             if source_path.stem == "array":
-                postfix = f"_{i}"
+                # Get data_idx from the corresponding prediction
+                data_idx = predictions[i].region_spec["data_idx"]
+                postfix = f"_{data_idx}"
 
             file_path = create_write_file_path(
                 dirpath=dirpath,
