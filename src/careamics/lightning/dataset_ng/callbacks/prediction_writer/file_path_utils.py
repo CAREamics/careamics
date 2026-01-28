@@ -20,8 +20,8 @@ def create_write_file_path(
         The original file path.
     write_extension : str
         The extension that output files should have.
-    postfix : str, optional
-        Appends to filename before extension, default is empty string.
+    postfix : str, default=""
+        Appends to filename before extension.
 
     Returns
     -------
