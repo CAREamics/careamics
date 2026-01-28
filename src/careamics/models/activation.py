@@ -34,6 +34,8 @@ def get_activation(activation: Union[SupportedActivation, str]) -> Callable:
         return nn.Sigmoid()
     elif activation == SupportedActivation.SOFTMAX:
         return nn.Softmax(dim=1)
+    elif activation == SupportedActivation.SOFTPLUS:
+        return nn.Softplus()
     elif activation == SupportedActivation.NONE:
         return nn.Identity()
     else:
