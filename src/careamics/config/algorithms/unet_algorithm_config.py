@@ -1,7 +1,6 @@
 """UNet-based algorithm Pydantic model."""
 
 from pprint import pformat
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -53,10 +52,10 @@ class UNetBasedAlgorithm(BaseModel):
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "care", "n2n", "pn2v"]
+    algorithm: str
     """Algorithm name, as defined in SupportedAlgorithm."""
 
-    loss: Literal["n2v", "mae", "mse", "pn2v"]
+    loss: str
     """Loss function to use, as defined in SupportedLoss."""
 
     model: UNetConfig
@@ -79,6 +78,7 @@ class UNetBasedAlgorithm(BaseModel):
         """
         return pformat(self.model_dump())
 
+    # TODO NG CAREamics: remove this method and use SupportedAlgorithm directly
     @classmethod
     def get_compatible_algorithms(cls) -> list[str]:
         """Get the list of compatible algorithms.

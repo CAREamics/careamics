@@ -16,6 +16,7 @@ __all__ = [
     "N2VAlgorithm",
     "NGDataConfig",
     "PN2VAlgorithm",
+    "SegAlgorithm",
     "TrainingConfig",
     "UNetBasedAlgorithm",
     "UNetConfig",
@@ -39,6 +40,7 @@ from .algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
     PN2VAlgorithm,
+    SegAlgorithm,
     UNetBasedAlgorithm,
     VAEBasedAlgorithm,
 )

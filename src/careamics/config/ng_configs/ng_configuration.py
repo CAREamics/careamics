@@ -13,15 +13,12 @@ from careamics.config.algorithms import (
     CAREAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    SegAlgorithm,
 )
 from careamics.config.data import NGDataConfig
 from careamics.config.lightning.training_config import TrainingConfig
 
-ALGORITHMS = Union[
-    CAREAlgorithm,
-    N2NAlgorithm,
-    N2VAlgorithm,
-]
+ALGORITHMS = Union[CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm]
 
 
 class NGConfiguration(BaseModel):

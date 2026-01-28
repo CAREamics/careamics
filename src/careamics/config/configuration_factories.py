@@ -11,6 +11,7 @@ from careamics.config.algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
     PN2VAlgorithm,
+    SegAlgorithm,
 )
 from careamics.config.architectures import LVAEConfig, UNetConfig
 from careamics.config.data import DataConfig
@@ -40,10 +41,18 @@ from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 from .configuration import Configuration
 
+ALGORITHMS = Union[
+    N2VAlgorithm,
+    N2NAlgorithm,
+    CAREAlgorithm,
+    PN2VAlgorithm,
+    SegAlgorithm,
+]
+
 
 def algorithm_factory(
     algorithm: dict[str, Any],
-) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, PN2VAlgorithm]:
+) -> ALGORITHMS:
     """
     Create an algorithm model for training CAREamics.
 
@@ -54,12 +63,12 @@ def algorithm_factory(
 
     Returns
     -------
-    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm or PN2VAlgorithm
+    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm or PN2VAlgorithm or SegAlgorithm
         Algorithm model for training CAREamics.
     """
     adapter: TypeAdapter = TypeAdapter(
         Annotated[
-            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, PN2VAlgorithm],
+            ALGORITHMS,
             Field(discriminator="algorithm"),
         ]
     )
