@@ -37,4 +37,6 @@ def write_tiff(file_path: Path, img: NDArray, *args, **kwargs) -> None:
         raise ValueError(
             f"Unexpected extension '{file_path.suffix}' for save file type 'tiff'."
         )
+    if file_path.exists():
+        raise FileExistsError(f"File already exists at '{file_path}'. ")
     tifffile.imwrite(file_path, img, *args, **kwargs)
