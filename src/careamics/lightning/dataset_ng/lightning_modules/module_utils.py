@@ -4,9 +4,11 @@ from typing import Any
 
 import pytorch_lightning as L
 import torch
+from torch import nn
 from torchmetrics import MetricCollection
 
 from careamics.utils.logging import get_logger
+from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 logger = get_logger(__name__)
 
@@ -108,3 +110,48 @@ def load_best_checkpoint(module: L.LightningModule) -> bool:
     else:
         logger.warning("No best checkpoint found.")
         return False
+
+
+def configure_optimizers(
+    model: nn.Module,
+    optimizer_name: str,
+    optimizer_parameters: dict[str, Any],
+    lr_scheduler_name: str,
+    lr_scheduler_parameters: dict[str, Any],
+    monitor: str = "val_loss",
+) -> dict[str, Any]:
+    """Configure optimizer and learning rate scheduler.
+
+    Parameters
+    ----------
+    model : nn.Module
+        The model whose parameters will be optimized.
+    optimizer_name : str
+        The name of the optimizer to use.
+    optimizer_parameters : dict[str, Any]
+        Parameters to pass to the optimizer constructor.
+    lr_scheduler_name : str
+        The name of the learning rate scheduler to use.
+    lr_scheduler_parameters : dict[str, Any]
+        Parameters to pass to the learning rate scheduler constructor.
+    monitor : str, optional
+        The metric to monitor for the learning rate scheduler, by default "val_loss".
+
+    Returns
+    -------
+    dict[str, Any]
+        A dictionary containing the optimizer and learning rate scheduler configuration.
+    """
+    optimizer_func = get_optimizer(optimizer_name)
+    optimizer = optimizer_func(  # type: ignore[operator]
+        model.parameters(), **optimizer_parameters
+    )
+
+    scheduler_func = get_scheduler(lr_scheduler_name)
+    scheduler = scheduler_func(optimizer, **lr_scheduler_parameters)  # type: ignore[operator]
+
+    return {
+        "optimizer": optimizer,
+        "lr_scheduler": scheduler,
+        "monitor": monitor,
+    }

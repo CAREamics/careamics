@@ -15,9 +15,13 @@ from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.losses import mae_loss, mse_loss
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
-from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
-from .module_utils import load_best_checkpoint, log_training_stats, log_validation_stats
+from .module_utils import (
+    configure_optimizers,
+    load_best_checkpoint,
+    log_training_stats,
+    log_validation_stats,
+)
 
 logger = get_logger(__name__)
 
@@ -186,16 +190,10 @@ class CAREModule(L.LightningModule):
         dict[str, Any]
             A dictionary containing the optimizer and learning rate scheduler.
         """
-        optimizer_func = get_optimizer(self.config.optimizer.name)
-        optimizer = optimizer_func(  # type: ignore[operator]
-            self.model.parameters(), **self.config.optimizer.parameters
+        return configure_optimizers(
+            model=self.model,
+            optimizer_name=self.config.optimizer.name,
+            optimizer_parameters=self.config.optimizer.parameters,
+            lr_scheduler_name=self.config.lr_scheduler.name,
+            lr_scheduler_parameters=self.config.lr_scheduler.parameters,
         )
-
-        scheduler_func = get_scheduler(self.config.lr_scheduler.name)
-        scheduler = scheduler_func(optimizer, **self.config.lr_scheduler.parameters)  # type: ignore[operator]
-
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": scheduler,
-            "monitor": "val_loss",
-        }

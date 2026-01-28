@@ -14,9 +14,8 @@ from careamics.losses import n2v_loss
 from careamics.models.unet import UNet
 from careamics.transforms import N2VManipulateTorch
 from careamics.utils.logging import get_logger
-from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
-from .module_utils import log_training_stats, log_validation_stats
+from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
 
 logger = get_logger(__name__)
 
@@ -174,16 +173,10 @@ class N2VModule(L.LightningModule):
         dict[str, Any]
             A dictionary containing the optimizer and learning rate scheduler.
         """
-        optimizer_func = get_optimizer(self.config.optimizer.name)
-        optimizer = optimizer_func(
-            self.model.parameters(), **self.config.optimizer.parameters  # type: ignore[operator]
+        return configure_optimizers(
+            model=self.model,
+            optimizer_name=self.config.optimizer.name,
+            optimizer_parameters=self.config.optimizer.parameters,
+            lr_scheduler_name=self.config.lr_scheduler.name,
+            lr_scheduler_parameters=self.config.lr_scheduler.parameters,
         )
-
-        scheduler_func = get_scheduler(self.config.lr_scheduler.name)
-        scheduler = scheduler_func(optimizer, **self.config.lr_scheduler.parameters)  # type: ignore[operator]
-
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": scheduler,
-            "monitor": "val_loss",
-        }
