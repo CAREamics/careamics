@@ -11,7 +11,6 @@ from careamics.config.algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
     PN2VAlgorithm,
-    SegAlgorithm,
 )
 from careamics.config.architectures import LVAEConfig, UNetConfig
 from careamics.config.data import DataConfig
@@ -46,7 +45,6 @@ ALGORITHMS = Union[
     N2NAlgorithm,
     CAREAlgorithm,
     PN2VAlgorithm,
-    SegAlgorithm,
 ]
 
 
@@ -63,7 +61,7 @@ def algorithm_factory(
 
     Returns
     -------
-    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm or PN2VAlgorithm or SegAlgorithm
+    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm or PN2VAlgorithm
         Algorithm model for training CAREamics.
     """
     adapter: TypeAdapter = TypeAdapter(

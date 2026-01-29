@@ -1,24 +1,18 @@
 """Convenience function to create algorithm configurations."""
 
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, TypeAdapter
 
-from careamics.config.algorithms import (
-    CAREAlgorithm,
-    N2NAlgorithm,
-    N2VAlgorithm,
-    SegAlgorithm,
-    # PN2VAlgorithm,  # TODO not yet compatible with NG Dataset
-)
 from careamics.config.architectures import UNetConfig
+from careamics.config.ng_configs.ng_configuration import ALGORITHMS
 from careamics.config.support.supported_architectures import SupportedArchitecture
 
 
 # TODO rename so that it does not bear the same name as the module?
 def algorithm_factory(
     algorithm: dict[str, Any],
-) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, SegAlgorithm]:
+) -> ALGORITHMS:
     """
     Create an algorithm model for training CAREamics.
 
@@ -29,12 +23,12 @@ def algorithm_factory(
 
     Returns
     -------
-    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm or SegAlgorithm
+    ALGORITHMS
         Algorithm model for training CAREamics.
     """
     adapter: TypeAdapter = TypeAdapter(
         Annotated[
-            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, SegAlgorithm],
+            ALGORITHMS,
             Field(discriminator="algorithm"),
         ]
     )

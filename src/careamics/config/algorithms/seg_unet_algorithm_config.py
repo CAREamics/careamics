@@ -17,7 +17,7 @@ class SegAlgorithm(UNetBasedAlgorithm):
     """Configuration for segmentation algorithm."""
 
     algorithm: Literal["seg"] = "seg"
-    """Segmentation Algorithm name."""
+    """Segmentation algorithm name."""
 
     loss: Literal["dice", "ce", "dice_ce"] = "dice"
     """Segmentation-compatible loss function."""
