@@ -48,10 +48,10 @@ class StratifiedPatchingStrategy:
 
     # TODO: add method to return valid grid coords for removal
 
-    def exclude_patch(
-        self, data_idx: int, sample_idx: int, grid_coord: tuple[int, ...]
+    def exclude_patches(
+        self, data_idx: int, sample_idx: int, grid_coords: Sequence[tuple[int, ...]]
     ):
-        self.image_patching[data_idx][sample_idx].exclude_patch(grid_coord)
+        self.image_patching[data_idx][sample_idx].exclude_patches(grid_coords)
 
         # update bins after excluding patch
         (
@@ -203,22 +203,23 @@ class _ImageStratifiedPatching:
         selected_key = keys[selected_key_idx]
         return self.regions[selected_key]
 
-    def exclude_patch(self, grid_coord: tuple[int, ...]):
-        d: tuple[Literal[0, 1], ...] = (0, 1)
-        for d_idx in itertools.product(*[d for _ in range(self.ndims)]):
-            q: tuple[Literal[0, 1], ...] = tuple(0 if i == 1 else 1 for i in d_idx)
-            grid_idx = tuple(
-                g - (1 - i) for g, i in zip(grid_coord, d_idx, strict=True)
-            )
-            if grid_idx not in self.regions:
-                continue
-            self.regions[grid_idx].exclude_orthant(q)
-            self.areas[grid_idx] = sum(self.regions[grid_idx].areas)
+    def exclude_patches(self, grid_coords: Sequence[tuple[int, ...]]):
+        for grid_coord in grid_coords:
+            d: tuple[Literal[0, 1], ...] = (0, 1)
+            for d_idx in itertools.product(*[d for _ in range(self.ndims)]):
+                q: tuple[Literal[0, 1], ...] = tuple(0 if i == 1 else 1 for i in d_idx)
+                grid_idx = tuple(
+                    g - (1 - i) for g, i in zip(grid_coord, d_idx, strict=True)
+                )
+                if grid_idx not in self.regions:
+                    continue
+                self.regions[grid_idx].exclude_orthant(q)
+                self.areas[grid_idx] = sum(self.regions[grid_idx].areas)
 
-            if self.areas[grid_idx] == 0:
-                del self.regions[grid_idx]
-                del self.areas[grid_idx]
-                del self.probs[grid_idx]
+                if self.areas[grid_idx] == 0:
+                    del self.regions[grid_idx]
+                    del self.areas[grid_idx]
+                    del self.probs[grid_idx]
 
         self._update_bins()
 
