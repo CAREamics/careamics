@@ -33,6 +33,11 @@ class StratifiedPatchingStrategy:
             for shape in data_shapes
         ]
 
+        # bins
+        self.cumulative_image_patches, self.cumulative_sample_patches = (
+            self._calc_bins()
+        )
+
     @property
     def n_patches(self) -> int:
         return sum(
@@ -46,27 +51,28 @@ class StratifiedPatchingStrategy:
     ):
         self.image_patching[data_idx][sample_idx].exclude_patch(grid_coord)
 
+        # update bins after excluding patch
+        self.cumulative_image_patches, self.cumulative_sample_patches = (
+            self._calc_bins()
+        )
+
     def get_patch_spec(self, index: int) -> PatchSpecs:
-        patches_per_sample = [
-            [sample.n_patches for sample in image] for image in self.image_patching
-        ]
-        patches_per_image = [sum(samples) for samples in patches_per_sample]
 
         # first find data_idx from cumulative image patches
-        cumulative_image_patches = np.cumsum(patches_per_image)
-        data_idx = np.digitize(index, cumulative_image_patches)
+        data_idx = np.digitize(index, self.cumulative_image_patches)
+        data_bin_edge = (
+            self.cumulative_image_patches[data_idx - 1] if data_idx != 0 else 0
+        )
 
-        # find index relative to start of image stack
-        data_bin_edge = cumulative_image_patches[data_idx - 1] if data_idx != 0 else 0
-        index = index - data_bin_edge
-
-        # now find sample_idx from cumulative_sample_patches
-        cumulative_sample_patches = np.cumsum(patches_per_sample[data_idx])
-        sample_idx = np.digitize(index, cumulative_sample_patches)
+        image_sample_idx = np.digitize(data_bin_edge, self.cumulative_sample_patches)
+        global_sample_idx = np.digitize(index, self.cumulative_sample_patches)
+        sample_idx = global_sample_idx - image_sample_idx
 
         # now find index relative to start of sample for the stratified image sampler
         sample_bin_edge = (
-            cumulative_sample_patches[sample_idx - 1] if sample_idx != 0 else 0
+            self.cumulative_sample_patches[global_sample_idx - 1]
+            if global_sample_idx != 0
+            else 0
         )
         index = index - sample_bin_edge
 
@@ -88,6 +94,17 @@ class StratifiedPatchingStrategy:
 
         start = 0 if data_idx == 0 else cumulative_image_patches[data_idx - 1]
         return np.arange(start, cumulative_image_patches[data_idx]).tolist()
+
+    def _calc_bins(self) -> tuple[NDArray[np.int_], NDArray[np.int_]]:
+        patches_per_sample = [
+            [sample.n_patches for sample in image] for image in self.image_patching
+        ]
+        patches_per_image = [sum(samples) for samples in patches_per_sample]
+        cumulative_image_patches = np.cumsum(patches_per_image)
+        cumulative_sample_patches = np.cumsum(
+            [n_patches for image in patches_per_sample for n_patches in image]
+        )
+        return cumulative_image_patches, cumulative_sample_patches
 
 
 class _ImageStratifiedPatching:
