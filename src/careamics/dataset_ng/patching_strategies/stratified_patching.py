@@ -12,12 +12,12 @@ from .patching_strategy_protocol import PatchSpecs
 Box = tuple[tuple[int, int], ...]
 
 
-class StratifiedPatching:
+class StratifiedPatchingStrategy:
 
     def __init__(
         self,
-        data_shapes: Sequence[tuple[int, ...]],
-        patch_size: tuple[int, ...],
+        data_shapes: Sequence[Sequence[int]],
+        patch_size: Sequence[int],
         seed: int | None = None,
     ):
         self.rng = np.random.default_rng(seed=seed)
@@ -92,8 +92,8 @@ class _ImageStratifiedPatching:
 
     def __init__(
         self,
-        shape: tuple[int, ...],
-        patch_size: tuple[int, ...],
+        shape: Sequence[int],
+        patch_size: Sequence[int],
         rng: np.random.Generator | None = None,
     ):
         if rng is not None:
@@ -191,7 +191,9 @@ class _ImageStratifiedPatching:
         self._update_bins()
 
     def _update_bins(self):
-        self.n_patches = sum(self.areas.values()) // np.prod(self.patch_size).item()
+        self.n_patches = int(
+            np.ceil(sum(self.areas.values()) / np.prod(self.patch_size))
+        )
         self.bin_size, _ = _find_bin_size(self.areas, self.n_patches)
         self.bins = _region_bin_packing(self.areas, self.bin_size)
         self.probs = {key: area / self.bin_size for key, area in self.areas.items()}
@@ -208,8 +210,8 @@ class _SamplingRegion:
 
     def __init__(
         self,
-        coord: tuple[int, ...],
-        patch_size: tuple[int, ...],
+        coord: Sequence[int],
+        patch_size: Sequence[int],
         rng: np.random.Generator | None = None,
     ):
         if rng is not None:
@@ -231,7 +233,9 @@ class _SamplingRegion:
         #   ⋮              ⋮
         # └───┴──────────────────────────┘
 
-        subregion_axis_extent = [((0, 1), (1, patch_size[i])) for i in range(2)]
+        subregion_axis_extent = [
+            ((0, 1), (1, patch_size[i])) for i in range(self.ndims)
+        ]
 
         # a single subregion is represented by it's extent in each axis
         # An extent is a tuple (start, end), where the end is exclusive.

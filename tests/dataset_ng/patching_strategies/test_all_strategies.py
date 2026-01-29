@@ -8,6 +8,7 @@ from careamics.dataset_ng.patching_strategies import (
     PatchingStrategy,
     RandomPatchingStrategy,
     SequentialPatchingStrategy,
+    StratifiedPatchingStrategy,
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
@@ -36,6 +37,13 @@ def _create_sequential_patching_strategy(
 ) -> SequentialPatchingStrategy:
     overlap = tuple(2 for _ in patch_size)
     return SequentialPatchingStrategy(data_shapes, patch_size, overlap)
+
+
+def _create_stratified_patching_strategy(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+) -> StratifiedPatchingStrategy:
+    seed = 42
+    return StratifiedPatchingStrategy(data_shapes, patch_size, seed=seed)
 
 
 def _create_tiling_strategy(
@@ -70,6 +78,7 @@ PATCHING_STRATEGY_CONSTR: tuple[PatchingStrategyConstr, ...] = (
     _create_sequential_patching_strategy,
     _create_tiling_strategy,
     _create_whole_sample_patching_strategy,
+    _create_stratified_patching_strategy,
 )
 
 
@@ -110,6 +119,8 @@ def test_all_get_patch_spec(
     [
         [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 8)],
         [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 5)],
+        # [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 16, 9, 18)], (8, 8, 8)],
+        # [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 16, 9, 18)], (8, 5, 7)],
         [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 8, 8)],
         [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 5, 7)],
     ],
@@ -126,19 +137,25 @@ def test_patches_cover_50percent(
     # track where patches have been sampled from
     tracking_arrays = [np.zeros(data_shape, dtype=bool) for data_shape in data_shapes]
 
-    patch_specs = [
-        patching_strategy.get_patch_spec(i) for i in range(patching_strategy.n_patches)
-    ]
-    for patch_spec in patch_specs:
-        tracking_array = tracking_arrays[patch_spec["data_idx"]]
-        spatial_slice = tuple(
-            slice(c, c + ps)
-            for c, ps in zip(
-                patch_spec["coords"], patch_spec["patch_size"], strict=False
+    # epochs won't affect non stochastic strategies
+    epochs = 2
+    for _ in range(epochs):
+        patch_specs = [
+            patching_strategy.get_patch_spec(i)
+            for i in range(patching_strategy.n_patches)
+        ]
+        for patch_spec in patch_specs:
+            tracking_array = tracking_arrays[patch_spec["data_idx"]]
+            spatial_slice = tuple(
+                slice(c, c + ps)
+                for c, ps in zip(
+                    patch_spec["coords"], patch_spec["patch_size"], strict=True
+                )
             )
-        )
-        # set to true where the patches would be sampled from
-        tracking_array[(patch_spec["sample_idx"], slice(None), *spatial_slice)] = True
+            # set to true where the patches would be sampled from
+            tracking_array[(patch_spec["sample_idx"], slice(None), *spatial_slice)] = (
+                True
+            )
 
     total_covered = 0
     total_size = 0

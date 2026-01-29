@@ -5,6 +5,7 @@ __all__ = [
     "RandomPatchingStrategy",
     "RegionSpecs",
     "SequentialPatchingStrategy",
+    "StratifiedPatchingStrategy",
     "TileSpecs",
     "TilingStrategy",
     "WholeSamplePatchingStrategy",
@@ -22,5 +23,6 @@ from .patching_strategy_protocol import (
 )
 from .random_patching import FixedRandomPatchingStrategy, RandomPatchingStrategy
 from .sequential_patching import SequentialPatchingStrategy
+from .stratified_patching import StratifiedPatchingStrategy
 from .tiling_strategy import TilingStrategy
 from .whole_sample import WholeSamplePatchingStrategy
