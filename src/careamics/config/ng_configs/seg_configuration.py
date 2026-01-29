@@ -20,7 +20,7 @@ class SegConfiguration(NGConfiguration):
     # splitting it between segmentation and denoising data configs
     @model_validator(mode="after")
     def no_channel_extraction(self: Self) -> Self:
-        """Validate that the `channel` parameter is set to `None` for segmentation.
+        """Validate that the `channels` parameter is set to `None` for segmentation.
 
         Returns
         -------
@@ -30,11 +30,11 @@ class SegConfiguration(NGConfiguration):
         Raises
         ------
         ValueError
-            If the `channel` parameter is not `None`.
+            If the `channels` parameter is not `None`.
         """
         if self.data_config.channels is not None:
             raise ValueError(
-                "The `channel` parameter must be set to `None` for segmentation "
+                "The `channels` parameter must be set to `None` for segmentation "
                 "tasks, as all channels are used for prediction."
             )
         return self
