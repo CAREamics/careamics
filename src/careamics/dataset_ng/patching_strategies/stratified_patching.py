@@ -1,4 +1,4 @@
-"Stratified patching strategy with the option to remove coordinates."
+"Stratified patching strategy with the option to exclude coordinates."
 
 import itertools
 from collections.abc import Sequence
@@ -41,8 +41,10 @@ class StratifiedPatchingStrategy:
 
     # TODO: add method to return valid grid coords for removal
 
-    def remove_patch(self, data_idx: int, sample_idx: int, grid_coord: tuple[int, ...]):
-        self.image_patching[data_idx][sample_idx].remove_patch(grid_coord)
+    def exclude_patch(
+        self, data_idx: int, sample_idx: int, grid_coord: tuple[int, ...]
+    ):
+        self.image_patching[data_idx][sample_idx].exclude_patch(grid_coord)
 
     def get_patch_spec(self, index: int) -> PatchSpecs:
         patches_per_sample = [
@@ -171,7 +173,7 @@ class _ImageStratifiedPatching:
         selected_key = keys[selected_key_idx]
         return self.regions[selected_key]
 
-    def remove_patch(self, grid_coord: tuple[int, ...]):
+    def exclude_patch(self, grid_coord: tuple[int, ...]):
         d: tuple[Literal[0, 1], ...] = (0, 1)
         for d_idx in itertools.product(*[d for _ in range(self.ndims)]):
             q: tuple[Literal[0, 1], ...] = tuple(0 if i == 1 else 1 for i in d_idx)
@@ -180,7 +182,7 @@ class _ImageStratifiedPatching:
             )
             if grid_idx not in self.regions:
                 continue
-            self.regions[grid_idx].remove_orthant(q)
+            self.regions[grid_idx].exclude_orthant(q)
             self.areas[grid_idx] = sum(self.regions[grid_idx].areas)
 
             if self.areas[grid_idx] == 0:
@@ -205,7 +207,7 @@ class _SamplingRegion:
 
     The region is double the patch size in each dimension. Quadrants or octants, for
     2D or 3D respectively, can be excluded from the region by calling the
-    `remove_orthant` method.
+    `exclude_orthant` method.
     """
 
     def __init__(
@@ -253,7 +255,7 @@ class _SamplingRegion:
 
         return self.rng.integers(start, end) + np.array(self.coord)
 
-    def remove_orthant(
+    def exclude_orthant(
         self,
         orthant: tuple[Literal[0, 1], ...],
     ) -> None:
