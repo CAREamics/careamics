@@ -3,7 +3,9 @@
 __all__ = [
     "create_n2v_configuration",
     "create_ng_data_configuration",
+    "create_seg_configuration",
 ]
 
 from .data_factory import create_ng_data_configuration
 from .n2v_factory import create_n2v_configuration
+from .seg_unet_factory import create_seg_configuration

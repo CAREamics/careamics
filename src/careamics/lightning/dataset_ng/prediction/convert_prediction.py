@@ -182,9 +182,10 @@ def convert_prediction(
         decollated_predictions.extend(decollated_batch)
 
     if not tiled and "total_tiles" in decollated_predictions[0].region_spec:
+        raise ValueError("Predictions seemed to be tiled, but `tiled` is set to False.")
+    elif tiled and "total_tiles" not in decollated_predictions[0].region_spec:
         raise ValueError(
-            "Predictions contain `total_tiles` in region_spec but `tiled` is set to "
-            "False."
+            "Predictions do not seem to be tiled, but `tiled` is set to True."
         )
 
     if tiled:

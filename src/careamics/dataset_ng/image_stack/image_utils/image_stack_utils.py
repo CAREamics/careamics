@@ -57,6 +57,14 @@ def reshape_array_shape(
         present in `original_axes` will be included in the output shape. When `True`,
         missing mandatory axes (`S` and `C`) will be added as singleton dimensions.
     """
+    if len(original_axes) != len(shape):
+        raise ValueError(
+            "Length of axes must match length of shape. "
+            f"Got axes: {original_axes} (len={len(original_axes)}) and "
+            f"shape: {shape} (len={len(shape)}). Compare your input data with the "
+            "`axes` parameter in your configuration."
+        )
+
     target_axes = "SCZYX"
     target_shape = []
     for d in target_axes:
