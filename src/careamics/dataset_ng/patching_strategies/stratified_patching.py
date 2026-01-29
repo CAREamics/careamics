@@ -43,18 +43,60 @@ class _ImageStratifiedPatching:
         self.grid_coords = np.stack(np.meshgrid(*grid_axes, indexing="ij"), axis=-1)
         self.grid_shape = self.grid_coords.shape[:-1]
         # populate the self.regions and self.areas dictionaries
-        for grid_coord in self.grid_coords.reshape(-1, self.ndims):
-            # find the pixel coordinate
-            coord = grid_coord * np.array(self.patch_size)
-            sampling_region = _SamplingRegion(
-                tuple(coord.tolist()), self.patch_size, rng
-            )
-            sampling_region.clip(np.zeros(self.ndims, dtype=int), np.array(shape[2:]))
+        for grid_coord in itertools.product(*[range(s) for s in self.grid_shape]):
+            # find pixel coord
+            coord = np.array(grid_coord) * np.array(patch_size)
+            sampling_region = _SamplingRegion(tuple(coord), self.patch_size, rng)
+            sampling_region.clip(np.zeros(self.ndims, dtype=int), np.array(shape))
             # if the area is zero do not store the region
             if sum(sampling_region.areas) == 0:
                 continue
-            self.regions[tuple(grid_coord.tolist())] = sampling_region
-            self.areas[tuple(grid_coord.tolist())] = sum(sampling_region.areas)
+            self.regions[grid_coord] = sampling_region
+            self.areas[grid_coord] = sum(sampling_region.areas)
+
+        # no. of patches calculated from how many patches fit into the selectable area
+        # this ensures that a pixel is expected to be selected 1 time per epoch
+        self.n_patches = sum(self.areas.values()) // np.prod(self.patch_size).item()
+        # patches are packed into bins where no. of bins < no. of patches
+        self.bin_size, _ = _find_bin_size(self.areas, self.n_patches)
+        self.bins = _region_bin_packing(self.areas, self.bin_size)
+        self.probs = {key: area / self.bin_size for key, area in self.areas.items()}
+
+    def sample_patch_coord(self, index: int) -> NDArray[np.int_]:
+        if index >= self.n_patches:
+            raise ValueError(
+                f"Index {index} out of bounds for image with {self.n_patches} patches."
+            )
+
+        # each index corresponds to a bin*,
+        # regions within the selected bin are sampled proportionally to their area.
+        # if there is remaining space in the bin it is assigned to all the regions
+        # *contradicting the first statement, there may be fewer bins than patches
+        # for empty bins, all regions are sampled with a prob proportional to area
+        if index < len(self.bins):
+            bin_ = self.bins[index]
+        else:
+            bin_ = []
+
+        region = self._sample_region_from_bin(bin_)
+        return region.sample_patch_coord()
+
+    def _sample_region_from_bin(self, bin: list[tuple[int, ...]]) -> "_SamplingRegion":
+        keys = list(self.regions.keys())
+        probs = np.array([self.probs[key] for key in keys])
+        if len(bin) != 0:
+            indices = np.where(
+                (np.array(keys) == np.array(bin)[:, None]).all(2).any(0)
+            )[0]
+        else:
+            indices = np.array([])
+        weights = np.zeros_like(probs)
+        weights[indices] = probs[indices]
+        remaining_prob = 1 - weights.sum()
+        weights += probs / probs.sum() * remaining_prob
+        selected_key_idx = self.rng.choice(np.arange(len(keys)), p=weights)
+        selected_key = keys[selected_key_idx]
+        return self.regions[selected_key]
 
 
 class _SamplingRegion:
@@ -97,6 +139,17 @@ class _SamplingRegion:
         # An extent is a tuple (start, end), where the end is exclusive.
         self.subregions = list(itertools.product(*subregion_axis_extent))
         self.areas = self._calc_areas(self.subregions)
+
+    def sample_patch_coord(self) -> NDArray[np.int_]:
+        areas = np.array(self.areas)
+        # first a region is chosen (proportionally to area)
+        r_idx = self.rng.choice(np.arange(len(self.areas)), p=areas / areas.sum())
+        region = self.subregions[r_idx]
+        # then a coordinate is chosen
+        start = np.array([r[0] for r in region])
+        end = np.array([r[1] for r in region])
+
+        return self.rng.integers(start, end) + np.array(self.coord)
 
     def remove_orthant(
         self,
@@ -150,6 +203,9 @@ class _SamplingRegion:
         return [np.prod([r[1] - r[0] for r in region]).item() for region in regions]
 
 
+# --- helper funcs
+
+
 def _boxes_overlap(
     box_a: Box,
     box_b: Box,
@@ -162,3 +218,95 @@ def _boxes_overlap(
     b_start = np.array([axis_extent[0] for axis_extent in box_b])
     b_end = np.array([axis_extent[1] for axis_extent in box_b])
     return (np.maximum(a_start, b_start) < np.minimum(a_end, b_end)).all().item()
+
+
+def _region_bin_packing(
+    areas: dict[tuple[int, ...], int], bin_size: int
+) -> list[list[tuple[int, ...]]]:
+    if len(areas) == 0:
+        return []
+
+    sorted_keys = sorted(areas.keys(), key=lambda k: areas[k], reverse=True)
+    bins: list[list[tuple[int, ...]]] = []
+
+    for key in sorted_keys:
+        # Find the bin with least remaining space that still fits this value
+        best_bin_idx = None
+        min_remaining_space = bin_size + 1
+
+        for i, bin_contents in enumerate(bins):
+            current_sum = sum([areas[k] for k in bin_contents])
+            remaining_space = bin_size - current_sum
+
+            # Can it fit? Is it tighter than our current best?
+            value = areas[key]
+            if remaining_space >= value and remaining_space < min_remaining_space:
+                best_bin_idx = i
+                min_remaining_space = remaining_space
+
+        # Add to best bin or create new one
+        if best_bin_idx is not None:
+            bins[best_bin_idx].append(key)
+        else:
+            bins.append([key])
+
+    return bins
+
+
+def _find_bin_size(
+    areas: dict[tuple[int, ...], int], target_n_bins: int
+) -> tuple[int, int]:
+    if len(areas) == 0:
+        return 0, 0
+
+    # Binary search bounds
+    min_size = max(areas.values())
+    max_size = sum(areas.values())
+
+    # Edge case: if we want 1 bin, we need bin size = sum of all values
+    if target_n_bins == 1:
+        return max_size, 1
+
+    # Edge case: if we want as many bins as values, bin size = max value
+    if target_n_bins >= len(areas):
+        return min_size, len(areas)
+
+    best_bin_size = None
+    best_num_bins = None
+
+    while min_size <= max_size:
+        mid_size = (min_size + max_size) // 2
+
+        # Test how many bins we get with this size
+        bins = _region_bin_packing(areas, mid_size)
+        num_bins = len(bins)
+
+        if num_bins == target_n_bins:
+            # Found exact match! Save it and keep searching for smaller bin size
+            best_bin_size = mid_size
+            best_num_bins = num_bins
+            max_size = mid_size - 1  # Try smaller bin size
+        elif num_bins > target_n_bins:
+            # Too many bins, need larger bin size
+            min_size = mid_size + 1
+        else:
+            # Too few bins (num_bins < target_bins)
+            # Save as potential answer if it's our best so far
+            if best_num_bins is None or num_bins > best_num_bins:
+                best_bin_size = mid_size
+                best_num_bins = num_bins
+            elif (
+                best_bin_size is not None
+                and num_bins == best_num_bins
+                and mid_size < best_bin_size
+            ):
+                # Same number of bins but smaller size - better!
+                best_bin_size = mid_size
+
+            # Try smaller bin size to increase bins
+            max_size = mid_size - 1
+
+    best_bin_size = 0 if best_bin_size is None else best_bin_size
+    best_num_bins = 0 if best_num_bins is None else best_num_bins
+
+    return best_bin_size, best_num_bins
