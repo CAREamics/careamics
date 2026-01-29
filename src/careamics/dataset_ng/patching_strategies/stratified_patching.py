@@ -26,22 +26,20 @@ class _ImageStratifiedPatching:
         self.shape = shape
         self.patch_size = patch_size
         self.ndims = len(patch_size)
+        # we need shape + 1 to cover the last pixel when shape % patch_size = 0
+        self.grid_shape = tuple(
+            ((np.array(shape) + 1) // np.array(patch_size)).tolist()
+        )
 
         # sampling regions will be stored in a dict
         # the keys correspond to a grid coordinate
         self.regions: dict[tuple[int, ...], _SamplingRegion] = {}
         self.areas: dict[tuple[int, ...], int] = {}
+        self.probs: dict[tuple[int, ...], float]
+        self.bin_size: int
+        self.bins: list[list[tuple[int, ...]]]
+        self.n_patches: int
 
-        self.grid_coords: NDArray[np.int_]
-        self.grid_shape: tuple[int, ...]
-
-        # define grid
-        # we need shape + 1 to cover the last pixel when shape % patch_size = 0
-        grid_axes: list[NDArray[np.int_]] = [
-            np.arange(0, s + 1, ps) for s, ps in zip(shape, patch_size, strict=True)
-        ]
-        self.grid_coords = np.stack(np.meshgrid(*grid_axes, indexing="ij"), axis=-1)
-        self.grid_shape = self.grid_coords.shape[:-1]
         # populate the self.regions and self.areas dictionaries
         for grid_coord in itertools.product(*[range(s) for s in self.grid_shape]):
             # find pixel coord
@@ -56,11 +54,8 @@ class _ImageStratifiedPatching:
 
         # no. of patches calculated from how many patches fit into the selectable area
         # this ensures that a pixel is expected to be selected 1 time per epoch
-        self.n_patches = sum(self.areas.values()) // np.prod(self.patch_size).item()
         # patches are packed into bins where no. of bins < no. of patches
-        self.bin_size, _ = _find_bin_size(self.areas, self.n_patches)
-        self.bins = _region_bin_packing(self.areas, self.bin_size)
-        self.probs = {key: area / self.bin_size for key, area in self.areas.items()}
+        self._update_bins()
 
     def sample_patch_coord(self, index: int) -> NDArray[np.int_]:
         if index >= self.n_patches:
@@ -89,7 +84,7 @@ class _ImageStratifiedPatching:
                 (np.array(keys) == np.array(bin)[:, None]).all(2).any(0)
             )[0]
         else:
-            indices = np.array([])
+            indices = np.array([], dtype=int)
         weights = np.zeros_like(probs)
         weights[indices] = probs[indices]
         remaining_prob = 1 - weights.sum()
@@ -97,6 +92,31 @@ class _ImageStratifiedPatching:
         selected_key_idx = self.rng.choice(np.arange(len(keys)), p=weights)
         selected_key = keys[selected_key_idx]
         return self.regions[selected_key]
+
+    def remove_patch(self, grid_coord: tuple[int, ...]):
+        d: tuple[Literal[0, 1], ...] = (0, 1)
+        for d_idx in itertools.product(*[d for _ in range(self.ndims)]):
+            q: tuple[Literal[0, 1], ...] = tuple(0 if i == 1 else 1 for i in d_idx)
+            grid_idx = tuple(
+                g - (1 - i) for g, i in zip(grid_coord, d_idx, strict=True)
+            )
+            if grid_idx not in self.regions:
+                continue
+            self.regions[grid_idx].remove_orthant(q)
+            self.areas[grid_idx] = sum(self.regions[grid_idx].areas)
+
+            if self.areas[grid_idx] == 0:
+                del self.regions[grid_idx]
+                del self.areas[grid_idx]
+                del self.probs[grid_idx]
+
+        self._update_bins()
+
+    def _update_bins(self):
+        self.n_patches = sum(self.areas.values()) // np.prod(self.patch_size).item()
+        self.bin_size, _ = _find_bin_size(self.areas, self.n_patches)
+        self.bins = _region_bin_packing(self.areas, self.bin_size)
+        self.probs = {key: area / self.bin_size for key, area in self.areas.items()}
 
 
 class _SamplingRegion:
