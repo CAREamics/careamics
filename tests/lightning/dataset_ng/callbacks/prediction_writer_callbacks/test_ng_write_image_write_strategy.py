@@ -97,6 +97,7 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
         dirpath=dirpath,
         file_path=prediction[0].source,
         write_extension=write_image_strategy.write_extension,
+        postfix="_0",
     )
     assert call_args["file_path"] == expected_file_path
     np.testing.assert_array_equal(call_args["img"], array)
