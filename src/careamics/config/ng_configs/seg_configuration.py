@@ -16,7 +16,7 @@ class SegConfiguration(NGConfiguration):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    # TODO technically this should be in NGConfiguration, but that would require
+    # TODO technically this should be in NGDataConfig, but that would require
     # splitting it between segmentation and denoising data configs
     @model_validator(mode="after")
     def no_channel_extraction(self: Self) -> Self:
