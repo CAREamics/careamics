@@ -5,8 +5,56 @@ from collections.abc import Sequence
 from typing import Literal
 
 import numpy as np
+from numpy.typing import NDArray
 
 Box = tuple[tuple[int, int], ...]
+
+
+class _ImageStratifiedPatching:
+
+    def __init__(
+        self,
+        shape: tuple[int, ...],
+        patch_size: tuple[int, ...],
+        rng: np.random.Generator | None = None,
+    ):
+        if rng is not None:
+            self.rng = rng
+        else:
+            self.rng = np.random.default_rng()
+
+        self.shape = shape
+        self.patch_size = patch_size
+        self.ndims = len(patch_size)
+
+        # sampling regions will be stored in a dict
+        # the keys correspond to a grid coordinate
+        self.regions: dict[tuple[int, ...], _SamplingRegion] = {}
+        self.areas: dict[tuple[int, ...], int] = {}
+
+        self.grid_coords: NDArray[np.int_]
+        self.grid_shape: tuple[int, ...]
+
+        # define grid
+        # we need shape + 1 to cover the last pixel when shape % patch_size = 0
+        grid_axes: list[NDArray[np.int_]] = [
+            np.arange(0, s + 1, ps) for s, ps in zip(shape, patch_size, strict=True)
+        ]
+        self.grid_coords = np.stack(np.meshgrid(*grid_axes, indexing="ij"), axis=-1)
+        self.grid_shape = self.grid_coords.shape[:-1]
+        # populate the self.regions and self.areas dictionaries
+        for grid_coord in self.grid_coords.reshape(-1, self.ndims):
+            # find the pixel coordinate
+            coord = grid_coord * np.array(self.patch_size)
+            sampling_region = _SamplingRegion(
+                tuple(coord.tolist()), self.patch_size, rng
+            )
+            sampling_region.clip(np.zeros(self.ndims, dtype=int), np.array(shape[2:]))
+            # if the area is zero do not store the region
+            if sum(sampling_region.areas) == 0:
+                continue
+            self.regions[tuple(grid_coord.tolist())] = sampling_region
+            self.areas[tuple(grid_coord.tolist())] = sum(sampling_region.areas)
 
 
 class _SamplingRegion:
