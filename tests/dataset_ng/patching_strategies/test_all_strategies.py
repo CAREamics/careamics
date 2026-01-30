@@ -119,8 +119,6 @@ def test_all_get_patch_spec(
     [
         [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 8)],
         [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 5)],
-        # [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 16, 9, 18)], (8, 8, 8)],
-        # [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 16, 9, 18)], (8, 5, 7)],
         [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 8, 8)],
         [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 5, 7)],
     ],
@@ -131,6 +129,7 @@ def test_patches_cover_50percent(
     patch_size: Sequence[int],
 ):
     # Testing more than 50% because some patching strategies are random (but seeded)
+    # (Fixed random patching fails < 50%)
     """Test that more than 50% of the data is covered by the sampled patches"""
     patching_strategy = strategy_constr(data_shapes, patch_size)
 

@@ -286,7 +286,9 @@ class _ImageStratifiedPatching:
         # no. of patches calculated from how many patches fit into the selectable area
         # this ensures that a pixel is expected to be selected 1 time per epoch
         # patches are packed into bins where no. of bins < no. of patches
-        self._update_bins()
+        self.n_patches, self.bin_size, self.bins, self.probs = (
+            self._recalculate_sampling()
+        )
 
     def sample_patch_coord(self, index: int) -> NDArray[np.int_]:
         """
@@ -364,15 +366,32 @@ class _ImageStratifiedPatching:
                     del self.areas[grid_idx]
                     del self.probs[grid_idx]
 
-        self._update_bins()
-
-    def _update_bins(self):
-        self.n_patches = int(
-            np.ceil(sum(self.areas.values()) / np.prod(self.patch_size))
+        self.n_patches, self.bin_size, self.bins, self.probs = (
+            self._recalculate_sampling()
         )
-        self.bin_size, _ = _find_bin_size(self.areas, self.n_patches)
-        self.bins = _region_bin_packing(self.areas, self.bin_size)
-        self.probs = {key: area / self.bin_size for key, area in self.areas.items()}
+
+    def _recalculate_sampling(self):
+        """
+        Recalculate how patches will be sampled.
+
+        Returns
+        -------
+        n_patches : int
+            The number of patches.
+        bin_size : int
+            The size of the bins that sampling regions are packed into. Each bin
+            corresponds to a sampling index.
+        bins : list[list[tuple[int, ...]]]
+            Bins containing sampling regions. The regions are packed based on their
+            area.
+        probs : dict[tuple[int, ...], float]
+            The probability that a sampling region will be selected from it's bin.
+        """
+        n_patches = int(np.ceil(sum(self.areas.values()) / np.prod(self.patch_size)))
+        bin_size, _ = _find_bin_size(self.areas, self.n_patches)
+        bins = _region_bin_packing(self.areas, bin_size)
+        probs = {key: area / bin_size for key, area in self.areas.items()}
+        return n_patches, bin_size, bins, probs
 
 
 class _SamplingRegion:
