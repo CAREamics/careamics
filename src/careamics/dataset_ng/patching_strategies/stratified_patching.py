@@ -413,8 +413,15 @@ class _ImageStratifiedPatching:
         # have to guard for case that area is zero. It is possible to not have any
         # selectable patches when only edge regions are remaining.
         if sum(self.areas.values()) != 0:
+            # NOTE: taking prod first vs taking ceil first
+            # taking ceil first is more similar to random patching
+            # for now have chosen to take prod first
+
+            # total_patches = int(
+            #     np.prod(np.ceil(np.array(self.shape) / np.array(self.patch_size)))
+            # )
             total_patches = int(
-                np.prod(np.ceil(np.array(self.shape) / np.array(self.patch_size)))
+                np.ceil(np.prod(np.array(self.shape) / np.array(self.patch_size)))
             )
             n_patches = total_patches - len(self.excluded_patches)
         else:
