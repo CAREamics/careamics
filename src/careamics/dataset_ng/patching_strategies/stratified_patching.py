@@ -476,7 +476,7 @@ class _SamplingRegion:
         # The 4 (2D) regions are represented by the diagram below
         # ┌───┬──────────────────────────┐
         # │   1                          │
-        # ├─1─┼───────(patch_size)───────┤
+        # ├─1─┼─────(patch_size - 1)─────┤
         # │   │                          │
         #   ⋮              ⋮
         # └───┴──────────────────────────┘
