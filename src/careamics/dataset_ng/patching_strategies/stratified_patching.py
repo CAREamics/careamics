@@ -22,9 +22,9 @@ class StratifiedPatchingStrategy:
 
     If the same index is used twice to sample a patch with the method `get_patch_spec`
     there will be a high probability that it will come from the same sampling region,
-    but possibly not 100%. This is to ensure that sampling a pixel (which is not near
-    an edge) in each epoch, has an expected value of 1. Smaller sampling regions may
-    be binned together into a single index.
+    but not necessarily 100%. Smaller sampling regions may be binned together into a
+    single index. The mean of all the expected values that each pixel will be selected
+    in a patch per epoch is 1.
 
     The number of patches is determined from the number of selectable patch coordinates.
     """
@@ -225,10 +225,10 @@ class _ImageStratifiedPatching:
     the region is near an edge or a nearby patch has been excluded.
 
     Sampling regions are packed into bins to achieve the desired number of patches.
-    Each index now corresponds to a bin, the regions within the bin are sampled from
-    with the probability of number of selectable points as a ratio to the size of the
-    bin. If there is space left in the bin this remaining probability is used to give a
-    small chance that any of the regions in the image may be sampled.
+    Each index now corresponds to a bin, the probability that a region in the bin is
+    sampled is equal to the ratio of the area of the region to the bin size. If there
+    is space left in the bin this remaining probability is used to give a small chance
+    that any of the regions in the image may be sampled.
     """
 
     def __init__(
@@ -266,6 +266,7 @@ class _ImageStratifiedPatching:
         # the keys correspond to a grid coordinate
         self.regions: dict[tuple[int, ...], _SamplingRegion] = {}
         self.areas: dict[tuple[int, ...], int] = {}
+        self.excluded_patches: list[tuple[int, ...]] = []
         self.probs: dict[tuple[int, ...], float]
         self.bin_size: int
         self.bins: list[list[tuple[int, ...]]]
@@ -346,6 +347,23 @@ class _ImageStratifiedPatching:
         return self.regions[selected_key]
 
     def exclude_patches(self, grid_coords: Sequence[tuple[int, ...]]):
+        """
+        Exclude patches from being sampled.
+
+        Excluded patches must lie on a grid which starts at (0, 0) and has a spacing of
+        the given `patch_size`.
+
+        After calling this method the number of patches will be recalculated and the
+        excluded patches will never be returned by `sample_patch_coord`.
+
+        Parameters
+        ----------
+        grid_coords : Sequence[tuple[int, ...]]
+            A sequence of 2D or 3D tuples. Each tuple corresponds to a grid coordinate
+            that will be excluded from sampling. The grid starts at (0, 0) and has a
+            spacing of the given `patch_size`.
+        """
+        self.excluded_patches.extend(grid_coords)
         for grid_coord in grid_coords:
             d: tuple[Literal[0, 1], ...] = (0, 1)
             # exclude the patch from all the sampling regions that cover it
@@ -387,8 +405,22 @@ class _ImageStratifiedPatching:
         probs : dict[tuple[int, ...], float]
             The probability that a sampling region will be selected from it's bin.
         """
-        n_patches = int(np.ceil(sum(self.areas.values()) / np.prod(self.patch_size)))
-        bin_size, _ = _find_bin_size(self.areas, self.n_patches)
+
+        # NOTE: alternative number of patches:
+        # - results in expected value of pixel not near edge being 1 per epoch.
+        # n_patches = int(np.ceil(sum(self.areas.values()) / np.prod(self.patch_size)))
+
+        # have to guard for case that area is zero. It is possible to not have any
+        # selectable patches when only edge regions are remaining.
+        if sum(self.areas.values()) != 0:
+            total_patches = int(
+                np.prod(np.ceil(np.array(self.shape) / np.array(self.patch_size)))
+            )
+            n_patches = total_patches - len(self.excluded_patches)
+        else:
+            n_patches = 0
+
+        bin_size, _ = _find_bin_size(self.areas, n_patches)
         bins = _region_bin_packing(self.areas, bin_size)
         probs = {key: area / bin_size for key, area in self.areas.items()}
         return n_patches, bin_size, bins, probs

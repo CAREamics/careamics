@@ -136,25 +136,19 @@ def test_patches_cover_50percent(
     # track where patches have been sampled from
     tracking_arrays = [np.zeros(data_shape, dtype=bool) for data_shape in data_shapes]
 
-    # epochs won't affect non stochastic strategies
-    epochs = 2
-    for _ in range(epochs):
-        patch_specs = [
-            patching_strategy.get_patch_spec(i)
-            for i in range(patching_strategy.n_patches)
-        ]
-        for patch_spec in patch_specs:
-            tracking_array = tracking_arrays[patch_spec["data_idx"]]
-            spatial_slice = tuple(
-                slice(c, c + ps)
-                for c, ps in zip(
-                    patch_spec["coords"], patch_spec["patch_size"], strict=True
-                )
+    patch_specs = [
+        patching_strategy.get_patch_spec(i) for i in range(patching_strategy.n_patches)
+    ]
+    for patch_spec in patch_specs:
+        tracking_array = tracking_arrays[patch_spec["data_idx"]]
+        spatial_slice = tuple(
+            slice(c, c + ps)
+            for c, ps in zip(
+                patch_spec["coords"], patch_spec["patch_size"], strict=True
             )
-            # set to true where the patches would be sampled from
-            tracking_array[(patch_spec["sample_idx"], slice(None), *spatial_slice)] = (
-                True
-            )
+        )
+        # set to true where the patches would be sampled from
+        tracking_array[(patch_spec["sample_idx"], slice(None), *spatial_slice)] = True
 
     total_covered = 0
     total_size = 0
