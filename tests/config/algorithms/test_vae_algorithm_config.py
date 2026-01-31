@@ -70,13 +70,27 @@ def test_no_noise_model_error_denoisplit(minimum_algorithm_denoisplit):
         VAEBasedAlgorithm(**minimum_algorithm_denoisplit)
 
 
-def test_microsplit_algorithm(minimum_algorithm_microsplit):
+def test_microsplit_algorithm(tmp_path: Path, create_dummy_noise_model):
     """Test that the MicroSplit algorithm can be instantiated correctly."""
     loss = LVAELossConfig(
         loss_type="microsplit", denoisplit_weight=0.9, musplit_weight=0.1
     )
-    minimum_algorithm_microsplit["loss"] = loss
-    config = VAEBasedAlgorithm(**minimum_algorithm_microsplit)
+
+    # Create a dummy noise model
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+
+    # Instantiate the noise model
+    gmm = GaussianMixtureNMConfig(
+        model_type="GaussianMixtureNoiseModel",
+        path=tmp_path / "dummy_noise_model.npz",
+        # all other params are default
+    )
+    config = VAEBasedAlgorithm(
+        algorithm="microsplit",
+        loss=loss,
+        model=LVAEConfig(architecture="LVAE"),
+        noise_model=MultiChannelNMConfig(noise_models=[gmm]),
+    )
     assert config.algorithm == "microsplit"
     assert config.model.architecture == "LVAE"
-    assert config.likelihood is not None
+    assert config.noise_model is not None
