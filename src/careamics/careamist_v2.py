@@ -11,6 +11,7 @@ from typing import (
 
 from numpy.typing import NDArray
 from pytorch_lightning import Callback, Trainer
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from .config import TrainingConfig
@@ -22,6 +23,8 @@ from .lightning.dataset_ng.data_module import CareamicsDataModule
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
 )
+from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
+from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .utils import get_logger
 
 logger = get_logger(__name__)
@@ -35,6 +38,7 @@ Configuration = N2VConfiguration
 class UserContext(TypedDict):
     work_dir: Path | str | None
     callbacks: list[Callback] | None
+    enable_progress_bar: bool
 
 
 class CAREamistV2:
@@ -90,9 +94,8 @@ class CAREamistV2:
         # checkpoint path is saved to restore optimizer etc. state_dicts during training
         # only populated if loading from checkpoint.
         self.checkpoint_path = checkpoint_path
-        # ---
-
         self.work_dir = self._resolve_work_dir(user_context["work_dir"])
+        # ---
 
         # --- init modules from config, checkpoint_path or bmz_path
         # guard against multiple types of input
@@ -118,12 +121,22 @@ class CAREamistV2:
                 bmz_path, training_config, experiment_name
             )
         else:
-            assert Never  # already covered by xor guard at start of init
+            assert Never  # already covered by xor guard
         # ---
 
-        # init callbacks
-        self.callbacks = self._define_callbacks(user_context["callbacks"])
+        # override progress bar choice
+        self.config.training_config.lightning_trainer_config["enable_progress_bar"] = (
+            user_context.get("enable_progress_bar", True)
+        )
 
+        # init callbacks
+        self.prediction_writer = PredictionWriterCallback(self.work_dir)
+        self.prediction_writer.disable_writing(True)
+        self.callbacks = self._define_callbacks(
+            user_context["callbacks"], self.config, self.work_dir
+        )
+
+        # init loggers
         if (self.config.training_config.logger) is not None:
             logger = SupportedLogger(self.config.training_config.logger)
         else:
@@ -136,7 +149,7 @@ class CAREamistV2:
 
         # instantiate trainer
         self.trainer = Trainer(
-            callbacks=self.callbacks,
+            callbacks=[self.prediction_writer, *self.callbacks],
             default_root_dir=self.work_dir,
             logger=experiment_loggers,
             **self.config.training_config.lightning_trainer_config or {},
@@ -175,7 +188,55 @@ class CAREamistV2:
             work_dir = Path(work_dir).resolve()
         return work_dir
 
-    def _define_callbacks(self, callbacks: list[Callback] | None) -> list[Callback]: ...
+    @staticmethod
+    def _define_callbacks(
+        callbacks: list[Callback] | None,
+        config: Configuration,
+        work_dir: Path,
+    ) -> list[Callback]:
+        callbacks = [] if callbacks is None else callbacks
+        # check that user callbacks are not any of the CAREamics callbacks
+        for c in callbacks:
+            if isinstance(c, ModelCheckpoint) or isinstance(c, EarlyStopping):
+                raise ValueError(
+                    "`ModelCheckpoint` and `EarlyStopping` callbacks are already "
+                    "defined in CAREamics and should only be modified through the "
+                    "training configuration (see TrainingConfig)."
+                )
+
+            if isinstance(c, CareamicsCheckpointInfo) or isinstance(
+                c, ProgressBarCallback
+            ):
+                raise ValueError(
+                    "`CareamicsCheckpointInfo` and `ProgressBar` callbacks are defined "
+                    "internally and should not be passed as callbacks."
+                )
+
+        interal_callbacks = [
+            ModelCheckpoint(
+                dirpath=work_dir / Path("checkpoints"),
+                filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
+                **config.training_config.checkpoint_callback.model_dump(),
+            ),
+            CareamicsCheckpointInfo(
+                config.version, config.experiment_name, config.training_config
+            ),
+        ]
+
+        enable_progress_bar = config.training_config.lightning_trainer_config.get(
+            "enable_progress_bar", True
+        )
+        if enable_progress_bar:
+            interal_callbacks.append(ProgressBarCallback())
+
+        if config.training_config.early_stopping_callback is not None:
+            interal_callbacks.append(
+                EarlyStopping(
+                    **config.training_config.early_stopping_callback.model_dump()
+                )
+            )
+
+        return interal_callbacks + callbacks
 
     @staticmethod
     def _create_loggers(
