@@ -26,7 +26,7 @@ from .utils import get_logger
 
 logger = get_logger(__name__)
 
-LOGGER_TYPES = list[TensorBoardLogger | WandbLogger | CSVLogger]
+ExperimentLogger = TensorBoardLogger | WandbLogger | CSVLogger
 
 # union of configurations
 Configuration = N2VConfiguration
@@ -86,23 +86,13 @@ class CAREamistV2:
         self.model: CAREamicsModule
         self.data_module: CareamicsDataModule
         self.trainer: Trainer
-        self.callbacks: list[Callback] = []
+        self.callbacks: list[Callback]
         # checkpoint path is saved to restore optimizer etc. state_dicts during training
         # only populated if loading from checkpoint.
-        self.checkpoint_path: Path | None
+        self.checkpoint_path = checkpoint_path
         # ---
 
-        # --- set work_dir
-        work_dir = user_context["work_dir"]
-        if work_dir is None:
-            self.work_dir = Path.cwd()
-            logger.warning(
-                f"No working directory provided. Using current working directory: "
-                f"{self.work_dir}."
-            )
-        else:
-            self.work_dir = Path(work_dir)
-        # ---
+        self.work_dir = self._resolve_work_dir(user_context["work_dir"])
 
         # --- init modules from config, checkpoint_path or bmz_path
         # guard against multiple types of input
@@ -123,7 +113,6 @@ class CAREamistV2:
             self.config, self.model, self.data_module = self._from_checkpoint(
                 checkpoint_path, training_config, experiment_name
             )
-            self.checkpoint_path = checkpoint_path
         elif bmz_path is not None:
             self.config, self.model, self.data_module = self._from_bmz(
                 bmz_path, training_config, experiment_name
@@ -133,41 +122,23 @@ class CAREamistV2:
         # ---
 
         # init callbacks
-        self.callbacks = self._define_callbacks(
-            user_context["callbacks"],
-        )
+        self.callbacks = self._define_callbacks(user_context["callbacks"])
 
-        # TODO: separate into function
-        # --- init logger
-        csv_logger = CSVLogger(
-            name=self.config.experiment_name,
-            save_dir=self.work_dir / "csv_logs",
+        if (self.config.training_config.logger) is not None:
+            logger = SupportedLogger(self.config.training_config.logger)
+        else:
+            logger = None
+        experiment_loggers = self._create_loggers(
+            logger,
+            self.config.experiment_name,
+            self.work_dir,
         )
-        match self.config.training_config.logger:
-            case SupportedLogger.WANDB:
-                experiment_logger: LOGGER_TYPES = [
-                    WandbLogger(
-                        name=self.config.experiment_name,
-                        save_dir=self.work_dir / Path("wandb_logs"),
-                    ),
-                    csv_logger,
-                ]
-            case SupportedLogger.TENSORBOARD:
-                experiment_logger = [
-                    TensorBoardLogger(
-                        save_dir=self.work_dir / Path("tb_logs"),
-                    ),
-                    csv_logger,
-                ]
-            case _:
-                experiment_logger = [csv_logger]
-        # ---
 
         # instantiate trainer
         self.trainer = Trainer(
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
-            logger=experiment_logger,
+            logger=experiment_loggers,
             **self.config.training_config.lightning_trainer_config or {},
         )
 
@@ -192,7 +163,47 @@ class CAREamistV2:
         experiment_name: str | None = None,
     ) -> tuple[Configuration, CAREamicsModule, CareamicsDataModule]: ...
 
+    @staticmethod
+    def _resolve_work_dir(work_dir: str | Path | None) -> Path:
+        if work_dir is None:
+            work_dir = Path.cwd().resolve()
+            logger.warning(
+                f"No working directory provided. Using current working directory: "
+                f"{work_dir}."
+            )
+        else:
+            work_dir = Path(work_dir).resolve()
+        return work_dir
+
     def _define_callbacks(self, callbacks: list[Callback] | None) -> list[Callback]: ...
+
+    @staticmethod
+    def _create_loggers(
+        logger: SupportedLogger | None, experiment_name: str, work_dir: Path
+    ) -> list[ExperimentLogger]:
+        csv_logger = CSVLogger(
+            name=experiment_name,
+            save_dir=work_dir / "csv_logs",
+        )
+        match logger:
+            case SupportedLogger.WANDB:
+                experiment_loggers: list = [
+                    WandbLogger(
+                        name=experiment_name,
+                        save_dir=work_dir / Path("wandb_logs"),
+                    ),
+                    csv_logger,
+                ]
+            case SupportedLogger.TENSORBOARD:
+                experiment_loggers = [
+                    TensorBoardLogger(
+                        save_dir=work_dir / Path("tb_logs"),
+                    ),
+                    csv_logger,
+                ]
+            case _:
+                experiment_loggers = [csv_logger]
+        return experiment_loggers
 
     def train(
         self,
