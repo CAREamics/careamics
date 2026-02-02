@@ -49,7 +49,7 @@ dependencies = [
     'tifffile<=2026.1.28',
     'psutil<=7.2.2',
     'pydantic>=2.11,<=2.12.5',
-    'pytorch_lightning>=2.2,<=2.6.0',
+    'pytorch_lightning>=2.2,<=2.6.1',
     'pyyaml!=6.0.0,<=6.0.3',
     'typer>=0.12.3,<=0.21.1',
     'scikit-image<=0.26.0',
