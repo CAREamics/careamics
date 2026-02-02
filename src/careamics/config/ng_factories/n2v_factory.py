@@ -3,6 +3,13 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
+from careamics.config.data.normalization_config import (
+    MeanStdConfig,
+    MinMaxConfig,
+    NoNormConfig,
+    NormalizationConfig,
+    QuantileConfig,
+)
 from careamics.config.ng_configs import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
@@ -47,6 +54,8 @@ def create_n2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    normalization: Literal["mean_std", "minmax", "quantile", "none"] = "mean_std",
+    normalization_params: dict[str, Any] | None = None,
 ) -> N2VConfiguration:
     """
     Create a configuration for training Noise2Void.
@@ -160,6 +169,14 @@ def create_n2v_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    normalization : Literal["mean_std", "minmax", "quantile", "none"]
+        Normalization strategy to use, default="mean_std".
+    normalization_params : dict, default=None
+        Strategy-specific normalization parameters. If None, default values are used.
+        For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
+        For "minmax": {"input_mins": [...], "input_maxes": [...]} (optional)
+        For "quantile": {"lower_quantile": 0.01, "upper_quantile": 0.99} (optional)
+        For "none": No parameters needed.
 
     Returns
     -------
@@ -189,6 +206,37 @@ def create_n2v_configuration(
     if n_channels is None:
         n_channels = 1 if channels is None else len(channels)
 
+    # normalization
+    norm_config: NormalizationConfig
+    if normalization == "mean_std":
+        norm_config = (
+            MeanStdConfig(**normalization_params)
+            if normalization_params
+            else MeanStdConfig()
+        )
+    elif normalization == "minmax":
+        norm_config = (
+            MinMaxConfig(**normalization_params)
+            if normalization_params
+            else MinMaxConfig()
+        )
+    elif normalization == "quantile":
+        norm_config = (
+            QuantileConfig(**normalization_params)
+            if normalization_params
+            else QuantileConfig()
+        )
+    elif normalization == "none":
+        if normalization_params:
+            raise ValueError(
+                "normalization_params should not be provided when normalization='none'"
+            )
+        norm_config = NoNormConfig()
+    else:
+        raise ValueError(
+            f"Unknown normalization strategy: {normalization}. "
+            f"Must be one of: 'mean_std', 'minmax', 'quantile', 'none'"
+        )
     # augmentations
     spatial_transforms = list_spatial_augmentations(augmentations)
 
@@ -201,6 +249,7 @@ def create_n2v_configuration(
         augmentations=spatial_transforms,
         channels=channels,
         in_memory=in_memory,
+        normalization=norm_config,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
     )
