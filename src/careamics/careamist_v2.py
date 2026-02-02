@@ -4,35 +4,46 @@ from typing import (
     Any,
     Literal,
     Never,
+    NotRequired,
+    TypeAlias,
     TypedDict,
     Unpack,
     overload,
 )
 
+import torch
 from numpy.typing import NDArray
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from .config import TrainingConfig
+from .config import TrainingConfig, load_configuration_ng
 from .config.ng_configs import N2VConfiguration
-from .config.support import SupportedLogger
+from .config.support import SupportedAlgorithm, SupportedLogger
 from .dataset_ng.image_stack_loader import ImageStackLoader
 from .file_io import WriteFunc
+from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
+from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.data_module import CareamicsDataModule
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
+    create_module,
+    get_module_cls,
 )
-from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
-from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .utils import get_logger
 
 logger = get_logger(__name__)
 
-ExperimentLogger = TensorBoardLogger | WandbLogger | CSVLogger
+ExperimentLogger: TypeAlias = TensorBoardLogger | WandbLogger | CSVLogger
 
 # union of configurations
 Configuration = N2VConfiguration
+
+
+class CareanicsInfo(TypedDict):
+    version: NotRequired[str]
+    experiment_name: str
+    training_config: TrainingConfig | dict[str, Any]
 
 
 class UserContext(TypedDict):
@@ -111,13 +122,13 @@ class CAREamistV2:
         if config is not None:
             # TODO: raise errors if training config or experiment name are not None
 
-            self.config, self.model, self.data_module = self._from_config(config)
+            self.config, self.model = self._from_config(config)
         elif checkpoint_path is not None:
-            self.config, self.model, self.data_module = self._from_checkpoint(
+            self.config, self.model = self._from_checkpoint(
                 checkpoint_path, training_config, experiment_name
             )
         elif bmz_path is not None:
-            self.config, self.model, self.data_module = self._from_bmz(
+            self.config, self.model = self._from_bmz(
                 bmz_path, training_config, experiment_name
             )
         else:
@@ -158,7 +169,13 @@ class CAREamistV2:
     @staticmethod
     def _from_config(
         config: Configuration | Path,
-    ) -> tuple[Configuration, CAREamicsModule, CareamicsDataModule]: ...
+    ) -> tuple[Configuration, CAREamicsModule]:
+        if isinstance(config, Path):
+            config = load_configuration_ng(config)
+        assert not isinstance(config, Path)  # mypy not resolving
+
+        model = create_module(config.algorithm_config)
+        return config, model
 
     @staticmethod
     def _from_checkpoint(
@@ -166,7 +183,78 @@ class CAREamistV2:
         # allow overwriting experiment name and training config
         training_config: TrainingConfig | None = None,
         experiment_name: str | None = None,
-    ) -> tuple[Configuration, CAREamicsModule, CareamicsDataModule]: ...
+    ) -> tuple[Configuration, CAREamicsModule]:
+        # map to cpu because we are only extracting the hyper-params here
+        # loading weights will be handled by LightningModule.load_from_checkpoint
+        checkpoint: dict = torch.load(checkpoint_path, map_location="cpu")
+
+        # --- get careamics info, aka training_config, experiment_name and version,
+        # (only loaded if not overridden)
+        # (maybe version should get overwritten?)
+        if (training_config is not None) and (experiment_name is not None):
+            careamics_info: CareanicsInfo | None = {
+                "experiment_name": experiment_name,
+                "training_config": training_config,
+            }
+        else:
+            careamics_info = checkpoint.get("careamics_info", None)
+            if careamics_info is None:
+                raise ValueError(
+                    "Could not find CAREamics related information within the provided "
+                    "checkpoint. This means that it was saved without using the "
+                    "CAREamics callback `CAREamicsCheckpointInfo`. To load this "
+                    "checkpint with the CAREamist API please provide an "
+                    "`experiment_name` and `training_config`."
+                )
+            # override experiment_name and training config
+            if experiment_name is not None:
+                careamics_info["experiment_name"] = experiment_name
+            if training_config is not None:
+                careamics_info["training_config"] = TrainingConfig
+        assert careamics_info is not None  # mymy not resolving
+        # ---
+
+        # --- get module hyperparams, aka algorithm config
+        try:
+            algorithm_config: dict[str, Any] = checkpoint["hyper_parameters"][
+                "algorithm_config"
+            ]
+            # get algorithm type so that the correct module can be instantiated
+            algorithm = algorithm_config["algorithm"]
+            algorithm = SupportedAlgorithm(algorithm)
+        except (IndexError, ValueError) as e:
+            raise ValueError(
+                "Could not determine CAREamics supported algorithm from the provided "
+                f"checkpoint at: {checkpoint_path!s}."
+            ) from e
+        # ---
+
+        # --- get datamodule_hyper_parameters aka, data_config
+        data_hparams_key = checkpoint.get(
+            "datamodule_hparams_name", "datamodule_hyper_parameters"
+        )
+        try:
+            data_config: dict[str, Any] = checkpoint[data_hparams_key]["data_config"]
+        except IndexError as e:
+            raise ValueError(
+                "Could not determine the data configuration from the provided "
+                f"checkpoint at: {checkpoint_path!s}."
+            ) from e
+
+        # TODO: will need to resolve this with type adapter once more configs are added
+        config = Configuration.model_validate(
+            {
+                "algorithm_config": algorithm_config,
+                "data_config": data_config,
+                **careamics_info,
+            }
+        )
+        # ---
+
+        # instantiate correct algorithm module
+        module_cls = get_module_cls(algorithm)
+        module = module_cls.load_from_checkpoint(checkpoint_path)
+        return config, module
 
     @staticmethod
     def _from_bmz(
@@ -174,7 +262,7 @@ class CAREamistV2:
         # allow overwriting experiment name and training config
         training_config: TrainingConfig | None = None,
         experiment_name: str | None = None,
-    ) -> tuple[Configuration, CAREamicsModule, CareamicsDataModule]: ...
+    ) -> tuple[Configuration, CAREamicsModule]: ...
 
     @staticmethod
     def _resolve_work_dir(work_dir: str | Path | None) -> Path:
