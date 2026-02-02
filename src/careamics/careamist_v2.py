@@ -377,6 +377,10 @@ class CAREamistV2:
         max_steps: int | None,
     ) -> None: ...
 
+    # TODO: init datamodule
+    # TODO: remember to pass self.checkpoint_path to Trainer.fit
+    # ^ this will load optimizer and lr_schedular state dicts
+
     def predict(
         self,
         # data init options
