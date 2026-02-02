@@ -77,6 +77,7 @@ tensorboard = ["tensorboard", "protobuf==5.29.1"]
 # development dependencies and tooling
 dev = [
     "pre-commit",
+    "basedpyright",
     "pytest",
     "pytest-mock",
     "pytest-cov",
@@ -125,7 +126,7 @@ lint.ignore = [
     "D413", # Missing blank line after last section
     "D416", # Section name should end with a colon
 
-    # incompatibility with mypy
+    # RUF005 disabled for specific cases
     "RUF005", # collection-literal-concatenation, in prediction_utils.py:30
 
     # version specific
@@ -144,23 +145,6 @@ convention = "numpy"
 
 [tool.black]
 line-length = 88
-
-# https://mypy.readthedocs.io/en/stable/config_file.html
-[tool.mypy]
-# plugins = ["pydantic.mypy"]
-files = "src/**/"
-strict = false
-# allow_untyped_defs = false
-# allow_untyped_calls = false
-# disallow_any_generics = false
-# ignore_missing_imports = false
-
-# https://docs.pydantic.dev/latest/integrations/mypy/
-# [tool.pydantic-mypy]
-# init_forbid_extra = true
-# init_typed = true
-# warn_required_dynamic_aliases = true
-
 
 # https://docs.pytest.org/en/6.2.x/customize.html
 [tool.pytest.ini_options]
