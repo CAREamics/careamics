@@ -223,6 +223,29 @@ class _ImageStratifiedPatching:
     sampled is equal to the ratio of the area of the region to the bin size. If there
     is space left in the bin this remaining probability is used to give a small chance
     that any of the regions in the image may be sampled.
+
+    Attributes
+    ----------
+    regions : dict[tuple[int, ...], _SamplingRegion]
+        The sampling regions that patch coordinates are sampled from. The sampling
+        regions lie on a grid, and the key of the dictionary corresponds to the
+        grid coordinate of the sampling region.
+    areas : dict[tuple[int, ...], int]
+        The selectable patch coordinates in each sampling region.
+    probs : dict[tuple[int, ...], float]
+        The probability of selecting a sub region from its bin, this is just its area
+        divided by the bin size.
+    excluded_patches : list[tuple[int, ...]]
+        A list of grid coordinates that correspond to the patches that have been
+        excluded.
+    bin_size : int
+        The size of the bins that the sampling regions are packed into.
+    bins : list[list[tuple[int, ...]]]
+        A single bin contains sampling regions, it is represented as a list of
+        grid coordinates that correspond to a sampling region. All the bins are stored
+        in a list.
+    n_patches : int
+        The number of patches.
     """
 
     def __init__(
@@ -260,8 +283,9 @@ class _ImageStratifiedPatching:
         # the keys correspond to a grid coordinate
         self.regions: dict[tuple[int, ...], _SamplingRegion] = {}
         self.areas: dict[tuple[int, ...], int] = {}
-        self.excluded_patches: list[tuple[int, ...]] = []
         self.probs: dict[tuple[int, ...], float]
+
+        self.excluded_patches: list[tuple[int, ...]] = []
         self.bin_size: int
         self.bins: list[list[tuple[int, ...]]]
         self.n_patches: int
@@ -271,6 +295,8 @@ class _ImageStratifiedPatching:
             # find pixel coord
             coord = np.array(grid_coord) * np.array(patch_size)
             sampling_region = _SamplingRegion(tuple(coord), self.patch_size, rng)
+            # sampling regions are clipped to not overlap the bounds of the image
+            # this is necessary when the image size is not divisible by the patch size
             sampling_region.clip(np.zeros(self.ndims, dtype=int), np.array(shape))
             # if the area is zero do not store the region
             if sum(sampling_region.areas) == 0:
@@ -300,11 +326,17 @@ class _ImageStratifiedPatching:
                 f"Index {index} out of bounds for image with {self.n_patches} patches."
             )
 
-        # each index corresponds to a bin*,
-        # regions within the selected bin are sampled proportionally to their area.
-        # if there is remaining space in the bin it is assigned to all the regions
-        # *contradicting the first statement, there may be fewer bins than patches
-        # for empty bins, all regions are sampled with a prob proportional to area
+        # the number of bins will be less than or equal to the number of patches,
+        #
+        # for index < no. of bins, the index will select a bin.
+        # A sampling region will be selected from the bin with a calculated probability,
+        # the probability is proportional to the no. of region's selectable coordinates.
+        # A bin might not be perfectly filled, the remaining probability has to be used,
+        # it is assigned to all the sampling regions proportionally to their area.
+        #
+        # for index > no. of bins, it is effectively treated as an empty bin
+        # all of sampling regions are selected proportionally to their area.
+
         if index < len(self.bins):
             bin_ = self.bins[index]
         else:
@@ -316,12 +348,20 @@ class _ImageStratifiedPatching:
     def _sample_region_from_bin(self, bin: list[tuple[int, ...]]) -> "_SamplingRegion":
         """
         Sample a region from a given bin. Bins can contain multiple sampling regions.
+
+        bin : list[tuple[int, ...]]
+            A bin of sampling regions represented by a list of grid coordinates. Each
+            grid coordinate corresponds to one sampling region.
         """
-        keys = list(self.regions.keys())
-        probs = np.array([self.probs[key] for key in keys])
+        grid_coords = list(self.regions.keys())
+        probs = np.array([self.probs[key] for key in grid_coords])
         if len(bin) != 0:
             indices = np.where(
-                (np.array(keys) == np.array(bin)[:, None]).all(2).any(0)
+                # behaves like isin but for multiple values
+                # i.e. finding the indices where grid_coords == bin
+                (np.array(grid_coords) == np.array(bin)[:, None])
+                .all(2)
+                .any(0)
             )[0]
         else:
             indices = np.array([], dtype=int)
@@ -336,8 +376,8 @@ class _ImageStratifiedPatching:
         weights += probs / probs.sum() * remaining_prob
 
         # the region is sampled using these calculated weights.
-        selected_key_idx = self.rng.choice(np.arange(len(keys)), p=weights)
-        selected_key = keys[selected_key_idx]
+        selected_key_idx = self.rng.choice(np.arange(len(grid_coords)), p=weights)
+        selected_key = grid_coords[selected_key_idx]
         return self.regions[selected_key]
 
     def exclude_patches(self, grid_coords: Sequence[tuple[int, ...]]):
@@ -434,6 +474,23 @@ class _SamplingRegion:
     The region is double the patch size in each dimension. Quadrants or octants, for
     2D or 3D respectively, can be excluded from the region by calling the
     `exclude_orthant` method.
+
+    Attributes
+    ----------
+    coord : Sequence[int]
+        The top-left (and depth) coordinate of the sampling region, length 2 or 3 for
+        2D or 3D respectively.
+    patch_size : Sequence[int]
+        The patch size.
+    ndims : int
+        The number of dimension, 2 or 3.
+    subregions : list[tuple[tuple[int, int], ...]]
+        A list of subregions that are represented by an extent in each dimensions. For
+        example ((0, 16), (0, 32)) would be the 2D box with the extent 0 to 16 in the
+        first dimension and 0 to 32 in the 2nd dimension. Note, this is the region of
+        selectable patch coordinates.
+    areas : list[int]
+        The number of selectable patch coordinates in each sub-region.
     """
 
     def __init__(
@@ -591,6 +648,7 @@ def _boxes_overlap(
     return (np.maximum(a_start, b_start) < np.minimum(a_end, b_end)).all().item()
 
 
+# bin packing using the best-fit-decreasing algorithm
 def _region_bin_packing(
     areas: dict[tuple[int, ...], int], bin_size: int
 ) -> list[list[tuple[int, ...]]]:
@@ -625,10 +683,20 @@ def _region_bin_packing(
     return bins
 
 
+# performs a binary search
 def _find_bin_size(
     areas: dict[tuple[int, ...], int], target_n_bins: int
 ) -> tuple[int, int]:
     """Find the minimum bin size that will result in `target_n_bins` or less.
+
+    Parameters
+    ----------
+    areas : dict[tuple[int, ...], int]
+        A dictionary of sampling region areas. The key is the grid coordinate of the
+        corresponding sampling region. These are the sampling regions created by
+        `_ImageStratifiedPatching`.
+    target_n_bins : int
+        The desired number of bins.
 
     Returns
     -------
@@ -644,11 +712,11 @@ def _find_bin_size(
     min_size = max(areas.values())
     max_size = sum(areas.values())
 
-    # Edge case: if we want 1 bin, we need bin size = sum of all values
+    # Edge case: if we want 1 bin, we need bin size = sum of all region areas
     if target_n_bins == 1:
         return max_size, 1
 
-    # Edge case: if we want as many bins as values, bin size = max value
+    # Edge case: if we want as many bins as there are regions, bin size = maximum area
     if target_n_bins >= len(areas):
         return min_size, len(areas)
 
