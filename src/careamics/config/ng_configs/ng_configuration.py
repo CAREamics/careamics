@@ -95,7 +95,7 @@ class NGConfiguration(BaseModel):
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
-    training_config: TrainingConfig
+    training_config: TrainingConfig = TrainingConfig()
     """Training configuration, holding all parameters required to configure the
     training process."""
 
