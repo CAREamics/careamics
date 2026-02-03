@@ -11,6 +11,22 @@ from .patching_strategy_protocol import PatchSpecs
 
 Box = tuple[tuple[int, int], ...]
 
+# --- Structure overview
+# Sampling regions which have an area of double the patch size are created so that they
+# lie on a grid with a spacing equal to the patch size. This ensures that all possible
+# patch coordinates can be selected. These sampling regions are represented by the
+# `_SamplingRegion` class. The sampling region itself contains subregions, which make
+# it easier to exclude patch regions.
+
+# For each sample in each image-stack an `_ImageStratifiedPatching` class is created,
+# this stores `_SamplingRegions` in a `dict[tuple[int, ...], _SamplingRegion]` where the
+# key of the dictionary represents the grid coordinate that the top-left corner of the
+# sampling region lies on. Most of the patching logic happens in this class.
+
+# The `StratifiedPatchingStrategy` stores a `list[list[_ImageStratifiedPatching]]` where
+#  the elements of the outer list represent each image stack and there is an
+# `_ImageStratifiedPatching` instance for each sample in each image stack.
+
 
 class StratifiedPatchingStrategy:
     """
