@@ -171,8 +171,8 @@ class StratifiedPatchingStrategy:
         Returns
         -------
         sequence of int
-            A sequence of patch indices, that when used to index the `CAREamicsDataset
-            will return a patch that comes from the `image_stack` corresponding to the
+            A sequence of patch indices, used to index the `CAREamicsDataset`
+            to return a patch that comes from the `image_stack` corresponding to the
             given `data_idx`.
         """
         patches_per_sample = [
@@ -222,7 +222,7 @@ class _ImageStratifiedPatching:
     The number of patches is determined from the number of selectable patch coordinates.
 
     Sampling regions have a size of 2 times the patch size in each dimension, unless
-    the region is near an edge or a nearby patch has been excluded.
+    the region is near an edge or a nearby patch that has been excluded.
 
     Sampling regions are packed into bins to achieve the desired number of patches.
     Each index now corresponds to a bin, the probability that a region in the bin is
@@ -403,7 +403,7 @@ class _ImageStratifiedPatching:
             Bins containing sampling regions. The regions are packed based on their
             area.
         probs : dict[tuple[int, ...], float]
-            The probability that a sampling region will be selected from it's bin.
+            The probability that a sampling region will be selected from its bin.
         """
 
         # NOTE: alternative number of patches:
@@ -485,7 +485,7 @@ class _SamplingRegion:
             ((0, 1), (1, patch_size[i])) for i in range(self.ndims)
         ]
 
-        # a single subregion is represented by it's extent in each axis
+        # a single subregion is represented by its extent in each axis
         # An extent is a tuple (start, end), where the end is exclusive.
         self.subregions = list(itertools.product(*subregion_axis_extent))
         self.areas = self._calc_areas(self.subregions)
@@ -535,7 +535,8 @@ class _SamplingRegion:
         """
         Clip a sampling region.
 
-        After clipping a selected patch will not overlap the `minimum` or `maximum`.
+        After clipping a selected patch will not overlap with the `minimum` or `maximum`
+        coordinate.
 
         Parameters
         ----------
