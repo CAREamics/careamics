@@ -159,7 +159,7 @@ class StratifiedPatchingStrategy:
     # Note: this is used by the FileIterSampler
     def get_patch_indices(self, data_idx: int) -> Sequence[int]:
         """
-        Get the patch indices will return patches for a specific `image_stack`.
+        Return the patch indices for a specific `image_stack`.
 
         The `image_stack` corresponds to the given `data_idx`.
 
@@ -175,14 +175,8 @@ class StratifiedPatchingStrategy:
             to return a patch that comes from the `image_stack` corresponding to the
             given `data_idx`.
         """
-        patches_per_sample = [
-            [sample.n_patches for sample in image] for image in self.image_patching
-        ]
-        patches_per_image = [sum(samples) for samples in patches_per_sample]
-        cumulative_image_patches = np.cumsum(patches_per_image)
-
-        start = 0 if data_idx == 0 else cumulative_image_patches[data_idx - 1]
-        return np.arange(start, cumulative_image_patches[data_idx]).tolist()
+        start = 0 if data_idx == 0 else self.cumulative_image_patches[data_idx - 1]
+        return np.arange(start, self.cumulative_image_patches[data_idx]).tolist()
 
     def _calc_bins(self) -> tuple[NDArray[np.int_], NDArray[np.int_], NDArray[np.int_]]:
         """
