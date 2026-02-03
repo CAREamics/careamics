@@ -37,7 +37,7 @@ class FileImageStack:
         self.read_kwargs = read_kwargs
         self._data: NDArray | None = None
 
-    def extract_channel_patch(
+    def extract_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,  # `channels = None` to select all channels

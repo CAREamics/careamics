@@ -34,7 +34,7 @@ class ImageStack(Protocol):
 
     """Data type of the image data."""
 
-    def extract_channel_patch(
+    def extract_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,
@@ -42,7 +42,7 @@ class ImageStack(Protocol):
         patch_size: Sequence[int],
     ) -> NDArray:
         """
-        Extract a patch of a single channel for a given sample within the image stack.
+        Extract a patch for a given sample and channels within the image stack.
 
         Parameters
         ----------

@@ -133,7 +133,7 @@ class TestCziImageStack:
             coords = (11, 4)
             patch_size = (16, 9)
 
-            extracted_patch = image_stack.extract_channel_patch(
+            extracted_patch = image_stack.extract_patch(
                 sample_idx=sample_idx,
                 channels=None,
                 coords=coords,
@@ -152,7 +152,7 @@ class TestCziImageStack:
             coords = (2, 11, 4)
             patch_size = (4, 16, 9)
 
-            extracted_patch = image_stack.extract_channel_patch(
+            extracted_patch = image_stack.extract_patch(
                 sample_idx=sample_idx,
                 channels=None,
                 coords=coords,
@@ -210,7 +210,7 @@ class TestCziImageStack:
             coords = (2, 9, 4)
             patch_size = (4, 7, 13)
 
-            extracted_patch = image_stack.extract_channel_patch(
+            extracted_patch = image_stack.extract_patch(
                 sample_idx=t, channels=None, coords=coords, patch_size=patch_size
             )
             patch_ref = data_ref[scene_idx][
@@ -248,7 +248,7 @@ def test_z_padding(tmp_path: Path, axis):
     z_length = shape[2] if "Z" == axis else shape[0]
     coordinates = [(-2, 0, 0), (2, 0, 0)]
     for coord in coordinates:
-        patch = image_stack.extract_channel_patch(
+        patch = image_stack.extract_patch(
             sample_idx=sample_idx,
             channels=[channel_idx],
             coords=coord,
@@ -305,7 +305,7 @@ class TestCziImageStackChannels:
         image_stack = CziImageStack(data_path=file_path)
 
         # extract patch
-        patch = image_stack.extract_channel_patch(
+        patch = image_stack.extract_patch(
             sample_idx=0,
             channels=channels,
             coords=(0, 0),
@@ -356,7 +356,7 @@ class TestCziImageStackChannels:
         )
 
         with pytest.raises(ValueError, match=expected_msg):
-            image_stack.extract_channel_patch(
+            image_stack.extract_patch(
                 sample_idx=0,
                 channels=channels,
                 coords=(0, 0),

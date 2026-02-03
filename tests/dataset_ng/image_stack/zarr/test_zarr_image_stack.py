@@ -69,7 +69,7 @@ def test_extract_patch_2D(
     coords = (11, 4)
     patch_size = (16, 9)
 
-    extracted_patch = image_stack.extract_channel_patch(
+    extracted_patch = image_stack.extract_patch(
         sample_idx=sample_idx, channels=None, coords=coords, patch_size=patch_size
     )  # return in SCZYX order
     patch_ref = data_ref[
@@ -109,7 +109,7 @@ def test_extract_channels(
     image_stack = ZarrImageStack(group=group, data_path=data_path, axes=axes)
 
     # extract patch
-    patch = image_stack.extract_channel_patch(
+    patch = image_stack.extract_patch(
         sample_idx=0,
         channels=channels,
         coords=(0, 0),
@@ -158,7 +158,7 @@ def test_extract_channel_error(
     )
 
     with pytest.raises(ValueError, match=expected_msg):
-        image_stack.extract_channel_patch(
+        image_stack.extract_patch(
             sample_idx=0,
             channels=channels,
             coords=(0, 0),

@@ -172,7 +172,7 @@ class CziImageStack:
             filename = f"{filename}@{self.scene}"
         return self.data_path.parent / filename
 
-    def extract_channel_patch(
+    def extract_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,  # `channels = None` to select all channels

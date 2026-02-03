@@ -19,13 +19,13 @@ def test_extract_patch(tmp_path: Path):
 
     # extract patch should raise an error if the image stack is not loaded
     with pytest.raises(ValueError):
-        image_stack.extract_channel_patch(
+        image_stack.extract_patch(
             sample_idx=0, channels=None, coords=(4, 8), patch_size=(16, 16)
         )
 
     # call load & extract patch
     image_stack.load()
-    patch = image_stack.extract_channel_patch(
+    patch = image_stack.extract_patch(
         sample_idx=0, channels=None, coords=(4, 8), patch_size=(16, 16)
     )
     # confirm as expected against reference data
@@ -51,7 +51,7 @@ def test_extract_channels(tmp_path, shape, axes, channels):
 
     # call load & extract patch
     image_stack.load()
-    patch = image_stack.extract_channel_patch(
+    patch = image_stack.extract_patch(
         sample_idx=1,
         channels=channels,
         coords=(10, 10),
@@ -99,7 +99,7 @@ def test_extract_channel_error(
     )
 
     with pytest.raises(ValueError, match=expected_msg):
-        image_stack.extract_channel_patch(
+        image_stack.extract_patch(
             sample_idx=0,
             channels=channels,
             coords=(0, 0),

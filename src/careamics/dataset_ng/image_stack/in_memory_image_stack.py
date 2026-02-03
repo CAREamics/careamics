@@ -23,7 +23,7 @@ class InMemoryImageStack:
         self.data_shape: Sequence[int] = self._data.shape
         self.data_dtype: DTypeLike = self._data.dtype
 
-    def extract_channel_patch(
+    def extract_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,  # `channels = None` to select all channels
