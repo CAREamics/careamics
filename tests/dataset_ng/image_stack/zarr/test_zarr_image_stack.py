@@ -6,7 +6,6 @@ import pytest
 import zarr
 from numpy.typing import NDArray
 
-from careamics.dataset.dataset_utils import reshape_array
 from careamics.dataset_ng.image_stack import ZarrImageStack
 from careamics.dataset_ng.image_stack.image_utils import channel_slice
 
@@ -34,52 +33,6 @@ def create_zarr(
     array[...] = data
 
     return group
-
-
-@pytest.mark.parametrize(
-    "original_axes, original_shape, expected_shape, sample_idx",
-    [
-        ("YX", (32, 48), (1, 1, 32, 48), 0),
-        ("XYS", (48, 32, 3), (3, 1, 32, 48), 1),
-        ("SXYC", (3, 48, 32, 2), (3, 2, 32, 48), 1),
-        ("CYXT", (2, 32, 48, 3), (3, 2, 32, 48), 2),
-        ("CXYTS", (2, 48, 32, 3, 2), (6, 2, 32, 48), 4),
-        ("XCSYT", (48, 1, 2, 32, 3), (6, 1, 32, 48), 5),  # crazy one
-    ],
-)
-def test_extract_patch_2D(
-    tmp_path: Path,
-    original_axes: str,
-    original_shape: tuple[int, ...],
-    expected_shape: tuple[int, ...],
-    sample_idx: int,
-):
-    # reference data to compare against, it is reshaped using careamics reshape_array
-    data = np.arange(np.prod(original_shape)).reshape(original_shape)
-    data_ref = reshape_array(data, original_axes)
-
-    # save data as a zarr array to ininitialise image stack with
-    file_path = tmp_path / "test_zarr.zarr"
-    data_path = "image"
-
-    # initialise ZarrImageStack
-    group = create_zarr(file_path=file_path, data_path=data_path, data=data)
-    image_stack = ZarrImageStack(group=group, data_path=data_path, axes=original_axes)
-
-    # test extracted patch matches patch from reference data
-    coords = (11, 4)
-    patch_size = (16, 9)
-
-    extracted_patch = image_stack.extract_patch(
-        sample_idx=sample_idx, coords=coords, patch_size=patch_size
-    )  # return in SCZYX order
-    patch_ref = data_ref[
-        sample_idx,
-        :,
-        coords[0] : coords[0] + patch_size[0],
-        coords[1] : coords[1] + patch_size[1],
-    ]
-    np.testing.assert_array_equal(extracted_patch, patch_ref)
 
 
 @pytest.mark.parametrize(

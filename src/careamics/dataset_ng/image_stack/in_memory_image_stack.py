@@ -23,11 +23,6 @@ class InMemoryImageStack:
         self.data_shape: Sequence[int] = self._data.shape
         self.data_dtype: DTypeLike = self._data.dtype
 
-    def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
-    ) -> NDArray:
-        return self.extract_channel_patch(sample_idx, None, coords, patch_size)
-
     def extract_channel_patch(
         self,
         sample_idx: int,

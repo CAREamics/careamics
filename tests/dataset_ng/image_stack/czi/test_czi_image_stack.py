@@ -133,8 +133,11 @@ class TestCziImageStack:
             coords = (11, 4)
             patch_size = (16, 9)
 
-            extracted_patch = image_stack.extract_patch(
-                sample_idx=sample_idx, coords=coords, patch_size=patch_size
+            extracted_patch = image_stack.extract_channel_patch(
+                sample_idx=sample_idx,
+                channels=None,
+                coords=coords,
+                patch_size=patch_size,
             )
 
             data_ref = np.moveaxis(data, 2, 1)  # (T, Z, C, Y, X)
@@ -149,8 +152,11 @@ class TestCziImageStack:
             coords = (2, 11, 4)
             patch_size = (4, 16, 9)
 
-            extracted_patch = image_stack.extract_patch(
-                sample_idx=sample_idx, coords=coords, patch_size=patch_size
+            extracted_patch = image_stack.extract_channel_patch(
+                sample_idx=sample_idx,
+                channels=None,
+                coords=coords,
+                patch_size=patch_size,
             )
 
             if "T" in expected_axes and expected_axes.index("T") == 2:
