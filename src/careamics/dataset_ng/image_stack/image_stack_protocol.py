@@ -34,6 +34,7 @@ class ImageStack(Protocol):
 
     """Data type of the image data."""
 
+    # TODO remove, unused since #640
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray:

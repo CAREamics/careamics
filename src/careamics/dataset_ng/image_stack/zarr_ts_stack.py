@@ -1,6 +1,9 @@
-from collections.abc import Sequence
+"""TensorStore-based image stack for zarr arrays."""
 
-import zarr
+from collections.abc import Sequence
+from pathlib import Path
+
+import tensorstore as ts
 from numpy.typing import DTypeLike, NDArray
 
 from careamics.dataset.dataset_utils import reshape_array
@@ -8,18 +11,18 @@ from careamics.dataset.dataset_utils import reshape_array
 from .image_utils.image_stack_utils import channel_slice, pad_patch, reshape_array_shape
 
 
-class ZarrImageStack:
+class ZarrTSImageStack:
     """
-    Image stack implementation for zarr arrays.
+    Faster image stack implementation for zarr arrays.
 
-    This implementation uses the zarr-python library for reading data.
+    This implementation uses the TensorStore library for reading data.
 
     Parameters
     ----------
-    group : zarr.Group
-        Zarr group containing the array.
+    store_path : str | Path
+        Path to the zarr store (the .zarr directory).
     data_path : str
-        Path to the array within the zarr group (e.g., "data").
+        Path to the array within the zarr store (e.g., "data").
     axes : str
         Axes string describing the data layout (subset of STCZYX).
 
@@ -36,68 +39,73 @@ class ZarrImageStack:
         Data type of the array.
     """
 
-    def __init__(self, group: zarr.Group, data_path: str, axes: str) -> None:
-        """Constructor.
+    def __init__(self, store_path: str | Path, data_path: str, axes: str):
+        """
+        Initialize a TensorStore-based zarr image stack.
 
         Parameters
         ----------
-        group : zarr.Group
-            Zarr group containing the array.
+        store_path : str | Path
+            Path to the zarr store (the .zarr directory).
         data_path : str
-            Path to the array within the zarr group (e.g., "data").
+            Path to the array within the zarr store (e.g., "data").
         axes : str
             Axes string describing the data layout (subset of STCZYX).
 
         Raises
         ------
-        TypeError
-            If `group` is not a zarr.Group or if the data at `data_path` is not a
-            zarr.Array.
         ValueError
-            If the array at `data_path` does not exist in the group.
+            If the array cannot be opened with TensorStore.
         """
+        self._store = str(store_path)
+        self._data_path = data_path
 
-        if not isinstance(group, zarr.Group):
-            raise TypeError(f"group must be a zarr.Group instance, got {type(group)}.")
-
-        self._group = group
-        self._store = str(group.store_path)
         try:
-            self._array = group[data_path]
-        except KeyError as e:
+            self._array = ts.open(
+                {
+                    # specs: https://google.github.io/tensorstore/driver/zarr3/
+                    "driver": "zarr3",
+                    "kvstore": {
+                        "driver": "file",
+                        "path": self._store,  # needs to be zarr store root
+                    },
+                    "path": data_path,  # path to array within the store
+                    "recheck_cached_data": False,  # assume data does not change
+                }
+            ).result()
+        except Exception as e:
             raise ValueError(
-                f"Did not find array at '{data_path}' in store '{self._store}'."
+                f"Failed to open zarr array at '{self._store}/{data_path}' with "
+                f"TensorStore: {e}"
             ) from e
 
-        if not isinstance(self._array, zarr.Array):
-            raise TypeError(
-                f"data at path '{data_path}' must be a zarr.Array instance, "
-                f"got {type(self._array)}."
-            )
-
-        self._source = self._array.store_path
+        self._source = f"{self._store}/{data_path}"
 
         # TODO: validate axes
         #   - must contain XY
         #   - must be subset of STCZYX
         self._original_axes = axes
-        self._original_data_shape: tuple[int, ...] = self._array.shape
+        self._original_data_shape: tuple[int, ...] = tuple(self._array.shape)
         self.data_shape = reshape_array_shape(axes, self._original_data_shape)
-        self._data_dtype = self._array.dtype
-        self._chunk_size = reshape_array_shape(
-            axes, self._array.chunks, add_singleton=False
-        )
-        self._shard_size = (
-            reshape_array_shape(axes, self._array.shards, add_singleton=False)
-            if self._array.shards is not None
-            else None
-        )
+        self._data_dtype = self._array.dtype.numpy_dtype
 
-    # Used to identify the source of the data and write to similar path during pred
+        # extract chunk and shard sizes
+        chunk_layout = self._array.chunk_layout
+        if chunk_layout.read_chunk.shape:
+            self._chunk_size = reshape_array_shape(
+                axes, tuple(chunk_layout.read_chunk.shape), add_singleton=False
+            )
+        else:
+            # no chunk available
+            # delegate to writer the responsibility to set chunking
+            # (e.g. writes_tile_zarr with auto chunking)
+            self._chunk_size = None
+
+        self._shard_size = None
+
     @property
     def source(self) -> str:
-        """Source path/URI of the zarr array."""
-        # e.g. file://data/bsd68.zarr/train/
+        """Source path to the zarr array."""
         return str(self._source)
 
     @property
@@ -123,60 +131,45 @@ class ZarrImageStack:
         Parameters
         ----------
         sample_idx : int
-            Sample index to extract.
+            Sample index.
         coords : Sequence[int]
-            Coordinates of the patch to extract (excluding channels).
+            Starting coordinates in (Z)YX order.
         patch_size : Sequence[int]
-            Size of the patch to extract (excluding channels).
+            Size of the patch in (Z)YX order.
 
         Returns
         -------
         NDArray
-            Extracted patch.
+            Extracted patch in C(Z)YX format.
         """
         return self.extract_channel_patch(sample_idx, None, coords, patch_size)
 
     def extract_channel_patch(
         self,
         sample_idx: int,
-        channels: Sequence[int] | None,  # `channels = None` to select all channels,
+        channels: Sequence[int] | None,
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
-        """Extract a patch from the array.
+        """Extract a patch with optional channel selection.
 
         Parameters
         ----------
         sample_idx : int
-            Sample index to extract.
+            Sample index.
         channels : Sequence[int] | None
             Channels to extract. If None, all channels are extracted.
         coords : Sequence[int]
-            Coordinates of the patch to extract (excluding channels).
+            Starting coordinates in (Z)YX order.
         patch_size : Sequence[int]
-            Size of the patch to extract (excluding channels).
+            Size of the patch in (Z)YX order.
 
         Returns
         -------
         NDArray
-            Extracted patch.
-
-        Raises
-        ------
-        IndexError
-            If `sample_idx` is out of bounds for the S axis.
-        ValueError
-            If any channel index in `channels` is out of bounds.
-        ValueError
-            If the original axes contains unrecognized axes.
+            Extracted patch in C(Z)YX format.
         """
-        # original axes assumed to be any subset of STCZYX (containing YX), in any order
-        # arguments must be transformed to index data in original axes order
-        # to do this: loop through original axes and append correct index/slice
-        #   for each case: STCZYX
-        #   Note: if any axis is not present in original_axes it is skipped.
-
-        # guard for no S and T in original axes
+        # Guard for no S and T in original axes
         if ("S" not in self._original_axes) and ("T" not in self._original_axes):
             if sample_idx not in [0, -1]:
                 raise IndexError(
@@ -184,9 +177,9 @@ class ZarrImageStack:
                     f"{self.data_shape[0]}"
                 )
 
-        # check that channels are within bounds
+        # Check that channels are within bounds
         if channels is not None:
-            max_channel = self.data_shape[1] - 1  # channel is second dimension
+            max_channel = self.data_shape[1] - 1
             for ch in channels:
                 if ch > max_channel:
                     raise ValueError(
@@ -196,6 +189,7 @@ class ZarrImageStack:
                         f"indices."
                     )
 
+        # Build indexing expression for TensorStore
         patch_slice: list[int | slice] = []
         for d in self._original_axes:
             if d == "S":
@@ -219,9 +213,14 @@ class ZarrImageStack:
             else:
                 raise ValueError(f"Unrecognised axis '{d}', axes should be in STCZYX.")
 
-        patch_data: NDArray = self._array[tuple(patch_slice)]  # type: ignore
+        # Read data using TensorStore (synchronous read)
+        patch_data: NDArray = self._array[tuple(patch_slice)].read().result()
+
+        # Reshape to standard format
         patch_axes = self._original_axes.replace("S", "").replace("T", "")
         patch_data = reshape_array(patch_data, patch_axes)[0]  # remove first sample dim
+
+        # Pad if needed (e.g., at image boundaries)
         patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
 
         return patch
@@ -234,10 +233,7 @@ class ZarrImageStack:
         dim = self._original_data_shape[axis_idx]
 
         # new S' = S*T
-        # T_idx = S_idx' // T_size
-        # S_idx = S_idx' % T_size
-        # - floor divide finds the row
-        # - modulus finds how far along the row i.e. the column
+        # T_idx = S_idx' % T_size
         return sample_idx % dim
 
     def _get_S_index(self, sample_idx: int) -> int:
@@ -249,10 +245,7 @@ class ZarrImageStack:
             T_dim = self._original_data_shape[T_axis_idx]
 
             # new S' = S*T
-            # T_idx = S_idx' // T_size
-            # S_idx = S_idx' % T_size
-            # - floor divide finds the row
-            # - modulus finds how far along the row i.e. the column
+            # S_idx = S_idx' // T_size
             return sample_idx // T_dim
         else:
             return sample_idx

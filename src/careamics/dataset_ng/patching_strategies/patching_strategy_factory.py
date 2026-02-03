@@ -44,7 +44,6 @@ def create_patching_strategy(
             raise ValueError(f"Unsupported patching strategy: {patching_config.name}")
 
     # remove `name` to match the class signatures
-    # tiling requires `tile_size` instead of `patch_size`, hence the aliasing
     return patch_class(
         data_shapes=data_shapes, **patching_config.model_dump(exclude={"name"})
     )

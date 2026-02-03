@@ -6,6 +6,7 @@ __all__ = [
     "WriteImage",
     "WriteStrategy",
     "WriteTilesZarr",
+    "WriteTilesZarrTS",
     "create_write_file_path",
     "create_write_strategy",
     "decollate_image_region_data",
@@ -27,3 +28,4 @@ from .write_strategy_factory import (
     select_write_func,
 )
 from .write_tiles_zarr_strategy import WriteTilesZarr
+from .write_tiles_zarr_ts_strategy import WriteTilesZarrTS
