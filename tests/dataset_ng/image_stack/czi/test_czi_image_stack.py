@@ -152,8 +152,11 @@ class TestCziImageStack:
             coords = (2, 11, 4)
             patch_size = (4, 16, 9)
 
-            extracted_patch = image_stack.extract_patch(
-                sample_idx=sample_idx, coords=coords, patch_size=patch_size
+            extracted_patch = image_stack.extract_channel_patch(
+                sample_idx=sample_idx,
+                channels=None,
+                coords=coords,
+                patch_size=patch_size,
             )
 
             if "T" in expected_axes and expected_axes.index("T") == 2:
@@ -207,8 +210,8 @@ class TestCziImageStack:
             coords = (2, 9, 4)
             patch_size = (4, 7, 13)
 
-            extracted_patch = image_stack.extract_patch(
-                sample_idx=t, coords=coords, patch_size=patch_size
+            extracted_patch = image_stack.extract_channel_patch(
+                sample_idx=t, channels=None, coords=coords, patch_size=patch_size
             )
             patch_ref = data_ref[scene_idx][
                 t,
