@@ -1,24 +1,24 @@
 """Factory functions for lightning modules."""
 
 from careamics.config import CAREAlgorithm, N2VAlgorithm
+from careamics.config.algorithms.unet_algorithm_config import UNetBasedAlgorithm
 from careamics.config.support import SupportedAlgorithm
 
 from .care_module import CAREModule
 from .n2v_module import N2VModule
-from .unet_module import UNetAlgorithmConfig
 
 CAREamicsModuleCls = type[N2VModule] | type[CAREModule]
 CAREamicsModule = N2VModule | CAREModule
 
 
 # TODO: update to accept all algorithm configs
-def create_module(algorithm_config: UNetAlgorithmConfig) -> CAREamicsModule:
+def create_module(algorithm_config: UNetBasedAlgorithm) -> CAREamicsModule:
     """
     Initialize the correct Lightning module from an algorithm config.
 
     Parameters
     ----------
-    algorithm_config : UNetAlgorithmConfig
+    algorithm_config : UNetBasedAlgorithm
         The pydantic model with algorithm specific parameters.
 
     Returns
