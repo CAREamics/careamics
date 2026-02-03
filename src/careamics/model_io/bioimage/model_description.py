@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Union
 
 import numpy as np
-from pydantic import DirectoryPath
 from bioimageio.spec._internal.io import extract
 from bioimageio.spec.model.v0_5 import (
     ArchitectureFromLibraryDescr,
@@ -27,6 +26,7 @@ from bioimageio.spec.model.v0_5 import (
     Version,
     WeightsDescr,
 )
+from pydantic import DirectoryPath
 
 from careamics.config import Configuration, DataConfig
 
