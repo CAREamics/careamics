@@ -31,7 +31,7 @@ def prediction_writer_callback(write_strategy: WriteStrategy, dirpath: Path | st
 
 def test_initialization(prediction_writer_callback, write_strategy, dirpath):
     """Test `PredictionWriterCallback` initializes as expected."""
-    assert prediction_writer_callback.enable_writing is True
+    assert prediction_writer_callback.is_enabled is True
     assert prediction_writer_callback.write_strategy is write_strategy
     assert prediction_writer_callback.dirpath == Path(dirpath).resolve()
 
@@ -70,12 +70,12 @@ def test_setup_prediction_directory_creation(
 
 def test_write_on_batch_end_writing_predictions_off(mocker, prediction_writer_callback):
     """
-    Test that `write_batch` acts as expected when writing predictions is set to off.
+    Test that `write_batch` acts as expected when writing predictions is off.
 
     Ensure `PredictionWriterCallback.write_strategy.write_batch` is not called when
     `PredictionWriterCallback.writing_predictions=False`.
     """
-    prediction_writer_callback.enable_writing = False
+    prediction_writer_callback.is_enabled = False
     write_strategy = mocker.Mock(spec=WriteStrategy)
     prediction_writer_callback.write_strategy = write_strategy
 
