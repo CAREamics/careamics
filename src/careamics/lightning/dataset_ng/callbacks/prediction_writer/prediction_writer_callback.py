@@ -80,15 +80,15 @@ class PredictionWriterCallback(BasePredictionWriter):
         if dirpath != "":
             self._init_dirpath(dirpath)
 
-    def disable_writing(self, disable_writing: bool) -> None:
-        """Disable writing.
+    def enable_writing(self, enable_writing: bool) -> None:
+        """Enable or disable writing.
 
         Parameters
         ----------
-        disable_writing : bool
-            If writing predictions should be disabled.
+        enable_writing : bool
+            If writing predictions should be enabled.
         """
-        self.is_disabled = disable_writing
+        self.is_disabled = not enable_writing
 
     def _init_dirpath(self, dirpath):
         """
