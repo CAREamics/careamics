@@ -319,7 +319,25 @@ class CareamicsDataModule(L.LightningDataModule):
             self.config = data_config
         else:
             self.config = NGDataConfig.model_validate(data_config)
-        self.save_hyperparameters({"data_config": self.config.model_dump(mode="json")})
+        self.save_hyperparameters(
+            {"data_config": self.config.model_dump(mode="json")},
+            ignore=[
+                "train_data",
+                "train_data_target",
+                "train_data_mask",
+                "val_data",
+                "val_data_target",
+                "pred_data",
+                "pred_data_target",
+                "read_source_func",
+                "read_kwargs",
+                "image_stack_loader",
+                "image_stack_loader_kwargs",
+                "extension_filter",
+                "val_percentage",
+                "val_minimum_split",
+            ],
+        )
 
         self.data_type: str = self.config.data_type
         self.batch_size: int = self.config.batch_size
