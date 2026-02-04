@@ -478,4 +478,4 @@ class CAREamistV2:
     def stop_training(self) -> None:
         """Stop the training loop."""
         self.trainer.should_stop = True
-        self.trainer.limit_val_batches = 0 #skip validation
+        self.trainer.limit_val_batches = 0 # skip validation
