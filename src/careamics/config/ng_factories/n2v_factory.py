@@ -19,30 +19,7 @@ from .data_factory import create_ng_data_configuration, list_spatial_augmentatio
 from .training_factory import create_training_configuration, update_trainer_params
 
 
-# TODO back-compatibility, to remove later
-def create_n2v_configuration(*args, **kwargs) -> N2VConfiguration:
-    """
-    Create a configuration for training Noise2Void.
-
-    See `create_advanced_n2v_config` for more details and parameters.
-
-    Parameters
-    ----------
-    *args : positional arguments
-        Positional arguments for `create_advanced_n2v_config`.
-    **kwargs : keyword arguments
-        Keyword arguments for `create_advanced_n2v_config`.
-
-    Returns
-    -------
-    N2VConfiguration
-        Configuration for training N2V.
-    """
-    return create_advanced_n2v_config(*args, **kwargs)
-
-
-# proposal for API, should be renamed to create_n2v_configuration later
-def create_standard_n2v_configuration(
+def create_n2v_config(
     # mandatory parameters
     experiment_name: str,
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
