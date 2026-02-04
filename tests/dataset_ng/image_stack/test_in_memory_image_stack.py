@@ -43,7 +43,7 @@ def test_extract_channels(array_stack, channels):
     data, image_stack = array_stack
     data_shape = data.shape
 
-    patch = image_stack.extract_channel_patch(
+    patch = image_stack.extract_patch(
         sample_idx=1,
         channels=channels,
         coords=(10, 10),
@@ -80,7 +80,7 @@ def test_extract_channel_error(array_stack, channels):
     )
 
     with pytest.raises(ValueError, match=expected_msg):
-        image_stack.extract_channel_patch(
+        image_stack.extract_patch(
             sample_idx=0,
             channels=channels,
             coords=(0, 0),
