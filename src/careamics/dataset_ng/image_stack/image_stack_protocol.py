@@ -35,30 +35,6 @@ class ImageStack(Protocol):
     """Data type of the image data."""
 
     def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
-    ) -> NDArray:
-        """
-        Extract a patch for a given sample within the image stack.
-
-        Parameters
-        ----------
-        sample_idx: int
-            Sample index. The first dimension of the image data will be indexed at this
-            value.
-        coords: Sequence of int
-            The coordinates that define the start of a patch.
-        patch_size: Sequence of int
-            The size of the patch in each spatial dimension.
-
-        Returns
-        -------
-        numpy.ndarray
-            A patch of the image data from a particlular sample. It will have the
-            dimensions C(Z)YX.
-        """
-        ...
-
-    def extract_channel_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,
@@ -66,7 +42,7 @@ class ImageStack(Protocol):
         patch_size: Sequence[int],
     ) -> NDArray:
         """
-        Extract a patch of a single channel for a given sample within the image stack.
+        Extract a patch for a given sample and channels within the image stack.
 
         Parameters
         ----------
