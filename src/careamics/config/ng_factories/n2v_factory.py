@@ -47,6 +47,8 @@ def create_n2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    normalization: Literal["mean_std", "minmax", "quantile", "none"] = "mean_std",
+    normalization_params: dict[str, Any] | None = None,
 ) -> N2VConfiguration:
     """
     Create a configuration for training Noise2Void.
@@ -160,6 +162,14 @@ def create_n2v_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    normalization : {"mean_std", "minmax", "quantile", "none"}, default="mean_std"
+        Normalization strategy to use.
+    normalization_params : dict, default=None
+        Strategy-specific normalization parameters. If None, default values are used.
+        For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
+        For "minmax": {"input_mins": [...], "input_maxes": [...]} (optional)
+        For "quantile": {"lower_quantile": 0.01, "upper_quantile": 0.99} (optional)
+        For "none": No parameters needed.
 
     Returns
     -------
@@ -189,6 +199,11 @@ def create_n2v_configuration(
     if n_channels is None:
         n_channels = 1 if channels is None else len(channels)
 
+    # normalization
+    norm_config = {"name": normalization}
+    if normalization_params is not None:
+        norm_config.update(normalization_params)
+
     # augmentations
     spatial_transforms = list_spatial_augmentations(augmentations)
 
@@ -201,6 +216,7 @@ def create_n2v_configuration(
         augmentations=spatial_transforms,
         channels=channels,
         in_memory=in_memory,
+        normalization=norm_config,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
     )
