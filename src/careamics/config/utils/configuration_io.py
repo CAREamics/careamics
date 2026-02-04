@@ -11,7 +11,20 @@ from careamics.config.ng_configs import N2VConfiguration
 from careamics.config.support import SupportedAlgorithm
 
 
-def config_disciminator(v: Any) -> SupportedAlgorithm | None:
+def _config_disciminator(v: Any) -> SupportedAlgorithm | None:
+    """
+    Extract algorithm type from configuration dict for Pydantic discriminator.
+
+    Parameters
+    ----------
+    v : Any
+        Configuration dictionary.
+
+    Returns
+    -------
+    SupportedAlgorithm or None
+        Algorithm type if found, None otherwise.
+    """
     if not isinstance(v, dict):
         return None
     alg_config = v.get("algorithm_config", None)
@@ -23,7 +36,7 @@ def config_disciminator(v: Any) -> SupportedAlgorithm | None:
 # union
 NGConfiguration = Annotated[
     Union[Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],],
-    Discriminator(config_disciminator),
+    Discriminator(_config_disciminator),
 ]
 
 
