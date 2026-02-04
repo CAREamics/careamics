@@ -53,7 +53,7 @@ def default_patch_constr(
     coords: Sequence[int],
     patch_size: Sequence[int],
 ) -> NDArray[Any]:
-    return image_stack.extract_channel_patch(
+    return image_stack.extract_patch(
         sample_idx=sample_idx,
         channels=channels,
         coords=coords,
@@ -126,12 +126,12 @@ def lateral_context_patch_constr(
             )
             size_clipped = end_clipped - start_clipped
 
-            lc_patch = image_stack.extract_channel_patch(
+            lc_patch = image_stack.extract_patch(
                 sample_idx, channels, start_clipped, size_clipped
             )
             pad_before = start_clipped - lc_start
             pad_after = lc_end - end_clipped
-            pad_width = np.concat(
+            pad_width = np.concatenate(
                 [
                     # zeros to not pad the channel axis
                     np.zeros((1, 2), dtype=int),

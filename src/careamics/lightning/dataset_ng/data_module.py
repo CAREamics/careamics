@@ -237,7 +237,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: NGDataConfig,
+        data_config: NGDataConfig | dict[str, Any],
         *,
         train_data: Any | None = None,
         train_data_target: Any | None = None,
@@ -315,9 +315,32 @@ class CareamicsDataModule(L.LightningDataModule):
                 "If one of train_data or val_data is provided, both must be provided."
             )
 
-        self.config: NGDataConfig = data_config
-        self.data_type: str = data_config.data_type
-        self.batch_size: int = data_config.batch_size
+        if isinstance(data_config, NGDataConfig):
+            self.config = data_config
+        else:
+            self.config = NGDataConfig.model_validate(data_config)
+        self.save_hyperparameters(
+            {"data_config": self.config.model_dump(mode="json")},
+            ignore=[
+                "train_data",
+                "train_data_target",
+                "train_data_mask",
+                "val_data",
+                "val_data_target",
+                "pred_data",
+                "pred_data_target",
+                "read_source_func",
+                "read_kwargs",
+                "image_stack_loader",
+                "image_stack_loader_kwargs",
+                "extension_filter",
+                "val_percentage",
+                "val_minimum_split",
+            ],
+        )
+
+        self.data_type: str = self.config.data_type
+        self.batch_size: int = self.config.batch_size
 
         self.extension_filter: str = (
             extension_filter  # list_files pulls the correct ext
@@ -390,16 +413,9 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
-            # TODO: ugly, need to find a better solution
-            self.stats = self.train_dataset.input_stats
-            self.config.set_means_and_stds(
-                self.train_dataset.input_stats.means,
-                self.train_dataset.input_stats.stds,
-                self.train_dataset.target_stats.means,
-                self.train_dataset.target_stats.stds,
-            )
 
             validation_config = self.config.convert_mode("validating")
+
             self.val_dataset = create_dataset(
                 config=validation_config,
                 inputs=self.val_data,
@@ -420,7 +436,6 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
-            self.stats = self.val_dataset.input_stats
         elif stage == "predict":
             if self.config.mode == "validating":
                 raise ValueError(
@@ -442,7 +457,6 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
-            self.stats = self.predict_dataset.input_stats
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 

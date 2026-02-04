@@ -5,6 +5,8 @@ from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
 
+DEFAULT_NORM = {"name": "mean_std"}
+
 
 def default_patching(mode: str) -> dict:
     """Return default patching strategy based on mode."""
@@ -45,7 +47,7 @@ def default_patching(mode: str) -> dict:
         ),
     ],
 )
-def test_ng_data_config_strategy(patching_strategy, mode):
+def test_config_strategy(patching_strategy, mode):
 
     # Test the DataModel class
     data_config = NGDataConfig(
@@ -53,6 +55,7 @@ def test_ng_data_config_strategy(patching_strategy, mode):
         data_type="array",
         axes="YX",
         patching=patching_strategy,
+        normalization=DEFAULT_NORM,
     )
 
     assert data_config.patching.name == patching_strategy["name"]
@@ -107,7 +110,7 @@ def test_ng_data_config_strategy(patching_strategy, mode):
         ),
     ],
 )
-def test_ng_data_wrong_config_strategy(patching_strategy, mode):
+def test_wrong_config_strategy(patching_strategy, mode):
     # Test the DataModel class
     with pytest.raises(ValueError):
         _ = NGDataConfig(
@@ -115,38 +118,7 @@ def test_ng_data_wrong_config_strategy(patching_strategy, mode):
             data_type="array",
             axes="YX",
             patching=patching_strategy,
-        )
-
-
-@pytest.mark.parametrize(
-    "axes, patching_strategy",
-    [
-        ("ZYX", {"name": SupportedPatchingStrategy.RANDOM, "patch_size": [16, 16]}),
-        ("YX", {"name": SupportedPatchingStrategy.RANDOM, "patch_size": [16, 16, 16]}),
-        (
-            "ZYX",
-            {
-                "name": SupportedPatchingStrategy.RANDOM,
-                "patch_size": [16, 16],
-            },
-        ),
-        (
-            "SYX",
-            {
-                "name": SupportedPatchingStrategy.RANDOM,
-                "patch_size": [16, 16, 16],
-            },
-        ),
-    ],
-)
-def test_ng_dataset_invalid_axes_patch(axes, patching_strategy):
-
-    with pytest.raises(ValueError):
-        NGDataConfig(
-            mode="training",
-            data_type="array",
-            axes=axes,
-            patching=patching_strategy,
+            normalization=DEFAULT_NORM,
         )
 
 
@@ -173,7 +145,7 @@ def test_ng_dataset_invalid_axes_patch(axes, patching_strategy):
         (True, "czi", True),
     ],
 )
-def test_ng_data_config_in_memory(in_memory, data_type, error):
+def test_config_in_memory(in_memory, data_type, error):
     if error:
         with pytest.raises(ValueError):
             NGDataConfig(
@@ -182,6 +154,7 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
                 axes="YX" if data_type != "czi" else "SCYX",
                 in_memory=in_memory,
                 patching={"name": SupportedPatchingStrategy.WHOLE},
+                normalization=DEFAULT_NORM,
             )
     else:
         # if in_memory is None, check the default value
@@ -191,6 +164,7 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
                 data_type=data_type,
                 axes="YX" if data_type != "czi" else "SCYX",
                 patching={"name": SupportedPatchingStrategy.WHOLE},
+                normalization=DEFAULT_NORM,
             )
             if data_type in ("array", "tiff", "custom"):
                 assert config.in_memory is True
@@ -203,6 +177,7 @@ def test_ng_data_config_in_memory(in_memory, data_type, error):
                 axes="YX" if data_type != "czi" else "SCYX",
                 in_memory=in_memory,
                 patching={"name": SupportedPatchingStrategy.WHOLE},
+                normalization=DEFAULT_NORM,
             )
 
 
@@ -234,6 +209,7 @@ def test_channels(channels, error):
                 axes="CYX",
                 patching=default_patching("predicting"),
                 channels=channels,
+                normalization=DEFAULT_NORM,
             )
     else:
         _ = NGDataConfig(
@@ -242,6 +218,7 @@ def test_channels(channels, error):
             axes="CYX",
             patching=default_patching("predicting"),
             channels=channels,
+            normalization=DEFAULT_NORM,
         )
 
 
@@ -258,6 +235,7 @@ def test_propagate_seed():
         },
         transforms=[{"name": "XYFlip"}],
         seed=global_seed,
+        normalization=DEFAULT_NORM,
     )
 
     assert config.seed == global_seed
@@ -285,6 +263,7 @@ def test_validate_coord_filters(filter_config, mode, error):
                 axes="CYX",
                 patching=default_patching(mode),
                 coord_filter=filter_config,
+                normalization=DEFAULT_NORM,
             )
     else:
         _ = NGDataConfig(
@@ -293,10 +272,147 @@ def test_validate_coord_filters(filter_config, mode, error):
             axes="CYX",
             patching=default_patching(mode),
             coord_filter=filter_config,
+            normalization=DEFAULT_NORM,
         )
 
 
-class TestNGDataConfigConvertMode:
+class TestDimensions:
+
+    @pytest.mark.parametrize(
+        "mode, axes, patching, patch_size",
+        [
+            ("training", "ZYX", "random", [16, 16]),
+            ("training", "CYX", "random", [16, 16, 16]),
+            ("training", "SYX", "random", [16, 16, 16]),
+            ("predicting", "ZYX", "tiled", [16, 16]),
+            ("predicting", "CYX", "tiled", [16, 16, 16]),
+            ("predicting", "SYX", "tiled", [16, 16, 16]),
+        ],
+    )
+    def test_dimensions(self, mode, axes, patching, patch_size):
+        if patching == "random":
+            patching = {
+                "name": SupportedPatchingStrategy.RANDOM,
+                "patch_size": patch_size,
+            }
+        elif patching == "tiled":
+            patching = {
+                "name": SupportedPatchingStrategy.TILED,
+                "patch_size": patch_size,
+                "overlaps": [4 for _ in patch_size],
+            }
+        else:
+            patching = {"name": SupportedPatchingStrategy.WHOLE}
+
+        with pytest.raises(ValueError):
+            NGDataConfig(
+                mode=mode,
+                data_type="array",
+                axes=axes,
+                patching=patching,
+                normalization=DEFAULT_NORM,
+            )
+
+    @pytest.mark.parametrize(
+        "data_type, mode, axes, patching, patch_size, is_3D",
+        [
+            ("array", "training", "CYX", "random", [16, 16], False),
+            ("array", "training", "CZYX", "random", [8, 16, 16], True),
+            ("array", "predicting", "CYX", "tiled", [16, 16], False),
+            ("array", "predicting", "CZYX", "tiled", [8, 16, 16], True),
+            ("array", "predicting", "CYX", "whole", None, False),
+            ("array", "predicting", "CZYX", "whole", None, True),
+            # czi has some specificities due to T being a 3D axis
+            ("czi", "training", "SCYX", "random", [16, 16], False),
+            ("czi", "training", "SCZYX", "random", [8, 16, 16], True),
+            ("czi", "training", "SCTYX", "random", [8, 16, 16], True),
+            ("czi", "predicting", "SCYX", "tiled", [16, 16], False),
+            ("czi", "predicting", "SCZYX", "tiled", [8, 16, 16], True),
+            ("czi", "predicting", "SCTYX", "tiled", [8, 16, 16], True),
+            ("czi", "predicting", "SCYX", "whole", None, False),
+            ("czi", "predicting", "SCZYX", "whole", None, True),
+            ("czi", "predicting", "SCTYX", "whole", None, True),
+        ],
+    )
+    def test_is_3D(self, data_type, mode, axes, patching, patch_size, is_3D):
+        if patching == "random":
+            patching = {
+                "name": SupportedPatchingStrategy.RANDOM,
+                "patch_size": patch_size,
+            }
+        elif patching == "tiled":
+            patching = {
+                "name": SupportedPatchingStrategy.TILED,
+                "patch_size": patch_size,
+                "overlaps": [4 for _ in patch_size],
+            }
+        else:
+            patching = {"name": SupportedPatchingStrategy.WHOLE}
+
+        config_2D = NGDataConfig(
+            mode=mode,
+            data_type=data_type,
+            axes=axes,
+            patching=patching,
+            normalization=DEFAULT_NORM,
+        )
+        assert config_2D.is_3D() == is_3D
+
+    @pytest.mark.parametrize(
+        "mode, axes, patching, patch_size, error",
+        [
+            # accepted combinations
+            ("training", "SCYX", "random", [16, 16], False),
+            ("training", "SCZYX", "random", [8, 16, 16], False),
+            ("training", "SCTYX", "random", [8, 16, 16], False),
+            ("predicting", "SCYX", "tiled", [16, 16], False),
+            ("predicting", "SCZYX", "tiled", [8, 16, 16], False),
+            ("predicting", "SCTYX", "tiled", [8, 16, 16], False),
+            ("predicting", "SCYX", "whole", None, False),
+            ("predicting", "SCZYX", "whole", None, False),
+            ("predicting", "SCTYX", "whole", None, False),
+            # validation errors
+            ("training", "SCZYX", "random", [16, 16], True),
+            ("training", "SCTYX", "random", [16, 16], True),
+            ("predicting", "SCZYX", "tiled", [16, 16], True),
+            ("predicting", "SCTYX", "tiled", [16, 16], True),
+        ],
+    )
+    def test_czi_zt_3D(self, mode, axes, patching, patch_size, error):
+        if patching == "random":
+            patching = {
+                "name": SupportedPatchingStrategy.RANDOM,
+                "patch_size": patch_size,
+            }
+        elif patching == "tiled":
+            patching = {
+                "name": SupportedPatchingStrategy.TILED,
+                "patch_size": patch_size,
+                "overlaps": [4 for _ in patch_size],
+            }
+        else:
+            patching = {"name": SupportedPatchingStrategy.WHOLE}
+
+        if error:
+            with pytest.raises(ValueError):
+                _ = NGDataConfig(
+                    mode=mode,
+                    data_type="czi",
+                    axes=axes,
+                    patching=patching,
+                    normalization=DEFAULT_NORM,
+                )
+        else:
+            NGDataConfig(
+                mode=mode,
+                data_type="czi",
+                axes=axes,
+                patching=patching,
+                normalization=DEFAULT_NORM,
+            )
+
+
+class TestConvertMode:
 
     def test_default(self):
         """Test converting mode with default parameters."""
@@ -305,6 +421,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="CYX",
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
         val_config = original_config.convert_mode("validating")
@@ -329,6 +446,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="CYX",
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
         assert (
@@ -358,23 +476,26 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="CYX",
             patching=default_patching("training"),
-            image_means=[0.5],
-            image_stds=[0.2],
-            target_means=[0.3],
-            target_stds=[0.1],
+            normalization={
+                "name": "mean_std",
+                "input_means": [0.5],
+                "input_stds": [0.2],
+                "target_means": [0.3],
+                "target_stds": [0.1],
+            },
         )
 
         val_config = original_config.convert_mode("validating")
-        assert val_config.image_means == original_config.image_means
-        assert val_config.image_stds == original_config.image_stds
-        assert val_config.target_means == original_config.target_means
-        assert val_config.target_stds == original_config.target_stds
+        assert val_config.normalization.input_means == [0.5]
+        assert val_config.normalization.input_stds == [0.2]
+        assert val_config.normalization.target_means == [0.3]
+        assert val_config.normalization.target_stds == [0.1]
 
         pred_config = original_config.convert_mode("predicting")
-        assert pred_config.image_means == original_config.image_means
-        assert pred_config.image_stds == original_config.image_stds
-        assert pred_config.target_means == original_config.target_means
-        assert pred_config.target_stds == original_config.target_stds
+        assert pred_config.normalization.input_means == [0.5]
+        assert pred_config.normalization.input_stds == [0.2]
+        assert pred_config.normalization.target_means == [0.3]
+        assert pred_config.normalization.target_stds == [0.1]
 
     def test_with_dataloader_params(self):
         """Test converting mode with new dataloader parameters."""
@@ -385,6 +506,7 @@ class TestNGDataConfigConvertMode:
             patching=default_patching("training"),
             val_dataloader_params={"pin_memory": True},
             pred_dataloader_params={"num_workers": 2},
+            normalization=DEFAULT_NORM,
         )
 
         val_config = original_config.convert_mode("validating")
@@ -400,6 +522,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="YX",
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
         val_config = original_config.convert_mode(
@@ -428,6 +551,7 @@ class TestNGDataConfigConvertMode:
             axes="YX",
             patching=default_patching("training"),
             in_memory=True,
+            normalization=DEFAULT_NORM,
         )
 
         val_config = original_config.convert_mode(
@@ -452,6 +576,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="CYX",
             patching=default_patching(mode),
+            normalization=DEFAULT_NORM,
         )
 
         with pytest.raises(ValueError):
@@ -465,6 +590,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="CYX",
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
         with pytest.raises(ValueError):
@@ -480,6 +606,7 @@ class TestNGDataConfigConvertMode:
             data_type="array",
             axes="YX",
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
         # adding "C" with multiple channels specified
@@ -506,9 +633,9 @@ class TestNGDataConfigConvertMode:
             axes="CYX",
             channels=[0, 1],
             patching=default_patching("training"),
+            normalization=DEFAULT_NORM,
         )
 
-        #
         with pytest.raises(ValueError):
             _ = original_config.convert_mode(
                 "validating",

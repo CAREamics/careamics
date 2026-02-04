@@ -6,7 +6,6 @@ These functions are used to control certain aspects and behaviours of PyTorch.
 
 import inspect
 import platform
-from typing import Union
 
 import torch
 
@@ -67,7 +66,7 @@ def filter_parameters(
     return {key: user_params[key] for key in params_to_be_used}
 
 
-def get_optimizer(name: str) -> torch.optim.Optimizer:
+def get_optimizer(name: str) -> type[torch.optim.Optimizer]:
     """
     Return the optimizer class given its name.
 
@@ -106,10 +105,7 @@ def get_optimizers() -> dict[str, str]:
 
 def get_scheduler(
     name: str,
-) -> Union[
-    # torch.optim.lr_scheduler.LRScheduler,
-    torch.optim.lr_scheduler.ReduceLROnPlateau,
-]:
+) -> type[torch.optim.lr_scheduler.ReduceLROnPlateau]:
     """
     Return the scheduler class given its name.
 

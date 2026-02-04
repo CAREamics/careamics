@@ -173,11 +173,6 @@ class CziImageStack:
         return self.data_path.parent / filename
 
     def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
-    ) -> NDArray:
-        return self.extract_channel_patch(sample_idx, None, coords, patch_size)
-
-    def extract_channel_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,  # `channels = None` to select all channels
@@ -222,7 +217,7 @@ class CziImageStack:
 
         # Create output array of shape (C, Z, Y, X)
         n_channels = self.data_shape[1] if channels is None else len(channels)
-        patch = np.empty(
+        patch = np.zeros(
             (n_channels, third_dim_size, *patch_size[-2:]), dtype=np.float32
         )
 
@@ -251,12 +246,17 @@ class CziImageStack:
                 if third_dim is not None:
                     plane[third_dim] = third_dim_offset + third_dim_index
 
+                    # check if in bounds
+                    if 0 > plane[third_dim] or plane[third_dim] >= self.data_shape[-3]:
+                        continue
+
                 # read plane
                 extracted_roi = self._czi.read(roi=roi, plane=plane, scene=self.scene)
                 if extracted_roi.ndim == 3:
                     if extracted_roi.shape[-1] > 1:
                         raise ValueError(
-                            "CZI files with RGB channels are currently not supported."
+                            "CZI files with RGB channels are currently not "
+                            "supported."
                         )
 
                     # remove channel dimension

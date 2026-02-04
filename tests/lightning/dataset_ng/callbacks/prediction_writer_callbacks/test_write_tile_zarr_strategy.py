@@ -99,8 +99,11 @@ def data_config(axes, shape, channels) -> NGDataConfig:
         },
         axes=axes,
         channels=channels,
-        image_means=[0.0 for _ in range(n_channels)],
-        image_stds=[1.0 for _ in range(n_channels)],
+        normalization={
+            "name": "mean_std",
+            "input_means": [0.0 for _ in range(n_channels)],
+            "input_stds": [1.0 for _ in range(n_channels)],
+        },
     )
 
 
@@ -226,18 +229,18 @@ def test_update_data_shape(axes, data_shape, expected_shape):
         # simple usual shapes
         ("YX", (1, 1, 32, 64), (32, 64)),
         ("YX", (1, 1, 128, 32), (128, 32)),
-        ("ZYX", (1, 1, 32, 64, 64), (32, 64, 64)),
-        ("ZYX", (1, 1, 64, 128, 64), (64, 128, 64)),
+        ("ZYX", (1, 1, 32, 64, 64), (1, 64, 64)),
+        ("ZYX", (1, 1, 64, 128, 64), (1, 128, 64)),
         ("CYX", (1, 5, 64, 64), (1, 64, 64)),
         ("SYX", (5, 1, 64, 256), (1, 64, 128)),
         ("SCYX", (8, 5, 64, 64), (1, 1, 64, 64)),
-        ("SCZYX", (5, 5, 32, 256, 64), (1, 1, 32, 128, 64)),
+        ("SCZYX", (5, 5, 32, 256, 64), (1, 1, 1, 128, 64)),
         # different orders (but YX together)
-        ("YXZ", (1, 1, 32, 64, 64), (32, 64, 64)),
+        ("YXZ", (1, 1, 32, 64, 64), (1, 64, 64)),
         ("YXC", (1, 5, 64, 64), (1, 64, 64)),
-        ("SYXZ", (1, 1, 32, 64, 64), (1, 32, 64, 64)),
+        ("SYXZ", (1, 1, 32, 64, 64), (1, 1, 64, 64)),
         ("CSYX", (8, 5, 64, 64), (1, 1, 64, 64)),
-        ("SZCYX", (8, 5, 512, 256, 64), (1, 1, 128, 128, 64)),
+        ("SZCYX", (8, 5, 512, 256, 64), (1, 1, 1, 128, 64)),
         # T dimension
         ("TYX", (5, 1, 64, 64), (1, 64, 64)),
         ("TCYX", (5, 3, 64, 64), (1, 1, 64, 64)),

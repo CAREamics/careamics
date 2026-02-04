@@ -14,22 +14,23 @@ repos:
       - id: validate-pyproject
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.7
+    rev: v0.14.14
     hooks:
       - id: ruff
-        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^scripts/.*"
+        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^scripts/.*|^src/careamics/careamist_v2.py"
 
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 25.11.0
+    rev: 26.1.0
     hooks:
       - id: black
+        exclude: "^src/careamics/careamist_v2.py"
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.0
+    rev: v1.19.1
     hooks:
       - id: mypy
         files: "^src/"
-        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py"
+        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py|^src/careamics/careamist_v2.py"
         args: ["--config-file", "mypy.ini"]
         additional_dependencies:
           - numpy
@@ -40,10 +41,10 @@ repos:
 
   # check docstrings
   - repo: https://github.com/numpy/numpydoc
-    rev: v1.9.0
+    rev: v1.10.0
     hooks:
       - id: numpydoc-validation
-        exclude: "^src/careamics/dataset_ng/.*|^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*|^src/careamics/lightning/dataset_ng/data_module.py|^scripts/.*"
+        exclude: "^src/careamics/dataset_ng/.*|^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*|^src/careamics/lightning/dataset_ng/data_module.py|^scripts/.*|^src/careamics/careamist_v2.py"
         # regarding src/careamics/lightning/dataset_ng/data_module.py: https://github.com/numpy/numpydoc/issues/559
 
   # # jupyter linting and formatting
@@ -57,6 +58,6 @@ repos:
 
   # strip out jupyter notebooks
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.8.2
+    rev: 0.9.0
     hooks:
       - id: nbstripout

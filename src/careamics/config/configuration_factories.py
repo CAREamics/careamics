@@ -13,16 +13,17 @@ from careamics.config.algorithms import (
     PN2VAlgorithm,
 )
 from careamics.config.architectures import LVAEConfig, UNetConfig
-from careamics.config.data import DataConfig, NGDataConfig
+from careamics.config.data import DataConfig
+from careamics.config.lightning.optimizer_configs import (
+    LrSchedulerConfig,
+    OptimizerConfig,
+)
 from careamics.config.lightning.training_config import TrainingConfig
-from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.losses.loss_config import KLLossConfig, LVAELossConfig
+from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
-)
-from careamics.config.noise_model.noise_model_config import (
-    GaussianMixtureNMConfig,
-    MultiChannelNMConfig,
 )
 from careamics.config.support import (
     SupportedArchitecture,
@@ -355,99 +356,6 @@ def _create_microsplit_data_configuration(
         data["val_dataloader_params"] = val_dataloader_params
 
     return MicroSplitDataConfig(**data)
-
-
-def create_ng_data_configuration(
-    data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
-    axes: str,
-    patch_size: Sequence[int],
-    batch_size: int,
-    augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
-    channels: Sequence[int] | None = None,
-    in_memory: bool | None = None,
-    train_dataloader_params: dict[str, Any] | None = None,
-    val_dataloader_params: dict[str, Any] | None = None,
-    pred_dataloader_params: dict[str, Any] | None = None,
-    seed: int | None = None,
-) -> NGDataConfig:
-    """
-    Create a training NGDatasetConfig.
-
-    Parameters
-    ----------
-    data_type : {"array", "tiff", "zarr", "czi", "custom"}
-        Type of the data.
-    axes : str
-        Axes of the data.
-    patch_size : list of int
-        Size of the patches along the spatial dimensions.
-    batch_size : int
-        Batch size.
-    augmentations : list of transforms
-        List of transforms to apply.
-    channels : Sequence of int, default=None
-        List of channels to use. If `None`, all channels are used.
-    in_memory : bool, default=None
-        Whether to load all data into memory. This is only supported for 'array',
-        'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
-        'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
-        for `array`.
-    augmentations : list of transforms or None, default=None
-        List of transforms to apply. If `None`, default augmentations are applied
-        (flip in X and Y, rotations by 90 degrees in the XY plane).
-    train_dataloader_params : dict
-        Parameters for the training dataloader, see PyTorch notes, by default None.
-    val_dataloader_params : dict
-        Parameters for the validation dataloader, see PyTorch notes, by default None.
-    pred_dataloader_params : dict
-        Parameters for the test dataloader, see PyTorch notes, by default None.
-    seed : int, default=None
-        Random seed for reproducibility. If `None`, no seed is set.
-
-    Returns
-    -------
-    NGDataConfig
-        Next-Generation Data model with the specified parameters.
-    """
-    if augmentations is None:
-        augmentations = _list_spatial_augmentations()
-
-    # data model
-    data: dict[str, Any] = {
-        "mode": "training",
-        "data_type": data_type,
-        "axes": axes,
-        "batch_size": batch_size,
-        "channels": channels,
-        "transforms": augmentations,
-        "seed": seed,
-    }
-
-    if in_memory is not None:
-        data["in_memory"] = in_memory
-
-    # don't override defaults set in DataConfig class
-    if train_dataloader_params is not None:
-        # the presence of `shuffle` key in the dataloader parameters is enforced
-        # by the NGDataConfig class
-        if "shuffle" not in train_dataloader_params:
-            train_dataloader_params["shuffle"] = True
-
-        data["train_dataloader_params"] = train_dataloader_params
-
-    if val_dataloader_params is not None:
-        data["val_dataloader_params"] = val_dataloader_params
-
-    if pred_dataloader_params is not None:
-        data["pred_dataloader_params"] = pred_dataloader_params
-
-    # add training patching
-    data["patching"] = {
-        "name": "random",
-        "patch_size": patch_size,
-    }
-
-    return NGDataConfig(**data)
 
 
 def _create_training_configuration(
@@ -1936,28 +1844,44 @@ def create_hdn_configuration(
 
 def create_microsplit_configuration(
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
-    axes: str,
+    data_type: Literal[
+        "array", "tiff", "custom"
+    ],  # TODO not used yet, but should be after refactoring
+    axes: str,  # TODO not used yet, but should be after refactoring
     patch_size: Sequence[int],
     batch_size: int,
+    lr: float = 1e-3,
     num_epochs: int = 100,
     num_steps: int | None = None,
+    # Model and algo parameters
     encoder_conv_strides: tuple[int, ...] = (2, 2),
     decoder_conv_strides: tuple[int, ...] = (2, 2),
-    multiscale_count: int = 3,
-    grid_size: int = 32,  # TODO most likely can be derived from patch size
-    z_dims: tuple[int, ...] = (128, 128),
-    output_channels: int = 1,
     encoder_n_filters: int = 32,
     decoder_n_filters: int = 32,
-    encoder_dropout: float = 0.0,
-    decoder_dropout: float = 0.0,
+    multiscale_count: int = 3,
+    grid_size: int = 32,
+    z_dims: tuple[int, ...] = (128, 128),
+    output_channels: int = 1,
+    encoder_dropout: float = 0.1,
+    decoder_dropout: float = 0.1,
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
-    ] = "ReLU",  # TODO do we need all these?
+    ] = "ELU",
     analytical_kl: bool = False,
     predict_logvar: Literal["pixelwise"] = "pixelwise",
-    logvar_lowerbound: Union[float, None] = None,
+    logvar_lowerbound: float | None = -5.0,
+    loss_type: Literal[
+        "musplit", "denoisplit", "denoisplit_musplit"
+    ] = "denoisplit_musplit",
+    kl_type: Literal["kl", "kl_restricted"] = "kl_restricted",
+    reconstruction_weight: float = 1.0,
+    kl_weight: float = 1.0,
+    musplit_weight: float = 0.1,
+    denoisplit_weight: float = 0.9,
+    mmse_count: int = 10,
+    # Training parameters
+    optimizer: Literal["Adam", "SGD", "Adamax"] = "Adamax",
+    lr_scheduler_patience: int = 30,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     trainer_params: dict | None = None,
     augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
@@ -1981,6 +1905,8 @@ def create_microsplit_configuration(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    lr : float, optional
+        Learning rate, by default 1e-3.
     num_epochs : int, default=100
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
@@ -1992,6 +1918,10 @@ def create_microsplit_configuration(
         Strides for the encoder convolutional layers, by default (2, 2).
     decoder_conv_strides : tuple[int, ...], optional
         Strides for the decoder convolutional layers, by default (2, 2).
+    encoder_n_filters : int, optional
+        Number of filters in the encoder, by default 32.
+    decoder_n_filters : int, optional
+        Number of filters in the decoder, by default 32.
     multiscale_count : int, optional
         Number of multiscale levels, by default 3.
     grid_size : int, optional
@@ -2000,22 +1930,36 @@ def create_microsplit_configuration(
         List of latent dims for each hierarchy level in the LVAE, default (128, 128).
     output_channels : int, optional
         Number of output channels for the model, by default 1.
-    encoder_n_filters : int, optional
-        Number of filters in the encoder, by default 32.
-    decoder_n_filters : int, optional
-        Number of filters in the decoder, by default 32.
     encoder_dropout : float, optional
         Dropout rate for the encoder, by default 0.0.
     decoder_dropout : float, optional
         Dropout rate for the decoder, by default 0.0.
     nonlinearity : Literal, optional
-        Nonlinearity to use in the model, by default "ReLU".
+        Nonlinearity to use in the model, by default "ELU".
     analytical_kl : bool, optional
         Whether to use analytical KL divergence, by default False.
-    predict_logvar : Literal["pixelwise"] | None, optional
-        Type of log-variance prediction, by default None.
-    logvar_lowerbound : Union[float, None], optional
-        Lower bound for the log variance, by default None.
+    predict_logvar : Literal["pixelwise"], optional
+        Type of log-variance prediction, by default "pixelwise".
+    logvar_lowerbound : float | None, optional
+        Lower bound for the log variance, by default -5.0.
+    loss_type : Literal["musplit", "denoisplit", "denoisplit_musplit"], optional
+        Type of loss function, by default "denoisplit_musplit".
+    kl_type : Literal["kl", "kl_restricted"], optional
+        Type of KL divergence, by default "kl_restricted".
+    reconstruction_weight : float, optional
+        Weight for reconstruction loss, by default 1.0.
+    kl_weight : float, optional
+        Weight for KL loss, by default 1.0.
+    musplit_weight : float, optional
+        Weight for muSplit loss, by default 0.1.
+    denoisplit_weight : float, optional
+        Weight for denoiSplit loss, by default 0.9.
+    mmse_count : int, optional
+        Number of MMSE samples to use, by default 10.
+    optimizer : Literal["Adam", "SGD", "Adamax"], optional
+        Optimizer to use, by default "Adamax".
+    lr_scheduler_patience : int, optional
+        Patience for learning rate scheduler, by default 30.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use for training, by default "none".
     trainer_params : dict, optional
@@ -2062,13 +2006,17 @@ def create_microsplit_configuration(
     transform_list = _list_spatial_augmentations(augmentations)
 
     loss_config = LVAELossConfig(
-        loss_type="denoisplit_musplit", denoisplit_weight=0.9, musplit_weight=0.1
-    )  # TODO losses need to be refactored! just for example. Add validator if sum to 1
+        loss_type=loss_type,
+        reconstruction_weight=reconstruction_weight,
+        kl_weight=kl_weight,
+        musplit_weight=musplit_weight,
+        denoisplit_weight=denoisplit_weight,
+        kl_params=KLLossConfig(loss_type=kl_type),
+    )
 
-    # Create likelihood configurations
     gaussian_likelihood_config, noise_model_config, nm_likelihood_config = (
         get_likelihood_config(
-            loss_type="denoisplit_musplit",
+            loss_type=loss_type,
             predict_logvar=predict_logvar,
             logvar_lowerbound=logvar_lowerbound,
             nm_paths=nm_paths,
@@ -2093,7 +2041,22 @@ def create_microsplit_configuration(
         analytical_kl=analytical_kl,
     )
 
-    # Create the MicroSplit algorithm configuration
+    optimizer_config = OptimizerConfig(
+        name=optimizer,
+        parameters={"lr": lr, "weight_decay": 0},
+    )
+
+    lr_scheduler_config = LrSchedulerConfig(
+        name="ReduceLROnPlateau",
+        parameters={
+            "mode": "min",
+            "factor": 0.5,
+            "patience": lr_scheduler_patience,
+            "verbose": True,
+            "min_lr": 1e-12,
+        },
+    )
+
     algorithm_params = {
         "algorithm": "microsplit",
         "loss": loss_config,
@@ -2101,9 +2064,11 @@ def create_microsplit_configuration(
         "gaussian_likelihood": gaussian_likelihood_config,
         "noise_model": noise_model_config,
         "noise_model_likelihood": nm_likelihood_config,
+        "optimizer": optimizer_config,
+        "lr_scheduler": lr_scheduler_config,
+        "mmse_count": mmse_count,
     }
 
-    # Convert to MicroSplitAlgorithm instance
     algorithm_config = MicroSplitAlgorithm(**algorithm_params)
 
     # data

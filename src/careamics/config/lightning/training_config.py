@@ -29,7 +29,8 @@ class TrainingConfig(BaseModel):
     model_config = ConfigDict(
         validate_assignment=True,
     )
-    lightning_trainer_config: dict | None = None
+
+    lightning_trainer_config: dict = Field(default={})
     """Configuration for the PyTorch Lightning Trainer, following PyTorch Lightning
     Trainer class"""
 

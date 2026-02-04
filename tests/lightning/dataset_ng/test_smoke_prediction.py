@@ -7,8 +7,7 @@ import zarr
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from careamics.config import N2VAlgorithm
-from careamics.config.configuration_factories import create_ng_data_configuration
+from careamics.config import N2VAlgorithm, create_ng_data_configuration
 from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     PredictionWriterCallback,
 )
@@ -35,7 +34,7 @@ from careamics.lightning.dataset_ng.prediction import convert_prediction
         ((16, 32, 32), "ZYX", None, True),
         ((16, 32, 32), "ZYX", None, False),
         ((5, 16, 32, 32), "SZYX", None, True),
-        # ((5, 16, 32, 32), "SZYX", None, False),  # TODO: fails until #660 is fixed
+        ((5, 16, 32, 32), "SZYX", None, False),
         ((3, 16, 32, 32), "CZYX", None, True),
         ((3, 16, 32, 32), "CZYX", None, False),
         ((3, 16, 32, 32), "CZYX", [1], True),
@@ -43,11 +42,11 @@ from careamics.lightning.dataset_ng.prediction import convert_prediction
         ((3, 16, 32, 32), "CZYX", [0, 2], True),
         ((3, 16, 32, 32), "CZYX", [0, 2], False),
         ((5, 3, 16, 32, 32), "SCZYX", None, True),
-        # ((5, 3, 16, 32, 32), "SCZYX", None, False),  # TODO: fails until #660 is fixed
+        ((5, 3, 16, 32, 32), "SCZYX", None, False),
         ((5, 3, 16, 32, 32), "SCZYX", [1], True),
-        # ((5, 3, 16, 32, 32), "SCZYX", [1], False),  # TODO: fails until #660 is fixed
+        ((5, 3, 16, 32, 32), "SCZYX", [1], False),
         ((5, 3, 16, 32, 32), "SCZYX", [0, 2], True),
-        # ((5, 3, 16, 32, 32), "SCZYX", [0, 2], False) # TODO: fails until #660 is fixed
+        ((5, 3, 16, 32, 32), "SCZYX", [0, 2], False),
     ],
 )
 def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
