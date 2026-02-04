@@ -13,14 +13,17 @@ from typing import (
 
 import torch
 from numpy.typing import NDArray
+import numpy as np
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from .config import TrainingConfig, load_configuration_ng
 from .config.ng_configs import N2VConfiguration
-from .config.support import SupportedAlgorithm, SupportedLogger
+from .config.support import SupportedAlgorithm, SupportedLogger, SupportedData
 from .file_io import WriteFunc
+from .dataset.dataset_utils import reshape_array
+from .model_io import export_to_bmz
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.data_module import CareamicsDataModule
@@ -30,6 +33,7 @@ from .lightning.dataset_ng.lightning_modules import (
     get_module_cls,
 )
 from .utils import get_logger
+from .utils.array
 from .utils.lightning_utils import read_csv_logger
 
 logger = get_logger(__name__)
@@ -401,7 +405,66 @@ class CAREamistV2:
         covers: list[Path | str] | None = None,
         channel_names: list[str] | None = None,
         model_version: str = "0.1.0",
-    ) -> None: ...
+    ) -> None:
+        """Export the model to the BioImage Model Zoo format.
+
+        This method packages the current weights into a zip file that can be uploaded
+        to the BioImage Model Zoo. The archive consists of the model weights, the model
+        specifications and various files (inputs, outputs, README, env.yaml etc.).
+
+        `path_to_archive` should point to a file with a ".zip" extension.
+
+        `friendly_model_name` is the name used for the model in the BMZ specs
+        and website, it should consist of letters, numbers, dashes, underscores and
+        parentheses only.
+
+        Input array must be of the same dimensions as the axes recorded in the
+        configuration of the `CAREamist`.
+
+        Parameters
+        ----------
+        path_to_archive : pathlib.Path or str
+            Path in which to save the model, including file name, which should end with
+            ".zip".
+        friendly_model_name : str
+            Name of the model as used in the BMZ specs, it should consist of letters,
+            numbers, dashes, underscores and parentheses only.
+        input_array : NDArray
+            Input array used to validate the model and as example.
+        authors : list of dict
+            List of authors of the model.
+        general_description : str
+            General description of the model used in the BMZ metadata.
+        data_description : str
+            Description of the data the model was trained on.
+        covers : list of pathlib.Path or str, default=None
+            Paths to the cover images.
+        channel_names : list of str, default=None
+            Channel names.
+        model_version : str, default="0.1.0"
+            Version of the model.
+        """
+        output_patch = self.predict(
+            input_array,
+            data_type=SupportedData.ARRAY.value,
+        )
+        output = np.concatenate(output_patch, axis=0)
+        input_array = reshape_array(input_array, self.config.data_config.axes)
+
+        export_to_bmz(
+            model=self.model,
+            config=self.config,
+            path_to_archive=path_to_archive,
+            model_name=friendly_model_name,
+            general_description=general_description,
+            data_description=data_description,
+            authors=authors,
+            input_array=input_array,
+            output_array=output,
+            covers=covers,
+            channel_names=channel_names,
+            model_version=model_version,
+        )
 
     def get_losses(self) -> dict[str, list]:
         """Return data that can be used to plot train and validation loss curves.
@@ -409,8 +472,11 @@ class CAREamistV2:
         Returns
         -------
         dict of str: list
-            Dictionary containing the losses for each epoch.
+            Dictionary containing losses for each epoch.
         """
         return read_csv_logger(self.config.experiment_name, self.work_dir / "csv_logs")
 
-    def stop_training(self) -> None: ...
+    def stop_training(self) -> None:
+        """Stop the training loop."""
+        self.trainer.should_stop = True
+        self.trainer.limit_val_batches = 0
