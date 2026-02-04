@@ -69,6 +69,7 @@ def create_ng_data_configuration(
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
+    n_workers: int = 0,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     pred_dataloader_params: dict[str, Any] | None = None,
@@ -96,6 +97,8 @@ def create_ng_data_configuration(
         'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
         'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
         for `array`.
+    n_workers : int, default=0
+        Number of workers for data loading.
     augmentations : list of transforms or None, default=None
         List of transforms to apply. If `None`, default augmentations are applied
         (flip in X and Y, rotations by 90 degrees in the XY plane).
@@ -131,20 +134,29 @@ def create_ng_data_configuration(
     if in_memory is not None:
         data["in_memory"] = in_memory
 
-    # don't override defaults set in DataConfig class
     if train_dataloader_params is not None:
         # the presence of `shuffle` key in the dataloader parameters is enforced
         # by the NGDataConfig class
         if "shuffle" not in train_dataloader_params:
             train_dataloader_params["shuffle"] = True
 
+        train_dataloader_params["num_workers"] = n_workers
+
         data["train_dataloader_params"] = train_dataloader_params
+    else:
+        data["train_dataloader_params"] = {"shuffle": True, "num_workers": n_workers}
 
     if val_dataloader_params is not None:
+        val_dataloader_params["num_workers"] = n_workers
         data["val_dataloader_params"] = val_dataloader_params
+    else:
+        data["val_dataloader_params"] = {"shuffle": False, "num_workers": n_workers}
 
     if pred_dataloader_params is not None:
+        pred_dataloader_params["num_workers"] = n_workers
         data["pred_dataloader_params"] = pred_dataloader_params
+    else:
+        data["pred_dataloader_params"] = {"shuffle": False, "num_workers": n_workers}
 
     # add training patching
     data["patching"] = {

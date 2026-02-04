@@ -19,26 +19,198 @@ from .data_factory import create_ng_data_configuration, list_spatial_augmentatio
 from .training_factory import create_training_configuration, update_trainer_params
 
 
-def create_n2v_configuration(
+# TODO back-compatibility, to remove later
+def create_n2v_configuration(*args, **kwargs) -> N2VConfiguration:
+    """
+    Create a configuration for training Noise2Void.
+
+    See `create_advanced_n2v_config` for more details and parameters.
+
+    Parameters
+    ----------
+    *args : positional arguments
+        Positional arguments for `create_advanced_n2v_config`.
+    **kwargs : keyword arguments
+        Keyword arguments for `create_advanced_n2v_config`.
+
+    Returns
+    -------
+    N2VConfiguration
+        Configuration for training N2V.
+    """
+    return create_advanced_n2v_config(*args, **kwargs)
+
+
+# proposal for API, should be renamed to create_n2v_configuration later
+def create_standard_n2v_configuration(
+    # mandatory parameters
     experiment_name: str,
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    num_epochs: int = 100,
+    # optional parameters
+    num_epochs: int = 30,  # not too high, in case data is very large
     num_steps: int | None = None,
-    augmentations: list[XYFlipConfig | XYRandomRotate90Config] | None = None,
-    channels: Sequence[int] | None = None,
-    in_memory: bool | None = None,
-    independent_channels: bool = True,
+    augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     use_n2v2: bool = False,
     n_channels: int | None = None,
+    n_workers: int = 0,
+) -> N2VConfiguration:
+    """
+    Create a configuration for training N2V.
+
+    See `create_advanced_n2v_config` for more details and parameters.
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : List[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    num_epochs : int, default=30
+        Number of epochs to train for.
+    num_steps : int, default=None
+        Number of batches in 1 epoch.
+    augmentations : Sequence of {"x_flip", "y_flip", "rotate_90"}, default=None
+        List of augmentations to apply. If `None`, all augmentations are applied.
+    use_n2v2 : bool, default=False
+        Whether to use N2V2.
+    n_channels : int or None, default=None
+        Number of channels (in and out).
+    n_workers : int, default=0
+        Number of workers for data loading.
+
+    Returns
+    -------
+    N2VConfiguration
+        Configuration for training N2V.
+    """
+    return create_advanced_n2v_config(
+        experiment_name=experiment_name,
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+        augmentations=augmentations,
+        use_n2v2=use_n2v2,
+        n_channels=n_channels,
+        n_workers=n_workers,
+    )
+
+
+def create_structn2v_config(
+    # mandatory parameters
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    axes: str,
+    patch_size: Sequence[int],
+    batch_size: int,
+    # struct n2v
+    struct_n2v_axis: Literal["horizontal", "vertical"],
+    struct_n2v_span: int = 5,
+    # optional parameters
+    num_epochs: int = 30,
+    num_steps: int | None = None,
+    # TODO no rotation until we support 2D masks for structN2V
+    augmentations: Sequence[Literal["x_flip", "y_flip"]] | None = None,
+    use_n2v2: bool = False,
+    n_channels: int | None = None,
+    n_workers: int = 0,
+) -> N2VConfiguration:
+    """
+    Create a configuration for training structN2V.
+
+    See `create_advanced_n2v_config` for more details and parameters.
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : List[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    struct_n2v_axis : Literal["horizontal", "vertical"]
+        Axis along which to apply structN2V mask.
+    struct_n2v_span : int, default=5
+        Span of the structN2V mask.
+    num_epochs : int, default=30
+        Number of epochs to train for.
+    num_steps : int, default=None
+        Number of batches in 1 epoch.
+    augmentations : Sequence of {"x_flip", "y_flip"} or None, default=None
+        List of augmentations to apply. If `None`, all augmentations are applied.
+    use_n2v2 : bool, default=False
+        Whether to use N2V2.
+    n_channels : int or None, default=None
+        Number of channels (in and out).
+    n_workers : int, default=0
+        Number of workers for data loading.
+
+    Returns
+    -------
+    N2VConfiguration
+        Configuration for training structN2V.
+    """
+    if augmentations is not None and "rotate_90" in augmentations:
+        raise ValueError("Rotation augmentation is not supported for structN2V.")
+
+    return create_advanced_n2v_config(
+        experiment_name=experiment_name,
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        num_epochs=num_epochs,
+        num_steps=num_steps,
+        augmentations=augmentations,
+        use_n2v2=use_n2v2,
+        n_channels=n_channels,
+        n_workers=n_workers,
+        struct_n2v_axis=struct_n2v_axis,
+        struct_n2v_span=struct_n2v_span,
+    )
+
+
+# TODO reorganize docstring parameters
+def create_advanced_n2v_config(
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    axes: str,
+    patch_size: Sequence[int],
+    batch_size: int,
+    # optional parameters
+    num_epochs: int = 30,
+    num_steps: int | None = None,
+    n_channels: int | None = None,
+    augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
+    # advanced parameters
+    in_memory: bool | None = None,
+    channels: Sequence[int] | None = None,
+    independent_channels: bool = True,
+    n_workers: int = 0,
+    # - N2V specific
+    use_n2v2: bool = False,
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
+    # - structN2V specific
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
+    # - Lightning parameters
     trainer_params: dict | None = None,
-    logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
     optimizer_params: dict[str, Any] | None = None,
@@ -47,6 +219,9 @@ def create_n2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    logger: Literal["wandb", "tensorboard", "none"] = "none",
+    # - reproducibility
+    seed: int | None = None,
 ) -> N2VConfiguration:
     """
     Create a configuration for training Noise2Void.
@@ -93,73 +268,77 @@ def create_n2v_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "czi", "custom"]
+    data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
-    patch_size : List[int]
+    patch_size : Sequence[int]
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    num_epochs : int, default=100
+    num_epochs : int, default=30
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
-    num_steps : int, optional
+    num_steps : int | None, default=None
         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
-    augmentations : list of transforms, default=None
+    n_channels : int | None, default=None
+        Number of channels (in and out). If `channels` is specified, then the number of
+        channels is inferred from its length and this parameter is ignored.
+    augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
-    channels : Sequence of int, optional
-        List of channels to use. If `None`, all channels are used.
-    in_memory : bool, optional
+    in_memory : bool | None, default=None
         Whether to load all data into memory. This is only supported for 'array',
         'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
         'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
         for `array`.
-    independent_channels : bool, optional
-        Whether to train all channels together, by default True.
-    use_n2v2 : bool, optional
-        Whether to use N2V2, by default False.
-    n_channels : int or None, default=None
-        Number of channels (in and out). If `channels` is specified, then the number of
-        channels is inferred from its length.
-    roi_size : int, optional
-        N2V pixel manipulation area, by default 11.
-    masked_pixel_percentage : float, optional
-        Percentage of pixels masked in each patch, by default 0.2.
-    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
-        Axis along which to apply structN2V mask, by default "none".
-    struct_n2v_span : int, optional
-        Span of the structN2V mask, by default 5.
-    trainer_params : dict, optional
+    channels : Sequence[int] | None, default=None
+        List of channels to use. If `None`, all channels are used.
+    independent_channels : bool, default=True
+        Whether to train all channels independently.
+    n_workers : int, default=0
+        Number of workers for data loading.
+    use_n2v2 : bool, default=False
+        Whether to use N2V2.
+    roi_size : int, default=11
+        N2V pixel manipulation area.
+    masked_pixel_percentage : float, default=0.2
+        Percentage of pixels masked in each patch.
+    struct_n2v_axis : Literal["horizontal", "vertical", "none"], default="none"
+        Axis along which to apply structN2V mask.
+    struct_n2v_span : int, default=5
+        Span of the structN2V mask.
+    trainer_params : dict | None, default=None
         Parameters for the trainer, see the relevant documentation.
-    logger : Literal["wandb", "tensorboard", "none"], optional
-        Logger to use, by default "none".
-    model_params : dict, default=None
+    model_params : dict | None, default=None
         UNetModel parameters.
     optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
         Optimizer to use.
-    optimizer_params : dict, default=None
+    optimizer_params : dict[str, Any] | None, default=None
         Parameters for the optimizer, see PyTorch documentation for more details.
     lr_scheduler : Literal["ReduceLROnPlateau", "StepLR"], default="ReduceLROnPlateau"
         Learning rate scheduler to use.
-    lr_scheduler_params : dict, default=None
+    lr_scheduler_params : dict[str, Any] | None, default=None
         Parameters for the learning rate scheduler, see PyTorch documentation for more
         details.
-    train_dataloader_params : dict, optional
+    train_dataloader_params : dict[str, Any] | None, default=None
         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
         If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
         the `GeneralDataConfig`.
-    val_dataloader_params : dict, optional
+    val_dataloader_params : dict[str, Any] | None, default=None
         Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
         If left as `None`, the empty dict `{}` will be used, this is set in the
         `GeneralDataConfig`.
-    checkpoint_params : dict, default=None
+    checkpoint_params : dict[str, Any] | None, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    logger : Literal["wandb", "tensorboard", "none"], default="none"
+        Logger to use.
+    seed : int | None, default=None
+        Random seed for reproducibility.
 
     Returns
     -------
@@ -190,7 +369,25 @@ def create_n2v_configuration(
         n_channels = 1 if channels is None else len(channels)
 
     # augmentations
-    spatial_transforms = list_spatial_augmentations(augmentations)
+    augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
+    if augmentations is not None:
+        augs = []
+
+        x_flip_present = "x_flip" in augmentations
+        y_flip_present = "y_flip" in augmentations
+        rotate_90_present = "rotate_90" in augmentations
+
+        if x_flip_present or y_flip_present:
+            augs.append(
+                XYFlipConfig(
+                    flip_x=x_flip_present,
+                    flip_y=y_flip_present,
+                    seed=seed,
+                )
+            )
+        if rotate_90_present:
+            augs.append(XYRandomRotate90Config(seed=seed))
+    spatial_transforms = list_spatial_augmentations(augs)
 
     # data
     data_config = create_ng_data_configuration(
@@ -201,8 +398,10 @@ def create_n2v_configuration(
         augmentations=spatial_transforms,
         channels=channels,
         in_memory=in_memory,
+        n_workers=n_workers,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
+        seed=seed,
     )
 
     # algorithm
@@ -222,7 +421,7 @@ def create_n2v_configuration(
     )
 
     # create the N2VManipulate transform using the supplied parameters
-    n2v_transform = N2VManipulateConfig(
+    n2v_transform = N2VManipulateConfig(  # TODO should be seeded
         name=SupportedTransform.N2V_MANIPULATE.value,
         strategy=(
             SupportedPixelManipulation.MEDIAN.value
