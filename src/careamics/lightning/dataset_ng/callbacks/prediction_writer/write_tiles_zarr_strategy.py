@@ -294,7 +294,7 @@ class WriteTilesZarr:
             output_store_path = _add_output_key(dirpath, store_path)
 
         elif ".zarr" not in region.source:
-            # data source is a tiff image:
+            # data source is a tiff or custom format image:
             # set the zarr storage output path using the source file name
             _source = Path(region.source)
             parent_path = ""
