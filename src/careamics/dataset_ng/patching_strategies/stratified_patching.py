@@ -608,11 +608,11 @@ class _SamplingRegion:
         Parameters
         ----------
         minimum : numpy.ndarray[np.int_]
-            An array of length 2 or 3 that represents the minimum coordinate that a
-            patch can be.
+            An array of length 2 or 3 that represents the minimum coordinate at
+            which a patch can be defined.
         maximum : numpy.ndarray[np.int_]
-            An array of length 2 or 3 that represents the maximum coordinate that a
-            patch can be
+            An array of length 2 or 3 that represents the maximum coordinate at
+            which a patch can be defined.
         """
         minimum -= np.array(self.coord)
         maximum -= np.array(self.coord)
