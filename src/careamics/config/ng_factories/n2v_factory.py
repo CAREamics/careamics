@@ -3,13 +3,6 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
-from careamics.config.data.normalization_config import (
-    MeanStdConfig,
-    MinMaxConfig,
-    NoNormConfig,
-    NormalizationConfig,
-    QuantileConfig,
-)
 from careamics.config.ng_configs import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
@@ -169,8 +162,8 @@ def create_n2v_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
-    normalization : Literal["mean_std", "minmax", "quantile", "none"]
-        Normalization strategy to use, default="mean_std".
+    normalization : {"mean_std", "minmax", "quantile", "none"}, default="mean_std"
+        Normalization strategy to use.
     normalization_params : dict, default=None
         Strategy-specific normalization parameters. If None, default values are used.
         For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
@@ -207,36 +200,10 @@ def create_n2v_configuration(
         n_channels = 1 if channels is None else len(channels)
 
     # normalization
-    norm_config: NormalizationConfig
-    if normalization == "mean_std":
-        norm_config = (
-            MeanStdConfig(**normalization_params)
-            if normalization_params
-            else MeanStdConfig()
-        )
-    elif normalization == "minmax":
-        norm_config = (
-            MinMaxConfig(**normalization_params)
-            if normalization_params
-            else MinMaxConfig()
-        )
-    elif normalization == "quantile":
-        norm_config = (
-            QuantileConfig(**normalization_params)
-            if normalization_params
-            else QuantileConfig()
-        )
-    elif normalization == "none":
-        if normalization_params:
-            raise ValueError(
-                "normalization_params should not be provided when normalization='none'"
-            )
-        norm_config = NoNormConfig()
-    else:
-        raise ValueError(
-            f"Unknown normalization strategy: {normalization}. "
-            f"Must be one of: 'mean_std', 'minmax', 'quantile', 'none'"
-        )
+    norm_config = {"name": normalization}
+    if normalization_params is not None:
+        norm_config.update(normalization_params)
+
     # augmentations
     spatial_transforms = list_spatial_augmentations(augmentations)
 

@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from careamics.config.data import NGDataConfig
-from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.transformations import (
     SPATIAL_TRANSFORMS_UNION,
     XYFlipConfig,
@@ -70,7 +69,7 @@ def create_ng_data_configuration(
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
-    normalization: NormalizationConfig | None = None,
+    normalization: dict | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     pred_dataloader_params: dict[str, Any] | None = None,
@@ -89,8 +88,9 @@ def create_ng_data_configuration(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
-    augmentations : list of transforms
-        List of transforms to apply.
+    augmentations : list of transforms or None, default=None
+        List of transforms to apply. If `None`, default augmentations are applied
+        (flip in X and Y, rotations by 90 degrees in the XY plane).
     channels : Sequence of int, default=None
         List of channels to use. If `None`, all channels are used.
     in_memory : bool, default=None
@@ -98,12 +98,9 @@ def create_ng_data_configuration(
         'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
         'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
         for `array`.
-    normalization : NormalizationConfig, default=None
-        Normalization configuration. If None, defaults to mean_std normalization
-        with automatically computed statistics.
-    augmentations : list of transforms or None, default=None
-        List of transforms to apply. If `None`, default augmentations are applied
-        (flip in X and Y, rotations by 90 degrees in the XY plane).
+    normalization : dict, default=None
+        Normalization configuration dictionary. If None, defaults to mean_std
+        normalization with automatically computed statistics.
     train_dataloader_params : dict
         Parameters for the training dataloader, see PyTorch notes, by default None.
     val_dataloader_params : dict
