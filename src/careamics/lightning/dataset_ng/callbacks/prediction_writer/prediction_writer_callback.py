@@ -70,8 +70,12 @@ class PredictionWriterCallback(BasePredictionWriter):
         """
         super().__init__(write_interval="batch")
 
-        self.is_disabled = True  # flag to turn off predictions
-        self.write_strategy = write_strategy
+        self.writing_predictions = True  # flag to turn off predictions
+
+        # forward declaration
+        self.write_strategy: WriteStrategy
+        if write_strategy is not None:  # avoid `WriteStrategy | None` type
+            self.write_strategy = write_strategy
 
         self.dirpath: Path
 
@@ -80,15 +84,15 @@ class PredictionWriterCallback(BasePredictionWriter):
         if dirpath != "":
             self._init_dirpath(dirpath)
 
-    def enable_writing(self, enable_writing: bool) -> None:
-        """Enable or disable writing.
+    def disable_writing(self, disable_writing: bool) -> None:
+        """Disable writing.
 
         Parameters
         ----------
-        enable_writing : bool
-            If writing predictions should be enabled.
+        disable_writing : bool
+            If writing predictions should be disabled.
         """
-        self.is_disabled = not enable_writing
+        self.writing_predictions = disable_writing
 
     def _init_dirpath(self, dirpath):
         """
@@ -197,7 +201,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             Dataloader index.
         """
         # if writing prediction is turned off
-        if self.is_disabled:
+        if not self.writing_predictions:
             return
 
         if self.write_strategy is not None:
