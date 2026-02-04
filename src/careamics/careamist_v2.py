@@ -20,7 +20,6 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from .config import TrainingConfig, load_configuration_ng
 from .config.ng_configs import N2VConfiguration
 from .config.support import SupportedAlgorithm, SupportedLogger
-from .dataset_ng.image_stack_loader import ImageStackLoader
 from .file_io import WriteFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
@@ -36,17 +35,20 @@ logger = get_logger(__name__)
 
 ExperimentLogger: TypeAlias = TensorBoardLogger | WandbLogger | CSVLogger
 
-# union of configurations
 Configuration = N2VConfiguration
 
 
-class CareanicsInfo(TypedDict):
+class CareamicsInfo(
+    TypedDict
+):  # TODO: do we need this if we do not implement fine-tuning for now?
     version: NotRequired[str]
     experiment_name: str
     training_config: TrainingConfig | dict[str, Any]
 
 
-class UserContext(TypedDict):
+class UserContext(
+    TypedDict
+):  # TODO: check that this is displayed correctly in the docs
     work_dir: Path | str | None
     callbacks: list[Callback] | None
     enable_progress_bar: bool
@@ -68,9 +70,6 @@ class CAREamistV2:
         self,
         *,
         checkpoint_path: Path,
-        # allow overwriting experiment name & training config
-        training_config: TrainingConfig | None,
-        experiment_name: str | None = None,
         **user_context: Unpack[UserContext],
     ): ...
 
@@ -80,9 +79,6 @@ class CAREamistV2:
         self,
         *,
         bmz_path: Path,
-        # allow overwriting experiment name & training config
-        training_config: TrainingConfig | None,
-        experiment_name: str | None = None,
         **user_context: Unpack[UserContext],
     ): ...
 
@@ -92,8 +88,6 @@ class CAREamistV2:
         *,
         checkpoint_path: Path | None = None,
         bmz_path: Path | None = None,
-        training_config: TrainingConfig | None = None,
-        experiment_name: str | None = None,
         **user_context: Unpack[UserContext],
     ):
         # --- attributes
@@ -124,13 +118,9 @@ class CAREamistV2:
 
             self.config, self.model = self._from_config(config)
         elif checkpoint_path is not None:
-            self.config, self.model = self._from_checkpoint(
-                checkpoint_path, training_config, experiment_name
-            )
+            self.config, self.model = self._from_checkpoint(checkpoint_path)
         elif bmz_path is not None:
-            self.config, self.model = self._from_bmz(
-                bmz_path, training_config, experiment_name
-            )
+            self.config, self.model = self._from_bmz(bmz_path)
         else:
             assert Never  # already covered by xor guard
         # ---
@@ -180,9 +170,6 @@ class CAREamistV2:
     @staticmethod
     def _from_checkpoint(
         checkpoint_path: Path,
-        # allow overwriting experiment name and training config
-        training_config: TrainingConfig | None = None,
-        experiment_name: str | None = None,
     ) -> tuple[Configuration, CAREamicsModule]:
         # map to cpu because we are only extracting the hyper-params here
         # loading weights will be handled by LightningModule.load_from_checkpoint
@@ -191,27 +178,16 @@ class CAREamistV2:
         # --- get careamics info, aka training_config, experiment_name and version,
         # (only loaded if not overridden)
         # (maybe version should get overwritten?)
-        if (training_config is not None) and (experiment_name is not None):
-            careamics_info: CareanicsInfo | None = {
-                "experiment_name": experiment_name,
-                "training_config": training_config,
-            }
-        else:
-            careamics_info = checkpoint.get("careamics_info", None)
-            if careamics_info is None:
-                raise ValueError(
-                    "Could not find CAREamics related information within the provided "
-                    "checkpoint. This means that it was saved without using the "
-                    "CAREamics callback `CAREamicsCheckpointInfo`. To load this "
-                    "checkpint with the CAREamist API please provide an "
-                    "`experiment_name` and `training_config`."
-                )
-            # override experiment_name and training config
-            if experiment_name is not None:
-                careamics_info["experiment_name"] = experiment_name
-            if training_config is not None:
-                careamics_info["training_config"] = TrainingConfig
-        assert careamics_info is not None  # mymy not resolving
+        careamics_info = checkpoint.get("careamics_info", None)
+        if careamics_info is None:
+            raise ValueError(
+                "Could not find CAREamics related information within the provided "
+                "checkpoint. This means that it was saved without using the "
+                "CAREamics callback `CAREamicsCheckpointInfo`. To load this "
+                "checkpint with the CAREamist API please provide an "
+                "`experiment_name` and `training_config`."
+            )
+        assert careamics_info is not None  # mypy not resolving
         # ---
 
         # --- get module hyperparams, aka algorithm config
@@ -259,9 +235,6 @@ class CAREamistV2:
     @staticmethod
     def _from_bmz(
         bmz_path: Path,
-        # allow overwriting experiment name and training config
-        training_config: TrainingConfig | None = None,
-        experiment_name: str | None = None,
     ) -> tuple[Configuration, CAREamicsModule]: ...
 
     @staticmethod
@@ -357,24 +330,18 @@ class CAREamistV2:
     def train(
         self,
         *,
-        # data init options
+        # BASIC PARAMS
         train_data: Any | None = None,
         train_data_target: Any | None = None,
-        train_data_mask: Any | None = None,
         val_data: Any | None = None,
         val_data_target: Any | None = None,
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-        # custom loading options
+        # val_percentage: float | None = None, # TODO: hidden till re-implemented
+        # val_minimum_split: int = 5,
+        # ADVANCED PARAMS
+        filtering_mask: Any | None = None,
         read_source_func: Callable | None = None,
         read_kwargs: dict[str, Any] | None = None,
-        image_stack_loader: ImageStackLoader | None = None,
-        image_stack_loader_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-        # override max_epochs or max_steps in training config
-        # TODO: consider allowing override of all trainer args?
-        max_epochs: int | None,
-        max_steps: int | None,
     ) -> None: ...
 
     # TODO: init datamodule
@@ -383,50 +350,43 @@ class CAREamistV2:
 
     def predict(
         self,
-        # data init options
+        # BASIC PARAMS
         pred_data: Any | None = None,
-        pred_data_target: Any | None = None,
-        # data config updates for prediction
         batch_size: int = 1,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         data_type: Literal["array", "tiff", "custom"] | None = None,
-        tta_transforms: bool = False,
-        dataloader_params: dict | None = None,
-        # custom loading options
+        # ADVANCED PARAMS
+        # tta_transforms: bool = False, # TODO: hidden till implemented
+        num_workers: int | None = None,
         read_source_func: Callable | None = None,
         read_kwargs: dict[str, Any] | None = None,
-        image_stack_loader: ImageStackLoader | None = None,
-        image_stack_loader_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-    ) -> list: ...
+    ) -> None:
+        return None
 
     def predict_to_disk(
         self,
-        # data init options
+        # BASIC PARAMS
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
-        # data config updates for prediction
+        prediction_dir: Path | str = "predictions",
         batch_size: int = 1,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         data_type: Literal["array", "tiff", "custom"] | None = None,
-        tta_transforms: bool = False,
-        dataloader_params: dict | None = None,
-        # custom loading options
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
         read_source_func: Callable | None = None,
         read_kwargs: dict[str, Any] | None = None,
-        image_stack_loader: ImageStackLoader | None = None,
-        image_stack_loader_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-        # write options
-        write_type: Literal["tiff", "custom"] = "tiff",
+        # WRITE OPTIONS
+        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
-        prediction_dir: Path | str = "predictions",
     ) -> None: ...
 
     def export_to_bmz(
