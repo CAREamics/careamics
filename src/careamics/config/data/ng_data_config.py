@@ -34,8 +34,8 @@ from .patch_filter import (
 )
 from .patching_strategies import (
     FixedRandomPatchingConfig,
-    StratifiedPatchingConfig,
     RandomPatchingConfig,
+    StratifiedPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
     _PatchedConfig,

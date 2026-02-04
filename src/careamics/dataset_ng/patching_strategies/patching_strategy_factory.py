@@ -9,9 +9,10 @@ from careamics.config.support.supported_patching_strategies import (
 
 from .patching_strategy_protocol import PatchingStrategy
 from .random_patching import FixedRandomPatchingStrategy, RandomPatchingStrategy
+from .stratified_patching import StratifiedPatchingStrategy
 from .tiling_strategy import TilingStrategy
 from .whole_sample import WholeSamplePatchingStrategy
-from .stratified_patching import StratifiedPatchingStrategy
+
 
 def create_patching_strategy(
     data_shapes: list[Sequence[int]], patching_config: PatchingConfig

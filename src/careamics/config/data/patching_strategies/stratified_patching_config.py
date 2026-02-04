@@ -6,6 +6,7 @@ from pydantic import Field
 
 from ._patched_config import _PatchedConfig
 
+
 class StratifiedPatchingConfig(_PatchedConfig):
     """Stratified patching Pydantic model.
 
