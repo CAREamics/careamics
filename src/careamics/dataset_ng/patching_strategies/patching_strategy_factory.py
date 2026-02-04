@@ -11,7 +11,7 @@ from .patching_strategy_protocol import PatchingStrategy
 from .random_patching import FixedRandomPatchingStrategy, RandomPatchingStrategy
 from .tiling_strategy import TilingStrategy
 from .whole_sample import WholeSamplePatchingStrategy
-
+from .stratified_patching import StratifiedPatchingStrategy
 
 def create_patching_strategy(
     data_shapes: list[Sequence[int]], patching_config: PatchingConfig
@@ -34,6 +34,8 @@ def create_patching_strategy(
     match patching_config.name:
         case SupportedPatchingStrategy.RANDOM:
             patch_class = RandomPatchingStrategy
+        case SupportedPatchingStrategy.STRATIFIED:
+            patch_class = StratifiedPatchingStrategy
         case SupportedPatchingStrategy.FIXED_RANDOM:
             patch_class = FixedRandomPatchingStrategy
         case SupportedPatchingStrategy.TILED:

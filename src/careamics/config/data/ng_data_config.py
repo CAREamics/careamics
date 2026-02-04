@@ -34,9 +34,11 @@ from .patch_filter import (
 )
 from .patching_strategies import (
     FixedRandomPatchingConfig,
+    StratifiedPatchingConfig,
     RandomPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
+    _PatchedConfig,
 )
 
 # TODO: Validate the specific sizes of tiles and overlaps given UNet constraints
@@ -88,6 +90,7 @@ Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type
 PatchingConfig = Union[
     FixedRandomPatchingConfig,
     RandomPatchingConfig,
+    StratifiedPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
 ]
@@ -158,6 +161,7 @@ class NGDataConfig(BaseModel):
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
+    # TODO: update docs for stratified patching
     patching: PatchingConfig = Field(..., discriminator="name")
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
@@ -386,7 +390,8 @@ class NGDataConfig(BaseModel):
         """
         mode = info.data["mode"]
         if mode == Mode.TRAINING:
-            if patching.name != "random":
+            if patching.name not in ["random", "stratified"]:
+                # TODO: update error message for stratified patching
                 raise ValueError(
                     f"Patching strategy '{patching.name}' is not compatible with "
                     f"mode '{mode.value}'. Use 'random' for training."
@@ -881,7 +886,7 @@ class NGDataConfig(BaseModel):
                     patch_size=list(new_patch_size), overlaps=list(overlap_size)
                 )
         else:  # validating
-            assert isinstance(self.patching, RandomPatchingConfig)  # for mypy
+            assert isinstance(self.patching, _PatchedConfig)  # for mypy
 
             patching_strategy = FixedRandomPatchingConfig(
                 patch_size=(
