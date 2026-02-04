@@ -7,6 +7,7 @@ from typing import (
     NotRequired,
     TypeAlias,
     TypedDict,
+    Union,
     Unpack,
     overload,
 )
@@ -19,8 +20,8 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from .config import TrainingConfig, load_configuration_ng
 from .config.ng_configs import N2VConfiguration
-from .config.support import SupportedAlgorithm, SupportedLogger
-from .file_io import WriteFunc
+from .config.support import SupportedAlgorithm, SupportedData, SupportedLogger
+from .file_io import WriteFunc, get_write_func
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.data_module import CareamicsDataModule
@@ -29,6 +30,7 @@ from .lightning.dataset_ng.lightning_modules import (
     create_module,
     get_module_cls,
 )
+from .lightning.dataset_ng.prediction import convert_prediction
 from .utils import get_logger
 
 logger = get_logger(__name__)
@@ -132,7 +134,7 @@ class CAREamistV2:
 
         # init callbacks
         self.prediction_writer = PredictionWriterCallback(self.work_dir)
-        self.prediction_writer.disable_writing(True)
+        self.prediction_writer.writing_predictions = False
         self.callbacks = self._define_callbacks(
             user_context["callbacks"], self.config, self.work_dir
         )
@@ -348,23 +350,131 @@ class CAREamistV2:
     # TODO: remember to pass self.checkpoint_path to Trainer.fit
     # ^ this will load optimizer and lr_schedular state dicts
 
+
+    @overload
+    def predict(
+        self, source: CareamicsDataModule
+    ) -> list[NDArray]: ...
+
+    @overload
     def predict(
         self,
-        # BASIC PARAMS
-        pred_data: Any | None = None,
+        source: Union[Path, str],
+        *,
         batch_size: int = 1,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "custom"] | None = None,
+        data_type: Literal["tiff", "custom"] | None = None,
+        read_source_func: Callable | None = None,
+        extension_filter: str = "",
+    ) -> list[NDArray]: ...
+
+    @overload
+    def predict(
+        self,
+        source: NDArray,
+        *,
+        batch_size: int = 1,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array"] | None = None,
+    ) -> list[NDArray]: ...
+
+    def predict(
+        self,
+        # BASIC PARAMS
+        pred_data: CareamicsDataModule | Path | str | NDArray,
+        *,
+        batch_size: int = 1,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "custom"] | None = None,
         # ADVANCED PARAMS
-        # tta_transforms: bool = False, # TODO: hidden till implemented
-        num_workers: int | None = None,
         read_source_func: Callable | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-    ) -> None:
-        return None
+    ) -> list[NDArray]:
+        """
+        Make predictions on the provided data.
+
+        Input can be a CareamicsDataModule instance, a path to a data file, or a numpy
+        array.
+
+        If `data_type`, `axes` and `tile_size` are not provided, the training
+        configuration parameters will be used, with the `patch_size` instead of
+        `tile_size`.
+
+        Note that if you are using a UNet model and tiling, the tile size must be
+        divisible in every dimension by 2**d, where d is the depth of the model. This
+        avoids artefacts arising from the broken shift invariance induced by the
+        pooling layers of the UNet. If your image has less dimensions, as it may
+        happen in the Z dimension, consider padding your image.
+
+        Parameters
+        ----------
+        pred_data : CareamicsDataModule, pathlib.Path, str or numpy.ndarray
+            Data to predict on.
+        batch_size : int, default=1
+            Batch size for prediction.
+        tile_size : tuple of int, optional
+            Size of the tiles to use for prediction.
+        tile_overlap : tuple of int, default=(48, 48)
+            Overlap between tiles, can be None.
+        axes : str, optional
+            Axes of the input data, by default None.
+        data_type : {"array", "tiff", "zarr", "custom"}, optional
+            Type of the input data.
+        read_source_func : Callable, optional
+            Function to read the source data.
+        read_kwargs : dict of {str: Any}, optional
+            Additional keyword arguments to be passed to the read function.
+        extension_filter : str, default=""
+            Filter for the file extension.
+
+        Returns
+        -------
+        list of NDArray
+            Predictions made by the model, one array per input sample.
+
+        Raises
+        ------
+        ValueError
+            If tile overlap is not specified when tile_size is provided.
+        """
+        # If datamodule is provided directly, use it
+        if isinstance(pred_data, CareamicsDataModule):
+            datamodule = pred_data
+        else:
+            # Create prediction data config using convert_mode
+            pred_data_config = self.config.data_config.convert_mode(
+                new_mode="predicting",
+                new_patch_size=tile_size,
+                overlap_size=tile_overlap,
+                new_batch_size=batch_size,
+                new_data_type=data_type,
+                new_axes=axes,
+            )
+
+            # Create datamodule for prediction
+            datamodule = CareamicsDataModule(
+                data_config=pred_data_config,
+                pred_data=pred_data,
+                read_source_func=read_source_func,
+                read_kwargs=read_kwargs,
+                extension_filter=extension_filter,
+            )
+
+        # Predict
+        predictions = self.trainer.predict(model=self.model, datamodule=datamodule)
+
+        # Convert predictions using convert_prediction
+        tiled = tile_size is not None
+        predictions_output, _ = convert_prediction(predictions, tiled=tiled)
+
+        return predictions_output
 
     def predict_to_disk(
         self,
@@ -376,7 +486,7 @@ class CAREamistV2:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "custom"] | None = None,
+        data_type: Literal["array", "tiff", "zarr", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         read_source_func: Callable | None = None,
@@ -387,7 +497,154 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
-    ) -> None: ...
+    ) -> None:
+        """
+        Make predictions on the provided data and save outputs to files.
+
+        The predictions will be saved in a new directory 'predictions' within the set
+        working directory. The directory stucture within the 'predictions' directory
+        will match that of the source directory.
+
+        The `pred_data` must be from files and not arrays. The file names of the
+        predictions will match those of the source. If there is more than one sample
+        within a file, the samples will be saved to seperate files. The file names of
+        samples will have the name of the corresponding source file but with the sample
+        index appended. E.g. If the the source file name is 'images.tiff' then the first
+        sample's prediction will be saved with the file name "image_0.tiff".
+
+        If `data_type`, `axes` and `tile_size` are not provided, the training
+        configuration parameters will be used, with the `patch_size` instead of
+        `tile_size`.
+
+        Note that if you are using a UNet model and tiling, the tile size must be
+        divisible in every dimension by 2**d, where d is the depth of the model. This
+        avoids artefacts arising from the broken shift invariance induced by the
+        pooling layers of the UNet. If your image has less dimensions, as it may
+        happen in the Z dimension, consider padding your image.
+
+        Parameters
+        ----------
+        pred_data : pathlib.Path, str or CareamicsDataModule
+            Data to predict on. Cannot be an array.
+        pred_data_target : Any, optional
+            Prediction data target, by default None.
+        prediction_dir : Path | str, default="predictions"
+            The path to save the prediction results to. If `prediction_dir` is not
+            absolute, the directory will be assumed to be relative to the pre-set
+            `work_dir`. If the directory does not exist it will be created.
+        batch_size : int, default=1
+            Batch size for prediction.
+        tile_size : tuple of int, optional
+            Size of the tiles to use for prediction.
+        tile_overlap : tuple of int, default=(48, 48)
+            Overlap between tiles.
+        axes : str, optional
+            Axes of the input data, by default None.
+        data_type : {"array", "tiff", "zarr", "custom"}, optional
+            Type of the input data.
+        num_workers : int, optional
+            Number of workers for the dataloader, by default None.
+        read_source_func : Callable, optional
+            Function to read the source data.
+        read_kwargs : dict of {str: Any}, optional
+            Additional keyword arguments to be passed to the read function.
+        extension_filter : str, default=""
+            Filter for the file extension.
+        write_type : {"tiff", "zarr", "custom"}, default="tiff"
+            The data type to save as, includes custom.
+        write_extension : str, optional
+            If a known `write_type` is selected this argument is ignored. For a custom
+            `write_type` an extension to save the data with must be passed.
+        write_func : WriteFunc, optional
+            If a known `write_type` is selected this argument is ignored. For a custom
+            `write_type` a function to save the data must be passed. See notes below.
+        write_func_kwargs : dict of {str: any}, optional
+            Additional keyword arguments to be passed to the save function.
+
+        Raises
+        ------
+        ValueError
+            If `write_type` is custom and `write_extension` is None.
+        ValueError
+            If `write_type` is custom and `write_func` is None.
+        ValueError
+            If `pred_data` is not provided.
+        ValueError
+            If `pred_data` is an array (not supported for predict_to_disk).
+        """
+        if pred_data is None:
+            raise ValueError("pred_data must be provided for predict_to_disk.")
+
+        if write_func_kwargs is None:
+            write_func_kwargs = {}
+
+        if Path(prediction_dir).is_absolute():
+            write_dir = Path(prediction_dir)
+        else:
+            write_dir = self.work_dir / prediction_dir
+
+        # Set up the prediction writer callback
+        self.prediction_writer.dirpath = write_dir
+
+        # Guards for custom types
+        if write_type == "custom":
+            if write_extension is None:
+                raise ValueError(
+                    "A `write_extension` must be provided for custom write types."
+                )
+            if write_func is None:
+                raise ValueError(
+                    "A `write_func` must be provided for custom write types."
+                )
+        else:
+            write_func = get_write_func(write_type)
+            write_extension = SupportedData.get_extension(write_type)
+
+        # Set writing strategy
+        tiled = tile_size is not None
+        self.prediction_writer.set_writing_strategy(
+            write_type=write_type,
+            tiled=tiled,
+            write_func=write_func,
+            write_extension=write_extension,
+            write_func_kwargs=write_func_kwargs,
+        )
+
+        # Enable writing
+        self.prediction_writer.writing_predictions = True
+
+        try:
+            # Create datamodule if not already provided
+            if isinstance(pred_data, CareamicsDataModule):
+                datamodule = pred_data
+            else:
+                # Create prediction data config using convert_mode
+                pred_data_config = self.config.data_config.convert_mode(
+                    new_mode="predicting",
+                    new_patch_size=tile_size,
+                    overlap_size=tile_overlap,
+                    new_batch_size=batch_size,
+                    new_data_type=data_type,
+                    new_axes=axes,
+                )
+
+                # Create datamodule for prediction
+                datamodule = CareamicsDataModule(
+                    data_config=pred_data_config,
+                    pred_data=pred_data,
+                    pred_data_target=pred_data_target,
+                    read_source_func=read_source_func,
+                    read_kwargs=read_kwargs,
+                    extension_filter=extension_filter,
+                )
+
+            # Predict (writing will be handled by the callback)
+            self.trainer.predict(model=self.model, datamodule=datamodule)
+
+        finally:
+            # Disable writing after prediction is complete
+            self.prediction_writer.writing_predictions = False
+
 
     def export_to_bmz(
         self,
