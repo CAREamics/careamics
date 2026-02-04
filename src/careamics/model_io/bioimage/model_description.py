@@ -26,6 +26,7 @@ from bioimageio.spec.model.v0_5 import (
     Version,
     WeightsDescr,
 )
+from pydantic import DirectoryPath
 
 from careamics.config import Configuration, DataConfig
 
@@ -322,8 +323,12 @@ def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
     if model_desc.weights.pytorch_state_dict is None:
         raise ValueError("No model weights found in model description.")
 
-    # extract the zip model and return the directory
-    model_dir = extract(model_desc.root)
+    # get the model directory
+    if isinstance(model_desc.root, Path) and model_desc.root.is_dir():
+        model_dir: DirectoryPath = model_desc.root
+    else:
+        # extract the zip model
+        model_dir = extract(model_desc.root)
 
     weights_path = model_dir.joinpath(model_desc.weights.pytorch_state_dict.source.path)
 
