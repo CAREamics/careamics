@@ -36,8 +36,9 @@ class TestN2VConfiguration:
         )
         assert config.data_config.transforms == []
 
-    def test_structn2v(self):
-        """Test structn2v params are passed correctly."""
+    def test_n2v2_structn2v(self):
+        """Test n2v2 and structn2v params are passed correctly."""
+        n2v2 = True
         struct_mask_axis = SupportedStructAxis.HORIZONTAL.value
         struct_n2v_span = 15
 
@@ -49,6 +50,7 @@ class TestN2VConfiguration:
             batch_size=8,
             struct_n2v_axis=struct_mask_axis,
             struct_n2v_span=struct_n2v_span,
+            use_n2v2=n2v2,
         )
         assert (
             config.algorithm_config.n2v_config.strategy
