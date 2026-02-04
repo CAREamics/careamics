@@ -33,7 +33,6 @@ from .lightning.dataset_ng.lightning_modules import (
     get_module_cls,
 )
 from .utils import get_logger
-from .utils.array
 from .utils.lightning_utils import read_csv_logger
 
 logger = get_logger(__name__)
@@ -445,7 +444,7 @@ class CAREamistV2:
             Version of the model.
         """
         output_patch = self.predict(
-            input_array,
+            pred_data=input_array,
             data_type=SupportedData.ARRAY.value,
         )
         output = np.concatenate(output_patch, axis=0)
@@ -479,4 +478,4 @@ class CAREamistV2:
     def stop_training(self) -> None:
         """Stop the training loop."""
         self.trainer.should_stop = True
-        self.trainer.limit_val_batches = 0
+        self.trainer.limit_val_batches = 0 #skip validation
