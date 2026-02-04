@@ -73,9 +73,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         self.writing_predictions = True  # flag to turn off predictions
 
         # forward declaration
-        self.write_strategy: WriteStrategy
-        if write_strategy is not None:  # avoid `WriteStrategy | None` type
-            self.write_strategy = write_strategy
+        self.write_strategy: WriteStrategy = write_strategy
 
         self.dirpath: Path
 

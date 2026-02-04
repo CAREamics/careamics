@@ -1,12 +1,8 @@
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal, TypedDict, Unpack
 from typing import (
     Any,
     Literal,
-    Never,
-    NotRequired,
-    TypeAlias,
     TypedDict,
     Union,
     Unpack,
@@ -23,14 +19,12 @@ from careamics.lightning.dataset_ng.lightning_modules.get_module import CAREamic
 
 from .config import load_configuration_ng
 from .config.ng_configs import N2VConfiguration
-from .config.support import SupportedLogger
-from .file_io import WriteFunc
-from .config.support import SupportedAlgorithm, SupportedData, SupportedLogger
+from .config.support import SupportedData, SupportedLogger
 from .file_io import WriteFunc, get_write_func
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.lightning_modules import (
-    CAREamicsModule,
+    CareamicsDataModule,
     create_module,
     load_module_from_checkpoint,
 )
@@ -71,10 +65,6 @@ class CAREamistV2:
 
         self.prediction_writer = PredictionWriterCallback(self.work_dir)
         self.prediction_writer.disable_writing(True)
-        self.prediction_writer.writing_predictions = False
-        self.callbacks = self._define_callbacks(
-            user_context["callbacks"], self.config, self.work_dir
-        )
 
         experiment_loggers = self._create_loggers(
             self.config.training_config.logger,
