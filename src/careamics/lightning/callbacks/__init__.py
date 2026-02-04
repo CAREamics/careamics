@@ -1,6 +1,7 @@
 """Callbacks module."""
 
 __all__ = [
+    "CareamicsCheckpointInfo",
     "DataStatsCallback",
     "HyperParametersCallback",
     "PredictionWriterCallback",
@@ -8,6 +9,7 @@ __all__ = [
     "create_write_strategy",
 ]
 
+from .careamics_checkpoint_info_callback import CareamicsCheckpointInfo
 from .data_stats_callback import DataStatsCallback
 from .hyperparameters_callback import HyperParametersCallback
 from .prediction_writer_callback import PredictionWriterCallback, create_write_strategy

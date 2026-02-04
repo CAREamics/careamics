@@ -30,8 +30,8 @@ class N2VModule(L.LightningModule):
         dictionary.
     """
 
-    def __init__(self, algorithm_config: N2VAlgorithm | dict) -> None:
-        """Instantiate N2V Module.
+    def __init__(self, algorithm_config: N2VAlgorithm | dict[str, Any]) -> None:
+        """Instantiate N2VModule.
 
         Parameters
         ----------
@@ -49,6 +49,7 @@ class N2VModule(L.LightningModule):
         if not isinstance(config, N2VAlgorithm):
             raise TypeError("algorithm_config must be a N2VAlgorithm")
 
+        self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
         self.n2v_manipulate = N2VManipulateTorch(

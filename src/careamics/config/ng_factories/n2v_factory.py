@@ -36,7 +36,25 @@ def create_n2v_config(
     """
     Create a configuration for training N2V.
 
-    See `create_advanced_n2v_config` for more details and parameters.
+    To activate N2V2, set `use_n2v2` to True.
+
+    The `axes` parameters must reflect the actual axes and axis order from the data,
+    and should be the same throughout all images. The accepted axes are STCZYX. If "C"
+    is in `axes`, then you need to set `n_channels` to the number of channels.
+
+    `patch_size` is only along the spatial dimensions and should be of length 3 if "Z"
+    is present in `axes`, otherwise of length 2.
+
+    By default, CAREamics will go through the entire training data once per epoch. For
+    large datasets, this can lead to very long epochs. To limit the number of batches
+    per epoch, set the `num_steps` parameter to the desired number of batches.
+
+    If the content of your data is expected to always have the same orientation,
+    consider disabling certain augmentations. By default `augmentations=None` will apply
+    random flips along X and Y, and random 90 degrees rotations in the XY plane. To
+    disable augmentations, set `augmentations=[]`.
+
+    See `create_advanced_n2v_config` for more parameters.
 
     Parameters
     ----------
@@ -46,7 +64,7 @@ def create_n2v_config(
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
-    patch_size : List[int]
+    patch_size : Sequence[int]
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
@@ -94,14 +112,30 @@ def create_structn2v_config(
     num_epochs: int = 30,
     num_steps: int | None = None,
     # TODO no rotation until we support 2D masks for structN2V
-    augmentations: Sequence[Literal["x_flip", "y_flip"]] | None = None,
     use_n2v2: bool = False,
     n_channels: int | None = None,
 ) -> N2VConfiguration:
     """
     Create a configuration for training structN2V.
 
-    See `create_advanced_n2v_config` for more details and parameters.
+    The structN2V mask is applied a horizontal or vertical axis, with extent defined by
+    `struct_n2v_span` (default=5, leading to a mask of size 11). For structN2V,
+    augmentations are disabled.
+
+    To activate N2V2, set `use_n2v2` to True.
+
+    The `axes` parameters must reflect the actual axes and axis order from the data,
+    and should be the same throughout all images. The accepted axes are STCZYX. If "C"
+    is in `axes`, then you need to set `n_channels` to the number of channels.
+
+    `patch_size` is only along the spatial dimensions and should be of length 3 if "Z"
+    is present in `axes`, otherwise of length 2.
+
+    By default, CAREamics will go through the entire training data once per epoch. For
+    large datasets, this can lead to very long epochs. To limit the number of batches
+    per epoch, set the `num_steps` parameter to the desired number of batches.
+
+    See `create_advanced_n2v_config` for more parameters.
 
     Parameters
     ----------
@@ -111,7 +145,7 @@ def create_structn2v_config(
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
-    patch_size : List[int]
+    patch_size : Sequence[int]
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
@@ -123,8 +157,6 @@ def create_structn2v_config(
         Number of epochs to train for.
     num_steps : int, default=None
         Number of batches in 1 epoch.
-    augmentations : Sequence of {"x_flip", "y_flip"} or None, default=None
-        List of augmentations to apply. If `None`, all augmentations are applied.
     use_n2v2 : bool, default=False
         Whether to use N2V2.
     n_channels : int or None, default=None
@@ -135,9 +167,6 @@ def create_structn2v_config(
     N2VConfiguration
         Configuration for training structN2V.
     """
-    if augmentations is not None and "rotate_90" in augmentations:
-        raise ValueError("Rotation augmentation is not supported for structN2V.")
-
     return create_advanced_n2v_config(
         experiment_name=experiment_name,
         data_type=data_type,
@@ -146,7 +175,7 @@ def create_structn2v_config(
         batch_size=batch_size,
         num_epochs=num_epochs,
         num_steps=num_steps,
-        augmentations=augmentations,
+        augmentations=[],
         use_n2v2=use_n2v2,
         n_channels=n_channels,
         struct_n2v_axis=struct_n2v_axis,
@@ -170,6 +199,8 @@ def create_advanced_n2v_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = True,
+    normalization: Literal["mean_std", "minmax", "quantile", "none"] = "mean_std",
+    normalization_params: dict[str, Any] | None = None,
     # - N2V specific
     use_n2v2: bool = False,
     roi_size: int = 11,
@@ -268,6 +299,14 @@ def create_advanced_n2v_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=True
         Whether to train all channels independently.
+    normalization : {"mean_std", "minmax", "quantile", "none"}, default="mean_std"
+        Normalization strategy to use.
+    normalization_params : dict[str, Any] | None, default=None
+        Strategy-specific normalization parameters. If None, default values are used.
+        For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
+        For "minmax": {"input_mins": [...], "input_maxes": [...]} (optional)
+        For "quantile": {"lower_quantile": 0.01, "upper_quantile": 0.99} (optional)
+        For "none": No parameters needed.
     use_n2v2 : bool, default=False
         Whether to use N2V2.
     roi_size : int, default=11
@@ -337,6 +376,11 @@ def create_advanced_n2v_config(
     if n_channels is None:
         n_channels = 1 if channels is None else len(channels)
 
+    # normalization
+    norm_config = {"name": normalization}
+    if normalization_params is not None:
+        norm_config.update(normalization_params)
+
     # augmentations
     augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
     if augmentations is not None:
@@ -365,6 +409,7 @@ def create_advanced_n2v_config(
         patch_size=patch_size,
         batch_size=batch_size,
         augmentations=spatial_transforms,
+        normalization=norm_config,
         channels=channels,
         in_memory=in_memory,
         n_workers=n_workers,

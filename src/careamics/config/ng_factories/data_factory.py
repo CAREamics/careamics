@@ -67,6 +67,7 @@ def create_ng_data_configuration(
     patch_size: Sequence[int],
     batch_size: int,
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
+    normalization: dict | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
     n_workers: int = 0,
@@ -88,8 +89,12 @@ def create_ng_data_configuration(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
-    augmentations : list of transforms
-        List of transforms to apply.
+    augmentations : list of transforms or None, default=None
+        List of transforms to apply. If `None`, default augmentations are applied
+        (flip in X and Y, rotations by 90 degrees in the XY plane).
+    normalization : dict, default=None
+        Normalization configuration dictionary. If None, defaults to mean_std
+        normalization with automatically computed statistics.
     channels : Sequence of int, default=None
         List of channels to use. If `None`, all channels are used.
     in_memory : bool, default=None
@@ -128,7 +133,9 @@ def create_ng_data_configuration(
         "channels": channels,
         "transforms": augmentations,
         "seed": seed,
-        "normalization": {"name": "mean_std"},
+        "normalization": (
+            normalization if normalization is not None else {"name": "mean_std"}
+        ),
     }
 
     if in_memory is not None:
