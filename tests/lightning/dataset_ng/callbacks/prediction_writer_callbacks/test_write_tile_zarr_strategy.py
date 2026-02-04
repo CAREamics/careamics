@@ -321,7 +321,6 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
         np.testing.assert_allclose(pred_array, expected_array, rtol=1e-5, atol=0)
 
 
-# TODO update test once array sources is supported
 def test_write_from_array(tmp_path):
     """Test that writing from an array source raises an error."""
     arrays = [np.random.rand(32, 32).astype(np.float32) for _ in range(2)]
@@ -332,18 +331,26 @@ def test_write_from_array(tmp_path):
     patch_extractor = PatchExtractor(image_stacks)
 
     strategy = TilingStrategy(
-        data_shapes=[image_stacks[0].data_shape],
+        data_shapes=[image_stacks[0].data_shape] * 2,
         patch_size=(8, 8),
         overlaps=(4, 4),
     )
 
-    # use writer to write predictionsz
+    # use writer to write predictions
     writer = WriteTilesZarr()
     for region in gen_image_regions("YX", patch_extractor, strategy):
         writer.write_tile(tmp_path, region)
 
+    # check if the stored zarr is close to the input
+    if writer.current_store is not None:
+        for key in writer.current_store.keys():
+            np.testing.assert_allclose(
+                arrays[int(key)], np.array(writer.current_store[key])
+            )
+    else:
+        raise ValueError("The Zarr tile writer store is None!")
 
-# TODO update test once tiff sources is supported
+
 def test_write_from_tiff(tmp_path):
     """Test that writing from a tiff source raises an error."""
     # save tiffs
@@ -359,7 +366,7 @@ def test_write_from_tiff(tmp_path):
     patch_extractor = PatchExtractor(image_stacks)
 
     strategy = TilingStrategy(
-        data_shapes=[image_stacks[0].data_shape],
+        data_shapes=[image_stacks[0].data_shape] * 2,
         patch_size=(8, 8),
         overlaps=(4, 4),
     )
@@ -368,3 +375,12 @@ def test_write_from_tiff(tmp_path):
     writer = WriteTilesZarr()
     for region in gen_image_regions("YX", patch_extractor, strategy):
         writer.write_tile(tmp_path, region)
+
+    # check if the stored zarr is close to the input
+    if writer.current_store is not None:
+        for key in writer.current_store.keys():
+            np.testing.assert_allclose(
+                arrays[int(key)], np.array(writer.current_store[key])
+            )
+    else:
+        raise ValueError("The Zarr tile writer store is None!")

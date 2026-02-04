@@ -285,24 +285,30 @@ class WriteTilesZarr:
             # set a new zarr storage output path
             parent_path = ""
             output_store_path = dirpath.joinpath("prediction.zarr")
-            array_name = "prediction"
-
-        elif Path(region.source).suffix in [".tiff", ".tif"]:
-            # data source is a tiff image:
-            # set the zarr storage output path using the tiff file name
-            _source = Path(region.source)
-            parent_path = ""
-            output_store_path = _source.parent.joinpath(f"{_source.stem}.zarr")
-            array_name = "prediction"
+            # use array data index for array name (in case of having multiple arrays)
+            data_idx = region.region_spec["data_idx"]
+            array_name = f"{data_idx}"
 
         elif is_valid_uri(region.source):
+            # source is a zarr
             store_path, parent_path, array_name = decipher_zarr_uri(region.source)
             output_store_path = _add_output_key(dirpath, store_path)
 
+        elif ".zarr" not in region.source:
+            # data source is a tiff image:
+            # set the zarr storage output path using the source file name
+            _source = Path(region.source)
+            parent_path = ""
+            output_store_path = _source.parent.joinpath(f"{_source.stem}.zarr")
+            # use array data index for array name (in case of having multiple tiffs)
+            data_idx = region.region_spec["data_idx"]
+            array_name = f"{data_idx}"
+
         else:
+            # probably we don't need this
             raise NotImplementedError(
-                f"Invalid zarr URI: {region.source}. Currently, only predicting from "
-                f"Zarr files is supported when writing Zarr tiles."
+                f"Invalid source: {region.source}. Currently, only predicting from "
+                f"array, Zarr, or TIFF files is supported when writing Zarr tiles."
             )
 
         if (
