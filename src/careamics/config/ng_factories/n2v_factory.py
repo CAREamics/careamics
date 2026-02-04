@@ -32,7 +32,6 @@ def create_n2v_config(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     use_n2v2: bool = False,
     n_channels: int | None = None,
-    n_workers: int = 0,
 ) -> N2VConfiguration:
     """
     Create a configuration for training N2V.
@@ -61,8 +60,6 @@ def create_n2v_config(
         Whether to use N2V2.
     n_channels : int or None, default=None
         Number of channels (in and out).
-    n_workers : int, default=0
-        Number of workers for data loading.
 
     Returns
     -------
@@ -80,7 +77,6 @@ def create_n2v_config(
         augmentations=augmentations,
         use_n2v2=use_n2v2,
         n_channels=n_channels,
-        n_workers=n_workers,
     )
 
 
@@ -101,7 +97,6 @@ def create_structn2v_config(
     augmentations: Sequence[Literal["x_flip", "y_flip"]] | None = None,
     use_n2v2: bool = False,
     n_channels: int | None = None,
-    n_workers: int = 0,
 ) -> N2VConfiguration:
     """
     Create a configuration for training structN2V.
@@ -134,8 +129,6 @@ def create_structn2v_config(
         Whether to use N2V2.
     n_channels : int or None, default=None
         Number of channels (in and out).
-    n_workers : int, default=0
-        Number of workers for data loading.
 
     Returns
     -------
@@ -156,7 +149,6 @@ def create_structn2v_config(
         augmentations=augmentations,
         use_n2v2=use_n2v2,
         n_channels=n_channels,
-        n_workers=n_workers,
         struct_n2v_axis=struct_n2v_axis,
         struct_n2v_span=struct_n2v_span,
     )
@@ -178,7 +170,6 @@ def create_advanced_n2v_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = True,
-    n_workers: int = 0,
     # - N2V specific
     use_n2v2: bool = False,
     roi_size: int = 11,
@@ -187,6 +178,7 @@ def create_advanced_n2v_config(
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
     # - Lightning parameters
+    n_workers: int = 0,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -276,8 +268,6 @@ def create_advanced_n2v_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=True
         Whether to train all channels independently.
-    n_workers : int, default=0
-        Number of workers for data loading.
     use_n2v2 : bool, default=False
         Whether to use N2V2.
     roi_size : int, default=11
@@ -288,6 +278,8 @@ def create_advanced_n2v_config(
         Axis along which to apply structN2V mask.
     struct_n2v_span : int, default=5
         Span of the structN2V mask.
+    n_workers : int, default=0
+        Number of workers for data loading.
     trainer_params : dict | None, default=None
         Parameters for the trainer, see the relevant documentation.
     model_params : dict | None, default=None
