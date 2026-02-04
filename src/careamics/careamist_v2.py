@@ -30,6 +30,7 @@ from .lightning.dataset_ng.lightning_modules import (
     get_module_cls,
 )
 from .utils import get_logger
+from .utils.lightning_utils import read_csv_logger
 
 logger = get_logger(__name__)
 
@@ -402,6 +403,14 @@ class CAREamistV2:
         model_version: str = "0.1.0",
     ) -> None: ...
 
-    def get_losses(self) -> dict[str, list]: ...
+    def get_losses(self) -> dict[str, list]:
+        """Return data that can be used to plot train and validation loss curves.
+
+        Returns
+        -------
+        dict of str: list
+            Dictionary containing the losses for each epoch.
+        """
+        return read_csv_logger(self.config.experiment_name, self.work_dir / "csv_logs")
 
     def stop_training(self) -> None: ...
