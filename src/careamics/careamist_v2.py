@@ -131,7 +131,9 @@ class CAREamistV2:
         )
 
         # init callbacks
-        self.prediction_writer = PredictionWriterCallback(self.work_dir)
+        self.prediction_writer = PredictionWriterCallback(
+            self.work_dir, enable_writing=False
+        )
         self.callbacks = self._define_callbacks(
             user_context["callbacks"], self.config, self.work_dir
         )

@@ -361,6 +361,7 @@ source = { editable = "." }
 dependencies = [
     { name = "bioimageio-core" },
     { name = "matplotlib" },
+    { name = "microssim" },
     { name = "numpy" },
     { name = "pillow" },
     { name = "psutil" },
@@ -411,21 +412,22 @@ requires-dist = [
     { name = "careamics-portfolio", marker = "extra == 'examples'" },
     { name = "jupyter", marker = "extra == 'examples'" },
     { name = "matplotlib", specifier = "<=3.10.8" },
+    { name = "microssim" },
     { name = "numpy", specifier = ">=1.21" },
     { name = "numpy", marker = "python_full_version >= '3.13'", specifier = ">=2.1.0" },
     { name = "pillow", specifier = "<=12.1.0" },
     { name = "protobuf", marker = "extra == 'tensorboard'", specifier = "==5.29.1" },
-    { name = "psutil", specifier = "<=7.2.1" },
+    { name = "psutil", specifier = "<=7.2.2" },
     { name = "pydantic", specifier = ">=2.11,<=2.12.5" },
     { name = "pylibczirw", marker = "extra == 'czi'", specifier = ">=4.1.2,<6.0.0" },
-    { name = "pytorch-lightning", specifier = ">=2.2,<=2.6.0" },
+    { name = "pytorch-lightning", specifier = ">=2.2,<=2.6.1" },
     { name = "pyyaml", specifier = "!=6.0.0,<=6.0.3" },
     { name = "scikit-image", specifier = "<=0.26.0" },
     { name = "tensorboard", marker = "extra == 'tensorboard'" },
-    { name = "tifffile", specifier = "<=2026.1.14" },
-    { name = "torch", specifier = ">=2.0,<=2.9.1" },
+    { name = "tifffile", specifier = "<=2026.1.28" },
+    { name = "torch", specifier = ">=2.0,<=2.10.0" },
     { name = "torchmetrics", specifier = ">=0.11.0,<1.5.0" },
-    { name = "torchvision", specifier = "<=0.24.1" },
+    { name = "torchvision", specifier = "<=0.25.0" },
     { name = "typer", specifier = ">=0.12.3,<=0.21.1" },
     { name = "validators", specifier = "<=0.35.0" },
     { name = "wandb", marker = "extra == 'wandb'" },
@@ -436,7 +438,7 @@ provides-extras = ["czi", "examples", "tensorboard", "wandb"]
 [package.metadata.requires-dev]
 dev = [
     { name = "ml-dtypes", specifier = ">=0.5.0" },
-    { name = "onnxscript", specifier = "<=0.5.7" },
+    { name = "onnxscript", specifier = "<=0.6.0" },
     { name = "pre-commit" },
     { name = "pylibczirw", specifier = ">=4.1.2,<6.0.0" },
     { name = "pytest" },
@@ -2151,6 +2153,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
+]
+
+[[package]]
+name = "microssim"
+version = "0.0.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "scikit-image" },
+    { name = "scipy" },
+    { name = "torch" },
+    { name = "torchmetrics" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f9/7c/0f66f7f41af777d30cbe15951dfcf1a8ea34cdf6a2871679026cd8b62c3d/microssim-0.0.3.tar.gz", hash = "sha256:ad7817d76ca851b7b28d265eb7931756d64e308bcb9040b316006857d2d0b240", size = 5433391, upload-time = "2026-01-19T15:50:23.118Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/23/5022d1ecd3585088349443a57e260743fb2e6997eaf27bb58ce9ba2f95ce/microssim-0.0.3-py3-none-any.whl", hash = "sha256:753acb31a22db252ab79cbd5816c5dc56a31a3e29628f83cb205e0722446fcbe", size = 20964, upload-time = "2026-01-19T15:50:21.547Z" },
 ]
 
 [[package]]
