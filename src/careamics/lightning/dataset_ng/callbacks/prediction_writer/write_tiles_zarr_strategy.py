@@ -76,7 +76,7 @@ def _update_T_axis(axes: str) -> str:
 def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
     """Generate automatic chunk sizes based on axes and shape.
 
-    Spatial dimensions will be chunked with a maximum size of 64, other dimensions
+    X and Y dimensions will be chunked with a maximum size of 128, other dimensions
     will have chunk size 1.
 
     Parameters
@@ -116,14 +116,13 @@ def _auto_chunks(axes: str, data_shape: Sequence[int]) -> tuple[int, ...]:
     for idx, original_index in enumerate(indices):
         axis = updated_axes[original_index]
 
-        # TODO we should probably not chunk along Z (#658)
-        if axis in ("Z", "Y", "X"):
+        if axis in ("Y", "X"):
             dim_size = data_shape[idx + sczyx_offset]
             chunk_sizes.append(
                 min(128, dim_size)
-            )  # TODO arbitrary value, about 1MB for float64
+            )  # TODO arbitrary value, need benchmarking
         else:
-            chunk_sizes.append(1)
+            chunk_sizes.append(1)  # chunk size 1 for Z and non spatial dims
 
     return tuple(chunk_sizes)
 
