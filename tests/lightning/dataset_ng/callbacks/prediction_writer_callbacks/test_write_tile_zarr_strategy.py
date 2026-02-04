@@ -339,9 +339,8 @@ def test_write_from_array(tmp_path):
 
     # use writer to write predictionsz
     writer = WriteTilesZarr()
-    with pytest.raises(NotImplementedError):
-        for region in gen_image_regions("YX", patch_extractor, strategy):
-            writer.write_tile(tmp_path, region)
+    for region in gen_image_regions("YX", patch_extractor, strategy):
+        writer.write_tile(tmp_path, region)
 
 
 # TODO update test once tiff sources is supported
@@ -367,6 +366,5 @@ def test_write_from_tiff(tmp_path):
 
     # use writer to write predictions
     writer = WriteTilesZarr()
-    with pytest.raises(NotImplementedError):
-        for region in gen_image_regions("YX", patch_extractor, strategy):
-            writer.write_tile(tmp_path, region)
+    for region in gen_image_regions("YX", patch_extractor, strategy):
+        writer.write_tile(tmp_path, region)

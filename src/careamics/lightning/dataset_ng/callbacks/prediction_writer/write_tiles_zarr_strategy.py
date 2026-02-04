@@ -280,9 +280,25 @@ class WriteTilesZarr:
         region : ImageRegionData
             Image region data containing tile information.
         """
-        if is_valid_uri(region.source):
+        if region.source == "array":
+            # data source is an in-memory array:
+            # set a new zarr storage output path
+            parent_path = ""
+            output_store_path = dirpath.joinpath("prediction.zarr")
+            array_name = "prediction"
+
+        elif Path(region.source).suffix in [".tiff", ".tif"]:
+            # data source is a tiff image:
+            # set the zarr storage output path using the tiff file name
+            _source = Path(region.source)
+            parent_path = ""
+            output_store_path = _source.parent.joinpath(f"{_source.stem}.zarr")
+            array_name = "prediction"
+
+        elif is_valid_uri(region.source):
             store_path, parent_path, array_name = decipher_zarr_uri(region.source)
             output_store_path = _add_output_key(dirpath, store_path)
+
         else:
             raise NotImplementedError(
                 f"Invalid zarr URI: {region.source}. Currently, only predicting from "
