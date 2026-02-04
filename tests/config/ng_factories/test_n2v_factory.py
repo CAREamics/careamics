@@ -152,6 +152,29 @@ class TestN2VConfiguration:
         assert len(config.data_config.patching.patch_size) == 3
         assert config.algorithm_config.model.conv_dims == 3
 
+    def test_epochs_steps(self):
+        """Test step and epoch naming in trainer config."""
+        num_epochs = 10
+        num_steps = 20
+
+        config = create_n2v_config(
+            experiment_name="test",
+            data_type="tiff",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            num_epochs=num_epochs,
+            num_steps=num_steps,
+        )
+
+        assert (
+            config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
+        )
+        assert (
+            config.training_config.lightning_trainer_config["limit_train_batches"]
+            == num_steps
+        )
+
     @pytest.mark.parametrize(
         "axes, n_channels, channels, error",
         [

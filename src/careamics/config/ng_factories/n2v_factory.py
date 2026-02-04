@@ -42,9 +42,6 @@ def create_n2v_config(
     and should be the same throughout all images. The accepted axes are STCZYX. If "C"
     is in `axes`, then you need to set `n_channels` to the number of channels.
 
-    `patch_size` is only along the spatial dimensions and should be of length 3 if "Z"
-    is present in `axes`, otherwise of length 2.
-
     By default, CAREamics will go through the entire training data once per epoch. For
     large datasets, this can lead to very long epochs. To limit the number of batches
     per epoch, set the `num_steps` parameter to the desired number of batches.
