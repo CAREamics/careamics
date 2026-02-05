@@ -355,6 +355,40 @@ def pre_trained(tmp_path, minimum_n2v_configuration):
 
 
 @pytest.fixture
+def pre_trained_v2(tmp_path):
+    """Fixture to create a pre-trained CAREamistV2 model."""
+    from careamics.careamist_v2 import CAREamistV2
+    from careamics.config.ng_factories import create_n2v_configuration
+
+    # training data
+    train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)
+
+    # create configuration
+    patch_size = [8, 8]
+    masked_pixel_percentage = 100 / np.prod(patch_size)
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=patch_size,
+        batch_size=2,
+        masked_pixel_percentage=masked_pixel_percentage,
+    )
+
+    # instantiate CAREamistV2
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_data=train_array)
+
+    # check that it trained
+    pre_trained_path: Path = tmp_path / "checkpoints" / "last.ckpt"
+    assert pre_trained_path.exists()
+
+    return pre_trained_path
+
+
+@pytest.fixture
 def pre_trained_bmz(tmp_path, pre_trained) -> Path:
     """Fixture to create a BMZ model."""
     # training data

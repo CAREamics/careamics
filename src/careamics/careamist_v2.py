@@ -390,9 +390,9 @@ class CAREamistV2:
 
         # Convert predictions using convert_prediction
         tiled = tile_size is not None
-        predictions_output, _ = convert_prediction(predictions, tiled=tiled)
+        predictions_output, sources = convert_prediction(predictions, tiled=tiled)
 
-        return predictions_output
+        return predictions_output, sources
 
     def predict_to_disk(
         self,
