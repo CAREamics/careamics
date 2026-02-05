@@ -25,7 +25,12 @@ class PredictionWriterCallback(BasePredictionWriter):
     PyTorch Lightning callback to save predictions.
 
     A `WriteStrategy` must be provided at instantiation or later via
-    `set_writing_strategy`.
+    `set_writing_strategy`. This allows passing the callback to the Lightning `Trainer`
+    before knowing what writing strategy (e.g. tiling or file tyope) will be used.
+
+    By default the prediction writer is enabled, but it can be disabled by passing
+    `enable_writing=False` at instantiation or by calling `enable_writing(False)`.
+    Subsequently, writing can be re-enabled by calling `enable_writing(True)`.
 
     Parameters
     ----------
@@ -35,11 +40,13 @@ class PredictionWriterCallback(BasePredictionWriter):
         directory.
     write_strategy : WriteStrategy or None, default=None
         A strategy for writing predictions.
+    enable_writing : bool, default=True
+        If writing predictions should be enabled by default.
 
     Attributes
     ----------
-    writing_predictions : bool
-        If writing predictions is turned on or off.
+    is_enabled : bool
+        Whether writing predictions is enabled.
     dirpath : pathlib.Path, default=""
         The path to the directory where prediction outputs will be saved. If
         `dirpath` is not absolute it is assumed to be relative to current working
@@ -52,6 +59,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         self,
         dirpath: Path | str = "",
         write_strategy: WriteStrategy | None = None,
+        enable_writing: bool = True,
     ):
         """
         Constructor.
@@ -67,10 +75,12 @@ class PredictionWriterCallback(BasePredictionWriter):
             directory.
         write_strategy : WriteStrategy or None, default=None
             A strategy for writing predictions.
+        enable_writing : bool, default=True
+            If writing predictions should be enabled by default.
         """
         super().__init__(write_interval="batch")
 
-        self.is_disabled = True  # flag to turn off predictions
+        self.is_enabled = enable_writing
         self.write_strategy = write_strategy
 
         self.dirpath: Path
@@ -80,15 +90,15 @@ class PredictionWriterCallback(BasePredictionWriter):
         if dirpath != "":
             self._init_dirpath(dirpath)
 
-    def disable_writing(self, disable_writing: bool) -> None:
-        """Disable writing.
+    def enable_writing(self, enable_writing: bool) -> None:
+        """Enable or disable writing.
 
         Parameters
         ----------
-        disable_writing : bool
-            If writing predictions should be disabled.
+        enable_writing : bool
+            If writing predictions should be enabled.
         """
-        self.is_disabled = disable_writing
+        self.is_enabled = enable_writing
 
     def _init_dirpath(self, dirpath):
         """
@@ -197,7 +207,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             Dataloader index.
         """
         # if writing prediction is turned off
-        if self.is_disabled:
+        if not self.is_enabled:
             return
 
         if self.write_strategy is not None:
