@@ -38,7 +38,6 @@ from .patching_strategies import (
     StratifiedPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
-    _PatchedConfig,
 )
 
 # TODO: Validate the specific sizes of tiles and overlaps given UNet constraints
@@ -886,7 +885,7 @@ class NGDataConfig(BaseModel):
                     patch_size=list(new_patch_size), overlaps=list(overlap_size)
                 )
         else:  # validating
-            assert isinstance(self.patching, _PatchedConfig)  # for mypy
+            assert not isinstance(self.patching, WholePatchingConfig)
 
             patching_strategy = FixedRandomPatchingConfig(
                 patch_size=(
