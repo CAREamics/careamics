@@ -87,9 +87,7 @@ def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
 @pytest.mark.parametrize("tiled", [True, False])
 @pytest.mark.parametrize("n_samples", [1, 2])
 @pytest.mark.parametrize("batch_size", [1, 2])
-def test_predict_path(
-    tmp_path: Path, batch_size: int, n_samples: int, tiled: bool
-):
+def test_predict_path(tmp_path: Path, batch_size: int, n_samples: int, tiled: bool):
     """Test that CAREamistV2 can predict with tiff files."""
     # training data
     train_array = random_array((32, 32))
@@ -190,6 +188,7 @@ def test_predict_pretrained_checkpoint(tmp_path: Path):
     on an array."""
     pytest.skip("CAREamistV2.train() is not yet implemented")
 
+
 @pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
 @pytest.mark.mps_gh_fail
 def test_predict_to_disk_path_tiff(tmp_path: Path):
@@ -227,6 +226,7 @@ def test_predict_to_disk_path_tiff(tmp_path: Path):
 
     for i in range(n_samples):
         assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
+
 
 @pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
 @pytest.mark.mps_gh_fail
@@ -290,6 +290,7 @@ def test_predict_to_disk_datamodule_tiff(tmp_path: Path):
         # Fallback: check in work_dir directly
         for i in range(n_samples):
             assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
+
 
 @pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
 @pytest.mark.mps_gh_fail
@@ -408,4 +409,3 @@ def test_predict_to_disk_custom_raises(tmp_path: Path):
             write_extension=".npy",
             write_func=None,
         )
-
