@@ -268,11 +268,11 @@ class CAREamistV2:
         read_source_func: Callable | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-    ) -> None: ...
-
-    # TODO: init datamodule
-    # TODO: remember to pass self.checkpoint_path to Trainer.fit
-    # ^ this will load optimizer and lr_schedular state dicts
+    ) -> None:
+        # TODO: init datamodule
+        # TODO: remember to pass self.checkpoint_path to Trainer.fit
+        # ^ this will load optimizer and lr_schedular state dicts
+        raise NotImplementedError("Training is not implemented yet.")
 
 
     @overload
