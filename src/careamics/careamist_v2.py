@@ -9,9 +9,9 @@ from typing import (
     overload,
 )
 
+import numpy as np
 import torch
 from numpy.typing import NDArray
-import numpy as np
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
@@ -21,11 +21,8 @@ from careamics.lightning.dataset_ng.lightning_modules.get_module import CAREamic
 from .config import load_configuration_ng
 from .config.ng_configs import N2VConfiguration
 from .config.support import SupportedData, SupportedLogger
-from .file_io import WriteFunc, get_write_func
-from .config.support import SupportedAlgorithm, SupportedLogger, SupportedData
-from .file_io import WriteFunc
 from .dataset.dataset_utils import reshape_array
-from .model_io import export_to_bmz
+from .file_io import WriteFunc, get_write_func
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.lightning_modules import (
@@ -34,6 +31,7 @@ from .lightning.dataset_ng.lightning_modules import (
     load_module_from_checkpoint,
 )
 from .lightning.dataset_ng.prediction import convert_prediction
+from .model_io import export_to_bmz
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
 
@@ -69,14 +67,9 @@ class CAREamistV2:
         callbacks = user_context.get("callbacks", None)
         self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
 
-        self.prediction_writer = PredictionWriterCallback(self.work_dir)
-        self.prediction_writer.disable_writing(True)
         # init callbacks
         self.prediction_writer = PredictionWriterCallback(
             self.work_dir, enable_writing=False
-        )
-        self.callbacks = self._define_callbacks(
-            user_context["callbacks"], self.config, self.work_dir
         )
 
         experiment_loggers = self._create_loggers(

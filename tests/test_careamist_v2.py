@@ -6,7 +6,7 @@ import tifffile
 from numpy.typing import NDArray
 
 from careamics.careamist_v2 import CAREamistV2
-from careamics.config.ng_factories import create_n2v_configuration
+from careamics.config.ng_factories import create_advanced_n2v_config
 
 
 def random_array(shape: tuple[int, ...], seed: int = 42) -> NDArray:
@@ -26,7 +26,7 @@ def test_predict_arrays_no_tiling(tmp_path: Path, batch_size: int, samples: int)
     # create configuration
     patch_size = [8, 8]
     masked_pixel_percentage = 100 / np.prod(patch_size)
-    config = create_n2v_configuration(
+    config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="array",
         axes="SYX",
@@ -58,7 +58,7 @@ def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
     # create configuration
     patch_size = [8, 8]
     masked_pixel_percentage = 100 / np.prod(patch_size)
-    config = create_n2v_configuration(
+    config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="array",
         axes="SYX",
@@ -100,7 +100,7 @@ def test_predict_path(tmp_path: Path, batch_size: int, n_samples: int, tiled: bo
     # create configuration
     patch_size = [8, 8]
     masked_pixel_percentage = 100 / np.prod(patch_size)
-    config = create_n2v_configuration(
+    config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
@@ -155,7 +155,7 @@ def test_predict_tiled_channel(
     # create configuration
     patch_size = [8, 8]
     masked_pixel_percentage = 100 / np.prod(patch_size)
-    config = create_n2v_configuration(
+    config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="array",
         axes="CYX",
@@ -208,7 +208,7 @@ def test_predict_to_disk_path_tiff(tmp_path: Path):
     # create configuration
     patch_size = [8, 8]
     masked_pixel_percentage = 100 / np.prod(patch_size)
-    config = create_n2v_configuration(
+    config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
@@ -247,7 +247,7 @@ def test_predict_to_disk_datamodule_tiff(tmp_path: Path):
     # create configuration
     patch_size = [8, 8]
     masked_pixel_percentage = 100 / np.prod(patch_size)
-    config = create_n2v_configuration(
+    config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
@@ -314,7 +314,7 @@ def test_predict_to_disk_custom(tmp_path: Path):
     # create configuration
     patch_size = [8, 8]
     masked_pixel_percentage = 100 / np.prod(patch_size)
-    config = create_n2v_configuration(
+    config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
@@ -380,7 +380,7 @@ def test_predict_to_disk_custom_raises(tmp_path: Path):
     # create configuration
     patch_size = [8, 8]
     masked_pixel_percentage = 100 / np.prod(patch_size)
-    config = create_n2v_configuration(
+    config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
