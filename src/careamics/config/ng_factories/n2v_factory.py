@@ -206,7 +206,7 @@ def create_advanced_n2v_config(
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
     # - Lightning parameters
-    n_workers: int = 0,
+    num_workers: int = 0,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -241,25 +241,23 @@ def create_advanced_n2v_config(
     By default, all channels are trained independently. To train all channels together,
     set `independent_channels` to False.
 
-    By default, the transformations applied are a random flip along X or Y, and a random
-    90 degrees rotation in the XY plane. Normalization is always applied, as well as the
-    N2V manipulation.
-
-    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
-    rotations by 90 degrees in the XY plane) are applied. Rather than the default
-    transforms, a list of transforms can be passed to the `augmentations` parameter. To
-    disable the transforms, simply pass an empty list.
+    By default, the augmentations applied are random flips along X or Y, and random
+    90 degrees rotations in the XY plane. To disable the augmentations, simply pass an
+    empty list.
 
     The `roi_size` parameter specifies the size of the area around each pixel that will
     be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
     pixels per patch will be manipulated.
 
+    If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
+    will be applied to each manipulated pixel.
+
     The parameters of the UNet can be specified in the `model_params` (passed as a
     parameter-value dictionary). Note that `use_n2v2` and 'n_channels' override the
     corresponding parameters passed in `model_params`.
 
-    If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
-    will be applied to each manipulated pixel.
+    Note that `num_workers` is applied to all dataloaders unless explicitly overridden
+    in the respective dataloader parameters.
 
     Parameters
     ----------
@@ -314,8 +312,10 @@ def create_advanced_n2v_config(
         Axis along which to apply structN2V mask.
     struct_n2v_span : int, default=5
         Span of the structN2V mask.
-    n_workers : int, default=0
-        Number of workers for data loading.
+    num_workers : int, default=0
+        Number of workers for data loading. Unless explicitly overridden in
+        `train_dataloader_params` and `val_dataloader_params`, this will be applied to
+        all dataloaders.
     trainer_params : dict | None, default=None
         Parameters for the trainer, see the relevant documentation.
     model_params : dict | None, default=None
@@ -331,12 +331,9 @@ def create_advanced_n2v_config(
         details.
     train_dataloader_params : dict[str, Any] | None, default=None
         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
-        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
-        the `GeneralDataConfig`.
+        If left as `None`, `{"shuffle": True}` will be used.
     val_dataloader_params : dict[str, Any] | None, default=None
         Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
-        If left as `None`, the empty dict `{}` will be used, this is set in the
-        `GeneralDataConfig`.
     checkpoint_params : dict[str, Any] | None, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
@@ -409,7 +406,7 @@ def create_advanced_n2v_config(
         normalization=norm_config,
         channels=channels,
         in_memory=in_memory,
-        n_workers=n_workers,
+        num_workers=num_workers,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
         seed=seed,
