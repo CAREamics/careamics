@@ -79,6 +79,9 @@ def create_ng_data_configuration(
     """
     Create a training NGDatasetConfig.
 
+    Note that `num_workers` is applied to all dataloaders unless explicitly overridden
+    in the respective dataloader parameters.
+
     Parameters
     ----------
     data_type : {"array", "tiff", "zarr", "czi", "custom"}
@@ -147,20 +150,25 @@ def create_ng_data_configuration(
         if "shuffle" not in train_dataloader_params:
             train_dataloader_params["shuffle"] = True
 
-        train_dataloader_params["num_workers"] = num_workers
+        if "num_workers" not in train_dataloader_params:
+            train_dataloader_params["num_workers"] = num_workers
 
         data["train_dataloader_params"] = train_dataloader_params
     else:
         data["train_dataloader_params"] = {"shuffle": True, "num_workers": num_workers}
 
     if val_dataloader_params is not None:
-        val_dataloader_params["num_workers"] = num_workers
+        if "num_workers" not in val_dataloader_params:
+            val_dataloader_params["num_workers"] = num_workers
+
         data["val_dataloader_params"] = val_dataloader_params
     else:
         data["val_dataloader_params"] = {"shuffle": False, "num_workers": num_workers}
 
     if pred_dataloader_params is not None:
-        pred_dataloader_params["num_workers"] = num_workers
+        if "num_workers" not in pred_dataloader_params:
+            pred_dataloader_params["num_workers"] = num_workers
+
         data["pred_dataloader_params"] = pred_dataloader_params
     else:
         data["pred_dataloader_params"] = {"shuffle": False, "num_workers": num_workers}
