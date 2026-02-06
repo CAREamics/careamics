@@ -116,27 +116,6 @@ class ZarrImageStack:
         return self._data_dtype
 
     def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
-    ) -> NDArray:
-        """Extract a patch from the array without channel selection.
-
-        Parameters
-        ----------
-        sample_idx : int
-            Sample index to extract.
-        coords : Sequence[int]
-            Coordinates of the patch to extract (excluding channels).
-        patch_size : Sequence[int]
-            Size of the patch to extract (excluding channels).
-
-        Returns
-        -------
-        NDArray
-            Extracted patch.
-        """
-        return self.extract_channel_patch(sample_idx, None, coords, patch_size)
-
-    def extract_channel_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,  # `channels = None` to select all channels,

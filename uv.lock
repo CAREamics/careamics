@@ -420,7 +420,7 @@ requires-dist = [
     { name = "psutil", specifier = "<=7.2.2" },
     { name = "pydantic", specifier = ">=2.11,<=2.12.5" },
     { name = "pylibczirw", marker = "extra == 'czi'", specifier = ">=4.1.2,<6.0.0" },
-    { name = "pytorch-lightning", specifier = ">=2.2,<=2.6.0" },
+    { name = "pytorch-lightning", specifier = ">=2.2,<=2.6.1" },
     { name = "pyyaml", specifier = "!=6.0.0,<=6.0.3" },
     { name = "scikit-image", specifier = "<=0.26.0" },
     { name = "tensorboard", marker = "extra == 'tensorboard'" },
@@ -438,7 +438,7 @@ provides-extras = ["czi", "examples", "tensorboard", "wandb"]
 [package.metadata.requires-dev]
 dev = [
     { name = "ml-dtypes", specifier = ">=0.5.0" },
-    { name = "onnxscript", specifier = "<=0.5.7" },
+    { name = "onnxscript", specifier = "<=0.6.0" },
     { name = "pre-commit" },
     { name = "pylibczirw", specifier = ">=4.1.2,<6.0.0" },
     { name = "pytest" },
