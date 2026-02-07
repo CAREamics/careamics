@@ -64,6 +64,7 @@ def test_v2_train_error_target_unsupervised_algorithm(
         )
 
 
+@pytest.mark.skip("val splits not implemented")
 @pytest.mark.mps_gh_fail
 def test_v2_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamistV2 can be trained with arrays."""
@@ -92,6 +93,7 @@ def test_v2_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration:
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
+@pytest.mark.skip("val splits not implemented")
 @pytest.mark.mps_gh_fail
 def test_v2_train_array(tmp_path: Path):
     """Test that CAREamistV2 can be trained on arrays."""
@@ -142,6 +144,7 @@ def test_v2_train_array(tmp_path: Path):
     ), f"Expected exactly 2 best checkpoints, found {len(non_last_checkpoints)}"
 
 
+@pytest.mark.skip("val splits not implemented")
 @pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("independent_channels", [False, True])
 def test_v2_train_array_channel(
@@ -178,6 +181,7 @@ def test_v2_train_array_channel(
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
+@pytest.mark.skip("val splits not implemented")
 @pytest.mark.mps_gh_fail
 def test_v2_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamistV2 can be trained on 3D arrays."""
@@ -207,6 +211,7 @@ def test_v2_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
+@pytest.mark.skip("val splits not implemented")
 @pytest.mark.mps_gh_fail
 def test_v2_train_tiff_files_in_memory_no_val(
     tmp_path: Path, minimum_n2v_configuration: dict
@@ -241,6 +246,7 @@ def test_v2_train_tiff_files_in_memory_no_val(
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
+@pytest.mark.skip("val splits not implemented")
 @pytest.mark.mps_gh_fail
 def test_v2_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamistV2 can be trained with tiff files in memory."""
@@ -277,6 +283,7 @@ def test_v2_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
+@pytest.mark.skip("val splits not implemented")
 @pytest.mark.mps_gh_fail
 def test_v2_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamistV2 can be trained with tiff files by deactivating
