@@ -330,7 +330,7 @@ class CAREamistV2:
         extension_filter: str = "",
     ) -> list[NDArray]:
         """
-        Make predictions on the provided data.
+        Predict on data and returns the prediction.
 
         Input can be a CareamicsDataModule instance, a path to a data file, a list of
         paths, a numpy array, or a list of numpy arrays.
