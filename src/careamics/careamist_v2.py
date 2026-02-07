@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import (
     Any,
@@ -96,7 +96,8 @@ class CAREamistV2:
         )
         if n_inputs != 1:
             raise ValueError(
-                "Exactly one of `config`, `checkpoint_path`, or `bmz_path` must be provided."
+                "Exactly one of `config`, `checkpoint_path`, or `bmz_path` "
+                "must be provided."
             )
         if config is not None:
             return self._from_config(config)
@@ -129,7 +130,8 @@ class CAREamistV2:
                 "Could not find CAREamics related information within the provided "
                 "checkpoint. This means that it was saved without using the "
                 "CAREamics callback `CareamicsCheckpointInfo`. "
-                "Please use a checkpoint saved with CAREamics or initialize with a config instead."
+                "Please use a checkpoint saved with CAREamics or initialize with "
+                "a config instead."
             )
 
         try:
@@ -274,22 +276,19 @@ class CAREamistV2:
         # ^ this will load optimizer and lr_schedular state dicts
         raise NotImplementedError("Training is not implemented yet.")
 
-
     @overload
-    def predict(
-        self, source: CareamicsDataModule
-    ) -> list[NDArray]: ...
+    def predict(self, pred_data: CareamicsDataModule) -> list[NDArray]: ...
 
     @overload
     def predict(
         self,
-        source: Union[Path, str],
+        pred_data: Union[Path, str, Sequence[Union[Path, str]]],
         *,
         batch_size: int = 1,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["tiff", "custom"] | None = None,
+        data_type: Literal["tiff", "zarr", "custom"] | None = None,
         read_source_func: Callable | None = None,
         extension_filter: str = "",
     ) -> list[NDArray]: ...
@@ -297,7 +296,7 @@ class CAREamistV2:
     @overload
     def predict(
         self,
-        source: NDArray,
+        pred_data: Union[NDArray, Sequence[NDArray]],
         *,
         batch_size: int = 1,
         tile_size: tuple[int, ...] | None = None,
@@ -309,14 +308,23 @@ class CAREamistV2:
     def predict(
         self,
         # BASIC PARAMS
-        pred_data: CareamicsDataModule | Path | str | NDArray,
+        pred_data: (
+            CareamicsDataModule
+            | Path
+            | str
+            | NDArray
+            | Sequence[Union[Path, str, NDArray]]
+        ),
         *,
-        batch_size: int = 1,
+        batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "custom"] | None = None,
         # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
         read_source_func: Callable | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
@@ -324,33 +332,41 @@ class CAREamistV2:
         """
         Make predictions on the provided data.
 
-        Input can be a CareamicsDataModule instance, a path to a data file, or a numpy
-        array.
+        Input can be a CareamicsDataModule instance, a path to a data file, a list of
+        paths, a numpy array, or a list of numpy arrays.
 
-        If `data_type`, `axes` and `tile_size` are not provided, the training
-        configuration parameters will be used, with the `patch_size` instead of
-        `tile_size`.
+        If `data_type` and `axes` are not provided, the training configuration
+        parameters will be used. If `tile_size` is not provided prediction will be performed on the whole image.
 
         Note that if you are using a UNet model and tiling, the tile size must be
         divisible in every dimension by 2**d, where d is the depth of the model. This
         avoids artefacts arising from the broken shift invariance induced by the
-        pooling layers of the UNet. If your image has less dimensions, as it may
-        happen in the Z dimension, consider padding your image.
+        pooling layers of the UNet. Images smaller than the tile size in any spatial
+        dimension will be automatically zero-padded.
 
         Parameters
         ----------
-        pred_data : CareamicsDataModule, pathlib.Path, str or numpy.ndarray
-            Data to predict on.
-        batch_size : int, default=1
-            Batch size for prediction.
+        pred_data : CareamicsDataModule, pathlib.Path, str, numpy.ndarray, or sequence
+            Data to predict on. Can be a single item or a sequence of paths/arrays.
+        batch_size : int, optional
+            Batch size for prediction. If not provided, uses the training configuration
+            batch size.
         tile_size : tuple of int, optional
-            Size of the tiles to use for prediction.
+            Size of the tiles to use for prediction. If not provided, prediction will be performed on the whole image.
         tile_overlap : tuple of int, default=(48, 48)
             Overlap between tiles, can be None.
         axes : str, optional
             Axes of the input data, by default None.
         data_type : {"array", "tiff", "zarr", "custom"}, optional
             Type of the input data.
+        num_workers : int, optional
+            Number of workers for the dataloader, by default None.
+        channels : sequence of int or "all", optional
+            Channels to use from the data. If None, uses the training configuration
+            channels.
+        in_memory : bool, optional
+            Whether to load all data into memory. If None, uses the training
+            configuration setting.
         read_source_func : Callable, optional
             Function to read the source data.
         read_kwargs : dict of {str: Any}, optional
@@ -372,6 +388,11 @@ class CAREamistV2:
         if isinstance(pred_data, CareamicsDataModule):
             datamodule = pred_data
         else:
+            # Prepare dataloader params
+            dataloader_params: dict[str, Any] | None = None
+            if num_workers is not None:
+                dataloader_params = {"num_workers": num_workers}
+
             # Create prediction data config using convert_mode
             pred_data_config = self.config.data_config.convert_mode(
                 new_mode="predicting",
@@ -380,6 +401,8 @@ class CAREamistV2:
                 new_batch_size=batch_size,
                 new_data_type=data_type,
                 new_axes=axes,
+                new_channels=channels,
+                new_in_memory=in_memory,
             )
 
             # Create datamodule for prediction
@@ -413,6 +436,8 @@ class CAREamistV2:
         data_type: Literal["array", "tiff", "zarr", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
         read_source_func: Callable | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
@@ -425,41 +450,42 @@ class CAREamistV2:
         """
         Make predictions on the provided data and save outputs to files.
 
-        The predictions will be saved in a new directory 'predictions' within the set
-        working directory. The directory stucture within the 'predictions' directory
-        will match that of the source directory.
+        The predictions will be saved in the specified `prediction_dir`. If
+        `prediction_dir` is an absolute path, it will be used as-is. If it is a relative
+        path, it will be relative to the pre-set `work_dir`. The directory structure
+        within the `prediction_dir` will match that of the source directory.
 
-        The `pred_data` must be from files and not arrays. The file names of the
-        predictions will match those of the source. If there is more than one sample
-        within a file, the samples will be saved to seperate files. The file names of
-        samples will have the name of the corresponding source file but with the sample
-        index appended. E.g. If the the source file name is 'images.tiff' then the first
-        sample's prediction will be saved with the file name "image_0.tiff".
+        The file names of the predictions will match those of the source. If there is
+        more than one sample within a file, the samples will be stacked along the sample
+        dimension in the output file.
 
-        If `data_type`, `axes` and `tile_size` are not provided, the training
-        configuration parameters will be used, with the `patch_size` instead of
-        `tile_size`.
+        If `data_type` and `axes` are not provided, the training configuration
+        parameters will be used. If `tile_size` is not provided, the whole image
+        strategy will be used for prediction.
 
         Note that if you are using a UNet model and tiling, the tile size must be
         divisible in every dimension by 2**d, where d is the depth of the model. This
         avoids artefacts arising from the broken shift invariance induced by the
-        pooling layers of the UNet. If your image has less dimensions, as it may
-        happen in the Z dimension, consider padding your image.
+        pooling layers of the UNet. Images smaller than the tile size in any spatial
+        dimension will be automatically zero-padded.
 
         Parameters
         ----------
-        pred_data : pathlib.Path, str or CareamicsDataModule
-            Data to predict on. Cannot be an array.
+        pred_data : pathlib.Path, str, numpy.ndarray, sequence, or CareamicsDataModule
+            Data to predict on. Can be a single item, a sequence of paths/arrays, or
+            a CareamicsDataModule instance.
         pred_data_target : Any, optional
             Prediction data target, by default None.
         prediction_dir : Path | str, default="predictions"
-            The path to save the prediction results to. If `prediction_dir` is not
-            absolute, the directory will be assumed to be relative to the pre-set
-            `work_dir`. If the directory does not exist it will be created.
+            The path to save the prediction results to. If `prediction_dir` is an
+            absolute path, it will be used as-is. If it is a relative path, it will
+            be relative to the pre-set `work_dir`. If the directory does not exist it
+            will be created.
         batch_size : int, default=1
             Batch size for prediction.
         tile_size : tuple of int, optional
-            Size of the tiles to use for prediction.
+            Size of the tiles to use for prediction. If not provided, uses whole image
+            strategy.
         tile_overlap : tuple of int, default=(48, 48)
             Overlap between tiles.
         axes : str, optional
@@ -468,6 +494,12 @@ class CAREamistV2:
             Type of the input data.
         num_workers : int, optional
             Number of workers for the dataloader, by default None.
+        channels : sequence of int or "all", optional
+            Channels to use from the data. If None, uses the training configuration
+            channels.
+        in_memory : bool, optional
+            Whether to load all data into memory. If None, uses the training
+            configuration setting.
         read_source_func : Callable, optional
             Function to read the source data.
         read_kwargs : dict of {str: Any}, optional
@@ -493,8 +525,6 @@ class CAREamistV2:
             If `write_type` is custom and `write_func` is None.
         ValueError
             If `pred_data` is not provided.
-        ValueError
-            If `pred_data` is an array (not supported for predict_to_disk).
         """
         if pred_data is None:
             raise ValueError("pred_data must be provided for predict_to_disk.")
@@ -535,13 +565,18 @@ class CAREamistV2:
         )
 
         # Enable writing
-        self.prediction_writer.writing_predictions = True
+        self.prediction_writer.enable_writing(True)
 
         try:
             # Create datamodule if not already provided
             if isinstance(pred_data, CareamicsDataModule):
                 datamodule = pred_data
             else:
+                # Prepare dataloader params
+                dataloader_params: dict[str, Any] | None = None
+                if num_workers is not None:
+                    dataloader_params = {"num_workers": num_workers}
+
                 # Create prediction data config using convert_mode
                 pred_data_config = self.config.data_config.convert_mode(
                     new_mode="predicting",
@@ -550,6 +585,9 @@ class CAREamistV2:
                     new_batch_size=batch_size,
                     new_data_type=data_type,
                     new_axes=axes,
+                    new_channels=channels,
+                    new_in_memory=in_memory,
+                    new_dataloader_params=dataloader_params,
                 )
 
                 # Create datamodule for prediction
@@ -563,12 +601,13 @@ class CAREamistV2:
                 )
 
             # Predict (writing will be handled by the callback)
-            self.trainer.predict(model=self.model, datamodule=datamodule)
+            self.trainer.predict(
+                model=self.model, datamodule=datamodule, return_predictions=False
+            )
 
         finally:
             # Disable writing after prediction is complete
-            self.prediction_writer.writing_predictions = False
-
+            self.prediction_writer.enable_writing(False)
 
     def export_to_bmz(
         self,
@@ -655,4 +694,4 @@ class CAREamistV2:
     def stop_training(self) -> None:
         """Stop the training loop."""
         self.trainer.should_stop = True
-        self.trainer.limit_val_batches = 0 # skip validation
+        self.trainer.limit_val_batches = 0  # skip validation
