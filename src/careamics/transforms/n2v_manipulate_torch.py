@@ -1,6 +1,7 @@
 """N2V manipulation transform for PyTorch."""
 
 import platform
+import random
 from typing import Any
 
 import torch
@@ -94,11 +95,21 @@ class N2VManipulateTorch:
             else:
                 device = "cpu"
 
-        self.rng = (
-            torch.Generator(device=device).manual_seed(seed)
-            if seed is not None
-            else torch.Generator(device=device)
+        # Use seed from config if available, otherwise use the seed parameter
+        effective_seed = (
+            n2v_manipulate_config.seed
+            if n2v_manipulate_config.seed is not None
+            else seed
         )
+
+        if effective_seed is not None:
+            self.rng = torch.Generator(device=device).manual_seed(effective_seed)
+        else:
+            # When no seed is provided, seed with a random value from
+            # torch's default RNG
+            self.rng = torch.Generator(device=device).manual_seed(
+                random.randint(0, 1000000)
+            )
 
     def __call__(
         self, batch: torch.Tensor, *args: Any, **kwargs: Any

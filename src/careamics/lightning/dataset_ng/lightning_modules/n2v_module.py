@@ -53,7 +53,8 @@ class N2VModule(L.LightningModule):
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
         self.n2v_manipulate = N2VManipulateTorch(
-            n2v_manipulate_config=self.config.n2v_config
+            n2v_manipulate_config=self.config.n2v_config,
+            seed=self.config.n2v_config.seed,
         )
         self.loss_func = n2v_loss
 
