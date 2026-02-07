@@ -13,7 +13,7 @@ from .config.utils.configuration_io import load_configuration_ng
 from .config.ng_configs import N2VConfiguration
 from .config.support import SupportedData, SupportedLogger
 from .dataset.dataset_utils import reshape_array
-from .file_io import ReadFunc, WriteFunc
+from .file_io import WriteFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.data_module import CareamicsDataModule
@@ -120,46 +120,70 @@ class CAREamistV2:
     ) -> tuple[Configuration, CAREamicsModule]:
         checkpoint: dict = torch.load(checkpoint_path, map_location="cpu")
 
-        careamics_info = checkpoint.get("careamics_info", None)
-        if careamics_info is None:
-            raise ValueError(
-                "Could not find CAREamics related information within the provided "
-                "checkpoint. This means that it was saved without using the "
-                "CAREamics callback `CareamicsCheckpointInfo`. "
-                "Please use a checkpoint saved with CAREamics or initialize with a "
-                "config instead."
-            )
-
+        # REQUIRED: Extract algorithm_config from hyper_parameters
         try:
             algorithm_config: dict[str, Any] = checkpoint["hyper_parameters"][
                 "algorithm_config"
             ]
         except (KeyError, IndexError) as e:
             raise ValueError(
-                "Could not determine CAREamics supported algorithm from the provided "
-                f"checkpoint at: {checkpoint_path!s}."
+                f"Could not find algorithm_config in checkpoint at: {checkpoint_path}. "
+                f"This checkpoint may not have been saved with CAREamics."
             ) from e
 
-        data_hparams_key = checkpoint.get(
-            "datamodule_hparams_name", "datamodule_hyper_parameters"
-        )
-        try:
-            data_config: dict[str, Any] = checkpoint[data_hparams_key]["data_config"]
-        except (KeyError, IndexError) as e:
+        # REQUIRED: Extract data_config - try multiple locations
+        data_config: dict[str, Any] | None = None
+
+        # Location 1: New format - datamodule hyperparameters
+        data_hparams_key = checkpoint.get("datamodule_hparams_name") or "datamodule_hyper_parameters"
+        if data_hparams_key in checkpoint:
+            data_config = checkpoint[data_hparams_key].get("data_config")
+
+        # Location 2: Old format - in hyper_parameters
+        if data_config is None:
+            data_config = checkpoint.get("hyper_parameters", {}).get("data_config")
+
+        if data_config is None:
             raise ValueError(
-                "Could not determine the data configuration from the provided "
-                f"checkpoint at: {checkpoint_path!s}."
-            ) from e
+                f"Could not find data_config in checkpoint at: {checkpoint_path}. "
+                f"This checkpoint may not have been saved with CAREamics."
+            )
+
+        # Extract metadata with fallbacks
+        careamics_info = checkpoint.get("careamics_info", {})
+
+        # version - default to "0.1.0"
+        version = careamics_info.get(
+            "version",
+            checkpoint.get("hyper_parameters", {}).get("version", "0.1.0"),
+        )
+
+        # experiment_name - default to "loaded_from_checkpoint"
+        experiment_name = careamics_info.get(
+            "experiment_name",
+            checkpoint.get("hyper_parameters", {}).get(
+                "experiment_name", "loaded_from_checkpoint"
+            ),
+        )
+
+        # training_config - defaults handled by TrainingConfig()
+        training_config_dict = careamics_info.get(
+            "training_config",
+            checkpoint.get("hyper_parameters", {}).get("training_config", {}),
+        )
 
         # TODO: will need to resolve this with type adapter once more configs are added
         config = Configuration.model_validate(
             {
                 "algorithm_config": algorithm_config,
                 "data_config": data_config,
-                **careamics_info,
+                "version": version,
+                "experiment_name": experiment_name,
+                "training_config": training_config_dict,
             }
         )
 
+        # Load the module with weights
         module = load_module_from_checkpoint(checkpoint_path)
         return config, module
 
