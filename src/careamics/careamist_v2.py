@@ -1,30 +1,29 @@
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal, TypedDict, Unpack
+from typing import Any, Literal, TypedDict, Union, Unpack
 
+import numpy as np
 import torch
 from numpy.typing import NDArray
-import numpy as np
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from careamics.lightning.dataset_ng.lightning_modules.get_module import CAREamicsModule
-
 from .config import load_configuration_ng
 from .config.ng_configs import N2VConfiguration
-from .config.support import SupportedAlgorithm, SupportedLogger, SupportedData
-from .file_io import WriteFunc
+from .config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from .dataset.dataset_utils import reshape_array
-from .model_io import export_to_bmz
+from .file_io import WriteFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
+from .lightning.dataset_ng.data_module import CareamicsDataModule
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
     create_module,
     load_module_from_checkpoint,
 )
-from .utils import get_logger
+from .model_io import export_to_bmz
+from .utils import check_path_exists, get_logger
 from .utils.lightning_utils import read_csv_logger
 
 logger = get_logger(__name__)
@@ -59,8 +58,9 @@ class CAREamistV2:
         callbacks = user_context.get("callbacks", None)
         self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
 
-        self.prediction_writer = PredictionWriterCallback(self.work_dir)
-        self.prediction_writer.disable_writing(True)
+        self.prediction_writer = PredictionWriterCallback(
+            self.work_dir, enable_writing=False
+        )
 
         experiment_loggers = self._create_loggers(
             self.config.training_config.logger,
@@ -74,6 +74,9 @@ class CAREamistV2:
             logger=experiment_loggers,
             **self.config.training_config.lightning_trainer_config or {},
         )
+
+        # Placeholder for the datamodule
+        self.train_datamodule: CareamicsDataModule | None = None
 
     def _load_model(
         self,
@@ -258,11 +261,230 @@ class CAREamistV2:
         read_source_func: Callable | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
+        use_in_memory: bool = True,
     ) -> None:
-        # TODO: init datamodule
-        # TODO: remember to pass self.checkpoint_path to Trainer.fit
-        # ^ this will load optimizer and lr_schedular state dicts
-        raise NotImplementedError("Training is not implemented yet.")
+        """Train the model on the provided data.
+
+        The training data can be provided as arrays or paths. If `use_in_memory`
+        is set to True, the source provided as Path or str will be loaded in memory
+        if it fits. Otherwise, training will be performed by loading patches from
+        the files one by one. Training on arrays is always performed in memory.
+
+        If no validation data is provided, then the validation is extracted from
+        the training data using default values (10% with minimum 5 patches/files).
+
+        Parameters
+        ----------
+        train_data : pathlib.Path or str or numpy.ndarray, optional
+            Training data, by default None.
+        train_data_target : pathlib.Path or str or numpy.ndarray, optional
+            Training target data, by default None.
+        val_data : pathlib.Path or str or numpy.ndarray, optional
+            Validation data, by default None.
+        val_data_target : pathlib.Path or str or numpy.ndarray, optional
+            Validation target data, by default None.
+        filtering_mask : Any, optional
+            Filtering mask for coordinate-based patch filtering, by default None.
+        read_source_func : Callable, optional
+            Function to read the source data, by default None.
+        read_kwargs : dict[str, Any], optional
+            Keyword arguments for the read function, by default None.
+        extension_filter : str, optional
+            Filter for file extensions, by default "".
+        use_in_memory : bool, optional
+            Use in memory dataset if possible, by default True.
+
+        Raises
+        ------
+        ValueError
+            If sources are not of the same type (e.g. train is an array and val is
+            a Path).
+        ValueError
+            If the training target is provided to N2V.
+        ValueError
+            If neither train_data nor a datamodule is provided.
+        """
+        if train_data is None:
+            raise ValueError(
+                "Training data must be provided. Either provide `train_data` or "
+                "use a datamodule (not yet supported)."
+            )
+
+        # Check that inputs are the same type
+        source_types = {
+            type(s)
+            for s in (train_data, val_data, train_data_target, val_data_target)
+            if s is not None
+        }
+        if len(source_types) > 1:
+            raise ValueError("All sources should be of the same type.")
+
+        # Raise error if target is provided to N2V
+        if self.config.algorithm_config.algorithm == SupportedAlgorithm.N2V.value:
+            if train_data_target is not None:
+                raise ValueError("Training target not compatible with N2V training.")
+
+        # Dispatch the training based on input type
+        if isinstance(train_data, np.ndarray):
+            # mypy checks
+            assert isinstance(val_data, np.ndarray) or val_data is None
+            assert (
+                isinstance(train_data_target, np.ndarray) or train_data_target is None
+            )
+            assert isinstance(val_data_target, np.ndarray) or val_data_target is None
+
+            self._train_on_array(
+                train_data,
+                val_data,
+                train_data_target,
+                val_data_target,
+            )
+
+        elif isinstance(train_data, (Path, str)):
+            # mypy checks
+            assert isinstance(val_data, (Path, str)) or val_data is None
+            assert (
+                isinstance(train_data_target, (Path, str)) or train_data_target is None
+            )
+            assert isinstance(val_data_target, (Path, str)) or val_data_target is None
+
+            self._train_on_path(
+                train_data,
+                val_data,
+                train_data_target,
+                val_data_target,
+                use_in_memory,
+                read_source_func,
+                read_kwargs,
+                extension_filter,
+            )
+
+        else:
+            raise ValueError(
+                f"Invalid input, expected a str, Path, or array "
+                f"(got {type(train_data)})."
+            )
+
+    def _train_on_datamodule(self, datamodule: CareamicsDataModule) -> None:
+        """Train the model on the provided datamodule.
+
+        Parameters
+        ----------
+        datamodule : CareamicsDataModule
+            Datamodule to train on.
+        """
+        # Register datamodule
+        self.train_datamodule = datamodule
+
+        # Set defaults (in case `stop_training` was called before)
+        self.trainer.should_stop = False
+        self.trainer.limit_val_batches = 1.0  # 100%
+
+        # Train
+        ckpt_path = (
+            str(self.checkpoint_path) if self.checkpoint_path is not None else None
+        )
+        self.trainer.fit(self.model, datamodule=datamodule, ckpt_path=ckpt_path)
+
+    def _train_on_array(
+        self,
+        train_data: NDArray,
+        val_data: NDArray | None = None,
+        train_target: NDArray | None = None,
+        val_target: NDArray | None = None,
+    ) -> None:
+        """Train the model on the provided data arrays.
+
+        Parameters
+        ----------
+        train_data : NDArray
+            Training data.
+        val_data : NDArray, optional
+            Validation data, by default None.
+        train_target : NDArray, optional
+            Train target data, by default None.
+        val_target : NDArray, optional
+            Validation target data, by default None.
+        """
+        # Create datamodule
+        datamodule = CareamicsDataModule(
+            data_config=self.config.data_config,
+            train_data=train_data,
+            val_data=val_data,
+            train_data_target=train_target,
+            val_data_target=val_target,
+            read_source_func=None,
+            read_kwargs=None,
+            extension_filter="",
+            val_percentage=0.1,
+            val_minimum_split=5,
+        )
+
+        # Train
+        self._train_on_datamodule(datamodule)
+
+    def _train_on_path(
+        self,
+        path_to_train_data: Union[Path, str],
+        path_to_val_data: Union[Path, str] | None = None,
+        path_to_train_target: Union[Path, str] | None = None,
+        path_to_val_target: Union[Path, str] | None = None,
+        use_in_memory: bool = True,
+        read_source_func: Callable | None = None,
+        read_kwargs: dict[str, Any] | None = None,
+        extension_filter: str = "",
+    ) -> None:
+        """Train the model on the provided data paths.
+
+        Parameters
+        ----------
+        path_to_train_data : pathlib.Path or str
+            Path to the training data.
+        path_to_val_data : pathlib.Path or str, optional
+            Path to validation data, by default None.
+        path_to_train_target : pathlib.Path or str, optional
+            Path to train target data, by default None.
+        path_to_val_target : pathlib.Path or str, optional
+            Path to validation target data, by default None.
+        use_in_memory : bool, optional
+            Use in memory dataset if possible, by default True.
+        """
+        # Sanity check on data (path exists)
+        path_to_train_data = check_path_exists(path_to_train_data)
+
+        if path_to_val_data is not None:
+            path_to_val_data = check_path_exists(path_to_val_data)
+
+        if path_to_train_target is not None:
+            path_to_train_target = check_path_exists(path_to_train_target)
+
+        if path_to_val_target is not None:
+            path_to_val_target = check_path_exists(path_to_val_target)
+
+        # Update in_memory setting in data_config
+        original_in_memory = self.config.data_config.in_memory
+        self.config.data_config.in_memory = use_in_memory
+
+        try:
+            # Create datamodule
+            datamodule = CareamicsDataModule(
+                data_config=self.config.data_config,
+                train_data=path_to_train_data,
+                val_data=path_to_val_data,
+                train_data_target=path_to_train_target,
+                val_data_target=path_to_val_target,
+                read_source_func=read_source_func,
+                read_kwargs=read_kwargs,
+                extension_filter=extension_filter,
+                val_percentage=0.1,
+                val_minimum_split=5,
+            )
+
+            # Train
+            self._train_on_datamodule(datamodule)
+        finally:
+            # Restore original in_memory setting
+            self.config.data_config.in_memory = original_in_memory
 
     def predict(
         self,
@@ -391,4 +613,4 @@ class CAREamistV2:
     def stop_training(self) -> None:
         """Stop the training loop."""
         self.trainer.should_stop = True
-        self.trainer.limit_val_batches = 0 # skip validation
+        self.trainer.limit_val_batches = 0  # skip validation
