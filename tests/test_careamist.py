@@ -4,6 +4,7 @@ from threading import Thread
 import numpy as np
 import pytest
 import tifffile
+import torch
 from numpy.typing import NDArray
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
@@ -181,6 +182,64 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
         data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
+
+
+@pytest.mark.mps_gh_fail
+def test_train_array_mask_changes_per_epoch(
+    tmp_path: Path, minimum_n2v_configuration: dict
+):
+    """Test that N2V masks change across epochs when seed is not set."""
+    # training data
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_n2v_configuration)
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+    config.training_config.lightning_trainer_config = {"max_epochs": 2}
+    # Ensure seed is None for randomness
+    if hasattr(config.algorithm_config, "n2v_config"):
+        config.algorithm_config.n2v_config.seed = None
+
+    class MaskCaptureCallback(Callback):
+        def __init__(self):
+            self.epoch_masks: dict[int, torch.Tensor] = {}
+
+        def on_train_batch_start(self, trainer, pl_module, batch, batch_idx) -> None:
+            if batch_idx == 0:  # Only capture first batch of each epoch
+                if (
+                    hasattr(pl_module, "n2v_preprocess")
+                    and pl_module.n2v_preprocess is not None
+                ):
+                    # Apply transform to get mask
+                    x, *_ = batch
+                    _, _, mask = pl_module.n2v_preprocess(x)
+                    self.epoch_masks[trainer.current_epoch] = mask.clone()
+
+    mask_callback = MaskCaptureCallback()
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path, callbacks=[mask_callback])
+
+    # train CAREamist
+    careamist.train(train_source=train_array, val_source=val_array)
+
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+
+    # Verify we captured masks from both epochs
+    assert 0 in mask_callback.epoch_masks
+    assert 1 in mask_callback.epoch_masks
+
+    # Verify masks are different between epochs (when seed is None)
+    mask_epoch0 = mask_callback.epoch_masks[0]
+    mask_epoch1 = mask_callback.epoch_masks[1]
+    assert not torch.equal(
+        mask_epoch0, mask_epoch1
+    ), "Masks should differ between epochs when seed is None"
 
 
 @pytest.mark.mps_gh_fail

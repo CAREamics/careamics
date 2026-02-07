@@ -27,6 +27,8 @@ class N2VManipulateConfig(TransformConfig):
         Axis of the structN2V mask, by default "none".
     struct_mask_span : int
         Span of the structN2V mask, by default 5.
+    seed : Optional[int]
+        Random seed for reproducibility, by default None.
     """
 
     model_config = ConfigDict(
@@ -52,6 +54,9 @@ class N2VManipulateConfig(TransformConfig):
 
     struct_mask_span: int = Field(default=5, ge=3, le=15)
     """Size of the structN2V mask."""
+
+    seed: int | None = None
+    """Random seed for reproducibility, by default None."""
 
     @field_validator("roi_size", "struct_mask_span")
     @classmethod

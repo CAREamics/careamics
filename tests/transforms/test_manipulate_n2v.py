@@ -57,3 +57,31 @@ def test_manipulate_n2v_torch(strategy):
     diff_coords = torch.nonzero(tr_patch != orig_patch, as_tuple=False).T
     mask_coords = torch.nonzero(mask == 1, as_tuple=False).T
     assert torch.equal(diff_coords, mask_coords)
+
+
+def test_manipulate_n2v_torch_with_seed():
+    """Test that seed is properly used for reproducibility."""
+    # Create tensor, adding a channel to simulate a 2D image with channel first
+    array = torch.arange(16 * 16).reshape(1, 16, 16).float()
+
+    # Test with seed - should produce same masks
+    config = N2VManipulateConfig(roi_size=5, masked_pixel_percentage=5, seed=1)
+    aug1 = N2VManipulateTorch(config, device="cpu")
+    aug2 = N2VManipulateTorch(config, device="cpu")
+
+    _, _, mask1 = aug1(array)
+    _, _, mask2 = aug2(array)
+
+    # Same seed should produce same masks
+    assert torch.equal(mask1, mask2)
+
+    # Test without seed - should produce different masks
+    config_no_seed = N2VManipulateConfig(
+        roi_size=5, masked_pixel_percentage=5, seed=None
+    )
+    aug3 = N2VManipulateTorch(config_no_seed, device="cpu")
+
+    _, _, mask3 = aug3(array)
+
+    # No seed should produce different masks (very unlikely to be the same)
+    assert not torch.equal(mask2, mask3)

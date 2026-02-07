@@ -432,7 +432,7 @@ def create_advanced_n2v_config(
     )
 
     # create the N2VManipulate transform using the supplied parameters
-    n2v_transform = N2VManipulateConfig(  # TODO should be seeded
+    n2v_transform = N2VManipulateConfig(
         name=SupportedTransform.N2V_MANIPULATE.value,
         strategy=(
             SupportedPixelManipulation.MEDIAN.value
@@ -443,6 +443,7 @@ def create_advanced_n2v_config(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
+        seed=seed,
     )
     algorithm_params["n2v_config"] = n2v_transform
 

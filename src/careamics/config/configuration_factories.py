@@ -1082,6 +1082,7 @@ def create_n2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    seed: int | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Void.
@@ -1187,6 +1188,8 @@ def create_n2v_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    seed : int or None, default=None
+        Random seed for reproducibility of N2V pixel manipulation, by default None.
 
     Returns
     -------
@@ -1340,6 +1343,7 @@ def create_n2v_configuration(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
+        seed=seed,
     )
 
     # algorithm
@@ -2127,6 +2131,7 @@ def create_pn2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    seed: int | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Probabilistic Noise2Void (PN2V).
@@ -2236,6 +2241,8 @@ def create_pn2v_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    seed : int or None, default=None
+        Random seed for reproducibility of N2V pixel manipulation, by default None.
 
     Returns
     -------
@@ -2401,6 +2408,7 @@ def create_pn2v_configuration(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
+        seed=seed,
     )
 
     # Create noise model configuration
