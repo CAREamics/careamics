@@ -336,7 +336,8 @@ class CAREamistV2:
         paths, a numpy array, or a list of numpy arrays.
 
         If `data_type` and `axes` are not provided, the training configuration
-        parameters will be used. If `tile_size` is not provided prediction will be performed on the whole image.
+        parameters will be used. If `tile_size` is not provided, prediction will
+        be performed on the whole image.
 
         Note that if you are using a UNet model and tiling, the tile size must be
         divisible in every dimension by 2**d, where d is the depth of the model. This
@@ -352,7 +353,8 @@ class CAREamistV2:
             Batch size for prediction. If not provided, uses the training configuration
             batch size.
         tile_size : tuple of int, optional
-            Size of the tiles to use for prediction. If not provided, prediction will be performed on the whole image.
+            Size of the tiles to use for prediction. If not provided, prediction
+            will be performed on the whole image.
         tile_overlap : tuple of int, default=(48, 48)
             Overlap between tiles, can be None.
         axes : str, optional
@@ -392,7 +394,6 @@ class CAREamistV2:
             dataloader_params: dict[str, Any] | None = None
             if num_workers is not None:
                 dataloader_params = {"num_workers": num_workers}
-
             # Create prediction data config using convert_mode
             pred_data_config = self.config.data_config.convert_mode(
                 new_mode="predicting",
@@ -400,6 +401,7 @@ class CAREamistV2:
                 overlap_size=tile_overlap,
                 new_batch_size=batch_size,
                 new_data_type=data_type,
+                new_dataloader_params=dataloader_params,
                 new_axes=axes,
                 new_channels=channels,
                 new_in_memory=in_memory,
@@ -450,10 +452,9 @@ class CAREamistV2:
         """
         Make predictions on the provided data and save outputs to files.
 
-        The predictions will be saved in the specified `prediction_dir`. If
-        `prediction_dir` is an absolute path, it will be used as-is. If it is a relative
-        path, it will be relative to the pre-set `work_dir`. The directory structure
-        within the `prediction_dir` will match that of the source directory.
+        Predictions are saved to `prediction_dir` (absolute paths are used as-is,
+        relative paths are relative to `work_dir`). The directory structure matches
+        the source directory.
 
         The file names of the predictions will match those of the source. If there is
         more than one sample within a file, the samples will be stacked along the sample
