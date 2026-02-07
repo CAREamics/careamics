@@ -3,7 +3,6 @@ import pytest
 from careamics.config.ng_configs import N2VConfiguration
 from careamics.config.ng_factories import (
     create_advanced_n2v_config,
-    create_n2v_config,
     create_structn2v_config,
 )
 from careamics.config.support import (
@@ -15,7 +14,7 @@ from careamics.config.support import (
 class TestN2VConfiguration:
     def test_create_standard_config(self):
         """Test that N2V configuration can be created."""
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -26,7 +25,7 @@ class TestN2VConfiguration:
 
     def test_no_aug(self):
         """Test the default n2v transforms."""
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -63,7 +62,7 @@ class TestN2VConfiguration:
         """Test that num_epochs parameter is correctly passed to trainer config."""
         num_epochs = 50
 
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -76,7 +75,7 @@ class TestN2VConfiguration:
         )
 
         # Test with num_epochs=None (should not be in config)
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -90,7 +89,7 @@ class TestN2VConfiguration:
         """Test that num_steps parameter is correctly passed to trainer config."""
         num_steps = 1000
 
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -104,7 +103,7 @@ class TestN2VConfiguration:
         )
 
         # Test without num_steps (should not be in config)
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -120,7 +119,7 @@ class TestN2VConfiguration:
         num_epochs = 25
         num_steps = 500
 
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -140,7 +139,7 @@ class TestN2VConfiguration:
     # TODO arguably this should be tested at the level of the data config only
     def test_czi_with_T_axes(self):
         """Test that SCTYX is accepted by N2V configuration for CZI data."""
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="czi",
             axes="SCTYX",
@@ -157,7 +156,7 @@ class TestN2VConfiguration:
         num_epochs = 10
         num_steps = 20
 
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
