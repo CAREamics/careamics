@@ -172,6 +172,34 @@ class CziImageStack:
             filename = f"{filename}@{self.scene}"
         return self.data_path.parent / filename
 
+    @property
+    def original_axes(self) -> str:
+        """Original axes of the data."""
+        if not self._sample_axes:
+            # No dimensions were merged into S, so axes are already original
+            return self.axes
+
+        # Reconstruct original axes by replacing S with the sample axes
+        # The sample axes are in the order they appear in the CZI file
+        sample_axes_str = "".join(self._sample_axes.keys())
+        original = self.axes.replace("S", sample_axes_str)
+        return original
+
+    @property
+    def original_data_shape(self) -> tuple[int, ...]:
+        """Original shape of the data."""
+        if not self._sample_axes:
+            # No dimensions were merged into S, so shape is already original
+            return tuple(self.data_shape)
+
+        # Reconstruct original shape by replacing S dimension with sample axes
+        shape_list = list(self.data_shape)
+        s_idx = self.axes.index("S")
+        # Replace S dimension with the sample axes dimensions
+        sample_sizes = list(self._sample_axes.values())
+        shape_list[s_idx : s_idx + 1] = sample_sizes
+        return tuple(shape_list)
+
     def extract_patch(
         self,
         sample_idx: int,

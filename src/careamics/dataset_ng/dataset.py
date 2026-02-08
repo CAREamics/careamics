@@ -73,6 +73,12 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     """Additional metadata to be stored with the image region. Currently used to store
     chunk and shard information for zarr image stacks."""
 
+    original_data_shape: Sequence[int] = ()
+    """Original shape of the data."""
+
+    original_axes: str = ""
+    """Original axes of the data."""
+
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
@@ -211,6 +217,21 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             channels=self.config.channels,
         )
 
+        # get original shape and axes from image stack
+        original_data_shape = image_stack.original_data_shape
+        original_axes = image_stack.original_axes
+
+        # adjust original_data_shape for channel subsetting if needed
+        if (
+            original_data_shape
+            and self.config.channels is not None
+            and "C" in original_axes
+        ):
+            c_idx = original_axes.index("C")
+            adjusted_original_shape = list(original_data_shape)
+            adjusted_original_shape[c_idx] = len(self.config.channels)
+            original_data_shape = tuple(adjusted_original_shape)
+
         # additional metadata for zarr image stacks
         if isinstance(image_stack, ZarrImageStack):
             additional_metadata = {
@@ -231,6 +252,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             axes=self.config.axes,
             region_spec=patch_spec,
             additional_metadata=additional_metadata,
+            original_data_shape=original_data_shape,
+            original_axes=original_axes,
         )
 
     def _extract_patches(
