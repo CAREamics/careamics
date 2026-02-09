@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from pprint import pformat
-from typing import Any, Literal, Self, Union
+from typing import Annotated, Any, Generic, Literal, Self, TypeVar
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -17,14 +17,10 @@ from careamics.config.algorithms import (
 from careamics.config.data import NGDataConfig
 from careamics.config.lightning.training_config import TrainingConfig
 
-ALGORITHMS = Union[
-    CAREAlgorithm,
-    N2NAlgorithm,
-    N2VAlgorithm,
-]
+ALGORITHMS = TypeVar("ALGORITHMS", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm)
 
 
-class NGConfiguration(BaseModel):
+class NGConfiguration(BaseModel, Generic[ALGORITHMS]):
     """
     CAREamics configuration.
 
@@ -87,7 +83,7 @@ class NGConfiguration(BaseModel):
     """Name of the experiment, used to name logs and checkpoints."""
 
     # Sub-configurations
-    algorithm_config: ALGORITHMS = Field(discriminator="algorithm")
+    algorithm_config: Annotated[ALGORITHMS, Field(discriminator="algorithm")]
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
@@ -95,7 +91,7 @@ class NGConfiguration(BaseModel):
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
-    training_config: TrainingConfig
+    training_config: TrainingConfig = TrainingConfig()
     """Training configuration, holding all parameters required to configure the
     training process."""
 
