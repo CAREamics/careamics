@@ -9,10 +9,6 @@ from careamics.lightning.callbacks import (
 )
 
 
-def test_callback_imports():
-    """Test that callback and exception can be imported."""
-    assert StopPredictionCallback is not None
-    assert PredictionStoppedException is not None
 
 
 def test_callback_initialization():
