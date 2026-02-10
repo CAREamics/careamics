@@ -1,15 +1,6 @@
 from collections.abc import Callable
 from pathlib import Path
-from typing import (
-    Any,
-    Literal,
-    Never,
-    NotRequired,
-    TypeAlias,
-    TypedDict,
-    Unpack,
-    overload,
-)
+from typing import Any, Literal, TypedDict, Unpack
 
 import torch
 from numpy.typing import NDArray
@@ -18,7 +9,9 @@ from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from .config import TrainingConfig, load_configuration_ng
+from careamics.lightning.dataset_ng.lightning_modules.get_module import CAREamicsModule
+
+from .config import load_configuration_ng
 from .config.ng_configs import N2VConfiguration
 from .config.support import SupportedAlgorithm, SupportedLogger, SupportedData
 from .file_io import WriteFunc
@@ -26,66 +19,27 @@ from .dataset.dataset_utils import reshape_array
 from .model_io import export_to_bmz
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
-from .lightning.dataset_ng.data_module import CareamicsDataModule
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
     create_module,
-    get_module_cls,
+    load_module_from_checkpoint,
 )
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
 
 logger = get_logger(__name__)
 
-ExperimentLogger: TypeAlias = TensorBoardLogger | WandbLogger | CSVLogger
-
+ExperimentLogger = TensorBoardLogger | WandbLogger | CSVLogger
 Configuration = N2VConfiguration
 
 
-class CareamicsInfo(
-    TypedDict
-):  # TODO: do we need this if we do not implement fine-tuning for now?
-    version: NotRequired[str]
-    experiment_name: str
-    training_config: TrainingConfig | dict[str, Any]
-
-
-class UserContext(
-    TypedDict
-):  # TODO: check that this is displayed correctly in the docs
+class UserContext(TypedDict, total=False):
     work_dir: Path | str | None
     callbacks: list[Callback] | None
     enable_progress_bar: bool
 
 
 class CAREamistV2:
-
-    # from configuration
-    @overload
-    def __init__(
-        self,
-        config: Configuration | Path,
-        **user_context: Unpack[UserContext],
-    ): ...
-
-    # from checkpoint
-    @overload
-    def __init__(
-        self,
-        *,
-        checkpoint_path: Path,
-        **user_context: Unpack[UserContext],
-    ): ...
-
-    # from bmz
-    @overload
-    def __init__(
-        self,
-        *,
-        bmz_path: Path,
-        **user_context: Unpack[UserContext],
-    ): ...
-
     def __init__(
         self,
         config: Configuration | Path | None = None,
@@ -94,66 +48,26 @@ class CAREamistV2:
         bmz_path: Path | None = None,
         **user_context: Unpack[UserContext],
     ):
-        # --- attributes
-        self.config: Configuration
-        self.model: CAREamicsModule
-        self.data_module: CareamicsDataModule
-        self.trainer: Trainer
-        self.callbacks: list[Callback]
-        # checkpoint path is saved to restore optimizer etc. state_dicts during training
-        # only populated if loading from checkpoint.
         self.checkpoint_path = checkpoint_path
-        self.work_dir = self._resolve_work_dir(user_context["work_dir"])
-        # ---
+        self.work_dir = self._resolve_work_dir(user_context.get("work_dir"))
+        self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
 
-        # --- init modules from config, checkpoint_path or bmz_path
-        # guard against multiple types of input
-        config_is_input = config is not None
-        ckpt_is_input = checkpoint_path is not None
-        bmz_is_input = bmz_path is not None
-        # three way xor
-        if (config_is_input ^ ckpt_is_input) or (ckpt_is_input ^ bmz_is_input):
-            raise ValueError(
-                "Only one of `config`, `checkpoint_path` or `bmz_path` can be used as "
-                "input."
-            )
-        if config is not None:
-            # TODO: raise errors if training config or experiment name are not None
-
-            self.config, self.model = self._from_config(config)
-        elif checkpoint_path is not None:
-            self.config, self.model = self._from_checkpoint(checkpoint_path)
-        elif bmz_path is not None:
-            self.config, self.model = self._from_bmz(bmz_path)
-        else:
-            assert Never  # already covered by xor guard
-        # ---
-
-        # override progress bar choice
+        enable_progress_bar = user_context.get("enable_progress_bar", True)
         self.config.training_config.lightning_trainer_config["enable_progress_bar"] = (
-            user_context.get("enable_progress_bar", True)
+            enable_progress_bar
         )
+        callbacks = user_context.get("callbacks", None)
+        self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
 
-        # init callbacks
-        self.prediction_writer = PredictionWriterCallback(
-            self.work_dir, enable_writing=False
-        )
-        self.callbacks = self._define_callbacks(
-            user_context["callbacks"], self.config, self.work_dir
-        )
+        self.prediction_writer = PredictionWriterCallback(self.work_dir)
+        self.prediction_writer.disable_writing(True)
 
-        # init loggers
-        if (self.config.training_config.logger) is not None:
-            logger = SupportedLogger(self.config.training_config.logger)
-        else:
-            logger = None
         experiment_loggers = self._create_loggers(
-            logger,
+            self.config.training_config.logger,
             self.config.experiment_name,
             self.work_dir,
         )
 
-        # instantiate trainer
         self.trainer = Trainer(
             callbacks=[self.prediction_writer, *self.callbacks],
             default_root_dir=self.work_dir,
@@ -161,13 +75,34 @@ class CAREamistV2:
             **self.config.training_config.lightning_trainer_config or {},
         )
 
+    def _load_model(
+        self,
+        config: Configuration | Path | None,
+        checkpoint_path: Path | None,
+        bmz_path: Path | None,
+    ) -> tuple[Configuration, CAREamicsModule]:
+        n_inputs = sum(
+            [config is not None, checkpoint_path is not None, bmz_path is not None]
+        )
+        if n_inputs != 1:
+            raise ValueError(
+                "Exactly one of `config`, `checkpoint_path`, or `bmz_path` must be provided."
+            )
+        if config is not None:
+            return self._from_config(config)
+        elif checkpoint_path is not None:
+            return self._from_checkpoint(checkpoint_path)
+        else:
+            assert bmz_path is not None
+            return self._from_bmz(bmz_path)
+
     @staticmethod
     def _from_config(
         config: Configuration | Path,
     ) -> tuple[Configuration, CAREamicsModule]:
         if isinstance(config, Path):
             config = load_configuration_ng(config)
-        assert not isinstance(config, Path)  # mypy not resolving
+        assert not isinstance(config, Path)
 
         model = create_module(config.algorithm_config)
         return config, model
@@ -176,47 +111,33 @@ class CAREamistV2:
     def _from_checkpoint(
         checkpoint_path: Path,
     ) -> tuple[Configuration, CAREamicsModule]:
-        # map to cpu because we are only extracting the hyper-params here
-        # loading weights will be handled by LightningModule.load_from_checkpoint
         checkpoint: dict = torch.load(checkpoint_path, map_location="cpu")
 
-        # --- get careamics info, aka training_config, experiment_name and version,
-        # (only loaded if not overridden)
-        # (maybe version should get overwritten?)
         careamics_info = checkpoint.get("careamics_info", None)
         if careamics_info is None:
             raise ValueError(
                 "Could not find CAREamics related information within the provided "
                 "checkpoint. This means that it was saved without using the "
-                "CAREamics callback `CAREamicsCheckpointInfo`. To load this "
-                "checkpint with the CAREamist API please provide an "
-                "`experiment_name` and `training_config`."
+                "CAREamics callback `CareamicsCheckpointInfo`. "
+                "Please use a checkpoint saved with CAREamics or initialize with a config instead."
             )
-        assert careamics_info is not None  # mypy not resolving
-        # ---
 
-        # --- get module hyperparams, aka algorithm config
         try:
             algorithm_config: dict[str, Any] = checkpoint["hyper_parameters"][
                 "algorithm_config"
             ]
-            # get algorithm type so that the correct module can be instantiated
-            algorithm = algorithm_config["algorithm"]
-            algorithm = SupportedAlgorithm(algorithm)
-        except (IndexError, ValueError) as e:
+        except (KeyError, IndexError) as e:
             raise ValueError(
                 "Could not determine CAREamics supported algorithm from the provided "
                 f"checkpoint at: {checkpoint_path!s}."
             ) from e
-        # ---
 
-        # --- get datamodule_hyper_parameters aka, data_config
         data_hparams_key = checkpoint.get(
             "datamodule_hparams_name", "datamodule_hyper_parameters"
         )
         try:
             data_config: dict[str, Any] = checkpoint[data_hparams_key]["data_config"]
-        except IndexError as e:
+        except (KeyError, IndexError) as e:
             raise ValueError(
                 "Could not determine the data configuration from the provided "
                 f"checkpoint at: {checkpoint_path!s}."
@@ -230,17 +151,15 @@ class CAREamistV2:
                 **careamics_info,
             }
         )
-        # ---
 
-        # instantiate correct algorithm module
-        module_cls = get_module_cls(algorithm)
-        module = module_cls.load_from_checkpoint(checkpoint_path)
+        module = load_module_from_checkpoint(checkpoint_path)
         return config, module
 
     @staticmethod
     def _from_bmz(
         bmz_path: Path,
-    ) -> tuple[Configuration, CAREamicsModule]: ...
+    ) -> tuple[Configuration, CAREamicsModule]:
+        raise NotImplementedError("Loading from BMZ is not implemented yet.")
 
     @staticmethod
     def _resolve_work_dir(work_dir: str | Path | None) -> Path:
@@ -261,26 +180,23 @@ class CAREamistV2:
         work_dir: Path,
     ) -> list[Callback]:
         callbacks = [] if callbacks is None else callbacks
-        # check that user callbacks are not any of the CAREamics callbacks
         for c in callbacks:
-            if isinstance(c, ModelCheckpoint) or isinstance(c, EarlyStopping):
+            if isinstance(c, (ModelCheckpoint, EarlyStopping)):
                 raise ValueError(
                     "`ModelCheckpoint` and `EarlyStopping` callbacks are already "
                     "defined in CAREamics and should only be modified through the "
                     "training configuration (see TrainingConfig)."
                 )
 
-            if isinstance(c, CareamicsCheckpointInfo) or isinstance(
-                c, ProgressBarCallback
-            ):
+            if isinstance(c, (CareamicsCheckpointInfo, ProgressBarCallback)):
                 raise ValueError(
                     "`CareamicsCheckpointInfo` and `ProgressBar` callbacks are defined "
                     "internally and should not be passed as callbacks."
                 )
 
-        interal_callbacks = [
+        internal_callbacks = [
             ModelCheckpoint(
-                dirpath=work_dir / Path("checkpoints"),
+                dirpath=work_dir / "checkpoints",
                 filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
                 **config.training_config.checkpoint_callback.model_dump(),
             ),
@@ -293,44 +209,39 @@ class CAREamistV2:
             "enable_progress_bar", True
         )
         if enable_progress_bar:
-            interal_callbacks.append(ProgressBarCallback())
+            internal_callbacks.append(ProgressBarCallback())
 
         if config.training_config.early_stopping_callback is not None:
-            interal_callbacks.append(
+            internal_callbacks.append(
                 EarlyStopping(
                     **config.training_config.early_stopping_callback.model_dump()
                 )
             )
 
-        return interal_callbacks + callbacks
+        return internal_callbacks + callbacks
 
     @staticmethod
     def _create_loggers(
-        logger: SupportedLogger | None, experiment_name: str, work_dir: Path
+        logger: str | None, experiment_name: str, work_dir: Path
     ) -> list[ExperimentLogger]:
-        csv_logger = CSVLogger(
-            name=experiment_name,
-            save_dir=work_dir / "csv_logs",
-        )
+        csv_logger = CSVLogger(name=experiment_name, save_dir=work_dir / "csv_logs")
+
+        if logger is not None:
+            logger = SupportedLogger(logger)
+
         match logger:
             case SupportedLogger.WANDB:
-                experiment_loggers: list = [
-                    WandbLogger(
-                        name=experiment_name,
-                        save_dir=work_dir / Path("wandb_logs"),
-                    ),
+                return [
+                    WandbLogger(name=experiment_name, save_dir=work_dir / "wandb_logs"),
                     csv_logger,
                 ]
             case SupportedLogger.TENSORBOARD:
-                experiment_loggers = [
-                    TensorBoardLogger(
-                        save_dir=work_dir / Path("tb_logs"),
-                    ),
+                return [
+                    TensorBoardLogger(save_dir=work_dir / "tb_logs"),
                     csv_logger,
                 ]
             case _:
-                experiment_loggers = [csv_logger]
-        return experiment_loggers
+                return [csv_logger]
 
     def train(
         self,
@@ -347,11 +258,11 @@ class CAREamistV2:
         read_source_func: Callable | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-    ) -> None: ...
-
-    # TODO: init datamodule
-    # TODO: remember to pass self.checkpoint_path to Trainer.fit
-    # ^ this will load optimizer and lr_schedular state dicts
+    ) -> None:
+        # TODO: init datamodule
+        # TODO: remember to pass self.checkpoint_path to Trainer.fit
+        # ^ this will load optimizer and lr_schedular state dicts
+        raise NotImplementedError("Training is not implemented yet.")
 
     def predict(
         self,
@@ -369,7 +280,7 @@ class CAREamistV2:
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
     ) -> None:
-        return None
+        raise NotImplementedError("Predicting is not implemented yet.")
 
     def predict_to_disk(
         self,
@@ -392,7 +303,8 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
-    ) -> None: ...
+    ) -> None:
+        raise NotImplementedError("Predicting to disk is not implemented yet.")
 
     def export_to_bmz(
         self,
