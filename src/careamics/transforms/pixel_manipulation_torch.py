@@ -343,19 +343,20 @@ def median_manipulate_torch(
 
     if struct_params is not None:
         # Create the structN2V mask
-        h, w = torch.meshgrid(
-            torch.arange(subpatch_size), torch.arange(subpatch_size), indexing="ij"
+        n_dims = batch.ndim - 1
+        indices = torch.meshgrid(
+            *[torch.arange(subpatch_size) for _ in range(n_dims)], indexing="ij"
         )
         center_idx = subpatch_size // 2
         halfspan = (struct_params.span - 1) // 2
 
         # Determine the axis along which to apply the mask
         if struct_params.axis == 0:
-            center_axis = h
-            span_axis = w
+            center_axis = indices[1]
+            span_axis = indices[0]
         else:
-            center_axis = w
-            span_axis = h
+            center_axis = indices[0]
+            span_axis = indices[1]
 
         # Create the mask
         struct_mask = (
