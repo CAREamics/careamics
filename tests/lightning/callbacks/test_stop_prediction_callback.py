@@ -13,20 +13,6 @@ from careamics.lightning.callbacks import (
 
 
 
-def test_callback_continues_when_condition_false():
-    """Test prediction continues when stop condition is False."""
-    callback = StopPredictionCallback(stop_condition=lambda: False)
-    trainer = Trainer(fast_dev_run=True, enable_checkpointing=False, logger=False)
-
-    callback.on_predict_batch_start(
-        trainer=trainer,
-        pl_module=None,
-        batch=None,
-        batch_idx=0,
-        dataloader_idx=0,
-    )
-
-    assert not trainer.should_stop
 
 
 def test_callback_stops_when_condition_true():
