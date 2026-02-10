@@ -5,6 +5,42 @@ import torch
 from .struct_mask_parameters import StructMaskParameters
 
 
+def _create_struct_mask(
+    ndims: int, subpatch_size: int, struct_params: StructMaskParameters
+) -> torch.Tensor:
+    """
+    Create the mask for StructN2V.
+
+    Parameters
+    ----------
+    ndims : int
+        The number of dimensions.
+    subpatch_size : int
+        The size of one dimension of the subpatch. The created mask must be the same
+        size as the subpatch.
+    struct_params : StructMaskParameters
+        Parameters for the structN2V mask (axis and span).
+
+    Returns
+    -------
+    torch.Tensor
+        Tensor of bools. False where pixels should be masked and True otherwise.
+    """
+    center_idx = subpatch_size // 2
+    span_start = (subpatch_size - struct_params.span) // 2
+    span_end = subpatch_size - span_start  # symmetric
+    span_axis = ndims - 1 - struct_params.axis  # e.g. horizontal is the last axis
+
+    struct_mask = torch.ones((subpatch_size,) * ndims, dtype=torch.bool)
+    # indexes the center unless it is the axis on which the struct mask spans
+    struct_slice = (
+        center_idx if d != span_axis else slice(span_start, span_end)
+        for d in range(ndims)
+    )
+    struct_mask[*struct_slice] = False
+    return struct_mask
+
+
 def _apply_struct_mask_torch(
     patch: torch.Tensor,
     coords: torch.Tensor,
@@ -345,31 +381,9 @@ def median_manipulate_torch(
     ]  # (num_coordinates, subpatch_size**num_spacial_dims)
 
     if struct_params is not None:
-        # Create the structN2V mask
-        n_dims = batch.ndim - 1
-        indices = torch.meshgrid(
-            *[torch.arange(subpatch_size) for _ in range(n_dims)], indexing="ij"
-        )
-        center_idx = subpatch_size // 2
-        halfspan = (struct_params.span - 1) // 2
-
-        # Determine the axis along which to apply the mask
-        if struct_params.axis == 0:
-            center_axis = indices[1]
-            span_axis = indices[0]
-        else:
-            center_axis = indices[0]
-            span_axis = indices[1]
-
-        # Create the mask
-        struct_mask = (
-            ~(
-                (center_axis == center_idx)
-                & (span_axis >= center_idx - halfspan)
-                & (span_axis <= center_idx + halfspan)
-            )
-        ).flatten()
-        rois_filtered = rois[:, struct_mask]
+        ndims = batch.ndim - 1
+        struct_mask = _create_struct_mask(ndims, subpatch_size, struct_params)
+        rois_filtered = rois[:, struct_mask.flatten()]
     else:
         # Remove the center pixel value from the rois
         center_idx = (subpatch_size ** offsets.shape[1]) // 2
