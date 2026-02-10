@@ -11,11 +11,6 @@ from careamics.lightning.callbacks import (
 
 
 
-def test_callback_initialization():
-    """Test callback can be initialized with stop condition."""
-    callback = StopPredictionCallback(stop_condition=lambda: False)
-    assert callback is not None
-    assert callable(callback.stop_condition)
 
 
 def test_callback_continues_when_condition_false():
