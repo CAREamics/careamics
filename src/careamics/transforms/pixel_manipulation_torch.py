@@ -291,6 +291,9 @@ def median_manipulate_torch(
     tuple[torch.Tensor, torch.Tensor, torch.Tensor]
            tuple containing the manipulated patch, the original patch and the mask.
     """
+    if rng is None:
+        rng = torch.Generator(device=batch.device)
+
     # get the coordinates of the future ROI centers
     subpatch_center_coordinates = _get_stratified_coords_torch(
         mask_pixel_percentage, batch.shape, rng
