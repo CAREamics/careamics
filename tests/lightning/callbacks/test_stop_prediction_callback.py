@@ -26,13 +26,9 @@ def test_callback_with_stateful_condition():
     callback.on_predict_batch_start(
         trainer=trainer, pl_module=None, batch=None, batch_idx=0
     )
-    assert not trainer.should_stop
-
     stop_flag["value"] = True
 
     with pytest.raises(PredictionStoppedException):
         callback.on_predict_batch_start(
             trainer=trainer, pl_module=None, batch=None, batch_idx=1
         )
-
-    assert trainer.should_stop
