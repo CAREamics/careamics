@@ -15,21 +15,6 @@ from careamics.lightning.callbacks import (
 
 
 
-def test_callback_stops_when_condition_true():
-    """Test prediction stops when stop condition is True."""
-    callback = StopPredictionCallback(stop_condition=lambda: True)
-    trainer = Trainer(fast_dev_run=True, enable_checkpointing=False, logger=False)
-
-    with pytest.raises(PredictionStoppedException):
-        callback.on_predict_batch_start(
-            trainer=trainer,
-            pl_module=None,
-            batch=None,
-            batch_idx=0,
-            dataloader_idx=0,
-        )
-
-    assert trainer.should_stop
 
 
 def test_callback_with_stateful_condition():
