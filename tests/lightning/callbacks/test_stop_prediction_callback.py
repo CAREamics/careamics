@@ -9,14 +9,6 @@ from careamics.lightning.callbacks import (
 )
 
 
-
-
-
-
-
-
-
-
 def test_callback_with_stateful_condition():
     """Test callback responds to changing stop condition."""
     stop_flag = {"value": False}
