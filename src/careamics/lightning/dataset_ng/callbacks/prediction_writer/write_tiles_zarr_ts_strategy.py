@@ -4,6 +4,7 @@ import builtins
 from collections.abc import Sequence
 from pathlib import Path
 
+import pydantic_tensorstore as pts
 import tensorstore as ts
 import zarr
 
@@ -109,43 +110,41 @@ class WriteTilesZarrTS:
             )
 
         # TensorStore spec for zarr v3
-        spec = {
-            "driver": "zarr3",
-            "kvstore": {
-                "driver": "file",
-                "path": store_path,
-            },
-            "path": full_array_path,
-            "metadata": {
-                "shape": list(updated_shape),
-                "chunk_grid": {
-                    "name": "regular",
-                    "configuration": {
-                        "chunk_shape": (
-                            list(shards) if shards is not None else list(chunks)
-                        ),
-                    },
-                },
-                "data_type": "float32",
-            },
-            "create": True,
-            "open": True,
-            "delete_existing": False,
-        }
+        # TODO refactor into a tensorstore_utils module
+        sharding = shards is not None
+        chunk_grid = pts.Zarr3ChunkGrid(
+            configuration=pts.Zarr3ChunkConfiguration(
+                chunk_shape=shards if sharding else chunks,
+            )
+        )
 
-        # Add sharding codec if shards are provided
-        if shards is not None:
-            spec["metadata"]["codecs"] = [
-                {
-                    "name": "sharding_indexed",
-                    "configuration": {
-                        "chunk_shape": list(chunks),
-                    },
-                },
-            ]
+        if sharding:
+            codecs = pts.Zarr3CodecShardingIndexed(
+                configuration=pts.Zarr3CodecShardingIndexed.ShardingIndexedConfig(
+                    chunk_shape=chunks,
+                )
+            )
+
+        metadata = pts.Zarr3Metadata(
+            shape=updated_shape,
+            data_type="float32",
+            chunk_grid=chunk_grid,
+            codecs=[codecs] if sharding else None,
+        )
+
+        kvstore = pts.FileKvStore(path=str(store_path))
+
+        spec = pts.Zarr3Spec(
+            metadata=metadata,
+            kvstore=kvstore,
+            path=full_array_path,
+            create=True,
+            open=True,
+            delete_existing=False,
+        )
 
         try:
-            self.current_array = ts.open(spec).result()
+            self.current_array = ts.open(spec.to_tensorstore()).result()
             self.current_store_path = store_path
             self.current_array_path = full_array_path
         except Exception as e:

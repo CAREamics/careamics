@@ -1,5 +1,6 @@
 """Benchmark script comparing zarr and TensorStore writing performance."""
 
+import csv
 import time
 from pathlib import Path
 from typing import Any
@@ -80,6 +81,7 @@ def benchmark_zarr_writing(
     chunks: tuple[int, ...] | None = None,
     shards: tuple[int, ...] | None = None,
     n_iterations: int = 100,
+    repeat: int = 1,
 ) -> dict[str, Any]:
     """Benchmark writing tiles using zarr library."""
     tiling_strategy = TilingStrategy(
@@ -88,10 +90,10 @@ def benchmark_zarr_writing(
         overlaps=overlaps,
     )
 
-    n_tiles = min(n_iterations, tiling_strategy.n_patches)
+    n_tiles = tiling_strategy.n_patches
 
     # Create mock source URI
-    source = "file://test_source.zarr/data"
+    source = f"file://test_source.zarr/data_{repeat}"
 
     # Create writer
     writer = WriteTilesZarr()
@@ -104,19 +106,20 @@ def benchmark_zarr_writing(
         tiles.append(tile)
 
     # Benchmark batch writing
+    tot_tiles = 0
     start = time.perf_counter()
-    writer.write_batch(output_dir, tiles)
+    while tot_tiles < n_iterations:
+        writer.write_batch(output_dir, tiles)
+        tot_tiles += n_tiles
     end = time.perf_counter()
 
-    total_time = end - start
-    mean_time_per_tile = total_time / n_tiles
+    total_time = (end - start) * 1000  # Convert to milliseconds
+    mean_time_per_tile = total_time / tot_tiles
 
     return {
-        "n_tiles": n_tiles,
-        "total_tiles": tiling_strategy.n_patches,
+        "n_tiles": tot_tiles,
         "mean_time": mean_time_per_tile,
         "total_time": total_time,
-        "tiles_per_second": n_tiles / total_time,
     }
 
 
@@ -129,6 +132,7 @@ def benchmark_tensorstore_writing(
     chunks: tuple[int, ...] | None = None,
     shards: tuple[int, ...] | None = None,
     n_iterations: int = 100,
+    repeat: int = 1,
 ) -> dict[str, Any]:
     """Benchmark writing tiles using TensorStore."""
     tiling_strategy = TilingStrategy(
@@ -137,10 +141,10 @@ def benchmark_tensorstore_writing(
         overlaps=overlaps,
     )
 
-    n_tiles = min(n_iterations, tiling_strategy.n_patches)
+    n_tiles = tiling_strategy.n_patches
 
     # Create mock source URI
-    source = "file://test_source.zarr/data"
+    source = f"file://test_source.zarr/data_{repeat}"
 
     # Create writer
     writer = WriteTilesZarrTS()
@@ -153,108 +157,157 @@ def benchmark_tensorstore_writing(
         tiles.append(tile)
 
     # Benchmark batch writing
+    tot_tiles = 0
     start = time.perf_counter()
-    writer.write_batch(output_dir, tiles)
+    while tot_tiles < n_iterations:
+        writer.write_batch(output_dir, tiles)
+        tot_tiles += n_tiles
     end = time.perf_counter()
 
-    total_time = end - start
-    mean_time_per_tile = total_time / n_tiles
+    total_time = (end - start) * 1000  # Convert to milliseconds
+    mean_time_per_tile = total_time / tot_tiles
 
     return {
-        "n_tiles": n_tiles,
-        "total_tiles": tiling_strategy.n_patches,
+        "n_tiles": tot_tiles,
         "mean_time": mean_time_per_tile,
         "total_time": total_time,
-        "tiles_per_second": n_tiles / total_time,
     }
+
+
+class Result:
+    shape: int
+    patch_size: int
+    chunks: int
+    shards: int | None
+
+    n_tiles: int
+    zarr_mean_time: float
+    zarr_std_time: float
+    zarr_adj_mean_time: float
+    zarr_adj_std_time: float
+    ts_mean_time: float
+    ts_adj_mean_time: float
+    ts_adj_std_time: float
+    ts_std_time: float
+    speedup: float
 
 
 def main():
     """Run comparison benchmark."""
     import tempfile
 
-    configurations = [
-        {
-            "name": "Small chunks (64x64)",
-            "data_shape": (1, 1, 1024, 1024),
-            "axes": "YX",
-            "chunks": (64, 64),
-            "patch_size": (128, 128),
-            "overlaps": (32, 32),
-        },
-        {
-            "name": "Larger chunks (128x128)",
-            "data_shape": (1, 1, 1024, 1024),
-            "axes": "YX",
-            "chunks": (128, 128),
-            "patch_size": (256, 256),
-            "overlaps": (32, 32),
-        },
-        {
-            "name": "3D data",
-            "data_shape": (1, 1, 64, 512, 512),
-            "axes": "ZYX",
-            "chunks": (16, 64, 64),
-            "patch_size": (16, 64, 64),
-            "overlaps": (8, 16, 16),
-        },
-    ]
+    shape = (1, 1, 2048, 2048)
+    results = []
+    for p_exp in range(6, 9):
+        for c_exp in range(5, 10):
+            for s_exp in [0] + [i for i in range(c_exp + 1, 10)]:
+                print(f"p {2**p_exp}, c {2**c_exp}, s {2**s_exp}")
 
-    print("=" * 80)
-    print("Zarr vs TensorStore Writing Benchmark")
-    print("=" * 80)
+                patch_size = (2**p_exp, 2**p_exp)
+                overlaps = (0, 0)
+                chunks = (1, 1, 2**c_exp, 2**c_exp)
+                shards = (1, 1, 2**s_exp, 2**s_exp) if s_exp > 0 else None
 
-    for config in configurations:
-        print(f"\n{config['name']}")
-        print("-" * 40)
+                zarr_res = []
+                ts_res = []
+                for r in range(3):
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        output_dir = Path(tmpdir)
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            output_dir = Path(tmpdir)
+                        zarr_results = benchmark_zarr_writing(
+                            output_dir,
+                            data_shape=shape,
+                            patch_size=patch_size,
+                            overlaps=overlaps,
+                            axes="SCYX",
+                            chunks=chunks,
+                            shards=shards,
+                            n_iterations=100,
+                            repeat=r,
+                        )
 
-            print(f"Data shape: {config['data_shape']}")
-            print(f"Chunks: {config.get('chunks', 'auto')}")
-            print(f"Shards: {config.get('shards', 'None')}")
-            print(f"Patch size: {config['patch_size']}")
+                        ts_results = benchmark_tensorstore_writing(
+                            output_dir,
+                            data_shape=shape,
+                            patch_size=patch_size,
+                            overlaps=overlaps,
+                            axes="SCYX",
+                            chunks=chunks,
+                            shards=shards,
+                            n_iterations=100,
+                            repeat=r,
+                        )
 
-            # Benchmark zarr
-            print("\n  Using zarr library:")
-            zarr_output = output_dir / "zarr_test"
-            zarr_output.mkdir()
-            zarr_results = benchmark_zarr_writing(
-                zarr_output,
-                data_shape=config["data_shape"],
-                patch_size=config["patch_size"],
-                overlaps=config["overlaps"],
-                axes=config["axes"],
-                chunks=config.get("chunks"),
-                shards=config.get("shards"),
-                n_iterations=100,
+                        zarr_res.append(zarr_results["mean_time"])
+                        ts_res.append(ts_results["mean_time"])
+
+                    result = Result()
+                    result.shape = shape[-1]
+                    result.patch_size = patch_size[-1]
+                    result.chunks = chunks[-1]
+                    result.shards = shards[-1] if shards is not None else 1
+                    result.n_tiles = zarr_results["n_tiles"]
+                    result.zarr_mean_time = np.mean(zarr_res)
+                    result.zarr_std_time = np.std(zarr_res)
+                    result.zarr_adj_mean_time = (
+                        1000 * np.mean(zarr_res) / np.prod(patch_size)
+                    )
+                    result.zarr_adj_std_time = (
+                        1000 * np.std(zarr_res) / np.prod(patch_size)
+                    )
+                    result.ts_mean_time = np.mean(ts_res)
+                    result.ts_std_time = np.std(ts_res)
+                    result.ts_adj_mean_time = (
+                        1000 * np.mean(ts_res) / np.prod(patch_size)
+                    )
+                    result.ts_adj_std_time = 1000 * np.std(ts_res) / np.prod(patch_size)
+                    result.speedup = result.ts_mean_time / result.zarr_mean_time
+
+                    results.append(result)
+
+    # TODO write line by line to not loose any
+    # save csv with the results
+    with open(
+        "benchmarks/zarr/benchmark_write_results.csv", "w", newline=""
+    ) as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(
+            [
+                "Shape",
+                "Patch size",
+                "Chunks",
+                "Shards",
+                "N tiles",
+                "Zarr mean time (ms)",
+                "Zarr std time (ms)",
+                "Zarr adj mean time (us)",
+                "Zarr adj std time (us)",
+                "TensorStore mean time (ms)",
+                "TensorStore std time (ms)",
+                "TensorStore adj mean time (us)",
+                "TensorStore adj std time (us)",
+                "Speedup",
+            ]
+        )
+        for result in results:
+            writer.writerow(
+                [
+                    result.shape,
+                    result.patch_size,
+                    result.chunks,
+                    result.shards,
+                    result.n_tiles,
+                    result.zarr_mean_time,
+                    result.zarr_std_time,
+                    result.zarr_adj_mean_time,
+                    result.zarr_adj_std_time,
+                    result.ts_mean_time,
+                    result.ts_std_time,
+                    result.ts_adj_mean_time,
+                    result.ts_adj_std_time,
+                    result.speedup,
+                ]
             )
-            print(f"    Mean time per tile: {zarr_results['mean_time']*1000:.2f} ms")
-            print(f"    Tiles per second: {zarr_results['tiles_per_second']:.2f}")
-            print(f"    Total time: {zarr_results['total_time']:.2f} s")
-
-            # Benchmark TensorStore
-            print("\n  Using TensorStore:")
-            ts_output = output_dir / "ts_test"
-            ts_output.mkdir()
-            ts_results = benchmark_tensorstore_writing(
-                ts_output,
-                data_shape=config["data_shape"],
-                patch_size=config["patch_size"],
-                overlaps=config["overlaps"],
-                axes=config["axes"],
-                chunks=config.get("chunks"),
-                shards=config.get("shards"),
-                n_iterations=100,
-            )
-            print(f"    Mean time per tile: {ts_results['mean_time']*1000:.2f} ms")
-            print(f"    Tiles per second: {ts_results['tiles_per_second']:.2f}")
-            print(f"    Total time: {ts_results['total_time']:.2f} s")
-
-            # Calculate speedup
-            speedup = zarr_results["mean_time"] / ts_results["mean_time"]
-            print(f"\n  Speedup: {speedup:.2f}x")
 
 
 if __name__ == "__main__":

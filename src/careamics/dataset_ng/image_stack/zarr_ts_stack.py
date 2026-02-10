@@ -91,17 +91,22 @@ class ZarrTSImageStack:
 
         # extract chunk and shard sizes
         chunk_layout = self._array.chunk_layout
-        if chunk_layout.read_chunk.shape:
+        # TODO can read and write chunk be `None`?
+        read_chunk = chunk_layout.read_chunk.shape
+        write_chunk = chunk_layout.write_chunk.shape
+
+        if read_chunk != write_chunk:
             self._chunk_size = reshape_array_shape(
-                axes, tuple(chunk_layout.read_chunk.shape), add_singleton=False
+                axes, tuple(read_chunk), add_singleton=False
+            )
+            self._shard_size = reshape_array_shape(
+                axes, tuple(write_chunk), add_singleton=False
             )
         else:
-            # no chunk available
-            # delegate to writer the responsibility to set chunking
-            # (e.g. writes_tile_zarr with auto chunking)
-            self._chunk_size = None
-
-        self._shard_size = None
+            self._chunk_size = reshape_array_shape(
+                axes, tuple(read_chunk), add_singleton=False
+            )
+            self._shard_size = None
 
     @property
     def source(self) -> str:
