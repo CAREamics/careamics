@@ -5,42 +5,6 @@ import torch
 from .struct_mask_parameters import StructMaskParameters
 
 
-def _create_struct_mask(
-    ndims: int, subpatch_size: int, struct_params: StructMaskParameters
-) -> torch.Tensor:
-    """
-    Create the mask for StructN2V.
-
-    Parameters
-    ----------
-    ndims : int
-        The number of dimensions.
-    subpatch_size : int
-        The size of one dimension of the subpatch. The created mask must be the same
-        size as the subpatch.
-    struct_params : StructMaskParameters
-        Parameters for the structN2V mask (axis and span).
-
-    Returns
-    -------
-    torch.Tensor
-        Tensor of bools. False where pixels should be masked and True otherwise.
-    """
-    center_idx = subpatch_size // 2
-    span_start = (subpatch_size - struct_params.span) // 2
-    span_end = subpatch_size - span_start  # symmetric
-    span_axis = ndims - 1 - struct_params.axis  # e.g. horizontal is the last axis
-
-    struct_mask = torch.ones((subpatch_size,) * ndims, dtype=torch.bool)
-    # indexes the center unless it is the axis on which the struct mask spans
-    struct_slice = (
-        center_idx if d != span_axis else slice(span_start, span_end)
-        for d in range(ndims)
-    )
-    struct_mask[*struct_slice] = False
-    return struct_mask
-
-
 def _apply_struct_mask_torch(
     patch: torch.Tensor,
     coords: torch.Tensor,
@@ -327,36 +291,40 @@ def median_manipulate_torch(
     tuple[torch.Tensor, torch.Tensor, torch.Tensor]
            tuple containing the manipulated patch, the original patch and the mask.
     """
+    # -- Implementation summary
+    # 1. Generate coordinates that correspond to the pixels chosen for masking.
+    # 2. Subpatches are extracted, where the coordinate to mask is at the center.
+    # 3. The medians of these subpatches are calculated, but we do not want to include
+    #    the original pixel in the calculation so we mask it. In the case of StructN2V,
+    #    we do not include any pixels in the struct mask in the median calculation.
+
     if rng is None:
         rng = torch.Generator(device=batch.device)
 
-    # get the coordinates of the future ROI centers
+    # resulting center coord shape: (num_coordinates, batch + num_spatial_dims)
     subpatch_center_coordinates = _get_stratified_coords_torch(
         mask_pixel_percentage, batch.shape, rng
-    ).to(
-        device=batch.device
-    )  # (num_coordinates, batch + num_spatial_dims)
-
+    )
+    # pixel coordinates of all the subpatches
+    # shape: (num_coordinates, subpatch_size, subpatch_size, ...)
     subpatch_coords = _get_subpatch_coords(
         subpatch_center_coordinates, subpatch_size, batch.shape
     )
 
+    # this indexes and stacks all the subpatches along the first dimension
     # subpatches shape: (num_coordinates, subpatch_size, subpatch_size, ...)
     subpatches = batch[tuple(subpatch_coords)]
 
     ndims = batch.ndim - 1
-    if struct_params is not None:
-        struct_mask = _create_struct_mask(ndims, subpatch_size, struct_params)
-        subpatches_masked = subpatches[:, struct_mask]
+    # subpatch mask to exclude values from median calculation
+    if struct_params is None:
+        subpatch_mask = _create_center_pixel_mask(ndims, subpatch_size, batch.device)
     else:
-        # Remove the center pixel value from the rois
-        subpatch_shape = (subpatch_size,) * ndims
-        centre_idx = (subpatch_size // 2,) * ndims
-        cp_mask = torch.ones(subpatch_shape, dtype=torch.bool, device=batch.device)
-        cp_mask[centre_idx] = False
-        subpatches_masked = subpatches[:, cp_mask]
+        subpatch_mask = _create_struct_mask(
+            ndims, subpatch_size, struct_params, batch.device
+        )
+    subpatches_masked = subpatches[:, subpatch_mask]
 
-    # compute the medians.
     medians = subpatches_masked.median(dim=1).values  # (num_coordinates,)
 
     # Update the output tensor with medians
@@ -370,6 +338,55 @@ def median_manipulate_torch(
         )
 
     return output_batch, mask
+
+
+def _create_center_pixel_mask(
+    ndims: int, subpatch_size: int, device: torch.device
+) -> torch.Tensor:
+    subpatch_shape = (subpatch_size,) * ndims
+    centre_idx = (subpatch_size // 2,) * ndims
+    cp_mask = torch.ones(subpatch_shape, dtype=torch.bool, device=device)
+    cp_mask[centre_idx] = False
+    return cp_mask
+
+
+def _create_struct_mask(
+    ndims: int,
+    subpatch_size: int,
+    struct_params: StructMaskParameters,
+    device: torch.device,
+) -> torch.Tensor:
+    """
+    Create the mask for StructN2V.
+
+    Parameters
+    ----------
+    ndims : int
+        The number of dimensions.
+    subpatch_size : int
+        The size of one dimension of the subpatch. The created mask must be the same
+        size as the subpatch.
+    struct_params : StructMaskParameters
+        Parameters for the structN2V mask (axis and span).
+
+    Returns
+    -------
+    torch.Tensor
+        Tensor of bools. False where pixels should be masked and True otherwise.
+    """
+    center_idx = subpatch_size // 2
+    span_start = (subpatch_size - struct_params.span) // 2
+    span_end = subpatch_size - span_start  # symmetric
+    span_axis = ndims - 1 - struct_params.axis  # e.g. horizontal is the last axis
+
+    struct_mask = torch.ones((subpatch_size,) * ndims, dtype=torch.bool, device=device)
+    # indexes the center unless it is the axis on which the struct mask spans
+    struct_slice = (
+        center_idx if d != span_axis else slice(span_start, span_end)
+        for d in range(ndims)
+    )
+    struct_mask[*struct_slice] = False
+    return struct_mask
 
 
 def _get_subpatch_coords(
