@@ -343,6 +343,24 @@ def median_manipulate_torch(
 def _create_center_pixel_mask(
     ndims: int, subpatch_size: int, device: torch.device
 ) -> torch.Tensor:
+    """
+    Create a mask for the center pixel of a subpatch.
+
+    Parameters
+    ----------
+    ndims : int
+        The number of dimensions.
+    subpatch_size : int
+        The size of one dimension of the subpatch. The created mask must be the same
+        size as the subpatch.
+    device : torch.device
+        Device to create the mask on, e.g. "cuda".
+
+    Returns
+    -------
+    torch.Tensor
+        Tensor of bools. False where pixels should be masked and True otherwise.
+    """
     subpatch_shape = (subpatch_size,) * ndims
     centre_idx = (subpatch_size // 2,) * ndims
     cp_mask = torch.ones(subpatch_shape, dtype=torch.bool, device=device)
@@ -368,6 +386,8 @@ def _create_struct_mask(
         size as the subpatch.
     struct_params : StructMaskParameters
         Parameters for the structN2V mask (axis and span).
+    device : torch.device
+        Device to create the mask on, e.g. "cuda".
 
     Returns
     -------
@@ -392,6 +412,34 @@ def _create_struct_mask(
 def _get_subpatch_coords(
     subpatch_centers: torch.Tensor, subpatch_size: int, batch_shape: tuple[int, ...]
 ) -> torch.Tensor:
+    """Get pixel coordinates for subpatches with centers at `subpatch_centers`.
+
+    The coordinates are returned in the shape `(`N, S, S)` or `(N, S, S, S)` for 2D and
+    3D patches respectively, where `N` is the number of subpatches, and `S` is the
+    subpatch size. N is determined from the length of `subpatch_centres`.
+
+    If a subpatch would overlap the bounds of the patch, the coordinates are clipped.
+    This does result in some duplicated coordinates on the boundary of the patch.
+
+    Parameters
+    ----------
+    subpatch_centers : torch.Tensor
+        Coordinates of the center of a subpatch, including the batch dimension, i.e.
+        (b, (z), y, x). Has shape (N, D) for N different subpatch centers and D
+        dimensions.
+    subpatch_size : int
+        The size of one dimension of the subpatch. The created mask must be the same
+        size as the subpatch.
+    batch_shape : tuple[int, ...]
+        The shape of the batch that is being processed, i.e. (B ,(Z), Y, X).
+
+    Returns
+    -------
+    torch.Tensor
+        The coordinates of every pixel in each subpatch, stacked into the shape
+        `(`N, S, S)` or `(N, S, S, S)` for 2D and 3D patches respectively, where `N`
+        is the number of subpatches, and `S` is the subpatch size.
+    """
     device = subpatch_centers.device
     ndims = len(batch_shape) - 1  # spatial dimensions
 
