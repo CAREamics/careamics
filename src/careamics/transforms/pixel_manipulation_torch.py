@@ -337,67 +337,33 @@ def median_manipulate_torch(
         device=batch.device
     )  # (num_coordinates, batch + num_spatial_dims)
 
-    # Calculate the padding value for the input tensor
-    pad_value = subpatch_size // 2
-
-    # Generate all offsets for the ROIs. Iteration starting from 1 to skip the batch
-    offsets = torch.meshgrid(
-        [
-            torch.arange(-pad_value, pad_value + 1, device=batch.device)
-            for _ in range(1, subpatch_center_coordinates.shape[1])
-        ],
-        indexing="ij",
+    subpatch_coords = _get_subpatch_coords(
+        subpatch_center_coordinates, subpatch_size, batch.shape
     )
-    offsets = torch.stack(
-        [axis_offset.flatten() for axis_offset in offsets], dim=1
-    )  # (subpatch_size**2, num_spatial_dims)
 
-    # Create the list to assemble coordinates of the ROIs centers for each axis
-    coords_axes = []
-    # Create the list to assemble the span of coordinates defining the ROIs for each
-    # axis
-    coords_expands = []
-    for d in range(subpatch_center_coordinates.shape[1]):
-        coords_axes.append(subpatch_center_coordinates[:, d])
-        if d == 0:
-            # For batch dimension coordinates are not expanded (no offsets)
-            coords_expands.append(
-                subpatch_center_coordinates[:, d]
-                .unsqueeze(1)
-                .expand(-1, subpatch_size ** offsets.shape[1])
-            )  # (num_coordinates, subpatch_size**num_spacial_dims)
-        else:
-            # For spatial dimensions, coordinates are expanded with offsets, creating
-            # spans
-            coords_expands.append(
-                (
-                    subpatch_center_coordinates[:, d].unsqueeze(1) + offsets[:, d - 1]
-                ).clamp(0, batch.shape[d] - 1)
-            )  # (num_coordinates, subpatch_size**num_spacial_dims)
+    # subpatches shape: (num_coordinates, subpatch_size, subpatch_size, ...)
+    subpatches = batch[tuple(subpatch_coords)]
 
-    # create array of rois by indexing the batch with gathered coordinates
-    rois = batch[
-        tuple(coords_expands)
-    ]  # (num_coordinates, subpatch_size**num_spacial_dims)
-
+    ndims = batch.ndim - 1
     if struct_params is not None:
-        ndims = batch.ndim - 1
         struct_mask = _create_struct_mask(ndims, subpatch_size, struct_params)
-        rois_filtered = rois[:, struct_mask.flatten()]
+        subpatches_masked = subpatches[:, struct_mask]
     else:
         # Remove the center pixel value from the rois
-        center_idx = (subpatch_size ** offsets.shape[1]) // 2
-        rois_filtered = torch.cat(
-            [rois[:, :center_idx], rois[:, center_idx + 1 :]], dim=1
-        )
+        subpatch_shape = (subpatch_size,) * ndims
+        centre_idx = (subpatch_size // 2,) * ndims
+        cp_mask = torch.ones(subpatch_shape, dtype=torch.bool, device=batch.device)
+        cp_mask[centre_idx] = False
+        subpatches_masked = subpatches[:, cp_mask]
 
     # compute the medians.
-    medians = rois_filtered.median(dim=1).values  # (num_coordinates,)
+    medians = subpatches_masked.median(dim=1).values  # (num_coordinates,)
 
     # Update the output tensor with medians
+    mask = torch.zeros_like(batch, dtype=torch.uint8, device=batch.device)
+    mask[tuple(subpatch_center_coordinates.T)] = 1
     output_batch = batch.clone()
-    output_batch[tuple(coords_axes)] = medians
-    mask = torch.where(output_batch != batch, 1, 0).to(torch.uint8)
+    output_batch[tuple(subpatch_center_coordinates.T)] = medians
 
     if struct_params is not None:
         output_batch = _apply_struct_mask_torch(
@@ -405,3 +371,39 @@ def median_manipulate_torch(
         )
 
     return output_batch, mask
+
+
+def _get_subpatch_coords(
+    subpatch_centers: torch.Tensor, subpatch_size: int, batch_shape: tuple[int, ...]
+) -> torch.Tensor:
+    device = subpatch_centers.device
+    ndims = len(batch_shape) - 1  # spatial dimensions
+
+    half_size = subpatch_size // 2
+    # pixel offset from the center of the subpatch, i.e. coords relative to the center
+    offsets = torch.meshgrid(
+        [torch.arange(-half_size, half_size + 1, device=device) for _ in range(ndims)],
+        indexing="ij",
+    )
+    # add zero offset for the batch dimension
+    subpatch_shape = (subpatch_size,) * ndims
+    offsets = torch.stack(
+        [torch.zeros(subpatch_shape, dtype=torch.int64, device=device), *offsets], dim=0
+    )
+
+    # now we need to add the offset to the subpatch_centers to get the subpatch coords
+    # subpatch_shape: (n_centres, ndims + 1)
+    # offset_shape: (ndims + 1, subpatch_size, subpatch_size, ...)
+    # we need to add singleton dims to broadcast the tensors
+    subpatch_centers = subpatch_centers[..., *(torch.newaxis for _ in range(ndims))]
+    offsets = offsets[torch.newaxis]
+
+    # resulting shape: (n_centres, ndims + 1, subpatch_size, subpatch_size, ...)
+    subpatch_coords = subpatch_centers + offsets
+    subpatch_coords = torch.swapaxes(subpatch_coords, 0, 1)
+    # clamp coordinates so they are not outside the bounds of the patch
+    broadcast_shape = (ndims + 1, *(1 for _ in range(ndims + 1)))
+    minimum = torch.zeros(broadcast_shape, dtype=torch.int64, device=device)
+    maximum = torch.tensor(batch_shape, device=device).reshape(broadcast_shape) - 1
+    subpatch_coords = subpatch_coords.clamp(minimum, maximum)
+    return subpatch_coords
