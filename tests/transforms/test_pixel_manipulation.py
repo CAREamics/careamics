@@ -1,3 +1,5 @@
+from typing import Literal
+
 import numpy as np
 import pytest
 import torch
@@ -11,6 +13,8 @@ from careamics.transforms.pixel_manipulation import (
 )
 from careamics.transforms.pixel_manipulation_torch import (
     _apply_struct_mask_torch,
+    _create_center_pixel_mask,
+    _create_struct_mask,
     _get_stratified_coords_torch,
     _get_subpatch_coords,
     median_manipulate_torch,
@@ -556,3 +560,108 @@ def test_get_subpatch_coords(
         expected_coords = full_coords[:, batch_index, *expected_slice]
 
         torch.testing.assert_close(subpatch_coords, expected_coords)
+
+
+@pytest.mark.parametrize("n_dims", [2, 3])
+@pytest.mark.parametrize("subpatch_size", [5, 7, 11])
+def test_create_center_pixel_mask(n_dims: int, subpatch_size: int):
+    mask_tensor = _create_center_pixel_mask(n_dims, subpatch_size, torch.device("cpu"))
+    mask = mask_tensor.detach().numpy()
+
+    assert np.count_nonzero(~mask) == 1  # only one value masked
+
+    centre_idx = subpatch_size // 2
+    # the coordinate of the masked value should be the center index
+    coord = np.where(mask == 0)
+    for c in coord:
+        assert c == centre_idx
+
+
+@pytest.mark.parametrize("n_dims", [2, 3])
+@pytest.mark.parametrize("subpatch_size", [6, 10])
+def test_center_pixel_mask_even_size_error(n_dims: int, subpatch_size: int):
+    """Test that even sized subpatch sizes are not allowed."""
+    with pytest.raises(ValueError):
+        _ = _create_center_pixel_mask(n_dims, subpatch_size, torch.device("cpu"))
+
+
+@pytest.mark.parametrize("n_dims", [2, 3])
+@pytest.mark.parametrize("subpatch_size", [5, 7, 11])
+@pytest.mark.parametrize("span", [3, 5])
+@pytest.mark.parametrize("axis", [0, 1])
+def test_create_struct_mask(
+    n_dims: int, subpatch_size: int, span: int, axis: Literal[0, 1]
+):
+    struct_params = StructMaskParameters(axis, span)
+    mask_tensor = _create_struct_mask(
+        n_dims, subpatch_size, struct_params, torch.device("cpu")
+    )
+    mask = mask_tensor.detach().numpy()
+
+    if n_dims == 2:
+        if axis == 0:
+            expected_mask = _horizontal_struct_2D(subpatch_size, span)
+        elif axis == 1:
+            expected_mask = _vertical_struct_2D(subpatch_size, span)
+        else:
+            raise ValueError
+    elif n_dims == 3:
+        if axis == 0:
+            expected_mask = _horizontal_struct_3D(subpatch_size, span)
+        elif axis == 1:
+            expected_mask = _vertical_struct_3D(subpatch_size, span)
+        else:
+            raise ValueError
+    else:
+        raise ValueError
+
+    np.testing.assert_equal(mask, expected_mask)
+
+
+@pytest.mark.parametrize("n_dims", [2, 3])
+@pytest.mark.parametrize("subpatch_size", [6, 10])
+def test_struct_mask_even_size_error(n_dims: int, subpatch_size: int):
+    """Test that even sized subpatch sizes are not allowed."""
+    struct_params = StructMaskParameters(0, 5)
+    with pytest.raises(ValueError):
+        _ = _create_struct_mask(
+            n_dims, subpatch_size, struct_params, torch.device("cpu")
+        )
+
+
+# alternative implementation for testing for struct mask creation
+# 2D, 3D, horizontal, vertical
+
+
+def _horizontal_struct_2D(subpatch_size: int, span: int) -> np.ndarray:
+    mask = np.ones((subpatch_size, subpatch_size), dtype=bool)
+    center_idx = subpatch_size // 2
+    span_start = center_idx - span // 2
+    span_end = center_idx + span // 2 + 1
+    mask[center_idx, span_start:span_end] = False
+    return mask
+
+
+def _vertical_struct_2D(subpatch_size: int, span: int) -> np.ndarray:
+    mask = np.ones((subpatch_size, subpatch_size), dtype=bool)
+    center_idx = subpatch_size // 2
+    span_start = center_idx - span // 2
+    span_end = center_idx + span // 2 + 1
+    mask[span_start:span_end, center_idx] = False
+    return mask
+
+
+def _horizontal_struct_3D(subpatch_size: int, span: int) -> np.ndarray:
+    mask = np.ones((subpatch_size, subpatch_size, subpatch_size), dtype=bool)
+    mask_2d = _horizontal_struct_2D(subpatch_size, span)
+    center_idx = subpatch_size // 2
+    mask[center_idx] = mask_2d
+    return mask
+
+
+def _vertical_struct_3D(subpatch_size: int, span: int) -> np.ndarray:
+    mask = np.ones((subpatch_size, subpatch_size, subpatch_size), dtype=bool)
+    mask_2d = _vertical_struct_2D(subpatch_size, span)
+    center_idx = subpatch_size // 2
+    mask[center_idx] = mask_2d
+    return mask
