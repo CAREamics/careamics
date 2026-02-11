@@ -352,7 +352,7 @@ def _create_center_pixel_mask(
         The number of dimensions.
     subpatch_size : int
         The size of one dimension of the subpatch. The created mask must be the same
-        size as the subpatch.
+        size as the subpatch. Cannot be an even number.
     device : torch.device
         Device to create the mask on, e.g. "cuda".
 
@@ -361,6 +361,8 @@ def _create_center_pixel_mask(
     torch.Tensor
         Tensor of bools. False where pixels should be masked and True otherwise.
     """
+    if subpatch_size % 2 == 0:
+        raise ValueError("`subpatch` size cannot be even.")
     subpatch_shape = (subpatch_size,) * ndims
     centre_idx = (subpatch_size // 2,) * ndims
     cp_mask = torch.ones(subpatch_shape, dtype=torch.bool, device=device)
@@ -383,7 +385,7 @@ def _create_struct_mask(
         The number of dimensions.
     subpatch_size : int
         The size of one dimension of the subpatch. The created mask must be the same
-        size as the subpatch.
+        size as the subpatch. Cannot be an even number.
     struct_params : StructMaskParameters
         Parameters for the structN2V mask (axis and span).
     device : torch.device
@@ -394,6 +396,8 @@ def _create_struct_mask(
     torch.Tensor
         Tensor of bools. False where pixels should be masked and True otherwise.
     """
+    if subpatch_size % 2 == 0:
+        raise ValueError("`subpatch` size cannot be even.")
     center_idx = subpatch_size // 2
     span_start = (subpatch_size - struct_params.span) // 2
     span_end = subpatch_size - span_start  # symmetric
