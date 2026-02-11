@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import torch
+from torch.nn.functional import pad
 
 from careamics.transforms.pixel_manipulation import (
     _apply_struct_mask,
@@ -11,6 +12,7 @@ from careamics.transforms.pixel_manipulation import (
 from careamics.transforms.pixel_manipulation_torch import (
     _apply_struct_mask_torch,
     _get_stratified_coords_torch,
+    _get_subpatch_coords,
     median_manipulate_torch,
     uniform_manipulate_torch,
 )
@@ -501,3 +503,56 @@ def test_apply_struct_mask_torch(patch_shape, coords, struct_axis, struct_span):
     assert torch.equal(
         torch.sort(changed_values).values, torch.sort(torch.cat(transformed)).values
     )
+
+
+@pytest.mark.parametrize(
+    "batch_shape, center_coords",
+    [
+        [
+            (2, 32, 32),
+            [(0, 1, 2), (0, 8, 16), (1, 17, 9), (1, 30, 31)],
+        ],
+        [
+            (2, 32, 32, 32),
+            [(0, 1, 2, 3), (0, 8, 16, 16), (1, 17, 9, 9), (1, 30, 31, 32)],
+        ],
+    ],
+    ids=["2D", "3D"],
+)
+# center coords includes batch dimension
+def test_get_subpatch_coords(
+    batch_shape: tuple[int, ...], center_coords: list[tuple[int, ...]]
+):
+    """Test the subpatch coordinates match the true subpatch location."""
+    # The idea of this test is to:
+    # - create the full patch coordinates with torch.meshgrid
+    # - slice full coords at the subpatch location, this should match the calc coords
+
+    subpatch_size = 11
+    ndims = len(batch_shape) - 1
+
+    full_coords = torch.stack(torch.meshgrid(*[torch.arange(d) for d in batch_shape]))
+    # padding with replicate mode emulates clamping behavior in implementation.
+    pad_offset = subpatch_size // 2 + 1
+    full_coords = pad(
+        full_coords, tuple(pad_offset for _ in range(ndims * 2)), mode="replicate"
+    )
+
+    calculated_coords = _get_subpatch_coords(
+        torch.tensor(center_coords), subpatch_size, batch_shape
+    )
+    # check each subpatch coords in a loop
+    for i in range(len(center_coords)):
+        # remember calculated coords shape is (D, N, S, S, ...), see function docstring
+        # so use the second dimension to index each subpatch coords.
+        subpatch_coords = calculated_coords[:, i]
+        center_coord = center_coords[i]
+        batch_index = center_coord[0]
+        offset_spatial_center = (c + pad_offset for c in center_coord[1:])
+        expected_slice = (
+            slice(c - subpatch_size // 2, c + subpatch_size // 2 + 1)
+            for c in offset_spatial_center
+        )
+        expected_coords = full_coords[:, batch_index, *expected_slice]
+
+        torch.testing.assert_close(subpatch_coords, expected_coords)

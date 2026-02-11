@@ -414,8 +414,9 @@ def _get_subpatch_coords(
 ) -> torch.Tensor:
     """Get pixel coordinates for subpatches with centers at `subpatch_centers`.
 
-    The coordinates are returned in the shape `(`N, S, S)` or `(N, S, S, S)` for 2D and
-    3D patches respectively, where `N` is the number of subpatches, and `S` is the
+    The coordinates are returned in the shape `(D ,N, S, S)` or `(D, N, S, S, S)` for
+    2D and 3D patches respectively, where `D` is the number of dimension including the
+    batch dimension, `N` is the number of subpatches, and `S` is the
     subpatch size. N is determined from the length of `subpatch_centres`.
 
     If a subpatch would overlap the bounds of the patch, the coordinates are clipped.
@@ -437,8 +438,9 @@ def _get_subpatch_coords(
     -------
     torch.Tensor
         The coordinates of every pixel in each subpatch, stacked into the shape
-        `(`N, S, S)` or `(N, S, S, S)` for 2D and 3D patches respectively, where `N`
-        is the number of subpatches, and `S` is the subpatch size.
+        `(D ,N, S, S)` or `(D, N, S, S, S)` for 2D and 3D patches respectively, where
+        `D` is the number of dimension including the batch dimension, `N` is the number
+        of subpatches, and `S` is the subpatch size.
     """
     device = subpatch_centers.device
     ndims = len(batch_shape) - 1  # spatial dimensions
