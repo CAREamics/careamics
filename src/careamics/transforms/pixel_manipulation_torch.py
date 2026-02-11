@@ -360,10 +360,9 @@ def median_manipulate_torch(
     medians = subpatches_masked.median(dim=1).values  # (num_coordinates,)
 
     # Update the output tensor with medians
-    mask = torch.zeros_like(batch, dtype=torch.uint8, device=batch.device)
-    mask[tuple(subpatch_center_coordinates.T)] = 1
     output_batch = batch.clone()
     output_batch[tuple(subpatch_center_coordinates.T)] = medians
+    mask = (batch != output_batch).to(torch.uint8)
 
     if struct_params is not None:
         output_batch = _apply_struct_mask_torch(
