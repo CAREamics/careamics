@@ -6,8 +6,19 @@ from .patching_strategy_protocol import PatchSpecs
 
 
 class FixedPatchingStrategy:
+    """A simple patching strategy returns patches from a fixed sequence.
+
+    This class implements the `PatchingStrategy` `Protocol`.
+    """
 
     def __init__(self, fixed_patch_specs: Sequence[PatchSpecs]):
+        """A simple patching strategy returns patches from a fixed list.
+
+        Parameters
+        ----------
+        fixed_patch_specs: Sequence[PatchSpecs]
+            A sequence of patch specifications.
+        """
         self.fixed_patch_specs = fixed_patch_specs
 
     @property
