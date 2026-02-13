@@ -193,6 +193,18 @@ class StratifiedPatchingStrategy:
         return np.arange(start, self.cumulative_image_patches[data_idx]).tolist()
 
     def get_included_grid_coords(self) -> dict[tuple[int, int], list[tuple[int, ...]]]:
+        """
+        Get all the included grid coordinates in the patching strategy.
+
+        If a grid coordinate is not included, a patch can never be selected from the
+        region `[grid_coord*patch_size, (grid_coord+1)*patch_size]`.
+
+        Returns
+        -------
+        grid_coords : dict[tuple[int, int], list[tuple, ...]]
+            The key of the returned dictionary corresponds to the
+            `(data_idx, sample_idx)` and the values are the corresponding grid coords.
+        """
         included_grid_coords: dict[tuple[int, int], list[tuple[int, ...]]] = {}
         for data_idx, image_patch_list in enumerate(self.image_patching):
             for sample_idx, sample_patching in enumerate(image_patch_list):
@@ -446,6 +458,17 @@ class _ImageStratifiedPatching:
         )
 
     def get_included_grid_coords(self) -> list[tuple[int, ...]]:
+        """
+        Get all the included grid coordinates in the patching strategy.
+
+        If a grid coordinate is not included, a patch can never be selected from the
+        region `[grid_coord*patch_size, (grid_coord+1)*patch_size]`.
+
+        Returns
+        -------
+        grid_coords : list[tuple, ...]]
+            The list of included grid coordinates.
+        """
         grid_coords_all: set[tuple[int, ...]] = set(self.regions.keys())
         return list(grid_coords_all.difference(self.excluded_patches))
 
