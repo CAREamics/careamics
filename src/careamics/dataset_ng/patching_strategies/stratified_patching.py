@@ -192,8 +192,8 @@ class StratifiedPatchingStrategy:
         start = 0 if data_idx == 0 else self.cumulative_image_patches[data_idx - 1]
         return np.arange(start, self.cumulative_image_patches[data_idx]).tolist()
 
-    def get_included_grid_coords(self) -> dict[tuple[int, int], set[tuple[int, ...]]]:
-        included_grid_coords: dict[tuple[int, int], set[tuple[int, ...]]] = {}
+    def get_included_grid_coords(self) -> dict[tuple[int, int], list[tuple[int, ...]]]:
+        included_grid_coords: dict[tuple[int, int], list[tuple[int, ...]]] = {}
         for data_idx, image_patch_list in enumerate(self.image_patching):
             for sample_idx, sample_patching in enumerate(image_patch_list):
                 included_grid_coords[(data_idx, sample_idx)] = (
@@ -445,9 +445,9 @@ class _ImageStratifiedPatching:
             self._recalculate_sampling()
         )
 
-    def get_included_grid_coords(self) -> set[tuple[int, ...]]:
+    def get_included_grid_coords(self) -> list[tuple[int, ...]]:
         grid_coords_all: set[tuple[int, ...]] = set(self.regions.keys())
-        return grid_coords_all.difference(self.excluded_patches)
+        return list(grid_coords_all.difference(self.excluded_patches))
 
     def _recalculate_sampling(self):
         """
