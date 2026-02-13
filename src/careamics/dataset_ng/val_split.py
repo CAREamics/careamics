@@ -45,11 +45,18 @@ def create_val_split(
     keys = list(grid_coords.keys())
     val_patch_specs: list[PatchSpecs] = []
 
-    # select validation patches
-    selected_images = rng.choice(len(keys), n_val_patches)
-    # the images and how many validation patches should be selected from each image
-    selected_images, n_image_patches = np.unique(selected_images, return_counts=True)
-    for idx, n_patches in zip(selected_images, n_image_patches, strict=True):
+    # # select validation patches
+    n_patches_per_image = np.array(
+        [stratified_patching.image_patching[key[0]][key[1]].n_patches for key in keys]
+    )
+    n_selected_image_patches = np.zeros_like(n_patches_per_image)
+    for _ in range(n_val_patches):
+        probs = n_patches_per_image / n_patches_per_image.sum()
+        idx = rng.choice(np.arange(len(n_patches_per_image)), p=probs)
+        n_selected_image_patches[idx] += 1
+        n_patches_per_image[idx] -= 1
+
+    for idx, n_patches in enumerate(n_selected_image_patches):
 
         data_idx, sample_idx = keys[idx]
         # randomly choose the validation patches in the image
