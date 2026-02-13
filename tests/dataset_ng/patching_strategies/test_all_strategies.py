@@ -4,8 +4,10 @@ import numpy as np
 import pytest
 
 from careamics.dataset_ng.patching_strategies import (
+    FixedPatchingStrategy,
     FixedRandomPatchingStrategy,
     PatchingStrategy,
+    PatchSpecs,
     RandomPatchingStrategy,
     SequentialPatchingStrategy,
     StratifiedPatchingStrategy,
@@ -46,6 +48,46 @@ def _create_stratified_patching_strategy(
     return StratifiedPatchingStrategy(data_shapes, patch_size, seed=seed)
 
 
+def _create_fixed_patching_strategy(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+):
+    fixed_specs: list[PatchSpecs] = []
+    for data_idx, data_shape in enumerate(data_shapes):
+        spatial_shape = np.array(data_shape[2:])
+        n_dims = len(spatial_shape)
+        # create patches evenly spaced on a grid with gaps
+        # cover 60% to pass cover50percent test
+        patch_grid_size = np.ceil(
+            spatial_shape * (0.6 ** (1 / n_dims)) / np.array(patch_size)
+        ).astype(int)
+        coords = np.stack(
+            np.meshgrid(
+                *[
+                    np.round(np.linspace(0, s - ps - 1, gs)).astype(int)
+                    for s, ps, gs in zip(
+                        spatial_shape, patch_size, patch_grid_size, strict=True
+                    )
+                ],
+                indexing="ij",
+            ),
+            axis=-1,
+        )
+        coords = coords.reshape(np.prod(patch_grid_size), -1)
+        for sample_idx in range(data_shape[0]):
+            fixed_specs.extend(
+                [
+                    {
+                        "data_idx": data_idx,
+                        "sample_idx": sample_idx,
+                        "coords": tuple(coord),
+                        "patch_size": patch_size,
+                    }
+                    for coord in coords
+                ]
+            )
+    return FixedPatchingStrategy(fixed_specs)
+
+
 def _create_tiling_strategy(
     data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
 ) -> TilingStrategy:
@@ -79,6 +121,7 @@ PATCHING_STRATEGY_CONSTR: tuple[PatchingStrategyConstr, ...] = (
     _create_tiling_strategy,
     _create_whole_sample_patching_strategy,
     _create_stratified_patching_strategy,
+    _create_fixed_patching_strategy,
 )
 
 
