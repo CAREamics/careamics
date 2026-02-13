@@ -96,8 +96,6 @@ class StratifiedPatchingStrategy:
             sum([sample.n_patches for sample in image]) for image in self.image_patching
         )
 
-    # TODO: add method to return valid grid coords for removal
-
     def exclude_patches(
         self, data_idx: int, sample_idx: int, grid_coords: Sequence[tuple[int, ...]]
     ):
@@ -193,6 +191,15 @@ class StratifiedPatchingStrategy:
         """
         start = 0 if data_idx == 0 else self.cumulative_image_patches[data_idx - 1]
         return np.arange(start, self.cumulative_image_patches[data_idx]).tolist()
+
+    def get_included_grid_coords(self) -> dict[tuple[int, int], set[tuple[int, ...]]]:
+        included_grid_coords: dict[tuple[int, int], set[tuple[int, ...]]] = {}
+        for data_idx, image_patch_list in enumerate(self.image_patching):
+            for sample_idx, sample_patching in enumerate(image_patch_list):
+                included_grid_coords[(data_idx, sample_idx)] = (
+                    sample_patching.get_included_grid_coords()
+                )
+        return included_grid_coords
 
     def _calc_bins(self) -> tuple[NDArray[np.int_], NDArray[np.int_], NDArray[np.int_]]:
         """
@@ -301,7 +308,7 @@ class _ImageStratifiedPatching:
         self.areas: dict[tuple[int, ...], int] = {}
         self.probs: dict[tuple[int, ...], float]
 
-        self.excluded_patches: list[tuple[int, ...]] = []
+        self.excluded_patches: set[tuple[int, ...]] = set()
         self.bin_size: int
         self.bins: list[list[tuple[int, ...]]]
         self.n_patches: int
@@ -413,7 +420,7 @@ class _ImageStratifiedPatching:
             that will be excluded from sampling. The grid starts at (0, 0) and has a
             spacing of the given `patch_size`.
         """
-        self.excluded_patches.extend(grid_coords)
+        self.excluded_patches.update(grid_coords)
         for grid_coord in grid_coords:
             d: tuple[Literal[0, 1], ...] = (0, 1)
             # exclude the patch from all the sampling regions that cover it
@@ -437,6 +444,10 @@ class _ImageStratifiedPatching:
         self.n_patches, self.bin_size, self.bins, self.probs = (
             self._recalculate_sampling()
         )
+
+    def get_included_grid_coords(self) -> set[tuple[int, ...]]:
+        grid_coords_all: set[tuple[int, ...]] = set(self.regions.keys())
+        return grid_coords_all.difference(self.excluded_patches)
 
     def _recalculate_sampling(self):
         """
