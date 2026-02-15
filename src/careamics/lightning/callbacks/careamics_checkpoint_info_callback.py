@@ -79,7 +79,3 @@ class CareamicsCheckpointInfo(Callback):
             "experiment_name": self.experiment_name,
             "training_config": self.training_config.model_dump(mode="json"),
         }
-
-        # Save datamodule hyperparameters if datamodule exists
-        if trainer.datamodule is not None and hasattr(trainer.datamodule, "hparams"):
-            checkpoint["datamodule_hyper_parameters"] = dict(trainer.datamodule.hparams)

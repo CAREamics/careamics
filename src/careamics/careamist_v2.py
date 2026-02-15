@@ -127,7 +127,7 @@ class CAREamistV2:
             ]
         except (KeyError, IndexError) as e:
             raise ValueError(
-                f"Could not find algorithm_config in checkpoint at: {checkpoint_path}. "
+                f"Couldn't find algorithm_config in checkpoint at: {checkpoint_path!s}."
                 f"This checkpoint may not have been saved with CAREamics."
             ) from e
 
@@ -135,7 +135,9 @@ class CAREamistV2:
         data_config: dict[str, Any] | None = None
 
         # Location 1: New format - datamodule hyperparameters
-        data_hparams_key = checkpoint.get("datamodule_hparams_name") or "datamodule_hyper_parameters"
+        data_hparams_key = (
+            checkpoint.get("datamodule_hparams_name") or "datamodule_hyper_parameters"
+        )
         if data_hparams_key in checkpoint:
             data_config = checkpoint[data_hparams_key].get("data_config")
 
@@ -152,12 +154,6 @@ class CAREamistV2:
         # Extract metadata with fallbacks
         careamics_info = checkpoint.get("careamics_info", {})
 
-        # version - default to "0.1.0"
-        version = careamics_info.get(
-            "version",
-            checkpoint.get("hyper_parameters", {}).get("version", "0.1.0"),
-        )
-
         # experiment_name - default to "loaded_from_checkpoint"
         experiment_name = careamics_info.get(
             "experiment_name",
@@ -166,20 +162,12 @@ class CAREamistV2:
             ),
         )
 
-        # training_config - defaults handled by TrainingConfig()
-        training_config_dict = careamics_info.get(
-            "training_config",
-            checkpoint.get("hyper_parameters", {}).get("training_config", {}),
-        )
-
         # TODO: will need to resolve this with type adapter once more configs are added
         config = Configuration.model_validate(
             {
                 "algorithm_config": algorithm_config,
                 "data_config": data_config,
-                "version": version,
                 "experiment_name": experiment_name,
-                "training_config": training_config_dict,
             }
         )
 
