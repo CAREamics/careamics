@@ -3,7 +3,6 @@ import pytest
 from careamics.config.ng_configs import N2VConfiguration
 from careamics.config.ng_factories import (
     create_advanced_n2v_config,
-    create_n2v_config,
     create_structn2v_config,
 )
 from careamics.config.support import (
@@ -21,7 +20,7 @@ class TestStandardConfig:
 
     def test_create_standard_config(self):
         """Test that N2V configuration can be created."""
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -31,8 +30,8 @@ class TestStandardConfig:
         assert isinstance(config, N2VConfiguration)
 
     def test_no_aug(self):
-        """Test no augmentation."""
-        config = create_n2v_config(
+        """Test the default n2v transforms."""
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -42,12 +41,91 @@ class TestStandardConfig:
         )
         assert config.data_config.transforms == []
 
+    def test_n2v2_structn2v(self):
+        """Test n2v2 and structn2v params are passed correctly."""
+        n2v2 = True
+        struct_mask_axis = SupportedStructAxis.HORIZONTAL.value
+        struct_n2v_span = 15
+
+        config = create_structn2v_config(
+            experiment_name="test",
+            data_type="tiff",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            struct_n2v_axis=struct_mask_axis,
+            struct_n2v_span=struct_n2v_span,
+            use_n2v2=n2v2,
+        )
+        assert (
+            config.algorithm_config.n2v_config.strategy
+            == SupportedPixelManipulation.MEDIAN.value
+        )
+        assert config.algorithm_config.n2v_config.struct_mask_axis == struct_mask_axis
+        assert config.algorithm_config.n2v_config.struct_mask_span == struct_n2v_span
+
+    def test_num_epochs(self):
+        """Test that num_epochs parameter is correctly passed to trainer config."""
+        num_epochs = 50
+
+        config = create_advanced_n2v_config(
+            experiment_name="test",
+            data_type="tiff",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            num_epochs=num_epochs,
+        )
+        assert (
+            config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
+        )
+
+        # Test with num_epochs=None (should not be in config)
+        config = create_advanced_n2v_config(
+            experiment_name="test",
+            data_type="tiff",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            num_epochs=None,
+        )
+        assert "max_epochs" not in config.training_config.lightning_trainer_config
+
+    def test_num_steps(self):
+        """Test that num_steps parameter is correctly passed to trainer config."""
+        num_steps = 1000
+
+        config = create_advanced_n2v_config(
+            experiment_name="test",
+            data_type="tiff",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            num_steps=num_steps,
+        )
+        assert (
+            config.training_config.lightning_trainer_config["limit_train_batches"]
+            == num_steps
+        )
+
+        # Test without num_steps (should not be in config)
+        config = create_advanced_n2v_config(
+            experiment_name="test",
+            data_type="tiff",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+        )
+        assert (
+            "limit_train_batches" not in config.training_config.lightning_trainer_config
+        )
+
     def test_num_epochs_and_num_steps(self):
         """Test that both num_epochs and num_steps can be set simultaneously."""
         num_epochs = 25
         num_steps = 500
 
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -67,7 +145,7 @@ class TestStandardConfig:
     # TODO arguably this should be tested at the level of the data config only
     def test_czi_with_T_axes(self):
         """Test that SCTYX is accepted by N2V configuration for CZI data."""
-        config = create_n2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="czi",
             axes="SCTYX",
@@ -79,15 +157,7 @@ class TestStandardConfig:
         assert len(config.data_config.patching.patch_size) == 3
         assert config.algorithm_config.model.conv_dims == 3
 
-
-class TestStructConfig:
-    def test_n2v2_structn2v(self):
-        """Test n2v2 and structn2v params are passed correctly."""
-        n2v2 = True
-        struct_mask_axis = SupportedStructAxis.HORIZONTAL.value
-        struct_n2v_span = 15
-
-        config = create_structn2v_config(
+        config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
