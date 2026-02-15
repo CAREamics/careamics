@@ -11,7 +11,13 @@ from careamics.config.support import (
 )
 
 
-class TestN2VConfiguration:
+# TODO standard just calls advanced, where should test reside?
+# - arguably standard should only test the parameters that it enforces, but these are
+# default
+# - advanced should test what it actaully does
+class TestStandardConfig:
+    """Test the standard N2V configuration factory."""
+
     def test_create_standard_config(self):
         """Test that N2V configuration can be created."""
         config = create_advanced_n2v_config(
@@ -151,10 +157,6 @@ class TestN2VConfiguration:
         assert len(config.data_config.patching.patch_size) == 3
         assert config.algorithm_config.model.conv_dims == 3
 
-    def test_epochs_steps(self):
-        """Test step and epoch naming in trainer config."""
-        num_epochs = 10
-        num_steps = 20
 
         config = create_advanced_n2v_config(
             experiment_name="test",
@@ -162,17 +164,20 @@ class TestN2VConfiguration:
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            num_epochs=num_epochs,
-            num_steps=num_steps,
+            struct_n2v_axis=struct_mask_axis,
+            struct_n2v_span=struct_n2v_span,
+            use_n2v2=n2v2,
         )
+        assert (
+            config.algorithm_config.n2v_config.strategy
+            == SupportedPixelManipulation.MEDIAN.value
+        )
+        assert config.algorithm_config.n2v_config.struct_mask_axis == struct_mask_axis
+        assert config.algorithm_config.n2v_config.struct_mask_span == struct_n2v_span
 
-        assert (
-            config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
-        )
-        assert (
-            config.training_config.lightning_trainer_config["limit_train_batches"]
-            == num_steps
-        )
+
+class TestAdvancedConfig:
+    """Test the advanced N2V configuration factory"""
 
     @pytest.mark.parametrize(
         "axes, n_channels, channels, error",
@@ -226,3 +231,36 @@ class TestN2VConfiguration:
             else:
                 assert config.algorithm_config.model.in_channels == len(channels)
                 assert config.algorithm_config.model.num_classes == len(channels)
+
+    def test_num_workers(self):
+        """Test that num_workers can be set and overrriden by train dataloader."""
+        num_workers = 4
+
+        config: N2VConfiguration = create_advanced_n2v_config(
+            experiment_name="test",
+            data_type="tiff",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            num_workers=num_workers,
+        )
+        assert config.data_config.train_dataloader_params["num_workers"] == num_workers
+        assert config.data_config.val_dataloader_params["num_workers"] == num_workers
+        assert config.data_config.pred_dataloader_params["num_workers"] == num_workers
+
+        # test overrride
+        alt_num_workers = 2
+        config: N2VConfiguration = create_advanced_n2v_config(
+            experiment_name="test",
+            data_type="tiff",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            num_workers=num_workers,
+            train_dataloader_params={"num_workers": alt_num_workers},
+        )
+        assert (
+            config.data_config.train_dataloader_params["num_workers"] == alt_num_workers
+        )
+        assert config.data_config.val_dataloader_params["num_workers"] == num_workers
+        assert config.data_config.pred_dataloader_params["num_workers"] == num_workers
