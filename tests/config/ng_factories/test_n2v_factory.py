@@ -157,7 +157,6 @@ class TestStandardConfig:
         assert len(config.data_config.patching.patch_size) == 3
         assert config.algorithm_config.model.conv_dims == 3
 
-
         config = create_advanced_n2v_config(
             experiment_name="test",
             data_type="tiff",
