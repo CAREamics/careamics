@@ -92,26 +92,9 @@ def decollate_image_region_data(
         assert isinstance(batch.data_shape, list)
         data_shape = tuple(int(dim[i]) for dim in batch.data_shape)
 
-        # original data shape
-        if (
-            isinstance(batch.original_data_shape, (list, tuple))
-            and batch.original_data_shape
-        ):
-            original_data_shape = tuple(
-                int(dim[i]) for dim in batch.original_data_shape
-            )
-        else:
-            original_data_shape = (
-                tuple(batch.original_data_shape) if batch.original_data_shape else ()
-            )
-
-        # original axes
-        if isinstance(batch.original_axes, (list, tuple)):
-            original_axes = batch.original_axes[i]
-        else:
-            original_axes = (
-                batch.original_axes if hasattr(batch, "original_axes") else ""
-            )
+        # original data shape - always populated from image stacks
+        assert isinstance(batch.original_data_shape, list)
+        original_data_shape = tuple(int(dim[i]) for dim in batch.original_data_shape)
 
         image_region = ImageRegionData(
             data=batch.data[i],  # discard batch dimension
@@ -122,7 +105,6 @@ def decollate_image_region_data(
             region_spec=region_spec,  # type: ignore
             additional_metadata=additional_metadata,
             original_data_shape=original_data_shape,
-            original_axes=original_axes,
         )
         decollated.append(image_region)
 
@@ -131,7 +113,7 @@ def decollate_image_region_data(
 
 def restore_original_shape(
     prediction: NDArray,
-    original_axes: str,
+    axes: str,
     original_data_shape: Sequence[int],
 ) -> NDArray:
     """
@@ -141,7 +123,7 @@ def restore_original_shape(
     ----------
     prediction : numpy.ndarray
         Prediction in SC(Z)YX format.
-    original_axes : str
+    axes : str
         Original axes order of the data.
     original_data_shape : Sequence[int]
         Original shape of the data.
@@ -149,11 +131,8 @@ def restore_original_shape(
     Returns
     -------
     numpy.ndarray
-        Prediction reshaped to match original_axes and original_data_shape.
+        Prediction reshaped to match axes and original_data_shape.
     """
-    if not original_axes or not original_data_shape:
-        return prediction
-
     # Determine current axes from prediction shape
     ndim = len(prediction.shape)
     if ndim == 5:
@@ -169,19 +148,19 @@ def restore_original_shape(
         )
 
     # unflatten S dimension
-    merged_dims = [dim for dim in original_axes if dim not in current_axes]
+    merged_dims = [dim for dim in axes if dim not in current_axes]
 
     if merged_dims:
         unflattened_sizes = []
         unflattened_dims = []
 
-        if "S" in original_axes:
-            s_size = original_data_shape[original_axes.index("S")]
+        if "S" in axes:
+            s_size = original_data_shape[axes.index("S")]
             unflattened_sizes.append(s_size)
             unflattened_dims.append("S")
 
         for dim in merged_dims:
-            dim_size = original_data_shape[original_axes.index(dim)]
+            dim_size = original_data_shape[axes.index(dim)]
             unflattened_sizes.append(dim_size)
             unflattened_dims.append(dim)
 
@@ -197,16 +176,16 @@ def restore_original_shape(
         )
 
     # Remove singleton C if not in original
-    if "C" in current_axes and "C" not in original_axes:
+    if "C" in current_axes and "C" not in axes:
         c_idx = current_axes.index("C")
         if prediction.shape[c_idx] == 1:
             prediction = np.squeeze(prediction, axis=c_idx)
             current_axes = current_axes[:c_idx] + current_axes[c_idx + 1 :]
 
     # Reorder to match original axes
-    if current_axes != original_axes:
-        source_order = [current_axes.index(axis) for axis in original_axes]
-        target_order = list(range(len(original_axes)))
+    if current_axes != axes:
+        source_order = [current_axes.index(axis) for axis in axes]
+        target_order = list(range(len(axes)))
         prediction = np.moveaxis(prediction, source_order, target_order)
 
     return prediction
@@ -278,7 +257,7 @@ def convert_prediction(
         Whether the predictions are tiled.
     restore_shape : bool, default=False
         If True, restore predictions to their original shape and dimension order.
-        Requires original_data_shape and original_axes to be present in ImageRegionData.
+        Requires original_data_shape and axes to be present in ImageRegionData.
 
     Returns
     -------
@@ -313,14 +292,10 @@ def convert_prediction(
                 (p for p in decollated_predictions if p.source == sources[i]),
                 decollated_predictions[0] if decollated_predictions else None,
             )
-            if (
-                matching_pred
-                and matching_pred.original_axes
-                and matching_pred.original_data_shape
-            ):
+            if matching_pred and matching_pred.original_data_shape:
                 restored = restore_original_shape(
                     pred,
-                    matching_pred.original_axes,
+                    matching_pred.axes,
                     matching_pred.original_data_shape,
                 )
                 restored_predictions.append(restored)

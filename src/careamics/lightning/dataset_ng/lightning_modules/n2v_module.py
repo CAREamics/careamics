@@ -164,7 +164,6 @@ class N2VModule(L.LightningModule):
             region_spec=x.region_spec,
             additional_metadata={},
             original_data_shape=x.original_data_shape,
-            original_axes=x.original_axes,
         )
         return output_batch
 

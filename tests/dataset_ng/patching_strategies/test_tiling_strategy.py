@@ -49,6 +49,9 @@ def _test_tiling_output(
             axes=axes,
             region_spec=tile_spec,
             additional_metadata={},
+            original_data_shape=patch_extractor.image_stacks[
+                tile_spec["data_idx"]
+            ].original_data_shape,
         )
         image_regions.append(image_region)
 

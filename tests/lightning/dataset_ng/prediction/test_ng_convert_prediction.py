@@ -9,6 +9,7 @@ from careamics.lightning.dataset_ng.prediction import (
     combine_samples,
     convert_prediction,
     decollate_image_region_data,
+    restore_original_shape,
 )
 
 
@@ -32,10 +33,11 @@ def batches(source_name: str) -> list[ImageRegionData]:
                 ImageRegionData(
                     source=f"{data_idx}.tiff" if source_name == "file" else "array",
                     data=(
-                        data_idx * np.ones((1, 32, 32)).astype(np.float32)
-                    ),  # B dim added by collate
+                        data_idx * np.ones((32, 32)).astype(np.float32)
+                    ),  # individual sample, B dim added by collate
                     data_shape=(10, 32, 32),
                     dtype="float32",
+                    # axes describes the full dataset shape
                     axes="SYX",
                     # non-sense to check that they are properly decollated
                     region_spec={
@@ -48,6 +50,7 @@ def batches(source_name: str) -> list[ImageRegionData]:
                         "chunks": (1, 1, 16, 16),
                         "shards": (1, 1, 32, 32),
                     },
+                    original_data_shape=(10, 32, 32),
                 )
             )
 
@@ -57,7 +60,6 @@ def batches(source_name: str) -> list[ImageRegionData]:
 
 
 class TestCombineSamples:
-
     @pytest.mark.parametrize("source_name", ["file"])  # injected in fixture
     def test_combine_prediction_by_data_idx(
         self, batches: list[ImageRegionData]
@@ -116,7 +118,8 @@ def test_decollate_image_region_data(n_batch) -> None:
         batch.append(
             ImageRegionData(
                 source="array.tiff",
-                data=np.ones((1, 4, 4)).astype(np.float32),  # B dim is added by collate
+                # individual sample, B dim is added by collate
+                data=np.ones((4, 4)).astype(np.float32),
                 data_shape=(32, 32),
                 dtype=str(np.float32),
                 axes="YX",
@@ -130,6 +133,7 @@ def test_decollate_image_region_data(n_batch) -> None:
                     "chunks": (1, 1, 16, i),
                     "shards": (1, 1, 32, i * 2),
                 },
+                original_data_shape=(32, 32),
             )
         )
 
@@ -154,8 +158,118 @@ def test_decollate_image_region_data(n_batch) -> None:
         )
 
 
-class TestConvertPrediction:
+class TestRestoreOriginalShape:
+    def test_restore_from_scyx_to_cyx(self) -> None:
+        """Test restoring SCYX prediction to CYX (removing singleton S)."""
+        prediction = np.random.rand(1, 3, 32, 32)
+        original_axes = "CYX"
+        original_shape = (3, 32, 32)
 
+        restored = restore_original_shape(prediction, original_axes, original_shape)
+
+        assert restored.shape == original_shape
+        np.testing.assert_array_equal(restored, prediction[0])
+
+    def test_restore_from_scyx_to_yxc(self) -> None:
+        """Test restoring SCYX prediction to YXC (reordering and removing S)."""
+        prediction = np.random.rand(1, 3, 32, 32)
+        original_axes = "YXC"
+        original_shape = (32, 32, 3)
+
+        restored = restore_original_shape(prediction, original_axes, original_shape)
+
+        assert restored.shape == original_shape
+        # Check that C dimension moved from position 1 to position 2
+        np.testing.assert_array_equal(restored, np.moveaxis(prediction[0], 0, 2))
+
+    def test_restore_from_sczyx_to_tzyx(self) -> None:
+        """Test restoring SCZYX prediction to TZYX (unflatten S to T, remove C)."""
+        # Simulating S*T merged into S dimension: 3*5=15 samples
+        prediction = np.random.rand(15, 1, 16, 32, 32)
+        original_axes = "TZYX"
+        original_shape = (5, 16, 32, 32)
+
+        restored = restore_original_shape(prediction, original_axes, original_shape)
+
+        assert restored.shape == original_shape
+
+    def test_restore_from_scyx_to_styx(self) -> None:
+        """Test restoring SCYX prediction to STYX (unflatten S*T, remove C)."""
+        # S*T merged: 3*5=15 samples
+        prediction = np.random.rand(15, 1, 32, 32)
+        original_axes = "STYX"
+        original_shape = (3, 5, 32, 32)
+
+        restored = restore_original_shape(prediction, original_axes, original_shape)
+
+        assert restored.shape == original_shape
+
+    def test_restore_from_sczyx_to_sczyx(self) -> None:
+        """Test that SCZYX to SCZYX is identity (no changes needed)."""
+        prediction = np.random.rand(3, 2, 16, 32, 32)
+        original_axes = "SCZYX"
+        original_shape = (3, 2, 16, 32, 32)
+
+        restored = restore_original_shape(prediction, original_axes, original_shape)
+
+        assert restored.shape == original_shape
+        np.testing.assert_array_equal(restored, prediction)
+
+    def test_restore_from_scyx_to_scyx(self) -> None:
+        """Test that SCYX to SCYX is identity (no changes needed)."""
+        prediction = np.random.rand(3, 2, 32, 32)
+        original_axes = "SCYX"
+        original_shape = (3, 2, 32, 32)
+
+        restored = restore_original_shape(prediction, original_axes, original_shape)
+
+        assert restored.shape == original_shape
+        np.testing.assert_array_equal(restored, prediction)
+
+    def test_restore_from_syx_to_tyx(self) -> None:
+        """Test restoring SYX prediction to TYX (unflatten S to T)."""
+        prediction = np.random.rand(5, 32, 32)
+        original_axes = "TYX"
+        original_shape = (5, 32, 32)
+
+        restored = restore_original_shape(prediction, original_axes, original_shape)
+
+        assert restored.shape == original_shape
+        np.testing.assert_array_equal(restored, prediction)
+
+    def test_restore_from_scyx_to_tsyx(self) -> None:
+        """Test restoring SCYX to TSYX (reorder dimensions)."""
+        # S*T merged: 2*3=6 samples
+        prediction = np.random.rand(6, 1, 32, 32)
+        original_axes = "TSYX"
+        original_shape = (3, 2, 32, 32)
+
+        restored = restore_original_shape(prediction, original_axes, original_shape)
+
+        assert restored.shape == original_shape
+
+    def test_restore_invalid_shape(self) -> None:
+        """Test that invalid prediction shapes raise ValueError."""
+        prediction = np.random.rand(32, 32)  # 2D array, invalid
+        original_axes = "YX"
+        original_shape = (32, 32)
+
+        with pytest.raises(ValueError, match="Unexpected prediction shape"):
+            restore_original_shape(prediction, original_axes, original_shape)
+
+    def test_restore_from_sczyx_to_czyx(self) -> None:
+        """Test restoring SCZYX to CZYX (removing singleton S)."""
+        prediction = np.random.rand(1, 3, 16, 32, 32)
+        original_axes = "CZYX"
+        original_shape = (3, 16, 32, 32)
+
+        restored = restore_original_shape(prediction, original_axes, original_shape)
+
+        assert restored.shape == original_shape
+        np.testing.assert_array_equal(restored, prediction[0])
+
+
+class TestConvertPrediction:
     @pytest.mark.parametrize("source_name", ["file"])  # injected in fixture
     def test_convert_arrays(self, batches: list[ImageRegionData]) -> None:
         """Test `convert_arrays` function."""
