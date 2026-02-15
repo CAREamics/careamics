@@ -1,5 +1,6 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -91,6 +92,27 @@ def decollate_image_region_data(
         assert isinstance(batch.data_shape, list)
         data_shape = tuple(int(dim[i]) for dim in batch.data_shape)
 
+        # original data shape
+        if (
+            isinstance(batch.original_data_shape, (list, tuple))
+            and batch.original_data_shape
+        ):
+            original_data_shape = tuple(
+                int(dim[i]) for dim in batch.original_data_shape
+            )
+        else:
+            original_data_shape = (
+                tuple(batch.original_data_shape) if batch.original_data_shape else ()
+            )
+
+        # original axes
+        if isinstance(batch.original_axes, (list, tuple)):
+            original_axes = batch.original_axes[i]
+        else:
+            original_axes = (
+                batch.original_axes if hasattr(batch, "original_axes") else ""
+            )
+
         image_region = ImageRegionData(
             data=batch.data[i],  # discard batch dimension
             source=batch.source[i],
@@ -99,10 +121,95 @@ def decollate_image_region_data(
             axes=batch.axes[i],
             region_spec=region_spec,  # type: ignore
             additional_metadata=additional_metadata,
+            original_data_shape=original_data_shape,
+            original_axes=original_axes,
         )
         decollated.append(image_region)
 
     return decollated
+
+
+def restore_original_shape(
+    prediction: NDArray,
+    original_axes: str,
+    original_data_shape: Sequence[int],
+) -> NDArray:
+    """
+    Restore prediction to original shape and dimension order.
+
+    Parameters
+    ----------
+    prediction : numpy.ndarray
+        Prediction in SC(Z)YX format.
+    original_axes : str
+        Original axes order of the data.
+    original_data_shape : Sequence[int]
+        Original shape of the data.
+
+    Returns
+    -------
+    numpy.ndarray
+        Prediction reshaped to match original_axes and original_data_shape.
+    """
+    if not original_axes or not original_data_shape:
+        return prediction
+
+    # Determine current axes from prediction shape
+    ndim = len(prediction.shape)
+    if ndim == 5:
+        current_axes = "SCZYX"
+    elif ndim == 4:
+        current_axes = "SCYX"
+    elif ndim == 3:
+        current_axes = "SYX"
+    else:
+        raise ValueError(
+            f"Unexpected prediction shape {prediction.shape}. "
+            "Expected 3D (SYX), 4D (SCYX), or 5D (SCZYX)."
+        )
+
+    # unflatten S dimension
+    merged_dims = [dim for dim in original_axes if dim not in current_axes]
+
+    if merged_dims:
+        unflattened_sizes = []
+        unflattened_dims = []
+
+        if "S" in original_axes:
+            s_size = original_data_shape[original_axes.index("S")]
+            unflattened_sizes.append(s_size)
+            unflattened_dims.append("S")
+
+        for dim in merged_dims:
+            dim_size = original_data_shape[original_axes.index(dim)]
+            unflattened_sizes.append(dim_size)
+            unflattened_dims.append(dim)
+
+        # Replace S dimension with unflattened dimensions
+        s_idx = current_axes.index("S")
+        new_shape = list(prediction.shape)
+        new_shape[s_idx : s_idx + 1] = unflattened_sizes
+        prediction = prediction.reshape(new_shape)
+
+        # Update current axes
+        current_axes = (
+            current_axes[:s_idx] + "".join(unflattened_dims) + current_axes[s_idx + 1 :]
+        )
+
+    # Remove singleton C if not in original
+    if "C" in current_axes and "C" not in original_axes:
+        c_idx = current_axes.index("C")
+        if prediction.shape[c_idx] == 1:
+            prediction = np.squeeze(prediction, axis=c_idx)
+            current_axes = current_axes[:c_idx] + current_axes[c_idx + 1 :]
+
+    # Reorder to match original axes
+    if current_axes != original_axes:
+        source_order = [current_axes.index(axis) for axis in original_axes]
+        target_order = list(range(len(original_axes)))
+        prediction = np.moveaxis(prediction, source_order, target_order)
+
+    return prediction
 
 
 def combine_samples(
@@ -141,8 +248,9 @@ def combine_samples(
         # sort by sample idx
         image_regions.sort(key=lambda x: x.region_spec["sample_idx"])
 
-        # remove singleton dims and stack along S axis
-        combined_data = np.stack([img.data.squeeze() for img in image_regions], axis=0)
+        # stack along S axis (keep C dimension if present)
+        # data is in C(Z)YX format, we want to stack along new S dimension
+        combined_data = np.stack([img.data for img in image_regions], axis=0)
         combined_predictions.append(combined_data)
 
     return combined_predictions, combined_sources
@@ -151,6 +259,7 @@ def combine_samples(
 def convert_prediction(
     predictions: list[ImageRegionData],
     tiled: bool,
+    restore_shape: bool = False,
 ) -> tuple[list[NDArray], list[str]]:
     """
     Convert the Lightning trainer outputs to the desired form.
@@ -167,11 +276,14 @@ def convert_prediction(
         Output from `Trainer.predict`, list of batches.
     tiled : bool
         Whether the predictions are tiled.
+    restore_shape : bool, default=False
+        If True, restore predictions to their original shape and dimension order.
+        Requires original_data_shape and original_axes to be present in ImageRegionData.
 
     Returns
     -------
     list of numpy.ndarray
-        List of arrays with the axes SC(Z)YX.
+        List of arrays with the axes SC(Z)YX, or original axes if restore_shape=True.
     list of str
         List of sources, one per output or empty if all equal to `array`.
     """
@@ -191,6 +303,31 @@ def convert_prediction(
         predictions_output, sources = stitch_prediction(decollated_predictions)
     else:
         predictions_output, sources = combine_samples(decollated_predictions)
+
+    # Restore original shape if requested
+    if restore_shape:
+        restored_predictions: list[NDArray] = []
+        for i, pred in enumerate(predictions_output):
+            # Get original shape info from the first prediction with matching source
+            matching_pred = next(
+                (p for p in decollated_predictions if p.source == sources[i]),
+                decollated_predictions[0] if decollated_predictions else None,
+            )
+            if (
+                matching_pred
+                and matching_pred.original_axes
+                and matching_pred.original_data_shape
+            ):
+                restored = restore_original_shape(
+                    pred,
+                    matching_pred.original_axes,
+                    matching_pred.original_data_shape,
+                )
+                restored_predictions.append(restored)
+            else:
+                # Fallback: return as-is if original shape info not available
+                restored_predictions.append(pred)
+        predictions_output = restored_predictions
 
     if set(sources) == {"array"}:
         sources = []
