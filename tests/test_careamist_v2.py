@@ -30,21 +30,6 @@ def test_v2_train_error_target_unsupervised_algorithm(
         masked_pixel_percentage=5,
     )
 
-    # train error with Paths
-    careamics = CAREamistV2(config=config, work_dir=tmp_path)
-    with pytest.raises(ValueError):
-        careamics.train(
-            train_data=tmp_path,
-            train_data_target=tmp_path,
-        )
-
-    # train error with strings
-    with pytest.raises(ValueError):
-        careamics.train(
-            train_data=str(tmp_path),
-            train_data_target=str(tmp_path),
-        )
-
     # train error with arrays
     config = create_advanced_n2v_config(
         experiment_name="test",
