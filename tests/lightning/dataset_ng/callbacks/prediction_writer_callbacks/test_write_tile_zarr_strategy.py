@@ -9,8 +9,9 @@ from numpy.typing import NDArray
 import careamics.lightning.dataset_ng.callbacks.prediction_writer as pd_writer
 from careamics.config.data import NGDataConfig
 from careamics.dataset.dataset_utils import reshape_array
-from careamics.dataset_ng.dataset import CareamicsDataset, ImageRegionData
-from careamics.dataset_ng.image_stack_loader import load_arrays, load_tiffs, load_zarrs
+from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.dataset_ng.factory import create_dataset
+from careamics.dataset_ng.image_stack_loader import load_arrays, load_tiffs
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patching_strategies import (
     PatchSpecs,
@@ -176,15 +177,8 @@ def tiles(
     )
     n_tiles = tiling_strategy.n_patches
 
-    # create patch extractor
-    image_stacks = load_zarrs(source=sources, axes=data_config.axes)
-    patch_extractor = PatchExtractor(image_stacks)
-
     # create dataset
-    dataset = CareamicsDataset(
-        data_config=data_config,
-        input_extractor=patch_extractor,
-    )
+    dataset = create_dataset(config=data_config, inputs=sources, targets=None)
 
     # extract tiles
     tiles: list[ImageRegionData] = []
