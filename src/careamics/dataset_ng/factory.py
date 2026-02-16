@@ -22,6 +22,7 @@ from .image_stack_loader import (
     load_zarrs,
 )
 from .patch_extractor import LimitFilesPatchExtractor, PatchExtractor
+from .patching_strategies import create_patching_strategy
 
 P = ParamSpec("P")
 
@@ -88,8 +89,14 @@ def create_dataset(
         )
     else:
         mask_extractor = None
+
+    patching_strategy = create_patching_strategy(
+        input_extractor.shapes, config.patching
+    )
+
     return CareamicsDataset(
         data_config=config,
+        patching_strategy=patching_strategy,
         input_extractor=input_extractor,
         target_extractor=target_extractor,
         mask_extractor=mask_extractor,

@@ -15,9 +15,9 @@ from .normalization.statistics import resolve_normalization_config
 from .patch_extractor import PatchExtractor
 from .patch_filter import create_coord_filter, create_patch_filter
 from .patching_strategies import (
+    PatchingStrategy,
     PatchSpecs,
     RegionSpecs,
-    create_patching_strategy,
 )
 
 
@@ -136,6 +136,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
         data_config: NGDataConfig,
+        patching_strategy: PatchingStrategy,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
         mask_extractor: PatchExtractor[GenericImageStack] | None = None,
@@ -173,10 +174,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         )
         self.patch_filter_patience = self.config.patch_filter_patience
 
-        self.patching_strategy = create_patching_strategy(
-            data_shapes=self.input_extractor.shapes,
-            patching_config=self.config.patching,
-        )
+        self.patching_strategy = patching_strategy
 
         resolve_normalization_config(
             norm_config=self.config.normalization,
