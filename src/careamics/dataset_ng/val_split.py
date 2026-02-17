@@ -15,7 +15,8 @@ def create_val_split(
     rng: np.random.Generator,
 ) -> tuple[StratifiedPatchingStrategy, FixedPatchingStrategy]:
     """
-    Create patching strategies for training and validation.
+    Create patching strategies for training an validation. Note, the provided
+    `stratified_patching` instance will be modified.
 
     The patches from the training patching strategy will never overlap with the patches
     from the validation patching strategy.
