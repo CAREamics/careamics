@@ -1,8 +1,37 @@
 """Pydantic models for normalization strategies."""
 
-from typing import Annotated, Literal, Self, Union
+from typing import Annotated, Any, Literal, Self, Union
 
-from pydantic import BaseModel, ConfigDict, Discriminator, Field, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Discriminator,
+    model_validator,
+)
+
+
+def _wrap_scalar(v: Any) -> Any:
+    """
+    Wrap scalar values as a list of floats.
+
+    Parameters
+    ----------
+    v : Any
+        Value to convert (scalar or list).
+
+    Returns
+    -------
+    Any
+        List containing the float value if input is scalar, otherwise input as-is.
+    """
+    if isinstance(v, (int, float)):
+        return [float(v)]
+    return v
+
+
+FloatStats = Annotated[list[float], BeforeValidator(_wrap_scalar)]
+OptionalFloatStats = Annotated[list[float] | None, BeforeValidator(_wrap_scalar)]
 
 
 class MeanStdConfig(BaseModel):
@@ -10,31 +39,37 @@ class MeanStdConfig(BaseModel):
     Mean and standard deviation normalization configuration.
 
     Holds mean and standard deviation statistics for input and target, used to
-    normalize data. If not provided, statistics can be computed later.
+    normalize data. Each statistic can be a single float (applied globally to
+    all channels) or a list of floats (one per channel). If not provided,
+    statistics can be computed automatically.
 
     Attributes
     ----------
     name : Literal["mean_std"]
         Identifier for the mean-std normalization scheme.
-    input_means : list[float] | None
-        Means of input channels/features, or None for automatic computation.
-    input_stds : list[float] | None
-        Standard deviations of input channels/features,
-        or None for automatic computation.
-    target_means : list[float] | None
-        Means of target channels/features, or None for automatic computation.
-    target_stds : list[float] | None
-        Standard deviations of target channels/features,
-        or None for automatic computation.
+    input_means : float | list[float] | None
+        Means for input normalization. None for automatic computation.
+    input_stds : float | list[float] | None
+        Standard deviations for input normalization. None for automatic
+        computation.
+    target_means : float | list[float] | None
+        Means for target normalization. None for automatic computation.
+    target_stds : float | list[float] | None
+        Standard deviations for target normalization. None for automatic
+        computation.
+    per_channel : bool
+        When True (default), statistics are computed independently for each
+        channel. When False, a single statistic is computed across all channels.
     """
 
     model_config = ConfigDict(validate_assignment=True)
 
     name: Literal["mean_std"] = "mean_std"
-    input_means: list[float] | None = Field(default=None, min_length=0, max_length=32)
-    input_stds: list[float] | None = Field(default=None, min_length=0, max_length=32)
-    target_means: list[float] | None = Field(default=None, min_length=0, max_length=32)
-    target_stds: list[float] | None = Field(default=None, min_length=0, max_length=32)
+    input_means: OptionalFloatStats = None
+    input_stds: OptionalFloatStats = None
+    target_means: OptionalFloatStats = None
+    target_stds: OptionalFloatStats = None
+    per_channel: bool = True
 
     @model_validator(mode="after")
     def validate_means_stds(self: Self) -> Self:
@@ -49,7 +84,7 @@ class MeanStdConfig(BaseModel):
         ------
         ValueError
             If only one of means or stds is provided for input or target,
-            or if each pair has mismatched lengths.
+            or if paired lists have mismatched lengths.
         """
         if (self.input_means is None) != (self.input_stds is None):
             raise ValueError(
@@ -91,8 +126,8 @@ class MeanStdConfig(BaseModel):
         stds : list[float]
             Standard deviation values per channel.
         """
-        self.__dict__["input_means"] = means
-        self.__dict__["input_stds"] = stds
+        object.__setattr__(self, "input_means", means)
+        object.__setattr__(self, "input_stds", stds)
         self.__class__.model_validate(self)
 
     def set_target_stats(self, means: list[float], stds: list[float]) -> None:
@@ -106,8 +141,8 @@ class MeanStdConfig(BaseModel):
         stds : list[float]
             Standard deviation values per channel.
         """
-        self.__dict__["target_means"] = means
-        self.__dict__["target_stds"] = stds
+        object.__setattr__(self, "target_means", means)
+        object.__setattr__(self, "target_stds", stds)
         self.__class__.model_validate(self)
 
 
@@ -116,39 +151,41 @@ class QuantileConfig(BaseModel):
     Quantile normalization configuration.
 
     Normalizes data using quantile-based range scaling. Quantile levels can be
-    specified as a single value (applied to all channels) or a list (one per channel).
+    specified as a single value (applied to all channels) or a list (one per
+    channel). If not provided, quantile values can be computed automatically.
 
     Attributes
     ----------
     name : Literal["quantile"]
         Identifier for quantile normalization.
     lower_quantile : float | list[float]
-        Lower quantile level(s). Single float applies to all channels,
-        or list for per-channel levels. Values must be in [0, 1).
+        Lower quantile level(s). Values must be in [0, 1).
     upper_quantile : float | list[float]
-        Upper quantile level(s). Single float applies to all channels,
-        or list for per-channel levels. Values must be in (0, 1].
-    input_lower_quantile_values : list[float] | None
-        Computed lower quantile values for each input channel.
-    input_upper_quantile_values : list[float] | None
-        Computed upper quantile values for each input channel.
-    target_lower_quantile_values : list[float] | None
-        Computed lower quantile values for each target channel.
-    target_upper_quantile_values : list[float] | None
-        Computed upper quantile values for each target channel.
+        Upper quantile level(s). Values must be in (0, 1].
+    input_lower_quantile_values : float | list[float] | None
+        Computed lower quantile values for input.
+    input_upper_quantile_values : float | list[float] | None
+        Computed upper quantile values for input.
+    target_lower_quantile_values : float | list[float] | None
+        Computed lower quantile values for target.
+    target_upper_quantile_values : float | list[float] | None
+        Computed upper quantile values for target.
+    per_channel : bool
+        When True (default), quantile values are computed independently for
+        each channel. When False, a single quantile is computed across all
+        channels.
     """
 
     model_config = ConfigDict(validate_assignment=True)
 
     name: Literal["quantile"] = "quantile"
-
-    lower_quantile: float | list[float] = Field(default=0.01)
-    upper_quantile: float | list[float] = Field(default=0.99)
-
-    input_lower_quantile_values: list[float] | None = Field(default=None)
-    input_upper_quantile_values: list[float] | None = Field(default=None)
-    target_lower_quantile_values: list[float] | None = Field(default=None)
-    target_upper_quantile_values: list[float] | None = Field(default=None)
+    lower_quantile: FloatStats = [0.01]
+    upper_quantile: FloatStats = [0.99]
+    input_lower_quantile_values: OptionalFloatStats = None
+    input_upper_quantile_values: OptionalFloatStats = None
+    target_lower_quantile_values: OptionalFloatStats = None
+    target_upper_quantile_values: OptionalFloatStats = None
+    per_channel: bool = True
 
     @model_validator(mode="after")
     def validate_quantile_levels(self: Self) -> Self:
@@ -159,30 +196,21 @@ class QuantileConfig(BaseModel):
         Self
             The validated model instance.
         """
-        lower = (
-            self.lower_quantile
-            if isinstance(self.lower_quantile, list)
-            else [self.lower_quantile]
-        )
-        upper = (
-            self.upper_quantile
-            if isinstance(self.upper_quantile, list)
-            else [self.upper_quantile]
-        )
-
-        for lq in lower:
+        for lq in self.lower_quantile:
             if not (0.0 <= lq < 1.0):
                 raise ValueError(f"lower_quantile values must be in [0, 1), got {lq}")
-        for uq in upper:
+        for uq in self.upper_quantile:
             if not (0.0 < uq <= 1.0):
                 raise ValueError(f"upper_quantile values must be in (0, 1], got {uq}")
 
-        if len(lower) != len(upper):
+        if len(self.lower_quantile) != len(self.upper_quantile):
             raise ValueError(
                 f"lower_quantile and upper_quantile lists must have same length, "
-                f"got {len(lower)} and {len(upper)}"
+                f"got {len(self.lower_quantile)} and {len(self.upper_quantile)}"
             )
-        for i, (lq, uq) in enumerate(zip(lower, upper, strict=True)):
+        for i, (lq, uq) in enumerate(
+            zip(self.lower_quantile, self.upper_quantile, strict=True)
+        ):
             if lq >= uq:
                 raise ValueError(
                     f"lower_quantile[{i}] ({lq}) must be less than "
@@ -262,50 +290,6 @@ class QuantileConfig(BaseModel):
                     )
         return self
 
-    def get_lower_quantiles_for_channels(self, n_channels: int) -> list[float]:
-        """Get lower quantile levels expanded to n_channels.
-
-        Parameters
-        ----------
-        n_channels : int
-            Number of channels in the data.
-
-        Returns
-        -------
-        list[float]
-            Lower quantile levels for each channel.
-        """
-        if isinstance(self.lower_quantile, list):
-            if len(self.lower_quantile) != n_channels:
-                raise ValueError(
-                    f"lower_quantile has {len(self.lower_quantile)} values but "
-                    f"data has {n_channels} channels"
-                )
-            return self.lower_quantile
-        return [self.lower_quantile] * n_channels
-
-    def get_upper_quantiles_for_channels(self, n_channels: int) -> list[float]:
-        """Get upper quantile levels expanded to n_channels.
-
-        Parameters
-        ----------
-        n_channels : int
-            Number of channels in the data.
-
-        Returns
-        -------
-        list[float]
-            Upper quantile levels for each channel.
-        """
-        if isinstance(self.upper_quantile, list):
-            if len(self.upper_quantile) != n_channels:
-                raise ValueError(
-                    f"upper_quantile has {len(self.upper_quantile)} values but "
-                    f"data has {n_channels} channels"
-                )
-            return self.upper_quantile
-        return [self.upper_quantile] * n_channels
-
     def needs_computation(self) -> bool:
         """Check if quantile values need to be computed.
 
@@ -330,8 +314,8 @@ class QuantileConfig(BaseModel):
         upper : list[float]
             Upper quantile values per channel.
         """
-        self.__dict__["input_lower_quantile_values"] = lower
-        self.__dict__["input_upper_quantile_values"] = upper
+        object.__setattr__(self, "input_lower_quantile_values", lower)
+        object.__setattr__(self, "input_upper_quantile_values", upper)
         self.__class__.model_validate(self)
 
     def set_target_quantile_values(
@@ -347,8 +331,8 @@ class QuantileConfig(BaseModel):
         upper : list[float]
             Upper quantile values per channel.
         """
-        self.__dict__["target_lower_quantile_values"] = lower
-        self.__dict__["target_upper_quantile_values"] = upper
+        object.__setattr__(self, "target_lower_quantile_values", lower)
+        object.__setattr__(self, "target_upper_quantile_values", upper)
         self.__class__.model_validate(self)
 
 
@@ -357,29 +341,35 @@ class MinMaxConfig(BaseModel):
     Min-max normalization configuration.
 
     Stores minimum and maximum statistics for scaling data into a desired range.
-    If not provided, statistics can be computed from the data.
+    Each statistic can be a single float (applied globally to all channels) or a
+    list of floats (one per channel). If not provided, statistics can be computed
+    automatically.
 
     Attributes
     ----------
     name : Literal["minmax"]
         Identifier for min-max normalization.
-    input_mins : list[float] | None
-        Minimum values for input channels/features.
-    input_maxes : list[float] | None
-        Maximum values for input channels/features.
-    target_mins : list[float] | None
-        Minimum values for target channels/features.
-    target_maxes : list[float] | None
-        Maximum values for target channels/features.
+    input_mins : float | list[float] | None
+        Minimum values for input normalization. None for automatic computation.
+    input_maxes : float | list[float] | None
+        Maximum values for input normalization. None for automatic computation.
+    target_mins : float | list[float] | None
+        Minimum values for target normalization. None for automatic computation.
+    target_maxes : float | list[float] | None
+        Maximum values for target normalization. None for automatic computation.
+    per_channel : bool
+        When True (default), statistics are computed independently for each
+        channel. When False, a single statistic is computed across all channels.
     """
 
     model_config = ConfigDict(validate_assignment=True)
 
     name: Literal["minmax"] = "minmax"
-    input_mins: list[float] | None = Field(default=None)
-    input_maxes: list[float] | None = Field(default=None)
-    target_mins: list[float] | None = Field(default=None)
-    target_maxes: list[float] | None = Field(default=None)
+    input_mins: OptionalFloatStats = None
+    input_maxes: OptionalFloatStats = None
+    target_mins: OptionalFloatStats = None
+    target_maxes: OptionalFloatStats = None
+    per_channel: bool = True
 
     @model_validator(mode="after")
     def validate_mins_maxes(self: Self) -> Self:
@@ -389,6 +379,12 @@ class MinMaxConfig(BaseModel):
         -------
         Self
             The validated model instance.
+
+        Raises
+        ------
+        ValueError
+            If only one of mins or maxes is provided for input or target,
+            or if paired lists have mismatched lengths.
         """
         if (self.input_mins is None) != (self.input_maxes is None):
             raise ValueError(
@@ -430,8 +426,8 @@ class MinMaxConfig(BaseModel):
         maxes : list[float]
             Maximum values per channel.
         """
-        self.__dict__["input_mins"] = mins
-        self.__dict__["input_maxes"] = maxes
+        object.__setattr__(self, "input_mins", mins)
+        object.__setattr__(self, "input_maxes", maxes)
         self.__class__.model_validate(self)
 
     def set_target_range(self, mins: list[float], maxes: list[float]) -> None:
@@ -445,8 +441,8 @@ class MinMaxConfig(BaseModel):
         maxes : list[float]
             Maximum values per channel.
         """
-        self.__dict__["target_mins"] = mins
-        self.__dict__["target_maxes"] = maxes
+        object.__setattr__(self, "target_mins", mins)
+        object.__setattr__(self, "target_maxes", maxes)
         self.__class__.model_validate(self)
 
 
