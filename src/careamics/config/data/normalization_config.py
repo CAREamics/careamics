@@ -290,6 +290,29 @@ class QuantileConfig(BaseModel):
                     )
         return self
 
+    @model_validator(mode="after")
+    def validate_per_channel(self: Self) -> Self:
+        """Validate quantile levels match per_channel setting.
+
+        Returns
+        -------
+        Self
+            The validated model instance.
+
+        Raises
+        ------
+        ValueError
+            If per_channel=False but quantile levels are not length 1.
+        """
+        if not self.per_channel:
+            if len(self.lower_quantile) != 1 or len(self.upper_quantile) != 1:
+                raise ValueError(
+                    "When per_channel=False, quantile levels must be length 1. "
+                    f"Got lower_quantile length {len(self.lower_quantile)} "
+                    f"and upper_quantile length {len(self.upper_quantile)}."
+                )
+        return self
+
     def needs_computation(self) -> bool:
         """Check if quantile values need to be computed.
 

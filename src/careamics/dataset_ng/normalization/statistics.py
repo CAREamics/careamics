@@ -83,9 +83,10 @@ def _compute_min_max(
         raise ValueError("No patches found to compute min/max statistics.")
 
     first_spec = patching_strategy.get_patch_spec(0)
-    first_patch = data_extractor.extract_patch(
+    first_patch = data_extractor.extract_channel_patch(
         data_idx=first_spec["data_idx"],
         sample_idx=first_spec["sample_idx"],
+        channels=channels,
         coords=first_spec["coords"],
         patch_size=first_spec["patch_size"],
     )
@@ -176,10 +177,7 @@ def _resolve_quantile_levels(
     the number of channels and the levels are broadcast accordingly.
     """
     if not norm_config.per_channel:
-        return (
-            [norm_config.lower_quantile[0]],
-            [norm_config.upper_quantile[0]],
-        )
+        return norm_config.lower_quantile, norm_config.upper_quantile
 
     first_spec = patching_strategy.get_patch_spec(0)
     first_patch = extractor.extract_channel_patch(

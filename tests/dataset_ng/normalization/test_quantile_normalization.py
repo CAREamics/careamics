@@ -31,6 +31,38 @@ def test_clips_outliers():
     assert len(central_values) > 0.9 * sample.data.size
 
 
+def test_per_channel_auto_computes_quantiles_multiple():
+    rng = np.random.default_rng(42)
+    ch0 = rng.normal(loc=50, scale=10, size=(128, 128)).astype(np.float32)
+    ch1 = rng.normal(loc=200, scale=40, size=(128, 128)).astype(np.float32)
+    data = np.stack([ch0, ch1], axis=0)
+
+    config = NGDataConfig(
+        mode="predicting",
+        data_type="array",
+        axes="CYX",
+        patching={"name": "whole"},
+        normalization={
+            "name": "quantile",
+            "lower_quantile": [0.01, 0.05],
+            "upper_quantile": [0.99, 0.95],
+            "per_channel": True,
+        },
+    )
+    dataset = create_dataset(config=config, inputs=[data], targets=None)
+
+    assert len(config.normalization.input_lower_quantile_values) == 2
+    assert len(config.normalization.input_upper_quantile_values) == 2
+
+    assert (
+        config.normalization.input_lower_quantile_values[0]
+        < config.normalization.input_lower_quantile_values[1]
+    )
+
+    sample, *_ = dataset[0]
+    assert sample.data.shape[0] == 2
+
+
 def test_per_channel_auto_computes_quantiles():
     rng = np.random.default_rng(42)
     ch0 = rng.normal(loc=50, scale=10, size=(128, 128)).astype(np.float32)
