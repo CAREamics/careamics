@@ -334,7 +334,7 @@ def median_manipulate_torch(
 
     if struct_params is not None:
         output_batch = _apply_struct_mask_torch(
-            output_batch, subpatch_center_coordinates, struct_params
+            output_batch, subpatch_center_coordinates, struct_params, rng
         )
 
     return output_batch, mask
