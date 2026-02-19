@@ -52,7 +52,7 @@ def is_path_data(
 def list_files_in_directory(
     data_type: Literal["tiff", "zarr", "czi", "custom"] | SD,
     input_data: str | Path,
-    target_data: str | Path | None=None,
+    target_data: str | Path | None = None,
     extension_filter: str = "",
 ) -> tuple[list[Path], list[Path] | None]:
     """List files from input and target directories.
@@ -244,7 +244,9 @@ def validate_path_input(
     ValueError
         If the input data is not a path or a list of paths.
     """
-    if isinstance(input_data, (str, Path)):
+    if isinstance(input_data, (str, Path)) and (
+        target_data is None or isinstance(target_data, (str, Path))
+    ):
         input_list, target_list = list_files_in_directory(
             data_type, input_data, target_data, extension_filter
         )
@@ -362,10 +364,10 @@ def validate_zarr_input(
 
 def initialize_data_pair(
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | SD,
-    input_data: InputType,
-    target_data: InputType | None = None,
+    input_data: Any,
+    target_data: Any | None = None,
     loading: ReadFuncLoading | ImageStackLoading | None = None,
-) -> tuple[InputType, InputType | None]:
+) -> tuple[Any, Any | None]:
     """
     Initialize a pair of input and target data.
 
@@ -397,20 +399,23 @@ def initialize_data_pair(
     data = (input_data, target_data)
     match (data_type, loading):
         case (SD.ARRAY, None) if is_array_data(data):
-            return validate_array_input(data[0], data[1])
+            input_data, target_data = validate_array_input(data[0], data[1])
         case (SD.TIFF | SD.CZI, None) if is_path_data(data):
-            return validate_path_input(data_type, data[0], data[1])
+            input_data, target_data = validate_path_input(data_type, data[0], data[1])
         case (SD.ZARR, None) if is_path_data(data):
-            return validate_zarr_input(data[0], data[1])
+            input_data, target_data = validate_zarr_input(data[0], data[1])
         case (SD.CUSTOM, ReadFuncLoading(extension_filter=ext)) if is_path_data(data):
-            return validate_path_input(
+            input_data, target_data = validate_path_input(
                 data_type, data[0], data[1], extension_filter=ext
             )
         case (SD.CUSTOM, ImageStackLoading()):
-            return input_data, target_data
+            input_data, target_data = input_data, target_data
         case _:
             raise ValueError(
                 f"Invalid combination: data_type={data_type!s}, "
-                "input type is {type(input_data)}. For custom data a `read_func` or "
+                f"input type is {type(input_data)}. For custom data a `read_func` or "
                 "and `image_stack_loader` must be provided."
             )
+
+    validate_input_target_type_consistency(input_data, target_data)
+    return input_data, target_data
