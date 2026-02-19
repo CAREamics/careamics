@@ -1,9 +1,10 @@
 """Next-Generation CAREamics DataModule."""
 
 import copy
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Union, overload
+from typing import Any, Generic, Literal, TypeVar, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -13,19 +14,54 @@ from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
-from careamics.dataset_ng.factory import create_dataset
+from careamics.dataset_ng.dataset import CareamicsDataset, ImageRegionData
+from careamics.dataset_ng.factory import (
+    ImageStackLoading,
+    ReadFuncLoading,
+    create_dataset,
+)
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
-from careamics.dataset_ng.image_stack_loader import ImageStackLoader
+from careamics.dataset_ng.image_stack import ImageStack
+from careamics.dataset_ng.patching_strategies import PatchSpecs, TileSpecs
 from careamics.lightning.dataset_ng.data_module_utils import initialize_data_pair
 from careamics.utils import get_logger
 
 logger = get_logger(__name__)
 
-ItemType = Union[Path, str, NDArray[Any]]
+ItemType = Path | str | NDArray[Any]
 """Type of input items passed to the dataset."""
 
-InputType = Union[ItemType, Sequence[ItemType], None]
+InputType = ItemType | Sequence[ItemType] | None
 """Type of input data passed to the dataset."""
+
+T = TypeVar("T")
+InputVar = TypeVar(
+    "InputVar", NDArray[Any], Path, str, Sequence[NDArray[Any]], Sequence[Path | str]
+)
+
+
+@dataclass
+class TrainVal(Generic[T]):
+    train_data: T
+    val_data: T
+    train_data_target: T | None = None
+    val_data_target: T | None = None
+    train_data_mask: T | None = None
+
+
+@dataclass
+class TrainValSplit(Generic[T]):
+    train_data: T
+    val_percentage: float
+    val_minimum_split: int
+    train_data_target: T | None = None
+    train_data_mask: T | None = None
+
+
+@dataclass
+class PredData(Generic[T]):
+    pred_data: T
+    pred_data_target: T | None = None
 
 
 class CareamicsDataModule(L.LightningDataModule):
@@ -127,134 +163,28 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(
         self,
-        data_config: NGDataConfig,
+        data_config: NGDataConfig | dict[str, Any],
         *,
-        train_data: InputType | None = None,
-        train_data_target: InputType | None = None,
-        val_data: InputType | None = None,
-        val_data_target: InputType | None = None,
-        pred_data: InputType | None = None,
-        pred_data_target: InputType | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
+        data: TrainVal[InputVar] | TrainValSplit[InputVar] | PredData[InputVar],
+        loading: ReadFuncLoading | None = None,
+    ): ...
 
-    # with training mask for filtering
     @overload
     def __init__(
         self,
-        data_config: NGDataConfig,
+        data_config: NGDataConfig | dict[str, Any],
         *,
-        train_data: InputType | None = None,
-        train_data_target: InputType | None = None,
-        train_data_mask: InputType,
-        val_data: InputType | None = None,
-        val_data_target: InputType | None = None,
-        pred_data: InputType | None = None,
-        pred_data_target: InputType | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
-
-    # custom read function (no mask)
-    @overload
-    def __init__(
-        self,
-        data_config: NGDataConfig,
-        *,
-        train_data: InputType | None = None,
-        train_data_target: InputType | None = None,
-        val_data: InputType | None = None,
-        val_data_target: InputType | None = None,
-        pred_data: InputType | None = None,
-        pred_data_target: InputType | None = None,
-        read_source_func: Callable,
-        read_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
-
-    # custom read function with training mask
-    @overload
-    def __init__(
-        self,
-        data_config: NGDataConfig,
-        *,
-        train_data: InputType | None = None,
-        train_data_target: InputType | None = None,
-        train_data_mask: InputType,
-        val_data: InputType | None = None,
-        val_data_target: InputType | None = None,
-        pred_data: InputType | None = None,
-        pred_data_target: InputType | None = None,
-        read_source_func: Callable,
-        read_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
-
-    # image stack loader (no mask)
-    @overload
-    def __init__(
-        self,
-        data_config: NGDataConfig,
-        *,
-        train_data: Any | None = None,
-        train_data_target: Any | None = None,
-        val_data: Any | None = None,
-        val_data_target: Any | None = None,
-        pred_data: Any | None = None,
-        pred_data_target: Any | None = None,
-        image_stack_loader: ImageStackLoader,
-        image_stack_loader_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
-
-    # image stack loader with training mask
-    @overload
-    def __init__(
-        self,
-        data_config: NGDataConfig,
-        *,
-        train_data: Any | None = None,
-        train_data_target: Any | None = None,
-        train_data_mask: Any,
-        val_data: Any | None = None,
-        val_data_target: Any | None = None,
-        pred_data: Any | None = None,
-        pred_data_target: Any | None = None,
-        image_stack_loader: ImageStackLoader,
-        image_stack_loader_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
+        data: TrainVal[Any] | TrainValSplit[Any] | PredData[Any],
+        loading: ImageStackLoading,
+    ): ...
 
     def __init__(
         self,
         data_config: NGDataConfig | dict[str, Any],
         *,
-        train_data: Any | None = None,
-        train_data_target: Any | None = None,
-        train_data_mask: Any | None = None,
-        val_data: Any | None = None,
-        val_data_target: Any | None = None,
-        pred_data: Any | None = None,
-        pred_data_target: Any | None = None,
-        read_source_func: Callable | None = None,
-        read_kwargs: dict[str, Any] | None = None,
-        image_stack_loader: ImageStackLoader | None = None,
-        image_stack_loader_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None:
+        data: TrainVal[Any] | TrainValSplit[Any] | PredData[Any],
+        loading: ReadFuncLoading | ImageStackLoading | None = None,
+    ):
         """
         Data module for Careamics dataset initialization.
 
@@ -307,15 +237,6 @@ class CareamicsDataModule(L.LightningDataModule):
         """
         super().__init__()
 
-        if train_data is None and val_data is None and pred_data is None:
-            raise ValueError(
-                "At least one of train_data, val_data or pred_data must be provided."
-            )
-        elif train_data is None != val_data is None:
-            raise ValueError(
-                "If one of train_data or val_data is provided, both must be provided."
-            )
-
         if isinstance(data_config, NGDataConfig):
             self.config = data_config
         else:
@@ -340,43 +261,15 @@ class CareamicsDataModule(L.LightningDataModule):
             ],
         )
 
-        self.data_type: str = self.config.data_type
+        self.data_type: SupportedData = SupportedData(self.config.data_type)
         self.batch_size: int = self.config.batch_size
 
-        self.extension_filter: str = (
-            extension_filter  # list_files pulls the correct ext
-        )
-        self.read_source_func = read_source_func
-        self.read_kwargs = read_kwargs
-        self.image_stack_loader = image_stack_loader
-        self.image_stack_loader_kwargs = image_stack_loader_kwargs
+        self.data: TrainVal[Any] | TrainValSplit[Any] | PredData[Any] = data
+        self.loading = loading
 
-        # TODO: implement the validation split logic
-        self.val_percentage = val_percentage
-        self.val_minimum_split = val_minimum_split
-        if self.val_percentage is not None:
-            raise NotImplementedError("Validation split is not implemented.")
-
-        custom_loader = self.image_stack_loader is not None
-        self.train_data, self.train_data_target = initialize_data_pair(
-            self.data_type,
-            train_data,
-            train_data_target,
-            extension_filter,
-            custom_loader,
-        )
-        self.train_data_mask, _ = initialize_data_pair(
-            self.data_type, train_data_mask, None, extension_filter, custom_loader
-        )
-
-        self.val_data, self.val_data_target = initialize_data_pair(
-            self.data_type, val_data, val_data_target, extension_filter, custom_loader
-        )
-
-        # The pred_data_target can be needed to count metrics on the prediction
-        self.pred_data, self.pred_data_target = initialize_data_pair(
-            self.data_type, pred_data, pred_data_target, extension_filter, custom_loader
-        )
+        self.train_dataset: CareamicsDataset[ImageStack] | None = None
+        self.val_dataset: CareamicsDataset[ImageStack] | None = None
+        self.predict_dataset: CareamicsDataset[ImageStack] | None = None
 
     def setup(self, stage: str) -> None:
         """
@@ -396,46 +289,58 @@ class CareamicsDataModule(L.LightningDataModule):
         NotImplementedError
             If stage is not one of "fit", "validate" or "predict".
         """
-        if stage == "fit":
+        if stage == "fit" or stage == "validate":
+            if (self.train_dataset is not None) and (self.val_dataset is not None):
+                return
+
             if self.config.mode != "training":
                 raise ValueError(
                     f"CAREamicsDataModule configured for {self.config.mode} cannot be "
                     f"used for training. Please create a new CareamicsDataModule with "
                     f"a configuration with mode='training'."
                 )
+            if isinstance(self.data, TrainVal):
+                train_input = self.data.train_data
+                train_target = self.data.train_data_target
+                train_mask = self.data.train_data_mask
+                val_input = self.data.val_data
+                val_target = self.data.val_data_target
+
+                train_input, train_target = initialize_data_pair(
+                    self.data_type, train_input, train_target, self.loading
+                )
+                if train_mask is not None:
+                    train_mask, _ = initialize_data_pair(
+                        self.data_type, train_mask, None, self.loading
+                    )
+                val_input, val_target = initialize_data_pair(
+                    self.data_type, val_input, val_target, self.loading
+                )
+
+            elif isinstance(self.data, TrainValSplit):
+                raise NotImplementedError(
+                    "Validation splitting has not been implemented."
+                )
+            elif isinstance(self.data, PredData):
+                raise ValueError("Prediction data cannot be used for training.")
+            else:
+                raise ValueError
 
             self.train_dataset = create_dataset(
                 config=self.config,
-                inputs=self.train_data,
-                targets=self.train_data_target,
-                masks=self.train_data_mask,
-                read_func=self.read_source_func,
-                read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
+                inputs=train_input,
+                targets=train_target,
+                masks=train_mask,
+                loading=self.loading,
             )
 
             validation_config = self.config.convert_mode("validating")
 
             self.val_dataset = create_dataset(
                 config=validation_config,
-                inputs=self.val_data,
-                targets=self.val_data_target,
-                read_func=self.read_source_func,
-                read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
-            )
-        elif stage == "validate":
-            validation_config = self.config.convert_mode("validating")
-            self.val_dataset = create_dataset(
-                config=validation_config,
-                inputs=self.val_data,
-                targets=self.val_data_target,
-                read_func=self.read_source_func,
-                read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
+                inputs=val_input,
+                targets=val_target,
+                loading=self.loading,
             )
         elif stage == "predict":
             if self.config.mode == "validating":
@@ -444,6 +349,14 @@ class CareamicsDataModule(L.LightningDataModule):
                     "prediction. Please create a new CareamicsDataModule with a "
                     "configuration with mode='predicting'."
                 )
+            if isinstance(self.data, PredData):
+                pred_input = self.data.pred_data
+                pred_target = self.data.pred_data_target
+                pred_input, pred_target = initialize_data_pair(
+                    self.data_type, pred_input, pred_target, self.loading
+                )
+            else:
+                raise ValueError("No data has been provided for prediction.")
 
             self.predict_dataset = create_dataset(
                 config=(
@@ -451,12 +364,9 @@ class CareamicsDataModule(L.LightningDataModule):
                     if self.config.mode == "training"
                     else self.config
                 ),
-                inputs=self.pred_data,
-                targets=self.pred_data_target,
-                read_func=self.read_source_func,
-                read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
+                inputs=pred_input,
+                targets=pred_target,
+                loading=self.loading,
             )
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
@@ -477,12 +387,13 @@ class CareamicsDataModule(L.LightningDataModule):
                         f"Unrecognized dataset '{dataset}', should be one of 'train', "
                         "'val' or 'predict'."
                     )
+            assert ds is not None
             sampler = GroupedIndexSampler.from_dataset(ds, rng=rng)
         else:
             sampler = None
         return sampler
 
-    def train_dataloader(self) -> DataLoader:
+    def train_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
         """
         Create a dataloader for training.
 
@@ -498,6 +409,7 @@ class CareamicsDataModule(L.LightningDataModule):
         # TODO: there might be other parameters mutually exclusive with sampler
         if (sampler is not None) and ("shuffle" in dataloader_params):
             del dataloader_params["shuffle"]
+        assert self.train_dataset is not None
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -506,7 +418,7 @@ class CareamicsDataModule(L.LightningDataModule):
             **dataloader_params,
         )
 
-    def val_dataloader(self) -> DataLoader:
+    def val_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
         """
         Create a dataloader for validation.
 
@@ -519,6 +431,7 @@ class CareamicsDataModule(L.LightningDataModule):
         dataloader_params = copy.deepcopy(self.config.val_dataloader_params)
         if (sampler is not None) and ("shuffle" in dataloader_params):
             del dataloader_params["shuffle"]
+        assert self.val_dataset is not None
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
@@ -527,7 +440,7 @@ class CareamicsDataModule(L.LightningDataModule):
             **dataloader_params,
         )
 
-    def predict_dataloader(self) -> DataLoader:
+    def predict_dataloader(self) -> DataLoader[ImageRegionData[TileSpecs]]:
         """
         Create a dataloader for prediction.
 
@@ -536,6 +449,7 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Prediction dataloader.
         """
+        assert self.predict_dataset is not None
         return DataLoader(
             self.predict_dataset,
             batch_size=self.batch_size,

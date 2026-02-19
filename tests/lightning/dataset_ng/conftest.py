@@ -106,6 +106,7 @@ def zarr_with_target_and_mask(tmp_path) -> str:
     targets = np.arange(3 * 16 * 16).reshape((3, 16, 16))
     masks = np.ones((3, 16, 16), dtype=bool)
     val = np.ones((16, 16))
+    val_target = np.ones((16, 16))
 
     # exclude central frame
     masks[1] = np.zeros((16, 16), dtype=bool)
@@ -115,6 +116,7 @@ def zarr_with_target_and_mask(tmp_path) -> str:
     target_group = zarr_file.create_group("target")
     mask_group = zarr_file.create_group("mask")
     val_group = zarr_file.create_group("val")
+    val_target_group = zarr_file.create_group("val_target")
 
     # write arrays to zarr
     for i in range(arrays.shape[0]):
@@ -122,5 +124,6 @@ def zarr_with_target_and_mask(tmp_path) -> str:
         target_group.create_array(f"array{i}", data=targets[i], chunks=(8, 8))
         mask_group.create_array(f"array{i}", data=masks[i], chunks=(8, 8))
     val_group.create_array("val_array", data=val, chunks=(8, 8))
+    val_target_group.create_array("val_target", data=val_target, chunks=(8, 8))
 
     return path

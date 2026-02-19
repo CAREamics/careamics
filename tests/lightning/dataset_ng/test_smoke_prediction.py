@@ -11,7 +11,11 @@ from careamics.config import N2VAlgorithm, create_ng_data_configuration
 from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     PredictionWriterCallback,
 )
-from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
+from careamics.lightning.dataset_ng.data_module import (
+    CareamicsDataModule,
+    PredData,
+    TrainVal,
+)
 from careamics.lightning.dataset_ng.lightning_modules import N2VModule
 from careamics.lightning.dataset_ng.prediction import convert_prediction
 
@@ -91,8 +95,10 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
     # create data module
     data = CareamicsDataModule(
         data_config=dataset_cfg,
-        train_data=train_array,
-        val_data=val_array,
+        data=TrainVal(
+            train_data=train_array,
+            val_data=val_array,
+        ),
     )
 
     # create prediction writer callback params
@@ -134,7 +140,9 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
 
     predict_data = CareamicsDataModule(
         data_config=pred_dataset_cfg,
-        pred_data=train_dir,
+        data=PredData(
+            pred_data=train_dir,
+        ),
     )
 
     # predict
@@ -180,6 +188,7 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     file_name = "image.zarr"
     g = zarr.open_group(train_dir / file_name, mode="w")
     arr = g.create_array("array", data=train_array, chunks="auto")
+    val_arr = g.create_array("val_array", data=val_array, chunks="auto")
 
     if "C" in axes:
         len_channels = shape[axes.index("C")]
@@ -196,7 +205,7 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     )
     # create NGDataset configuration
     dataset_cfg = create_ng_data_configuration(
-        data_type="array",
+        data_type="zarr",
         axes=axes,
         patch_size=(16, 16) if "Z" not in axes else (8, 16, 16),
         batch_size=2,
@@ -209,8 +218,10 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     # create data module
     data = CareamicsDataModule(
         data_config=dataset_cfg,
-        train_data=train_array,
-        val_data=val_array,
+        data=TrainVal(
+            train_data=str(arr.store_path),
+            val_data=str(val_arr.store_path),
+        ),
     )
 
     # create prediction writer callback params
@@ -245,8 +256,7 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     )
 
     predict_data = CareamicsDataModule(
-        data_config=pred_dataset_cfg,
-        pred_data=[str(arr.store_path)],
+        data_config=pred_dataset_cfg, data=PredData(pred_data=[str(arr.store_path)])
     )
 
     # predict
