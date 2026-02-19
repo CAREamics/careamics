@@ -10,7 +10,7 @@ from careamics.config.configuration_factories import (
 )
 from careamics.config.data import NGDataConfig
 from careamics.dataset_ng.dataset import _adjust_shape_for_channels
-from careamics.dataset_ng.factory import create_dataset
+from careamics.dataset_ng.factory import ReadFuncLoading, create_dataset
 
 
 @pytest.mark.parametrize(
@@ -264,8 +264,10 @@ def test_from_custom_data_type(patch_size, data_shape):
         config=train_data_config,
         inputs=[example_data],
         targets=[example_target],
-        read_func=read_data_func_test,
-        read_kwargs={},
+        loading=ReadFuncLoading(
+            read_source_func=read_data_func_test,
+            read_kwargs={},
+        ),
     )
 
     assert len(train_dataset) > 0
