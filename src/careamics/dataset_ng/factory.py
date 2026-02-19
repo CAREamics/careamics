@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from functools import partial
 from typing import Any
 
@@ -27,6 +28,19 @@ from .patching_strategies import create_patching_strategy
 P = ParamSpec("P")
 
 
+@dataclass
+class ReadFuncLoading:
+    read_source_func: ReadFunc
+    read_kwargs: dict[str, Any] | None = None
+    extension_filter: str = ""
+
+
+@dataclass
+class ImageStackLoading:
+    image_stack_loader: ImageStackLoader[..., ImageStack]
+    image_stack_loader_kwargs: dict[str, Any] | None = None
+
+
 # convenience function but should use `create_dataloader` function instead
 # For lazy loading custom batch sampler also needs to be set.
 def create_dataset(
@@ -34,10 +48,7 @@ def create_dataset(
     inputs: Any,
     targets: Any,
     masks: Any = None,
-    read_func: ReadFunc | None = None,
-    read_kwargs: dict[str, Any] | None = None,
-    image_stack_loader: ImageStackLoader | None = None,
-    image_stack_loader_kwargs: dict[str, Any] | None = None,
+    loading: ReadFuncLoading | ImageStackLoading | None = None,
 ) -> CareamicsDataset[ImageStack]:
     """
     Convenience function to create the CAREamicsDataset.
@@ -66,10 +77,7 @@ def create_dataset(
     image_stack_loader = select_image_stack_loader(
         data_type=SupportedData(config.data_type),
         in_memory=config.in_memory,
-        read_func=read_func,
-        read_kwargs=read_kwargs,
-        image_stack_loader=image_stack_loader,
-        image_stack_loader_kwargs=image_stack_loader_kwargs,
+        loading=loading,
     )
     patch_extractor_type = select_patch_extractor_type(
         data_type=SupportedData(config.data_type), in_memory=config.in_memory
@@ -143,11 +151,8 @@ def select_patch_extractor_type(
 def select_image_stack_loader(
     data_type: SupportedData,
     in_memory: bool,
-    read_func: ReadFunc | None = None,
-    read_kwargs: dict[str, Any] | None = None,
-    image_stack_loader: ImageStackLoader | None = None,
-    image_stack_loader_kwargs: dict[str, Any] | None = None,
-) -> ImageStackLoader:
+    loading: ReadFuncLoading | ImageStackLoading | None = None,
+) -> ImageStackLoader[..., ImageStack]:
     match data_type:
         case SupportedData.ARRAY:
             return load_arrays
@@ -157,23 +162,21 @@ def select_image_stack_loader(
             else:
                 return load_iter_tiff
         case SupportedData.CUSTOM:
-            if (read_func is not None) and (image_stack_loader is None):
-                read_kwargs = {} if read_kwargs is None else read_kwargs
-                return partial(
-                    load_custom_file, read_func=read_func, read_kwargs=read_kwargs
-                )
-            elif (read_func is None) and (image_stack_loader is not None):
-                image_stack_loader_kwargs = (
-                    {}
-                    if image_stack_loader_kwargs is None
-                    else image_stack_loader_kwargs
-                )
-                return partial(image_stack_loader, **image_stack_loader_kwargs)
-            else:
-                raise ValueError(
-                    "Found `data_type='custom'` **one** of `read_func` or "
-                    "`image_stack_loader` must be provided."
-                )
+            match loading:
+                case ReadFuncLoading(read_func, read_kwargs):
+                    read_kwargs = {} if read_kwargs is None else read_kwargs
+                    return partial(
+                        load_custom_file, read_func=read_func, read_kwargs=read_kwargs
+                    )
+                case ImageStackLoading(image_stack_loader, image_stack_loader_kwargs):
+                    if image_stack_loader_kwargs is None:
+                        image_stack_loader_kwargs = {}
+                    return partial(image_stack_loader, **image_stack_loader_kwargs)
+                case None:
+                    raise ValueError(
+                        "Found `data_type='custom'`, a custom read function or a "
+                        "custom image stack loader must be provided."
+                    )
         case SupportedData.ZARR:
             # TODO: in_memory or not
             return load_zarrs
