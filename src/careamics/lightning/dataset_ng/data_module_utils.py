@@ -6,22 +6,53 @@ from typing import Any, Literal
 
 from numpy import ndarray
 from numpy.typing import NDArray
+from typing_extensions import TypeIs
 
-from careamics.config.support import SupportedData
+from careamics.config.support import SupportedData as SD
 from careamics.dataset.dataset_utils import list_files, validate_source_target_files
+from careamics.dataset_ng.factory import ImageStackLoading, ReadFuncLoading
 from careamics.dataset_ng.image_stack_loader.zarr_utils import is_valid_uri
 
-ItemType = Path | str | NDArray[Any]
-"""Type of input items passed to the dataset."""
-
-InputType = ItemType | Sequence[ItemType] | None
+ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
+PathInput = str | Path | Sequence[str | Path]
+InputType = ArrayInput | PathInput
 """Type of input data passed to the dataset."""
 
 
+def is_array_input(x: InputType) -> TypeIs[ArrayInput]:
+    if isinstance(x, Sequence):
+        return len(x) == 0 or all(isinstance(e, ndarray) for e in x)
+    else:
+        return isinstance(x, ndarray)
+
+
+def is_array_data(
+    data: tuple[InputType, InputType | None],
+) -> TypeIs[tuple[ArrayInput, ArrayInput | None]]:
+    input_is_valid = is_array_input(data[0])
+    target_is_valid = data[1] is None or is_array_input(data[1])
+    return input_is_valid and target_is_valid
+
+
+def is_path_input(x: InputType) -> TypeIs[PathInput]:
+    if isinstance(x, Sequence):
+        return len(x) == 0 or all(isinstance(e, str | Path) for e in x)
+    else:
+        return isinstance(x, str | Path)
+
+
+def is_path_data(
+    data: tuple[InputType, InputType | None],
+) -> TypeIs[tuple[PathInput, PathInput | None]]:
+    input_is_valid = is_path_input(data[0])
+    target_is_valid = data[1] is None or is_path_input(data[1])
+    return input_is_valid and target_is_valid
+
+
 def list_files_in_directory(
-    data_type: Literal["tiff", "zarr", "czi", "custom"],
-    input_data,
-    target_data=None,
+    data_type: Literal["tiff", "zarr", "czi", "custom"] | SD,
+    input_data: str | Path,
+    target_data: str | Path | None=None,
     extension_filter: str = "",
 ) -> tuple[list[Path], list[Path] | None]:
     """List files from input and target directories.
@@ -129,9 +160,9 @@ def validate_input_target_type_consistency(
 
 
 def validate_array_input(
-    input_data: NDArray | list[NDArray],
-    target_data: NDArray | list[NDArray] | None,
-) -> tuple[list[NDArray], list[NDArray] | None]:
+    input_data: ArrayInput,
+    target_data: ArrayInput | None,
+) -> tuple[list[NDArray[Any]], list[NDArray[Any]] | None]:
     """Validate if the input data is a numpy array.
 
     Parameters
@@ -182,9 +213,9 @@ def validate_array_input(
 
 
 def validate_path_input(
-    data_type: Literal["tiff", "zarr", "czi", "custom"],
-    input_data: str | Path | list[str | Path],
-    target_data: str | Path | list[str | Path] | None,
+    data_type: Literal["tiff", "zarr", "czi", "custom"] | SD,
+    input_data: PathInput,
+    target_data: PathInput | None,
     extension_filter: str = "",
 ) -> tuple[list[Path], list[Path] | None]:
     """Validate if the input data is a path or a list of paths.
@@ -244,8 +275,8 @@ def validate_path_input(
 
 
 def validate_zarr_input(
-    input_data: str | Path | list[str | Path],
-    target_data: str | Path | list[str | Path] | None,
+    input_data: PathInput,
+    target_data: PathInput | None,
 ) -> tuple[list[str] | list[Path], list[str] | list[Path] | None]:
     """Validate if the input data corresponds a zarr input.
 
@@ -330,12 +361,11 @@ def validate_zarr_input(
 
 
 def initialize_data_pair(
-    data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | SD,
     input_data: InputType,
     target_data: InputType | None = None,
-    extension_filter: str = "",
-    custom_loader: bool = False,
-) -> tuple[InputType | list[InputType], InputType | list[InputType] | None]:
+    loading: ReadFuncLoading | ImageStackLoading | None = None,
+) -> tuple[InputType, InputType | None]:
     """
     Initialize a pair of input and target data.
 
@@ -363,33 +393,24 @@ def initialize_data_pair(
         Initialized target data. For file paths, returns a list of Path objects. For
         numpy arrays, returns the arrays directly. Returns None if target_data is None.
     """
-    if input_data is None:
-        return None, None
-
-    validate_input_target_type_consistency(input_data, target_data)
-
-    if data_type == SupportedData.ARRAY:
-        return validate_array_input(input_data, target_data)
-    elif data_type in (SupportedData.TIFF, SupportedData.CZI):
-        assert data_type != SupportedData.ARRAY.value  # for mypy
-
-        if isinstance(input_data, (str, Path)):
-            assert target_data is None or isinstance(target_data, (str, Path))
-
-            return validate_path_input(data_type, input_data, target_data)
-        elif isinstance(input_data, list):
-            assert target_data is None or isinstance(target_data, list)
-
-            return validate_path_input(data_type, input_data, target_data)
-        else:
-            raise ValueError(
-                f"Unsupported input type for {data_type}: {type(input_data)}"
+    data_type = SD(data_type)
+    data = (input_data, target_data)
+    match (data_type, loading):
+        case (SD.ARRAY, None) if is_array_data(data):
+            return validate_array_input(data[0], data[1])
+        case (SD.TIFF | SD.CZI, None) if is_path_data(data):
+            return validate_path_input(data_type, data[0], data[1])
+        case (SD.ZARR, None) if is_path_data(data):
+            return validate_zarr_input(data[0], data[1])
+        case (SD.CUSTOM, ReadFuncLoading(extension_filter=ext)) if is_path_data(data):
+            return validate_path_input(
+                data_type, data[0], data[1], extension_filter=ext
             )
-    elif data_type == SupportedData.ZARR:
-        return validate_zarr_input(input_data, target_data)
-    elif data_type == SupportedData.CUSTOM:
-        if custom_loader:
+        case (SD.CUSTOM, ImageStackLoading()):
             return input_data, target_data
-        return validate_path_input(data_type, input_data, target_data, extension_filter)
-    else:
-        raise NotImplementedError(f"Unsupported data type: {data_type}")
+        case _:
+            raise ValueError(
+                f"Invalid combination: data_type={data_type!s}, "
+                "input type is {type(input_data)}. For custom data a `read_func` or "
+                "and `image_stack_loader` must be provided."
+            )
