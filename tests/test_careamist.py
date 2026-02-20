@@ -187,10 +187,12 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
 
 
 @pytest.mark.mps_gh_fail
-def test_train_array_reproducibility_with_seed(
+def test_train_array_different_with_seed(
     tmp_path: Path, minimum_n2v_configuration: dict
 ):
     """Test that training with the same config produces identical N2V masks."""
+    seed_everything(42)
+
     train_array = random_array((32, 32))
     val_array = random_array((32, 32))
 
@@ -223,7 +225,7 @@ def test_train_array_reproducibility_with_seed(
 
     masks_per_run: list[list[torch.Tensor]] = []
     for i in range(2):
-        seed_everything(42)
+        config.algorithm_config.n2v_config.seed = i + 1
         cb = MaskCaptureCallback()
         work_dir = tmp_path / f"run{i}"
         work_dir.mkdir()
@@ -234,9 +236,9 @@ def test_train_array_reproducibility_with_seed(
     assert len(masks_per_run[0]) > 0
     assert len(masks_per_run[0]) == len(masks_per_run[1])
     for m1, m2 in zip(masks_per_run[0], masks_per_run[1], strict=True):
-        assert torch.equal(
+        assert not torch.equal(
             m1, m2
-        ), "Same seed should produce identical masks across runs"
+        ), "Different seed should produce different masks across runs"
 
 
 @pytest.mark.mps_gh_fail
