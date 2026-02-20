@@ -293,80 +293,18 @@ class CareamicsDataModule(L.LightningDataModule):
             if (self.train_dataset is not None) and (self.val_dataset is not None):
                 return
 
-            if self.config.mode != "training":
-                raise ValueError(
-                    f"CAREamicsDataModule configured for {self.config.mode} cannot be "
-                    f"used for training. Please create a new CareamicsDataModule with "
-                    f"a configuration with mode='training'."
-                )
-            if isinstance(self.data, TrainVal):
-                train_input = self.data.train_data
-                train_target = self.data.train_data_target
-                train_mask = self.data.train_data_mask
-                val_input = self.data.val_data
-                val_target = self.data.val_data_target
-
-                train_input, train_target = initialize_data_pair(
-                    self.data_type, train_input, train_target, self.loading
-                )
-                if train_mask is not None:
-                    train_mask, _ = initialize_data_pair(
-                        self.data_type, train_mask, None, self.loading
-                    )
-                val_input, val_target = initialize_data_pair(
-                    self.data_type, val_input, val_target, self.loading
-                )
-
-            elif isinstance(self.data, TrainValSplit):
-                raise NotImplementedError(
-                    "Validation splitting has not been implemented."
-                )
-            elif isinstance(self.data, PredData):
-                raise ValueError("Prediction data cannot be used for training.")
-            else:
+            if not isinstance(self.data, TrainVal):
                 raise ValueError
 
-            self.train_dataset = create_dataset(
-                config=self.config,
-                inputs=train_input,
-                targets=train_target,
-                masks=train_mask,
-                loading=self.loading,
-            )
-
-            validation_config = self.config.convert_mode("validating")
-
-            self.val_dataset = create_dataset(
-                config=validation_config,
-                inputs=val_input,
-                targets=val_target,
-                loading=self.loading,
+            self.train_dataset, self.val_dataset = create_train_val_datasets(
+                self.config, self.data, self.loading
             )
         elif stage == "predict":
-            if self.config.mode == "validating":
-                raise ValueError(
-                    "CAREamicsDataModule configured for validating cannot be used for "
-                    "prediction. Please create a new CareamicsDataModule with a "
-                    "configuration with mode='predicting'."
-                )
-            if isinstance(self.data, PredData):
-                pred_input = self.data.pred_data
-                pred_target = self.data.pred_data_target
-                pred_input, pred_target = initialize_data_pair(
-                    self.data_type, pred_input, pred_target, self.loading
-                )
-            else:
+            if not isinstance(self.data, PredData):
                 raise ValueError("No data has been provided for prediction.")
 
-            self.predict_dataset = create_dataset(
-                config=(
-                    self.config.convert_mode("predicting")
-                    if self.config.mode == "training"
-                    else self.config
-                ),
-                inputs=pred_input,
-                targets=pred_target,
-                loading=self.loading,
+            self.predict_dataset = create_pred_dataset(
+                self.config, self.data, self.loading
             )
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
@@ -410,7 +348,7 @@ class CareamicsDataModule(L.LightningDataModule):
         if (sampler is not None) and ("shuffle" in dataloader_params):
             del dataloader_params["shuffle"]
         assert self.train_dataset is not None
-        return DataLoader(
+        return DataLoader[ImageRegionData[PatchSpecs]](
             self.train_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
@@ -432,7 +370,7 @@ class CareamicsDataModule(L.LightningDataModule):
         if (sampler is not None) and ("shuffle" in dataloader_params):
             del dataloader_params["shuffle"]
         assert self.val_dataset is not None
-        return DataLoader(
+        return DataLoader[ImageRegionData[PatchSpecs]](
             self.val_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
@@ -450,9 +388,84 @@ class CareamicsDataModule(L.LightningDataModule):
             Prediction dataloader.
         """
         assert self.predict_dataset is not None
-        return DataLoader(
+        return DataLoader[ImageRegionData[TileSpecs]](
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
             **self.config.pred_dataloader_params,
         )
+
+
+def create_train_val_datasets(
+    config: NGDataConfig,
+    data: TrainVal[Any],
+    loading: ReadFuncLoading | ImageStackLoading | None,
+):
+
+    if config.mode != "training":
+        raise ValueError(
+            f"CAREamicsDataModule configured for {config.mode} cannot be "
+            f"used for training. Please create a new CareamicsDataModule with "
+            f"a configuration with mode='training'."
+        )
+    train_input = data.train_data
+    train_target = data.train_data_target
+    train_mask = data.train_data_mask
+    val_input = data.val_data
+    val_target = data.val_data_target
+
+    train_input, train_target = initialize_data_pair(
+        config.data_type, train_input, train_target, loading
+    )
+    if train_mask is not None:
+        train_mask, _ = initialize_data_pair(
+            config.data_type, train_mask, None, loading
+        )
+    val_input, val_target = initialize_data_pair(
+        config.data_type, val_input, val_target, loading
+    )
+
+    train_dataset = create_dataset(
+        config=config,
+        inputs=train_input,
+        targets=train_target,
+        masks=train_mask,
+        loading=loading,
+    )
+
+    validation_config = config.convert_mode("validating")
+
+    val_dataset = create_dataset(
+        config=validation_config,
+        inputs=val_input,
+        targets=val_target,
+        loading=loading,
+    )
+
+    return train_dataset, val_dataset
+
+
+def create_pred_dataset(
+    config: NGDataConfig,
+    data: PredData[Any],
+    loading: ReadFuncLoading | ImageStackLoading | None,
+):
+    if config.mode == "validating":
+        raise ValueError(
+            "CAREamicsDataModule configured for validating cannot be used for "
+            "prediction. Please create a new CareamicsDataModule with a "
+            "configuration with mode='predicting'."
+        )
+    pred_input = data.pred_data
+    pred_target = data.pred_data_target
+    pred_input, pred_target = initialize_data_pair(
+        SupportedData(config.data_type), pred_input, pred_target, loading
+    )
+    return create_dataset(
+        config=(
+            config.convert_mode("predicting") if config.mode == "training" else config
+        ),
+        inputs=pred_input,
+        targets=pred_target,
+        loading=loading,
+    )
