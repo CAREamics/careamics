@@ -291,99 +291,189 @@ def median_manipulate_torch(
     tuple[torch.Tensor, torch.Tensor, torch.Tensor]
            tuple containing the manipulated patch, the original patch and the mask.
     """
-    # get the coordinates of the future ROI centers
+    # -- Implementation summary
+    # 1. Generate coordinates that correspond to the pixels chosen for masking.
+    # 2. Subpatches are extracted, where the coordinate to mask is at the center.
+    # 3. The medians of these subpatches are calculated, but we do not want to include
+    #    the original pixel in the calculation so we mask it. In the case of StructN2V,
+    #    we do not include any pixels in the struct mask in the median calculation.
+
+    if rng is None:
+        rng = torch.Generator(device=batch.device)
+
+    # resulting center coord shape: (num_coordinates, batch + num_spatial_dims)
     subpatch_center_coordinates = _get_stratified_coords_torch(
         mask_pixel_percentage, batch.shape, rng
-    ).to(
-        device=batch.device
-    )  # (num_coordinates, batch + num_spatial_dims)
-
-    # Calculate the padding value for the input tensor
-    pad_value = subpatch_size // 2
-
-    # Generate all offsets for the ROIs. Iteration starting from 1 to skip the batch
-    offsets = torch.meshgrid(
-        [
-            torch.arange(-pad_value, pad_value + 1, device=batch.device)
-            for _ in range(1, subpatch_center_coordinates.shape[1])
-        ],
-        indexing="ij",
     )
-    offsets = torch.stack(
-        [axis_offset.flatten() for axis_offset in offsets], dim=1
-    )  # (subpatch_size**2, num_spatial_dims)
+    # pixel coordinates of all the subpatches
+    # shape: (num_coordinates, subpatch_size, subpatch_size, ...)
+    subpatch_coords = _get_subpatch_coords(
+        subpatch_center_coordinates, subpatch_size, batch.shape
+    )
 
-    # Create the list to assemble coordinates of the ROIs centers for each axis
-    coords_axes = []
-    # Create the list to assemble the span of coordinates defining the ROIs for each
-    # axis
-    coords_expands = []
-    for d in range(subpatch_center_coordinates.shape[1]):
-        coords_axes.append(subpatch_center_coordinates[:, d])
-        if d == 0:
-            # For batch dimension coordinates are not expanded (no offsets)
-            coords_expands.append(
-                subpatch_center_coordinates[:, d]
-                .unsqueeze(1)
-                .expand(-1, subpatch_size ** offsets.shape[1])
-            )  # (num_coordinates, subpatch_size**num_spacial_dims)
-        else:
-            # For spatial dimensions, coordinates are expanded with offsets, creating
-            # spans
-            coords_expands.append(
-                (
-                    subpatch_center_coordinates[:, d].unsqueeze(1) + offsets[:, d - 1]
-                ).clamp(0, batch.shape[d] - 1)
-            )  # (num_coordinates, subpatch_size**num_spacial_dims)
+    # this indexes and stacks all the subpatches along the first dimension
+    # subpatches shape: (num_coordinates, subpatch_size, subpatch_size, ...)
+    subpatches = batch[tuple(subpatch_coords)]
 
-    # create array of rois by indexing the batch with gathered coordinates
-    rois = batch[
-        tuple(coords_expands)
-    ]  # (num_coordinates, subpatch_size**num_spacial_dims)
-
-    if struct_params is not None:
-        # Create the structN2V mask
-        h, w = torch.meshgrid(
-            torch.arange(subpatch_size), torch.arange(subpatch_size), indexing="ij"
-        )
-        center_idx = subpatch_size // 2
-        halfspan = (struct_params.span - 1) // 2
-
-        # Determine the axis along which to apply the mask
-        if struct_params.axis == 0:
-            center_axis = h
-            span_axis = w
-        else:
-            center_axis = w
-            span_axis = h
-
-        # Create the mask
-        struct_mask = (
-            ~(
-                (center_axis == center_idx)
-                & (span_axis >= center_idx - halfspan)
-                & (span_axis <= center_idx + halfspan)
-            )
-        ).flatten()
-        rois_filtered = rois[:, struct_mask]
+    ndims = batch.ndim - 1
+    # subpatch mask to exclude values from median calculation
+    if struct_params is None:
+        subpatch_mask = _create_center_pixel_mask(ndims, subpatch_size, batch.device)
     else:
-        # Remove the center pixel value from the rois
-        center_idx = (subpatch_size ** offsets.shape[1]) // 2
-        rois_filtered = torch.cat(
-            [rois[:, :center_idx], rois[:, center_idx + 1 :]], dim=1
+        subpatch_mask = _create_struct_mask(
+            ndims, subpatch_size, struct_params, batch.device
         )
+    subpatches_masked = subpatches[:, subpatch_mask]
 
-    # compute the medians.
-    medians = rois_filtered.median(dim=1).values  # (num_coordinates,)
+    medians = subpatches_masked.median(dim=1).values  # (num_coordinates,)
 
     # Update the output tensor with medians
     output_batch = batch.clone()
-    output_batch[tuple(coords_axes)] = medians
-    mask = torch.where(output_batch != batch, 1, 0).to(torch.uint8)
+    output_batch[tuple(subpatch_center_coordinates.T)] = medians
+    mask = (batch != output_batch).to(torch.uint8)
 
     if struct_params is not None:
         output_batch = _apply_struct_mask_torch(
-            output_batch, subpatch_center_coordinates, struct_params
+            output_batch, subpatch_center_coordinates, struct_params, rng
         )
 
     return output_batch, mask
+
+
+def _create_center_pixel_mask(
+    ndims: int, subpatch_size: int, device: torch.device
+) -> torch.Tensor:
+    """
+    Create a mask for the center pixel of a subpatch.
+
+    Parameters
+    ----------
+    ndims : int
+        The number of dimensions.
+    subpatch_size : int
+        The size of one dimension of the subpatch. The created mask must be the same
+        size as the subpatch. Cannot be an even number.
+    device : torch.device
+        Device to create the mask on, e.g. "cuda".
+
+    Returns
+    -------
+    torch.Tensor
+        Tensor of bools. False where pixels should be masked and True otherwise.
+    """
+    if subpatch_size % 2 == 0:
+        raise ValueError("`subpatch` size cannot be even.")
+    subpatch_shape = (subpatch_size,) * ndims
+    centre_idx = (subpatch_size // 2,) * ndims
+    cp_mask = torch.ones(subpatch_shape, dtype=torch.bool, device=device)
+    cp_mask[centre_idx] = False
+    return cp_mask
+
+
+def _create_struct_mask(
+    ndims: int,
+    subpatch_size: int,
+    struct_params: StructMaskParameters,
+    device: torch.device,
+) -> torch.Tensor:
+    """
+    Create the mask for StructN2V.
+
+    Parameters
+    ----------
+    ndims : int
+        The number of dimensions.
+    subpatch_size : int
+        The size of one dimension of the subpatch. The created mask must be the same
+        size as the subpatch. Cannot be an even number.
+    struct_params : StructMaskParameters
+        Parameters for the structN2V mask (axis and span).
+    device : torch.device
+        Device to create the mask on, e.g. "cuda".
+
+    Returns
+    -------
+    torch.Tensor
+        Tensor of bools. False where pixels should be masked and True otherwise.
+    """
+    if subpatch_size % 2 == 0:
+        raise ValueError("`subpatch` size cannot be even.")
+    center_idx = subpatch_size // 2
+    span_start = (subpatch_size - struct_params.span) // 2
+    span_end = subpatch_size - span_start  # symmetric
+    span_axis = ndims - 1 - struct_params.axis  # e.g. horizontal is the last axis
+
+    struct_mask = torch.ones((subpatch_size,) * ndims, dtype=torch.bool, device=device)
+    # indexes the center unless it is the axis on which the struct mask spans
+    struct_slice = (
+        center_idx if d != span_axis else slice(span_start, span_end)
+        for d in range(ndims)
+    )
+    struct_mask[*struct_slice] = False
+    return struct_mask
+
+
+def _get_subpatch_coords(
+    subpatch_centers: torch.Tensor, subpatch_size: int, batch_shape: tuple[int, ...]
+) -> torch.Tensor:
+    """Get pixel coordinates for subpatches with centers at `subpatch_centers`.
+
+    The coordinates are returned in the shape `(D ,N, S, S)` or `(D, N, S, S, S)` for
+    2D and 3D patches respectively, where `D` is the number of dimension including the
+    batch dimension, `N` is the number of subpatches, and `S` is the
+    subpatch size. N is determined from the length of `subpatch_centres`.
+
+    If a subpatch would overlap the bounds of the patch, the coordinates are clipped.
+    This does result in some duplicated coordinates on the boundary of the patch.
+
+    Parameters
+    ----------
+    subpatch_centers : torch.Tensor
+        Coordinates of the center of a subpatch, including the batch dimension, i.e.
+        (b, (z), y, x). Has shape (N, D) for N different subpatch centers and D
+        dimensions.
+    subpatch_size : int
+        The size of one dimension of the subpatch. The created mask must be the same
+        size as the subpatch.
+    batch_shape : tuple[int, ...]
+        The shape of the batch that is being processed, i.e. (B ,(Z), Y, X).
+
+    Returns
+    -------
+    torch.Tensor
+        The coordinates of every pixel in each subpatch, stacked into the shape
+        `(D ,N, S, S)` or `(D, N, S, S, S)` for 2D and 3D patches respectively, where
+        `D` is the number of dimension including the batch dimension, `N` is the number
+        of subpatches, and `S` is the subpatch size.
+    """
+    device = subpatch_centers.device
+    ndims = len(batch_shape) - 1  # spatial dimensions
+
+    half_size = subpatch_size // 2
+    # pixel offset from the center of the subpatch, i.e. coords relative to the center
+    offsets = torch.meshgrid(
+        [torch.arange(-half_size, half_size + 1, device=device) for _ in range(ndims)],
+        indexing="ij",
+    )
+    # add zero offset for the batch dimension
+    subpatch_shape = (subpatch_size,) * ndims
+    offsets = torch.stack(
+        [torch.zeros(subpatch_shape, dtype=torch.int64, device=device), *offsets], dim=0
+    )
+
+    # now we need to add the offset to the subpatch_centers to get the subpatch coords
+    # subpatch_shape: (n_centres, ndims + 1)
+    # offset_shape: (ndims + 1, subpatch_size, subpatch_size, ...)
+    # we need to add singleton dims to broadcast the tensors
+    subpatch_centers = subpatch_centers[..., *(torch.newaxis for _ in range(ndims))]
+    offsets = offsets[torch.newaxis]
+
+    # resulting shape: (n_centres, ndims + 1, subpatch_size, subpatch_size, ...)
+    subpatch_coords = subpatch_centers + offsets
+    subpatch_coords = torch.swapaxes(subpatch_coords, 0, 1)
+    # clamp coordinates so they are not outside the bounds of the patch
+    broadcast_shape = (ndims + 1, *(1 for _ in range(ndims + 1)))
+    minimum = torch.zeros(broadcast_shape, dtype=torch.int64, device=device)
+    maximum = torch.tensor(batch_shape, device=device).reshape(broadcast_shape) - 1
+    subpatch_coords = subpatch_coords.clamp(minimum, maximum)
+    return subpatch_coords

@@ -271,7 +271,9 @@ class CAREamist:
         # early stopping callback
         if self.cfg.training_config.early_stopping_callback is not None:
             self.callbacks.append(
-                EarlyStopping(self.cfg.training_config.early_stopping_callback)
+                EarlyStopping(
+                    **self.cfg.training_config.early_stopping_callback.model_dump()
+                )
             )
 
     def stop_training(self) -> None:

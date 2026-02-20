@@ -6,11 +6,12 @@ import pytest
 import tifffile
 import torch
 from numpy.typing import NDArray
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import seed_everything
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from careamics import CAREamist
 from careamics.config import Configuration
+from careamics.config.lightning import CheckpointConfig, EarlyStoppingConfig
 from careamics.config.support import SupportedAlgorithm, SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 from careamics.dataset.dataset_utils import reshape_array
@@ -439,6 +440,36 @@ def test_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
         data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
+
+
+@pytest.mark.mps_gh_fail
+def test_train_w_callbacks(tmp_path: Path, minimum_n2v_configuration: dict):
+    """
+    Test that basic training with arrays runs without error with supported callbacks.
+    """
+    # training data
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_n2v_configuration)
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # add supported callback configuration
+    config.training_config.checkpoint_callback = CheckpointConfig()
+    config.training_config.early_stopping_callback = EarlyStoppingConfig()
+
+    # set epochs 2 to make sure callbacks are accessed.
+    config.training_config.lightning_trainer_config["max_epochs"] = 2
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array, val_source=val_array)
 
 
 @pytest.mark.mps_gh_fail
@@ -1191,12 +1222,7 @@ def test_error_passing_careamics_callback(tmp_path, minimum_n2v_configuration):
     with pytest.raises(ValueError):
         CAREamist(source=config, work_dir=tmp_path, callbacks=[model_ckp])
 
-    early_stp = EarlyStopping(
-        Trainer(
-            max_epochs=1,
-            default_root_dir=tmp_path,
-        )
-    )
+    early_stp = EarlyStopping(monitor="val_loss")
 
     with pytest.raises(ValueError):
         CAREamist(source=config, work_dir=tmp_path, callbacks=[early_stp])
