@@ -70,7 +70,7 @@ def create_ng_data_configuration(
     normalization: dict | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
-    n_workers: int = 0,
+    num_workers: int = 0,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     pred_dataloader_params: dict[str, Any] | None = None,
@@ -78,6 +78,9 @@ def create_ng_data_configuration(
 ) -> NGDataConfig:
     """
     Create a training NGDatasetConfig.
+
+    Note that `num_workers` is applied to all dataloaders unless explicitly overridden
+    in the respective dataloader parameters.
 
     Parameters
     ----------
@@ -102,7 +105,7 @@ def create_ng_data_configuration(
         'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
         'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
         for `array`.
-    n_workers : int, default=0
+    num_workers : int, default=0
         Number of workers for data loading.
     augmentations : list of transforms or None, default=None
         List of transforms to apply. If `None`, default augmentations are applied
@@ -147,23 +150,28 @@ def create_ng_data_configuration(
         if "shuffle" not in train_dataloader_params:
             train_dataloader_params["shuffle"] = True
 
-        train_dataloader_params["num_workers"] = n_workers
+        if "num_workers" not in train_dataloader_params:
+            train_dataloader_params["num_workers"] = num_workers
 
         data["train_dataloader_params"] = train_dataloader_params
     else:
-        data["train_dataloader_params"] = {"shuffle": True, "num_workers": n_workers}
+        data["train_dataloader_params"] = {"shuffle": True, "num_workers": num_workers}
 
     if val_dataloader_params is not None:
-        val_dataloader_params["num_workers"] = n_workers
+        if "num_workers" not in val_dataloader_params:
+            val_dataloader_params["num_workers"] = num_workers
+
         data["val_dataloader_params"] = val_dataloader_params
     else:
-        data["val_dataloader_params"] = {"shuffle": False, "num_workers": n_workers}
+        data["val_dataloader_params"] = {"shuffle": False, "num_workers": num_workers}
 
     if pred_dataloader_params is not None:
-        pred_dataloader_params["num_workers"] = n_workers
+        if "num_workers" not in pred_dataloader_params:
+            pred_dataloader_params["num_workers"] = num_workers
+
         data["pred_dataloader_params"] = pred_dataloader_params
     else:
-        data["pred_dataloader_params"] = {"shuffle": False, "num_workers": n_workers}
+        data["pred_dataloader_params"] = {"shuffle": False, "num_workers": num_workers}
 
     # add training patching
     data["patching"] = {
