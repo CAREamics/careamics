@@ -15,7 +15,7 @@ def create_val_split(
     rng: np.random.Generator,
 ) -> tuple[StratifiedPatchingStrategy, FixedPatchingStrategy]:
     """
-    Create patching strategies for training an validation.
+    Create patching strategies for training and validation.
 
     The patches from the training patching strategy will never overlap with the patches
     from the validation patching strategy.
@@ -45,9 +45,12 @@ def create_val_split(
     keys = list(grid_coords.keys())
     val_patch_specs: list[PatchSpecs] = []
 
-    # # select validation patches
+    # select validation patches
     n_patches_per_image = np.array(
-        [stratified_patching.image_patching[key[0]][key[1]].n_patches for key in keys]
+        [
+            stratified_patching.image_patching[data_idx][sample_idx].n_patches 
+            for data_idx, sample_idx in keys
+        ]
     )
     n_selected_image_patches = np.zeros_like(n_patches_per_image)
     for _ in range(n_val_patches):
@@ -70,7 +73,7 @@ def create_val_split(
         # exclude the chosen validation patches from training
         stratified_patching.exclude_patches(data_idx, sample_idx, coords)
 
-        # collected the chosen validation patches to create the fixed patching strategy
+        # collect the chosen validation patches to create the fixed patching strategy
         patch_specs: list[PatchSpecs] = [
             {
                 "data_idx": data_idx,

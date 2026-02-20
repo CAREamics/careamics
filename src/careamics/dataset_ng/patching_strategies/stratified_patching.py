@@ -194,7 +194,7 @@ class StratifiedPatchingStrategy:
 
     def get_included_grid_coords(self) -> dict[tuple[int, int], list[tuple[int, ...]]]:
         """
-        Get all the included grid coordinates in the patching strategy.
+        Get all grid coordinates included in the patching strategy.
 
         If a grid coordinate is not included, a patch can never be selected from the
         region `[grid_coord*patch_size, (grid_coord+1)*patch_size]`.

@@ -6,13 +6,13 @@ from .patching_strategy_protocol import PatchSpecs
 
 
 class FixedPatchingStrategy:
-    """A simple patching strategy returns patches from a fixed sequence.
+    """A simple patching strategy that returns patches from a fixed sequence.
 
     This class implements the `PatchingStrategy` `Protocol`.
     """
 
     def __init__(self, fixed_patch_specs: Sequence[PatchSpecs]):
-        """A simple patching strategy returns patches from a fixed list.
+        """A simple patching strategy that returns patches from a fixed list.
 
         Parameters
         ----------
@@ -46,7 +46,7 @@ class FixedPatchingStrategy:
         if index >= self.n_patches:
             raise IndexError(
                 f"Index {index} out of bounds for FixedRandomPatchingStrategy with "
-                f"number of patches, {self.n_patches}"
+                f"number of patches {self.n_patches}"
             )
         # simply index the pre-generated patches to get the correct patch
         return self.fixed_patch_specs[index]
@@ -54,9 +54,9 @@ class FixedPatchingStrategy:
     # Note: this is used by the FileIterSampler
     def get_patch_indices(self, data_idx: int) -> Sequence[int]:
         """
-        Get the patch indices will return patches for a specific `image_stack`.
+        Return all patch indices belonging to a specific `image_stack`.
 
-        The `image_stack` corresponds to the given `data_idx`.
+        Each `image_stack` corresponds to a given `data_idx`.
 
         Parameters
         ----------
@@ -66,9 +66,8 @@ class FixedPatchingStrategy:
         Returns
         -------
         sequence of int
-            A sequence of patch indices, that when used to index the `CAREamicsDataset
-            will return a patch that comes from the `image_stack` corresponding to the
-            given `data_idx`.
+            A sequence of patch indices belonging to a particular `image_stack` that
+            can be used to index the `CAREamicsDataset`.
         """
         return [
             i
