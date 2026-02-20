@@ -268,7 +268,6 @@ class CAREamistV2:
         read_source_func: ReadFunc | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-        use_in_memory: bool = True,
     ) -> None:
         """Train the model on the provided data.
 
