@@ -14,6 +14,8 @@ from careamics.config.transformations import (
     XYRandomRotate90Config,
 )
 
+from ..algorithms import N2VAlgorithm
+from ..utils.random import generate_random_seed
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import create_ng_data_configuration, list_spatial_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
@@ -347,6 +349,9 @@ def create_advanced_n2v_config(
     N2VConfiguration
         Configuration for training N2V.
     """
+    if seed is None:
+        seed = generate_random_seed()
+
     # if there are channels, we need to specify their number
     channels_present = "C" in axes
 
@@ -456,9 +461,10 @@ def create_advanced_n2v_config(
         checkpoint_params=checkpoint_params,
     )
 
+    algorithm_config = N2VAlgorithm(**algorithm_params)
     return N2VConfiguration(
         experiment_name=experiment_name,
-        algorithm_config=algorithm_params,
+        algorithm_config=algorithm_config,
         data_config=data_config,
         training_config=training_params,
     )

@@ -39,6 +39,7 @@ from careamics.config.transformations import (
 from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 from .configuration import Configuration
+from .utils.random import generate_random_seed
 
 
 def algorithm_factory(
@@ -1343,7 +1344,7 @@ def create_n2v_configuration(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
-        seed=seed,
+        seed=seed if seed is not None else generate_random_seed(),
     )
 
     # algorithm
@@ -2408,7 +2409,7 @@ def create_pn2v_configuration(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
-        seed=seed,
+        seed=seed if seed is not None else generate_random_seed(),
     )
 
     # Create noise model configuration

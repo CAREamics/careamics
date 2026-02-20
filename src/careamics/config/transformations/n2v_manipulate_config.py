@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator
 
+from ..utils.random import generate_random_seed
 from .transform_config import TransformConfig
 
 
@@ -27,8 +28,8 @@ class N2VManipulateConfig(TransformConfig):
         Axis of the structN2V mask, by default "none".
     struct_mask_span : int
         Span of the structN2V mask, by default 5.
-    seed : Optional[int]
-        Random seed for reproducibility, by default None.
+    seed : int
+        Random seed for reproducibility.
     """
 
     model_config = ConfigDict(
@@ -55,8 +56,8 @@ class N2VManipulateConfig(TransformConfig):
     struct_mask_span: int = Field(default=5, ge=3, le=15)
     """Size of the structN2V mask."""
 
-    seed: int | None = None
-    """Random seed for reproducibility, by default None."""
+    seed: int = Field(default_factory=generate_random_seed, gt=0)
+    """Random seed for reproducibility. If not specified, a random seed is generated."""
 
     @field_validator("roi_size", "struct_mask_span")
     @classmethod

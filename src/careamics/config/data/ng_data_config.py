@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import random
 import sys
 from collections.abc import Sequence
 from pprint import pformat
@@ -24,6 +23,7 @@ from pydantic import (
 from careamics.utils import BaseEnum
 
 from ..transformations import XYFlipConfig, XYRandomRotate90Config
+from ..utils.random import generate_random_seed
 from ..validators import check_axes_validity, check_czi_axes_validity
 from .normalization_config import NormalizationConfig
 from .patch_filter import (
@@ -51,17 +51,6 @@ from .patching_strategies import (
 
 # TODO: this module is very long, can we split the validation somewhere else and
 #       leverage Pydantic to add validation directly to the declaration of each field?
-
-
-def generate_random_seed() -> int:
-    """Generate a random seed for reproducibility.
-
-    Returns
-    -------
-    int
-        A random integer between 1 and 2^31 - 1.
-    """
-    return random.randint(1, 2**31 - 1)
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -216,7 +205,7 @@ class NGDataConfig(BaseModel):
     pred_dataloader_params: dict[str, Any] = Field(default={})
     """Dictionary of PyTorch prediction dataloader parameters."""
 
-    seed: int | None = Field(default_factory=generate_random_seed, gt=0)
+    seed: int = Field(default_factory=generate_random_seed, gt=0)
     """Random seed for reproducibility. If not specified, a random seed is generated."""
 
     @field_validator("axes")

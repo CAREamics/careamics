@@ -1,7 +1,6 @@
 """N2V manipulation transform for PyTorch."""
 
 import platform
-import random
 from typing import Any
 
 import torch
@@ -26,8 +25,6 @@ class N2VManipulateTorch:
     ----------
     n2v_manipulate_config : N2VManipulateConfig
         N2V manipulation configuration.
-    seed : Optional[int], optional
-        Random seed, by default None.
     device : str
         The device on which operations take place, e.g. "cuda", "cpu" or "mps".
 
@@ -50,7 +47,6 @@ class N2VManipulateTorch:
     def __init__(
         self,
         n2v_manipulate_config: N2VManipulateConfig,
-        seed: int | None = None,
         device: str | None = None,
     ):
         """Constructor.
@@ -59,8 +55,6 @@ class N2VManipulateTorch:
         ----------
         n2v_manipulate_config : N2VManipulateConfig
             N2V manipulation configuration.
-        seed : Optional[int], optional
-            Random seed, by default None.
         device : str
             The device on which operations take place, e.g. "cuda", "cpu" or "mps".
         """
@@ -95,21 +89,9 @@ class N2VManipulateTorch:
             else:
                 device = "cpu"
 
-        # Use seed from config if available, otherwise use the seed parameter
-        effective_seed = (
+        self.rng = torch.Generator(device=device).manual_seed(
             n2v_manipulate_config.seed
-            if n2v_manipulate_config.seed is not None
-            else seed
         )
-
-        if effective_seed is not None:
-            self.rng = torch.Generator(device=device).manual_seed(effective_seed)
-        else:
-            # When no seed is provided, seed with a random value from
-            # torch's default RNG
-            self.rng = torch.Generator(device=device).manual_seed(
-                random.randint(0, 1000000)
-            )
 
     def __call__(
         self, batch: torch.Tensor, *args: Any, **kwargs: Any
