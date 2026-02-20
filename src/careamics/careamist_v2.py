@@ -1,29 +1,28 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Literal, TypedDict, Unpack
+from typing import Any, Literal, TypedDict, TypeVar, Unpack
 
+import numpy as np
 import torch
 from numpy.typing import NDArray
-import numpy as np
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from careamics.lightning.dataset_ng.lightning_modules.get_module import CAREamicsModule
-
 from .config import load_configuration_ng
 from .config.ng_configs import N2VConfiguration
-from .config.support import SupportedAlgorithm, SupportedLogger, SupportedData
-from .file_io import WriteFunc
+from .config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from .dataset.dataset_utils import reshape_array
-from .model_io import export_to_bmz
+from .file_io import ReadFunc, WriteFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
+from .lightning.dataset_ng.data_module import CareamicsDataModule
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
     create_module,
     load_module_from_checkpoint,
 )
+from .model_io import export_to_bmz
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
 
@@ -37,6 +36,11 @@ class UserContext(TypedDict, total=False):
     work_dir: Path | str | None
     callbacks: list[Callback] | None
     enable_progress_bar: bool
+
+
+InputType = TypeVar(
+    "InputType", NDArray[Any], Path, str, Sequence[NDArray[Any]], Sequence[Path | str]
+)
 
 
 class CAREamistV2:
@@ -59,8 +63,9 @@ class CAREamistV2:
         callbacks = user_context.get("callbacks", None)
         self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
 
-        self.prediction_writer = PredictionWriterCallback(self.work_dir)
-        self.prediction_writer.disable_writing(True)
+        self.prediction_writer = PredictionWriterCallback(
+            self.work_dir, enable_writing=False
+        )
 
         experiment_loggers = self._create_loggers(
             self.config.training_config.logger,
@@ -75,6 +80,9 @@ class CAREamistV2:
             **self.config.training_config.lightning_trainer_config or {},
         )
 
+        # Placeholder for the datamodule
+        self.train_datamodule: CareamicsDataModule | None = None
+
     def _load_model(
         self,
         config: Configuration | Path | None,
@@ -86,7 +94,8 @@ class CAREamistV2:
         )
         if n_inputs != 1:
             raise ValueError(
-                "Exactly one of `config`, `checkpoint_path`, or `bmz_path` must be provided."
+                "Exactly one of `config`, `checkpoint_path`, or `bmz_path` "
+                "must be provided."
             )
         if config is not None:
             return self._from_config(config)
@@ -119,7 +128,8 @@ class CAREamistV2:
                 "Could not find CAREamics related information within the provided "
                 "checkpoint. This means that it was saved without using the "
                 "CAREamics callback `CareamicsCheckpointInfo`. "
-                "Please use a checkpoint saved with CAREamics or initialize with a config instead."
+                "Please use a checkpoint saved with CAREamics or initialize with a "
+                "config instead."
             )
 
         try:
@@ -247,22 +257,103 @@ class CAREamistV2:
         self,
         *,
         # BASIC PARAMS
-        train_data: Any | None = None,
-        train_data_target: Any | None = None,
-        val_data: Any | None = None,
-        val_data_target: Any | None = None,
+        train_data: InputType | None = None,
+        train_data_target: InputType | None = None,
+        val_data: InputType | None = None,
+        val_data_target: InputType | None = None,
         # val_percentage: float | None = None, # TODO: hidden till re-implemented
         # val_minimum_split: int = 5,
         # ADVANCED PARAMS
         filtering_mask: Any | None = None,
-        read_source_func: Callable | None = None,
+        read_source_func: ReadFunc | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
     ) -> None:
-        # TODO: init datamodule
-        # TODO: remember to pass self.checkpoint_path to Trainer.fit
-        # ^ this will load optimizer and lr_schedular state dicts
-        raise NotImplementedError("Training is not implemented yet.")
+        """Train the model on the provided data.
+
+        The training data can be provided as arrays or paths. If `use_in_memory`
+        is set to True in the configuration, the source provided as Path or str will
+        be loaded in memory if it fits. Otherwise, training will be performed by loading
+        patches from the files one by one. Training on arrays is always performed in
+        memory.
+
+        Parameters
+        ----------
+        train_data : pathlib.Path or str or numpy.ndarray, optional
+            Training data, by default None.
+        train_data_target : pathlib.Path or str or numpy.ndarray, optional
+            Training target data, by default None.
+        val_data : pathlib.Path or str or numpy.ndarray, optional
+            Validation data, by default None.
+        val_data_target : pathlib.Path or str or numpy.ndarray, optional
+            Validation target data, by default None.
+        filtering_mask : Any, optional
+            Filtering mask for coordinate-based patch filtering, by default None.
+        read_source_func : Callable, optional
+            Function to read the source data, by default None.
+        read_kwargs : dict[str, Any], optional
+            Keyword arguments for the read function, by default None.
+        extension_filter : str, optional
+            Filter for file extensions, by default "".
+        use_in_memory : bool, optional
+            Use in memory dataset if possible, by default True.
+
+        Raises
+        ------
+        ValueError
+            If sources are not of the same type (e.g. train is an array and val is
+            a Path).
+        ValueError
+            If the training target is provided to N2V.
+        ValueError
+            If neither train_data nor a datamodule is provided.
+        """
+        if train_data is None:
+            raise ValueError(
+                "Training data must be provided. Either provide `train_data` or "
+                "use a datamodule (not yet supported)."
+            )
+
+        # Check that inputs are the same type
+        source_types = {
+            type(s)
+            for s in (train_data, val_data, train_data_target, val_data_target)
+            if s is not None
+        }
+        if len(source_types) > 1:
+            raise ValueError("All sources should be of the same type.")
+
+        # Raise error if target is provided to N2V
+        if self.config.algorithm_config.algorithm == SupportedAlgorithm.N2V.value:
+            if train_data_target is not None:
+                raise ValueError("Training target not compatible with N2V training.")
+
+        # Create datamodule
+        datamodule = CareamicsDataModule(
+            data_config=self.config.data_config,
+            train_data=train_data,
+            val_data=val_data,
+            train_data_target=train_data_target,
+            val_data_target=val_data_target,
+            read_source_func=read_source_func,
+            read_kwargs=read_kwargs,
+            extension_filter=extension_filter,
+            val_percentage=0.1,
+            val_minimum_split=5,
+        )
+
+        # Register datamodule
+        self.train_datamodule = datamodule
+
+        # Set defaults (in case `stop_training` was called before)
+        self.trainer.should_stop = False
+        self.trainer.limit_val_batches = 1.0  # 100%
+
+        # Train
+        ckpt_path = (
+            str(self.checkpoint_path) if self.checkpoint_path is not None else None
+        )
+        self.trainer.fit(self.model, datamodule=datamodule, ckpt_path=ckpt_path)
 
     def predict(
         self,
@@ -391,4 +482,4 @@ class CAREamistV2:
     def stop_training(self) -> None:
         """Stop the training loop."""
         self.trainer.should_stop = True
-        self.trainer.limit_val_batches = 0 # skip validation
+        self.trainer.limit_val_batches = 0  # skip validation
