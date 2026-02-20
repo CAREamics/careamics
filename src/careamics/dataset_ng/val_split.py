@@ -48,7 +48,7 @@ def create_val_split(
     # select validation patches
     n_patches_per_image = np.array(
         [
-            stratified_patching.image_patching[data_idx][sample_idx].n_patches 
+            stratified_patching.image_patching[data_idx][sample_idx].n_patches
             for data_idx, sample_idx in keys
         ]
     )
