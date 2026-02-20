@@ -19,10 +19,19 @@ from careamics.dataset_ng.factory import (
     ImageStackLoading,
     ReadFuncLoading,
     create_dataset,
+    create_patching_strategy,
+    init_patch_extractor,
+    select_image_stack_loader,
+    select_patch_extractor_type,
 )
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset_ng.image_stack import ImageStack
-from careamics.dataset_ng.patching_strategies import PatchSpecs, TileSpecs
+from careamics.dataset_ng.patching_strategies import (
+    PatchSpecs,
+    StratifiedPatchingStrategy,
+    TileSpecs,
+)
+from careamics.dataset_ng.val_split import create_val_split
 from careamics.lightning.dataset_ng.data_module_utils import initialize_data_pair
 from careamics.utils import get_logger
 
@@ -261,6 +270,8 @@ class CareamicsDataModule(L.LightningDataModule):
             ],
         )
 
+        self.rng = np.random.default_rng(seed=self.config.seed)
+
         self.data_type: SupportedData = SupportedData(self.config.data_type)
         self.batch_size: int = self.config.batch_size
 
@@ -293,12 +304,16 @@ class CareamicsDataModule(L.LightningDataModule):
             if (self.train_dataset is not None) and (self.val_dataset is not None):
                 return
 
-            if not isinstance(self.data, TrainVal):
-                raise ValueError
-
-            self.train_dataset, self.val_dataset = create_train_val_datasets(
-                self.config, self.data, self.loading
-            )
+            if isinstance(self.data, TrainValSplit):
+                self.train_dataset, self.val_dataset = create_val_split_datasets(
+                    self.config, self.data, self.loading, self.rng
+                )
+            elif isinstance(self.data, TrainVal):
+                self.train_dataset, self.val_dataset = create_train_val_datasets(
+                    self.config, self.data, self.loading
+                )
+            else:
+                raise ValueError("Training and validation data has not been provided.")
         elif stage == "predict":
             if not isinstance(self.data, PredData):
                 raise ValueError("No data has been provided for prediction.")
@@ -442,6 +457,100 @@ def create_train_val_datasets(
         loading=loading,
     )
 
+    return train_dataset, val_dataset
+
+
+def create_val_split_datasets(
+    config: NGDataConfig,
+    data: TrainValSplit[Any],
+    loading: ReadFuncLoading | ImageStackLoading | None,
+    rng: np.random.Generator,
+) -> tuple[CareamicsDataset[ImageStack], CareamicsDataset[ImageStack]]:
+    if config.mode != "training":
+        raise ValueError(
+            f"CAREamicsDataModule configured for {config.mode} cannot be "
+            f"used for training. Please create a new CareamicsDataModule with "
+            f"a configuration with mode='training'."
+        )
+    if config.patching.name != "stratified":
+        # TODO: we could optionally split by samples instead.
+        raise ValueError(
+            "Validation split is only compatible with stratified patching."
+        )
+
+    train_input = data.train_data
+    train_target = data.train_data_target
+    train_mask = data.train_data_mask
+
+    train_input, train_target = initialize_data_pair(
+        config.data_type, train_input, train_target, loading
+    )
+    if train_mask is not None:
+        train_mask, _ = initialize_data_pair(
+            config.data_type, train_mask, None, loading
+        )
+
+    # init dataset components
+    image_stack_loader = select_image_stack_loader(
+        data_type=SupportedData(config.data_type),
+        in_memory=config.in_memory,
+        loading=loading,
+    )
+    patch_extractor_type = select_patch_extractor_type(
+        data_type=SupportedData(config.data_type), in_memory=config.in_memory
+    )
+    input_extractor = init_patch_extractor(
+        patch_extractor_type, image_stack_loader, train_input, config.axes
+    )
+    if train_target is not None:
+        target_extractor = init_patch_extractor(
+            patch_extractor_type, image_stack_loader, train_target, config.axes
+        )
+    else:
+        target_extractor = None
+    if train_mask is not None:
+        mask_extractor = init_patch_extractor(
+            patch_extractor_type, image_stack_loader, train_mask, config.axes
+        )
+    else:
+        mask_extractor = None
+
+    train_patching = create_patching_strategy(input_extractor.shapes, config.patching)
+    # ensured by guard on config at the start of function
+    assert isinstance(train_patching, StratifiedPatchingStrategy)
+
+    # TODO: add in more efficient masking (by removing patches from stratified patching)
+
+    # calculate n val patches
+    n_patches = train_patching.n_patches
+    if data.val_minimum_split > n_patches:
+        raise RuntimeError(
+            f"`val_minimum_split` has been set to {data.val_minimum_split}, which is "
+            f"greater than the total available patches, {n_patches}."
+        )
+    n_val_patches = int(n_patches * data.val_percentage)
+    if n_val_patches < data.val_minimum_split:
+        n_val_patches = data.val_minimum_split
+
+    # val split applied to patching strat
+    train_patching, val_patching = create_val_split(
+        train_patching, n_val_patches, rng=rng
+    )
+
+    train_dataset = CareamicsDataset(
+        data_config=config,
+        input_extractor=input_extractor,
+        target_extractor=target_extractor,
+        mask_extractor=mask_extractor,
+        patching_strategy=train_patching,
+    )
+    val_dataset = CareamicsDataset(
+        data_config=config.convert_mode("validating"),
+        input_extractor=input_extractor,
+        target_extractor=target_extractor,
+        mask_extractor=None,
+        patching_strategy=val_patching,
+    )
     return train_dataset, val_dataset
 
 
