@@ -69,31 +69,3 @@ via composition.
 
 Other useful Lightning components such as callbacks, losses etc. are implemented here.
 
-## Workspace Structure
-
-This is a uv workspace with multiple packages:
-- **`pydantic_ai_slim/`**: Core framework (minimal dependencies)
-- **`pydantic_evals/`**: Evaluation system
-- **`pydantic_graph/`**: Graph execution engine
-- **`examples/`**: Example applications
-- **`clai/`**: CLI tool
-
-## Testing Strategy
-
-- **Unit tests**: `tests/` directory with comprehensive model and component coverage
-- **VCR cassettes**: `tests/cassettes/` for recorded LLM API interactions
-- **Test models**: Use `TestModel` for deterministic testing
-- **Examples testing**: `tests/test_examples.py` validates all documentation examples
-- **Multi-version testing**: Python 3.10-3.13 support
-
-## Key Configuration Files
-
-- **`pyproject.toml`**: Main workspace configuration with dependency groups
-- **`uv.lock`**: Locked dependencies for reproducible builds
-- **.github/workflows/**: CI workflows for testing
-
-## Best Practices
-
-This is the list of best practices for working with the codebase.
-
-### Writing docstrings
