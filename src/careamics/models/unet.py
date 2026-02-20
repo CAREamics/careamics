@@ -339,6 +339,8 @@ class UNet(nn.Module):
         Dropout probability, by default 0.0.
     pool_kernel : int, optional
         Kernel size of the pooling layers, by default 2.
+    residual : bool, default=False
+        Whether to add a residual connection from the input to the output.
     final_activation : Optional[Callable], optional
         Activation function to use for the last layer, by default None.
     n2v2 : bool, optional
@@ -359,6 +361,7 @@ class UNet(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
         pool_kernel: int = 2,
+        residual: bool = False,
         final_activation: Union[SupportedActivation, str] = SupportedActivation.NONE,
         n2v2: bool = False,
         independent_channels: bool = True,
@@ -385,6 +388,8 @@ class UNet(nn.Module):
             Dropout probability, by default 0.0.
         pool_kernel : int, optional
             Kernel size of the pooling layers, by default 2.
+        residual : bool, default=False
+            Whether to add a residual connection from the input to the output.
         final_activation : Optional[Callable], optional
             Activation function to use for the last layer, by default None.
         n2v2 : bool, optional
@@ -426,6 +431,7 @@ class UNet(nn.Module):
             kernel_size=1,
             groups=groups,
         )
+        self.residual = residual
         self.final_activation = get_activation(final_activation)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -442,8 +448,14 @@ class UNet(nn.Module):
         torch.Tensor
             Output of the model.
         """
+        input_tensor = x
+
         encoder_features = self.encoder(x)
         x = self.decoder(*encoder_features)
         x = self.final_conv(x)
+
+        if self.residual:
+            x = x + input_tensor
+
         x = self.final_activation(x)
         return x
