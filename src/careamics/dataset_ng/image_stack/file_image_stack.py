@@ -28,6 +28,7 @@ class FileImageStack:
         data_dtype: DTypeLike,
         read_func: ReadFunc,
         read_kwargs: dict[str, Any] | Any = None,
+        original_data_shape: tuple[int, ...] | None = None,
     ):
         self.source = source
         self.axes = axes
@@ -36,6 +37,9 @@ class FileImageStack:
         self.read_func = read_func
         self.read_kwargs = read_kwargs
         self._data: NDArray | None = None
+        self._original_data_shape: tuple[int, ...] = (
+            original_data_shape if original_data_shape is not None else ()
+        )
 
     def extract_patch(
         self,
@@ -101,6 +105,16 @@ class FileImageStack:
     def is_loaded(self):
         return self._data is not None
 
+    @property
+    def original_data_shape(self) -> tuple[int, ...]:
+        """Original shape of the data."""
+        return self._original_data_shape
+
+    @property
+    def original_axes(self) -> str:
+        """Original axes of the data."""
+        return self.axes
+
     @classmethod
     def from_tiff(
         cls,
@@ -124,7 +138,8 @@ class FileImageStack:
         """
         # TODO: think this is correct but need more examples to test
         file = tifffile.TiffFile(path)
-        data_shape = reshape_array_shape(axes, file.series[0].shape)
+        original_data_shape = file.series[0].shape
+        data_shape = reshape_array_shape(axes, original_data_shape)
         dtype = file.series[0].dtype
         return cls(
             source=path,
@@ -132,4 +147,5 @@ class FileImageStack:
             data_shape=data_shape,
             data_dtype=dtype,
             read_func=read_tiff,
+            original_data_shape=original_data_shape,
         )
