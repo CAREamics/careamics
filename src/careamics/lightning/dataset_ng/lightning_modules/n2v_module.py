@@ -52,9 +52,7 @@ class N2VModule(L.LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
-        self.n2v_manipulate = N2VManipulateTorch(
-            n2v_manipulate_config=self.config.n2v_config
-        )
+        self.n2v_manipulate = N2VManipulateTorch(self.config.n2v_config)
         self.loss_func = n2v_loss
 
         self.metrics = MetricCollection(PeakSignalNoiseRatio())

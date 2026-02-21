@@ -11,7 +11,7 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from careamics.lightning.dataset_ng.lightning_modules.get_module import CAREamicsModule
 
-from .config import load_configuration_ng
+from .config.utils.configuration_io import load_configuration_ng
 from .config.ng_configs import N2VConfiguration
 from .config.support import SupportedAlgorithm, SupportedLogger, SupportedData
 from .file_io import WriteFunc

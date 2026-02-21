@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from careamics.config import (
-    Configuration,
+from careamics.config import Configuration
+from careamics.config.utils.configuration_io import (
     load_configuration,
     save_configuration,
 )

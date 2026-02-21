@@ -1,8 +1,7 @@
 """Configuration utilities."""
 
 __all__ = [
-    "load_configuration",
-    "save_configuration",
+    "generate_random_seed",
 ]
 
-from .configuration_io import load_configuration, save_configuration
+from .random import generate_random_seed
