@@ -40,7 +40,7 @@ def group_tiles_by_key(
 
 def stitch_prediction(
     tiles: list[ImageRegionData],
-    restore_shape: bool = False,
+    restore_shape: bool = True,
 ) -> tuple[list[NDArray], list[str]]:
     """
     Stitch tiles back together to form full images.
@@ -53,7 +53,7 @@ def stitch_prediction(
     tiles : list of ImageRegionData
         Cropped tiles and their respective stitching coordinates. Can contain tiles
         from multiple images.
-    restore_shape : bool, default=False
+    restore_shape : bool, default=True
         If True, restore predictions to their original shape and dimension order.
 
     Returns
