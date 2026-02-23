@@ -63,6 +63,9 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     axes: str
     """Axes of the original data array. SCTZYX dimensions are allowed in any order."""
 
+    original_data_shape: Sequence[int]
+    """Original shape of the data before any reshaping."""
+
     region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
     """Specifications of the region within the original image from where `data` is
     extracted. Of type PatchSpecs during training/validation and prediction without
@@ -72,9 +75,6 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     additional_metadata: dict[str, Any]
     """Additional metadata to be stored with the image region. Currently used to store
     chunk and shard information for zarr image stacks."""
-
-    original_data_shape: Sequence[int]
-    """Original shape of the data before any reshaping."""
 
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
@@ -241,9 +241,9 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             dtype=str(image_stack.data_dtype),
             data_shape=data_shape,
             axes=self.config.axes,
+            original_data_shape=original_data_shape,
             region_spec=patch_spec,
             additional_metadata=additional_metadata,
-            original_data_shape=original_data_shape,
         )
 
     def _extract_patches(

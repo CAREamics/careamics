@@ -90,27 +90,21 @@ class InMemoryImageStack:
 
     @classmethod
     def from_array(cls, data: NDArray, axes: str) -> Self:
-        original_axes = axes
-        original_data_shape = data.shape
-        data = reshape_array(data, axes)
         return cls(
             source="array",
-            data=data,
-            original_axes=original_axes,
-            original_data_shape=original_data_shape,
+            data=reshape_array(data, axes),
+            original_axes=axes,
+            original_data_shape=data.shape,
         )
 
     @classmethod
     def from_tiff(cls, path: Path, axes: str) -> Self:
         data = read_tiff(path)
-        original_axes = axes
-        original_data_shape = data.shape
-        data = reshape_array(data, axes)
         return cls(
             source=path,
-            data=data,
-            original_axes=original_axes,
-            original_data_shape=original_data_shape,
+            data=reshape_array(data, axes),
+            original_axes=axes,
+            original_data_shape=data.shape,
         )
 
     @classmethod
@@ -118,12 +112,9 @@ class InMemoryImageStack:
         cls, path: Path, axes: str, read_func: ReadFunc, **read_kwargs: Any
     ) -> Self:
         data = read_func(path, **read_kwargs)
-        original_axes = axes
-        original_data_shape = data.shape
-        data = reshape_array(data, axes)
         return cls(
             source=path,
-            data=data,
-            original_axes=original_axes,
-            original_data_shape=original_data_shape,
+            data=reshape_array(data, axes),
+            original_axes=axes,
+            original_data_shape=data.shape,
         )

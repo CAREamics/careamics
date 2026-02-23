@@ -362,10 +362,10 @@ class CziImageStack:
         else:
             axes = "SCYX"
 
-        # Calculcate size of sample dimension S, combining all axes not used elsewhere.
+        # Calculate size of sample dimension S, combining all axes not used elsewhere.
         # This could, for example, be a time axis. If we only perform 2-D denoising, a
-        # potentially present Z axis would also be used as sample dimension. If both,
-        # T and Z, are present, both need to be combined into the sample dimension.
+        # potentially present Z axis would also be used as sample dimension. If both
+        # T and Z are present, both need to be combined into the sample dimension.
         # The same needs to be done to any other potentially present axis in the CZI
         # file which is not a spatial or channel axis.
         # The following code calculates the size of the combined sample axis.
