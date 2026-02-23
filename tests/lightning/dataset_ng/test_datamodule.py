@@ -13,7 +13,7 @@ from careamics.dataset_ng.image_stack import FileImageStack
 from careamics.dataset_ng.patch_extractor.limit_file_extractor import (
     LimitFilesPatchExtractor,
 )
-from careamics.lightning.dataset_ng.data_module import CareamicsDataModule, TrainVal
+from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 
 # TODO add tests for the various types, for mismatching input/target/mask lengths, etc.
 # TODO add tests for validation and prediction modes. can we use a single
@@ -67,10 +67,8 @@ def test_not_in_mem_tiff(tmp_path: Path):
 
     datamodule = CareamicsDataModule(
         data_config=config,
-        data=TrainVal(
-            train_data=paths[:-1],
-            val_data=[paths[-1]],
-        ),
+        train_data=paths[:-1],
+        val_data=[paths[-1]],
     )
     # simulate training call
     datamodule.setup(stage="fit")
@@ -130,10 +128,8 @@ def test_sampler(tmp_path: Path, in_memory, correct_sampler):
 
     datamodule = CareamicsDataModule(
         data_config=config,
-        data=TrainVal(
-            train_data=paths[:-1],
-            val_data=[paths[-1]],
-        ),
+        train_data=paths[:-1],
+        val_data=[paths[-1]],
     )
     datamodule.setup("fit")
 

@@ -13,8 +13,6 @@ from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
 )
 from careamics.lightning.dataset_ng.data_module import (
     CareamicsDataModule,
-    PredData,
-    TrainVal,
 )
 from careamics.lightning.dataset_ng.lightning_modules import N2VModule
 from careamics.lightning.dataset_ng.prediction import convert_prediction
@@ -95,10 +93,8 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
     # create data module
     data = CareamicsDataModule(
         data_config=dataset_cfg,
-        data=TrainVal(
-            train_data=train_array,
-            val_data=val_array,
-        ),
+        train_data=train_array,
+        val_data=val_array,
     )
 
     # create prediction writer callback params
@@ -140,9 +136,7 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
 
     predict_data = CareamicsDataModule(
         data_config=pred_dataset_cfg,
-        data=PredData(
-            pred_data=train_dir,
-        ),
+        pred_data=train_dir,
     )
 
     # predict
@@ -218,10 +212,8 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     # create data module
     data = CareamicsDataModule(
         data_config=dataset_cfg,
-        data=TrainVal(
-            train_data=str(arr.store_path),
-            val_data=str(val_arr.store_path),
-        ),
+        train_data=str(arr.store_path),
+        val_data=str(val_arr.store_path),
     )
 
     # create prediction writer callback params
@@ -256,7 +248,7 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     )
 
     predict_data = CareamicsDataModule(
-        data_config=pred_dataset_cfg, data=PredData(pred_data=[str(arr.store_path)])
+        data_config=pred_dataset_cfg, pred_data=[str(arr.store_path)]
     )
 
     # predict
