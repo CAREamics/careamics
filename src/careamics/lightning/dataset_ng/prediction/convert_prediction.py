@@ -111,7 +111,6 @@ def decollate_image_region_data(
     return decollated
 
 
-# TODO move to utils and reuse in prediction writer callback?
 def combine_samples(
     predictions: list[ImageRegionData],
     restore_shape: bool = False,
