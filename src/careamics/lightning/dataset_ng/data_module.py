@@ -4,7 +4,7 @@ import copy
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -32,16 +32,11 @@ from careamics.dataset_ng.patching_strategies import (
     TileSpecs,
 )
 from careamics.dataset_ng.val_split import create_val_split
-from careamics.lightning.dataset_ng.data_module_utils import initialize_data_pair
 from careamics.utils import get_logger
 
+from .data_module_utils import initialize_data_pair
+
 logger = get_logger(__name__)
-
-ItemType = Path | str | NDArray[Any]
-"""Type of input items passed to the dataset."""
-
-InputType = ItemType | Sequence[ItemType] | None
-"""Type of input data passed to the dataset."""
 
 T = TypeVar("T")
 InputVar = TypeVar(
@@ -52,7 +47,7 @@ Loading = ReadFuncLoading | ImageStackLoading | None
 
 
 @dataclass
-class TrainVal(Generic[T]):
+class _TrainVal(Generic[T]):
     train_data: T
     val_data: T
     train_data_target: T | None = None
@@ -61,7 +56,7 @@ class TrainVal(Generic[T]):
 
 
 @dataclass
-class TrainValSplit(Generic[T]):
+class _TrainValSplit(Generic[T]):
     train_data: T
     val_percentage: float
     val_minimum_split: int
@@ -70,9 +65,12 @@ class TrainValSplit(Generic[T]):
 
 
 @dataclass
-class PredData(Generic[T]):
+class _PredData(Generic[T]):
     pred_data: T
     pred_data_target: T | None = None
+
+
+_Data = _TrainVal[Any] | _TrainValSplit[Any] | _PredData[Any]
 
 
 class CareamicsDataModule(L.LightningDataModule):
@@ -169,6 +167,41 @@ class CareamicsDataModule(L.LightningDataModule):
         If input and target data types are not consistent.
     """
 
+    # if not using ImageStackLoading the input type should be array or path or sequence
+    @overload
+    def __init__(
+        self,
+        data_config: NGDataConfig | dict[str, Any],
+        *,
+        train_data: InputVar | None = None,
+        train_data_target: InputVar | None = None,
+        train_data_mask: InputVar | None = None,
+        val_data: InputVar | None = None,
+        val_data_target: InputVar | None = None,
+        val_percentage: float | None = None,
+        val_minimum_split: int = 5,
+        pred_data: InputVar | None = None,
+        pred_data_target: InputVar | None = None,
+        loading: ReadFuncLoading | None = None,
+    ) -> None: ...
+
+    # if using ImageStackLoading the input data can be anything.
+    @overload
+    def __init__(
+        self,
+        data_config: NGDataConfig | dict[str, Any],
+        *,
+        train_data: Any | None = None,
+        train_data_target: Any | None = None,
+        train_data_mask: Any | None = None,
+        val_data: Any | None = None,
+        val_data_target: Any | None = None,
+        val_percentage: float | None = None,
+        val_minimum_split: int = 5,
+        pred_data: Any | None = None,
+        pred_data_target: Any | None = None,
+        loading: ImageStackLoading = ...,
+    ) -> None: ...
     def __init__(
         self,
         data_config: NGDataConfig | dict[str, Any],
@@ -265,21 +298,20 @@ class CareamicsDataModule(L.LightningDataModule):
         self.data_type: SupportedData = SupportedData(self.config.data_type)
         self.batch_size: int = self.config.batch_size
 
-        self.data: TrainVal[Any] | TrainValSplit[Any] | PredData[Any] = (
-            self._validate_data(
-                self.data_type,
-                train_data=train_data,
-                train_data_target=train_data_target,
-                train_data_mask=train_data_mask,
-                val_data=val_data,
-                val_data_target=val_data_target,
-                val_percentage=val_percentage,
-                val_minimum_split=val_minimum_split,
-                pred_data=pred_data,
-                pred_data_target=pred_data_target,
-                loading=loading,
-            )
+        self._data: _Data = _validate_data(
+            self.data_type,
+            train_data=train_data,
+            train_data_target=train_data_target,
+            train_data_mask=train_data_mask,
+            val_data=val_data,
+            val_data_target=val_data_target,
+            val_percentage=val_percentage,
+            val_minimum_split=val_minimum_split,
+            pred_data=pred_data,
+            pred_data_target=pred_data_target,
+            loading=loading,
         )
+
         self.loading: Loading = loading
 
         self.train_dataset: CareamicsDataset[ImageStack] | None = None
@@ -308,82 +340,25 @@ class CareamicsDataModule(L.LightningDataModule):
             if (self.train_dataset is not None) and (self.val_dataset is not None):
                 return
 
-            if isinstance(self.data, TrainValSplit):
-                self.train_dataset, self.val_dataset = create_val_split_datasets(
-                    self.config, self.data, self.loading, self.rng
+            if isinstance(self._data, _TrainValSplit):
+                self.train_dataset, self.val_dataset = _create_val_split_datasets(
+                    self.config, self._data, self.loading, self.rng
                 )
-            elif isinstance(self.data, TrainVal):
-                self.train_dataset, self.val_dataset = create_train_val_datasets(
-                    self.config, self.data, self.loading
+            elif isinstance(self._data, _TrainVal):
+                self.train_dataset, self.val_dataset = _create_train_val_datasets(
+                    self.config, self._data, self.loading
                 )
             else:
                 raise ValueError("Training and validation data has not been provided.")
         elif stage == "predict":
-            if not isinstance(self.data, PredData):
+            if not isinstance(self._data, _PredData):
                 raise ValueError("No data has been provided for prediction.")
 
-            self.predict_dataset = create_pred_dataset(
-                self.config, self.data, self.loading
+            self.predict_dataset = _create_pred_dataset(
+                self.config, self._data, self.loading
             )
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
-
-    @staticmethod
-    def _validate_data(
-        data_type: SupportedData,
-        train_data: Any | None = None,
-        train_data_target: Any | None = None,
-        train_data_mask: Any | None = None,
-        val_data: Any | None = None,
-        val_data_target: Any | None = None,
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-        pred_data: Any | None = None,
-        pred_data_target: Any | None = None,
-        loading: Loading = None,
-    ) -> TrainVal[Any] | TrainValSplit[Any] | PredData[Any]:
-        train = (train_data, train_data_target, train_data_mask)
-        val = (val_data, val_data_target)
-        split = (val_percentage, val_minimum_split)
-        pred = (pred_data, pred_data_target)
-        match train, val, split, pred:
-            case (t, tt, tm), (v, vt), (None, _), (None, None) if (
-                t is not None and v is not None
-            ):
-                t, tt = initialize_data_pair(data_type, t, tt, loading)
-                if tm is not None:
-                    tm, _ = initialize_data_pair(data_type, tm, None, loading)
-                v, vt = initialize_data_pair(data_type, v, vt, loading)
-                return TrainVal(
-                    train_data=t,
-                    train_data_target=tt,
-                    train_data_mask=tm,
-                    val_data=v,
-                    val_data_target=vt,
-                )
-            case (t, tt, tm), (None, None), (vp, vms), (None, None) if (
-                t is not None and vp is not None
-            ):
-                t, tt = initialize_data_pair(data_type, t, tt, loading)
-                if tm is not None:
-                    tm, _ = initialize_data_pair(data_type, tm, None, loading)
-                return TrainValSplit(
-                    train_data=t,
-                    train_data_target=tt,
-                    train_data_mask=tm,
-                    val_percentage=vp,
-                    val_minimum_split=vms,
-                )
-            case (None, None, None), (None, None), (None, _), (p, pt) if p is not None:
-                p, pt = initialize_data_pair(data_type, p, pt, loading)
-                return PredData(pred_data=p, pred_data_target=pt)
-            case _:
-                raise ValueError(
-                    "Incompatible combination of arguments for CAREamicsDataModule. "
-                    "Please only provide, training data with validation data OR "
-                    "training data with validation splitting arguments OR "
-                    "prediction data."
-                )
 
     def _sampler(self, dataset: Literal["train", "val", "predict"]) -> Sampler | None:
         sampler: GroupedIndexSampler | None
@@ -472,9 +447,74 @@ class CareamicsDataModule(L.LightningDataModule):
         )
 
 
-def create_train_val_datasets(
+def _validate_data(
+    data_type: SupportedData,
+    train_data: Any | None = None,
+    train_data_target: Any | None = None,
+    train_data_mask: Any | None = None,
+    val_data: Any | None = None,
+    val_data_target: Any | None = None,
+    val_percentage: float | None = None,
+    val_minimum_split: int = 5,
+    pred_data: Any | None = None,
+    pred_data_target: Any | None = None,
+    loading: Loading = None,
+) -> _TrainVal[Any] | _TrainValSplit[Any] | _PredData[Any]:
+    match train_data, val_data, val_percentage, pred_data:
+        case train_data, val_data, None, None if (
+            train_data is not None and val_data is not None
+        ):
+            train_data, train_data_target = initialize_data_pair(
+                data_type, train_data, train_data_target, loading
+            )
+            if train_data_mask is not None:
+                train_data_mask, _ = initialize_data_pair(
+                    data_type, train_data_mask, None, loading
+                )
+            val_data, val_data_target = initialize_data_pair(
+                data_type, val_data, val_data_target, loading
+            )
+            return _TrainVal(
+                train_data=train_data,
+                train_data_target=train_data_target,
+                train_data_mask=train_data_mask,
+                val_data=val_data,
+                val_data_target=val_data_target,
+            )
+        case train_data, None, val_percentage, None if (
+            train_data is not None and val_percentage is not None
+        ):
+            train_data, train_data_target = initialize_data_pair(
+                data_type, train_data, train_data_target, loading
+            )
+            if train_data_mask is not None:
+                train_data_mask, _ = initialize_data_pair(
+                    data_type, train_data_mask, None, loading
+                )
+            return _TrainValSplit(
+                train_data=train_data,
+                train_data_target=train_data_target,
+                train_data_mask=train_data_mask,
+                val_percentage=val_percentage,
+                val_minimum_split=val_minimum_split,
+            )
+        case None, None, None, pred_data if pred_data is not None:
+            pred_data, pred_data_target = initialize_data_pair(
+                data_type, pred_data, pred_data_target, loading
+            )
+            return _PredData(pred_data=pred_data, pred_data_target=pred_data_target)
+        case _:
+            raise ValueError(
+                "Incompatible combination of arguments for CAREamicsDataModule. "
+                "Please only provide, training data with validation data OR "
+                "training data with validation splitting arguments OR "
+                "prediction data."
+            )
+
+
+def _create_train_val_datasets(
     config: NGDataConfig,
-    data: TrainVal[Any],
+    data: _TrainVal[Any],
     loading: Loading,
 ):
 
@@ -505,9 +545,9 @@ def create_train_val_datasets(
     return train_dataset, val_dataset
 
 
-def create_val_split_datasets(
+def _create_val_split_datasets(
     config: NGDataConfig,
-    data: TrainValSplit[Any],
+    data: _TrainValSplit[Any],
     loading: Loading,
     rng: np.random.Generator,
 ) -> tuple[CareamicsDataset[ImageStack], CareamicsDataset[ImageStack]]:
@@ -556,8 +596,6 @@ def create_val_split_datasets(
     # ensured by guard on config at the start of function
     assert isinstance(train_patching, StratifiedPatchingStrategy)
 
-    # TODO: add in more efficient masking (by removing patches from stratified patching)
-
     # calculate n val patches
     n_patches = train_patching.n_patches
     if data.val_minimum_split > n_patches:
@@ -591,9 +629,9 @@ def create_val_split_datasets(
     return train_dataset, val_dataset
 
 
-def create_pred_dataset(
+def _create_pred_dataset(
     config: NGDataConfig,
-    data: PredData[Any],
+    data: _PredData[Any],
     loading: Loading,
 ):
     if config.mode == "validating":
