@@ -10,6 +10,8 @@ from numpy.typing import NDArray
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.patching_strategies import TileSpecs
 
+from .convert_prediction import restore_original_shape
+
 
 def group_tiles_by_key(
     tiles: list[ImageRegionData], key: Literal["data_idx", "sample_idx"]
@@ -38,6 +40,7 @@ def group_tiles_by_key(
 
 def stitch_prediction(
     tiles: list[ImageRegionData],
+    restore_shape: bool = False,
 ) -> tuple[list[NDArray], list[str]]:
     """
     Stitch tiles back together to form full images.
@@ -50,6 +53,8 @@ def stitch_prediction(
     tiles : list of ImageRegionData
         Cropped tiles and their respective stitching coordinates. Can contain tiles
         from multiple images.
+    restore_shape : bool, default=False
+        If True, restore predictions to their original shape and dimension order.
 
     Returns
     -------
@@ -67,8 +72,17 @@ def stitch_prediction(
     image_predictions: list[NDArray] = []
     image_sources: list[str] = []
     for data_idx in sorted(grouped_tiles.keys()):
-        image_predictions.append(stitch_single_prediction(grouped_tiles[data_idx]))
-        image_sources.append(grouped_tiles[data_idx][0].source)
+        image = stitch_single_prediction(grouped_tiles[data_idx])
+        source = grouped_tiles[data_idx][0].source
+
+        if restore_shape:
+            # get original shape info from the first tile of the image
+            original_axes = grouped_tiles[data_idx][0].axes
+            original_data_shape = grouped_tiles[data_idx][0].original_data_shape
+            image = restore_original_shape(image, original_axes, original_data_shape)
+
+        image_predictions.append(image)
+        image_sources.append(source)
 
     return image_predictions, image_sources
 

@@ -1,6 +1,5 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -8,6 +7,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset_ng.dataset import ImageRegionData
 
+from .restore_original_shape import restore_original_shape
 from .stitch_prediction import group_tiles_by_key, stitch_prediction
 
 if TYPE_CHECKING:
@@ -112,93 +112,9 @@ def decollate_image_region_data(
 
 
 # TODO move to utils and reuse in prediction writer callback?
-def restore_original_shape(
-    array: NDArray,
-    original_axes: str,
-    original_data_shape: Sequence[int],
-) -> NDArray:
-    """
-    Restore array to original shape and dimension order.
-
-    Parameters
-    ----------
-    array : numpy.ndarray
-        Array in SC(Z)YX format.
-    original_axes : str
-        Original axes order of the data.
-    original_data_shape : Sequence[int]
-        Original shape of the data.
-
-    Returns
-    -------
-    numpy.ndarray
-        Array reshaped to match axes and original_data_shape.
-    """
-    if len(array.shape) not in (4, 5):
-        raise ValueError(
-            f"Expected array with 4 or 5 dimensions (SC(Z)YX), got {len(array.shape)}."
-        )
-
-    # current axes from array shape (S and C always present)
-    current_axes = "SCZYX" if len(array.shape) == 5 else "SCYX"
-
-    # handle special CZI case where T is used as Z
-    if "T" in original_axes and "Z" not in original_axes and len(array.shape) == 5:
-        original_axes = original_axes.replace("T", "Z")
-
-    # unflatten S dimension
-    merged_dims = [dim for dim in original_axes if dim not in current_axes]
-
-    if merged_dims:
-        unflattened_sizes = []
-        unflattened_dims = []
-
-        if "S" in original_axes:
-            s_size = original_data_shape[original_axes.index("S")]
-            unflattened_sizes.append(s_size)
-            unflattened_dims.append("S")
-
-        for dim in merged_dims:
-            dim_size = original_data_shape[original_axes.index(dim)]
-            unflattened_sizes.append(dim_size)
-            unflattened_dims.append(dim)
-
-        # replace S dimension with unflattened dimensions
-        s_idx = current_axes.index("S")  # TODO always 0
-        new_shape = list(array.shape)
-        new_shape[s_idx : s_idx + 1] = unflattened_sizes
-        array = array.reshape(new_shape)
-
-        # update current axes
-        current_axes = (
-            current_axes[:s_idx] + "".join(unflattened_dims) + current_axes[s_idx + 1 :]
-        )
-
-    # remove singleton C if not in original axes
-    if "C" not in original_axes:
-        c_idx = current_axes.index("C")
-        if array.shape[c_idx] == 1:
-            array = np.squeeze(array, axis=c_idx)
-            current_axes = current_axes[:c_idx] + current_axes[c_idx + 1 :]
-
-    # same for singleton S
-    if "S" in current_axes and "S" not in original_axes:
-        s_idx = current_axes.index("S")
-        if array.shape[s_idx] == 1:
-            array = np.squeeze(array, axis=s_idx)
-            current_axes = current_axes[:s_idx] + current_axes[s_idx + 1 :]
-
-    # reorder to match original axes
-    if current_axes != original_axes:
-        source_order = [current_axes.index(axis) for axis in original_axes]
-        target_order = list(range(len(original_axes)))
-        array = np.moveaxis(array, source_order, target_order)
-
-    return array
-
-
 def combine_samples(
     predictions: list[ImageRegionData],
+    restore_shape: bool = False,
 ) -> tuple[list[NDArray], list[str]]:
     """
     Combine predictions by `data_idx`.
@@ -210,6 +126,8 @@ def combine_samples(
     ----------
     predictions : list of ImageRegionData
         List of `ImageRegionData`.
+    restore_shape : bool, default=False
+        If True, restore predictions to their original shape and dimension order.
 
     Returns
     -------
@@ -236,6 +154,15 @@ def combine_samples(
         # stack along S axis (keep C dimension if present)
         # data is in C(Z)YX format, we want to stack along new S dimension
         combined_data = np.stack([img.data for img in image_regions], axis=0)
+
+        if restore_shape:
+            # get original shape info from the first image region
+            original_axes = image_regions[0].axes
+            original_data_shape = image_regions[0].original_data_shape
+            combined_data = restore_original_shape(
+                combined_data, original_axes, original_data_shape
+            )
+
         combined_predictions.append(combined_data)
 
     return combined_predictions, combined_sources
@@ -285,30 +212,13 @@ def convert_prediction(
         )
 
     if tiled:
-        predictions_output, sources = stitch_prediction(decollated_predictions)
+        predictions_output, sources = stitch_prediction(
+            decollated_predictions, restore_shape=restore_shape
+        )
     else:
-        predictions_output, sources = combine_samples(decollated_predictions)
-
-    # Restore original shape if requested
-    if restore_shape:
-        restored_predictions: list[NDArray] = []
-        for i, pred in enumerate(predictions_output):
-            # Get original shape info from the first prediction with matching source
-            matching_pred = next(
-                (p for p in decollated_predictions if p.source == sources[i]),
-                decollated_predictions[0] if decollated_predictions else None,
-            )
-            if matching_pred and matching_pred.original_data_shape:
-                restored = restore_original_shape(
-                    pred,
-                    matching_pred.axes,
-                    matching_pred.original_data_shape,
-                )
-                restored_predictions.append(restored)
-            else:
-                # Fallback: return as-is if original shape info not available
-                restored_predictions.append(pred)
-        predictions_output = restored_predictions
+        predictions_output, sources = combine_samples(
+            decollated_predictions, restore_shape=restore_shape
+        )
 
     if set(sources) == {"array"}:
         sources = []

@@ -298,3 +298,22 @@ def test_stitching_prediction_ordering(tiles, channels):
     for i, data_idx_str in enumerate(sources):
         assert Path(data_idx_str).name == f"array_{i}.tiff"
         np.testing.assert_allclose(stitched_arrays[i], array[i], rtol=1e-5, atol=0)
+
+
+@pytest.mark.parametrize("n_data", [2])
+@pytest.mark.parametrize(
+    "data_type, shape, axes, channels",
+    [
+        ("tiff", (32, 32, 3), "YXC", None),
+    ],
+)
+def test_stitching_restore_shape(tiles, shape):
+    _, tile_list = tiles
+
+    stitched_arrays, _ = stitch_prediction(tile_list, restore_shape=False)
+    for i in range(len(stitched_arrays)):
+        assert stitched_arrays[i].shape != shape
+
+    stitched_arrays, _ = stitch_prediction(tile_list, restore_shape=True)
+    for i in range(len(stitched_arrays)):
+        assert stitched_arrays[i].shape == shape
