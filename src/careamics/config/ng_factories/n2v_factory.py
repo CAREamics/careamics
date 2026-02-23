@@ -461,3 +461,23 @@ def create_advanced_n2v_config(
         data_config=data_config,
         training_config=training_params,
     )
+
+
+# Backward compatibility alias (deprecated)
+def create_n2v_configuration(*args, **kwargs):
+    """
+    Deprecated: Use `create_advanced_n2v_config` instead.
+
+    This function is provided for backward compatibility and will be removed
+    in a future version.
+    """
+    import warnings
+
+    warnings.warn(
+        "create_n2v_configuration is deprecated, use create_advanced_n2v_config "
+        "instead. Note: the 'augmentations' parameter now accepts a list of strings "
+        "(e.g., ['x_flip', 'y_flip', 'rotate_90']) instead of config objects.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return create_advanced_n2v_config(*args, **kwargs)
