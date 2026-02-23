@@ -92,7 +92,7 @@ def decollate_image_region_data(
         assert isinstance(batch.data_shape, list)
         data_shape = tuple(int(dim[i]) for dim in batch.data_shape)
 
-        # original data shape - always populated from image stacks
+        # original data shape
         assert isinstance(batch.original_data_shape, list)
         original_data_shape = tuple(int(dim[i]) for dim in batch.original_data_shape)
 
@@ -111,19 +111,20 @@ def decollate_image_region_data(
     return decollated
 
 
+# TODO move to utils and reuse in prediction writer callback?
 def restore_original_shape(
-    prediction: NDArray,
-    axes: str,
+    array: NDArray,
+    original_axes: str,
     original_data_shape: Sequence[int],
 ) -> NDArray:
     """
-    Restore prediction to original shape and dimension order.
+    Restore array to original shape and dimension order.
 
     Parameters
     ----------
-    prediction : numpy.ndarray
-        Prediction in SC(Z)YX format.
-    axes : str
+    array : numpy.ndarray
+        Array in SC(Z)YX format.
+    original_axes : str
         Original axes order of the data.
     original_data_shape : Sequence[int]
         Original shape of the data.
@@ -131,64 +132,65 @@ def restore_original_shape(
     Returns
     -------
     numpy.ndarray
-        Prediction reshaped to match axes and original_data_shape.
+        Array reshaped to match axes and original_data_shape.
     """
-    # Determine current axes from prediction shape
-    ndim = len(prediction.shape)
-    if ndim == 5:
-        current_axes = "SCZYX"
-    elif ndim == 4:
-        current_axes = "SCYX"
-    elif ndim == 3:
-        current_axes = "SYX"
-    else:
+    if len(array.shape) not in (4, 5):
         raise ValueError(
-            f"Unexpected prediction shape {prediction.shape}. "
-            "Expected 3D (SYX), 4D (SCYX), or 5D (SCZYX)."
+            f"Expected array with 4 or 5 dimensions (SC(Z)YX), got {len(array.shape)}."
         )
 
+    # current axes from array shape (S and C always present)
+    current_axes = "SCZYX" if len(array.shape) == 5 else "SCYX"
+
     # unflatten S dimension
-    merged_dims = [dim for dim in axes if dim not in current_axes]
+    merged_dims = [dim for dim in original_axes if dim not in current_axes]
 
     if merged_dims:
         unflattened_sizes = []
         unflattened_dims = []
 
-        if "S" in axes:
-            s_size = original_data_shape[axes.index("S")]
+        if "S" in original_axes:
+            s_size = original_data_shape[original_axes.index("S")]
             unflattened_sizes.append(s_size)
             unflattened_dims.append("S")
 
         for dim in merged_dims:
-            dim_size = original_data_shape[axes.index(dim)]
+            dim_size = original_data_shape[original_axes.index(dim)]
             unflattened_sizes.append(dim_size)
             unflattened_dims.append(dim)
 
-        # Replace S dimension with unflattened dimensions
-        s_idx = current_axes.index("S")
-        new_shape = list(prediction.shape)
+        # replace S dimension with unflattened dimensions
+        s_idx = current_axes.index("S")  # TODO always 0
+        new_shape = list(array.shape)
         new_shape[s_idx : s_idx + 1] = unflattened_sizes
-        prediction = prediction.reshape(new_shape)
+        array = array.reshape(new_shape)
 
-        # Update current axes
+        # update current axes
         current_axes = (
             current_axes[:s_idx] + "".join(unflattened_dims) + current_axes[s_idx + 1 :]
         )
 
-    # Remove singleton C if not in original
-    if "C" in current_axes and "C" not in axes:
+    # remove singleton C if not in original axes
+    if "C" not in original_axes:
         c_idx = current_axes.index("C")
-        if prediction.shape[c_idx] == 1:
-            prediction = np.squeeze(prediction, axis=c_idx)
+        if array.shape[c_idx] == 1:
+            array = np.squeeze(array, axis=c_idx)
             current_axes = current_axes[:c_idx] + current_axes[c_idx + 1 :]
 
-    # Reorder to match original axes
-    if current_axes != axes:
-        source_order = [current_axes.index(axis) for axis in axes]
-        target_order = list(range(len(axes)))
-        prediction = np.moveaxis(prediction, source_order, target_order)
+    # same for singleton S
+    if "S" in current_axes and "S" not in original_axes:
+        s_idx = current_axes.index("S")
+        if array.shape[s_idx] == 1:
+            array = np.squeeze(array, axis=s_idx)
+            current_axes = current_axes[:s_idx] + current_axes[s_idx + 1 :]
 
-    return prediction
+    # reorder to match original axes
+    if current_axes != original_axes:
+        source_order = [current_axes.index(axis) for axis in original_axes]
+        target_order = list(range(len(original_axes)))
+        array = np.moveaxis(array, source_order, target_order)
+
+    return array
 
 
 def combine_samples(

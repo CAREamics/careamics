@@ -186,8 +186,8 @@ class TestRestoreOriginalShape:
         """Test restoring SCZYX prediction to TZYX (unflatten S to T, remove C)."""
         # Simulating S*T merged into S dimension: 3*5=15 samples
         prediction = np.random.rand(15, 1, 16, 32, 32)
-        original_axes = "TZYX"
-        original_shape = (5, 16, 32, 32)
+        original_axes = "STZYX"
+        original_shape = (3, 5, 16, 32, 32)
 
         restored = restore_original_shape(prediction, original_axes, original_shape)
 
@@ -227,10 +227,10 @@ class TestRestoreOriginalShape:
         np.testing.assert_array_equal(restored, prediction)
 
     def test_restore_from_syx_to_tyx(self) -> None:
-        """Test restoring SYX prediction to TYX (unflatten S to T)."""
-        prediction = np.random.rand(5, 32, 32)
-        original_axes = "TYX"
-        original_shape = (5, 32, 32)
+        """Test restoring SYX prediction to TCYX (unflatten S to T)."""
+        prediction = np.random.rand(5, 3, 32, 32)
+        original_axes = "TCYX"
+        original_shape = (5, 3, 32, 32)
 
         restored = restore_original_shape(prediction, original_axes, original_shape)
 
@@ -254,7 +254,7 @@ class TestRestoreOriginalShape:
         original_axes = "YX"
         original_shape = (32, 32)
 
-        with pytest.raises(ValueError, match="Unexpected prediction shape"):
+        with pytest.raises(ValueError):
             restore_original_shape(prediction, original_axes, original_shape)
 
     def test_restore_from_sczyx_to_czyx(self) -> None:
