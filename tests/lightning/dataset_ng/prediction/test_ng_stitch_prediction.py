@@ -201,81 +201,98 @@ def test_stitching_single_sample(tiles, channels):
     np.testing.assert_allclose(stitched_array, array, rtol=1e-5, atol=0)
 
 
-# parameters are injected automatically in the tiles fixture
-@pytest.mark.parametrize("n_data", [1])
-@pytest.mark.parametrize(
-    "data_type, shape, axes, channels",
-    [
-        ("array", (32, 32), "YX", None),
-        ("array", (3, 32, 32), "CYX", None),
-        ("array", (3, 32, 32), "CYX", [1]),
-        ("array", (3, 32, 32), "CYX", [0, 2]),
-        ("array", (5, 32, 32), "SYX", None),
-        ("array", (8, 32, 32), "ZYX", None),
-        ("array", (3, 8, 32, 32), "CZYX", None),
-        ("array", (3, 8, 32, 32), "CZYX", [1]),
-        ("array", (3, 8, 32, 32), "CZYX", [0, 2]),
-        ("array", (5, 3, 32, 32), "SCYX", None),
-        ("array", (5, 3, 32, 32), "SCYX", [1]),
-        ("array", (5, 3, 32, 32), "SCYX", [0, 2]),
-        ("array", (5, 8, 32, 32), "SZYX", None),
-        ("array", (5, 3, 8, 32, 32), "SCZYX", None),
-        ("array", (5, 3, 8, 32, 32), "SCZYX", [1]),
-        ("array", (5, 3, 8, 32, 32), "SCZYX", [0, 2]),
-    ],
-)
-def test_stitching_single_prediction(tiles, channels):
-    array, tile_list = tiles
+class TestStitchSinglePrediction:
 
-    # n_data = 1, so remove data dim
-    array = array.squeeze(axis=0)
+    # parameters are injected automatically in the tiles fixture
+    @pytest.mark.parametrize("n_data", [1])
+    @pytest.mark.parametrize(
+        "data_type, shape, axes, channels",
+        [
+            ("array", (32, 32), "YX", None),
+            ("array", (3, 32, 32), "CYX", None),
+            ("array", (3, 32, 32), "CYX", [1]),
+            ("array", (3, 32, 32), "CYX", [0, 2]),
+            ("array", (5, 32, 32), "SYX", None),
+            ("array", (8, 32, 32), "ZYX", None),
+            ("array", (3, 8, 32, 32), "CZYX", None),
+            ("array", (3, 8, 32, 32), "CZYX", [1]),
+            ("array", (3, 8, 32, 32), "CZYX", [0, 2]),
+            ("array", (5, 3, 32, 32), "SCYX", None),
+            ("array", (5, 3, 32, 32), "SCYX", [1]),
+            ("array", (5, 3, 32, 32), "SCYX", [0, 2]),
+            ("array", (5, 8, 32, 32), "SZYX", None),
+            ("array", (5, 3, 8, 32, 32), "SCZYX", None),
+            ("array", (5, 3, 8, 32, 32), "SCZYX", [1]),
+            ("array", (5, 3, 8, 32, 32), "SCZYX", [0, 2]),
+        ],
+    )
+    def test_stitching_single_prediction(self, tiles, channels):
+        array, tile_list = tiles
 
-    # adjust channels
-    if channels is not None:
-        array = array[:, channels]
+        # n_data = 1, so remove data dim
+        array = array.squeeze(axis=0)
 
-    stitched_array = stitch_single_prediction(tile_list)
-    np.testing.assert_allclose(stitched_array, array, rtol=1e-5, atol=0)
+        # adjust channels
+        if channels is not None:
+            array = array[:, channels]
 
+        stitched_array = stitch_single_prediction(tile_list)
+        np.testing.assert_allclose(stitched_array, array, rtol=1e-5, atol=0)
 
-# parameters are injected automatically in the tiles fixture
-@pytest.mark.parametrize("n_data", [4])
-@pytest.mark.parametrize(
-    "data_type, shape, axes, channels",
-    [
-        ("tiff", (32, 32), "YX", None),
-        ("tiff", (3, 32, 32), "CYX", None),
-        ("tiff", (3, 32, 32), "CYX", [1]),
-        ("tiff", (3, 32, 32), "CYX", [0, 2]),
-        ("tiff", (5, 32, 32), "SYX", None),
-        ("tiff", (8, 32, 32), "ZYX", None),
-        ("tiff", (3, 8, 32, 32), "CZYX", None),
-        ("tiff", (3, 8, 32, 32), "CZYX", [1]),
-        ("tiff", (3, 8, 32, 32), "CZYX", [0, 2]),
-        ("tiff", (5, 3, 32, 32), "SCYX", None),
-        ("tiff", (5, 3, 32, 32), "SCYX", [1]),
-        ("tiff", (5, 3, 32, 32), "SCYX", [0, 2]),
-        ("tiff", (5, 8, 32, 32), "SZYX", None),
-        ("tiff", (5, 3, 8, 32, 32), "SCZYX", None),
-        ("tiff", (5, 3, 8, 32, 32), "SCZYX", [1]),
-        ("tiff", (5, 3, 8, 32, 32), "SCZYX", [0, 2]),
-    ],
-)
-def test_stitching_prediction(tiles, channels):
-    array, tile_list = tiles
+    @pytest.mark.parametrize("n_data", [1])
+    @pytest.mark.parametrize(
+        "data_type, shape, axes, channels",
+        [
+            ("tiff", (32, 32, 3), "YXC", None),
+        ],
+    )
+    def test_stitching_restore_shape(self, tiles, shape):
+        _, tile_list = tiles
 
-    stitched_arrays, data_idx = stitch_prediction(tile_list)
+        stitched_array = stitch_single_prediction(tile_list, restore_shape=False)
+        assert stitched_array.shape != shape
 
-    # adjust for channels
-    if channels is not None:
-        array = array[:, :, channels]
+        stitched_array = stitch_single_prediction(tile_list, restore_shape=True)
+        assert stitched_array.shape == shape
 
-    prediction = np.stack(stitched_arrays)
-    np.testing.assert_allclose(prediction, array, rtol=1e-5, atol=0)
+    # parameters are injected automatically in the tiles fixture
+    @pytest.mark.parametrize("n_data", [4])
+    @pytest.mark.parametrize(
+        "data_type, shape, axes, channels",
+        [
+            ("tiff", (32, 32), "YX", None),
+            ("tiff", (3, 32, 32), "CYX", None),
+            ("tiff", (3, 32, 32), "CYX", [1]),
+            ("tiff", (3, 32, 32), "CYX", [0, 2]),
+            ("tiff", (5, 32, 32), "SYX", None),
+            ("tiff", (8, 32, 32), "ZYX", None),
+            ("tiff", (3, 8, 32, 32), "CZYX", None),
+            ("tiff", (3, 8, 32, 32), "CZYX", [1]),
+            ("tiff", (3, 8, 32, 32), "CZYX", [0, 2]),
+            ("tiff", (5, 3, 32, 32), "SCYX", None),
+            ("tiff", (5, 3, 32, 32), "SCYX", [1]),
+            ("tiff", (5, 3, 32, 32), "SCYX", [0, 2]),
+            ("tiff", (5, 8, 32, 32), "SZYX", None),
+            ("tiff", (5, 3, 8, 32, 32), "SCZYX", None),
+            ("tiff", (5, 3, 8, 32, 32), "SCZYX", [1]),
+            ("tiff", (5, 3, 8, 32, 32), "SCZYX", [0, 2]),
+        ],
+    )
+    def test_stitching_prediction(tiles, channels):
+        array, tile_list = tiles
 
-    # test data indices
-    for i, data_idx_str in enumerate(data_idx):
-        assert Path(data_idx_str).name == f"array_{i}.tiff"
+        stitched_arrays, data_idx = stitch_prediction(tile_list)
+
+        # adjust for channels
+        if channels is not None:
+            array = array[:, :, channels]
+
+        prediction = np.stack(stitched_arrays)
+        np.testing.assert_allclose(prediction, array, rtol=1e-5, atol=0)
+
+        # test data indices
+        for i, data_idx_str in enumerate(data_idx):
+            assert Path(data_idx_str).name == f"array_{i}.tiff"
 
 
 # parameters are injected automatically in the tiles fixture
@@ -298,22 +315,3 @@ def test_stitching_prediction_ordering(tiles, channels):
     for i, data_idx_str in enumerate(sources):
         assert Path(data_idx_str).name == f"array_{i}.tiff"
         np.testing.assert_allclose(stitched_arrays[i], array[i], rtol=1e-5, atol=0)
-
-
-@pytest.mark.parametrize("n_data", [2])
-@pytest.mark.parametrize(
-    "data_type, shape, axes, channels",
-    [
-        ("tiff", (32, 32, 3), "YXC", None),
-    ],
-)
-def test_stitching_restore_shape(tiles, shape):
-    _, tile_list = tiles
-
-    stitched_arrays, _ = stitch_prediction(tile_list, restore_shape=False)
-    for i in range(len(stitched_arrays)):
-        assert stitched_arrays[i].shape != shape
-
-    stitched_arrays, _ = stitch_prediction(tile_list, restore_shape=True)
-    for i in range(len(stitched_arrays)):
-        assert stitched_arrays[i].shape == shape

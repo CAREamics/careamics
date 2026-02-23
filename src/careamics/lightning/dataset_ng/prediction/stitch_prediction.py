@@ -72,23 +72,19 @@ def stitch_prediction(
     image_predictions: list[NDArray] = []
     image_sources: list[str] = []
     for data_idx in sorted(grouped_tiles.keys()):
-        image = stitch_single_prediction(grouped_tiles[data_idx])
-        source = grouped_tiles[data_idx][0].source
-
-        if restore_shape:
-            # get original shape info from the first tile of the image
-            original_axes = grouped_tiles[data_idx][0].axes
-            original_data_shape = grouped_tiles[data_idx][0].original_data_shape
-            image = restore_original_shape(image, original_axes, original_data_shape)
-
-        image_predictions.append(image)
-        image_sources.append(source)
+        image_predictions.append(
+            stitch_single_prediction(
+                grouped_tiles[data_idx], restore_shape=restore_shape
+            )
+        )
+        image_sources.append(grouped_tiles[data_idx][0].source)
 
     return image_predictions, image_sources
 
 
 def stitch_single_prediction(
     tiles: list[ImageRegionData],
+    restore_shape: bool = True,
 ) -> NDArray:
     """
     Stitch tiles back together to form a full image.
@@ -100,6 +96,8 @@ def stitch_single_prediction(
     ----------
     tiles : list of ImageRegionData
         Cropped tiles and their respective stitching coordinates.
+    restore_shape : bool, default=True
+        If True, restore prediction to its original shape and dimension order.
 
     Returns
     -------
@@ -127,6 +125,11 @@ def stitch_single_prediction(
         # stitch as a single sample
         # predicted_image has singleton sample dimension
         predicted_image[0] = stitch_single_sample(tiles)
+
+    if restore_shape:
+        predicted_image = restore_original_shape(
+            predicted_image, tiles[0].axes, tiles[0].original_data_shape
+        )
 
     return predicted_image
 
