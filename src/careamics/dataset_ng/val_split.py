@@ -42,14 +42,15 @@ def create_val_split(
 
     # validation patches have to lie on this grid
     grid_coords = stratified_patching.get_included_grid_coords()
-    keys = list(grid_coords.keys())
+    # sample_ids are (data_idx, sample_idx)
+    sample_ids = list(grid_coords.keys())
     val_patch_specs: list[PatchSpecs] = []
 
     # select validation patches
     n_patches_per_image = np.array(
         [
             stratified_patching.image_patching[data_idx][sample_idx].n_patches
-            for data_idx, sample_idx in keys
+            for data_idx, sample_idx in sample_ids
         ]
     )
     n_selected_image_patches = np.zeros_like(n_patches_per_image)
@@ -61,7 +62,7 @@ def create_val_split(
 
     for idx, n_patches in enumerate(n_selected_image_patches):
 
-        data_idx, sample_idx = keys[idx]
+        data_idx, sample_idx = sample_ids[idx]
         # randomly choose the validation patches in the image
         coord_indices = rng.choice(
             len(grid_coords[(data_idx, sample_idx)]), n_patches, replace=False
