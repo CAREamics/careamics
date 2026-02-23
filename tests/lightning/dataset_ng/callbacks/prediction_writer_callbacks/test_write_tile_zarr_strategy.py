@@ -229,18 +229,18 @@ def test_update_data_shape(axes, data_shape, expected_shape):
         # simple usual shapes
         ("YX", (1, 1, 32, 64), (32, 64)),
         ("YX", (1, 1, 128, 32), (128, 32)),
-        ("ZYX", (1, 1, 32, 64, 64), (32, 64, 64)),
-        ("ZYX", (1, 1, 64, 128, 64), (64, 128, 64)),
+        ("ZYX", (1, 1, 32, 64, 64), (1, 64, 64)),
+        ("ZYX", (1, 1, 64, 128, 64), (1, 128, 64)),
         ("CYX", (1, 5, 64, 64), (1, 64, 64)),
         ("SYX", (5, 1, 64, 256), (1, 64, 128)),
         ("SCYX", (8, 5, 64, 64), (1, 1, 64, 64)),
-        ("SCZYX", (5, 5, 32, 256, 64), (1, 1, 32, 128, 64)),
+        ("SCZYX", (5, 5, 32, 256, 64), (1, 1, 1, 128, 64)),
         # different orders (but YX together)
-        ("YXZ", (1, 1, 32, 64, 64), (32, 64, 64)),
+        ("YXZ", (1, 1, 32, 64, 64), (1, 64, 64)),
         ("YXC", (1, 5, 64, 64), (1, 64, 64)),
-        ("SYXZ", (1, 1, 32, 64, 64), (1, 32, 64, 64)),
+        ("SYXZ", (1, 1, 32, 64, 64), (1, 1, 64, 64)),
         ("CSYX", (8, 5, 64, 64), (1, 1, 64, 64)),
-        ("SZCYX", (8, 5, 512, 256, 64), (1, 1, 128, 128, 64)),
+        ("SZCYX", (8, 5, 512, 256, 64), (1, 1, 1, 128, 64)),
         # T dimension
         ("TYX", (5, 1, 64, 64), (1, 64, 64)),
         ("TCYX", (5, 3, 64, 64), (1, 1, 64, 64)),
@@ -321,7 +321,6 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
         np.testing.assert_allclose(pred_array, expected_array, rtol=1e-5, atol=0)
 
 
-# TODO update test once array sources is supported
 def test_write_from_array(tmp_path):
     """Test that writing from an array source raises an error."""
     arrays = [np.random.rand(32, 32).astype(np.float32) for _ in range(2)]
@@ -332,19 +331,26 @@ def test_write_from_array(tmp_path):
     patch_extractor = PatchExtractor(image_stacks)
 
     strategy = TilingStrategy(
-        data_shapes=[image_stacks[0].data_shape],
+        data_shapes=[image_stacks[0].data_shape] * 2,
         patch_size=(8, 8),
         overlaps=(4, 4),
     )
 
-    # use writer to write predictionsz
+    # use writer to write predictions
     writer = WriteTilesZarr()
-    with pytest.raises(NotImplementedError):
-        for region in gen_image_regions("YX", patch_extractor, strategy):
-            writer.write_tile(tmp_path, region)
+    for region in gen_image_regions("YX", patch_extractor, strategy):
+        writer.write_tile(tmp_path, region)
+
+    # check if the stored zarr is close to the input
+    if writer.current_store is not None:
+        for key in writer.current_store.keys():
+            np.testing.assert_allclose(
+                arrays[int(key)], np.array(writer.current_store[key])
+            )
+    else:
+        raise ValueError("The Zarr tile writer store is None!")
 
 
-# TODO update test once tiff sources is supported
 def test_write_from_tiff(tmp_path):
     """Test that writing from a tiff source raises an error."""
     # save tiffs
@@ -360,13 +366,21 @@ def test_write_from_tiff(tmp_path):
     patch_extractor = PatchExtractor(image_stacks)
 
     strategy = TilingStrategy(
-        data_shapes=[image_stacks[0].data_shape],
+        data_shapes=[image_stacks[0].data_shape] * 2,
         patch_size=(8, 8),
         overlaps=(4, 4),
     )
 
     # use writer to write predictions
     writer = WriteTilesZarr()
-    with pytest.raises(NotImplementedError):
-        for region in gen_image_regions("YX", patch_extractor, strategy):
-            writer.write_tile(tmp_path, region)
+    for region in gen_image_regions("YX", patch_extractor, strategy):
+        writer.write_tile(tmp_path, region)
+
+    # check if the stored zarr is close to the input
+    if writer.current_store is not None:
+        for key in writer.current_store.keys():
+            np.testing.assert_allclose(
+                arrays[int(key)], np.array(writer.current_store[key])
+            )
+    else:
+        raise ValueError("The Zarr tile writer store is None!")

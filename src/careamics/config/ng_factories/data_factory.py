@@ -67,8 +67,10 @@ def create_ng_data_configuration(
     patch_size: Sequence[int],
     batch_size: int,
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
+    normalization: dict | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
+    num_workers: int = 0,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     pred_dataloader_params: dict[str, Any] | None = None,
@@ -76,6 +78,9 @@ def create_ng_data_configuration(
 ) -> NGDataConfig:
     """
     Create a training NGDatasetConfig.
+
+    Note that `num_workers` is applied to all dataloaders unless explicitly overridden
+    in the respective dataloader parameters.
 
     Parameters
     ----------
@@ -87,8 +92,12 @@ def create_ng_data_configuration(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
-    augmentations : list of transforms
-        List of transforms to apply.
+    augmentations : list of transforms or None, default=None
+        List of transforms to apply. If `None`, default augmentations are applied
+        (flip in X and Y, rotations by 90 degrees in the XY plane).
+    normalization : dict, default=None
+        Normalization configuration dictionary. If None, defaults to mean_std
+        normalization with automatically computed statistics.
     channels : Sequence of int, default=None
         List of channels to use. If `None`, all channels are used.
     in_memory : bool, default=None
@@ -96,6 +105,8 @@ def create_ng_data_configuration(
         'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
         'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
         for `array`.
+    num_workers : int, default=0
+        Number of workers for data loading.
     augmentations : list of transforms or None, default=None
         List of transforms to apply. If `None`, default augmentations are applied
         (flip in X and Y, rotations by 90 degrees in the XY plane).
@@ -125,26 +136,42 @@ def create_ng_data_configuration(
         "channels": channels,
         "transforms": augmentations,
         "seed": seed,
-        "normalization": {"name": "mean_std"},
+        "normalization": (
+            normalization if normalization is not None else {"name": "mean_std"}
+        ),
     }
 
     if in_memory is not None:
         data["in_memory"] = in_memory
 
-    # don't override defaults set in DataConfig class
     if train_dataloader_params is not None:
         # the presence of `shuffle` key in the dataloader parameters is enforced
         # by the NGDataConfig class
         if "shuffle" not in train_dataloader_params:
             train_dataloader_params["shuffle"] = True
 
+        if "num_workers" not in train_dataloader_params:
+            train_dataloader_params["num_workers"] = num_workers
+
         data["train_dataloader_params"] = train_dataloader_params
+    else:
+        data["train_dataloader_params"] = {"shuffle": True, "num_workers": num_workers}
 
     if val_dataloader_params is not None:
+        if "num_workers" not in val_dataloader_params:
+            val_dataloader_params["num_workers"] = num_workers
+
         data["val_dataloader_params"] = val_dataloader_params
+    else:
+        data["val_dataloader_params"] = {"shuffle": False, "num_workers": num_workers}
 
     if pred_dataloader_params is not None:
+        if "num_workers" not in pred_dataloader_params:
+            pred_dataloader_params["num_workers"] = num_workers
+
         data["pred_dataloader_params"] = pred_dataloader_params
+    else:
+        data["pred_dataloader_params"] = {"shuffle": False, "num_workers": num_workers}
 
     # add training patching
     data["patching"] = {
