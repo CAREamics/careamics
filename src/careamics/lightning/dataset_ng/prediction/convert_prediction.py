@@ -142,6 +142,10 @@ def restore_original_shape(
     # current axes from array shape (S and C always present)
     current_axes = "SCZYX" if len(array.shape) == 5 else "SCYX"
 
+    # handle special CZI case where T is used as Z
+    if "T" in original_axes and "Z" not in original_axes and len(array.shape) == 5:
+        original_axes = original_axes.replace("T", "Z")
+
     # unflatten S dimension
     merged_dims = [dim for dim in original_axes if dim not in current_axes]
 
