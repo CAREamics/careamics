@@ -139,7 +139,11 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
 
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
-    predicted_images, _ = convert_prediction(predicted, tiled=tiled)
+    predicted_images, _ = convert_prediction(
+        predicted,
+        tiled=tiled,
+        restore_shape=tiled,  # TODO fix difference between tiled and untiled
+    )
 
     # assert predicted file exists
     assert (dirpath / file_name).is_file()
