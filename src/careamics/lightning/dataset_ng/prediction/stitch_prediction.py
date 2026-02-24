@@ -84,7 +84,7 @@ def stitch_prediction(
 
 def stitch_single_prediction(
     tiles: list[ImageRegionData],
-    restore_shape: bool = True,
+    restore_shape: bool = False,
 ) -> NDArray:
     """
     Stitch tiles back together to form a full image.
@@ -96,7 +96,7 @@ def stitch_single_prediction(
     ----------
     tiles : list of ImageRegionData
         Cropped tiles and their respective stitching coordinates.
-    restore_shape : bool, default=True
+    restore_shape : bool, default=False
         If True, restore prediction to its original shape and dimension order.
 
     Returns
