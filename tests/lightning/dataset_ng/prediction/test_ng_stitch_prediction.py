@@ -278,7 +278,7 @@ class TestStitchSinglePrediction:
             ("tiff", (5, 3, 8, 32, 32), "SCZYX", [0, 2]),
         ],
     )
-    def test_stitching_prediction(tiles, channels):
+    def test_stitching_prediction(self, tiles, channels):
         array, tile_list = tiles
 
         stitched_arrays, data_idx = stitch_prediction(tile_list)
