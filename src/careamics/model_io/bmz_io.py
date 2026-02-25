@@ -12,8 +12,12 @@ from torch import __version__ as PYTORCH_VERSION
 from torch import load, save
 from torchvision import __version__ as TORCHVISION_VERSION
 
-from careamics.config import Configuration, load_configuration, save_configuration
+from careamics.config import Configuration
 from careamics.config.support import SupportedArchitecture
+from careamics.config.utils.configuration_io import (
+    load_configuration,
+    save_configuration,
+)
 from careamics.lightning.lightning_module import FCNModule, VAEModule
 from careamics.utils.version import get_careamics_version
 

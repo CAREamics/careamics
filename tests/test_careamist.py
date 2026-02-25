@@ -4,13 +4,16 @@ from threading import Thread
 import numpy as np
 import pytest
 import tifffile
+import torch
 from numpy.typing import NDArray
+from pytorch_lightning import seed_everything
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from careamics import CAREamist
-from careamics.config import Configuration, save_configuration
+from careamics.config import Configuration
 from careamics.config.lightning import CheckpointConfig, EarlyStoppingConfig
 from careamics.config.support import SupportedAlgorithm, SupportedData
+from careamics.config.utils.configuration_io import save_configuration
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning.callbacks import HyperParametersCallback, ProgressBarCallback
 from careamics.lightning.predict_data_module import create_predict_datamodule
@@ -181,6 +184,61 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
         data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
+
+
+@pytest.mark.mps_gh_fail
+def test_train_array_different_with_seed(
+    tmp_path: Path, minimum_n2v_configuration: dict
+):
+    """Test that training with the same config produces identical N2V masks."""
+    seed_everything(42)
+
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
+
+    config = Configuration(**minimum_n2v_configuration)
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+    config.training_config.lightning_trainer_config = {"max_epochs": 1}
+
+    class MaskCaptureCallback(Callback):
+        """Wraps n2v_preprocess to capture masks without extra RNG calls."""
+
+        def __init__(self):
+            self.masks: list[torch.Tensor] = []
+
+        def on_train_start(self, trainer, pl_module):
+            preprocess = getattr(pl_module, "n2v_preprocess", None)
+            if preprocess is None:
+                return
+            masks = self.masks
+
+            class _Wrapper:
+                def __call__(self, batch, *args, **kwargs):
+                    result = preprocess(batch, *args, **kwargs)
+                    masks.append(result[2].clone())
+                    return result
+
+            pl_module.n2v_preprocess = _Wrapper()
+
+    masks_per_run: list[list[torch.Tensor]] = []
+    for i in range(2):
+        config.algorithm_config.n2v_config.seed = i + 1
+        cb = MaskCaptureCallback()
+        work_dir = tmp_path / f"run{i}"
+        work_dir.mkdir()
+        careamist = CAREamist(source=config, work_dir=work_dir, callbacks=[cb])
+        careamist.train(train_source=train_array, val_source=val_array)
+        masks_per_run.append(cb.masks)
+
+    assert len(masks_per_run[0]) > 0
+    assert len(masks_per_run[0]) == len(masks_per_run[1])
+    for m1, m2 in zip(masks_per_run[0], masks_per_run[1], strict=True):
+        assert not torch.equal(
+            m1, m2
+        ), "Different seed should produce different masks across runs"
 
 
 @pytest.mark.mps_gh_fail

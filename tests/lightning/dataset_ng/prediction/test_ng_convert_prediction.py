@@ -32,10 +32,11 @@ def batches(source_name: str) -> list[ImageRegionData]:
                 ImageRegionData(
                     source=f"{data_idx}.tiff" if source_name == "file" else "array",
                     data=(
-                        data_idx * np.ones((1, 32, 32)).astype(np.float32)
-                    ),  # B dim added by collate
+                        data_idx * np.ones((32, 32)).astype(np.float32)
+                    ),  # individual sample, B dim added by collate
                     data_shape=(10, 32, 32),
                     dtype="float32",
+                    # axes describes the full dataset shape
                     axes="SYX",
                     # non-sense to check that they are properly decollated
                     region_spec={
@@ -48,6 +49,7 @@ def batches(source_name: str) -> list[ImageRegionData]:
                         "chunks": (1, 1, 16, 16),
                         "shards": (1, 1, 32, 32),
                     },
+                    original_data_shape=(10, 32, 32),
                 )
             )
 
@@ -57,7 +59,6 @@ def batches(source_name: str) -> list[ImageRegionData]:
 
 
 class TestCombineSamples:
-
     @pytest.mark.parametrize("source_name", ["file"])  # injected in fixture
     def test_combine_prediction_by_data_idx(
         self, batches: list[ImageRegionData]
@@ -100,6 +101,39 @@ class TestCombineSamples:
         assert np.all(combined_predictions[0] == 0)  # data_idx = 0
         assert np.all(combined_predictions[1] == 1)  # data_idx = 1
 
+    def test_restore_shape(self) -> None:
+        """Test that `combine_prediction_by_data_idx` restores original shape when
+        `restore_shape=True`."""
+        # create decollated predictions with non-restored shape
+        decollated = []
+        for data_idx in range(2):
+            for sample_idx in range(10):
+                decollated.append(
+                    ImageRegionData(
+                        data=np.ones((3, 32, 32)).astype(np.float32) * data_idx,
+                        source=f"{data_idx}.tiff",
+                        dtype="float32",
+                        data_shape=(32, 32),
+                        axes="TYXC",
+                        region_spec={
+                            "data_idx": data_idx,
+                            "sample_idx": sample_idx,
+                            "coords": (0, 0),
+                            "patch_size": (32, 32),
+                        },
+                        additional_metadata={},
+                        original_data_shape=(10, 32, 32, 3),
+                    )
+                )
+
+        combined_predictions, _ = combine_samples(decollated, restore_shape=False)
+        assert combined_predictions[0].shape == (10, 3, 32, 32)
+        assert combined_predictions[1].shape == (10, 3, 32, 32)
+
+        combined_predictions, _ = combine_samples(decollated, restore_shape=True)
+        assert combined_predictions[0].shape == (10, 32, 32, 3)
+        assert combined_predictions[1].shape == (10, 32, 32, 3)
+
 
 @pytest.mark.parametrize("n_batch", [1, 2, 4])
 def test_decollate_image_region_data(n_batch) -> None:
@@ -116,7 +150,8 @@ def test_decollate_image_region_data(n_batch) -> None:
         batch.append(
             ImageRegionData(
                 source="array.tiff",
-                data=np.ones((1, 4, 4)).astype(np.float32),  # B dim is added by collate
+                # individual sample, B dim is added by collate
+                data=np.ones((4, 4)).astype(np.float32),
                 data_shape=(32, 32),
                 dtype=str(np.float32),
                 axes="YX",
@@ -130,6 +165,7 @@ def test_decollate_image_region_data(n_batch) -> None:
                     "chunks": (1, 1, 16, i),
                     "shards": (1, 1, 32, i * 2),
                 },
+                original_data_shape=(32, 32),
             )
         )
 
@@ -155,7 +191,6 @@ def test_decollate_image_region_data(n_batch) -> None:
 
 
 class TestConvertPrediction:
-
     @pytest.mark.parametrize("source_name", ["file"])  # injected in fixture
     def test_convert_arrays(self, batches: list[ImageRegionData]) -> None:
         """Test `convert_arrays` function."""
