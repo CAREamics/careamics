@@ -1,6 +1,6 @@
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Literal, TypedDict, TypeVar, Unpack
+from typing import Any, Literal, TypedDict, Unpack
 
 import numpy as np
 import torch
@@ -9,9 +9,9 @@ from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from .config import load_configuration_ng
+from .config import load_configuration_ng 
 from .config.ng_configs import N2VConfiguration
-from .config.support import SupportedAlgorithm, SupportedData, SupportedLogger
+from .config.support import SupportedData, SupportedLogger
 from .dataset.dataset_utils import reshape_array
 from .file_io import ReadFunc, WriteFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
@@ -38,10 +38,9 @@ class UserContext(TypedDict, total=False):
     enable_progress_bar: bool
 
 
-InputType = TypeVar(
-    "InputType", NDArray[Any], Path, str, Sequence[NDArray[Any]], Sequence[Path | str]
-)
-
+ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
+PathInput = str | Path | Sequence[str | Path]
+InputType = ArrayInput | PathInput
 
 class CAREamistV2:
     def __init__(
@@ -80,7 +79,6 @@ class CAREamistV2:
             **self.config.training_config.lightning_trainer_config or {},
         )
 
-        # Placeholder for the datamodule
         self.train_datamodule: CareamicsDataModule | None = None
 
     def _load_model(
@@ -264,18 +262,14 @@ class CAREamistV2:
         # val_percentage: float | None = None, # TODO: hidden till re-implemented
         # val_minimum_split: int = 5,
         # ADVANCED PARAMS
-        filtering_mask: Any | None = None,
+        filtering_mask: InputType | None = None,
         read_source_func: ReadFunc | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
     ) -> None:
         """Train the model on the provided data.
 
-        The training data can be provided as arrays or paths. If `use_in_memory`
-        is set to True in the configuration, the source provided as Path or str will
-        be loaded in memory if it fits. Otherwise, training will be performed by loading
-        patches from the files one by one. Training on arrays is always performed in
-        memory.
+        The training data can be provided as arrays or paths.
 
         Parameters
         ----------
@@ -287,73 +281,43 @@ class CAREamistV2:
             Validation data, by default None.
         val_data_target : pathlib.Path or str or numpy.ndarray, optional
             Validation target data, by default None.
-        filtering_mask : Any, optional
+        filtering_mask : InputType, optional
             Filtering mask for coordinate-based patch filtering, by default None.
-        read_source_func : Callable, optional
+        read_source_func : ReadFunc, optional
             Function to read the source data, by default None.
         read_kwargs : dict[str, Any], optional
             Keyword arguments for the read function, by default None.
         extension_filter : str, optional
             Filter for file extensions, by default "".
-        use_in_memory : bool, optional
-            Use in memory dataset if possible, by default True.
 
         Raises
         ------
         ValueError
-            If sources are not of the same type (e.g. train is an array and val is
-            a Path).
-        ValueError
-            If the training target is provided to N2V.
-        ValueError
-            If neither train_data nor a datamodule is provided.
+            If neither train_data is not provided.
         """
         if train_data is None:
             raise ValueError(
-                "Training data must be provided. Either provide `train_data` or "
-                "use a datamodule (not yet supported)."
+                "Training data must be provided. Provide `train_data`."
             )
 
-        # Check that inputs are the same type
-        source_types = {
-            type(s)
-            for s in (train_data, val_data, train_data_target, val_data_target)
-            if s is not None
-        }
-        if len(source_types) > 1:
-            raise ValueError("All sources should be of the same type.")
-
-        # Raise error if target is provided to N2V
-        if self.config.algorithm_config.algorithm == SupportedAlgorithm.N2V.value:
-            if train_data_target is not None:
-                raise ValueError("Training target not compatible with N2V training.")
-
-        # Create datamodule
-        datamodule = CareamicsDataModule(
+        datamodule = CareamicsDataModule(  # type: ignore[misc]
             data_config=self.config.data_config,
             train_data=train_data,
             val_data=val_data,
             train_data_target=train_data_target,
             val_data_target=val_data_target,
-            read_source_func=read_source_func,
+            train_data_mask=filtering_mask,  # type: ignore[arg-type]
+            read_source_func=read_source_func,  # type: ignore[arg-type]
             read_kwargs=read_kwargs,
             extension_filter=extension_filter,
-            val_percentage=0.1,
-            val_minimum_split=5,
         )
-
-        # Register datamodule
         self.train_datamodule = datamodule
 
-        # Set defaults (in case `stop_training` was called before)
+        # set defaults (in case `stop_training` was called before)
         self.trainer.should_stop = False
-        self.trainer.limit_val_batches = 1.0  # 100%
+        self.trainer.limit_val_batches = 1.0
 
-        # Train
-        ckpt_path = (
-            str(self.checkpoint_path) if self.checkpoint_path is not None else None
-        )
-        self.trainer.fit(self.model, datamodule=datamodule, ckpt_path=ckpt_path)
+        self.trainer.fit(self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path)
 
     def predict(
         self,

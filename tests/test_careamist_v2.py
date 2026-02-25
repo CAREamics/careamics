@@ -14,23 +14,10 @@ def random_array(shape: tuple[int, ...], seed: int = 42):
     return (rng.integers(0, 255, shape)).astype(np.float32)
 
 
-def test_v2_train_error_target_unsupervised_algorithm(
+def test_target_unsupported_warning_n2v(
     tmp_path: Path, minimum_n2v_configuration: dict
 ):
-    """Test that an error is raised when a target is provided for N2V."""
-    # create configuration using factory
-    config = create_advanced_n2v_config(
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=(8, 8),
-        batch_size=2,
-        num_epochs=1,
-        roi_size=5,
-        masked_pixel_percentage=5,
-    )
-
-    # train error with arrays
+    """Test that a warning is emitted when a target is provided for N2V."""
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="array",
@@ -42,10 +29,15 @@ def test_v2_train_error_target_unsupervised_algorithm(
         masked_pixel_percentage=5,
     )
     careamics = CAREamistV2(config=config, work_dir=tmp_path)
-    with pytest.raises(ValueError):
+
+    train_array = np.ones((32, 32))
+    val_array = np.ones((32, 32))
+
+    with pytest.warns(match="train_data_target.*ignored"):
         careamics.train(
-            train_data=np.ones((32, 32)),
-            train_data_target=np.ones((32, 32)),
+            train_data=train_array,
+            val_data=val_array,
+            train_data_target=train_array,
         )
 
 
@@ -301,7 +293,7 @@ def test_v2_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
 
     # train CAREamistV2
-    careamist.train(train_data=train_file, val_data=val_file, use_in_memory=False)
+    careamist.train(train_data=train_file, val_data=val_file)
 
     # check that it trained
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
