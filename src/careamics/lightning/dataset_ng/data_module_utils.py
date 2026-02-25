@@ -117,9 +117,9 @@ def list_files_in_directory(
     ----------
     data_type : Literal["tiff", "zarr", "czi", "custom"]
         The type of data to validate.
-    input_data : InputType
+    input_data : str | Path
         Input data, can be a path to a folder, a list of paths, or a numpy array.
-    target_data : Optional[InputType]
+    target_data : str | Path | None, default=None
         Target data, can be None, a path to a folder, a list of paths, or a numpy
         array.
     extension_filter : str, default=""
@@ -156,7 +156,7 @@ def convert_paths_to_pathlib(
     ----------
     input_data : Sequence[str | Path]
         Input data, can be a path to a folder, or a list of paths.
-    target_data : Sequence[str | Path] | None
+    target_data : Sequence[str | Path] | None, default=None
         Target data, can be None, a path to a folder, or a list of paths.
 
     Returns
@@ -187,7 +187,7 @@ def validate_input_target_type_consistency(
     ----------
     input_data : InputType
         Input data, can be a path to a folder, a list of paths, or a numpy array.
-    target_data : Optional[InputType]
+    target_data : InputType | None
         Target data, can be None, a path to a folder, a list of paths, or a numpy
         array.
 
@@ -196,13 +196,12 @@ def validate_input_target_type_consistency(
     ValueError
         If the input and target data types are not consistent.
     """
-    if input_data is not None and target_data is not None:
-        if not isinstance(input_data, type(target_data)):
-            raise ValueError(
-                f"Inputs for input and target must be of the same type or None. "
-                f"Got {type(input_data)} and {type(target_data)}."
-            )
-    if isinstance(input_data, list) and isinstance(target_data, list):
+    if target_data is not None and not isinstance(input_data, type(target_data)):
+        raise ValueError(
+            f"Inputs for input and target must be of the same type or None. "
+            f"Got {type(input_data)} and {type(target_data)}."
+        )
+    if isinstance(input_data, Sequence) and isinstance(target_data, Sequence):
         if len(input_data) != len(target_data):
             raise ValueError(
                 f"Inputs and targets must have the same length. "
@@ -223,10 +222,10 @@ def validate_array_input(
 
     Parameters
     ----------
-    input_data : InputType
-        Input data, can be a path to a folder, a list of paths, or a numpy array.
-    target_data : Optional[InputType]
-        Target data, can be None, a path to a folder, a list of paths, or a numpy
+    input_data : ArrayInput
+        Input data, can be a list of or a single numpy array.
+    target_data : ArrayInput | None
+        Target data, can be a list of or a single numpy array, or None.
         array.
 
     Returns
@@ -251,21 +250,18 @@ def validate_array_input(
             )
         target_list = [target_data] if target_data is not None else None
         return input_list, target_list
-    elif isinstance(input_data, list):
-        # TODO warn if wrong types inside list
-        input_list = [array for array in input_data if isinstance(array, ndarray)]
+    else:  # is sequence
+        input_list = list(input_data)
 
-        if target_data is None:
-            target_list = None
-        else:
-            assert isinstance(target_data, list)
-            target_list = [array for array in target_data if isinstance(array, ndarray)]
+        if target_data is not None and not isinstance(target_data, Sequence):
+            raise ValueError(
+                "Wrong target type. Expected a sequence of numpy,ndarray, got "
+                f"{type(target_data)}. Check the data_type "
+                "parameter or your inputs."
+            )
+        target_list = list(target_data) if target_data is not None else None
+
         return input_list, target_list
-    else:
-        raise ValueError(
-            f"Wrong input type. Expected numpy.ndarray or list of numpy.ndarray, got "
-            f"{type(input_data)}. Check the data_type parameter or your inputs."
-        )
 
 
 def validate_path_input(
@@ -280,11 +276,10 @@ def validate_path_input(
     ----------
     data_type : Literal["tiff", "zarr", "czi", "custom"]
         The type of data to validate.
-    input_data : str | Path | list[str | Path]
-        Input data, can be a path to a folder, a list of paths, or a numpy array.
-    target_data : str | Path | list[str | Path] | None
-        Target data, can be None, a path to a folder, a list of paths, or a numpy
-        array.
+    input_data : PathInput
+        Input data, can be a path to a folder, a list of paths.
+    target_data : PathInput | None
+        Target data, can be None, a path to a folder, a list of paths.
     extension_filter : str, default=""
         File extension filter to apply when listing files.
 
@@ -308,21 +303,14 @@ def validate_path_input(
         )
         return input_list, target_list
     elif isinstance(input_data, list):
-        # TODO warn if wrong types inside list
-        input_list = [
-            Path(item)
-            for item in input_data
-            if isinstance(item, (str, Path)) and Path(item).exists()
-        ]
+        # TODO warn if paths do not exist
+        input_list = [Path(item) for item in input_data if Path(item).exists()]
 
         target_list = None
         if target_data is not None:
             assert isinstance(target_data, list)
-            target_list = [
-                Path(item)
-                for item in target_data
-                if isinstance(item, (str, Path)) and Path(item).exists()
-            ]  # consistency with input is enforced by convert_paths_to_pathlib
+            # consistency with input is enforced by convert_paths_to_pathlib
+            target_list = [Path(item) for item in target_data if Path(item).exists()]
 
         return convert_paths_to_pathlib(input_list, target_list)
     else:
@@ -340,10 +328,10 @@ def validate_zarr_input(
 
     Parameters
     ----------
-    input_data : str | Path | list[str | Path]
+    input_data : PathInput
         Input data, can be a path to a folder, to zarr file, a URI pointing to a zarr
         dataset, or a list.
-    target_data : str | Path | list[str | Path] | None
+    target_data : PathInput | None
         Target data, can be None.
 
     Returns
@@ -389,33 +377,19 @@ def validate_zarr_input(
                 f"Wrong input type for zarr data. Expected a file URI or a path to a "
                 f" file, got {input_data}. Path may not exist."
             )
-    elif isinstance(input_data, list):
-        # use first element as determinant of type
-        if isinstance(input_data[0], (str, Path)):
-            if Path(input_data[0]).exists():
-                return validate_path_input("zarr", input_data, target_data)
-            else:
-                final_input_list = [
-                    str(item) for item in input_data if is_valid_uri(item)
-                ]
-                if target_data is not None:
-                    assert isinstance(target_data, list)
-                    final_target_list = [
-                        str(item) for item in target_data if is_valid_uri(item)
-                    ]
-                else:
-                    final_target_list = None
-                return final_input_list, final_target_list
+    else:  # input is sequence of Path | str
+        if Path(input_data[0]).exists():
+            return validate_path_input("zarr", input_data, target_data)
         else:
-            raise ValueError(
-                f"Wrong input type for zarr data. Expected a list of file URIs or "
-                f" paths to files, got {type(input_data[0])}."
-            )
-    else:
-        raise ValueError(
-            f"Wrong input type for zarr data. Expected a file URI, a path to a file, "
-            f" or a list of those, got {type(input_data)}."
-        )
+            final_input_list = [str(item) for item in input_data if is_valid_uri(item)]
+            if target_data is not None:
+                assert isinstance(target_data, list)
+                final_target_list = [
+                    str(item) for item in target_data if is_valid_uri(item)
+                ]
+            else:
+                final_target_list = None
+            return final_input_list, final_target_list
 
 
 def initialize_data_pair(
