@@ -273,13 +273,13 @@ class CAREamistV2:
 
         Parameters
         ----------
-        train_data : pathlib.Path or str or numpy.ndarray, optional
+        train_data : numpy.ndarray, str, pathlib.Path, or sequence of these, optional
             Training data, by default None.
-        train_data_target : pathlib.Path or str or numpy.ndarray, optional
+        train_data_target : numpy.ndarray, str, pathlib.Path, or sequence of these, optional
             Training target data, by default None.
-        val_data : pathlib.Path or str or numpy.ndarray, optional
+        val_data : numpy.ndarray, str, pathlib.Path, or sequence of these, optional
             Validation data, by default None.
-        val_data_target : pathlib.Path or str or numpy.ndarray, optional
+        val_data_target : numpy.ndarray, str, pathlib.Path, or sequence of these, optional
             Validation target data, by default None.
         filtering_mask : InputType, optional
             Filtering mask for coordinate-based patch filtering, by default None.
