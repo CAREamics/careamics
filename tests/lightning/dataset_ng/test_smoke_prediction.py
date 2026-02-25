@@ -182,7 +182,6 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     file_name = "image.zarr"
     g = zarr.open_group(train_dir / file_name, mode="w")
     arr = g.create_array("array", data=train_array, chunks="auto")
-    val_arr = g.create_array("val_array", data=val_array, chunks="auto")
 
     if "C" in axes:
         len_channels = shape[axes.index("C")]
@@ -199,7 +198,7 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     )
     # create NGDataset configuration
     dataset_cfg = create_ng_data_configuration(
-        data_type="zarr",
+        data_type="array",
         axes=axes,
         patch_size=(16, 16) if "Z" not in axes else (8, 16, 16),
         batch_size=2,
@@ -212,8 +211,8 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     # create data module
     data = CareamicsDataModule(
         data_config=dataset_cfg,
-        train_data=str(arr.store_path),
-        val_data=str(val_arr.store_path),
+        train_data=train_array,
+        val_data=val_array,
     )
 
     # create prediction writer callback params
@@ -248,7 +247,8 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     )
 
     predict_data = CareamicsDataModule(
-        data_config=pred_dataset_cfg, pred_data=[str(arr.store_path)]
+        data_config=pred_dataset_cfg,
+        pred_data=[str(arr.store_path)],
     )
 
     # predict
