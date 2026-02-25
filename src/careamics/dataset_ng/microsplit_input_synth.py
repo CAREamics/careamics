@@ -94,6 +94,7 @@ def create_default_input_target(
         axes=axes,
         region_spec=patch_spec,
         additional_metadata={},
+        original_data_shape=patch_extractor.image_stacks[data_idx].original_data_shape,
     )
     target_region = ImageRegionData(
         target_patch,
@@ -103,6 +104,7 @@ def create_default_input_target(
         axes=axes,
         region_spec=patch_spec,
         additional_metadata={},
+        original_data_shape=patch_extractor.image_stacks[data_idx].original_data_shape,
     )
     return input_region, target_region
 
