@@ -19,15 +19,15 @@ InputType = ArrayInput | PathInput
 """Type of input data passed to the dataset."""
 
 
-def _is_array_input(x: InputType) -> TypeIs[ArrayInput]:
+def _is_array_input(x: Any) -> TypeIs[ArrayInput]:
     """
-    Narrow the type of `x` from `InputType` to `ArrayInput`.
+    Narrow the type of `x` to `ArrayInput`.
 
     If `x` is an empty sequence it will assume true.
 
     Parameters
     ----------
-    x : InputType
+    x : Any
         The input to check the type of.
 
     Returns
@@ -36,21 +36,20 @@ def _is_array_input(x: InputType) -> TypeIs[ArrayInput]:
         Whether `x` is of the type `ArrayType`.
     """
     if isinstance(x, Sequence):
-        # can check only first element bec InputType has only homogeneous sequences
-        return len(x) == 0 or isinstance(x[0], ndarray)
+        return len(x) == 0 or all(isinstance(e, ndarray) for e in x)
     else:
         return isinstance(x, ndarray)
 
 
 def _is_array_data(
-    data: tuple[InputType, InputType | None],
+    data: tuple[Any, Any | None],
 ) -> TypeIs[tuple[ArrayInput, ArrayInput | None]]:
     """
     Narrow the type of `data` to a tuple of `ArrayInput`.
 
     Parameters
     ----------
-    data : tuple[InputType, InputType | None]
+    data : tuple[Any, Any | None]
         A pair of inputs assumed to be an input and target, the target can be `None`.
 
     Returns
@@ -63,15 +62,15 @@ def _is_array_data(
     return input_is_valid and target_is_valid
 
 
-def _is_path_input(x: InputType) -> TypeIs[PathInput]:
+def _is_path_input(x: Any) -> TypeIs[PathInput]:
     """
-    Narrow the type of `x` from `InputType` to `PathInput`.
+    Narrow the type of `x` to `PathInput`.
 
     If `x` is an empty sequence it will assume true.
 
     Parameters
     ----------
-    x : `InputType`
+    x : Any
         The input to check the type of.
 
     Returns
@@ -86,14 +85,14 @@ def _is_path_input(x: InputType) -> TypeIs[PathInput]:
 
 
 def _is_path_data(
-    data: tuple[InputType, InputType | None],
+    data: tuple[Any, Any | None],
 ) -> TypeIs[tuple[PathInput, PathInput | None]]:
     """
     Narrow the type of `data` to a tuple of `PathInput`.
 
     Parameters
     ----------
-    data : tuple[InputType, InputType | None]
+    data : tuple[Any, Any | None]
         A pair of inputs assumed to be an input and target, the target can be `None`.
 
     Returns
