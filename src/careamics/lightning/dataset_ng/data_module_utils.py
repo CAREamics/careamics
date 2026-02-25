@@ -19,33 +19,90 @@ InputType = ArrayInput | PathInput
 """Type of input data passed to the dataset."""
 
 
-def is_array_input(x: InputType) -> TypeIs[ArrayInput]:
+def _is_array_input(x: InputType) -> TypeIs[ArrayInput]:
+    """
+    Narrow the type of `x` from `InputType` to `ArrayInput`.
+
+    If `x` is an empty sequence it will assume true.
+
+    Parameters
+    ----------
+    x : InputType
+        The input to check the type of.
+
+    Returns
+    -------
+    bool
+        Whether `x` is of the type `ArrayType`.
+    """
     if isinstance(x, Sequence):
-        return len(x) == 0 or all(isinstance(e, ndarray) for e in x)
+        # can check only first element bec InputType has only homogeneous sequences
+        return len(x) == 0 or isinstance(x[0], ndarray)
     else:
         return isinstance(x, ndarray)
 
 
-def is_array_data(
+def _is_array_data(
     data: tuple[InputType, InputType | None],
 ) -> TypeIs[tuple[ArrayInput, ArrayInput | None]]:
-    input_is_valid = is_array_input(data[0])
-    target_is_valid = data[1] is None or is_array_input(data[1])
+    """
+    Narrow the type of `data` to a tuple of `ArrayInput`.
+
+    Parameters
+    ----------
+    data : tuple[InputType, InputType | None]
+        A pair of inputs assumed to be an input and target, the target can be `None`.
+
+    Returns
+    -------
+    bool
+        Whether `data` is is a pair of the type `ArrayType`.
+    """
+    input_is_valid = _is_array_input(data[0])
+    target_is_valid = data[1] is None or _is_array_input(data[1])
     return input_is_valid and target_is_valid
 
 
-def is_path_input(x: InputType) -> TypeIs[PathInput]:
+def _is_path_input(x: InputType) -> TypeIs[PathInput]:
+    """
+    Narrow the type of `x` from `InputType` to `PathInput`.
+
+    If `x` is an empty sequence it will assume true.
+
+    Parameters
+    ----------
+    x : `InputType`
+        The input to check the type of.
+
+    Returns
+    -------
+    bool
+        Whether `x` is of the type `PathType`.
+    """
     if isinstance(x, Sequence):
         return len(x) == 0 or all(isinstance(e, str | Path) for e in x)
     else:
         return isinstance(x, str | Path)
 
 
-def is_path_data(
+def _is_path_data(
     data: tuple[InputType, InputType | None],
 ) -> TypeIs[tuple[PathInput, PathInput | None]]:
-    input_is_valid = is_path_input(data[0])
-    target_is_valid = data[1] is None or is_path_input(data[1])
+    """
+    Narrow the type of `data` to a tuple of `PathInput`.
+
+    Parameters
+    ----------
+    data : tuple[InputType, InputType | None]
+        A pair of inputs assumed to be an input and target, the target can be `None`.
+
+    Returns
+    -------
+    bool
+        Whether `data` is is a pair of the type `PathType`.
+    """
+    input_is_valid = _is_path_input(data[0])
+    target_is_valid = data[1] is None or _is_path_input(data[1])
     return input_is_valid and target_is_valid
 
 
@@ -381,10 +438,12 @@ def initialize_data_pair(
     target_data : InputType | None
         Target data, can be None, a path to a folder, a list of paths, or a numpy
         array.
-    extension_filter : str, default=""
-        File extension filter to apply when listing files.
-    custom_loader : bool, default=False
-        Whether a custom image stack loader is used.
+    loading : ReadFuncLoading | ImageStackLoading | None, default=None
+        The type of loading used for custom data. `ReadFuncLoading` is the use of
+        a simple function that will load full images into memory.
+        `ImageStackLoading` is for custom chunked or memory-mapped next-generation
+        file formats enabling  single patches to be read from disk at a time.
+        If the data type is not custom `loading` should be `None`.
 
     Returns
     -------
@@ -398,13 +457,13 @@ def initialize_data_pair(
     data_type = SD(data_type)
     data = (input_data, target_data)
     match (data_type, loading):
-        case (SD.ARRAY, None) if is_array_data(data):
+        case (SD.ARRAY, None) if _is_array_data(data):
             input_data, target_data = validate_array_input(data[0], data[1])
-        case (SD.TIFF | SD.CZI, None) if is_path_data(data):
+        case (SD.TIFF | SD.CZI, None) if _is_path_data(data):
             input_data, target_data = validate_path_input(data_type, data[0], data[1])
-        case (SD.ZARR, None) if is_path_data(data):
+        case (SD.ZARR, None) if _is_path_data(data):
             input_data, target_data = validate_zarr_input(data[0], data[1])
-        case (SD.CUSTOM, ReadFuncLoading(extension_filter=ext)) if is_path_data(data):
+        case (SD.CUSTOM, ReadFuncLoading(extension_filter=ext)) if _is_path_data(data):
             input_data, target_data = validate_path_input(
                 data_type, data[0], data[1], extension_filter=ext
             )

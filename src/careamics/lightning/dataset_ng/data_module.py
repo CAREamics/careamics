@@ -42,12 +42,26 @@ T = TypeVar("T")
 InputVar = TypeVar(
     "InputVar", NDArray[Any], Path, str, Sequence[NDArray[Any]], Sequence[Path | str]
 )
+"""
+Data source types, numpy arrays or paths or sequences of either.
+
+(Paths can be `str` or `pathlib.Path`).
+"""
 
 Loading = ReadFuncLoading | ImageStackLoading | None
+"""
+The type of loading used for custom data. `ReadFuncLoading` is the use of
+a simple function that will load full images into memory.
+`ImageStackLoading` is for custom chunked or memory-mapped next-generation
+file formats enabling  single patches to be read from disk at a time.
+If the data type is not custom `loading` should be `None`.
+"""
 
 
 @dataclass
 class _TrainVal(Generic[T]):
+    """Data for training with validation data provided."""
+
     train_data: T
     val_data: T
     train_data_target: T | None = None
@@ -57,6 +71,8 @@ class _TrainVal(Generic[T]):
 
 @dataclass
 class _TrainValSplit(Generic[T]):
+    """Data for training with automatic validation splitting."""
+
     train_data: T
     val_percentage: float
     val_minimum_split: int
@@ -66,11 +82,14 @@ class _TrainValSplit(Generic[T]):
 
 @dataclass
 class _PredData(Generic[T]):
+    """Data for prediction."""
+
     pred_data: T
     pred_data_target: T | None = None
 
 
 _Data = _TrainVal[Any] | _TrainValSplit[Any] | _PredData[Any]
+"""Data for training with validation or validation splitting or data for prediction."""
 
 
 class CareamicsDataModule(L.LightningDataModule):
@@ -78,7 +97,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     Parameters
     ----------
-    data_config : DataConfig
+    data_config : NGDataConfig
         Pydantic model for CAREamics data configuration.
     train_data : Optional[InputType]
         Training data, can be a path to a folder, a list of paths, or a numpy array.
@@ -95,30 +114,24 @@ class CareamicsDataModule(L.LightningDataModule):
     val_data_target : Optional[InputType]
         Validation data target, can be a path to a folder,
         a list of paths, or a numpy array.
+    val_percentage : Optional[float]
+        Percentage of the training data to use for validation. Only
+        used if `val_data` is None.
+    val_minimum_split : int
+        Minimum number of patches or files to split from the training data for
+        validation, by default 5. Only used if `val_data` is None.
     pred_data : Optional[InputType]
         Prediction data, can be a path to a folder, a list of paths,
         or a numpy array.
     pred_data_target : Optional[InputType]
         Prediction data target, can be a path to a folder,
         a list of paths, or a numpy array.
-    read_source_func : Optional[Callable], default=None
-        Function to read the source data. Only used for `custom`
-        data type (see DataModel).
-    read_kwargs : Optional[dict[str, Any]]
-        The kwargs for the read source function.
-    image_stack_loader : Optional[ImageStackLoader]
-        The image stack loader.
-    image_stack_loader_kwargs : Optional[dict[str, Any]]
-        The image stack loader kwargs.
-    extension_filter : str, default=""
-        Filter for file extensions. Only used for `custom` data types
-        (see DataModel).
-    val_percentage : Optional[float]
-        Percentage of the training data to use for validation. Only
-        used if `val_data` is None.
-    val_minimum_split : int, default=5
-        Minimum number of patches or files to split from the training data for
-        validation. Only used if `val_data` is None.
+    loading : ReadFuncLoading | ImageStackLoading | None, default=None
+        The type of loading used for custom data. `ReadFuncLoading` is the use of
+        a simple function that will load full images into memory.
+        `ImageStackLoading` is for custom chunked or memory-mapped next-generation
+        file formats enabling  single patches to be read from disk at a time.
+        If the data type is not custom `loading` should be `None`.
 
 
     Attributes
@@ -129,35 +142,6 @@ class CareamicsDataModule(L.LightningDataModule):
         Type of data, one of SupportedData.
     batch_size : int
         Batch size for the dataloaders.
-    extension_filter : str
-        Filter for file extensions, by default "".
-    read_source_func : Optional[Callable], default=None
-        Function to read the source data.
-    read_kwargs : Optional[dict[str, Any]], default=None
-        The kwargs for the read source function.
-    val_percentage : Optional[float]
-        Percentage of the training data to use for validation.
-    val_minimum_split : int, default=5
-        Minimum number of patches or files to split from the training data for
-        validation.
-    train_data : Optional[Any]
-        Training data, can be a path to a folder, a list of paths, or a numpy array.
-    train_data_target : Optional[Any]
-        Training data target, can be a path to a folder, a list of paths, or a numpy
-        array.
-    train_data_mask : Optional[Any]
-        Training data mask, can be a path to a folder, a list of paths, or a numpy
-        array.
-    val_data : Optional[Any]
-        Validation data, can be a path to a folder, a list of paths, or a numpy array.
-    val_data_target : Optional[Any]
-        Validation data target, can be a path to a folder, a list of paths, or a numpy
-        array.
-    pred_data : Optional[Any]
-        Prediction data, can be a path to a folder, a list of paths, or a numpy array.
-    pred_data_target : Optional[Any]
-        Prediction data target, can be a path to a folder, a list of paths, or a numpy
-        array.
 
     Raises
     ------
@@ -242,30 +226,24 @@ class CareamicsDataModule(L.LightningDataModule):
         val_data_target : Optional[InputType]
             Validation data target, can be a path to a folder,
             a list of paths, or a numpy array.
-        pred_data : Optional[InputType]
-            Prediction data, can be a path to a folder, a list of paths,
-            or a numpy array.
-        pred_data_target : Optional[InputType]
-            Prediction data target, can be a path to a folder,
-            a list of paths, or a numpy array.
-        read_source_func : Optional[Callable]
-            Function to read the source data, by default None. Only used for `custom`
-            data type (see DataModel).
-        read_kwargs : Optional[dict[str, Any]]
-            The kwargs for the read source function.
-        image_stack_loader : Optional[ImageStackLoader]
-            The image stack loader.
-        image_stack_loader_kwargs : Optional[dict[str, Any]]
-            The image stack loader kwargs.
-        extension_filter : str
-            Filter for file extensions, by default "". Only used for `custom` data types
-            (see DataModel).
         val_percentage : Optional[float]
             Percentage of the training data to use for validation. Only
             used if `val_data` is None.
         val_minimum_split : int
             Minimum number of patches or files to split from the training data for
             validation, by default 5. Only used if `val_data` is None.
+        pred_data : Optional[InputType]
+            Prediction data, can be a path to a folder, a list of paths,
+            or a numpy array.
+        pred_data_target : Optional[InputType]
+            Prediction data target, can be a path to a folder,
+            a list of paths, or a numpy array.
+        loading : ReadFuncLoading | ImageStackLoading | None, default=None
+            The type of loading used for custom data. `ReadFuncLoading` is the use of
+            a simple function that will load full images into memory.
+            `ImageStackLoading` is for custom chunked or memory-mapped next-generation
+            file formats enabling  single patches to be read from disk at a time.
+            If the data type is not custom `loading` should be `None`.
         """
         super().__init__()
 
@@ -460,6 +438,59 @@ def _validate_data(
     pred_data_target: Any | None = None,
     loading: Loading = None,
 ) -> _TrainVal[Any] | _TrainValSplit[Any] | _PredData[Any]:
+    """Validate the combination of input arguments and their types.
+
+    Parameters
+    ----------
+    data_type : SupportedData
+        The type of the data to validate against.
+    train_data : Optional[InputType]
+        Training data, can be a path to a folder, a list of paths, or a numpy array.
+    train_data_target : Optional[InputType]
+        Training data target, can be a path to a folder,
+        a list of paths, or a numpy array.
+    train_data_mask : InputType (when filtering is needed)
+        Training data mask, can be a path to a folder,
+        a list of paths, or a numpy array. Used for coordinate filtering.
+        Only required when using coordinate-based patch filtering.
+    val_data : Optional[InputType]
+        Validation data, can be a path to a folder,
+        a list of paths, or a numpy array.
+    val_data_target : Optional[InputType]
+        Validation data target, can be a path to a folder,
+        a list of paths, or a numpy array.
+    val_percentage : Optional[float]
+        Percentage of the training data to use for validation. Only
+        used if `val_data` is None.
+    val_minimum_split : int
+        Minimum number of patches or files to split from the training data for
+        validation, by default 5. Only used if `val_data` is None.
+    pred_data : Optional[InputType]
+        Prediction data, can be a path to a folder, a list of paths,
+        or a numpy array.
+    pred_data_target : Optional[InputType]
+        Prediction data target, can be a path to a folder,
+        a list of paths, or a numpy array.
+    loading : ReadFuncLoading | ImageStackLoading | None, default=None
+        The type of loading used for custom data. `ReadFuncLoading` is the use of
+        a simple function that will load full images into memory.
+        `ImageStackLoading` is for custom chunked or memory-mapped next-generation
+        file formats enabling  single patches to be read from disk at a time.
+        If the data type is not custom `loading` should be `None`.
+
+    Returns
+    -------
+    data : _TrainVal[Any] | _TrainValSplit[Any] | _PredData[Any]
+        The validated data wrapped in a dataclass. The `_TrainVal` class is for training
+        with validation data provided; the `_TrainValSplit` class is used for training
+        with automatic validation splitting, and the `_PredData` class is used for
+        prediction.
+
+    Raises
+    ------
+    ValueError
+        In the case of incompatible combinations of arguments.
+    """
     match train_data, val_data, val_percentage, pred_data:
         case train_data, val_data, None, None if (
             train_data is not None and val_data is not None
@@ -516,8 +547,11 @@ def _create_train_val_datasets(
     config: NGDataConfig,
     data: _TrainVal[Any],
     loading: Loading,
-):
+) -> tuple[CareamicsDataset[ImageStack], CareamicsDataset[ImageStack]]:
+    """Create the train and validation datasets.
 
+    In the case where validation data has been provided.
+    """
     if config.mode != "training":
         raise ValueError(
             f"CAREamicsDataModule configured for {config.mode} cannot be "
@@ -551,6 +585,10 @@ def _create_val_split_datasets(
     loading: Loading,
     rng: np.random.Generator,
 ) -> tuple[CareamicsDataset[ImageStack], CareamicsDataset[ImageStack]]:
+    """Create the train and validation datasets.
+
+    With validation patches automatically split from the training data.
+    """
     if config.mode != "training":
         raise ValueError(
             f"CAREamicsDataModule configured for {config.mode} cannot be "
@@ -634,6 +672,7 @@ def _create_pred_dataset(
     data: _PredData[Any],
     loading: Loading,
 ):
+    """Create the prediction dataset."""
     if config.mode == "validating":
         raise ValueError(
             "CAREamicsDataModule configured for validating cannot be used for "
