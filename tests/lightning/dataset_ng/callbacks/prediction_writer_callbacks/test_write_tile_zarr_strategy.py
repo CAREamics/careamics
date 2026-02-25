@@ -53,6 +53,7 @@ def create_image_region(
             "shards": shards,
             "chunks": chunks,
         },
+        original_data_shape=extractor.image_stacks[data_idx].original_data_shape,
     )
 
 

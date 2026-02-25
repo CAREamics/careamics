@@ -16,12 +16,22 @@ class InMemoryImageStack:
     A class for extracting patches from an image stack that has been loaded into memory.
     """
 
-    def __init__(self, source: Union[Path, Literal["array"]], data: NDArray):
+    def __init__(
+        self,
+        source: Union[Path, Literal["array"]],
+        data: NDArray,
+        original_axes: str | None = None,
+        original_data_shape: tuple[int, ...] | None = None,
+    ):
         self.source: Union[str, Path, Literal["array"]] = source
         # data expected to be in SC(Z)YX shape, reason to use from_array constructor
         self._data: NDArray = data
         self.data_shape: Sequence[int] = self._data.shape
         self.data_dtype: DTypeLike = self._data.dtype
+        self._original_axes: str = original_axes if original_axes is not None else ""
+        self._original_data_shape: tuple[int, ...] = (
+            original_data_shape if original_data_shape is not None else ()
+        )
 
     def extract_patch(
         self,
@@ -68,21 +78,43 @@ class InMemoryImageStack:
 
         return patch
 
+    @property
+    def original_data_shape(self) -> tuple[int, ...]:
+        """Original shape of the data."""
+        return self._original_data_shape
+
+    @property
+    def original_axes(self) -> str:
+        """Original axes of the data."""
+        return self._original_axes
+
     @classmethod
     def from_array(cls, data: NDArray, axes: str) -> Self:
-        data = reshape_array(data, axes)
-        return cls(source="array", data=data)
+        return cls(
+            source="array",
+            data=reshape_array(data, axes),
+            original_axes=axes,
+            original_data_shape=data.shape,
+        )
 
     @classmethod
     def from_tiff(cls, path: Path, axes: str) -> Self:
         data = read_tiff(path)
-        data = reshape_array(data, axes)
-        return cls(source=path, data=data)
+        return cls(
+            source=path,
+            data=reshape_array(data, axes),
+            original_axes=axes,
+            original_data_shape=data.shape,
+        )
 
     @classmethod
     def from_custom_file_type(
         cls, path: Path, axes: str, read_func: ReadFunc, **read_kwargs: Any
     ) -> Self:
         data = read_func(path, **read_kwargs)
-        data = reshape_array(data, axes)
-        return cls(source=path, data=data)
+        return cls(
+            source=path,
+            data=reshape_array(data, axes),
+            original_axes=axes,
+            original_data_shape=data.shape,
+        )

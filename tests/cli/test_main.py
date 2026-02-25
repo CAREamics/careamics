@@ -7,8 +7,8 @@ from typer.testing import CliRunner
 
 from careamics import CAREamist, Configuration
 from careamics.cli.main import app
-from careamics.config import save_configuration
 from careamics.config.support import SupportedData
+from careamics.config.utils.configuration_io import save_configuration
 
 pytestmark = pytest.mark.mps_gh_fail
 

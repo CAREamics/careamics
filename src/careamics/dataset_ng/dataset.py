@@ -61,7 +61,10 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     """Data type of the original image as a string."""
 
     axes: str
-    """Axes of the original data array, in format SCZYX."""
+    """Axes of the original data array. SCTZYX dimensions are allowed in any order."""
+
+    original_data_shape: Sequence[int]
+    """Original shape of the data before any reshaping."""
 
     region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
     """Specifications of the region within the original image from where `data` is
@@ -209,6 +212,16 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             channels=self.config.channels,
         )
 
+        # get original shape from image stack
+        original_data_shape = image_stack.original_data_shape
+
+        # adjust original_data_shape for channel subsetting if needed
+        if self.config.channels is not None and "C" in self.config.axes:
+            c_idx = self.config.axes.index("C")
+            adjusted_original_shape = list(original_data_shape)
+            adjusted_original_shape[c_idx] = len(self.config.channels)
+            original_data_shape = tuple(adjusted_original_shape)
+
         # additional metadata for zarr image stacks
         if isinstance(image_stack, ZarrImageStack):
             additional_metadata = {
@@ -225,8 +238,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             source=str(image_stack.source),
             dtype=str(image_stack.data_dtype),
             data_shape=data_shape,
-            # TODO: should it be axes of the original image instead?
             axes=self.config.axes,
+            original_data_shape=original_data_shape,
             region_spec=patch_spec,
             additional_metadata=additional_metadata,
         )
