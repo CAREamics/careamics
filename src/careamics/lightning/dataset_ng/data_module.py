@@ -122,6 +122,7 @@ class CareamicsDataModule(L.LightningDataModule):
     """
 
     # standard use (no mask)
+    # TODO: remove pred data from overloads?
     @overload
     def __init__(
         self,

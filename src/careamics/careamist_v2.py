@@ -9,7 +9,7 @@ from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from .config import load_configuration_ng 
+from .config.utils.configuration_io import load_configuration_ng
 from .config.ng_configs import N2VConfiguration
 from .config.support import SupportedData, SupportedLogger
 from .dataset.dataset_utils import reshape_array

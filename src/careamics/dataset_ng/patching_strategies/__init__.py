@@ -1,4 +1,5 @@
 __all__ = [
+    "FixedPatchingStrategy",
     "FixedRandomPatchingStrategy",
     "PatchSpecs",
     "PatchingStrategy",
@@ -13,6 +14,7 @@ __all__ = [
     "is_tile_specs",
 ]
 
+from .fixed_patching import FixedPatchingStrategy
 from .patching_strategy_factory import create_patching_strategy
 from .patching_strategy_protocol import (
     PatchingStrategy,
