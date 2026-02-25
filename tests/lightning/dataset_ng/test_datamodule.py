@@ -7,13 +7,20 @@ import pytest
 import tifffile
 
 from careamics.config.data import NGDataConfig
+from careamics.config.support import SupportedData
 from careamics.dataset_ng.dataset import CareamicsDataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset_ng.image_stack import FileImageStack
 from careamics.dataset_ng.patch_extractor.limit_file_extractor import (
     LimitFilesPatchExtractor,
 )
-from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
+from careamics.lightning.dataset_ng.data_module import (
+    CareamicsDataModule,
+    _PredData,
+    _TrainVal,
+    _TrainValSplit,
+    _validate_data,
+)
 
 # TODO add tests for the various types, for mismatching input/target/mask lengths, etc.
 # TODO add tests for validation and prediction modes. can we use a single
@@ -142,3 +149,60 @@ def test_sampler(tmp_path: Path, in_memory, correct_sampler):
             assert isinstance(sampler, correct_sampler)
         else:
             assert sampler is None
+
+
+@pytest.mark.parametrize(
+    "train_data, val_data, val_split, pred_data, output",
+    [
+        [True, True, False, False, _TrainVal],
+        [True, False, True, False, _TrainValSplit],
+        [False, False, False, True, _PredData],
+        [True, True, True, False, None],
+        [True, False, False, True, None],
+        [True, True, True, True, None],
+        [False, False, False, False, None],
+    ],
+    ids=[
+        "train-val",
+        "train-val-split",
+        "pred",
+        "train-val-and-split-error",
+        "train-pred-error",
+        "all-error",
+        "none-error",
+    ],
+)
+def test_validate_data(
+    train_data: bool,
+    val_data: bool,
+    val_split: bool,
+    pred_data: bool,
+    # if the combination should fail output is set to None
+    output: type[_TrainVal] | type[_TrainValSplit] | type[_PredData] | None,
+):
+    """
+    Test different combinations of data for the data module are validated correctly.
+    """
+    train_input = np.ones((64, 64)) if train_data else None
+    val_input = np.ones((32, 32)) if val_data else None
+    val_percentage = 0.1 if val_split else None
+    pred_input = np.ones((96, 96)) if pred_data else None
+
+    if output is not None:
+        data = _validate_data(
+            data_type=SupportedData.ARRAY,
+            train_data=train_input,
+            val_data=val_input,
+            val_percentage=val_percentage,
+            pred_data=pred_input,
+        )
+        assert isinstance(data, output)
+    else:
+        with pytest.raises(ValueError):
+            _ = _validate_data(
+                data_type=SupportedData.ARRAY,
+                train_data=train_input,
+                val_data=val_input,
+                val_percentage=val_percentage,
+                pred_data=pred_input,
+            )
