@@ -1,5 +1,6 @@
 """Noise2Void Lightning Module."""
 
+import warnings
 from typing import Any, cast
 
 import pytorch_lightning as L
@@ -52,12 +53,24 @@ class N2VModule(L.LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
-        self.n2v_manipulate = N2VManipulateTorch(
-            n2v_manipulate_config=self.config.n2v_config
-        )
+        self.n2v_manipulate = N2VManipulateTorch(self.config.n2v_config)
         self.loss_func = n2v_loss
 
         self.metrics = MetricCollection(PeakSignalNoiseRatio())
+
+    def on_fit_start(self) -> None:
+        """On fit start hook for N2V module."""
+        datamodule = self._trainer.datamodule  # type: ignore[union-attr]
+        if (
+            datamodule is not None
+            and getattr(datamodule, "train_data_target", None) is not None
+        ):
+            warnings.warn(
+                "N2V is a self-supervised algorithm — `train_data_target` will be "
+                "ignored.",
+                UserWarning,
+                stacklevel=2,
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -163,6 +176,7 @@ class N2VModule(L.LightningModule):
             axes=x.axes,
             region_spec=x.region_spec,
             additional_metadata={},
+            original_data_shape=x.original_data_shape,
         )
         return output_batch
 

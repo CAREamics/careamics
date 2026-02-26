@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import torch
 from bioimageio.spec import load_description
 from torch import Tensor
 
@@ -69,10 +70,13 @@ def test_bmz_io(tmp_path, ordered_array, pre_trained):
 
     # load model
     model, config = load_pretrained(path)
+    model.eval()
+    careamist.model.eval()
     assert config == careamist.cfg
 
     # compare predictions
-    torch_array = Tensor(train_array[np.newaxis, np.newaxis, ...])
-    predicted = careamist.model.forward(torch_array).detach().numpy().squeeze()
-    predicted_loaded = model.forward(torch_array).detach().numpy().squeeze()
+    with torch.no_grad():
+        torch_array = Tensor(train_array[np.newaxis, np.newaxis, ...])
+        predicted = careamist.model.forward(torch_array).numpy().squeeze()
+        predicted_loaded = model.forward(torch_array).numpy().squeeze()
     assert (predicted_loaded == predicted).all()

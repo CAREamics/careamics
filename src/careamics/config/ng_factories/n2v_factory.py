@@ -14,6 +14,8 @@ from careamics.config.transformations import (
     XYRandomRotate90Config,
 )
 
+from ..algorithms import N2VAlgorithm
+from ..utils.random import generate_random_seed
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import create_ng_data_configuration, list_spatial_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
@@ -347,6 +349,9 @@ def create_advanced_n2v_config(
     N2VConfiguration
         Configuration for training N2V.
     """
+    if seed is None:
+        seed = generate_random_seed()
+
     # if there are channels, we need to specify their number
     channels_present = "C" in axes
 
@@ -429,7 +434,7 @@ def create_advanced_n2v_config(
     )
 
     # create the N2VManipulate transform using the supplied parameters
-    n2v_transform = N2VManipulateConfig(  # TODO should be seeded
+    n2v_transform = N2VManipulateConfig(
         name=SupportedTransform.N2V_MANIPULATE.value,
         strategy=(
             SupportedPixelManipulation.MEDIAN.value
@@ -440,6 +445,7 @@ def create_advanced_n2v_config(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
+        seed=seed,
     )
     algorithm_params["n2v_config"] = n2v_transform
 
@@ -455,9 +461,10 @@ def create_advanced_n2v_config(
         checkpoint_params=checkpoint_params,
     )
 
+    algorithm_config = N2VAlgorithm(**algorithm_params)
     return N2VConfiguration(
         experiment_name=experiment_name,
-        algorithm_config=algorithm_params,
+        algorithm_config=algorithm_config,
         data_config=data_config,
         training_config=training_params,
     )
