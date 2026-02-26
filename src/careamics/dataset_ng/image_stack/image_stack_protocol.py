@@ -34,6 +34,16 @@ class ImageStack(Protocol):
 
     """Data type of the image data."""
 
+    @property
+    def original_data_shape(self) -> Sequence[int]: ...
+
+    """Original shape of the data."""
+
+    @property
+    def original_axes(self) -> str: ...
+
+    """Original axes of the data."""
+
     def extract_patch(
         self,
         sample_idx: int,

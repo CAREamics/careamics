@@ -14,8 +14,8 @@ from ..config import (
     create_care_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
-    save_configuration,
 )
+from ..config.utils.configuration_io import save_configuration
 from .utils import handle_2D_3D_callback
 
 WORK_DIR = Path.cwd()
