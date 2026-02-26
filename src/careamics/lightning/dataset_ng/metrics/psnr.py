@@ -144,8 +144,8 @@ class GlobSIPSNR(Metric):
         mse = torch.mean((tar_rescaled - pred_rescaled) ** 2 + self.eps, dim=dims)
 
         # update states
-        self.glob_max: torch.tensor = torch.maximum(self.glob_max, batch_max)
-        self.glob_min: torch.tensor = torch.minimum(self.glob_min, batch_min)
+        self.glob_max: torch.Tensor = torch.maximum(self.glob_max, batch_max)
+        self.glob_min: torch.Tensor = torch.minimum(self.glob_min, batch_min)
         self.mse_log += torch.log10(mse.prod(dim=0) + self.eps)
         self.total += batch_size
 
