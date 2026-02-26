@@ -146,7 +146,7 @@ class GlobSIPSNR(Metric):
         # update states
         self.glob_max: torch.Tensor = torch.maximum(self.glob_max, batch_max)
         self.glob_min: torch.Tensor = torch.minimum(self.glob_min, batch_min)
-        self.mse_log += torch.log10(mse.prod(dim=0) + self.eps)
+        self.mse_log += torch.log10(mse).sum(dim=0)
         self.total += batch_size
 
     def compute(self) -> Tensor | dict[str, Tensor]:
