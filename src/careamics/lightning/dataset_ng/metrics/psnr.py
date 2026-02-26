@@ -324,7 +324,9 @@ class RangelessPSNR(Metric):
         mse = torch.mean((target - preds) ** 2 + self.eps, dim=dims)
 
         # update states
-        self.psnr_sum: torch.Tensor = self.psnr_sum + torch.sum(10 * torch.log10(data_range**2 / mse), dim=0)
+        self.psnr_sum: torch.Tensor = self.psnr_sum + torch.sum(
+            10 * torch.log10(data_range**2 / mse), dim=0
+        )
         self.total: torch.Tensor = self.total + batch_size
 
     def compute(self) -> Tensor | dict[str, Tensor]:
