@@ -6,8 +6,7 @@ from torchmetrics import MetricCollection
 from torchmetrics.image import PeakSignalNoiseRatio
 
 from careamics.lightning.dataset_ng.metrics import (
-    GlobalSIPSNR,
-    SamplePSNR,
+    SIPSNR,
     SampleSIPSNR,
 )
 from careamics.lightning.dataset_ng.metrics.psnr import _normalise_range
@@ -99,7 +98,7 @@ def test_fix_range_batch_independence(shape):
         ((6, 3, 8, 64, 64), 2),
     ],
 )
-def test_glob_sipsnr(shape, batch_size):
+def test_global_sipsnr(shape, batch_size):
 
     gts, preds = create_toy_data(shape)
     eps = torch.finfo(preds.dtype).eps
@@ -138,7 +137,7 @@ def test_glob_sipsnr(shape, batch_size):
     )
 
     # compute metrics over batches
-    metrics = GlobalSIPSNR(n_channels=shape[1])
+    metrics = SIPSNR(n_channels=shape[1])
     for gt_batch, pred_batch in batches:
         metrics.update(pred_batch, gt_batch)
 
@@ -173,7 +172,77 @@ def test_glob_sipsnr(shape, batch_size):
         ((6, 3, 8, 64, 64), 2),
     ],
 )
-def test_loc_sipsnr(shape, batch_size):
+def test_global_psnr(shape, batch_size):
+
+    gts, preds = create_toy_data(shape)
+    eps = torch.finfo(preds.dtype).eps
+
+    # create batches
+    batches = [
+        (
+            gts[i * batch_size : (i + 1) * batch_size],
+            preds[i * batch_size : (i + 1) * batch_size],
+        )
+        for i in range(gts.shape[0] // batch_size)
+    ]
+
+    # expected value from skimage
+    dims = tuple(range(2, len(shape)))
+    gts_max = torch.amax(gts, dim=(0,) + dims)
+    gts_min = torch.amin(gts, dim=(0,) + dims)
+    data_range = gts_max - gts_min + eps
+
+    expected_psnr_rng = np.mean(
+        [
+            [
+                peak_signal_noise_ratio(
+                    gts[i][c].numpy(),
+                    preds[i][c].numpy(),
+                    data_range=data_range[c].item(),
+                )
+                for c in range(shape[1])
+            ]
+            for i in range(gts.shape[0])
+        ],
+        axis=0,
+    )
+
+    # compute metrics over batches
+    metrics = SIPSNR(n_channels=shape[1], use_scale_invariance=False)
+    for gt_batch, pred_batch in batches:
+        metrics.update(pred_batch, gt_batch)
+
+    glob_psnr = metrics.compute()
+    assert (metrics.glob_max == gts_max).all()
+    assert (metrics.glob_min == gts_min).all()
+    np.testing.assert_almost_equal(glob_psnr.numpy(), expected_psnr_rng, decimal=4)
+
+
+@pytest.mark.parametrize(
+    "shape, batch_size",
+    [
+        ((1, 1, 64, 64), 1),  # BC(Z)YX
+        ((2, 1, 64, 64), 2),
+        ((4, 1, 64, 64), 1),
+        ((6, 1, 64, 64), 2),
+        # channels
+        ((1, 3, 64, 64), 1),
+        ((2, 3, 64, 64), 2),
+        ((4, 3, 64, 64), 1),
+        ((6, 3, 64, 64), 2),
+        # Z
+        ((1, 1, 8, 64, 64), 1),
+        ((2, 1, 8, 64, 64), 2),
+        ((4, 1, 8, 64, 64), 1),
+        ((6, 1, 8, 64, 64), 2),
+        # Z + channels
+        ((1, 3, 8, 64, 64), 1),
+        ((2, 3, 8, 64, 64), 2),
+        ((4, 3, 8, 64, 64), 1),
+        ((6, 3, 8, 64, 64), 2),
+    ],
+)
+def test_sample_sipsnr(shape, batch_size):
 
     gts, preds = create_toy_data(shape)
     eps = torch.finfo(preds.dtype).eps
@@ -258,7 +327,7 @@ def test_loc_sipsnr(shape, batch_size):
         ((6, 3, 8, 64, 64), 2),
     ],
 )
-def test_rangeless_psnr(shape, batch_size):
+def test_sample_psnr(shape, batch_size):
 
     gts, preds = create_toy_data(shape)
     eps = torch.finfo(preds.dtype).eps
@@ -294,12 +363,14 @@ def test_rangeless_psnr(shape, batch_size):
     )
 
     # compute metrics over batches
-    metrics = SamplePSNR(n_channels=shape[1])
+    metrics = SampleSIPSNR(n_channels=shape[1], use_scale_invariance=False)
     for gt_batch, pred_batch in batches:
         metrics.update(pred_batch, gt_batch)
 
-    sipsnr = metrics.compute()
-    np.testing.assert_almost_equal(sipsnr.numpy(), expected_psnr_skimage, decimal=4)
+    sample_psnr = metrics.compute()
+    np.testing.assert_almost_equal(
+        sample_psnr.numpy(), expected_psnr_skimage, decimal=4
+    )
 
     # if not 3D and no channels, compare with torchmetrics
     if len(shape) == 4 and shape[1] == 1:
@@ -310,7 +381,7 @@ def test_rangeless_psnr(shape, batch_size):
             expected_psnr_torchmetrics_lst.append(psnr_metric.compute().numpy())
         expected_psnr_torchmetrics = np.mean(expected_psnr_torchmetrics_lst, axis=0)
         np.testing.assert_almost_equal(
-            sipsnr.numpy(), expected_psnr_torchmetrics, decimal=4
+            sample_psnr.numpy(), expected_psnr_torchmetrics, decimal=4
         )
 
 
@@ -318,9 +389,10 @@ def test_torchmetrics_collection():
     """Test that the PSNR metrics can be used in a torchmetrics MetricCollection."""
     metrics = MetricCollection(
         {
-            "glob_sipsnr": GlobalSIPSNR(n_channels=3),
+            "glob_sipsnr": SIPSNR(n_channels=3),
             "loc_sipsnr": SampleSIPSNR(n_channels=3),
-            "rangeless_psnr": SamplePSNR(n_channels=3),
+            "glob_psnr": SIPSNR(n_channels=3, use_scale_invariance=False),
+            "sample_psnr": SampleSIPSNR(n_channels=3, use_scale_invariance=False),
         }
     )
 
@@ -332,4 +404,5 @@ def test_torchmetrics_collection():
 
     assert "glob_sipsnr" in results
     assert "loc_sipsnr" in results
-    assert "rangeless_psnr" in results
+    assert "glob_psnr" in results
+    assert "sample_psnr" in results

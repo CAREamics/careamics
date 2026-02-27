@@ -6,10 +6,14 @@ import torch
 from torch import Tensor, tensor
 from torchmetrics import Metric
 
-# Note: LVAE use a PSNR implementation that is averaging over pixels by excluding NaNs,
-# and counting the number of non-NaN pixels for averaging. Current choice is to ignore
-# that implementation since NaNs should not be present in the model, being a sign of a
-# more fundamental issue with the training.
+# Note: uSplit uses a PSNR implementation that is averaging over pixels by excluding
+# NaNs, and counting the number of non-NaN pixels for averaging. Current choice is to
+# ignore that implementation since NaNs should not be present in the model, being a sign
+# of a more fundamental issue with the training.
+
+# Note: SampleSIPSNR is closer to the implementation `scale_invariant_psnr` (per-sample
+# data range). Default PSNR is SIPSNR, which uses a global data range accumulated over
+# batches, which should be more stable and less sensitive to patch to patch variations.
 
 # Note: Running PSNR, and probably SI-PSNR even more, can lead to very different results
 # between patches and whole images, so users should be warned.
@@ -58,17 +62,29 @@ def _normalise_range(gt: Tensor, pred: Tensor) -> tuple[Tensor, Tensor]:
     return gt_rescaled, pred_rescaled
 
 
-class GlobalSIPSNR(Metric):
-    """Scale Invariant PSNR metric with global data range.
+class SIPSNR(Metric):
+    """Scale Invariant PSNR metric using a global data range.
 
     Adapted from juglab/ScaleInvPSNR, this version of PSNR rescales the predictions and
     ground truth to have similar range, then computes the PSNR using a global data range
-    accumulated over all batches.
+    accumulated over all batches. For a scale-invariant version of PSNR with per-sample
+    data range, see `SampleSIPSNR`.
+
+    Scale invariance can be turned off using `use_scale_invariance=False`, in which case
+    the metric is equivalent to `torchmetrics.image.PeakSignalNoiseRatio`, with
+    `data_range` equal to the difference between the global max and min over all
+    batches.
+
+    Note that as opposed to `torchmetrics.image.PeakSignalNoiseRatio`, this
+    implementation is compatible with 3D and multi-channel images.
 
     Parameters
     ----------
     n_channels : int
         Number of channels in the input images.
+    use_scale_invariance : bool
+        Whether to use scale invariance. If False, the metric is equivalent to PSNR with
+        global data range.
     **kwargs : Any
         Additional keyword arguments passed to the parent Metric class.
 
@@ -84,19 +100,25 @@ class GlobalSIPSNR(Metric):
         Total number of samples processed.
     """
 
-    def __init__(self, n_channels: int, **kwargs: Any):
+    def __init__(
+        self, n_channels: int, use_scale_invariance: bool = True, **kwargs: Any
+    ):
         """Initialize a global scale invariant PSNR metric.
 
         Parameters
         ----------
         n_channels : int
             Number of channels in the input images.
+        use_scale_invariance : bool
+            Whether to use scale invariance. If False, the metric is equivalent to PSNR
+            with global data range.
         **kwargs : Any
             Additional keyword arguments passed to the parent Metric class.
         """
         super().__init__(**kwargs)
 
         self.eps = torch.finfo(torch.float32).eps
+        self.use_scale_invariance = use_scale_invariance
 
         self.add_state(
             "glob_max",
@@ -138,7 +160,10 @@ class GlobalSIPSNR(Metric):
         batch_max = torch.amax(target, dim=(0,) + dims)
 
         # fix range of gt and prediction
-        tar_rescaled, pred_rescaled = _normalise_range(target, preds)
+        if self.use_scale_invariance:
+            tar_rescaled, pred_rescaled = _normalise_range(target, preds)
+        else:
+            tar_rescaled, pred_rescaled = target, preds
 
         # compute mse
         mse = torch.mean((tar_rescaled - pred_rescaled) ** 2 + self.eps, dim=dims)
@@ -168,10 +193,21 @@ class SampleSIPSNR(Metric):
     ground truth to have similar range, then computes the PSNR using each patch's data
     range.
 
+    Scale invariance can be turned off using `use_scale_invariance=False`, in which case
+    the metric is equivalent to `torchmetrics.image.PeakSignalNoiseRatio`, with
+    `data_range` equal to the difference between each patch's max and min, for each
+    patch, then averaged.
+
+    Note that as opposed to `torchmetrics.image.PeakSignalNoiseRatio`, this
+    implementation is compatible with 3D and multi-channel images.
+
     Parameters
     ----------
     n_channels : int
         Number of channels in the input images.
+    use_scale_invariance : bool
+        Whether to use scale invariance. If False, the metric is equivalent to PSNR with
+        per-sample data range.
     **kwargs : Any
         Additional keyword arguments passed to the parent Metric class.
 
@@ -183,19 +219,25 @@ class SampleSIPSNR(Metric):
         Total number of samples processed.
     """
 
-    def __init__(self, n_channels: int, **kwargs: Any):
+    def __init__(
+        self, n_channels: int, use_scale_invariance: bool = True, **kwargs: Any
+    ):
         """Initialize a per-sample scale invariant PSNR metric.
 
         Parameters
         ----------
         n_channels : int
             Number of channels in the input images.
+        use_scale_invariance : bool
+            Whether to use scale invariance. If False, the metric is equivalent to PSNR
+            with per-sample data range.
         **kwargs : Any
             Additional keyword arguments passed to the parent Metric class.
         """
         super().__init__(**kwargs)
 
         self.eps = torch.finfo(torch.float32).eps
+        self.use_scale_invariance = use_scale_invariance
 
         self.add_state(
             "psnr_sum",
@@ -228,100 +270,13 @@ class SampleSIPSNR(Metric):
         data_range = batch_max - batch_min + self.eps
 
         # normalize range of gt and prediction
-        tar_rescaled, pred_rescaled = _normalise_range(target, preds)
+        if self.use_scale_invariance:
+            tar_rescaled, pred_rescaled = _normalise_range(target, preds)
+        else:
+            tar_rescaled, pred_rescaled = target, preds
 
         # compute mse
         mse = torch.mean((tar_rescaled - pred_rescaled) ** 2 + self.eps, dim=dims)
-
-        # update states
-        self.psnr_sum: torch.Tensor = self.psnr_sum + torch.sum(
-            10 * torch.log10(data_range**2 / mse), dim=0
-        )
-        self.total: torch.Tensor = self.total + batch_size
-
-    def compute(self) -> Tensor:
-        """Compute the final metric value.
-
-        Returns
-        -------
-        torch.Tensor
-            Tensor of length C containing the computed PSNR for each channel.
-        """
-        return self.psnr_sum / self.total
-
-
-class SamplePSNR(Metric):
-    """PSNR metric with per-sample data range.
-
-    PSNR requires a user defined data range. This metric uses min and max of the
-    patches to compute the data range. Equivalent to running
-    `torchmetrics.image.PeakSignalNoiseRatio`, with `data_range` equal to the difference
-    between each patch's max and min, on each patch individually.
-
-    As opposed to `torchmetrics.image.PeakSignalNoiseRatio`, this implementation is
-    compatible with 3D and multi-channel images.
-
-    Parameters
-    ----------
-    n_channels : int
-        Number of channels in the input images.
-    **kwargs : Any
-        Additional keyword arguments passed to the parent Metric class.
-
-    Attributes
-    ----------
-    psnr_sum : Tensor
-        Sum of PSNR values for each channel.
-    total : Tensor
-        Total number of samples processed.
-    """
-
-    def __init__(self, n_channels: int, **kwargs: Any):
-        """Initialize PSNR metric.
-
-        Parameters
-        ----------
-        n_channels : int
-            Number of channels in the input images.
-        **kwargs : Any
-            Additional keyword arguments passed to the parent Metric class.
-        """
-        super().__init__(**kwargs)
-
-        self.eps = torch.finfo(torch.float32).eps
-
-        self.add_state(
-            "psnr_sum",
-            default=tensor([0.0 for _ in range(n_channels)]),
-            dist_reduce_fx="sum",
-        )
-        self.add_state(
-            "total",
-            default=tensor([0.0 for _ in range(n_channels)]),
-            dist_reduce_fx="sum",
-        )
-
-    def update(self, preds: Tensor, target: Tensor) -> None:
-        """Update the metric states with values computed from a new batch.
-
-        Parameters
-        ----------
-        preds : Tensor
-            Predicted images tensor of shape (B, C, (Z), Y, X).
-        target : Tensor
-            Ground truth images tensor of shape (B, C, (Z), Y, X).
-        """
-        batch_size = target.shape[0]
-        shape = target.shape
-        dims = tuple(range(2, len(shape)))
-
-        # compute min/max of the batches and channels
-        batch_min = torch.amin(target, dim=dims)
-        batch_max = torch.amax(target, dim=dims)
-        data_range = batch_max - batch_min + self.eps
-
-        # compute mse
-        mse = torch.mean((target - preds) ** 2 + self.eps, dim=dims)
 
         # update states
         self.psnr_sum: torch.Tensor = self.psnr_sum + torch.sum(
