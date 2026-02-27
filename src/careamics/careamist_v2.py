@@ -4,7 +4,6 @@ from typing import (
     Any,
     Literal,
     TypedDict,
-    Union,
     Unpack,
 )
 
@@ -19,8 +18,7 @@ from .config.utils.configuration_io import load_configuration_ng
 from .config.ng_configs import N2VConfiguration
 from .config.support import SupportedData, SupportedLogger
 from .dataset.dataset_utils import reshape_array
-from .file_io import ReadFunc, WriteFunc
-from .file_io import WriteFunc, get_write_func
+from .file_io import ReadFunc, WriteFunc, get_write_func
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.data_module import CareamicsDataModule
@@ -30,11 +28,10 @@ from .lightning.dataset_ng.lightning_modules import (
     load_module_from_checkpoint,
 )
 from .lightning.dataset_ng.prediction import convert_prediction
-from careamics.dataset_ng.dataset import ImageRegionData
-from .model_io import export_to_bmz
 from .model_io import export_to_bmz
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
+from .dataset_ng.dataset import ImageRegionData
 
 logger = get_logger(__name__)
 
