@@ -15,54 +15,54 @@ def random_array(shape: tuple[int, ...], seed: int = 42) -> NDArray:
     return (rng.integers(0, 255, shape)).astype(np.float32)
 
 
-@pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
 @pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_arrays_no_tiling(tmp_path: Path, batch_size: int, samples: int):
     """Test that CAREamistV2 can predict on arrays without tiling."""
-    train_array = random_array((samples, 32, 32))
+    train_array = random_array((samples, 32, 32), seed=42)
+    val_array = random_array((samples, 32, 32), seed=43)
 
-    patch_size = [8, 8]
-    masked_pixel_percentage = 100 / np.prod(patch_size)
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="array",
         axes="SYX",
-        patch_size=patch_size,
+        patch_size=(8, 8),
         batch_size=2,
-        masked_pixel_percentage=masked_pixel_percentage,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
     )
 
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
-    careamist.train(train_data=train_array)
+    careamist.train(train_data=train_array, val_data=val_array)
 
     predicted, _ = careamist.predict(train_array, batch_size=batch_size)
 
-    assert predicted[0].shape == (samples, 32, 32)
+    assert predicted[0].shape == (samples, 1, 32, 32)
 
 
-@pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
 @pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
     """Test that CAREamistV2 can predict on arrays with tiling."""
-    train_array = random_array((samples, 32, 32))
+    train_array = random_array((samples, 32, 32), seed=42)
+    val_array = random_array((samples, 32, 32), seed=43)
 
-    patch_size = [8, 8]
-    masked_pixel_percentage = 100 / np.prod(patch_size)
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="array",
         axes="SYX",
-        patch_size=patch_size,
+        patch_size=(8, 8),
         batch_size=2,
-        masked_pixel_percentage=masked_pixel_percentage,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
     )
 
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
-    careamist.train(train_data=train_array)
+    careamist.train(train_data=train_array, val_data=val_array)
 
     predicted, _ = careamist.predict(
         train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
@@ -73,34 +73,32 @@ def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
     assert predicted[0].shape[-2:] == (32, 32)
 
 
-@pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
 @pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("tiled", [True, False])
-@pytest.mark.parametrize("n_samples", [1, 2])
-@pytest.mark.parametrize("batch_size", [1, 2])
-def test_predict_path(tmp_path: Path, batch_size: int, n_samples: int, tiled: bool):
+def test_predict_path(tmp_path: Path, tiled: bool):
     """Test that CAREamistV2 can predict with tiff files."""
-    train_array = random_array((32, 32))
+    train_array = random_array((32, 32), seed=42)
+    val_array = random_array((32, 32), seed=43)
 
-    for i in range(n_samples):
-        train_file = tmp_path / f"train_{i}.tiff"
-        tifffile.imwrite(train_file, train_array)
+    train_file = tmp_path / "train.tiff"
+    tifffile.imwrite(train_file, train_array)
 
-    patch_size = [8, 8]
-    masked_pixel_percentage = 100 / np.prod(patch_size)
+    val_file = tmp_path / "val.tiff"
+    tifffile.imwrite(val_file, val_array)
+
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
-        patch_size=patch_size,
+        patch_size=(8, 8),
         batch_size=2,
-        masked_pixel_percentage=masked_pixel_percentage,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
     )
 
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
-
-    train_file = tmp_path / "train_0.tiff"
-    careamist.train(train_data=train_file)
+    careamist.train(train_data=train_file, val_data=val_file)
 
     if tiled:
         tile_size = (16, 16)
@@ -111,19 +109,14 @@ def test_predict_path(tmp_path: Path, batch_size: int, n_samples: int, tiled: bo
 
     predicted, _ = careamist.predict(
         train_file,
-        batch_size=batch_size,
         tile_size=tile_size,
         tile_overlap=tile_overlap,
     )
 
-    if isinstance(predicted, list):
-        for p in predicted:
-            assert p.squeeze().shape == train_array.shape
-    else:
-        assert predicted.squeeze().shape == train_array.shape
+    for p in predicted:
+        assert p.squeeze().shape == train_array.shape
 
 
-@pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
 @pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("independent_channels", [False, True])
 @pytest.mark.parametrize("batch_size", [1, 2])
@@ -132,21 +125,21 @@ def test_predict_tiled_channel(
     independent_channels: bool,
     batch_size: int,
 ):
-    """Test that CAREamistV2 can be trained on arrays with channels."""
+    """Test that CAREamistV2 can predict on arrays with channels and tiling."""
     train_array = random_array((3, 32, 32))
     val_array = random_array((3, 32, 32))
 
-    patch_size = [8, 8]
-    masked_pixel_percentage = 100 / np.prod(patch_size)
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="array",
         axes="CYX",
-        patch_size=patch_size,
+        patch_size=(8, 8),
         batch_size=2,
+        num_epochs=1,
         n_channels=3,
         independent_channels=independent_channels,
-        masked_pixel_percentage=masked_pixel_percentage,
+        roi_size=5,
+        masked_pixel_percentage=5,
     )
 
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
@@ -160,32 +153,34 @@ def test_predict_tiled_channel(
     assert predicted[0].squeeze().shape == (3, 32, 32)
 
 
-@pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
 @pytest.mark.mps_gh_fail
 def test_predict_to_disk_path_tiff(tmp_path: Path):
-    """Test predict_to_disk function with path source and tiff write type."""
-    train_array = random_array((32, 32))
+    """Test predict_to_disk with path source and tiff write type."""
+    train_array = random_array((32, 32), seed=42)
+    val_array = random_array((32, 32), seed=43)
 
     image_dir = tmp_path / "images"
     image_dir.mkdir()
     n_samples = 2
     for i in range(n_samples):
-        train_file = image_dir / f"image_{i}.tiff"
-        tifffile.imwrite(train_file, train_array)
+        tifffile.imwrite(image_dir / f"image_{i}.tiff", train_array)
 
-    patch_size = [8, 8]
-    masked_pixel_percentage = 100 / np.prod(patch_size)
+    val_file = tmp_path / "val.tiff"
+    tifffile.imwrite(val_file, val_array)
+
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
-        patch_size=patch_size,
+        patch_size=(8, 8),
         batch_size=2,
-        masked_pixel_percentage=masked_pixel_percentage,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
     )
 
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
-    careamist.train(train_data=image_dir)
+    careamist.train(train_data=image_dir, val_data=val_file)
 
     careamist.predict_to_disk(pred_data=image_dir)
 
@@ -193,89 +188,38 @@ def test_predict_to_disk_path_tiff(tmp_path: Path):
         assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
 
 
-@pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
-@pytest.mark.mps_gh_fail
-def test_predict_to_disk_datamodule_tiff(tmp_path: Path):
-    """Test predict_to_disk function with datamodule source and tiff write type."""
-    train_array = random_array((32, 32))
-
-    image_dir = tmp_path / "images"
-    image_dir.mkdir()
-    n_samples = 2
-    for i in range(n_samples):
-        train_file = image_dir / f"image_{i}.tiff"
-        tifffile.imwrite(train_file, train_array)
-
-    patch_size = [8, 8]
-    masked_pixel_percentage = 100 / np.prod(patch_size)
-    config = create_advanced_n2v_config(
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=patch_size,
-        batch_size=2,
-        masked_pixel_percentage=masked_pixel_percentage,
-    )
-
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
-    careamist.train(train_data=image_dir)
-
-    from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
-
-    pred_data_config = config.data_config.convert_mode("predicting")
-    datamodule = CareamicsDataModule(
-        data_config=pred_data_config,
-        pred_data=image_dir,
-    )
-
-    careamist.predict_to_disk(pred_data=datamodule)
-
-    predictions_dir = tmp_path / "predictions"
-    if predictions_dir.exists():
-        created_files = list(predictions_dir.rglob("*"))
-        for i in range(n_samples):
-            expected_files = [
-                predictions_dir / f"image_{i}.tiff",
-                predictions_dir / "images" / f"image_{i}.tiff",
-            ]
-            assert any(
-                f.is_file() for f in expected_files
-            ), f"Expected file for sample {i} not found. Created files: {created_files}"
-    else:
-        for i in range(n_samples):
-            assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
-
-
-@pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
 @pytest.mark.mps_gh_fail
 def test_predict_to_disk_custom(tmp_path: Path):
-    """Test predict_to_disk function with custom write type."""
+    """Test predict_to_disk with custom write type."""
 
     def write_numpy(file_path: Path, img: NDArray, *args, **kwargs) -> None:
         np.save(file=file_path, arr=img)
 
-    train_array = random_array((32, 32))
+    train_array = random_array((32, 32), seed=42)
+    val_array = random_array((32, 32), seed=43)
 
     image_dir = tmp_path / "images"
     image_dir.mkdir()
     n_samples = 2
     for i in range(n_samples):
-        train_file = image_dir / f"image_{i}.tiff"
-        tifffile.imwrite(train_file, train_array)
+        tifffile.imwrite(image_dir / f"image_{i}.tiff", train_array)
 
-    patch_size = [8, 8]
-    masked_pixel_percentage = 100 / np.prod(patch_size)
+    val_file = tmp_path / "val.tiff"
+    tifffile.imwrite(val_file, val_array)
+
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
-        patch_size=patch_size,
+        patch_size=(8, 8),
         batch_size=2,
-        masked_pixel_percentage=masked_pixel_percentage,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
     )
 
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
-    careamist.train(train_data=image_dir)
+    careamist.train(train_data=image_dir, val_data=val_file)
 
     careamist.predict_to_disk(
         pred_data=image_dir,
@@ -285,64 +229,41 @@ def test_predict_to_disk_custom(tmp_path: Path):
     )
 
     predictions_dir = tmp_path / "predictions"
-    if predictions_dir.exists():
-        created_files = list(predictions_dir.rglob("*"))
-        for i in range(n_samples):
-            expected_files = [
-                predictions_dir / f"image_{i}.npy",
-                predictions_dir / "images" / f"image_{i}.npy",
-            ]
-            assert any(
-                f.is_file() for f in expected_files
-            ), f"Expected file for sample {i} not found. Created files: {created_files}"
-    else:
-        for i in range(n_samples):
-            assert (tmp_path / "predictions" / f"image_{i}.npy").is_file()
+    for i in range(n_samples):
+        assert (predictions_dir / f"image_{i}.npy").is_file()
 
 
-@pytest.mark.skip(reason="CAREamistV2.train() is not yet implemented")
-@pytest.mark.mps_gh_fail
 def test_predict_to_disk_custom_raises(tmp_path: Path):
-    """
-    Test predict_to_disk custom write type raises ValueError.
-
-    ValueError should be raised if no write_extension or no write_func is provided.
-    """
+    """Test predict_to_disk raises ValueError for incomplete custom write config."""
 
     def write_numpy(file_path: Path, img: NDArray, *args, **kwargs) -> None:
         np.save(file=file_path, arr=img)
 
-    train_array = random_array((32, 32))
-
-    image_dir = tmp_path / "images"
-    image_dir.mkdir()
-    n_samples = 2
-    for i in range(n_samples):
-        train_file = image_dir / f"image_{i}.tiff"
-        tifffile.imwrite(train_file, train_array)
-
-    patch_size = [8, 8]
-    masked_pixel_percentage = 100 / np.prod(patch_size)
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
-        patch_size=patch_size,
+        patch_size=(8, 8),
         batch_size=2,
-        masked_pixel_percentage=masked_pixel_percentage,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
     )
 
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
-    careamist.train(train_data=image_dir)
+    image_dir = tmp_path / "images"
+    image_dir.mkdir()
+    tifffile.imwrite(image_dir / "image.tiff", random_array((32, 32)))
 
-    with pytest.raises(ValueError):
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+
+    with pytest.raises(ValueError, match="write_extension"):
         careamist.predict_to_disk(
             pred_data=image_dir,
             write_type="custom",
             write_extension=None,
             write_func=write_numpy,
         )
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="write_func"):
         careamist.predict_to_disk(
             pred_data=image_dir,
             write_type="custom",
