@@ -19,7 +19,8 @@ careamist = CAREamist(config)
 # %%
 # --8<-- [start:config_path]
 from careamics import CAREamist
-from careamics.config import create_n2v_configuration, save_configuration
+from careamics.config import create_n2v_configuration
+from careamics.config.utils.configuration_io import save_configuration
 
 config = create_n2v_configuration(
     experiment_name="n2v_2D",

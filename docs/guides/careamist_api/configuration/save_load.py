@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # %%
 # --8<-- [start:save]
-from careamics import save_configuration
+from careamics.config.utils.configuration_io import save_configuration
 from careamics.config import create_n2v_configuration
 
 config = create_n2v_configuration(
@@ -17,7 +17,7 @@ save_configuration(config, "config.yml")
 
 # %%
 # --8<-- [start:load]
-from careamics import load_configuration
+from careamics.config.utils.configuration_io import load_configuration
 
 config = load_configuration("config.yml")
 # --8<-- [end:load]
