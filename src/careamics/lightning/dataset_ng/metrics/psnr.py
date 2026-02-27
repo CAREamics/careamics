@@ -158,6 +158,12 @@ class SIPSNR(Metric):
         # compute min/max of the batches and channels
         batch_min = torch.amin(target, dim=(0,) + dims)
         batch_max = torch.amax(target, dim=(0,) + dims)
+        # implementation note: in the original function (`scale_invariant_psnr`), the
+        # `data_range` is divided by `np.std(gt)`. This mathematically cancels out with
+        # the scaling applied directly to `gt` (`_zero_mean(gt) / np.std(gt)`). Here,
+        # we compute a global data range but still consider that the same scaling
+        # factor is applied to the data range and `gt` (either the sample std, or
+        # a global one), so that they cancel out.
 
         # fix range of gt and prediction
         if self.use_scale_invariance:
@@ -268,6 +274,9 @@ class SampleSIPSNR(Metric):
         batch_min = torch.amin(target, dim=dims)
         batch_max = torch.amax(target, dim=dims)
         data_range = batch_max - batch_min + self.eps
+        # implementation note: in the original function (`scale_invariant_psnr`), the
+        # `data_range` is divided by `np.std(gt)`. This mathematically cancels out with
+        # the scaling applied directly to `gt` (`_zero_mean(gt) / np.std(gt)`).
 
         # normalize range of gt and prediction
         if self.use_scale_invariance:
