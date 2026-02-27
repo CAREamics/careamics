@@ -17,7 +17,7 @@ from torchmetrics import Metric
 # TODO add plot function? see torchmetrics docs
 
 
-def normalise_range(gt: Tensor, pred: Tensor) -> tuple[Tensor, Tensor]:
+def _normalise_range(gt: Tensor, pred: Tensor) -> tuple[Tensor, Tensor]:
     """Normalize the range of ground truth and prediction tensors.
 
     Parameters
@@ -58,7 +58,7 @@ def normalise_range(gt: Tensor, pred: Tensor) -> tuple[Tensor, Tensor]:
     return gt_rescaled, pred_rescaled
 
 
-class GlobSIPSNR(Metric):
+class GlobalSIPSNR(Metric):
     """Scale Invariant PSNR metric with global data range.
 
     Adapted from juglab/ScaleInvPSNR, this version of PSNR rescales the predictions and
@@ -85,7 +85,7 @@ class GlobSIPSNR(Metric):
     """
 
     def __init__(self, n_channels: int, **kwargs: Any):
-        """Initialize the scale invariant PSNR metric.
+        """Initialize a global scale invariant PSNR metric.
 
         Parameters
         ----------
@@ -138,7 +138,7 @@ class GlobSIPSNR(Metric):
         batch_max = torch.amax(target, dim=(0,) + dims)
 
         # fix range of gt and prediction
-        tar_rescaled, pred_rescaled = normalise_range(target, preds)
+        tar_rescaled, pred_rescaled = _normalise_range(target, preds)
 
         # compute mse
         mse = torch.mean((tar_rescaled - pred_rescaled) ** 2 + self.eps, dim=dims)
@@ -146,10 +146,10 @@ class GlobSIPSNR(Metric):
         # update states
         self.glob_max: torch.Tensor = torch.maximum(self.glob_max, batch_max)
         self.glob_min: torch.Tensor = torch.minimum(self.glob_min, batch_min)
-        self.mse_log += torch.log10(mse).sum(dim=0)
-        self.total += batch_size
+        self.mse_log: torch.Tensor = self.mse_log + torch.log10(mse).sum(dim=0)
+        self.total: torch.Tensor = self.total + batch_size
 
-    def compute(self) -> Tensor | dict[str, Tensor]:
+    def compute(self) -> Tensor:
         """Compute the final metric value.
 
         Returns
@@ -161,8 +161,8 @@ class GlobSIPSNR(Metric):
         return 10 * (torch.log10(glob_data_range**2) - self.mse_log / self.total)
 
 
-class LocalSIPSNR(Metric):
-    """Scale Invariant PSNR metric with local data range.
+class SampleSIPSNR(Metric):
+    """Scale Invariant PSNR metric with per-sample data range.
 
     Adapted from juglab/ScaleInvPSNR, this version of PSNR rescales the predictions and
     ground truth to have similar range, then computes the PSNR using each patch's data
@@ -184,7 +184,7 @@ class LocalSIPSNR(Metric):
     """
 
     def __init__(self, n_channels: int, **kwargs: Any):
-        """Initialize the scale invariant PSNR metric.
+        """Initialize a per-sample scale invariant PSNR metric.
 
         Parameters
         ----------
@@ -228,7 +228,7 @@ class LocalSIPSNR(Metric):
         data_range = batch_max - batch_min + self.eps
 
         # normalize range of gt and prediction
-        tar_rescaled, pred_rescaled = normalise_range(target, preds)
+        tar_rescaled, pred_rescaled = _normalise_range(target, preds)
 
         # compute mse
         mse = torch.mean((tar_rescaled - pred_rescaled) ** 2 + self.eps, dim=dims)
@@ -239,7 +239,7 @@ class LocalSIPSNR(Metric):
         )
         self.total: torch.Tensor = self.total + batch_size
 
-    def compute(self) -> Tensor | dict[str, Tensor]:
+    def compute(self) -> Tensor:
         """Compute the final metric value.
 
         Returns
@@ -250,12 +250,12 @@ class LocalSIPSNR(Metric):
         return self.psnr_sum / self.total
 
 
-class RangelessPSNR(Metric):
-    """PSNR metric with local data range.
+class SamplePSNR(Metric):
+    """PSNR metric with per-sample data range.
 
-    PSNR often requires a user defined data range. This metric uses min and max of the
-    batches to compute the data range. Equivalent to running
-    `torchmetrics.image.PeakSignalNoiseRatio`, with `data_range` being the difference
+    PSNR requires a user defined data range. This metric uses min and max of the
+    patches to compute the data range. Equivalent to running
+    `torchmetrics.image.PeakSignalNoiseRatio`, with `data_range` equal to the difference
     between each patch's max and min, on each patch individually.
 
     As opposed to `torchmetrics.image.PeakSignalNoiseRatio`, this implementation is
@@ -277,7 +277,7 @@ class RangelessPSNR(Metric):
     """
 
     def __init__(self, n_channels: int, **kwargs: Any):
-        """Initialize the scale invariant PSNR metric.
+        """Initialize PSNR metric.
 
         Parameters
         ----------
@@ -329,7 +329,7 @@ class RangelessPSNR(Metric):
         )
         self.total: torch.Tensor = self.total + batch_size
 
-    def compute(self) -> Tensor | dict[str, Tensor]:
+    def compute(self) -> Tensor:
         """Compute the final metric value.
 
         Returns

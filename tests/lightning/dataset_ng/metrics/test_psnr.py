@@ -6,11 +6,11 @@ from torchmetrics import MetricCollection
 from torchmetrics.image import PeakSignalNoiseRatio
 
 from careamics.lightning.dataset_ng.metrics import (
-    GlobSIPSNR,
-    LocalSIPSNR,
-    RangelessPSNR,
+    GlobalSIPSNR,
+    SamplePSNR,
+    SampleSIPSNR,
 )
-from careamics.lightning.dataset_ng.metrics.psnr import normalise_range
+from careamics.lightning.dataset_ng.metrics.psnr import _normalise_range
 from careamics.utils.metrics import scale_invariant_psnr
 
 
@@ -55,13 +55,13 @@ def test_fix_range_batch_independence(shape):
     gts, preds = create_toy_data(shape)
 
     # pass the whole batch
-    gts_fixed, preds_fixed = normalise_range(gts, preds)
+    gts_fixed, preds_fixed = _normalise_range(gts, preds)
 
     # individual images
     for i in range(shape[0]):
 
         # keep singleton dim
-        gt_fixed, pred_fixed = normalise_range(gts[[i]], preds[[i]])
+        gt_fixed, pred_fixed = _normalise_range(gts[[i]], preds[[i]])
 
         np.testing.assert_almost_equal(
             gt_fixed.numpy(), gts_fixed[[i]].numpy(), decimal=4
@@ -72,7 +72,7 @@ def test_fix_range_batch_independence(shape):
 
     # error raised when not enough dimensions
     with pytest.raises(ValueError):
-        normalise_range(gts[0], preds[0])
+        _normalise_range(gts[0], preds[0])
 
 
 @pytest.mark.parametrize(
@@ -115,7 +115,7 @@ def test_glob_sipsnr(shape, batch_size):
 
     # expected value from skimage
     # for this we need to use the range adjusted images and the global data range
-    gts_fixed, preds_fixed = normalise_range(gts, preds)
+    gts_fixed, preds_fixed = _normalise_range(gts, preds)
 
     dims = tuple(range(2, len(shape)))
     gts_max = torch.amax(gts, dim=(0,) + dims)
@@ -138,7 +138,7 @@ def test_glob_sipsnr(shape, batch_size):
     )
 
     # compute metrics over batches
-    metrics = GlobSIPSNR(n_channels=shape[1])
+    metrics = GlobalSIPSNR(n_channels=shape[1])
     for gt_batch, pred_batch in batches:
         metrics.update(pred_batch, gt_batch)
 
@@ -189,7 +189,7 @@ def test_loc_sipsnr(shape, batch_size):
 
     # expected value from skimage
     # for this we need to use the range adjusted images and the local data ranges
-    gts_fixed, preds_fixed = normalise_range(gts, preds)
+    gts_fixed, preds_fixed = _normalise_range(gts, preds)
 
     dims = tuple(range(2, len(shape)))
     gts_max = torch.amax(gts, dim=dims)  # min/max along spatial dims
@@ -225,7 +225,7 @@ def test_loc_sipsnr(shape, batch_size):
     )
 
     # compute metrics over batches
-    metrics = LocalSIPSNR(n_channels=shape[1])
+    metrics = SampleSIPSNR(n_channels=shape[1])
     for gt_batch, pred_batch in batches:
         metrics.update(pred_batch, gt_batch)
 
@@ -294,7 +294,7 @@ def test_rangeless_psnr(shape, batch_size):
     )
 
     # compute metrics over batches
-    metrics = RangelessPSNR(n_channels=shape[1])
+    metrics = SamplePSNR(n_channels=shape[1])
     for gt_batch, pred_batch in batches:
         metrics.update(pred_batch, gt_batch)
 
@@ -318,9 +318,9 @@ def test_torchmetrics_collection():
     """Test that the PSNR metrics can be used in a torchmetrics MetricCollection."""
     metrics = MetricCollection(
         {
-            "glob_sipsnr": GlobSIPSNR(n_channels=3),
-            "loc_sipsnr": LocalSIPSNR(n_channels=3),
-            "rangeless_psnr": RangelessPSNR(n_channels=3),
+            "glob_sipsnr": GlobalSIPSNR(n_channels=3),
+            "loc_sipsnr": SampleSIPSNR(n_channels=3),
+            "rangeless_psnr": SamplePSNR(n_channels=3),
         }
     )
 

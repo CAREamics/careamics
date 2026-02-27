@@ -1,5 +1,5 @@
 """NG-compatible metrics."""
 
-__all__ = ["GlobSIPSNR", "LocalSIPSNR", "RangelessPSNR"]
+__all__ = ["GlobalSIPSNR", "SamplePSNR", "SampleSIPSNR"]
 
-from .psnr import GlobSIPSNR, LocalSIPSNR, RangelessPSNR
+from .psnr import GlobalSIPSNR, SamplePSNR, SampleSIPSNR
