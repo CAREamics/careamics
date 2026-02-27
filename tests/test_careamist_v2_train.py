@@ -3,13 +3,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 import tifffile
+from numpy.typing import NDArray
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from careamics.careamist_v2 import CAREamistV2
-from careamics.config.ng_factories.n2v_factory import create_advanced_n2v_config
+from careamics.config.ng_factories import create_advanced_n2v_config
 
 
-def random_array(shape: tuple[int, ...], seed: int = 42):
+def random_array(shape: tuple[int, ...], seed: int = 42) -> NDArray:
     """Return a random array with values between 0 and 255."""
     rng = np.random.default_rng(seed)
     return (rng.integers(0, 255, shape)).astype(np.float32)
