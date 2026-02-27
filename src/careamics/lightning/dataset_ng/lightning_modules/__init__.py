@@ -5,7 +5,6 @@ from .get_module import (
     CAREamicsModule,
     create_module,
     get_module_cls,
-    load_module_from_checkpoint,
 )
 from .n2v_module import N2VModule
 
@@ -15,5 +14,4 @@ __all__ = [
     "N2VModule",
     "create_module",
     "get_module_cls",
-    "load_module_from_checkpoint",
 ]
