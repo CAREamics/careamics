@@ -6,7 +6,6 @@ from typing import (
     TypedDict,
     Union,
     Unpack,
-    overload,
 )
 
 import numpy as np
@@ -31,6 +30,7 @@ from .lightning.dataset_ng.lightning_modules import (
     load_module_from_checkpoint,
 )
 from .lightning.dataset_ng.prediction import convert_prediction
+from careamics.dataset_ng.dataset import ImageRegionData
 from .model_io import export_to_bmz
 from .model_io import export_to_bmz
 from .utils import get_logger
@@ -51,6 +51,7 @@ class UserContext(TypedDict, total=False):
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
+
 
 class CAREamistV2:
     def __init__(
@@ -283,32 +284,30 @@ class CAREamistV2:
 
         Parameters
         ----------
-        train_data : numpy.ndarray, str, pathlib.Path, or sequence of these, optional
+        train_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Training data, by default None.
-        train_data_target : numpy.ndarray, str, pathlib.Path, or sequence of these, optional
+        train_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Training target data, by default None.
-        val_data : numpy.ndarray, str, pathlib.Path, or sequence of these, optional
+        val_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Validation data, by default None.
-        val_data_target : numpy.ndarray, str, pathlib.Path, or sequence of these, optional
+        val_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Validation target data, by default None.
-        filtering_mask : InputType, optional
+        filtering_mask : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Filtering mask for coordinate-based patch filtering, by default None.
         read_source_func : ReadFunc, optional
-            Function to read the source data, by default None.
-        read_kwargs : dict[str, Any], optional
-            Keyword arguments for the read function, by default None.
-        extension_filter : str, optional
-            Filter for file extensions, by default "".
+            Function to read the source data.
+        read_kwargs : dict of {str: Any}, optional
+            Additional keyword arguments to be passed to the read function.
+        extension_filter : str, default=""
+            Filter for the file extension.
 
         Raises
         ------
         ValueError
-            If neither train_data is not provided.
+            If train_data is not provided.
         """
         if train_data is None:
-            raise ValueError(
-                "Training data must be provided. Provide `train_data`."
-            )
+            raise ValueError("Training data must be provided. Provide `train_data`.")
 
         datamodule = CareamicsDataModule(  # type: ignore[misc]
             data_config=self.config.data_config,
@@ -327,66 +326,75 @@ class CAREamistV2:
         self.trainer.should_stop = False
         self.trainer.limit_val_batches = 1.0
 
-        self.trainer.fit(self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path)
+        self.trainer.fit(
+            self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
+        )
 
-    @overload
-    def predict(self, pred_data: CareamicsDataModule) -> list[NDArray]: ...
-
-    @overload
-    def predict(
+    def _build_predict_datamodule(
         self,
-        pred_data: Union[Path, str, Sequence[Union[Path, str]]],
+        pred_data: InputType,
         *,
-        batch_size: int = 1,
+        pred_data_target: InputType | None = None,
+        batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["tiff", "zarr", "custom"] | None = None,
-        read_source_func: Callable | None = None,
+        data_type: SupportedData | None = None,
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        read_source_func: ReadFunc | None = None,
+        read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-    ) -> list[NDArray]: ...
+    ) -> CareamicsDataModule:
+        dataloader_params: dict[str, Any] | None = None
+        if num_workers is not None:
+            dataloader_params = {"num_workers": num_workers}
 
-    @overload
-    def predict(
-        self,
-        pred_data: Union[NDArray, Sequence[NDArray]],
-        *,
-        batch_size: int = 1,
-        tile_size: tuple[int, ...] | None = None,
-        tile_overlap: tuple[int, ...] | None = (48, 48),
-        axes: str | None = None,
-        data_type: Literal["array"] | None = None,
-    ) -> list[NDArray]: ...
+        pred_data_config = self.config.data_config.convert_mode(
+            new_mode="predicting",
+            new_patch_size=tile_size,
+            overlap_size=tile_overlap,
+            new_batch_size=batch_size,
+            new_data_type=data_type,
+            new_dataloader_params=dataloader_params,
+            new_axes=axes,
+            new_channels=channels,
+            new_in_memory=in_memory,
+        )
+
+        return CareamicsDataModule(  # type: ignore[misc]
+            data_config=pred_data_config,
+            pred_data=pred_data,
+            pred_data_target=pred_data_target,
+            read_source_func=read_source_func,  # type: ignore[arg-type]
+            read_kwargs=read_kwargs,
+            extension_filter=extension_filter,
+        )
 
     def predict(
         self,
         # BASIC PARAMS
-        pred_data: (
-            CareamicsDataModule
-            | Path
-            | str
-            | NDArray
-            | Sequence[Union[Path, str, NDArray]]
-        ),
+        pred_data: InputType,
         *,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "custom"] | None = None,
+        data_type: SupportedData | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
-        read_source_func: Callable | None = None,
+        read_source_func: ReadFunc | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-    ) -> list[NDArray]:
+    ) -> tuple[list[NDArray], list[str]]:
         """
-        Predict on data and returns the prediction.
+        Predict on data and return the predictions.
 
-        Input can be a CareamicsDataModule instance, a path to a data file, a list of
-        paths, a numpy array, or a list of numpy arrays.
+        Input can be a path to a data file, a list of paths, a numpy array, or a
+        list of numpy arrays.
 
         If `data_type` and `axes` are not provided, the training configuration
         parameters will be used. If `tile_size` is not provided, prediction will
@@ -400,7 +408,7 @@ class CAREamistV2:
 
         Parameters
         ----------
-        pred_data : CareamicsDataModule, pathlib.Path, str, numpy.ndarray, or sequence
+        pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
             Data to predict on. Can be a single item or a sequence of paths/arrays.
         batch_size : int, optional
             Batch size for prediction. If not provided, uses the training configuration
@@ -412,7 +420,7 @@ class CAREamistV2:
             Overlap between tiles, can be None.
         axes : str, optional
             Axes of the input data, by default None.
-        data_type : {"array", "tiff", "zarr", "custom"}, optional
+        data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
         num_workers : int, optional
             Number of workers for the dataloader, by default None.
@@ -422,7 +430,7 @@ class CAREamistV2:
         in_memory : bool, optional
             Whether to load all data into memory. If None, uses the training
             configuration setting.
-        read_source_func : Callable, optional
+        read_source_func : ReadFunc, optional
             Function to read the source data.
         read_kwargs : dict of {str: Any}, optional
             Additional keyword arguments to be passed to the read function.
@@ -431,48 +439,32 @@ class CAREamistV2:
 
         Returns
         -------
-        list of NDArray
-            Predictions made by the model, one array per input sample.
+        tuple of (list of NDArray, list of str)
+            Predictions made by the model and their source identifiers.
 
         Raises
         ------
         ValueError
             If tile overlap is not specified when tile_size is provided.
         """
-        # If datamodule is provided directly, use it
-        if isinstance(pred_data, CareamicsDataModule):
-            datamodule = pred_data
-        else:
-            # Prepare dataloader params
-            dataloader_params: dict[str, Any] | None = None
-            if num_workers is not None:
-                dataloader_params = {"num_workers": num_workers}
-            # Create prediction data config using convert_mode
-            pred_data_config = self.config.data_config.convert_mode(
-                new_mode="predicting",
-                new_patch_size=tile_size,
-                overlap_size=tile_overlap,
-                new_batch_size=batch_size,
-                new_data_type=data_type,
-                new_dataloader_params=dataloader_params,
-                new_axes=axes,
-                new_channels=channels,
-                new_in_memory=in_memory,
-            )
+        datamodule = self._build_predict_datamodule(
+            pred_data,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            axes=axes,
+            data_type=data_type,
+            num_workers=num_workers,
+            channels=channels,
+            in_memory=in_memory,
+            read_source_func=read_source_func,
+            read_kwargs=read_kwargs,
+            extension_filter=extension_filter,
+        )
 
-            # Create datamodule for prediction
-            datamodule = CareamicsDataModule(
-                data_config=pred_data_config,
-                pred_data=pred_data,
-                read_source_func=read_source_func,
-                read_kwargs=read_kwargs,
-                extension_filter=extension_filter,
-            )
-
-        # Predict
-        predictions = self.trainer.predict(model=self.model, datamodule=datamodule)
-
-        # Convert predictions using convert_prediction
+        predictions: list[ImageRegionData] = self.trainer.predict(
+            model=self.model, datamodule=datamodule
+        )  # type: ignore[assignment]
         tiled = tile_size is not None
         predictions_output, sources = convert_prediction(predictions, tiled=tiled)
 
@@ -481,19 +473,20 @@ class CAREamistV2:
     def predict_to_disk(
         self,
         # BASIC PARAMS
-        pred_data: Any | None = None,
-        pred_data_target: Any | None = None,
+        pred_data: InputType,
+        *,
+        pred_data_target: InputType | None = None,
         prediction_dir: Path | str = "predictions",
-        batch_size: int = 1,
+        batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "custom"] | None = None,
+        data_type: SupportedData | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
-        read_source_func: Callable | None = None,
+        read_source_func: ReadFunc | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
         # WRITE OPTIONS
@@ -525,18 +518,18 @@ class CAREamistV2:
 
         Parameters
         ----------
-        pred_data : pathlib.Path, str, numpy.ndarray, sequence, or CareamicsDataModule
-            Data to predict on. Can be a single item, a sequence of paths/arrays, or
-            a CareamicsDataModule instance.
-        pred_data_target : Any, optional
+        pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
+            Data to predict on. Can be a single item or a sequence of paths/arrays.
+        pred_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Prediction data target, by default None.
         prediction_dir : Path | str, default="predictions"
             The path to save the prediction results to. If `prediction_dir` is an
             absolute path, it will be used as-is. If it is a relative path, it will
             be relative to the pre-set `work_dir`. If the directory does not exist it
             will be created.
-        batch_size : int, default=1
-            Batch size for prediction.
+        batch_size : int, optional
+            Batch size for prediction. If not provided, uses the training configuration
+            batch size.
         tile_size : tuple of int, optional
             Size of the tiles to use for prediction. If not provided, uses whole image
             strategy.
@@ -544,7 +537,7 @@ class CAREamistV2:
             Overlap between tiles.
         axes : str, optional
             Axes of the input data, by default None.
-        data_type : {"array", "tiff", "zarr", "custom"}, optional
+        data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
         num_workers : int, optional
             Number of workers for the dataloader, by default None.
@@ -554,7 +547,7 @@ class CAREamistV2:
         in_memory : bool, optional
             Whether to load all data into memory. If None, uses the training
             configuration setting.
-        read_source_func : Callable, optional
+        read_source_func : ReadFunc, optional
             Function to read the source data.
         read_kwargs : dict of {str: Any}, optional
             Additional keyword arguments to be passed to the read function.
@@ -577,12 +570,7 @@ class CAREamistV2:
             If `write_type` is custom and `write_extension` is None.
         ValueError
             If `write_type` is custom and `write_func` is None.
-        ValueError
-            If `pred_data` is not provided.
         """
-        if pred_data is None:
-            raise ValueError("pred_data must be provided for predict_to_disk.")
-
         if write_func_kwargs is None:
             write_func_kwargs = {}
 
@@ -590,11 +578,8 @@ class CAREamistV2:
             write_dir = Path(prediction_dir)
         else:
             write_dir = self.work_dir / prediction_dir
-
-        # Set up the prediction writer callback
         self.prediction_writer.dirpath = write_dir
 
-        # Guards for custom types
         if write_type == "custom":
             if write_extension is None:
                 raise ValueError(
@@ -608,7 +593,6 @@ class CAREamistV2:
             write_func = get_write_func(write_type)
             write_extension = SupportedData.get_extension(write_type)
 
-        # Set writing strategy
         tiled = tile_size is not None
         self.prediction_writer.set_writing_strategy(
             write_type=write_type,
@@ -618,49 +602,30 @@ class CAREamistV2:
             write_func_kwargs=write_func_kwargs,
         )
 
-        # Enable writing
         self.prediction_writer.enable_writing(True)
 
         try:
-            # Create datamodule if not already provided
-            if isinstance(pred_data, CareamicsDataModule):
-                datamodule = pred_data
-            else:
-                # Prepare dataloader params
-                dataloader_params: dict[str, Any] | None = None
-                if num_workers is not None:
-                    dataloader_params = {"num_workers": num_workers}
+            datamodule = self._build_predict_datamodule(
+                pred_data,
+                pred_data_target=pred_data_target,
+                batch_size=batch_size,
+                tile_size=tile_size,
+                tile_overlap=tile_overlap,
+                axes=axes,
+                data_type=data_type,
+                num_workers=num_workers,
+                channels=channels,
+                in_memory=in_memory,
+                read_source_func=read_source_func,
+                read_kwargs=read_kwargs,
+                extension_filter=extension_filter,
+            )
 
-                # Create prediction data config using convert_mode
-                pred_data_config = self.config.data_config.convert_mode(
-                    new_mode="predicting",
-                    new_patch_size=tile_size,
-                    overlap_size=tile_overlap,
-                    new_batch_size=batch_size,
-                    new_data_type=data_type,
-                    new_axes=axes,
-                    new_channels=channels,
-                    new_in_memory=in_memory,
-                    new_dataloader_params=dataloader_params,
-                )
-
-                # Create datamodule for prediction
-                datamodule = CareamicsDataModule(
-                    data_config=pred_data_config,
-                    pred_data=pred_data,
-                    pred_data_target=pred_data_target,
-                    read_source_func=read_source_func,
-                    read_kwargs=read_kwargs,
-                    extension_filter=extension_filter,
-                )
-
-            # Predict (writing will be handled by the callback)
             self.trainer.predict(
                 model=self.model, datamodule=datamodule, return_predictions=False
             )
 
         finally:
-            # Disable writing after prediction is complete
             self.prediction_writer.enable_writing(False)
 
     def export_to_bmz(
