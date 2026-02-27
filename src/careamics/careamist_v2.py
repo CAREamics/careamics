@@ -10,17 +10,21 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from .config.utils.configuration_io import load_configuration_ng
-from .config.ng_configs import N2VConfiguration
+
 from .config.support import SupportedData, SupportedLogger
 from .dataset.dataset_utils import reshape_array
-from .file_io import ReadFunc, WriteFunc
+from .file_io import WriteFunc, ReadFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
+from .lightning.dataset_ng.load import (
+    load_config_from_checkpoint,
+    load_module_from_checkpoint,
+    Configuration
+)
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.data_module import CareamicsDataModule
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
     create_module,
-    load_module_from_checkpoint,
 )
 from .model_io import export_to_bmz
 from .utils import get_logger
@@ -29,7 +33,6 @@ from .utils.lightning_utils import read_csv_logger
 logger = get_logger(__name__)
 
 ExperimentLogger = TensorBoardLogger | WandbLogger | CSVLogger
-Configuration = N2VConfiguration
 
 
 class UserContext(TypedDict, total=False):
@@ -41,6 +44,7 @@ class UserContext(TypedDict, total=False):
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
+
 
 class CAREamistV2:
     def __init__(
@@ -118,48 +122,7 @@ class CAREamistV2:
     def _from_checkpoint(
         checkpoint_path: Path,
     ) -> tuple[Configuration, CAREamicsModule]:
-        checkpoint: dict = torch.load(checkpoint_path, map_location="cpu")
-
-        careamics_info = checkpoint.get("careamics_info", None)
-        if careamics_info is None:
-            raise ValueError(
-                "Could not find CAREamics related information within the provided "
-                "checkpoint. This means that it was saved without using the "
-                "CAREamics callback `CareamicsCheckpointInfo`. "
-                "Please use a checkpoint saved with CAREamics or initialize with a "
-                "config instead."
-            )
-
-        try:
-            algorithm_config: dict[str, Any] = checkpoint["hyper_parameters"][
-                "algorithm_config"
-            ]
-        except (KeyError, IndexError) as e:
-            raise ValueError(
-                "Could not determine CAREamics supported algorithm from the provided "
-                f"checkpoint at: {checkpoint_path!s}."
-            ) from e
-
-        data_hparams_key = checkpoint.get(
-            "datamodule_hparams_name", "datamodule_hyper_parameters"
-        )
-        try:
-            data_config: dict[str, Any] = checkpoint[data_hparams_key]["data_config"]
-        except (KeyError, IndexError) as e:
-            raise ValueError(
-                "Could not determine the data configuration from the provided "
-                f"checkpoint at: {checkpoint_path!s}."
-            ) from e
-
-        # TODO: will need to resolve this with type adapter once more configs are added
-        config = Configuration.model_validate(
-            {
-                "algorithm_config": algorithm_config,
-                "data_config": data_config,
-                **careamics_info,
-            }
-        )
-
+        config = load_config_from_checkpoint(checkpoint_path)
         module = load_module_from_checkpoint(checkpoint_path)
         return config, module
 
@@ -187,7 +150,7 @@ class CAREamistV2:
         config: Configuration,
         work_dir: Path,
     ) -> list[Callback]:
-        callbacks = [] if callbacks is None else callbacks
+        callbacks: list[Callback] = [] if callbacks is None else callbacks
         for c in callbacks:
             if isinstance(c, (ModelCheckpoint, EarlyStopping)):
                 raise ValueError(
@@ -202,7 +165,7 @@ class CAREamistV2:
                     "internally and should not be passed as callbacks."
                 )
 
-        internal_callbacks = [
+        internal_callbacks: list[Callback] = [
             ModelCheckpoint(
                 dirpath=work_dir / "checkpoints",
                 filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
@@ -296,9 +259,7 @@ class CAREamistV2:
             If neither train_data is not provided.
         """
         if train_data is None:
-            raise ValueError(
-                "Training data must be provided. Provide `train_data`."
-            )
+            raise ValueError("Training data must be provided. Provide `train_data`.")
 
         datamodule = CareamicsDataModule(  # type: ignore[misc]
             data_config=self.config.data_config,
@@ -317,7 +278,9 @@ class CAREamistV2:
         self.trainer.should_stop = False
         self.trainer.limit_val_batches = 1.0
 
-        self.trainer.fit(self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path)
+        self.trainer.fit(
+            self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
+        )
 
     def predict(
         self,
