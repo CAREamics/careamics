@@ -13,7 +13,7 @@ from typing import Union
 from torch import Tensor as tensor
 
 from ..config.support import SupportedLoss
-from .fcn.losses import mae_loss, mse_loss, n2v_loss, pn2v_loss
+from .fcn.losses import mae_loss, mse_loss, n2v_loss, n2v_poisson_loss, pn2v_loss
 from .lvae.losses import (
     denoisplit_loss,
     denoisplit_musplit_loss,
@@ -54,6 +54,9 @@ def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
     """
     if loss == SupportedLoss.N2V:
         return n2v_loss
+
+    elif loss == SupportedLoss.N2V_POISSON:
+        return n2v_poisson_loss
 
     elif loss == SupportedLoss.PN2V:
         return pn2v_loss

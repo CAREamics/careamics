@@ -569,6 +569,21 @@ def test_n2v_configuration():
     assert isinstance(config.algorithm_config, N2VAlgorithm)
 
 
+@pytest.mark.parametrize("loss", ["n2v", "n2v_poisson"])
+def test_n2v_configuration_loss(loss):
+    """Test that N2V configuration can be created with different loss functions."""
+    config = create_n2v_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        loss=loss,
+    )
+    assert isinstance(config.algorithm_config, N2VAlgorithm)
+    assert config.algorithm_config.loss == loss
+
+
 def test_n2v_configuration_no_aug():
     """Test the default n2v transforms."""
     config = create_n2v_configuration(
