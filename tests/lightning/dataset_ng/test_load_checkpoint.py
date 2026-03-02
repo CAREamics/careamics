@@ -19,10 +19,3 @@ def test_load_config_from_checkpoint(
     checkpoint_path, _, expected_config = checkpoint
     config = load_config_from_checkpoint(checkpoint_path)
     assert config == expected_config
-
-    # assert config.algorithm_config == expected_config.algorithm_config
-    # assert config.data_config == expected_config.data_config
-    # if info_callback is not None:
-    #     assert config.experiment_name == info_callback.experiment_name
-    #     assert config.version == info_callback.careamics_version
-    #     assert config.training_config == info_callback.training_config
