@@ -39,7 +39,7 @@ def test_predict_arrays_no_tiling(tmp_path: Path, batch_size: int, samples: int)
 
     predicted, _ = careamist.predict(train_array, batch_size=batch_size)
 
-    assert predicted[0].shape == (samples, 1, 32, 32)
+    assert predicted[0].shape == (samples, 32, 32)
 
 
 @pytest.mark.mps_gh_fail
@@ -68,7 +68,7 @@ def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
         train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
     )
 
-    assert predicted[0].shape == (samples, 1, 32, 32)
+    assert predicted[0].shape == (samples, 32, 32)
 
 
 @pytest.mark.mps_gh_fail
