@@ -83,9 +83,8 @@ def load_config_from_checkpoint(
 
     # if careamics_info is not included (i.e. it was saved with the lightning API)
     # then version and training_config will be the default from the pydantic models.
-    checkpoint_name = checkpoint_path.stem
     careamics_info = checkpoint.get(
-        "careamics_info", {"experiment_name": f"loaded_from_{checkpoint_name}"}
+        "careamics_info", {"experiment_name": _create_loaded_exp_name(checkpoint_path)}
     )
 
     # --- alg config
@@ -121,3 +120,22 @@ def load_config_from_checkpoint(
         }
     )
     return config
+
+
+def _create_loaded_exp_name(checkpoint_path: Path):
+    """
+    Create an experiment name for when loading from a checkpoint.
+
+    This should only be used if a checkpoint does not have a saved experiment name.
+
+    Parameters
+    ----------
+    checkpoint_path : Path
+        Path to the PyTorch Lightning checkpoint file.
+
+    Returns
+    -------
+    str
+        The generated name will be `"loaded_from_<checkpoint_file_name>"`.
+    """
+    return f"loaded_from_{checkpoint_path.stem}"
