@@ -4,8 +4,10 @@ from pathlib import Path
 from typing import Any
 
 import torch
+from pydantic import TypeAdapter
 
-from careamics.config.ng_configs import N2VConfiguration
+from careamics.config.ng_configs import N2VConfiguration, NGConfiguration
+from careamics.config.ng_configs.ng_configuration import AlgorithmConfig
 from careamics.config.support import SupportedAlgorithm
 
 from .lightning_modules import CAREModule, N2VModule
@@ -13,7 +15,6 @@ from .lightning_modules.get_module import get_module_cls
 
 CAREamicsModuleCls = type[N2VModule] | type[CAREModule]
 CAREamicsModule = N2VModule | CAREModule
-Configuration = N2VConfiguration
 
 
 def load_module_from_checkpoint(checkpoint_path: Path) -> CAREamicsModule:
@@ -52,7 +53,9 @@ def load_module_from_checkpoint(checkpoint_path: Path) -> CAREamicsModule:
     return ModuleClass.load_from_checkpoint(checkpoint_path)
 
 
-def load_config_from_checkpoint(checkpoint_path: Path) -> Configuration:
+def load_config_from_checkpoint(
+    checkpoint_path: Path,
+) -> NGConfiguration[AlgorithmConfig]:
     """
     Load a CAREamics config from a checkpoint.
 
@@ -111,8 +114,12 @@ def load_config_from_checkpoint(checkpoint_path: Path) -> Configuration:
             f"checkpoint at: {checkpoint_path!s}."
         ) from e
 
-    # TODO: will need to resolve this with type adapter once more configs are added
-    config = Configuration.model_validate(
+    # NOTE: it is important for subclasses to appear first in the Union
+    # type adapter will check each class until one fits
+    type_adapter: TypeAdapter[NGConfiguration[AlgorithmConfig]] = TypeAdapter(
+        N2VConfiguration | NGConfiguration
+    )
+    config = type_adapter.validate_python(
         {
             "algorithm_config": algorithm_config,
             "data_config": data_config,

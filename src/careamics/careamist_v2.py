@@ -10,15 +10,15 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from .config.utils.configuration_io import load_configuration_ng
-
+from .config.ng_configs import NGConfiguration
+from .config.ng_configs.ng_configuration import AlgorithmConfig
 from .config.support import SupportedData, SupportedLogger
 from .dataset.dataset_utils import reshape_array
 from .file_io import WriteFunc, ReadFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
-from .lightning.dataset_ng.load import (
+from .lightning.dataset_ng.load_checkpoint import (
     load_config_from_checkpoint,
     load_module_from_checkpoint,
-    Configuration
 )
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.data_module import CareamicsDataModule
@@ -49,7 +49,7 @@ InputType = ArrayInput | PathInput
 class CAREamistV2:
     def __init__(
         self,
-        config: Configuration | Path | None = None,
+        config: NGConfiguration[AlgorithmConfig] | Path | None = None,
         *,
         checkpoint_path: Path | None = None,
         bmz_path: Path | None = None,
@@ -87,10 +87,10 @@ class CAREamistV2:
 
     def _load_model(
         self,
-        config: Configuration | Path | None,
+        config: NGConfiguration[AlgorithmConfig] | Path | None,
         checkpoint_path: Path | None,
         bmz_path: Path | None,
-    ) -> tuple[Configuration, CAREamicsModule]:
+    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
         n_inputs = sum(
             [config is not None, checkpoint_path is not None, bmz_path is not None]
         )
@@ -109,8 +109,8 @@ class CAREamistV2:
 
     @staticmethod
     def _from_config(
-        config: Configuration | Path,
-    ) -> tuple[Configuration, CAREamicsModule]:
+        config: NGConfiguration[AlgorithmConfig] | Path,
+    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
         if isinstance(config, Path):
             config = load_configuration_ng(config)
         assert not isinstance(config, Path)
@@ -121,7 +121,7 @@ class CAREamistV2:
     @staticmethod
     def _from_checkpoint(
         checkpoint_path: Path,
-    ) -> tuple[Configuration, CAREamicsModule]:
+    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
         config = load_config_from_checkpoint(checkpoint_path)
         module = load_module_from_checkpoint(checkpoint_path)
         return config, module
@@ -129,7 +129,7 @@ class CAREamistV2:
     @staticmethod
     def _from_bmz(
         bmz_path: Path,
-    ) -> tuple[Configuration, CAREamicsModule]:
+    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
         raise NotImplementedError("Loading from BMZ is not implemented yet.")
 
     @staticmethod
@@ -147,7 +147,7 @@ class CAREamistV2:
     @staticmethod
     def _define_callbacks(
         callbacks: list[Callback] | None,
-        config: Configuration,
+        config: NGConfiguration[AlgorithmConfig],
         work_dir: Path,
     ) -> list[Callback]:
         callbacks: list[Callback] = [] if callbacks is None else callbacks
