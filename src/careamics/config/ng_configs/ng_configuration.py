@@ -17,10 +17,10 @@ from careamics.config.algorithms import (
 from careamics.config.data import NGDataConfig
 from careamics.config.lightning.training_config import TrainingConfig
 
-ALGORITHMS = TypeVar("ALGORITHMS", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm)
+AlgorithmConfig = TypeVar("AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm)
 
 
-class NGConfiguration(BaseModel, Generic[ALGORITHMS]):
+class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
     """
     CAREamics configuration.
 
@@ -83,7 +83,7 @@ class NGConfiguration(BaseModel, Generic[ALGORITHMS]):
     """Name of the experiment, used to name logs and checkpoints."""
 
     # Sub-configurations
-    algorithm_config: Annotated[ALGORITHMS, Field(discriminator="algorithm")]
+    algorithm_config: Annotated[AlgorithmConfig, Field(discriminator="algorithm")]
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 

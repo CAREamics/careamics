@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
+from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm
 from careamics.config.ng_configs import NGConfiguration
 from careamics.config.transformations import (
     XYFlipConfig,
@@ -28,7 +29,7 @@ def create_care_config(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
-) -> NGConfiguration:
+) -> NGConfiguration[CAREAlgorithm]:
     """
     Create a configuration for training CARE.
 
@@ -93,7 +94,7 @@ def create_n2n_config(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
-) -> NGConfiguration:
+) -> NGConfiguration[N2NAlgorithm]:
     """
     Create a configuration for training Noise2Noise.
 
@@ -177,7 +178,7 @@ def create_advanced_care_config(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     # - reproducibility
     seed: int | None = None,
-) -> NGConfiguration:
+) -> NGConfiguration[CAREAlgorithm]:
     """
     Create a configuration for training CARE.
 
@@ -318,7 +319,7 @@ def create_advanced_n2n_config(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     # - reproducibility
     seed: int | None = None,
-) -> NGConfiguration:
+) -> NGConfiguration[N2NAlgorithm]:
     """
     Create a configuration for training Noise2Noise.
 

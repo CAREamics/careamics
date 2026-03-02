@@ -1,9 +1,10 @@
+"""Tests for CAREamistV2."""
+
 from pathlib import Path
 
 import numpy as np
 import pytest
 import tifffile
-from pytorch_lightning.callbacks import ModelCheckpoint
 
 from careamics.careamist_v2 import CAREamistV2
 from careamics.config.ng_factories.n2v_factory import create_advanced_n2v_config
@@ -56,40 +57,6 @@ def test_target_unsupported_warning_n2v(tmp_path: Path):
             val_data=val_array,
             train_data_target=train_array,
         )
-
-
-def test_v2_checkpoint_params_propagated(tmp_path: Path):
-    """Test that checkpoint callback config is propagated to the ModelCheckpoint."""
-    config = create_advanced_n2v_config(
-        experiment_name="test",
-        data_type="array",
-        axes="YX",
-        patch_size=(8, 8),
-        batch_size=2,
-        num_epochs=1,
-        roi_size=5,
-        masked_pixel_percentage=5,
-    )
-    config.training_config.checkpoint_callback.save_top_k = 2
-    config.training_config.checkpoint_callback.monitor = "val_loss"
-    config.training_config.checkpoint_callback.mode = "min"
-    config.training_config.checkpoint_callback.save_last = True
-    config.training_config.checkpoint_callback.every_n_epochs = 1
-
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
-
-    ckpt_callbacks = [
-        cb for cb in careamist.callbacks if isinstance(cb, ModelCheckpoint)
-    ]
-    assert len(ckpt_callbacks) == 1
-    ckpt_cb = ckpt_callbacks[0]
-
-    assert ckpt_cb.save_top_k == 2
-    assert ckpt_cb.monitor == "val_loss"
-    assert ckpt_cb.mode == "min"
-    assert ckpt_cb.save_last is True
-    assert ckpt_cb.every_n_epochs == 1
-    assert ckpt_cb.dirpath == str(tmp_path / "checkpoints")
 
 
 @pytest.mark.mps_gh_fail
@@ -223,3 +190,18 @@ def test_v2_train_tiff_not_in_memory(tmp_path: Path):
     careamist.train(train_data=train_file, val_data=val_file)
 
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+
+
+def test_init_from_checkpoint(tmp_path: Path, checkpoint):
+    """Ensure CAREamist can be initialised from a checkpoint."""
+    checkpoint_path, expected_module_type, expected_config = checkpoint
+
+    careamist = CAREamistV2(checkpoint_path=checkpoint_path, work_dir=tmp_path)
+
+    assert isinstance(careamist.model, expected_module_type)
+
+    # careamist by default enables progress bar during initialization
+    expected_config.training_config.lightning_trainer_config["enable_progress_bar"] = (
+        True
+    )
+    assert careamist.config == expected_config
