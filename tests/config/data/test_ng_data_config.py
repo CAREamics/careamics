@@ -650,15 +650,23 @@ class TestConvertMode:
 def test_dataloader_params_batch_size_validation(dataloader_param_key):
     """Test that `batch_size` cannot be passed in dataloader_params."""
     kwargs = {
-        "mode": "training" if dataloader_param_key == "train_dataloader_params" else "predicting",
+        "mode": (
+            "training"
+            if dataloader_param_key == "train_dataloader_params"
+            else "predicting"
+        ),
         "data_type": "array",
         "axes": "YX",
         "patching": default_patching(
-            "training" if dataloader_param_key == "train_dataloader_params" else "predicting"
+            "training"
+            if dataloader_param_key == "train_dataloader_params"
+            else "predicting"
         ),
         "normalization": DEFAULT_NORM,
     }
     kwargs[dataloader_param_key] = {"batch_size": 16}
 
-    with pytest.raises(ValueError, match="Cannot specify 'batch_size' in dataloader parameters"):
+    with pytest.raises(
+        ValueError, match="Cannot specify 'batch_size' in dataloader parameters"
+    ):
         NGDataConfig(**kwargs)
