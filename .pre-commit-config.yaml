@@ -9,12 +9,12 @@ ci:
 
 repos:
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.24.1
+    rev: v0.25
     hooks:
       - id: validate-pyproject
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.14
+    rev: v0.15.4
     hooks:
       - id: ruff
         exclude: "^docs/.*|^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^scripts/.*|^src/careamics/careamist_v2.py"
@@ -58,6 +58,6 @@ repos:
 
   # strip out jupyter notebooks
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.9.0
+    rev: 0.9.1
     hooks:
       - id: nbstripout
