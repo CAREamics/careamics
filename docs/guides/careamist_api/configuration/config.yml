@@ -1,0 +1,64 @@
+version: 0.1.0
+experiment_name: N2V 3D
+algorithm_config:
+  algorithm: n2v
+  loss: n2v
+  model:
+    architecture: UNet
+    conv_dims: 3
+    num_classes: 1
+    in_channels: 1
+    depth: 2
+    num_channels_init: 32
+    final_activation: None
+    n2v2: false
+    independent_channels: true
+    use_batch_norm: true
+  optimizer:
+    name: Adam
+    parameters: {}
+  lr_scheduler:
+    name: ReduceLROnPlateau
+    parameters: {}
+  n2v_config:
+    name: N2VManipulate
+    roi_size: 11
+    masked_pixel_percentage: 0.2
+    remove_center: true
+    strategy: uniform
+    struct_mask_axis: none
+    struct_mask_span: 5
+    seed: 1620746695
+data_config:
+  data_type: tiff
+  axes: ZYX
+  patch_size:
+  - 8
+  - 64
+  - 64
+  batch_size: 8
+  transforms:
+  - name: XYFlip
+    flip_x: true
+    flip_y: true
+    p: 0.5
+  - name: XYRandomRotate90
+    p: 0.5
+  train_dataloader_params:
+    shuffle: true
+    num_workers: 0
+    pin_memory: false
+  val_dataloader_params:
+    pin_memory: false
+    num_workers: 0
+training_config:
+  lightning_trainer_config:
+    max_epochs: 20
+  checkpoint_callback:
+    monitor: val_loss
+    verbose: false
+    save_weights_only: false
+    save_last: true
+    save_top_k: 3
+    mode: min
+    auto_insert_metric_name: false
