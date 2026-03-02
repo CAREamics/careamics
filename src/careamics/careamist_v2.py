@@ -336,7 +336,7 @@ class CAREamistV2:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: SupportedData | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
@@ -378,7 +378,7 @@ class CAREamistV2:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: SupportedData | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -463,7 +463,9 @@ class CAREamistV2:
             model=self.model, datamodule=datamodule
         )  # type: ignore[assignment]
         tiled = tile_size is not None
-        predictions_output, sources = convert_prediction(predictions, tiled=tiled)
+        predictions_output, sources = convert_prediction(
+            predictions, tiled=tiled, restore_shape=True
+        )
 
         return predictions_output, sources
 
@@ -478,7 +480,7 @@ class CAREamistV2:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: SupportedData | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -504,8 +506,8 @@ class CAREamistV2:
         dimension in the output file.
 
         If `data_type` and `axes` are not provided, the training configuration
-        parameters will be used. If `tile_size` is not provided, the whole image
-        strategy will be used for prediction.
+        parameters will be used. If `tile_size` is not provided, prediction
+        will be performed on whole images rather than in a tiled manner.
 
         Note that if you are using a UNet model and tiling, the tile size must be
         divisible in every dimension by 2**d, where d is the depth of the model. This

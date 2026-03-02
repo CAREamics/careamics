@@ -68,9 +68,7 @@ def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
         train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
     )
 
-    # TODO revisit after fixing prediction reshaping to orig shape
-    assert predicted[0].shape[0] == samples
-    assert predicted[0].shape[-2:] == (32, 32)
+    assert predicted[0].shape == (samples, 1, 32, 32)
 
 
 @pytest.mark.mps_gh_fail
@@ -151,6 +149,36 @@ def test_predict_tiled_channel(
 
     assert len(predicted) == 1
     assert predicted[0].squeeze().shape == (3, 32, 32)
+
+
+@pytest.mark.skip(reason="TODO revisit after fixing stats in convert mode")
+@pytest.mark.mps_gh_fail
+def test_predict_channel_subset(tmp_path: Path):
+    """Test that CAREamistV2 can predict on a subset of channels."""
+    train_array = random_array((3, 32, 32), seed=42)
+    val_array = random_array((3, 32, 32), seed=43)
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="CYX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=1,
+        n_channels=3,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array, val_data=val_array)
+
+    predicted, _ = careamist.predict(
+        train_array, channels=[0, 2], tile_size=(16, 16), tile_overlap=(4, 4)
+    )
+
+    assert len(predicted) == 1
+    assert predicted[0].squeeze().shape == (2, 32, 32)
 
 
 @pytest.mark.mps_gh_fail

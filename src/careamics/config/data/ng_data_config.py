@@ -22,7 +22,6 @@ from pydantic import (
 
 from careamics.utils import BaseEnum
 
-from ..support import SupportedData
 from ..transformations import XYFlipConfig, XYRandomRotate90Config
 from ..utils.random import generate_random_seed
 from ..validators import check_axes_validity, check_czi_axes_validity
@@ -708,7 +707,7 @@ class NGDataConfig(BaseModel):
         new_patch_size: Sequence[int] | None = None,
         overlap_size: Sequence[int] | None = None,
         new_batch_size: int | None = None,
-        new_data_type: SupportedData | None = None,
+        new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         new_axes: str | None = None,
         new_channels: Sequence[int] | Literal["all"] | None = None,
         new_in_memory: bool | None = None,
