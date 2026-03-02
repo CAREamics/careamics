@@ -577,6 +577,41 @@ class NGDataConfig(BaseModel):
                 self.patching.seed = self.seed
         return self
 
+    @field_validator(
+        "train_dataloader_params",
+        "val_dataloader_params",
+        "pred_dataloader_params",
+        mode="before",
+    )
+    @classmethod
+    def check_batch_size_not_in_dataloader_params(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Check that 'batch_size' is not passed directly via dataloader_params.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The dataloader parameters.
+
+        Raises
+        ------
+        ValueError
+            If 'batch_size' is present in dataloader_params.
+        """
+        if "batch_size" in dataloader_params:
+            raise ValueError(
+                "Cannot specify 'batch_size' in dataloader parameters. "
+                "Please use the explicit `batch_size` attribute of the configuration."
+            )
+        return dataloader_params
+
     @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
     @classmethod
     def set_default_pin_memory(
