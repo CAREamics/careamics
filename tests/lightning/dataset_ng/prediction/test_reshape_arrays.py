@@ -47,23 +47,19 @@ _UNORDERED_CASES = [
 class TestAxesTransform:
     def test_s_added(self):
         t = AxesTransform("YX", (XY_S, XY_S))
-        assert t.s_added is True
         assert t.c_added is True
-        assert t.t_becomes_s is False
-        assert t.st_merged is False
+        assert len(t.sample_dims) == 0
 
     def test_t_becomes_s(self):
         t = AxesTransform("TYX", (T_S, XY_S, XY_S))
-        assert t.t_becomes_s is True
-        assert t.s_added is False
-        assert t.st_merged is False
+        assert len(t.sample_dims) == 1
+        assert t.sample_dims[0] == "T"
 
     def test_st_merged(self):
         t = AxesTransform("STYX", (S_S, T_S, XY_S, XY_S))
-        assert t.st_merged is True
-        assert t.s_added is False
+        assert len(t.sample_dims) == 2
+        assert set(t.sample_dims) == {"S", "T"}
         assert t.c_added is True
-        assert t.t_becomes_s is False
 
     def test_c_added(self):
         t = AxesTransform("SYX", (S_S, XY_S, XY_S))
@@ -78,24 +74,29 @@ class TestAxesTransform:
         assert AxesTransform("YX", (XY_S, XY_S)).has_z is False
 
     def test_dl_axes_2d(self):
-        assert AxesTransform("YX", (XY_S, XY_S)).dl_axes == "SCYX"
+        assert AxesTransform("YX", (XY_S, XY_S)).transformed_axes == "SCYX"
 
     def test_dl_axes_3d(self):
-        assert AxesTransform("ZYX", (Z_S, XY_S, XY_S)).dl_axes == "SCZYX"
+        assert AxesTransform("ZYX", (Z_S, XY_S, XY_S)).transformed_axes == "SCZYX"
 
     def test_dl_shape_yx(self):
-        assert AxesTransform("YX", (XY_S, XY_S)).dl_shape == (1, 1, XY_S, XY_S)
+        assert AxesTransform("YX", (XY_S, XY_S)).transformed_shape == (1, 1, XY_S, XY_S)
 
     def test_dl_shape_with_c(self):
-        assert AxesTransform("YXC", (XY_S, XY_S, C_S)).dl_shape == (1, C_S, XY_S, XY_S)
+        assert AxesTransform("YXC", (XY_S, XY_S, C_S)).transformed_shape == (
+            1,
+            C_S,
+            XY_S,
+            XY_S,
+        )
 
     def test_dl_shape_with_st(self):
         transform = AxesTransform("STCYX", (S_S, T_S, C_S, XY_S, XY_S))
-        assert transform.dl_shape == (S_S * T_S, C_S, XY_S, XY_S)
+        assert transform.transformed_shape == (S_S * T_S, C_S, XY_S, XY_S)
 
     def test_dl_shape_t_as_s(self):
         transform = AxesTransform("TYX", (T_S, XY_S, XY_S))
-        assert transform.dl_shape == (T_S, 1, XY_S, XY_S)
+        assert transform.transformed_shape == (T_S, 1, XY_S, XY_S)
 
     def test_invalid_axis_name(self):
         with pytest.raises(ValueError):
@@ -118,7 +119,7 @@ class TestAxesTransform:
         """Result should always have S, C, and optionally Z, then Y, X."""
         transform = AxesTransform(axes, shape)
         expected_axes = "SCZYX" if "Z" in axes else "SCYX"
-        assert transform.dl_axes == expected_axes
+        assert transform.transformed_axes == expected_axes
 
 
 class TestReshapeShape:
@@ -130,7 +131,7 @@ class TestReshapeShape:
         result = reshape_array(array, axes, shape)
         transform = AxesTransform(axes, shape)
 
-        assert result.shape == transform.dl_shape
+        assert result.shape == transform.transformed_shape
         assert result.ndim in (4, 5)
 
     @pytest.mark.parametrize(

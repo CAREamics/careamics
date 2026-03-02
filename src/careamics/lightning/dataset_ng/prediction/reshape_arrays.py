@@ -1,4 +1,4 @@
-"""Axes transformation utilities for reshaping arrays between original and DL space."""
+"""Utilities for reshaping arrays between original and transformed space."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ _VALID_AXES = set(_REF_ORDER)
 
 @dataclass(frozen=True)
 class AxesTransform:
-    """Transformation between original and DL-space axes.
+    """Transformation between original and transformed space axes.
 
     All transformation decisions are derived from the original axes string,
     shape.
@@ -28,25 +28,19 @@ class AxesTransform:
     sample_dims : list[str]
         Computed property. Original dimensions merged into S. Spatial (Y, X and Z), as
         well as channels, are never considered sample dimensions.
-    s_added : bool
-        Computed property. Whether S is added as a singleton.
     c_added : bool
         Computed property. Whether C is added as a singleton.
     has_z : bool
         Computed property. Whether original data contains a Z axis.
-    t_becomes_s : bool
-        Computed property. Whether T is the sole sample dim, relabeled as S.
-    st_merged : bool
-        Computed property. Whether S and T are both sample dims and merged together.
     dim_sizes : dict[str, int]
         Computed property. Map from axis name to original size.
-    dl_axes : str
-        Computed property. DL axes string: "SC(Z)YX".
-    dl_shape : tuple[int, ...]
+    transformed_axes : str
+        Computed property. Transformed axes string: "SC(Z)YX".
+    transformed_shape : tuple[int, ...]
         Computed property. Expected shape after forward transformation.
     order_permutation : list[int]
         Computed property. Permutation to reorder original axes to STCZYX reference
-        order in DL space.
+        order in SC(Z)YX space.
     """
 
     original_axes: str
@@ -91,18 +85,6 @@ class AxesTransform:
         return [a for a in _REF_ORDER if a in self.original_axes and a not in excluded]
 
     @property
-    def s_added(self) -> bool:
-        """S is added as a singleton dimension.
-
-        Returns
-        -------
-        bool
-            True if there are no sample dimensions and S is added as a singleton, False
-            otherwise.
-        """
-        return len(self.sample_dims) == 0
-
-    @property
     def c_added(self) -> bool:
         """C is added as a singleton dimension.
 
@@ -125,28 +107,6 @@ class AxesTransform:
         return "Z" in self.original_axes
 
     @property
-    def t_becomes_s(self) -> bool:
-        """T is the sole sample dim, relabeled as S.
-
-        Returns
-        -------
-        bool
-            True if T is the only sample dimension, False otherwise.
-        """
-        return self.sample_dims == ["T"]
-
-    @property
-    def st_merged(self) -> bool:
-        """S and T are both sample dimensions and are merged together.
-
-        Returns
-        -------
-        bool
-            True if both S and T are in sample_dims, False otherwise.
-        """
-        return "S" in self.sample_dims and "T" in self.sample_dims
-
-    @property
     def dim_sizes(self) -> dict[str, int]:
         """Map from axis name to original size.
 
@@ -158,25 +118,26 @@ class AxesTransform:
         return dict(zip(self.original_axes, self.original_shape, strict=True))
 
     @property
-    def dl_axes(self) -> str:
-        """DL axes string, `SC(Z)YX` or `SCYX`.
+    def transformed_axes(self) -> str:
+        """Transformed axes string, `SC(Z)YX` or `SCYX`.
 
         Returns
         -------
         str
-            DL axes string. Will be `SCZYX` if original data has Z axis, otherwise
-            `SCYX`.
+            Transformed axes string. Will be `SCZYX` if original data has Z axis,
+            otherwise `SCYX`.
         """
         return "SCZYX" if self.has_z else "SCYX"
 
     @property
-    def dl_shape(self) -> tuple[int, ...]:
-        """Expected shape in DL space.
+    def transformed_shape(self) -> tuple[int, ...]:
+        """Expected shape in transformed space.
 
         Returns
         -------
         tuple[int, ...]
-            Expected shape after forward transformation, in the order of `dl_axes`.
+            Expected shape after forward transformation, in the order of
+            `transformed_axes`.
         """
         dim_sizes = self.dim_sizes
 
@@ -285,22 +246,16 @@ def restore_array(
         )
 
     transform = AxesTransform(original_axes, tuple(original_shape))
-    current_axes = list(transform.dl_axes)
+    current_axes = list(transform.transformed_axes)
     sample_dims = transform.sample_dims
 
     # restore sample dimensions
-    if len(sample_dims) > 1:
-        # multiple dimensions where multiplexed
-        sizes = tuple(transform.dim_sizes[d] for d in sample_dims)
-        array = array.reshape(sizes + array.shape[1:])
-        current_axes = list(sample_dims) + current_axes[1:]
-    elif len(sample_dims) == 1 and sample_dims[0] != "S":
-        # relabel sample axis (typically S to T)
-        current_axes[0] = sample_dims[0]
-    elif len(sample_dims) == 0:
-        # remove singleton
-        array = np.squeeze(array, axis=0)
-        current_axes.pop(0)
+    # - if multiple sample dims, it will reshape the array and add all sample dims back
+    # - if single sample dim that is not S, it will rename the dimensions
+    # - if no sample dims, it will remove the singleton S dim
+    sizes = tuple(transform.dim_sizes[d] for d in sample_dims)
+    array = array.reshape(sizes + array.shape[1:])
+    current_axes = list(sample_dims) + current_axes[1:]
 
     # remove singleton C
     if transform.c_added:
@@ -344,7 +299,7 @@ def restore_tile(
     transform = AxesTransform(original_axes, tuple(original_shape))
 
     # remove sample dim
-    current_axes = list(transform.dl_axes[1:])
+    current_axes = list(transform.transformed_axes[1:])
 
     # remove singleton C if it was added
     if transform.c_added:
@@ -352,7 +307,7 @@ def restore_tile(
         current_axes.pop(0)
 
     # expected dimensions for a tile in original space
-    tile_dims = set(transform.dl_axes[1:])
+    tile_dims = set(transform.transformed_axes[1:])
     tile_original = "".join(a for a in original_axes if a in tile_dims)
 
     current_str = "".join(current_axes)
@@ -373,16 +328,20 @@ def get_original_stitch_slices(
 ) -> tuple[slice | int, ...]:
     """Get slices to stitch tile back into original array.
 
+    `sample_idx and `stitch_coords` are expressed with respect to the transofrmed space
+    (SCZYX or SCYX). The returned slices will index into the original array for
+    stitching the tile back in place.
+
     Parameters
     ----------
     array_shape : Sequence[int]
-        Shape of the array in DL space (e.g. SCZYX).
+        Shape of the array in transformed space (e.g. SCZYX).
     original_axes : str
         Original axes string of the full data.
     original_shape : Sequence[int]
         Original shape of the full data.
     sample_idx : int
-        Index of the sample in DL space (S axis) to stitch back.
+        Index of the sample in transformed space (S axis) to stitch back.
     stitch_coords : Sequence[int]
         Starting coordinates of the tile in the original spatial axes (Y, X and Z if
         present).
@@ -420,7 +379,7 @@ def get_original_stitch_slices(
             for start, length in zip(stitch_coords, crop_size, strict=True)
         ]
     )
-    which_axes.extend([a for a in transform.dl_axes if a in "ZYX"])
+    which_axes.extend([a for a in transform.transformed_axes if a in "ZYX"])
     assert len(stitch_slices) == len(transform.original_axes)
 
     # reorder slices
