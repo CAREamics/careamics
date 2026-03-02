@@ -1,4 +1,4 @@
-"""Module for loading CAREamics saved models."""
+"""Module for loading CAREamics models and configs from a checkpoint."""
 
 from pathlib import Path
 from typing import Any
@@ -82,36 +82,30 @@ def load_config_from_checkpoint(
     checkpoint: dict[str, Any] = torch.load(checkpoint_path, map_location="cpu")
 
     # if careamics_info is not included (i.e. it was saved with the lightning API)
-    # then version and training_config will be the default, experiment_name is set.
-    # when loading a checkpoint for inference experiment_name is not important
+    # then version and training_config will be the default from the pydantic models.
     checkpoint_name = checkpoint_path.stem
     careamics_info = checkpoint.get(
         "careamics_info", {"experiment_name": f"loaded_from_{checkpoint_name}"}
     )
 
     # --- alg config
+    hparams_key = "hyper_parameters"
     try:
-        algorithm_config: dict[str, Any] = checkpoint["hyper_parameters"][
-            "algorithm_config"
-        ]
+        algorithm_config: dict[str, Any] = checkpoint[hparams_key]["algorithm_config"]
     except (KeyError, IndexError) as e:
         raise ValueError(
             "Could not determine a CAREamics supported algorithm from the provided "
-            f"checkpoint at: {checkpoint_path!s}."
+            f"checkpoint at: {checkpoint_path}."
         ) from e
 
     # --- data config
-    data_hparams_key = checkpoint.get(
-        "datamodule_hparams_name", "datamodule_hyper_parameters"
-    )
-    if data_hparams_key is None:
-        data_hparams_key = "datamodule_hyper_parameters"
+    data_hparams_key = "datamodule_hyper_parameters"
     try:
         data_config: dict[str, Any] = checkpoint[data_hparams_key]["data_config"]
     except (KeyError, IndexError) as e:
         raise ValueError(
             "Could not determine the data configuration from the provided "
-            f"checkpoint at: {checkpoint_path!s}."
+            f"checkpoint at: {checkpoint_path}."
         ) from e
 
     # NOTE: it is important for subclasses to appear first in the Union
