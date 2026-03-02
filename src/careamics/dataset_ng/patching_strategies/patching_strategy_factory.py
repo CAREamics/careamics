@@ -9,6 +9,7 @@ from careamics.config.support.supported_patching_strategies import (
 
 from .patching_strategy_protocol import PatchingStrategy
 from .random_patching import FixedRandomPatchingStrategy, RandomPatchingStrategy
+from .stratified_patching import StratifiedPatchingStrategy
 from .tiling_strategy import TilingStrategy
 from .whole_sample import WholeSamplePatchingStrategy
 
@@ -34,6 +35,8 @@ def create_patching_strategy(
     match patching_config.name:
         case SupportedPatchingStrategy.RANDOM:
             patch_class = RandomPatchingStrategy
+        case SupportedPatchingStrategy.STRATIFIED:
+            patch_class = StratifiedPatchingStrategy
         case SupportedPatchingStrategy.FIXED_RANDOM:
             patch_class = FixedRandomPatchingStrategy
         case SupportedPatchingStrategy.TILED:

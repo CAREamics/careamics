@@ -37,21 +37,20 @@ def create_zarr(
 
 
 @pytest.mark.parametrize(
-    "original_axes, original_shape, expected_shape, sample_idx",
+    "original_axes, original_shape, sample_idx",
     [
-        ("YX", (32, 48), (1, 1, 32, 48), 0),
-        ("XYS", (48, 32, 3), (3, 1, 32, 48), 1),
-        ("SXYC", (3, 48, 32, 2), (3, 2, 32, 48), 1),
-        ("CYXT", (2, 32, 48, 3), (3, 2, 32, 48), 2),
-        ("CXYTS", (2, 48, 32, 3, 2), (6, 2, 32, 48), 4),
-        ("XCSYT", (48, 1, 2, 32, 3), (6, 1, 32, 48), 5),  # crazy one
+        ("YX", (32, 48), 0),
+        ("XYS", (48, 32, 3), 1),
+        ("SXYC", (3, 48, 32, 2), 1),
+        ("CYXT", (2, 32, 48, 3), 2),
+        ("CXYTS", (2, 48, 32, 3, 2), 4),
+        ("XCSYT", (48, 1, 2, 32, 3), 5),  # crazy one
     ],
 )
 def test_extract_patch_2D(
     tmp_path: Path,
     original_axes: str,
     original_shape: tuple[int, ...],
-    expected_shape: tuple[int, ...],
     sample_idx: int,
 ):
     # reference data to compare against, it is reshaped using careamics reshape_array
@@ -71,7 +70,7 @@ def test_extract_patch_2D(
     patch_size = (16, 9)
 
     extracted_patch = image_stack.extract_patch(
-        sample_idx=sample_idx, coords=coords, patch_size=patch_size
+        sample_idx=sample_idx, channels=None, coords=coords, patch_size=patch_size
     )  # return in SCZYX order
     patch_ref = data_ref[
         sample_idx,
@@ -110,7 +109,7 @@ def test_extract_channels(
     image_stack = ZarrImageStack(group=group, data_path=data_path, axes=axes)
 
     # extract patch
-    patch = image_stack.extract_channel_patch(
+    patch = image_stack.extract_patch(
         sample_idx=0,
         channels=channels,
         coords=(0, 0),
@@ -159,7 +158,7 @@ def test_extract_channel_error(
     )
 
     with pytest.raises(ValueError, match=expected_msg):
-        image_stack.extract_channel_patch(
+        image_stack.extract_patch(
             sample_idx=0,
             channels=channels,
             coords=(0, 0),

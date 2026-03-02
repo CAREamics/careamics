@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from numpy.typing import NDArray
 
-from .mean_std_normalization import _reshape_stats
 from .normalization_protocol import NormalizationProtocol
+from .utils import broadcast_stats, reshape_stats
 
 
 class RangeNormalization(NormalizationProtocol):
@@ -33,8 +33,6 @@ class RangeNormalization(NormalizationProtocol):
         Target minimum value per channel.
     target_maxes : list of float, optional
         Target maximum value per channel.
-    eps : float
-        Small value to avoid division by zero.
     """
 
     def __init__(
@@ -67,24 +65,16 @@ class RangeNormalization(NormalizationProtocol):
         tuple of NDArray
             Normalized patch and target (target can be None).
         """
-        if len(self.input_mins) != patch.shape[0]:
-            raise ValueError(
-                f"Number of mins ({len(self.input_mins)}) and number of "
-                f"channels ({patch.shape[0]} in {patch.shape}) do not match."
-            )
-
-        if len(self.input_maxes) != patch.shape[0]:
-            raise ValueError(
-                f"Number of max values ({len(self.input_maxes)}) and number of "
-                f"channels ({patch.shape[0]} in {patch.shape}) do not match."
-            )
+        n_channels = patch.shape[0]
+        input_mins = broadcast_stats(self.input_mins, n_channels, "input_mins")
+        input_maxes = broadcast_stats(self.input_maxes, n_channels, "input_maxes")
 
         patch = patch.astype(np.float32)
         if target is not None:
             target = target.astype(np.float32)
 
-        min_val = _reshape_stats(self.input_mins, patch.ndim, channel_axis=0)
-        max_val = _reshape_stats(self.input_maxes, patch.ndim, channel_axis=0)
+        min_val = reshape_stats(input_mins, patch.ndim, channel_axis=0)
+        max_val = reshape_stats(input_maxes, patch.ndim, channel_axis=0)
 
         norm_patch = (patch - min_val) / (max_val - min_val + self.eps)
 
@@ -94,23 +84,13 @@ class RangeNormalization(NormalizationProtocol):
                 raise ValueError(
                     "Target mins and maxs must be provided if target is not None."
                 )
-            if len(self.target_mins) != target.shape[0]:
-                raise ValueError(
-                    f"Number of target mins ({len(self.target_mins)}) and number of "
-                    f"channels ({target.shape[0]} in {target.shape}) do not match."
-                )
-
-            if len(self.target_maxes) != target.shape[0]:
-                raise ValueError(
-                    f"Number of target maxes ({len(self.target_maxes)}) and number "
-                    f"of channels ({target.shape[0]} in {target.shape}) do not match."
-                )
-            target_mins = _reshape_stats(self.target_mins, target.ndim, channel_axis=0)
-            target_maxes = _reshape_stats(
-                self.target_maxes, target.ndim, channel_axis=0
-            )
-            norm_target = (target - target_mins) / (
-                target_maxes - target_mins + self.eps
+            n_target_ch = target.shape[0]
+            t_mins = broadcast_stats(self.target_mins, n_target_ch, "target_mins")
+            t_maxes = broadcast_stats(self.target_maxes, n_target_ch, "target_maxes")
+            target_mins_arr = reshape_stats(t_mins, target.ndim, channel_axis=0)
+            target_maxes_arr = reshape_stats(t_maxes, target.ndim, channel_axis=0)
+            norm_target = (target - target_mins_arr) / (
+                target_maxes_arr - target_mins_arr + self.eps
             )
 
         return norm_patch, norm_target
@@ -128,19 +108,16 @@ class RangeNormalization(NormalizationProtocol):
         torch.Tensor
             Denormalized patch.
         """
-        if len(self.input_mins) != patch.shape[1]:
-            raise ValueError(
-                f"Number of mins ({len(self.input_mins)}) and number of "
-                f"channels ({patch.shape[1]} in {patch.shape} for BC(Z)YX) "
-                "do not match."
-            )
+        n_channels = patch.shape[1]
+        input_mins_list = broadcast_stats(self.input_mins, n_channels, "input_mins")
+        input_maxes_list = broadcast_stats(self.input_maxes, n_channels, "input_maxes")
 
         patch = patch.to(dtype=torch.float32)
 
-        input_mins = _reshape_stats(self.input_mins, patch.ndim, channel_axis=1)
-        input_maxes = _reshape_stats(self.input_maxes, patch.ndim, channel_axis=1)
+        mins_arr = reshape_stats(input_mins_list, patch.ndim, channel_axis=1)
+        maxes_arr = reshape_stats(input_maxes_list, patch.ndim, channel_axis=1)
 
-        input_mins = torch.from_numpy(input_mins).to(patch.device)
-        input_maxes = torch.from_numpy(input_maxes).to(patch.device)
+        input_mins = torch.from_numpy(mins_arr).to(patch.device)
+        input_maxes = torch.from_numpy(maxes_arr).to(patch.device)
 
         return patch * (input_maxes - input_mins) + input_mins

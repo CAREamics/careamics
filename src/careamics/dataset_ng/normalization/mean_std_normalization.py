@@ -3,29 +3,7 @@ import torch
 from numpy.typing import NDArray
 
 from .normalization_protocol import NormalizationProtocol
-
-
-def _reshape_stats(stats: list[float], ndim: int, channel_axis: int = 0) -> NDArray:
-    """Reshape stats to match the number of dimensions of the input image.
-
-    Parameters
-    ----------
-    stats : list of float
-        List of per-channel statistic values.
-    ndim : int
-        Number of dimensions in the image.
-    channel_axis : int, optional
-        Position of the channel axis in the image.
-
-    Returns
-    -------
-    NDArray
-        Stats array reshaped, with the channel dimension
-        at the specified axis and singleton dimensions elsewhere.
-    """
-    shape = [1] * ndim
-    shape[channel_axis] = len(stats)
-    return np.array(stats, dtype=np.float32).reshape(shape)
+from .utils import broadcast_stats, reshape_stats
 
 
 class MeanStdNormalization(NormalizationProtocol):
@@ -35,30 +13,19 @@ class MeanStdNormalization(NormalizationProtocol):
     Normalization is a zero mean and unit variance. This transform expects C(Z)YX
     dimensions.
 
-    Note that an epsilon value of 1e-6 is added to the standard deviation to avoid
-    division by zero and that it returns a float32 image.
-
     Parameters
     ----------
-    input_means : list of float
-        Mean value per channel.
-    input_stds : list of float
-        Standard deviation value per channel.
-    target_means : list of float, optional
-        Target mean value per channel, by default None.
-    target_stds : list of float, optional
-        Target standard deviation value per channel, by default None.
-
-    Attributes
-    ----------
-    input_means : list of float
-        Mean value per channel.
-    input_stds : list of float
-        Standard deviation value per channel.
-    target_means : list of float, optional
-        Target mean value per channel, by default None.
-    target_stds : list of float, optional
-        Target standard deviation value per channel, by default None.
+    input_means : list[float]
+        Mean values (length 1 for global, multiple values for per channel).
+    input_stds : list[float]
+        Standard deviation values (length 1 for global,
+        multiple values for per channel).
+    target_means : list[float] | None, optional
+        Target mean values (length 1 for global,
+        multiple values for per channel), by default None.
+    target_stds : list[float] | None, optional
+        Target standard deviation values (length 1 for global,
+        multiple values for per channel), by default None.
     """
 
     def __init__(
@@ -68,19 +35,6 @@ class MeanStdNormalization(NormalizationProtocol):
         target_means: list[float] | None = None,
         target_stds: list[float] | None = None,
     ):
-        """Constructor.
-
-        Parameters
-        ----------
-        input_means : list of float
-            Mean value per channel.
-        input_stds : list of float
-            Standard deviation value per channel.
-        target_means : list of float, optional
-            Target mean value per channel, by default None.
-        target_stds : list of float, optional
-            Target standard deviation value per channel, by default None.
-        """
         self.input_means = input_means
         self.input_stds = input_stds
         self.target_means = target_means
@@ -107,34 +61,33 @@ class MeanStdNormalization(NormalizationProtocol):
         tuple of NDArray
             Transformed patch and target, the target can be returned as `None`.
         """
-        if len(self.input_means) != patch.shape[0]:
-            raise ValueError(
-                f"Number of means (got a list of size {len(self.input_means)}) and "
-                f"number of channels (got shape {patch.shape} for C(Z)YX) do not match."
-            )
+        n_channels = patch.shape[0]
+        input_means = broadcast_stats(self.input_means, n_channels, "input_means")
+        input_stds = broadcast_stats(self.input_stds, n_channels, "input_stds")
 
         patch = patch.astype(np.float32)
         if target is not None:
             target = target.astype(np.float32)
 
-        # reshape mean and std and apply the normalization to the patch
-        means = _reshape_stats(self.input_means, patch.ndim, channel_axis=0)
-        stds = _reshape_stats(self.input_stds, patch.ndim, channel_axis=0)
+        means = reshape_stats(input_means, patch.ndim, channel_axis=0)
+        stds = reshape_stats(input_stds, patch.ndim, channel_axis=0)
         norm_patch = self._apply_normalization(patch, means, stds)
 
-        # same for the target patch
         if target is None:
             norm_target = None
         else:
-            if not self.target_means or not self.target_stds:
+            if self.target_means is None or self.target_stds is None:
                 raise ValueError(
                     "Target means and standard deviations must be provided "
                     "if target is not None."
                 )
-            target_means = _reshape_stats(
-                self.target_means, target.ndim, channel_axis=0
+            n_target_channels = target.shape[0]
+            t_means = broadcast_stats(
+                self.target_means, n_target_channels, "target_means"
             )
-            target_stds = _reshape_stats(self.target_stds, target.ndim, channel_axis=0)
+            t_stds = broadcast_stats(self.target_stds, n_target_channels, "target_stds")
+            target_means = reshape_stats(t_means, target.ndim, channel_axis=0)
+            target_stds = reshape_stats(t_stds, target.ndim, channel_axis=0)
             norm_target = self._apply_normalization(target, target_means, target_stds)
 
         return norm_patch, norm_target
@@ -198,18 +151,13 @@ class MeanStdNormalization(NormalizationProtocol):
         torch.Tensor
             Transformed array.
         """
-        if len(self.input_means) != patch.shape[1]:
-            raise ValueError(
-                f"Number of means (got a list of size {len(self.input_means)}) and "
-                f"number of channels (got shape {patch.shape} for BC(Z)YX) do not "
-                f"match."
-            )
+        n_channels = patch.shape[1]
+        input_means = broadcast_stats(self.input_means, n_channels, "input_means")
+        input_stds = broadcast_stats(self.input_stds, n_channels, "input_stds")
 
         patch = patch.to(dtype=torch.float32)
 
-        means = _reshape_stats(self.input_means, patch.ndim, channel_axis=1)
-        stds = _reshape_stats(self.input_stds, patch.ndim, channel_axis=1)
+        means = reshape_stats(input_means, patch.ndim, channel_axis=1)
+        stds = reshape_stats(input_stds, patch.ndim, channel_axis=1)
 
-        denorm_array = self._apply_denormalization(patch, means, stds)
-
-        return denorm_array
+        return self._apply_denormalization(patch, means, stds)

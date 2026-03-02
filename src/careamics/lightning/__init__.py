@@ -6,7 +6,9 @@ __all__ = [
     "HyperParametersCallback",
     "MicroSplitDataModule",
     "PredictDataModule",
+    "PredictionStoppedException",
     "ProgressBarCallback",
+    "StopPredictionCallback",
     "TrainDataModule",
     "VAEModule",
     "create_careamics_module",
@@ -18,7 +20,13 @@ __all__ = [
     "create_vae_based_module",
 ]
 
-from .callbacks import DataStatsCallback, HyperParametersCallback, ProgressBarCallback
+from .callbacks import (
+    DataStatsCallback,
+    HyperParametersCallback,
+    PredictionStoppedException,
+    ProgressBarCallback,
+    StopPredictionCallback,
+)
 from .lightning_module import FCNModule, VAEModule, create_careamics_module
 from .microsplit_data_module import (
     MicroSplitDataModule,

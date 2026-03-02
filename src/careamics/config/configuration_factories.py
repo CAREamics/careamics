@@ -21,6 +21,10 @@ from careamics.config.lightning.optimizer_configs import (
 from careamics.config.lightning.training_config import TrainingConfig
 from careamics.config.losses.loss_config import KLLossConfig, LVAELossConfig
 from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.noise_model.likelihood_config import (
+    GaussianLikelihoodConfig,
+    NMLikelihoodConfig,
+)
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
@@ -35,6 +39,7 @@ from careamics.config.transformations import (
 from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 from .configuration import Configuration
+from .utils.random import generate_random_seed
 
 
 def algorithm_factory(
@@ -1078,6 +1083,7 @@ def create_n2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    seed: int | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Void.
@@ -1183,6 +1189,8 @@ def create_n2v_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    seed : int or None, default=None
+        Random seed for reproducibility of N2V pixel manipulation, by default None.
 
     Returns
     -------
@@ -1336,6 +1344,7 @@ def create_n2v_configuration(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
+        seed=seed if seed is not None else generate_random_seed(),
     )
 
     # algorithm
@@ -1936,6 +1945,22 @@ def create_microsplit_configuration(
         },
     )
 
+    optimizer_config = OptimizerConfig(
+        name=optimizer,
+        parameters={"lr": lr, "weight_decay": 0},
+    )
+
+    lr_scheduler_config = LrSchedulerConfig(
+        name="ReduceLROnPlateau",
+        parameters={
+            "mode": "min",
+            "factor": 0.5,
+            "patience": lr_scheduler_patience,
+            "verbose": True,
+            "min_lr": 1e-12,
+        },
+    )
+
     algorithm_params = {
         "algorithm": "microsplit",
         "loss": loss_config,
@@ -2008,6 +2033,7 @@ def create_pn2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    seed: int | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Probabilistic Noise2Void (PN2V).
@@ -2117,6 +2143,8 @@ def create_pn2v_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    seed : int or None, default=None
+        Random seed for reproducibility of N2V pixel manipulation, by default None.
 
     Returns
     -------
@@ -2282,6 +2310,7 @@ def create_pn2v_configuration(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
+        seed=seed if seed is not None else generate_random_seed(),
     )
 
     # Create noise model configuration

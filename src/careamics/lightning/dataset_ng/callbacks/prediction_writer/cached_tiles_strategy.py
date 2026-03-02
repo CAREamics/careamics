@@ -137,13 +137,19 @@ class CachedTiles(WriteStrategy):
         """
         # stitch prediction
         prediction_image = stitch_single_prediction(tiles)
-
-        # write prediction
         source: Path = Path(tiles[0].source)
+
+        # Handle array sources with postfix
+        postfix = ""
+        if source.stem == "array":
+            data_idx = tiles[0].region_spec["data_idx"]
+            postfix = f"_{data_idx}"
+
         file_path = create_write_file_path(
             dirpath=dirpath,
             file_path=source,
             write_extension=self.write_extension,
+            postfix=postfix,
         )
         self.write_func(
             file_path=file_path, img=prediction_image, **self.write_func_kwargs

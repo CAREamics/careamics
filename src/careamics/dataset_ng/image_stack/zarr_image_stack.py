@@ -70,12 +70,17 @@ class ZarrImageStack:
     def data_dtype(self) -> DTypeLike:
         return self._data_dtype
 
-    def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
-    ) -> NDArray:
-        return self.extract_channel_patch(sample_idx, None, coords, patch_size)
+    @property
+    def original_data_shape(self) -> tuple[int, ...]:
+        """Original shape of the data."""
+        return self._original_data_shape
 
-    def extract_channel_patch(
+    @property
+    def original_axes(self) -> str:
+        """Original axes of the data."""
+        return self._original_axes
+
+    def extract_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,  # `channels = None` to select all channels,

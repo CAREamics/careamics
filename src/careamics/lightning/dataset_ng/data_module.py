@@ -1,9 +1,9 @@
 """Next-Generation CAREamics DataModule."""
 
 import copy
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, Union, overload
+from typing import Any, Literal, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -16,16 +16,15 @@ from careamics.config.support import SupportedData
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset_ng.image_stack_loader import ImageStackLoader
+from careamics.file_io import ReadFunc
 from careamics.lightning.dataset_ng.data_module_utils import initialize_data_pair
 from careamics.utils import get_logger
 
 logger = get_logger(__name__)
 
-ItemType = Union[Path, str, NDArray[Any]]
-"""Type of input items passed to the dataset."""
-
-InputType = Union[ItemType, Sequence[ItemType], None]
-"""Type of input data passed to the dataset."""
+ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
+PathInput = str | Path | Sequence[str | Path]
+InputType = ArrayInput | PathInput
 
 
 class CareamicsDataModule(L.LightningDataModule):
@@ -56,7 +55,7 @@ class CareamicsDataModule(L.LightningDataModule):
     pred_data_target : Optional[InputType]
         Prediction data target, can be a path to a folder,
         a list of paths, or a numpy array.
-    read_source_func : Optional[Callable], default=None
+    read_source_func : Optional[ReadFunc], default=None
         Function to read the source data. Only used for `custom`
         data type (see DataModel).
     read_kwargs : Optional[dict[str, Any]]
@@ -86,7 +85,7 @@ class CareamicsDataModule(L.LightningDataModule):
         Batch size for the dataloaders.
     extension_filter : str
         Filter for file extensions, by default "".
-    read_source_func : Optional[Callable], default=None
+    read_source_func : Optional[ReadFunc], default=None
         Function to read the source data.
     read_kwargs : Optional[dict[str, Any]], default=None
         The kwargs for the read source function.
@@ -123,6 +122,7 @@ class CareamicsDataModule(L.LightningDataModule):
     """
 
     # standard use (no mask)
+    # TODO: remove pred data from overloads?
     @overload
     def __init__(
         self,
@@ -169,7 +169,7 @@ class CareamicsDataModule(L.LightningDataModule):
         val_data_target: InputType | None = None,
         pred_data: InputType | None = None,
         pred_data_target: InputType | None = None,
-        read_source_func: Callable,
+        read_source_func: ReadFunc,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
         val_percentage: float | None = None,
@@ -189,7 +189,7 @@ class CareamicsDataModule(L.LightningDataModule):
         val_data_target: InputType | None = None,
         pred_data: InputType | None = None,
         pred_data_target: InputType | None = None,
-        read_source_func: Callable,
+        read_source_func: ReadFunc,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
         val_percentage: float | None = None,
@@ -237,7 +237,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: NGDataConfig,
+        data_config: NGDataConfig | dict[str, Any],
         *,
         train_data: Any | None = None,
         train_data_target: Any | None = None,
@@ -246,7 +246,7 @@ class CareamicsDataModule(L.LightningDataModule):
         val_data_target: Any | None = None,
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
-        read_source_func: Callable | None = None,
+        read_source_func: ReadFunc | None = None,
         read_kwargs: dict[str, Any] | None = None,
         image_stack_loader: ImageStackLoader | None = None,
         image_stack_loader_kwargs: dict[str, Any] | None = None,
@@ -285,7 +285,7 @@ class CareamicsDataModule(L.LightningDataModule):
         pred_data_target : Optional[InputType]
             Prediction data target, can be a path to a folder,
             a list of paths, or a numpy array.
-        read_source_func : Optional[Callable]
+        read_source_func : Optional[ReadFunc]
             Function to read the source data, by default None. Only used for `custom`
             data type (see DataModel).
         read_kwargs : Optional[dict[str, Any]]
@@ -310,14 +310,37 @@ class CareamicsDataModule(L.LightningDataModule):
             raise ValueError(
                 "At least one of train_data, val_data or pred_data must be provided."
             )
-        elif train_data is None != val_data is None:
+        elif (train_data is None) != (val_data is None):
             raise ValueError(
                 "If one of train_data or val_data is provided, both must be provided."
             )
 
-        self.config: NGDataConfig = data_config
-        self.data_type: str = data_config.data_type
-        self.batch_size: int = data_config.batch_size
+        if isinstance(data_config, NGDataConfig):
+            self.config = data_config
+        else:
+            self.config = NGDataConfig.model_validate(data_config)
+        self.save_hyperparameters(
+            {"data_config": self.config.model_dump(mode="json")},
+            ignore=[
+                "train_data",
+                "train_data_target",
+                "train_data_mask",
+                "val_data",
+                "val_data_target",
+                "pred_data",
+                "pred_data_target",
+                "read_source_func",
+                "read_kwargs",
+                "image_stack_loader",
+                "image_stack_loader_kwargs",
+                "extension_filter",
+                "val_percentage",
+                "val_minimum_split",
+            ],
+        )
+
+        self.data_type: str = self.config.data_type
+        self.batch_size: int = self.config.batch_size
 
         self.extension_filter: str = (
             extension_filter  # list_files pulls the correct ext

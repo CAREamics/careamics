@@ -64,10 +64,10 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
     prediction = [
         ImageRegionData(
             source="array.tiff",
-            data=array[i : i + 1],  # keep S dim as singleton to mock C dim
+            data=array[i],  # individual sample without S dimension
             data_shape=array.shape,
             dtype=np.float32,
-            axes="SYX",
+            axes="SYX",  # axes describes the full dataset, not individual sample
             region_spec={
                 "data_idx": 0,
                 "sample_idx": i,
@@ -75,6 +75,7 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
                 "patch_size": (8, 8),
             },
             additional_metadata={},
+            original_data_shape=array.shape,
         )
         for i in range(array.shape[0])
     ]
@@ -97,6 +98,7 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
         dirpath=dirpath,
         file_path=prediction[0].source,
         write_extension=write_image_strategy.write_extension,
+        postfix="_0",
     )
     assert call_args["file_path"] == expected_file_path
     np.testing.assert_array_equal(call_args["img"], array)
