@@ -3,9 +3,9 @@ from collections.abc import Sequence
 import zarr
 from numpy.typing import DTypeLike, NDArray
 
-from careamics.utils.reshape_array import reshape_array
+from careamics.utils.reshape_array import AxesTransform, reshape_array
 
-from .image_utils.image_stack_utils import channel_slice, pad_patch, reshape_array_shape
+from .image_utils.image_stack_utils import channel_slice, pad_patch
 
 
 class ZarrImageStack:
@@ -39,16 +39,13 @@ class ZarrImageStack:
         #   - must be subset of STCZYX
         self._original_axes = axes
         self._original_data_shape: tuple[int, ...] = self._array.shape
-        self.data_shape = reshape_array_shape(axes, self._original_data_shape)
+        self.data_shape = AxesTransform(
+            axes, self._original_data_shape
+        ).transformed_shape
+
         self._data_dtype = self._array.dtype
-        self._chunk_size = reshape_array_shape(
-            axes, self._array.chunks, add_singleton=False
-        )
-        self._shard_size = (
-            reshape_array_shape(axes, self._array.shards, add_singleton=False)
-            if self._array.shards is not None
-            else None
-        )
+        self._chunk_size = self._array.chunks
+        self._shard_size = self._array.shards
 
     # Used to identify the source of the data and write to similar path during pred
     @property

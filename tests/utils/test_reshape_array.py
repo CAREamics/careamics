@@ -389,7 +389,7 @@ class TestOriginalStitchSlices:
 
         # get slices and index into restored array
         slices = get_original_stitch_slices(
-            reshaped.shape, axes, shape, sample_idx, stitch_coords, crop_size
+            axes, shape, sample_idx, stitch_coords, crop_size
         )
 
         crop_axes = [a for a in axes if a in "CZYX"]
