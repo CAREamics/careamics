@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 
+from careamics.dataset.dataset_utils import reshape_array as reshape_array_old
+from careamics.lightning.dataset_ng.prediction import restore_original_shape
 from careamics.lightning.dataset_ng.prediction.reshape_arrays import (
     AxesTransform,
     get_original_stitch_slices,
@@ -394,3 +396,28 @@ class TestOriginalStitchSlices:
                 crop_shape.append(crop_size[-1])
 
         restored[slices] = np.ones(crop_shape)
+
+
+@pytest.mark.parametrize("shape, axes", _ORDERED_CASES + _UNORDERED_CASES)
+def test_reshape_against_old_impl(shape, axes):
+    """Test that the new `reshape_array` produces the same output as the old
+    implementation."""
+    array = np.arange(np.prod(shape)).reshape(shape)
+    new_reshaped = reshape_array(array, axes, shape)
+    old_reshaped = reshape_array_old(array, axes)
+
+    assert new_reshaped.shape == old_reshaped.shape
+    np.testing.assert_array_equal(new_reshaped, old_reshaped)
+
+
+@pytest.mark.parametrize("shape, axes", _ORDERED_CASES + _UNORDERED_CASES)
+def test_restore_against_old_impl(shape, axes):
+    """Test that the new `restore_array` produces the same output as the old
+    implementation."""
+    array = np.arange(np.prod(shape)).reshape(shape)
+    reshaped = reshape_array(array, axes, shape)
+    new_restored = restore_array(reshaped, axes, shape)
+    old_restored = restore_original_shape(reshaped, axes, shape)
+
+    assert new_restored.shape == old_restored.shape
+    np.testing.assert_array_equal(new_restored, old_restored)
