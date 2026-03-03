@@ -129,6 +129,17 @@ class StratifiedPatchingStrategy:
             self.cumulative_image_samples,
         ) = self._calc_bins()
 
+    def set_region_probs(
+        self, data_idx: int, sample_idx: int, probs: dict[tuple[int, int], float]
+    ) -> None:
+        self.image_patching[data_idx][sample_idx].set_region_probs(probs)
+        # update bins
+        (
+            self.cumulative_image_patches,
+            self.cumulative_sample_patches,
+            self.cumulative_image_samples,
+        ) = self._calc_bins()
+
     def get_patch_spec(self, index: int) -> PatchSpecs:
         """Return the patch specs for a given index.
 
@@ -319,6 +330,7 @@ class _ImageStratifiedPatching:
         self.regions: dict[tuple[int, ...], _SamplingRegion] = {}
         self.areas: dict[tuple[int, ...], int] = {}
         self.probs: dict[tuple[int, ...], float]
+        self.relative_probs: dict[tuple[int, ...], float] = {}
 
         self.excluded_patches: set[tuple[int, ...]] = set()
         self.bin_size: int
@@ -472,6 +484,12 @@ class _ImageStratifiedPatching:
         grid_coords_all: set[tuple[int, ...]] = set(self.regions.keys())
         return list(grid_coords_all.difference(self.excluded_patches))
 
+    def set_region_probs(self, probs: dict[tuple[int, int], float]) -> None:
+        self.relative_probs.update(probs.items())
+        self.n_patches, self.bin_size, self.bins, self.probs = (
+            self._recalculate_sampling()
+        )
+
     def _recalculate_sampling(self):
         """
         Recalculate how patches will be sampled.
@@ -513,7 +531,10 @@ class _ImageStratifiedPatching:
 
         bin_size, _ = _find_bin_size(self.areas, n_patches)
         bins = _region_bin_packing(self.areas, bin_size)
-        probs = {key: area / bin_size for key, area in self.areas.items()}
+        probs = {
+            key: area * (self.relative_probs.get(key, 1)) / bin_size
+            for key, area in self.areas.items()
+        }
         return n_patches, bin_size, bins, probs
 
 
