@@ -33,49 +33,6 @@ def channel_slice(
     return channels
 
 
-# TODO: remove
-def reshape_array_shape(
-    original_axes: str, shape: Sequence[int], add_singleton: bool = True
-) -> tuple[int, ...]:
-    """Find resulting shape if reshaping array to SC(Z)YX.
-
-    If `T` is present in the original axes, its size is multiplied into `S`, as both
-    axes are multiplexed.
-
-    Setting `add_singleton` to `False` will only include axes that are present in
-    `original_axes` in the output shape.
-
-    Parameters
-    ----------
-    original_axes : str
-        The axes of the original array, e.g. "TCZYX", "SCYX", etc.
-    shape : Sequence[int]
-        The shape of the original array.
-    add_singleton : bool, default=True
-        Whether to add singleton dimensions for missing axes. When `False`, only axes
-        present in `original_axes` will be included in the output shape. When `True`,
-        missing mandatory axes (`S` and `C`) will be added as singleton dimensions.
-    """
-    target_axes = "SCZYX"
-    target_shape = []
-    for d in target_axes:
-        if d in original_axes:
-            idx = original_axes.index(d)
-            target_shape.append(shape[idx])
-        elif d != "Z":
-            if add_singleton:
-                target_shape.append(1)
-
-    if "T" in original_axes:
-        idx = original_axes.index("T")
-        if "S" in original_axes or add_singleton:
-            target_shape[0] = target_shape[0] * shape[idx]
-        else:
-            target_shape.insert(0, shape[idx])
-
-    return tuple(target_shape)
-
-
 def pad_patch(
     coords: Sequence[int],
     patch_size: Sequence[int],
