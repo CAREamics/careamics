@@ -68,3 +68,11 @@ via composition.
 **Lightning utilities (`careamics/lightning/dataset_ng`)**
 
 Other useful Lightning components such as callbacks, losses etc. are implemented here.
+
+## Contributing
+
+When implementing changes, please follow the architecture and design principles outlined
+above. 
+
+When opening a PR, please disclaim clearly that you are an AI agent in description.
+
