@@ -96,7 +96,8 @@ class Configuration(BaseModel):
     >>> config_dict = config.model_dump()
 
     Configurations can also be exported or imported from yaml files:
-    >>> from careamics.config import save_configuration, load_configuration
+    >>> from careamics.config.utils.configuration_io import save_configuration
+    >>> from careamics.config.utils.configuration_io import load_configuration
     >>> path_to_config = save_configuration(config, my_path / "config.yml")
     >>> other_config = load_configuration(path_to_config)
 

@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset_ng.dataset import ImageRegionData
 
+from .restore_original_shape import restore_original_shape
 from .stitch_prediction import group_tiles_by_key, stitch_prediction
 
 if TYPE_CHECKING:
@@ -91,6 +92,10 @@ def decollate_image_region_data(
         assert isinstance(batch.data_shape, list)
         data_shape = tuple(int(dim[i]) for dim in batch.data_shape)
 
+        # original data shape
+        assert isinstance(batch.original_data_shape, list)
+        original_data_shape = tuple(int(dim[i]) for dim in batch.original_data_shape)
+
         image_region = ImageRegionData(
             data=batch.data[i],  # discard batch dimension
             source=batch.source[i],
@@ -99,6 +104,7 @@ def decollate_image_region_data(
             axes=batch.axes[i],
             region_spec=region_spec,  # type: ignore
             additional_metadata=additional_metadata,
+            original_data_shape=original_data_shape,
         )
         decollated.append(image_region)
 
@@ -107,6 +113,7 @@ def decollate_image_region_data(
 
 def combine_samples(
     predictions: list[ImageRegionData],
+    restore_shape: bool = False,
 ) -> tuple[list[NDArray], list[str]]:
     """
     Combine predictions by `data_idx`.
@@ -118,6 +125,8 @@ def combine_samples(
     ----------
     predictions : list of ImageRegionData
         List of `ImageRegionData`.
+    restore_shape : bool, default=False
+        If True, restore predictions to their original shape and dimension order.
 
     Returns
     -------
@@ -141,8 +150,18 @@ def combine_samples(
         # sort by sample idx
         image_regions.sort(key=lambda x: x.region_spec["sample_idx"])
 
-        # remove singleton dims and stack along S axis
-        combined_data = np.stack([img.data.squeeze() for img in image_regions], axis=0)
+        # stack along S axis (keep C dimension if present)
+        # data is in C(Z)YX format, we want to stack along new S dimension
+        combined_data = np.stack([img.data for img in image_regions], axis=0)
+
+        if restore_shape:
+            # get original shape info from the first image region
+            original_axes = image_regions[0].axes
+            original_data_shape = image_regions[0].original_data_shape
+            combined_data = restore_original_shape(
+                combined_data, original_axes, original_data_shape
+            )
+
         combined_predictions.append(combined_data)
 
     return combined_predictions, combined_sources
@@ -151,6 +170,7 @@ def combine_samples(
 def convert_prediction(
     predictions: list[ImageRegionData],
     tiled: bool,
+    restore_shape: bool = False,
 ) -> tuple[list[NDArray], list[str]]:
     """
     Convert the Lightning trainer outputs to the desired form.
@@ -167,11 +187,13 @@ def convert_prediction(
         Output from `Trainer.predict`, list of batches.
     tiled : bool
         Whether the predictions are tiled.
+    restore_shape : bool, default=False
+        If True, restore predictions to their original shape and dimension order.
 
     Returns
     -------
     list of numpy.ndarray
-        List of arrays with the axes SC(Z)YX.
+        List of arrays with the axes SC(Z)YX, or original axes if restore_shape=True.
     list of str
         List of sources, one per output or empty if all equal to `array`.
     """
@@ -188,9 +210,13 @@ def convert_prediction(
         )
 
     if tiled:
-        predictions_output, sources = stitch_prediction(decollated_predictions)
+        predictions_output, sources = stitch_prediction(
+            decollated_predictions, restore_shape=restore_shape
+        )
     else:
-        predictions_output, sources = combine_samples(decollated_predictions)
+        predictions_output, sources = combine_samples(
+            decollated_predictions, restore_shape=restore_shape
+        )
 
     if set(sources) == {"array"}:
         sources = []

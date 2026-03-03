@@ -97,7 +97,7 @@ class FCNModule(L.LightningModule):
         if isinstance(self.algorithm_config, N2VAlgorithm | PN2VAlgorithm):
             self.use_n2v = True
             self.n2v_preprocess: N2VManipulateTorch | None = N2VManipulateTorch(
-                n2v_manipulate_config=self.algorithm_config.n2v_config
+                self.algorithm_config.n2v_config
             )
         else:
             self.use_n2v = False

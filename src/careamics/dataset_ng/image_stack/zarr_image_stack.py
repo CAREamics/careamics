@@ -70,6 +70,16 @@ class ZarrImageStack:
     def data_dtype(self) -> DTypeLike:
         return self._data_dtype
 
+    @property
+    def original_data_shape(self) -> tuple[int, ...]:
+        """Original shape of the data."""
+        return self._original_data_shape
+
+    @property
+    def original_axes(self) -> str:
+        """Original axes of the data."""
+        return self._original_axes
+
     def extract_patch(
         self,
         sample_idx: int,

@@ -34,9 +34,9 @@ class TestSpatialAugmentations:
         with pytest.raises(ValueError):
             list_spatial_augmentations(
                 augmentations=[
-                    XYFlipConfig(),
-                    XYRandomRotate90Config(),
-                    XYFlipConfig(),
+                    XYFlipConfig(seed=42),
+                    XYRandomRotate90Config(seed=42),
+                    XYFlipConfig(seed=42),
                 ],
             )
 
@@ -44,7 +44,7 @@ class TestSpatialAugmentations:
         """Test that an error is raised when the wrong transform is passed."""
         with pytest.raises(ValueError):
             list_spatial_augmentations(
-                augmentations=[XYFlipConfig(), N2VManipulateConfig()],
+                augmentations=[XYFlipConfig(seed=42), N2VManipulateConfig(seed=42)],
             )
 
 
@@ -58,9 +58,10 @@ class TestNGDataConfiguration:
             patch_size=(16, 16),
             batch_size=1,
             augmentations=None,
+            seed=42,
         )
 
-        assert config.transforms == list_spatial_augmentations()
+        assert config.transforms == list_spatial_augmentations(seed=42)
 
     def test_train_dataloader_params(self):
         """Test that shuffle is added silently to the train_dataloader_params."""
