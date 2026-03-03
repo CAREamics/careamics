@@ -7,9 +7,9 @@ import tifffile
 from numpy.typing import DTypeLike, NDArray
 
 from careamics.file_io.read import ReadFunc, read_tiff
-from careamics.utils.reshape_array import reshape_array
+from careamics.utils.reshape_array import AxesTransform, reshape_array
 
-from .image_utils.image_stack_utils import channel_slice, pad_patch, reshape_array_shape
+from .image_utils.image_stack_utils import channel_slice, pad_patch
 
 
 class FileImageStack:
@@ -139,7 +139,7 @@ class FileImageStack:
         # TODO: think this is correct but need more examples to test
         file = tifffile.TiffFile(path)
         original_data_shape = file.series[0].shape
-        data_shape = reshape_array_shape(axes, original_data_shape)
+        data_shape = AxesTransform(axes, original_data_shape).transformed_shape
         dtype = file.series[0].dtype
         return cls(
             source=path,

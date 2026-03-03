@@ -4,7 +4,12 @@ import pytest
 from careamics.dataset.dataset_utils.dataset_utils import (
     reshape_array as reshape_array_old,
 )
-from careamics.lightning.dataset_ng.prediction import restore_original_shape
+from careamics.dataset_ng.image_stack.image_utils.image_stack_utils import (
+    reshape_array_shape,
+)
+from careamics.lightning.dataset_ng.prediction.restore_original_shape import (
+    restore_original_shape,
+)
 from careamics.utils.reshape_array import (
     AxesTransform,
     get_original_stitch_slices,
@@ -425,10 +430,10 @@ def test_restore_against_old_impl(shape, axes):
     np.testing.assert_array_equal(new_restored, old_restored)
 
 
-# @pytest.mark.parametrize("shape, axes", _ORDERED_CASES + _UNORDERED_CASES)
-# def test_shape_against_old_impl(shape, axes):
-#     """Test that the new way of calculating resulting shape produces the same outputas
-#     the old implementation."""
-#     shape = AxesTransform(axes, shape).transformed_shape
-#     old_shape = reshape_array_shape(axes, shape)
-#     assert shape == old_shape
+@pytest.mark.parametrize("shape, axes", _ORDERED_CASES + _UNORDERED_CASES)
+def test_shape_against_old_impl(shape, axes):
+    """Test that the new way of calculating resulting shape produces the same output as
+    the old implementation."""
+    new_shape = AxesTransform(axes, shape).transformed_shape
+    old_shape = reshape_array_shape(axes, shape)
+    assert new_shape == old_shape

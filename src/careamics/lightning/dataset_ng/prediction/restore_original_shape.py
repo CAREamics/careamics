@@ -6,6 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 
+# TODO remove
 def restore_original_shape(
     array: NDArray,
     original_axes: str,

@@ -33,8 +33,7 @@ def channel_slice(
     return channels
 
 
-# TODO: add tests
-# TODO: move to dataset_utils, better name?
+# TODO: remove
 def reshape_array_shape(
     original_axes: str, shape: Sequence[int], add_singleton: bool = True
 ) -> tuple[int, ...]:
