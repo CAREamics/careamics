@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict, Unpack
 
 import numpy as np
-import torch
 from numpy.typing import NDArray
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
@@ -13,7 +12,7 @@ from .config.utils.configuration_io import load_configuration_ng
 from .config.ng_configs import NGConfiguration
 from .config.ng_configs.ng_configuration import AlgorithmConfig
 from .config.support import SupportedData, SupportedLogger
-from .dataset.dataset_utils import reshape_array
+from .utils.reshape_array import reshape_array
 from .file_io import WriteFunc, ReadFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.load_checkpoint import (
