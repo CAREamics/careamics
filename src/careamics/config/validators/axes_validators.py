@@ -3,6 +3,7 @@
 _AXES = "STCZYX"
 
 
+# TODO: turn into proper validator f(str) -> str
 def check_axes_validity(axes: str) -> None:
     """
     Sanity check on axes.
@@ -46,6 +47,7 @@ def check_axes_validity(axes: str) -> None:
             )
 
 
+# TODO: turn into proper validator f(str) -> str
 def check_czi_axes_validity(axes: str) -> bool:
     """
     Check if the provided axes string is valid for CZI files.
