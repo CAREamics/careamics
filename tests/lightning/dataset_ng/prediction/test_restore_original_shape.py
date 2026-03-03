@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning.dataset_ng.prediction import restore_original_shape
+from careamics.utils.reshape_array import reshape_array
 
 
 def test_identity() -> None:

@@ -3,7 +3,7 @@ from collections.abc import Sequence
 import zarr
 from numpy.typing import DTypeLike, NDArray
 
-from careamics.dataset.dataset_utils import reshape_array
+from careamics.utils.reshape_array import reshape_array
 
 from .image_utils.image_stack_utils import channel_slice, pad_patch, reshape_array_shape
 
