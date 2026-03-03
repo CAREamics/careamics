@@ -3,9 +3,22 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from pytorch_lightning import Callback, Trainer
 
 from careamics import CAREamist, Configuration
+from careamics.config import TrainingConfig
+from careamics.config.ng_configs import NGConfiguration
+from careamics.config.ng_factories import (
+    create_advanced_care_config,
+    create_advanced_n2v_config,
+)
 from careamics.config.support import SupportedData
+from careamics.lightning.callbacks.careamics_checkpoint_info_callback import (
+    CareamicsCheckpointInfo,
+)
+from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
+from careamics.lightning.dataset_ng.lightning_modules import CAREModule, N2VModule
+from careamics.lightning.dataset_ng.load_checkpoint import _create_loaded_exp_name
 from careamics.model_io import export_to_bmz
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -451,3 +464,104 @@ def minimum_lvae_params():
         "predict_logvar": "pixelwise",
         "analytical_kl": False,
     }
+
+
+# NOTE: this fixture is only used in the checkpoint fixture below
+# It means that the checkpoint fixture is parametrized with a cartesian prod of params
+@pytest.fixture(params=[True, False], ids=["w_ckpt_info", "w/o_ckpt_info"])
+def _checkpoint_trainer(request):
+    """
+    A trainer instance to save checkpoints, with and without CAREamicsCheckpointInfo.
+    """
+    if request.param:
+        info_callback = CareamicsCheckpointInfo(
+            careamics_version="0.1.0",
+            experiment_name="testing",
+            training_config=TrainingConfig(),
+        )
+        callbacks: list[Callback] = [info_callback]
+    else:
+        info_callback = None
+        callbacks = []
+    return Trainer(max_epochs=1, callbacks=callbacks), info_callback
+
+
+@pytest.fixture(params=["n2v", "care"])
+def checkpoint(
+    request,
+    _checkpoint_trainer: tuple[Trainer, CareamicsCheckpointInfo | None],
+    tmp_path: Path,
+) -> tuple[Path, type[N2VModule] | type[CAREModule], NGConfiguration]:
+    """
+    Fixture producing a checkpoint with the expected module type and expected config.
+
+    Returns
+    -------
+    checkpoint_path : Path
+        The path to the checkpoint
+    expected_module_cls : type[N2VModule] | type[CAREModule]
+        The expected module class type saved in the checkpoint.
+    expected_config : NGConfiguration
+        The expected config saved in the checkpoint.
+    """
+
+    train_data = np.random.rand(32, 32).astype(np.float32)
+    val_data = np.random.rand(16, 16).astype(np.float32)
+    train_data_target = np.random.rand(32, 32).astype(np.float32)
+    val_data_target = np.random.rand(16, 16).astype(np.float32)
+
+    if request.param == "n2v":
+        module_cls = N2VModule
+        config = create_advanced_n2v_config(
+            experiment_name="checkpoint_fixture_n2v",
+            data_type="array",
+            axes="YX",
+            patch_size=[16, 16],
+            batch_size=2,
+            masked_pixel_percentage=0.4,
+            normalization="mean_std",
+            normalization_params={"input_means": [0.5], "input_stds": [0.3]},
+        )
+        data = {"train_data": train_data, "val_data": val_data}
+
+    elif request.param == "care":
+        module_cls = CAREModule
+        config = create_advanced_care_config(
+            experiment_name="checkpoint_fixture_care",
+            data_type="array",
+            axes="YX",
+            patch_size=[16, 16],
+            batch_size=2,
+            normalization="mean_std",
+            normalization_params={
+                "input_means": [0.5],
+                "input_stds": [0.3],
+                "target_means": [0.5],
+                "target_stds": [0.3],
+            },
+        )
+        data = {
+            "train_data": train_data,
+            "val_data": val_data,
+            "train_data_target": train_data_target,
+            "val_data_target": val_data_target,
+        }
+    else:
+        raise ValueError(f"Unexpected algorithm value: {request.param}")
+
+    module = module_cls(config.algorithm_config)
+    dmodule = CareamicsDataModule(data_config=config.data_config, **data)
+    trainer, info_callback = _checkpoint_trainer
+    trainer.fit(model=module, datamodule=dmodule)
+    ckpt_path = tmp_path / "checkpoint_test_fixture.ckpt"
+    trainer.save_checkpoint(ckpt_path)
+
+    if info_callback is not None:
+        config.experiment_name = info_callback.experiment_name
+        config.version = info_callback.careamics_version
+        config.training_config = info_callback.training_config
+    else:
+        config.experiment_name = _create_loaded_exp_name(ckpt_path)
+        config.training_config = TrainingConfig()
+
+    return ckpt_path, module_cls, config
