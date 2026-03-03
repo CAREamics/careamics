@@ -9,9 +9,10 @@ __all__ = [
     "mse_loss",
     "musplit_loss",
     "n2v_loss",
+    "n2v_poisson_loss",
 ]
 
-from .fcn.losses import mae_loss, mse_loss, n2v_loss
+from .fcn.losses import mae_loss, mse_loss, n2v_loss, n2v_poisson_loss
 from .loss_factory import loss_factory
 from .lvae.losses import (
     denoisplit_loss,
