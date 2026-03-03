@@ -145,6 +145,17 @@ class StratifiedPatchingStrategy:
             self.cumulative_image_samples,
         ) = self._calc_bins()
 
+    def set_region_probs(
+        self, data_idx: int, sample_idx: int, probs: dict[tuple[int, int], float]
+    ) -> None:
+        self.image_patching[data_idx][sample_idx].set_region_probs(probs)
+        # update bins
+        (
+            self.cumulative_image_patches,
+            self.cumulative_sample_patches,
+            self.cumulative_image_samples,
+        ) = self._calc_bins()
+
     def get_patch_spec(self, index: int) -> PatchSpecs:
         """Return the patch specs for a given index.
 
@@ -343,6 +354,7 @@ class _ImageStratifiedPatching:
         # keep as dicts because access is slightly faster than lists
         self.regions: dict[int, _SamplingRegion] = {}
         self.areas: dict[int, int] = {}
+        self.relative_probs: dict[int, float] = {}
 
         self.excluded_patches: set[tuple[int, ...]] = set()
 
@@ -464,6 +476,12 @@ class _ImageStratifiedPatching:
         """
         grid_coords_all: set[tuple[int, ...]] = set(self.grid_coords.keys())
         return list(grid_coords_all.difference(self.excluded_patches))
+
+    def set_region_probs(self, probs: dict[tuple[int, int], float]) -> None:
+        for grid_coord, prob in probs.items():
+            idx = self.grid_coords[grid_coord]
+            self.relative_probs[idx] = prob
+        self._recalculate_sampling()
 
     def _recalculate_sampling(self):
         """
