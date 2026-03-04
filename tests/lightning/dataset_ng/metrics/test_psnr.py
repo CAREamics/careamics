@@ -137,15 +137,26 @@ def test_global_sipsnr(shape, batch_size):
     )
 
     # compute metrics over batches
-    metrics = SIPSNR(n_channels=shape[1])
+    metrics = [SIPSNR(n_channels=shape[1], output_channel=i) for i in range(shape[1])]
     for gt_batch, pred_batch in batches:
-        metrics.update(pred_batch, gt_batch)
+        for metric in metrics:
+            metric.update(pred_batch, gt_batch)
 
-    sipsnr = metrics.compute()
+    sipsnr = [metric.compute() for metric in metrics]
 
-    assert (metrics.glob_max == gts_max).all()
-    assert (metrics.glob_min == gts_min).all()
-    np.testing.assert_almost_equal(sipsnr.numpy(), expected_psnr_rng, decimal=4)
+    assert (metrics[0].glob_max == gts_max).all()
+    assert (metrics[0].glob_min == gts_min).all()
+    for i, s in enumerate(sipsnr):
+        np.testing.assert_almost_equal(s.numpy(), expected_psnr_rng[i], decimal=4)
+
+    # test averaging over channels
+    avg_metrics = SIPSNR(n_channels=shape[1], output_channel=-1)
+    for gt_batch, pred_batch in batches:
+        avg_metrics.update(pred_batch, gt_batch)
+
+    avg_sipsnr = avg_metrics.compute()
+    expected_avg_psnr_rng = np.mean(expected_psnr_rng)
+    np.testing.assert_almost_equal(avg_sipsnr.numpy(), expected_avg_psnr_rng, decimal=4)
 
 
 @pytest.mark.parametrize(
@@ -208,14 +219,31 @@ def test_global_psnr(shape, batch_size):
     )
 
     # compute metrics over batches
-    metrics = SIPSNR(n_channels=shape[1], use_scale_invariance=False)
+    metrics = [
+        SIPSNR(n_channels=shape[1], output_channel=i, use_scale_invariance=False)
+        for i in range(shape[1])
+    ]
     for gt_batch, pred_batch in batches:
-        metrics.update(pred_batch, gt_batch)
+        for metric in metrics:
+            metric.update(pred_batch, gt_batch)
 
-    glob_psnr = metrics.compute()
-    assert (metrics.glob_max == gts_max).all()
-    assert (metrics.glob_min == gts_min).all()
-    np.testing.assert_almost_equal(glob_psnr.numpy(), expected_psnr_rng, decimal=4)
+    sipsnr = [metric.compute() for metric in metrics]
+
+    assert (metrics[0].glob_max == gts_max).all()
+    assert (metrics[0].glob_min == gts_min).all()
+    for i, s in enumerate(sipsnr):
+        np.testing.assert_almost_equal(s.numpy(), expected_psnr_rng[i], decimal=4)
+
+    # test averaging over channels
+    avg_metrics = SIPSNR(
+        n_channels=shape[1], output_channel=-1, use_scale_invariance=False
+    )
+    for gt_batch, pred_batch in batches:
+        avg_metrics.update(pred_batch, gt_batch)
+
+    avg_sipsnr = avg_metrics.compute()
+    expected_avg_psnr_rng = np.mean(expected_psnr_rng)
+    np.testing.assert_almost_equal(avg_sipsnr.numpy(), expected_avg_psnr_rng, decimal=4)
 
 
 @pytest.mark.parametrize(
@@ -279,7 +307,7 @@ def test_sample_sipsnr(shape, batch_size):
         ],
         axis=0,
     )
-    expected_psnr_original = np.mean(
+    expected_sipsnr_original = np.mean(
         [
             [
                 scale_invariant_psnr(
@@ -294,13 +322,29 @@ def test_sample_sipsnr(shape, batch_size):
     )
 
     # compute metrics over batches
-    metrics = SampleSIPSNR(n_channels=shape[1])
+    metrics = [
+        SampleSIPSNR(n_channels=shape[1], output_channel=i) for i in range(shape[1])
+    ]
     for gt_batch, pred_batch in batches:
-        metrics.update(pred_batch, gt_batch)
+        for metric in metrics:
+            metric.update(pred_batch, gt_batch)
 
-    sipsnr = metrics.compute()
-    np.testing.assert_almost_equal(sipsnr.numpy(), expected_psnr_skimage, decimal=4)
-    np.testing.assert_almost_equal(sipsnr.numpy(), expected_psnr_original, decimal=4)
+    sipsnr = [m.compute() for m in metrics]
+
+    for i, s in enumerate(sipsnr):
+        np.testing.assert_almost_equal(s.numpy(), expected_psnr_skimage[i], decimal=4)
+        np.testing.assert_almost_equal(
+            s.numpy(), expected_sipsnr_original[i], decimal=4
+        )
+
+    # test averaging over channels
+    avg_metrics = SampleSIPSNR(n_channels=shape[1], output_channel=-1)
+    for gt_batch, pred_batch in batches:
+        avg_metrics.update(pred_batch, gt_batch)
+
+    avg_sipsnr = avg_metrics.compute()
+    expected_avg_sipsnr = np.mean(expected_psnr_skimage)
+    np.testing.assert_almost_equal(avg_sipsnr.numpy(), expected_avg_sipsnr, decimal=4)
 
 
 @pytest.mark.parametrize(
@@ -363,14 +407,18 @@ def test_sample_psnr(shape, batch_size):
     )
 
     # compute metrics over batches
-    metrics = SampleSIPSNR(n_channels=shape[1], use_scale_invariance=False)
+    metrics = [
+        SampleSIPSNR(n_channels=shape[1], output_channel=i, use_scale_invariance=False)
+        for i in range(shape[1])
+    ]
     for gt_batch, pred_batch in batches:
-        metrics.update(pred_batch, gt_batch)
+        for metric in metrics:
+            metric.update(pred_batch, gt_batch)
 
-    sample_psnr = metrics.compute()
-    np.testing.assert_almost_equal(
-        sample_psnr.numpy(), expected_psnr_skimage, decimal=4
-    )
+    sample_psnr = [m.compute() for m in metrics]
+
+    for i, s in enumerate(sample_psnr):
+        np.testing.assert_almost_equal(s.numpy(), expected_psnr_skimage[i], decimal=4)
 
     # if not 3D and no channels, compare with torchmetrics
     if len(shape) == 4 and shape[1] == 1:
@@ -380,9 +428,22 @@ def test_sample_psnr(shape, batch_size):
             psnr_metric.update(preds[i].unsqueeze(0), gts[i].unsqueeze(0))
             expected_psnr_torchmetrics_lst.append(psnr_metric.compute().numpy())
         expected_psnr_torchmetrics = np.mean(expected_psnr_torchmetrics_lst, axis=0)
-        np.testing.assert_almost_equal(
-            sample_psnr.numpy(), expected_psnr_torchmetrics, decimal=4
-        )
+
+        for s in sample_psnr:
+            np.testing.assert_almost_equal(
+                s.numpy(), expected_psnr_torchmetrics, decimal=4
+            )
+
+    # test averaging over channels
+    avg_metrics = SampleSIPSNR(
+        n_channels=shape[1], output_channel=-1, use_scale_invariance=False
+    )
+    for gt_batch, pred_batch in batches:
+        avg_metrics.update(pred_batch, gt_batch)
+
+    avg_sipsnr = avg_metrics.compute()
+    expected_avg_sipsnr = np.mean(expected_psnr_skimage)
+    np.testing.assert_almost_equal(avg_sipsnr.numpy(), expected_avg_sipsnr, decimal=4)
 
 
 def test_torchmetrics_collection():

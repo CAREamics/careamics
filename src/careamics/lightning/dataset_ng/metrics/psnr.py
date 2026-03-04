@@ -65,6 +65,9 @@ def _normalise_range(gt: Tensor, pred: Tensor) -> tuple[Tensor, Tensor]:
 class SIPSNR(Metric):
     """Scale Invariant PSNR metric using a global data range.
 
+    By default, the metric is averaged over channels, but it can also be computed for a
+    specific channel by setting `output_channel` to the desired channel index.
+
     Adapted from juglab/ScaleInvPSNR, this version of PSNR rescales the predictions and
     ground truth to have similar range, then computes the PSNR using a global data range
     accumulated over all batches. For a scale-invariant version of PSNR with per-sample
@@ -76,12 +79,14 @@ class SIPSNR(Metric):
     batches.
 
     Note that as opposed to `torchmetrics.image.PeakSignalNoiseRatio`, this
-    implementation is compatible with 3D and multi-channel images.
+    implementation is compatible with 3D and can be computed on a single channel.
 
     Parameters
     ----------
     n_channels : int
         Number of channels in the input images.
+    output_channel : int, default=-1
+        Channel to compute the metric on. If -1, the metric is computed on all channels.
     use_scale_invariance : bool
         Whether to use scale invariance. If False, the metric is equivalent to PSNR with
         global data range.
@@ -100,8 +105,16 @@ class SIPSNR(Metric):
         Total number of samples processed.
     """
 
+    is_differentiable: bool | None = True
+    higher_is_better: bool | None = True
+    full_state_update: bool = True
+
     def __init__(
-        self, n_channels: int, use_scale_invariance: bool = True, **kwargs: Any
+        self,
+        n_channels: int,
+        output_channel: int = -1,
+        use_scale_invariance: bool = True,
+        **kwargs: Any,
     ):
         """Initialize a global scale invariant PSNR metric.
 
@@ -109,7 +122,10 @@ class SIPSNR(Metric):
         ----------
         n_channels : int
             Number of channels in the input images.
-        use_scale_invariance : bool
+        output_channel : int, default=-1
+            Channel to compute the metric on. If -1, the metric is computed on all
+            channels.
+        use_scale_invariance : bool, default=True
             Whether to use scale invariance. If False, the metric is equivalent to PSNR
             with global data range.
         **kwargs : Any
@@ -118,7 +134,17 @@ class SIPSNR(Metric):
         super().__init__(**kwargs)
 
         self.eps = torch.finfo(torch.float32).eps
+        self.output_channel = output_channel
         self.use_scale_invariance = use_scale_invariance
+
+        if self.output_channel != -1 and (
+            self.output_channel < 0 or self.output_channel >= n_channels
+        ):
+            raise ValueError(
+                f"Invalid `output_channel` value ({self.output_channel}), must be equal"
+                f" to -1 to compute an average over all channels, or between 0 and "
+                f"{n_channels - 1} to compute the metric on a single channel."
+            )
 
         self.add_state(
             "glob_max",
@@ -189,11 +215,19 @@ class SIPSNR(Metric):
             Tensor of length C containing the computed PSNR for each channel.
         """
         glob_data_range = self.glob_max - self.glob_min + self.eps
-        return 10 * (torch.log10(glob_data_range**2) - self.mse_log / self.total)
+        psnr = 10 * (torch.log10(glob_data_range**2) - self.mse_log / self.total)
+
+        if self.output_channel == -1:
+            return torch.mean(psnr)
+        else:
+            return psnr[self.output_channel]
 
 
 class SampleSIPSNR(Metric):
     """Scale Invariant PSNR metric with per-sample data range.
+
+    By default, the metric is averaged over channels, but it can also be computed for a
+    specific channel by setting `output_channel` to the desired channel index.
 
     Adapted from juglab/ScaleInvPSNR, this version of PSNR rescales the predictions and
     ground truth to have similar range, then computes the PSNR using each patch's data
@@ -211,6 +245,8 @@ class SampleSIPSNR(Metric):
     ----------
     n_channels : int
         Number of channels in the input images.
+    output_channel : int, default=-1
+        Channel to compute the metric on. If -1, the metric is computed on all channels.
     use_scale_invariance : bool
         Whether to use scale invariance. If False, the metric is equivalent to PSNR with
         per-sample data range.
@@ -225,8 +261,16 @@ class SampleSIPSNR(Metric):
         Total number of samples processed.
     """
 
+    is_differentiable: bool | None = True
+    higher_is_better: bool | None = True
+    full_state_update: bool = False
+
     def __init__(
-        self, n_channels: int, use_scale_invariance: bool = True, **kwargs: Any
+        self,
+        n_channels: int,
+        output_channel: int = -1,
+        use_scale_invariance: bool = True,
+        **kwargs: Any,
     ):
         """Initialize a per-sample scale invariant PSNR metric.
 
@@ -234,7 +278,10 @@ class SampleSIPSNR(Metric):
         ----------
         n_channels : int
             Number of channels in the input images.
-        use_scale_invariance : bool
+        output_channel : int, default=-1
+            Channel to compute the metric on. If -1, the metric is computed on all
+            channels.
+        use_scale_invariance : bool, default=True
             Whether to use scale invariance. If False, the metric is equivalent to PSNR
             with per-sample data range.
         **kwargs : Any
@@ -243,7 +290,17 @@ class SampleSIPSNR(Metric):
         super().__init__(**kwargs)
 
         self.eps = torch.finfo(torch.float32).eps
+        self.output_channel = output_channel
         self.use_scale_invariance = use_scale_invariance
+
+        if self.output_channel != -1 and (
+            self.output_channel < 0 or self.output_channel >= n_channels
+        ):
+            raise ValueError(
+                f"Invalid `output_channel` value ({self.output_channel}), must be equal"
+                f" to -1 to compute an average over all channels, or between 0 and "
+                f"{n_channels - 1} to compute the metric on a single channel."
+            )
 
         self.add_state(
             "psnr_sum",
@@ -301,4 +358,9 @@ class SampleSIPSNR(Metric):
         torch.Tensor
             Tensor of length C containing the computed PSNR for each channel.
         """
-        return self.psnr_sum / self.total
+        psnr = self.psnr_sum / self.total
+
+        if self.output_channel == -1:
+            return torch.mean(psnr)
+        else:
+            return psnr[self.output_channel]

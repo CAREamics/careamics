@@ -69,7 +69,14 @@ class CAREModule(L.LightningModule):
             raise ValueError(f"Unsupported loss for Care: {loss}")
 
         self.metrics: MetricCollection = MetricCollection(
-            SIPSNR(n_channels=self.config.model.num_classes, use_scale_invariance=True)
+            {
+                f"SIPSNR_{i}": SIPSNR(
+                    n_channels=self.config.model.num_classes,
+                    output_channel=i,
+                    use_scale_invariance=True,
+                )
+                for i in range(self.config.model.num_classes)
+            }
         )
 
         self._best_checkpoint_loaded: bool = False

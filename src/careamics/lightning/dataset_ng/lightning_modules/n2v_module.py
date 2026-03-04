@@ -56,8 +56,15 @@ class N2VModule(L.LightningModule):
         self.n2v_manipulate = N2VManipulateTorch(self.config.n2v_config)
         self.loss_func = n2v_loss
 
-        self.metrics = MetricCollection(
-            SIPSNR(n_channels=self.config.model.num_classes, use_scale_invariance=True)
+        self.metrics: MetricCollection = MetricCollection(
+            {
+                f"SIPSNR_{i}": SIPSNR(
+                    n_channels=self.config.model.num_classes,
+                    output_channel=i,
+                    use_scale_invariance=True,
+                )
+                for i in range(self.config.model.num_classes)
+            }
         )
 
     def on_fit_start(self) -> None:
