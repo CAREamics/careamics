@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import torch
 
-from careamics.losses.lvae.loss_utils import free_bits_kl, get_kl_weight
+from careamics.losses.lvae.loss_utils import free_bits_kl
 
 if TYPE_CHECKING:
     from careamics.config import LVAELossConfig
@@ -49,14 +49,14 @@ def _compute_gaussian_log_likelihood(
         )
     else:
         log_prob = -0.5 * (reconstruction - target) ** 2
-    
+
     return log_prob.mean()
 
 
 def _compute_noise_model_log_likelihood(
     reconstruction: torch.Tensor,
     target: torch.Tensor,
-    noise_model: "MultiChannelNoiseModel",
+    noise_model: MultiChannelNoiseModel,
     data_mean: float,
     data_std: float,
 ) -> torch.Tensor:
@@ -81,21 +81,25 @@ def _compute_noise_model_log_likelihood(
         The log-likelihood value (scalar).
     """
     # Convert to tensors and move to correct device
-    data_mean_tensor = torch.as_tensor(data_mean, dtype=torch.float32, device=reconstruction.device)
-    data_std_tensor = torch.as_tensor(data_std, dtype=torch.float32, device=reconstruction.device)
-    
+    data_mean_tensor = torch.as_tensor(
+        data_mean, dtype=torch.float32, device=reconstruction.device
+    )
+    data_std_tensor = torch.as_tensor(
+        data_std, dtype=torch.float32, device=reconstruction.device
+    )
+
     # Move noise model to correct device if needed
     if reconstruction.device != noise_model.device:
         noise_model.to_device(reconstruction.device)
-    
+
     # Denormalize predictions and targets
     reconstruction_denorm = reconstruction * data_std_tensor + data_mean_tensor
     target_denorm = target * data_std_tensor + data_mean_tensor
-    
+
     # Compute likelihood using noise model
     likelihoods = noise_model.likelihood(target_denorm, reconstruction_denorm)
     log_prob = torch.log(likelihoods)
-    
+
     return log_prob.mean()
 
 
@@ -105,7 +109,7 @@ def get_reconstruction_loss(
     likelihood_obj: Any,
 ) -> dict[str, torch.Tensor]:
     """Compute the reconstruction loss (negative log-likelihood).
-    
+
     DEPRECATED: This function is kept for backward compatibility but should not be used.
     Use _compute_gaussian_log_likelihood or _compute_noise_model_log_likelihood instead.
 
@@ -219,8 +223,6 @@ def get_kl_divergence_loss(
     return kl
 
 
-
-
 # TODO: @melisande-c suggested to refactor this as a class (see PR #208)
 # - loss computation happens by calling the `__call__` method
 # - `__init__` method initializes the loss parameters now contained in
@@ -232,7 +234,7 @@ def hdn_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
     config: LVAELossConfig,
-    noise_model: "MultiChannelNoiseModel | None" = None,
+    noise_model: MultiChannelNoiseModel | None = None,
     data_mean: float | None = None,
     data_std: float | None = None,
 ) -> dict[str, torch.Tensor] | None:
@@ -266,12 +268,15 @@ def hdn_loss(
     # Reconstruction loss computation
     # HDN can use either Gaussian or noise model likelihood
     if noise_model is not None and data_mean is not None and data_std is not None:
-        recons_loss = config.reconstruction_weight * -_compute_noise_model_log_likelihood(
-            reconstruction=predictions,
-            target=targets,
-            noise_model=noise_model,
-            data_mean=data_mean,
-            data_std=data_std,
+        recons_loss = (
+            config.reconstruction_weight
+            * -_compute_noise_model_log_likelihood(
+                reconstruction=predictions,
+                target=targets,
+                noise_model=noise_model,
+                data_mean=data_mean,
+                data_std=data_std,
+            )
         )
     else:
         recons_loss = config.reconstruction_weight * -_compute_gaussian_log_likelihood(
@@ -318,7 +323,7 @@ def microsplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
     config: LVAELossConfig,
-    noise_model: "MultiChannelNoiseModel | None" = None,
+    noise_model: MultiChannelNoiseModel | None = None,
     data_mean: float | None = None,
     data_std: float | None = None,
 ) -> dict[str, torch.Tensor] | None:
@@ -431,7 +436,9 @@ def microsplit_loss(
             free_bits_coeff=0.0,
             img_shape=img_shape,
         )
-        kl_loss = (nm_weight * denoisplit_kl + gaussian_weight * musplit_kl) * config.kl_weight
+        kl_loss = (
+            nm_weight * denoisplit_kl + gaussian_weight * musplit_kl
+        ) * config.kl_weight
 
     elif nm_weight > 0:
         # Pure denoisplit mode

@@ -67,9 +67,7 @@ def test_init_custom_params() -> None:
         ("YX", (64, 64), 1),
     ],
 )
-def test_get_n_channels(
-    axes: str, shape: tuple[int, ...], expected: int
-) -> None:
+def test_get_n_channels(axes: str, shape: tuple[int, ...], expected: int) -> None:
     data = np.zeros(shape)
     result = NoiseModelTrainer._get_n_channels(data, axes)
     assert result == expected
@@ -335,9 +333,9 @@ def test_noise_model_learns_correct_sigma(
     _, sigmas, _ = nm.get_gaussian_parameters(signal_tensor)
     learned_sigma = sigmas.mean().item()
 
-    assert np.isclose(learned_sigma, noise_sigma, rtol=0.15), (
-        f"Learned sigma={learned_sigma:.2f}, expected sigma={noise_sigma:.2f}"
-    )
+    assert np.isclose(
+        learned_sigma, noise_sigma, rtol=0.15
+    ), f"Learned sigma={learned_sigma:.2f}, expected sigma={noise_sigma:.2f}"
 
 
 @pytest.mark.parametrize("noise_sigma", [15.0, 30.0])
@@ -453,7 +451,6 @@ def test_sample_observation_distribution_matches_multichannel() -> None:
         synth_noise = (sampled[:, ch] - signal[:, ch]).ravel()
 
         distance = wasserstein_distance(real_noise / 255, synth_noise / 255)
-        assert distance < 0.15, (
-            f"Channel {ch}: Wasserstein distance {distance:.4f} too high"
-        )
-
+        assert (
+            distance < 0.15
+        ), f"Channel {ch}: Wasserstein distance {distance:.4f} too high"

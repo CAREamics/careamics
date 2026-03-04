@@ -5,4 +5,3 @@ __all__ = [
 ]
 
 from .noise_model_trainer import NoiseModelTrainer
-

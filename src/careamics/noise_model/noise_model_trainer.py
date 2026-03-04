@@ -468,4 +468,3 @@ class NoiseModelTrainer:
     def _remove_channel_axis(axes: str) -> str:
         """Remove C from axes string."""
         return axes.replace("C", "")
-

@@ -22,4 +22,3 @@ from .config import (
     save_configuration,
 )
 from .noise_model import NoiseModelTrainer
-from .config import Configuration, algorithm_factory

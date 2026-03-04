@@ -81,9 +81,7 @@ class VAEBasedAlgorithm(BaseModel):
 
             # Validate noise model requirement based on denoisplit_weight
             if self.loss.denoisplit_weight > 0 and self.noise_model is None:
-                raise ValueError(
-                    "Noise model is required when denoisplit_weight > 0."
-                )
+                raise ValueError("Noise model is required when denoisplit_weight > 0.")
         # TODO: what if algorithm is not musplit or denoisplit
         return self
 
