@@ -16,9 +16,9 @@ from careamics.dataset_ng.patch_extractor.limit_file_extractor import (
 )
 from careamics.lightning.dataset_ng.data_module import (
     CareamicsDataModule,
-    _PredData,
-    _TrainVal,
-    _TrainValSplit,
+    PredData,
+    TrainValData,
+    TrainValSplitData,
     _validate_data,
 )
 
@@ -154,9 +154,9 @@ def test_sampler(tmp_path: Path, in_memory, correct_sampler):
 @pytest.mark.parametrize(
     "train_data, val_data, val_split, pred_data, output",
     [
-        [True, True, False, False, _TrainVal],
-        [True, False, True, False, _TrainValSplit],
-        [False, False, False, True, _PredData],
+        [True, True, False, False, TrainValData],
+        [True, False, True, False, TrainValSplitData],
+        [False, False, False, True, PredData],
         [True, True, True, False, None],
         [True, False, False, True, None],
         [True, True, True, True, None],
@@ -178,7 +178,7 @@ def test_validate_data(
     val_split: bool,
     pred_data: bool,
     # if the combination should fail output is set to None
-    output: type[_TrainVal] | type[_TrainValSplit] | type[_PredData] | None,
+    output: type[TrainValData] | type[TrainValSplitData] | type[PredData] | None,
 ):
     """
     Test different combinations of data for the data module are validated correctly.
