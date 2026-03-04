@@ -7,11 +7,11 @@ import pytorch_lightning as L
 import torch
 from torch import nn
 from torchmetrics import MetricCollection
-from torchmetrics.image import PeakSignalNoiseRatio
 
 from careamics.config import CAREAlgorithm, N2NAlgorithm, algorithm_factory
 from careamics.config.support import SupportedLoss
 from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.lightning.dataset_ng.metrics import SIPSNR
 from careamics.losses import mae_loss, mse_loss
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
@@ -68,7 +68,16 @@ class CAREModule(L.LightningModule):
         else:
             raise ValueError(f"Unsupported loss for Care: {loss}")
 
-        self.metrics: MetricCollection = MetricCollection(PeakSignalNoiseRatio())
+        self.metrics: MetricCollection = MetricCollection(
+            {
+                f"SIPSNR_{i}": SIPSNR(
+                    n_channels=self.config.model.num_classes,
+                    output_channel=i,
+                    use_scale_invariance=True,
+                )
+                for i in range(self.config.model.num_classes)
+            }
+        )
 
         self._best_checkpoint_loaded: bool = False
 
