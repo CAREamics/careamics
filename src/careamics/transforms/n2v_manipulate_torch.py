@@ -25,8 +25,6 @@ class N2VManipulateTorch:
     ----------
     n2v_manipulate_config : N2VManipulateConfig
         N2V manipulation configuration.
-    seed : Optional[int], optional
-        Random seed, by default None.
     device : str
         The device on which operations take place, e.g. "cuda", "cpu" or "mps".
 
@@ -49,7 +47,6 @@ class N2VManipulateTorch:
     def __init__(
         self,
         n2v_manipulate_config: N2VManipulateConfig,
-        seed: int | None = None,
         device: str | None = None,
     ):
         """Constructor.
@@ -58,8 +55,6 @@ class N2VManipulateTorch:
         ----------
         n2v_manipulate_config : N2VManipulateConfig
             N2V manipulation configuration.
-        seed : Optional[int], optional
-            Random seed, by default None.
         device : str
             The device on which operations take place, e.g. "cuda", "cpu" or "mps".
         """
@@ -94,10 +89,8 @@ class N2VManipulateTorch:
             else:
                 device = "cpu"
 
-        self.rng = (
-            torch.Generator(device=device).manual_seed(seed)
-            if seed is not None
-            else torch.Generator(device=device)
+        self.rng = torch.Generator(device=device).manual_seed(
+            n2v_manipulate_config.seed
         )
 
     def __call__(

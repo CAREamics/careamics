@@ -10,9 +10,12 @@ from careamics.config.transformations import (
     XYRandomRotate90Config,
 )
 
+from ..utils.random import generate_random_seed
+
 
 def list_spatial_augmentations(
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
+    seed: int | None = None,
 ) -> list[SPATIAL_TRANSFORMS_UNION]:
     """
     List the augmentations to apply.
@@ -22,6 +25,8 @@ def list_spatial_augmentations(
     augmentations : list of transforms, optional
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config.
+    seed : int, optional
+        Random seed for reproducibility.
 
     Returns
     -------
@@ -37,8 +42,8 @@ def list_spatial_augmentations(
     """
     if augmentations is None:
         transform_list: list[SPATIAL_TRANSFORMS_UNION] = [
-            XYFlipConfig(),
-            XYRandomRotate90Config(),
+            XYFlipConfig(seed=seed),
+            XYRandomRotate90Config(seed=seed),
         ]
     else:
         # throw error if not all transforms are pydantic models
@@ -117,15 +122,18 @@ def create_ng_data_configuration(
     pred_dataloader_params : dict
         Parameters for the test dataloader, see PyTorch notes, by default None.
     seed : int, default=None
-        Random seed for reproducibility. If `None`, no seed is set.
+        Random seed for reproducibility. If `None`, seed is generated automatically.
 
     Returns
     -------
     NGDataConfig
         Next-Generation Data model with the specified parameters.
     """
+    if seed is None:
+        seed = generate_random_seed()
+
     if augmentations is None:
-        augmentations = list_spatial_augmentations()
+        augmentations = list_spatial_augmentations(seed=seed)
 
     # data model
     data: dict[str, Any] = {

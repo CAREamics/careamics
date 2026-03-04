@@ -14,13 +14,14 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from careamics.config import Configuration, UNetBasedAlgorithm, load_configuration
+from careamics.config import Configuration, UNetBasedAlgorithm
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
     SupportedData,
     SupportedLogger,
 )
+from careamics.config.utils.configuration_io import load_configuration
 from careamics.dataset.dataset_utils import list_files, reshape_array
 from careamics.file_io import WriteFunc, get_write_func
 from careamics.lightning import (

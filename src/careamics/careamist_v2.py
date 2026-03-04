@@ -1,36 +1,45 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Literal, TypedDict, Unpack
+from typing import (
+    Any,
+    Literal,
+    TypedDict,
+    Unpack,
+)
 
+import numpy as np
 import torch
 from numpy.typing import NDArray
-import numpy as np
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from careamics.lightning.dataset_ng.lightning_modules.get_module import CAREamicsModule
-
-from .config import load_configuration_ng
-from .config.ng_configs import N2VConfiguration
-from .config.support import SupportedAlgorithm, SupportedLogger, SupportedData
-from .file_io import WriteFunc
+from .config.utils.configuration_io import load_configuration_ng
+from .config.ng_configs import NGConfiguration
+from .config.ng_configs.ng_configuration import AlgorithmConfig
+from .config.support import SupportedData, SupportedLogger
 from .dataset.dataset_utils import reshape_array
-from .model_io import export_to_bmz
+from .file_io import ReadFunc, WriteFunc, get_write_func
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
+from .lightning.dataset_ng.load_checkpoint import (
+    load_config_from_checkpoint,
+    load_module_from_checkpoint,
+)
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
+from .lightning.dataset_ng.data_module import CareamicsDataModule
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
     create_module,
-    load_module_from_checkpoint,
 )
+from .lightning.dataset_ng.prediction import convert_prediction
+from .model_io import export_to_bmz
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
+from .dataset_ng.dataset import ImageRegionData
 
 logger = get_logger(__name__)
 
 ExperimentLogger = TensorBoardLogger | WandbLogger | CSVLogger
-Configuration = N2VConfiguration
 
 
 class UserContext(TypedDict, total=False):
@@ -39,10 +48,15 @@ class UserContext(TypedDict, total=False):
     enable_progress_bar: bool
 
 
+ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
+PathInput = str | Path | Sequence[str | Path]
+InputType = ArrayInput | PathInput
+
+
 class CAREamistV2:
     def __init__(
         self,
-        config: Configuration | Path | None = None,
+        config: NGConfiguration[AlgorithmConfig] | Path | None = None,
         *,
         checkpoint_path: Path | None = None,
         bmz_path: Path | None = None,
@@ -59,8 +73,9 @@ class CAREamistV2:
         callbacks = user_context.get("callbacks", None)
         self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
 
-        self.prediction_writer = PredictionWriterCallback(self.work_dir)
-        self.prediction_writer.disable_writing(True)
+        self.prediction_writer = PredictionWriterCallback(
+            self.work_dir, enable_writing=False
+        )
 
         experiment_loggers = self._create_loggers(
             self.config.training_config.logger,
@@ -75,18 +90,21 @@ class CAREamistV2:
             **self.config.training_config.lightning_trainer_config or {},
         )
 
+        self.train_datamodule: CareamicsDataModule | None = None
+
     def _load_model(
         self,
-        config: Configuration | Path | None,
+        config: NGConfiguration[AlgorithmConfig] | Path | None,
         checkpoint_path: Path | None,
         bmz_path: Path | None,
-    ) -> tuple[Configuration, CAREamicsModule]:
+    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
         n_inputs = sum(
             [config is not None, checkpoint_path is not None, bmz_path is not None]
         )
         if n_inputs != 1:
             raise ValueError(
-                "Exactly one of `config`, `checkpoint_path`, or `bmz_path` must be provided."
+                "Exactly one of `config`, `checkpoint_path`, or `bmz_path` "
+                "must be provided."
             )
         if config is not None:
             return self._from_config(config)
@@ -98,8 +116,8 @@ class CAREamistV2:
 
     @staticmethod
     def _from_config(
-        config: Configuration | Path,
-    ) -> tuple[Configuration, CAREamicsModule]:
+        config: NGConfiguration[AlgorithmConfig] | Path,
+    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
         if isinstance(config, Path):
             config = load_configuration_ng(config)
         assert not isinstance(config, Path)
@@ -110,55 +128,15 @@ class CAREamistV2:
     @staticmethod
     def _from_checkpoint(
         checkpoint_path: Path,
-    ) -> tuple[Configuration, CAREamicsModule]:
-        checkpoint: dict = torch.load(checkpoint_path, map_location="cpu")
-
-        careamics_info = checkpoint.get("careamics_info", None)
-        if careamics_info is None:
-            raise ValueError(
-                "Could not find CAREamics related information within the provided "
-                "checkpoint. This means that it was saved without using the "
-                "CAREamics callback `CareamicsCheckpointInfo`. "
-                "Please use a checkpoint saved with CAREamics or initialize with a config instead."
-            )
-
-        try:
-            algorithm_config: dict[str, Any] = checkpoint["hyper_parameters"][
-                "algorithm_config"
-            ]
-        except (KeyError, IndexError) as e:
-            raise ValueError(
-                "Could not determine CAREamics supported algorithm from the provided "
-                f"checkpoint at: {checkpoint_path!s}."
-            ) from e
-
-        data_hparams_key = checkpoint.get(
-            "datamodule_hparams_name", "datamodule_hyper_parameters"
-        )
-        try:
-            data_config: dict[str, Any] = checkpoint[data_hparams_key]["data_config"]
-        except (KeyError, IndexError) as e:
-            raise ValueError(
-                "Could not determine the data configuration from the provided "
-                f"checkpoint at: {checkpoint_path!s}."
-            ) from e
-
-        # TODO: will need to resolve this with type adapter once more configs are added
-        config = Configuration.model_validate(
-            {
-                "algorithm_config": algorithm_config,
-                "data_config": data_config,
-                **careamics_info,
-            }
-        )
-
+    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+        config = load_config_from_checkpoint(checkpoint_path)
         module = load_module_from_checkpoint(checkpoint_path)
         return config, module
 
     @staticmethod
     def _from_bmz(
         bmz_path: Path,
-    ) -> tuple[Configuration, CAREamicsModule]:
+    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
         raise NotImplementedError("Loading from BMZ is not implemented yet.")
 
     @staticmethod
@@ -176,10 +154,10 @@ class CAREamistV2:
     @staticmethod
     def _define_callbacks(
         callbacks: list[Callback] | None,
-        config: Configuration,
+        config: NGConfiguration[AlgorithmConfig],
         work_dir: Path,
     ) -> list[Callback]:
-        callbacks = [] if callbacks is None else callbacks
+        callbacks: list[Callback] = [] if callbacks is None else callbacks
         for c in callbacks:
             if isinstance(c, (ModelCheckpoint, EarlyStopping)):
                 raise ValueError(
@@ -194,7 +172,7 @@ class CAREamistV2:
                     "internally and should not be passed as callbacks."
                 )
 
-        internal_callbacks = [
+        internal_callbacks: list[Callback] = [
             ModelCheckpoint(
                 dirpath=work_dir / "checkpoints",
                 filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
@@ -247,55 +225,229 @@ class CAREamistV2:
         self,
         *,
         # BASIC PARAMS
-        train_data: Any | None = None,
-        train_data_target: Any | None = None,
-        val_data: Any | None = None,
-        val_data_target: Any | None = None,
+        train_data: InputType | None = None,
+        train_data_target: InputType | None = None,
+        val_data: InputType | None = None,
+        val_data_target: InputType | None = None,
         # val_percentage: float | None = None, # TODO: hidden till re-implemented
         # val_minimum_split: int = 5,
         # ADVANCED PARAMS
-        filtering_mask: Any | None = None,
-        read_source_func: Callable | None = None,
+        filtering_mask: InputType | None = None,
+        read_source_func: ReadFunc | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
     ) -> None:
-        # TODO: init datamodule
-        # TODO: remember to pass self.checkpoint_path to Trainer.fit
-        # ^ this will load optimizer and lr_schedular state dicts
-        raise NotImplementedError("Training is not implemented yet.")
+        """Train the model on the provided data.
+
+        The training data can be provided as arrays or paths.
+
+        Parameters
+        ----------
+        train_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+            Training data, by default None.
+        train_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+            Training target data, by default None.
+        val_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+            Validation data, by default None.
+        val_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+            Validation target data, by default None.
+        filtering_mask : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+            Filtering mask for coordinate-based patch filtering, by default None.
+        read_source_func : ReadFunc, optional
+            Function to read the source data.
+        read_kwargs : dict of {str: Any}, optional
+            Additional keyword arguments to be passed to the read function.
+        extension_filter : str, default=""
+            Filter for the file extension.
+
+        Raises
+        ------
+        ValueError
+            If train_data is not provided.
+        """
+        if train_data is None:
+            raise ValueError("Training data must be provided. Provide `train_data`.")
+
+        datamodule = CareamicsDataModule(  # type: ignore[misc]
+            data_config=self.config.data_config,
+            train_data=train_data,
+            val_data=val_data,
+            train_data_target=train_data_target,
+            val_data_target=val_data_target,
+            train_data_mask=filtering_mask,  # type: ignore[arg-type]
+            read_source_func=read_source_func,  # type: ignore[arg-type]
+            read_kwargs=read_kwargs,
+            extension_filter=extension_filter,
+        )
+        self.train_datamodule = datamodule
+
+        # set defaults (in case `stop_training` was called before)
+        self.trainer.should_stop = False
+        self.trainer.limit_val_batches = 1.0
+
+        self.trainer.fit(
+            self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
+        )
+
+    def _build_predict_datamodule(
+        self,
+        pred_data: InputType,
+        *,
+        pred_data_target: InputType | None = None,
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        read_source_func: ReadFunc | None = None,
+        read_kwargs: dict[str, Any] | None = None,
+        extension_filter: str = "",
+    ) -> CareamicsDataModule:
+        dataloader_params: dict[str, Any] | None = None
+        if num_workers is not None:
+            dataloader_params = {"num_workers": num_workers}
+
+        pred_data_config = self.config.data_config.convert_mode(
+            new_mode="predicting",
+            new_patch_size=tile_size,
+            overlap_size=tile_overlap,
+            new_batch_size=batch_size,
+            new_data_type=data_type,
+            new_dataloader_params=dataloader_params,
+            new_axes=axes,
+            new_channels=channels,
+            new_in_memory=in_memory,
+        )
+
+        return CareamicsDataModule(  # type: ignore[misc]
+            data_config=pred_data_config,
+            pred_data=pred_data,
+            pred_data_target=pred_data_target,
+            read_source_func=read_source_func,  # type: ignore[arg-type]
+            read_kwargs=read_kwargs,
+            extension_filter=extension_filter,
+        )
 
     def predict(
         self,
         # BASIC PARAMS
-        pred_data: Any | None = None,
-        batch_size: int = 1,
+        pred_data: InputType,
+        *,
+        batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "custom"] | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
-        # tta_transforms: bool = False, # TODO: hidden till implemented
         num_workers: int | None = None,
-        read_source_func: Callable | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        read_source_func: ReadFunc | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
-    ) -> None:
-        raise NotImplementedError("Predicting is not implemented yet.")
+    ) -> tuple[list[NDArray], list[str]]:
+        """
+        Predict on data and return the predictions.
+
+        Input can be a path to a data file, a list of paths, a numpy array, or a
+        list of numpy arrays.
+
+        If `data_type` and `axes` are not provided, the training configuration
+        parameters will be used. If `tile_size` is not provided, prediction will
+        be performed on the whole image.
+
+        Note that if you are using a UNet model and tiling, the tile size must be
+        divisible in every dimension by 2**d, where d is the depth of the model. This
+        avoids artefacts arising from the broken shift invariance induced by the
+        pooling layers of the UNet. Images smaller than the tile size in any spatial
+        dimension will be automatically zero-padded.
+
+        Parameters
+        ----------
+        pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
+            Data to predict on. Can be a single item or a sequence of paths/arrays.
+        batch_size : int, optional
+            Batch size for prediction. If not provided, uses the training configuration
+            batch size.
+        tile_size : tuple of int, optional
+            Size of the tiles to use for prediction. If not provided, prediction
+            will be performed on the whole image.
+        tile_overlap : tuple of int, default=(48, 48)
+            Overlap between tiles, can be None.
+        axes : str, optional
+            Axes of the input data, by default None.
+        data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
+            Type of the input data.
+        num_workers : int, optional
+            Number of workers for the dataloader, by default None.
+        channels : sequence of int or "all", optional
+            Channels to use from the data. If None, uses the training configuration
+            channels.
+        in_memory : bool, optional
+            Whether to load all data into memory. If None, uses the training
+            configuration setting.
+        read_source_func : ReadFunc, optional
+            Function to read the source data.
+        read_kwargs : dict of {str: Any}, optional
+            Additional keyword arguments to be passed to the read function.
+        extension_filter : str, default=""
+            Filter for the file extension.
+
+        Returns
+        -------
+        tuple of (list of NDArray, list of str)
+            Predictions made by the model and their source identifiers.
+
+        Raises
+        ------
+        ValueError
+            If tile overlap is not specified when tile_size is provided.
+        """
+        datamodule = self._build_predict_datamodule(
+            pred_data,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            axes=axes,
+            data_type=data_type,
+            num_workers=num_workers,
+            channels=channels,
+            in_memory=in_memory,
+            read_source_func=read_source_func,
+            read_kwargs=read_kwargs,
+            extension_filter=extension_filter,
+        )
+
+        predictions: list[ImageRegionData] = self.trainer.predict(
+            model=self.model, datamodule=datamodule
+        )  # type: ignore[assignment]
+        tiled = tile_size is not None
+        predictions_output, sources = convert_prediction(
+            predictions, tiled=tiled, restore_shape=True
+        )
+
+        return predictions_output, sources
 
     def predict_to_disk(
         self,
         # BASIC PARAMS
-        pred_data: Any | None = None,
-        pred_data_target: Any | None = None,
+        pred_data: InputType,
+        *,
+        pred_data_target: InputType | None = None,
         prediction_dir: Path | str = "predictions",
-        batch_size: int = 1,
+        batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "custom"] | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
-        read_source_func: Callable | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        read_source_func: ReadFunc | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
         # WRITE OPTIONS
@@ -304,7 +456,138 @@ class CAREamistV2:
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        raise NotImplementedError("Predicting to disk is not implemented yet.")
+        """
+        Make predictions on the provided data and save outputs to files.
+
+        Predictions are saved to `prediction_dir` (absolute paths are used as-is,
+        relative paths are relative to `work_dir`). The directory structure matches
+        the source directory.
+
+        The file names of the predictions will match those of the source. If there is
+        more than one sample within a file, the samples will be stacked along the sample
+        dimension in the output file.
+
+        If `data_type` and `axes` are not provided, the training configuration
+        parameters will be used. If `tile_size` is not provided, prediction
+        will be performed on whole images rather than in a tiled manner.
+
+        Note that if you are using a UNet model and tiling, the tile size must be
+        divisible in every dimension by 2**d, where d is the depth of the model. This
+        avoids artefacts arising from the broken shift invariance induced by the
+        pooling layers of the UNet. Images smaller than the tile size in any spatial
+        dimension will be automatically zero-padded.
+
+        Parameters
+        ----------
+        pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
+            Data to predict on. Can be a single item or a sequence of paths/arrays.
+        pred_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+            Prediction data target, by default None.
+        prediction_dir : Path | str, default="predictions"
+            The path to save the prediction results to. If `prediction_dir` is an
+            absolute path, it will be used as-is. If it is a relative path, it will
+            be relative to the pre-set `work_dir`. If the directory does not exist it
+            will be created.
+        batch_size : int, optional
+            Batch size for prediction. If not provided, uses the training configuration
+            batch size.
+        tile_size : tuple of int, optional
+            Size of the tiles to use for prediction. If not provided, uses whole image
+            strategy.
+        tile_overlap : tuple of int, default=(48, 48)
+            Overlap between tiles.
+        axes : str, optional
+            Axes of the input data, by default None.
+        data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
+            Type of the input data.
+        num_workers : int, optional
+            Number of workers for the dataloader, by default None.
+        channels : sequence of int or "all", optional
+            Channels to use from the data. If None, uses the training configuration
+            channels.
+        in_memory : bool, optional
+            Whether to load all data into memory. If None, uses the training
+            configuration setting.
+        read_source_func : ReadFunc, optional
+            Function to read the source data.
+        read_kwargs : dict of {str: Any}, optional
+            Additional keyword arguments to be passed to the read function.
+        extension_filter : str, default=""
+            Filter for the file extension.
+        write_type : {"tiff", "zarr", "custom"}, default="tiff"
+            The data type to save as, includes custom.
+        write_extension : str, optional
+            If a known `write_type` is selected this argument is ignored. For a custom
+            `write_type` an extension to save the data with must be passed.
+        write_func : WriteFunc, optional
+            If a known `write_type` is selected this argument is ignored. For a custom
+            `write_type` a function to save the data must be passed. See notes below.
+        write_func_kwargs : dict of {str: any}, optional
+            Additional keyword arguments to be passed to the save function.
+
+        Raises
+        ------
+        ValueError
+            If `write_type` is custom and `write_extension` is None.
+        ValueError
+            If `write_type` is custom and `write_func` is None.
+        """
+        if write_func_kwargs is None:
+            write_func_kwargs = {}
+
+        if Path(prediction_dir).is_absolute():
+            write_dir = Path(prediction_dir)
+        else:
+            write_dir = self.work_dir / prediction_dir
+        self.prediction_writer.dirpath = write_dir
+
+        if write_type == "custom":
+            if write_extension is None:
+                raise ValueError(
+                    "A `write_extension` must be provided for custom write types."
+                )
+            if write_func is None:
+                raise ValueError(
+                    "A `write_func` must be provided for custom write types."
+                )
+        else:
+            write_func = get_write_func(write_type)
+            write_extension = SupportedData.get_extension(write_type)
+
+        tiled = tile_size is not None
+        self.prediction_writer.set_writing_strategy(
+            write_type=write_type,
+            tiled=tiled,
+            write_func=write_func,
+            write_extension=write_extension,
+            write_func_kwargs=write_func_kwargs,
+        )
+
+        self.prediction_writer.enable_writing(True)
+
+        try:
+            datamodule = self._build_predict_datamodule(
+                pred_data,
+                pred_data_target=pred_data_target,
+                batch_size=batch_size,
+                tile_size=tile_size,
+                tile_overlap=tile_overlap,
+                axes=axes,
+                data_type=data_type,
+                num_workers=num_workers,
+                channels=channels,
+                in_memory=in_memory,
+                read_source_func=read_source_func,
+                read_kwargs=read_kwargs,
+                extension_filter=extension_filter,
+            )
+
+            self.trainer.predict(
+                model=self.model, datamodule=datamodule, return_predictions=False
+            )
+
+        finally:
+            self.prediction_writer.enable_writing(False)
 
     def export_to_bmz(
         self,
@@ -391,4 +674,4 @@ class CAREamistV2:
     def stop_training(self) -> None:
         """Stop the training loop."""
         self.trainer.should_stop = True
-        self.trainer.limit_val_batches = 0 # skip validation
+        self.trainer.limit_val_batches = 0  # skip validation

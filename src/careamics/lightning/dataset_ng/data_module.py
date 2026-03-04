@@ -133,7 +133,6 @@ class CareamicsDataModule(L.LightningDataModule):
         file formats enabling  single patches to be read from disk at a time.
         If the data type is not custom `loading` should be `None`.
 
-
     Attributes
     ----------
     config : DataConfig
