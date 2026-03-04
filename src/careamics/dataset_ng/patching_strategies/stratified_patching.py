@@ -242,6 +242,16 @@ class StratifiedPatchingStrategy:
                 )
         return included_grid_coords
 
+    def get_all_grid_coords(self) -> dict[tuple[int, int], Sequence[tuple[int, ...]]]:
+        grid_coords: dict[tuple[int, int], Sequence[tuple[int, ...]]] = {}
+
+        for data_idx, image_patch_list in enumerate(self.image_patching):
+            for sample_idx, sample_patching in enumerate(image_patch_list):
+                grid_coords[(data_idx, sample_idx)] = list(
+                    itertools.product(*[range(gs) for gs in sample_patching.grid_shape])
+                )
+        return grid_coords
+
     def _calc_bins(self) -> tuple[NDArray[np.int_], NDArray[np.int_], NDArray[np.int_]]:
         """
         Calculate bins to determine which image and sample a patch index maps to.
@@ -522,10 +532,11 @@ class _ImageStratifiedPatching:
             # total_patches = int(
             #     np.prod(np.ceil(np.array(self.shape) / np.array(self.patch_size)))
             # )
-            total_patches = int(
-                np.ceil(np.prod(np.array(self.shape) / np.array(self.patch_size)))
-            )
-            n_patches = total_patches - len(self.excluded_patches)
+            total_patches = np.prod(np.array(self.shape) / np.array(self.patch_size))
+            for p in self.relative_probs.values():
+                # reduce n patches by relative probabilty
+                total_patches -= 1 - p
+            n_patches = int(np.ceil(total_patches - len(self.excluded_patches)))
         else:
             n_patches = 0
 
