@@ -448,7 +448,7 @@ class UNet(nn.Module):
         torch.Tensor
             Output of the model.
         """
-        input_tensor = x
+        input_tensor = x.clone()
 
         encoder_features = self.encoder(x)
         x = self.decoder(*encoder_features)
