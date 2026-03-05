@@ -59,33 +59,44 @@ class CareamicsDataModule(L.LightningDataModule):
     ----------
     data_config : NGDataConfig
         Pydantic model for CAREamics data configuration.
-    train_data : Optional[InputType]
-        Training data, can be a path to a folder, a list of paths, or a numpy array.
-    train_data_target : Optional[InputType]
-        Training data target, can be a path to a folder,
-        a list of paths, or a numpy array.
-    train_data_mask : InputType (when filtering is needed)
-        Training data mask, can be a path to a folder,
-        a list of paths, or a numpy array. Used for coordinate filtering.
-        Only required when using coordinate-based patch filtering.
-    val_data : Optional[InputType]
-        Validation data, can be a path to a folder,
-        a list of paths, or a numpy array.
-    val_data_target : Optional[InputType]
-        Validation data target, can be a path to a folder,
-        a list of paths, or a numpy array.
-    val_percentage : Optional[float]
+    train_data : Any, default=None
+        Training data. If custom `loading` is provided it can be any type, otherwise
+        it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+        or None.
+    train_data_target : Any, default=None
+        Training data target. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    train_data_mask : Any, default=None.
+        Training data mask, an optional mask that can be provided to filter regions
+        of the data during training, such as large areas of background. The mask
+        should be a binary image where a 1 indicates a pixel should be included in
+        the training data.
+        If custom `loading` is provided it can be any type, otherwise
+        it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+        or None.
+    val_data : Any, default=None
+        Validation data. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    val_data_target : Any, default=None
+        Validation data target. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    val_percentage : float | None, default=None
         Percentage of the training data to use for validation. Only
         used if `val_data` is None.
     val_minimum_split : int
         Minimum number of patches or files to split from the training data for
         validation, by default 5. Only used if `val_data` is None.
-    pred_data : Optional[InputType]
-        Prediction data, can be a path to a folder, a list of paths,
-        or a numpy array.
-    pred_data_target : Optional[InputType]
-        Prediction data target, can be a path to a folder,
-        a list of paths, or a numpy array.
+    pred_data : Any, default=None
+        Prediction data. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    pred_data_target : Any, default=None
+        Prediction data target, this may be used for calculating metrics. If custom
+        `loading` is provided it can be any type, otherwise it must be a
+        `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these, or None.
     loading : ReadFuncLoading | ImageStackLoading | None, default=None
         The type of loading used for custom data. `ReadFuncLoading` is the use of
         a simple function that will load full images into memory.
@@ -170,33 +181,44 @@ class CareamicsDataModule(L.LightningDataModule):
         ----------
         data_config : NGDataConfig
             Pydantic model for CAREamics data configuration.
-        train_data : Optional[InputType]
-            Training data, can be a path to a folder, a list of paths, or a numpy array.
-        train_data_target : Optional[InputType]
-            Training data target, can be a path to a folder,
-            a list of paths, or a numpy array.
-        train_data_mask : InputType (when filtering is needed)
-            Training data mask, can be a path to a folder,
-            a list of paths, or a numpy array. Used for coordinate filtering.
-            Only required when using coordinate-based patch filtering.
-        val_data : Optional[InputType]
-            Validation data, can be a path to a folder,
-            a list of paths, or a numpy array.
-        val_data_target : Optional[InputType]
-            Validation data target, can be a path to a folder,
-            a list of paths, or a numpy array.
-        val_percentage : Optional[float]
+        train_data : Any, default=None
+            Training data. If custom `loading` is provided it can be any type, otherwise
+            it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+            or None.
+        train_data_target : Any, default=None
+            Training data target. If custom `loading` is provided it can be any type,
+            otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+            of these, or None.
+        train_data_mask : Any, default=None.
+            Training data mask, an optional mask that can be provided to filter regions
+            of the data during training, such as large areas of background. The mask
+            should be a binary image where a 1 indicates a pixel should be included in
+            the training data.
+            If custom `loading` is provided it can be any type, otherwise
+            it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+            or None.
+        val_data : Any, default=None
+            Validation data. If custom `loading` is provided it can be any type,
+            otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+            of these, or None.
+        val_data_target : Any, default=None
+            Validation data target. If custom `loading` is provided it can be any type,
+            otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+            of these, or None.
+        val_percentage : float | None, default=None
             Percentage of the training data to use for validation. Only
             used if `val_data` is None.
         val_minimum_split : int
             Minimum number of patches or files to split from the training data for
             validation, by default 5. Only used if `val_data` is None.
-        pred_data : Optional[InputType]
-            Prediction data, can be a path to a folder, a list of paths,
-            or a numpy array.
-        pred_data_target : Optional[InputType]
-            Prediction data target, can be a path to a folder,
-            a list of paths, or a numpy array.
+        pred_data : Any, default=None
+            Prediction data. If custom `loading` is provided it can be any type,
+            otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+            of these, or None.
+        pred_data_target : Any, default=None
+            Prediction data target, this may be used for calculating metrics. If custom
+            `loading` is provided it can be any type, otherwise it must be a
+            `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these, or None.
         loading : ReadFuncLoading | ImageStackLoading | None, default=None
             The type of loading used for custom data. `ReadFuncLoading` is the use of
             a simple function that will load full images into memory.
@@ -403,33 +425,44 @@ def _validate_data(
     ----------
     data_type : SupportedData
         The type of the data to validate against.
-    train_data : Optional[InputType]
-        Training data, can be a path to a folder, a list of paths, or a numpy array.
-    train_data_target : Optional[InputType]
-        Training data target, can be a path to a folder,
-        a list of paths, or a numpy array.
-    train_data_mask : InputType (when filtering is needed)
-        Training data mask, can be a path to a folder,
-        a list of paths, or a numpy array. Used for coordinate filtering.
-        Only required when using coordinate-based patch filtering.
-    val_data : Optional[InputType]
-        Validation data, can be a path to a folder,
-        a list of paths, or a numpy array.
-    val_data_target : Optional[InputType]
-        Validation data target, can be a path to a folder,
-        a list of paths, or a numpy array.
-    val_percentage : Optional[float]
+    train_data : Any, default=None
+        Training data. If custom `loading` is provided it can be any type, otherwise
+        it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+        or None.
+    train_data_target : Any, default=None
+        Training data target. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    train_data_mask : Any, default=None.
+        Training data mask, an optional mask that can be provided to filter regions
+        of the data during training, such as large areas of background. The mask
+        should be a binary image where a 1 indicates a pixel should be included in
+        the training data.
+        If custom `loading` is provided it can be any type, otherwise
+        it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+        or None.
+    val_data : Any, default=None
+        Validation data. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    val_data_target : Any, default=None
+        Validation data target. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    val_percentage : float | None, default=None
         Percentage of the training data to use for validation. Only
         used if `val_data` is None.
     val_minimum_split : int
         Minimum number of patches or files to split from the training data for
         validation, by default 5. Only used if `val_data` is None.
-    pred_data : Optional[InputType]
-        Prediction data, can be a path to a folder, a list of paths,
-        or a numpy array.
-    pred_data_target : Optional[InputType]
-        Prediction data target, can be a path to a folder,
-        a list of paths, or a numpy array.
+    pred_data : Any, default=None
+        Prediction data. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    pred_data_target : Any, default=None
+        Prediction data target, this may be used for calculating metrics. If custom
+        `loading` is provided it can be any type, otherwise it must be a
+        `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these, or None.
     loading : ReadFuncLoading | ImageStackLoading | None, default=None
         The type of loading used for custom data. `ReadFuncLoading` is the use of
         a simple function that will load full images into memory.
