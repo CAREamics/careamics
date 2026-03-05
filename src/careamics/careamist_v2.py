@@ -216,7 +216,15 @@ class CAREamistV2:
             case _:
                 return [csv_logger]
 
-    @overload  # constrained input data type for supported data or ReadFuncLoading
+    # Two overloads:
+    # - 1st for supported data types & using ReadFuncLoading
+    # - 2nd for ImageStackLoading
+    # Why:
+    #   ImageStackLoading supports any type as input, but we want to tell most users
+    #   that they are only allowed Path, str, ndarray or a sequence of these.
+    #   The first overload will be displaced first by most code editors, this is what
+    #   most users will see.
+    @overload
     def train(
         self,
         *,
@@ -229,6 +237,7 @@ class CAREamistV2:
         filtering_mask: InputVar | None = None,
         loading: ReadFuncLoading | None = None,
     ) -> None: ...
+
     @overload  # any data input is allowed for ImageStackLoading
     def train(
         self,
@@ -242,6 +251,7 @@ class CAREamistV2:
         filtering_mask: Any | None = None,
         loading: ImageStackLoading = ...,
     ) -> None: ...
+
     def train(
         self,
         *,
@@ -343,6 +353,7 @@ class CAREamistV2:
             loading=loading,
         )
 
+    # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
     def predict(
         self,
@@ -360,6 +371,7 @@ class CAREamistV2:
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
+
     @overload  # any data input is allowed for ImageStackLoading
     def predict(
         self,
@@ -377,6 +389,7 @@ class CAREamistV2:
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
     ) -> tuple[list[NDArray], list[str]]: ...
+
     def predict(
         self,
         # BASIC PARAMS
@@ -473,6 +486,7 @@ class CAREamistV2:
 
         return predictions_output, sources
 
+    # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
     def predict_to_disk(
         self,
@@ -497,6 +511,7 @@ class CAREamistV2:
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
     ) -> None: ...
+
     @overload  # any data input is allowed for ImageStackLoading
     def predict_to_disk(
         self,
@@ -521,6 +536,7 @@ class CAREamistV2:
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
     ) -> None: ...
+
     def predict_to_disk(
         self,
         # BASIC PARAMS
