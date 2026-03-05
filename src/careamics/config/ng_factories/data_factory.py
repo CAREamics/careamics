@@ -188,7 +188,7 @@ def create_ng_data_configuration(
 
     # add training patching
     data["patching"] = {
-        "name": "random",
+        "name": "stratified",
         "patch_size": patch_size,
     }
 
