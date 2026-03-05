@@ -1,43 +1,36 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from pathlib import Path
-from typing import (
-    Any,
-    Literal,
-    TypedDict,
-    Unpack,
-)
+from typing import Any, Literal, TypedDict, Unpack, overload
 
 import numpy as np
-import torch
 from numpy.typing import NDArray
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from .config.utils.configuration_io import load_configuration_ng
 from .config.ng_configs import NGConfiguration
 from .config.ng_configs.ng_configuration import AlgorithmConfig
 from .config.support import SupportedData, SupportedLogger
+from .config.utils.configuration_io import load_configuration_ng
 from .dataset.dataset_utils import reshape_array
-from .file_io import ReadFunc, WriteFunc, get_write_func
+from .dataset_ng.dataset import ImageRegionData
+from .dataset_ng.factory import ImageStackLoading, Loading, ReadFuncLoading
+from .file_io import WriteFunc, get_write_func
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
-from .lightning.dataset_ng.load_checkpoint import (
-    load_config_from_checkpoint,
-    load_module_from_checkpoint,
-)
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.data_module import CareamicsDataModule, InputVar
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
     create_module,
 )
+from .lightning.dataset_ng.load_checkpoint import (
+    load_config_from_checkpoint,
+    load_module_from_checkpoint,
+)
 from .lightning.dataset_ng.prediction import convert_prediction
 from .model_io import export_to_bmz
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
-from .dataset_ng.dataset import ImageRegionData
-from .dataset_ng.factory import ReadFuncLoading
-from .dataset_ng.patching_strategies import TileSpecs
 
 logger = get_logger(__name__)
 
@@ -223,6 +216,7 @@ class CAREamistV2:
             case _:
                 return [csv_logger]
 
+    @overload  # constrained input data type for supported data or ReadFuncLoading
     def train(
         self,
         *,
@@ -235,9 +229,36 @@ class CAREamistV2:
         # val_minimum_split: int = 5,
         # ADVANCED PARAMS
         filtering_mask: InputVar | None = None,
-        read_source_func: ReadFunc | None = None,
-        read_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
+        loading: ReadFuncLoading | None = None,
+    ) -> None: ...
+    @overload  # any data input is allowed for ImageStackLoading
+    def train(
+        self,
+        *,
+        # BASIC PARAMS
+        train_data: Any | None = None,
+        train_data_target: Any | None = None,
+        val_data: Any | None = None,
+        val_data_target: Any | None = None,
+        # val_percentage: float | None = None, # TODO: hidden till re-implemented
+        # val_minimum_split: int = 5,
+        # ADVANCED PARAMS
+        filtering_mask: Any | None = None,
+        loading: ImageStackLoading = ...,
+    ) -> None: ...
+    def train(
+        self,
+        *,
+        # BASIC PARAMS
+        train_data: Any | None = None,
+        train_data_target: Any | None = None,
+        val_data: Any | None = None,
+        val_data_target: Any | None = None,
+        # val_percentage: float | None = None, # TODO: hidden till re-implemented
+        # val_minimum_split: int = 5,
+        # ADVANCED PARAMS
+        filtering_mask: Any | None = None,
+        loading: Loading = None,
     ) -> None:
         """Train the model on the provided data.
 
@@ -270,14 +291,6 @@ class CAREamistV2:
         if train_data is None:
             raise ValueError("Training data must be provided. Provide `train_data`.")
 
-        if read_source_func is None:
-            loading = None
-        else:
-            loading = ReadFuncLoading(
-                read_source_func=read_source_func,
-                read_kwargs=read_kwargs,
-                extension_filter=extension_filter,
-            )
         datamodule = CareamicsDataModule(
             data_config=self.config.data_config,
             train_data=train_data,
@@ -287,6 +300,7 @@ class CAREamistV2:
             train_data_mask=filtering_mask,
             loading=loading,
         )
+
         self.train_datamodule = datamodule
 
         # set defaults (in case `stop_training` was called before)
@@ -299,9 +313,9 @@ class CAREamistV2:
 
     def _build_predict_datamodule(
         self,
-        pred_data: InputVar,
+        pred_data: Any,
         *,
-        pred_data_target: InputVar | None = None,
+        pred_data_target: Any | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
@@ -310,9 +324,7 @@ class CAREamistV2:
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
-        read_source_func: ReadFunc | None = None,
-        read_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
+        loading: Loading = None,
     ) -> CareamicsDataModule:
         dataloader_params: dict[str, Any] | None = None
         if num_workers is not None:
@@ -329,14 +341,6 @@ class CAREamistV2:
             new_channels=channels,
             new_in_memory=in_memory,
         )
-        if read_source_func is None:
-            loading = None
-        else:
-            loading = ReadFuncLoading(
-                read_source_func=read_source_func,
-                read_kwargs=read_kwargs,
-                extension_filter=extension_filter,
-            )
         return CareamicsDataModule(
             data_config=pred_data_config,
             pred_data=pred_data,
@@ -344,6 +348,7 @@ class CAREamistV2:
             loading=loading,
         )
 
+    @overload  # constrained input data type for supported data or ReadFuncLoading
     def predict(
         self,
         # BASIC PARAMS
@@ -358,9 +363,40 @@ class CAREamistV2:
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
-        read_source_func: ReadFunc | None = None,
-        read_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
+        loading: ReadFuncLoading | None = None,
+    ) -> tuple[list[NDArray], list[str]]: ...
+    @overload  # any data input is allowed for ImageStackLoading
+    def predict(
+        self,
+        # BASIC PARAMS
+        pred_data: Any,
+        *,
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: ImageStackLoading = ...,
+    ) -> tuple[list[NDArray], list[str]]: ...
+    def predict(
+        self,
+        # BASIC PARAMS
+        pred_data: InputVar,
+        *,
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: Loading = None,
     ) -> tuple[list[NDArray], list[str]]:
         """
         Predict on data and return the predictions.
@@ -429,9 +465,7 @@ class CAREamistV2:
             num_workers=num_workers,
             channels=channels,
             in_memory=in_memory,
-            read_source_func=read_source_func,
-            read_kwargs=read_kwargs,
-            extension_filter=extension_filter,
+            loading=loading,
         )
 
         predictions: list[ImageRegionData] = self.trainer.predict(
@@ -444,6 +478,7 @@ class CAREamistV2:
 
         return predictions_output, sources
 
+    @overload  # constrained input data type for supported data or ReadFuncLoading
     def predict_to_disk(
         self,
         # BASIC PARAMS
@@ -460,9 +495,54 @@ class CAREamistV2:
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
-        read_source_func: ReadFunc | None = None,
-        read_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
+        loading: ReadFuncLoading | None = None,
+        # WRITE OPTIONS
+        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
+        write_extension: str | None = None,
+        write_func: WriteFunc | None = None,
+        write_func_kwargs: dict[str, Any] | None = None,
+    ) -> None: ...
+    @overload  # any data input is allowed for ImageStackLoading
+    def predict_to_disk(
+        self,
+        # BASIC PARAMS
+        pred_data: Any,
+        *,
+        pred_data_target: Any | None = None,
+        prediction_dir: Path | str = "predictions",
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: ImageStackLoading = ...,
+        # WRITE OPTIONS
+        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
+        write_extension: str | None = None,
+        write_func: WriteFunc | None = None,
+        write_func_kwargs: dict[str, Any] | None = None,
+    ) -> None: ...
+    def predict_to_disk(
+        self,
+        # BASIC PARAMS
+        pred_data: Any,
+        *,
+        pred_data_target: Any | None = None,
+        prediction_dir: Path | str = "predictions",
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: Loading = None,
         # WRITE OPTIONS
         write_type: Literal["tiff", "zarr", "custom"] = "tiff",
         write_extension: str | None = None,
@@ -590,9 +670,7 @@ class CAREamistV2:
                 num_workers=num_workers,
                 channels=channels,
                 in_memory=in_memory,
-                read_source_func=read_source_func,
-                read_kwargs=read_kwargs,
-                extension_filter=extension_filter,
+                loading=loading,
             )
 
             self.trainer.predict(
