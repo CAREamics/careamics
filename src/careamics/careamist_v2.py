@@ -225,8 +225,6 @@ class CAREamistV2:
         train_data_target: InputVar | None = None,
         val_data: InputVar | None = None,
         val_data_target: InputVar | None = None,
-        # val_percentage: float | None = None, # TODO: hidden till re-implemented
-        # val_minimum_split: int = 5,
         # ADVANCED PARAMS
         filtering_mask: InputVar | None = None,
         loading: ReadFuncLoading | None = None,
@@ -240,8 +238,6 @@ class CAREamistV2:
         train_data_target: Any | None = None,
         val_data: Any | None = None,
         val_data_target: Any | None = None,
-        # val_percentage: float | None = None, # TODO: hidden till re-implemented
-        # val_minimum_split: int = 5,
         # ADVANCED PARAMS
         filtering_mask: Any | None = None,
         loading: ImageStackLoading = ...,
@@ -254,8 +250,6 @@ class CAREamistV2:
         train_data_target: Any | None = None,
         val_data: Any | None = None,
         val_data_target: Any | None = None,
-        # val_percentage: float | None = None, # TODO: hidden till re-implemented
-        # val_minimum_split: int = 5,
         # ADVANCED PARAMS
         filtering_mask: Any | None = None,
         loading: Loading = None,
@@ -271,7 +265,8 @@ class CAREamistV2:
         train_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Training target data, by default None.
         val_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
-            Validation data, by default None.
+            Validation data. If not provided, `data_config.n_val_patches` patches will
+            selected from the training data for validation.
         val_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Validation target data, by default None.
         filtering_mask : pathlib.Path, str, numpy.ndarray, or sequence of these, optional

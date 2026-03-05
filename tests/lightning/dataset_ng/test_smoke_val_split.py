@@ -98,6 +98,7 @@ def test_smoke_val_split(
         num_epochs=5,
         n_channels=1,
         augmentations=[],
+        n_val_patches=8,
         # prevent validation error
         masked_pixel_percentage=3,
     )
@@ -109,8 +110,6 @@ def test_smoke_val_split(
     data = CareamicsDataModule(
         data_config=config.data_config,
         train_data=train_arrays,
-        # val splitting
-        n_val_patches=8,
     )
     tracking_callback = _PatchTrackerCallback(data_shapes)
 

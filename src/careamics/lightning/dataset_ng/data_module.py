@@ -132,7 +132,6 @@ class CareamicsDataModule(L.LightningDataModule):
         train_data_mask: InputVar | None = None,
         val_data: InputVar | None = None,
         val_data_target: InputVar | None = None,
-        n_val_patches: int | None = None,
         pred_data: InputVar | None = None,
         pred_data_target: InputVar | None = None,
         loading: ReadFuncLoading | None = None,
@@ -149,7 +148,6 @@ class CareamicsDataModule(L.LightningDataModule):
         train_data_mask: Any | None = None,
         val_data: Any | None = None,
         val_data_target: Any | None = None,
-        n_val_patches: int | None = None,
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
         loading: ImageStackLoading = ...,
@@ -163,7 +161,6 @@ class CareamicsDataModule(L.LightningDataModule):
         train_data_mask: Any | None = None,
         val_data: Any | None = None,
         val_data_target: Any | None = None,
-        n_val_patches: int | None = None,
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
         loading: Loading = None,
@@ -195,19 +192,14 @@ class CareamicsDataModule(L.LightningDataModule):
             it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
             or None.
         val_data : Any, default=None
-            Validation data. If custom `loading` is provided it can be any type,
-            otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
-            of these, or None.
+            Validation data. If not provided, `data_config.n_val_patches` patches will
+            selected from the training data for validation. If custom `loading` is
+            provided it can be any type, otherwise it must be a `pathlib.Path`, `str`,
+            `numpy.ndarray` or a sequence of these, or None.
         val_data_target : Any, default=None
             Validation data target. If custom `loading` is provided it can be any type,
             otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
             of these, or None.
-        val_percentage : float | None, default=None
-            Percentage of the training data to use for validation. Only
-            used if `val_data` is None.
-        val_minimum_split : int
-            Minimum number of patches or files to split from the training data for
-            validation, by default 5. Only used if `val_data` is None.
         pred_data : Any, default=None
             Prediction data. If custom `loading` is provided it can be any type,
             otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
@@ -261,7 +253,7 @@ class CareamicsDataModule(L.LightningDataModule):
             train_data_mask=train_data_mask,
             val_data=val_data,
             val_data_target=val_data_target,
-            n_val_patches=n_val_patches,
+            n_val_patches=self.config.n_val_patches,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
             loading=loading,
@@ -436,14 +428,9 @@ def _validate_data(
         If custom `loading` is provided it can be any type, otherwise
         it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
         or None.
-    val_data : Any, default=None
-        Validation data. If custom `loading` is provided it can be any type,
-        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
-        of these, or None.
-    val_data_target : Any, default=None
-        Validation data target. If custom `loading` is provided it can be any type,
-        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
-        of these, or None.
+    n_val_patches : int | None, default=None
+        The number of patches to set aside for validation during training. Only
+        applicable for automatic validation splitting.
     val_percentage : float | None, default=None
         Percentage of the training data to use for validation. Only
         used if `val_data` is None.
@@ -479,7 +466,7 @@ def _validate_data(
         In the case of incompatible combinations of arguments.
     """
     match train_data, val_data, n_val_patches, pred_data:
-        case train_data, val_data, None, None if (
+        case train_data, val_data, _, None if (
             train_data is not None and val_data is not None
         ):
             train_data, train_data_target = initialize_data_pair(
@@ -515,7 +502,7 @@ def _validate_data(
                 train_data_mask=train_data_mask,
                 n_val_patches=n_val_patches,
             )
-        case None, None, None, pred_data if pred_data is not None:
+        case None, None, _, pred_data if pred_data is not None:
             pred_data, pred_data_target = initialize_data_pair(
                 data_type, pred_data, pred_data_target, loading
             )
