@@ -110,8 +110,7 @@ def test_smoke_val_split(
         data_config=config.data_config,
         train_data=train_arrays,
         # val splitting
-        val_percentage=0.1,
-        val_minimum_split=5,
+        n_val_patches=8,
     )
     tracking_callback = _PatchTrackerCallback(data_shapes)
 

@@ -132,8 +132,7 @@ class CareamicsDataModule(L.LightningDataModule):
         train_data_mask: InputVar | None = None,
         val_data: InputVar | None = None,
         val_data_target: InputVar | None = None,
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
+        n_val_patches: int | None = None,
         pred_data: InputVar | None = None,
         pred_data_target: InputVar | None = None,
         loading: ReadFuncLoading | None = None,
@@ -150,8 +149,7 @@ class CareamicsDataModule(L.LightningDataModule):
         train_data_mask: Any | None = None,
         val_data: Any | None = None,
         val_data_target: Any | None = None,
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
+        n_val_patches: int | None = None,
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
         loading: ImageStackLoading = ...,
@@ -165,8 +163,7 @@ class CareamicsDataModule(L.LightningDataModule):
         train_data_mask: Any | None = None,
         val_data: Any | None = None,
         val_data_target: Any | None = None,
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
+        n_val_patches: int | None = None,
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
         loading: Loading = None,
@@ -264,8 +261,7 @@ class CareamicsDataModule(L.LightningDataModule):
             train_data_mask=train_data_mask,
             val_data=val_data,
             val_data_target=val_data_target,
-            val_percentage=val_percentage,
-            val_minimum_split=val_minimum_split,
+            n_val_patches=n_val_patches,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
             loading=loading,
@@ -413,8 +409,7 @@ def _validate_data(
     train_data_mask: Any | None = None,
     val_data: Any | None = None,
     val_data_target: Any | None = None,
-    val_percentage: float | None = None,
-    val_minimum_split: int = 5,
+    n_val_patches: int | None = None,
     pred_data: Any | None = None,
     pred_data_target: Any | None = None,
     loading: Loading = None,
@@ -483,7 +478,7 @@ def _validate_data(
     ValueError
         In the case of incompatible combinations of arguments.
     """
-    match train_data, val_data, val_percentage, pred_data:
+    match train_data, val_data, n_val_patches, pred_data:
         case train_data, val_data, None, None if (
             train_data is not None and val_data is not None
         ):
@@ -504,8 +499,8 @@ def _validate_data(
                 val_data=val_data,
                 val_data_target=val_data_target,
             )
-        case train_data, None, val_percentage, None if (
-            train_data is not None and val_percentage is not None
+        case train_data, None, n_val_patches, None if (
+            train_data is not None and n_val_patches is not None
         ):
             train_data, train_data_target = initialize_data_pair(
                 data_type, train_data, train_data_target, loading
@@ -518,8 +513,7 @@ def _validate_data(
                 train_data=train_data,
                 train_data_target=train_data_target,
                 train_data_mask=train_data_mask,
-                val_percentage=val_percentage,
-                val_minimum_split=val_minimum_split,
+                n_val_patches=n_val_patches,
             )
         case None, None, None, pred_data if pred_data is not None:
             pred_data, pred_data_target = initialize_data_pair(

@@ -185,7 +185,7 @@ def test_validate_data(
     """
     train_input = np.ones((64, 64)) if train_data else None
     val_input = np.ones((32, 32)) if val_data else None
-    val_percentage = 0.1 if val_split else None
+    n_val_patches = 4 if val_split else None
     pred_input = np.ones((96, 96)) if pred_data else None
 
     if output is not None:
@@ -193,7 +193,7 @@ def test_validate_data(
             data_type=SupportedData.ARRAY,
             train_data=train_input,
             val_data=val_input,
-            val_percentage=val_percentage,
+            n_val_patches=n_val_patches,
             pred_data=pred_input,
         )
         assert isinstance(data, output)
@@ -203,6 +203,6 @@ def test_validate_data(
                 data_type=SupportedData.ARRAY,
                 train_data=train_input,
                 val_data=val_input,
-                val_percentage=val_percentage,
+                n_val_patches=n_val_patches,
                 pred_data=pred_input,
             )

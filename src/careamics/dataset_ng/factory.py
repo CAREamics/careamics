@@ -70,8 +70,7 @@ class TrainValSplitData(Generic[T]):
     """Data for training with automatic validation splitting."""
 
     train_data: T
-    val_percentage: float
-    val_minimum_split: int
+    n_val_patches: int
     train_data_target: T | None = None
     train_data_mask: T | None = None
 
@@ -324,20 +323,9 @@ def create_val_split_datasets(
     # ensured by guard on config at the start of function
     assert isinstance(train_patching, StratifiedPatchingStrategy)
 
-    # calculate n val patches
-    n_patches = train_patching.n_patches
-    if data.val_minimum_split > n_patches:
-        raise RuntimeError(
-            f"`val_minimum_split` has been set to {data.val_minimum_split}, which is "
-            f"greater than the total available patches, {n_patches}."
-        )
-    n_val_patches = int(n_patches * data.val_percentage)
-    if n_val_patches < data.val_minimum_split:
-        n_val_patches = data.val_minimum_split
-
     # val split applied to patching strat
     train_patching, val_patching = create_val_split(
-        train_patching, n_val_patches, rng=rng
+        train_patching, data.n_val_patches, rng=rng
     )
 
     train_dataset = CareamicsDataset(
