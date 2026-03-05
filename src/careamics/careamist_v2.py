@@ -26,7 +26,7 @@ from .lightning.dataset_ng.load_checkpoint import (
     load_module_from_checkpoint,
 )
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
-from .lightning.dataset_ng.data_module import CareamicsDataModule
+from .lightning.dataset_ng.data_module import CareamicsDataModule, InputVar
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
     create_module,
@@ -36,6 +36,8 @@ from .model_io import export_to_bmz
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
 from .dataset_ng.dataset import ImageRegionData
+from .dataset_ng.factory import ReadFuncLoading
+from .dataset_ng.patching_strategies import TileSpecs
 
 logger = get_logger(__name__)
 
@@ -225,14 +227,14 @@ class CAREamistV2:
         self,
         *,
         # BASIC PARAMS
-        train_data: InputType | None = None,
-        train_data_target: InputType | None = None,
-        val_data: InputType | None = None,
-        val_data_target: InputType | None = None,
+        train_data: InputVar | None = None,
+        train_data_target: InputVar | None = None,
+        val_data: InputVar | None = None,
+        val_data_target: InputVar | None = None,
         # val_percentage: float | None = None, # TODO: hidden till re-implemented
         # val_minimum_split: int = 5,
         # ADVANCED PARAMS
-        filtering_mask: InputType | None = None,
+        filtering_mask: InputVar | None = None,
         read_source_func: ReadFunc | None = None,
         read_kwargs: dict[str, Any] | None = None,
         extension_filter: str = "",
@@ -268,16 +270,22 @@ class CAREamistV2:
         if train_data is None:
             raise ValueError("Training data must be provided. Provide `train_data`.")
 
-        datamodule = CareamicsDataModule(  # type: ignore[misc]
+        if read_source_func is None:
+            loading = None
+        else:
+            loading = ReadFuncLoading(
+                read_source_func=read_source_func,
+                read_kwargs=read_kwargs,
+                extension_filter=extension_filter,
+            )
+        datamodule = CareamicsDataModule(
             data_config=self.config.data_config,
             train_data=train_data,
             val_data=val_data,
             train_data_target=train_data_target,
             val_data_target=val_data_target,
-            train_data_mask=filtering_mask,  # type: ignore[arg-type]
-            read_source_func=read_source_func,  # type: ignore[arg-type]
-            read_kwargs=read_kwargs,
-            extension_filter=extension_filter,
+            train_data_mask=filtering_mask,
+            loading=loading,
         )
         self.train_datamodule = datamodule
 
@@ -291,9 +299,9 @@ class CAREamistV2:
 
     def _build_predict_datamodule(
         self,
-        pred_data: InputType,
+        pred_data: InputVar,
         *,
-        pred_data_target: InputType | None = None,
+        pred_data_target: InputVar | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
@@ -321,20 +329,25 @@ class CAREamistV2:
             new_channels=channels,
             new_in_memory=in_memory,
         )
-
-        return CareamicsDataModule(  # type: ignore[misc]
+        if read_source_func is None:
+            loading = None
+        else:
+            loading = ReadFuncLoading(
+                read_source_func=read_source_func,
+                read_kwargs=read_kwargs,
+                extension_filter=extension_filter,
+            )
+        return CareamicsDataModule(
             data_config=pred_data_config,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
-            read_source_func=read_source_func,  # type: ignore[arg-type]
-            read_kwargs=read_kwargs,
-            extension_filter=extension_filter,
+            loading=loading,
         )
 
     def predict(
         self,
         # BASIC PARAMS
-        pred_data: InputType,
+        pred_data: InputVar,
         *,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
@@ -434,9 +447,9 @@ class CAREamistV2:
     def predict_to_disk(
         self,
         # BASIC PARAMS
-        pred_data: InputType,
+        pred_data: InputVar,
         *,
-        pred_data_target: InputType | None = None,
+        pred_data_target: InputVar | None = None,
         prediction_dir: Path | str = "predictions",
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,

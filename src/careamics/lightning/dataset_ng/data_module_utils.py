@@ -444,9 +444,12 @@ def initialize_data_pair(
             input_data, target_data = input_data, target_data
         case _:
             raise ValueError(
-                f"Invalid combination: data_type={data_type!s}, "
-                f"input type is {type(input_data)}. For custom data a `read_func` or "
-                "and `image_stack_loader` must be provided."
+                f"Invalid argument combination for data initialization. "
+                f"data_type={data_type!s}, input type is {type(input_data)}. "
+                "For custom data, you must provide either a `ReadFuncLoading` or "
+                "`ImageStackLoading` dataclass as instruction on how to load the data. "
+                "If a training target is provided, a validation target must also be "
+                "provided, unless automatic validation splitting is being used."
             )
 
     validate_input_target_type_consistency(input_data, target_data)
