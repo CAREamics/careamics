@@ -146,7 +146,7 @@ class StratifiedPatchingStrategy:
         ) = self._calc_bins()
 
     def set_region_probs(
-        self, data_idx: int, sample_idx: int, probs: dict[tuple[int, int], float]
+        self, data_idx: int, sample_idx: int, probs: dict[tuple[int, ...], float]
     ) -> None:
         self.image_patching[data_idx][sample_idx].set_region_probs(probs)
         # update bins
@@ -487,7 +487,7 @@ class _ImageStratifiedPatching:
         grid_coords_all: set[tuple[int, ...]] = set(self.grid_coords.keys())
         return list(grid_coords_all.difference(self.excluded_patches))
 
-    def set_region_probs(self, probs: dict[tuple[int, int], float]) -> None:
+    def set_region_probs(self, probs: dict[tuple[int, ...], float]) -> None:
         for grid_coord, prob in probs.items():
             idx = self.grid_coords[grid_coord]
             self.relative_probs[idx] = prob

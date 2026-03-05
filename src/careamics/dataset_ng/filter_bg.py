@@ -15,7 +15,7 @@ def filter_background(
     patch_size = patching_strategy.patch_size
     all_grid_coords = patching_strategy.get_all_grid_coords().items()
     for (data_idx, sample_idx), grid_coords in all_grid_coords:
-        probs: dict[tuple[int, int], float] = {}
+        probs: dict[tuple[int, ...], float] = {}
         for coords in grid_coords:
             spatial_shape = input_extractor.shapes[data_idx][2:]
             patch_coords = tuple(
@@ -51,7 +51,7 @@ def filter_background_with_mask(
     patch_size = patching_strategy.patch_size
     all_grid_coords = patching_strategy.get_all_grid_coords().items()
     for (data_idx, sample_idx), grid_coords in all_grid_coords:
-        probs: dict[tuple[int, int], float] = {}
+        probs: dict[tuple[int, ...], float] = {}
         for coords in grid_coords:
             spatial_shape = mask_extractor.shapes[data_idx][2:]
             patch_coords = tuple(
