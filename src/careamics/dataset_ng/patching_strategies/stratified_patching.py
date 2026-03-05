@@ -146,7 +146,7 @@ class StratifiedPatchingStrategy:
         ) = self._calc_bins()
 
     def set_region_probs(
-        self, data_idx: int, sample_idx: int, probs: dict[tuple[int, int], float]
+        self, data_idx: int, sample_idx: int, probs: dict[tuple[int, ...], float]
     ) -> None:
         self.image_patching[data_idx][sample_idx].set_region_probs(probs)
         # update bins
