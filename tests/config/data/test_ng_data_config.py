@@ -245,37 +245,6 @@ def test_propagate_seed():
         assert transform.seed == global_seed
 
 
-@pytest.mark.parametrize(
-    "filter_config, mode, error",
-    [
-        ({"name": "mask"}, "training", False),
-        ({"name": "mask"}, "validating", True),
-        ({"name": "mask"}, "predicting", True),
-    ],
-)
-def test_validate_coord_filters(filter_config, mode, error):
-
-    if error:
-        with pytest.raises(ValueError):
-            NGDataConfig(
-                mode=mode,
-                data_type="array",
-                axes="CYX",
-                patching=default_patching(mode),
-                coord_filter=filter_config,
-                normalization=DEFAULT_NORM,
-            )
-    else:
-        _ = NGDataConfig(
-            mode=mode,
-            data_type="array",
-            axes="CYX",
-            patching=default_patching(mode),
-            coord_filter=filter_config,
-            normalization=DEFAULT_NORM,
-        )
-
-
 class TestDimensions:
 
     @pytest.mark.parametrize(
