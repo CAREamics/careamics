@@ -133,12 +133,14 @@ def create_dataset(
         )
     else:
         target_extractor = None
-    if masks is not None:
-        mask_extractor = init_patch_extractor(
-            patch_extractor_type, image_stack_loader, masks, config.axes
-        )
-    else:
-        mask_extractor = None
+
+    # TODO: filter patching strategy with mask if applicable
+    # if masks is not None:
+    #     mask_extractor = init_patch_extractor(
+    #         patch_extractor_type, image_stack_loader, masks, config.axes
+    #     )
+    # else:
+    #     mask_extractor = None
 
     patching_strategy = create_patching_strategy(
         input_extractor.shapes, config.patching
@@ -149,7 +151,6 @@ def create_dataset(
         patching_strategy=patching_strategy,
         input_extractor=input_extractor,
         target_extractor=target_extractor,
-        mask_extractor=mask_extractor,
     )
 
 
@@ -292,7 +293,7 @@ def create_val_split_datasets(
 
     train_input = data.train_data
     train_target = data.train_data_target
-    train_mask = data.train_data_mask
+    # train_mask = data.train_data_mask
 
     # init dataset components
     image_stack_loader = select_image_stack_loader(
@@ -312,12 +313,14 @@ def create_val_split_datasets(
         )
     else:
         target_extractor = None
-    if train_mask is not None:
-        mask_extractor = init_patch_extractor(
-            patch_extractor_type, image_stack_loader, train_mask, config.axes
-        )
-    else:
-        mask_extractor = None
+
+    # # TODO: filter patching strategy with masking strategy, if applicable
+    # if train_mask is not None:
+    #     mask_extractor = init_patch_extractor(
+    #         patch_extractor_type, image_stack_loader, train_mask, config.axes
+    #     )
+    # else:
+    #     mask_extractor = None
 
     train_patching = create_patching_strategy(input_extractor.shapes, config.patching)
     # ensured by guard on config at the start of function
@@ -332,14 +335,12 @@ def create_val_split_datasets(
         data_config=config,
         input_extractor=input_extractor,
         target_extractor=target_extractor,
-        mask_extractor=mask_extractor,
         patching_strategy=train_patching,
     )
     val_dataset = CareamicsDataset(
         data_config=config.convert_mode("validating"),
         input_extractor=input_extractor,
         target_extractor=target_extractor,
-        mask_extractor=None,
         patching_strategy=val_patching,
     )
     return train_dataset, val_dataset

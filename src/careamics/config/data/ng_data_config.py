@@ -177,14 +177,10 @@ class NGDataConfig(BaseModel):
     patch_filter: PatchFilterConfig | None = Field(default=None, discriminator="name")
     """Patch filter to apply when using random patching. Only available if
     mode is `training`."""
-
-    coord_filter: CoordFilterConfig | None = Field(default=None, discriminator="name")
-    """Coordinate filter to apply when using random patching. Only available if
-    mode is `training`."""
-
-    patch_filter_patience: int = Field(default=5, ge=1)
-    """Number of consecutive patches not passing the filter before accepting the next
-    patch."""
+    filtered_patch_prob: float = 0.1
+    """The probability that each patch classed as background will be selected during
+    training. Patches can be classed as background by either the `patch_filter` or by
+    providing a mask during training. If neither is used this parameter is ignored."""
 
     transforms: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
         default=(
@@ -402,13 +398,13 @@ class NGDataConfig(BaseModel):
                 )
         return patching
 
-    @field_validator("patch_filter", "coord_filter")
+    @field_validator("patch_filter")
     @classmethod
     def validate_filters_against_mode(
         cls,
-        filter_obj: PatchFilterConfig | CoordFilterConfig | None,
+        filter_obj: PatchFilterConfig | None,
         info: ValidationInfo,
-    ) -> PatchFilterConfig | CoordFilterConfig | None:
+    ) -> PatchFilterConfig | None:
         """
         Validate that the filters are only used during training.
 
@@ -534,13 +530,6 @@ class NGDataConfig(BaseModel):
                     and self.patch_filter.seed is None
                 ):
                     self.patch_filter.seed = self.seed
-
-            if self.coord_filter is not None:
-                if (
-                    hasattr(self.coord_filter, "seed")
-                    and self.coord_filter.seed is None
-                ):
-                    self.coord_filter.seed = self.seed
 
         return self
 
@@ -916,7 +905,6 @@ class NGDataConfig(BaseModel):
 
         # remove patch and coord filters when switching to validation or prediction
         del model_dict["patch_filter"]
-        del model_dict["coord_filter"]
 
         return NGDataConfig(**model_dict)
 
