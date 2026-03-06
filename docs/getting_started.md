@@ -1,5 +1,5 @@
 ---
-description: CAREamist API
+description: Quick start
 ---
 
 # Using CAREamics
@@ -17,7 +17,7 @@ to as the [Lightning API]().
 === "Noise2Void"
     
     ```python
-    --8<-- "getting_started.py.py:quick_start_n2v"
+    --8<-- "getting_started.py:quick_start_n2v"
     ```
 
     1. This is training from arrays in memory, but this can also be done with files 
@@ -41,16 +41,23 @@ to as the [Lightning API]().
 
 ## On the menu
 
-- Convenience functions (beginner)
-- Convenience functions (intermediate)
-- Convenience functions (advanced)
-- Advanced Noise2Void, N2V2 and structN2V (intermediate)
-- Putting data together (beginner)
-- Training CAREamics (beginner)
-- Logging and visualization (beginner)
-- Prediction with CAREamics (beginner)
-- Exporting models (beginner)
-- Saving and loading configurations (beginner)
-- Masking and background patch filtering (advanced)
-- Custom data formats (advanced)
-- Lightning API (advanced)
+- [Configuring CAREamics]()
+    - [Basic configuration]()
+    - [Intermediate configuration]()
+    - [Advanced configuration]()
+    - [Other Noise2Void flavors (N2V2 and structN2V)]()
+    - [Saving and loading configurations]()
+- [Assembling training data]()
+    - [Arrays in memory]()
+    - [Files on disk (TIFF, CZI, Zarr)]()
+    - [Custom data formats]()
+- [Training CAREamics]()
+    - [Logging and visualization]()
+    - [Checkpoints and model export]()
+    - [Masking and background filtering]()
+- [Predicting with CAREamics]()
+    - [From arrays in memory]()
+    - [From files on disk]()
+    - [Tiling predictions]()
+    - [Writing predictions to disk]()
+- [Lightning API]()
