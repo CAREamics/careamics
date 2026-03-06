@@ -226,6 +226,7 @@ def create_advanced_n2v_config(
     optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
     lr_scheduler_params: dict[str, Any] | None = None,
+    monitor_metric: str = "val_loss",
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
@@ -345,6 +346,8 @@ def create_advanced_n2v_config(
     lr_scheduler_params : dict[str, Any] | None, default=None
         Parameters for the learning rate scheduler, see PyTorch documentation for more
         details.
+    monitor_metric : str, default="val_loss"
+        Metric to monitor for the learning rate scheduler.
     train_dataloader_params : dict[str, Any] | None, default=None
         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
         If left as `None`, `{"shuffle": True}` will be used.
@@ -446,6 +449,7 @@ def create_advanced_n2v_config(
         optimizer_params=optimizer_params,
         lr_scheduler=lr_scheduler,
         lr_scheduler_params=lr_scheduler_params,
+        monitor_metric=monitor_metric,
     )
 
     # create the N2VManipulate transform using the supplied parameters
