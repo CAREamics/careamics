@@ -1,5 +1,10 @@
 import pytest
 
+from careamics.config.augmentations import (
+    N2VManipulateConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
+)
 from careamics.config.data import NGDataConfig
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.ng_factories.data_factory import (
@@ -7,11 +12,6 @@ from careamics.config.ng_factories.data_factory import (
     list_spatial_augmentations,
 )
 from careamics.config.support import SupportedTransform
-from careamics.config.transformations import (
-    N2VManipulateConfig,
-    XYFlipConfig,
-    XYRandomRotate90Config,
-)
 
 
 class TestSpatialAugmentations:

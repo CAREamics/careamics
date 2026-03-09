@@ -5,8 +5,8 @@ from typing import Any
 
 import torch
 
+from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
-from careamics.config.transformations import N2VManipulateConfig
 
 from .pixel_manipulation_torch import (
     median_manipulate_torch,

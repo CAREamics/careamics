@@ -13,7 +13,7 @@ from careamics.file_io.read import read_tiff
 from careamics.transforms import Compose
 
 from ..config import InferenceConfig
-from ..config.transformations import NormalizeConfig
+from ..config.augmentations import NormalizeConfig
 from .dataset_utils import iterate_over_files
 
 

@@ -1,4 +1,4 @@
-from careamics.config.transformations import XYFlipConfig
+from careamics.config.augmentations import XYFlipConfig
 from careamics.transforms import XYFlip
 
 

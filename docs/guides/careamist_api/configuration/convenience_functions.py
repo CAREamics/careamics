@@ -103,7 +103,7 @@ config = create_n2v_configuration(
 # --8<-- [end:n2v_no_aug]
 # N2V without augmentations
 # --8<-- [start:n2v_aug]
-from careamics.config.transformations import XYFlipConfig
+from careamics.config.augmentations import XYFlipConfig
 
 config = create_n2v_configuration(
     experiment_name="n2v_2D_no_aug",
@@ -116,7 +116,7 @@ config = create_n2v_configuration(
 )
 # --8<-- [end:n2v_aug]
 # --8<-- [start:care_aug]
-from careamics.config.transformations import XYFlipConfig
+from careamics.config.augmentations import XYFlipConfig
 
 config = create_care_configuration(
     experiment_name="care_2D_aug",
@@ -129,7 +129,7 @@ config = create_care_configuration(
 )
 # --8<-- [end:care_aug]
 # --8<-- [start:n2n_aug]
-from careamics.config.transformations import XYFlipConfig
+from careamics.config.augmentations import XYFlipConfig
 
 config = create_n2n_configuration(
     experiment_name="n2n_2D_aug",

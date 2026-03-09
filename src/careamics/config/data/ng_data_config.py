@@ -22,7 +22,7 @@ from pydantic import (
 
 from careamics.utils import BaseEnum
 
-from ..transformations import XYFlipConfig, XYRandomRotate90Config
+from ..augmentations import XYFlipConfig, XYRandomRotate90Config
 from ..utils.random import generate_random_seed
 from ..validators import check_axes_validity, check_czi_axes_validity
 from .normalization_config import NormalizationConfig
