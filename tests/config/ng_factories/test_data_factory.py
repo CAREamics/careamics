@@ -61,7 +61,7 @@ class TestNGDataConfiguration:
             seed=42,
         )
 
-        assert config.transforms == list_spatial_augmentations(seed=42)
+        assert config.augmentations == list_spatial_augmentations(seed=42)
 
     def test_train_dataloader_params(self):
         """Test that shuffle is added silently to the train_dataloader_params."""

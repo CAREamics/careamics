@@ -146,7 +146,7 @@ def create_ng_data_configuration(
         "axes": axes,
         "batch_size": batch_size,
         "channels": channels,
-        "transforms": augmentations,
+        "augmentations": augmentations,
         "n_val_patches": n_val_patches,
         "seed": seed,
         "normalization": (
