@@ -167,12 +167,14 @@ class CAREamistV2:
                     "internally and should not be passed as callbacks."
                 )
 
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=work_dir / "checkpoints",
+            filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
+            **config.training_config.checkpoint_callback.model_dump(),
+        )
+        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.experiment_name}_last"        
         internal_callbacks: list[Callback] = [
-            ModelCheckpoint(
-                dirpath=work_dir / "checkpoints",
-                filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
-                **config.training_config.checkpoint_callback.model_dump(),
-            ),
+            checkpoint_callback,
             CareamicsCheckpointInfo(
                 config.version, config.experiment_name, config.training_config
             ),

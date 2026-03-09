@@ -254,15 +254,16 @@ class CAREamist:
                     "and should not be passed as callbacks."
                 )
 
-        # checkpoint callback saves checkpoints during training
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=self.work_dir / Path("checkpoints"),
+            filename=f"{self.cfg.experiment_name}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
+            **self.cfg.training_config.checkpoint_callback.model_dump(),
+        )
+        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{self.cfg.experiment_name}_last"
         self.callbacks.extend(
             [
                 HyperParametersCallback(self.cfg),
-                ModelCheckpoint(
-                    dirpath=self.work_dir / Path("checkpoints"),
-                    filename=f"{self.cfg.experiment_name}_{{epoch:02d}}_step_{{step}}",
-                    **self.cfg.training_config.checkpoint_callback.model_dump(),
-                ),
+                checkpoint_callback,
             ]
         )
         if enable_progress_bar:

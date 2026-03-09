@@ -110,7 +110,7 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: di
     careamist.train(train_source=train_array)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -155,21 +155,25 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
     careamist.train(train_source=train_array, val_source=val_array)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
     # check save_top_k=2 functionality
-    # Should have: 2 best checkpoints + 1 last.ckpt = 3 total files
+    # Should have: 2 best checkpoints + 1 LevitatingFrog_last.ckpt = 3 total files
     checkpoint_files = list((tmp_path / "checkpoints").glob("*.ckpt"))
     assert (
         len(checkpoint_files) == 3
     ), f"Expected 3 checkpoint files (2 best + last), found {len(checkpoint_files)}"
 
-    # Verify last.ckpt exists
-    last_ckpt_exists = any(f.name == "last.ckpt" for f in checkpoint_files)
-    assert last_ckpt_exists, "last.ckpt should exist when save_last=True"
+    # Verify that the checkpoint exists
+    last_ckpt_exists = any(
+        f.name == "LevitatingFrog_last.ckpt" for f in checkpoint_files
+    )
+    assert last_ckpt_exists, "LevitatingFrog_last.ckpt should exist when save_last=True"
 
     # Verify we have exactly 2 non-last checkpoint files
-    non_last_checkpoints = [f for f in checkpoint_files if f.name != "last.ckpt"]
+    non_last_checkpoints = [
+        f for f in checkpoint_files if f.name != "LevitatingFrog_last.ckpt"
+    ]
     assert (
         len(non_last_checkpoints) == 2
     ), f"Expected exactly 2 best checkpoints, found {len(non_last_checkpoints)}"
@@ -268,7 +272,7 @@ def test_train_array_channel(
     careamist.train(train_source=train_array, val_source=val_array)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -304,7 +308,7 @@ def test_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     careamist.train(train_source=train_array, val_source=val_array)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -344,7 +348,7 @@ def test_train_tiff_files_in_memory_no_val(
     careamist.train(train_source=train_file)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -386,7 +390,7 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration: d
     careamist.train(train_source=train_file, val_source=val_file)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -430,7 +434,7 @@ def test_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
     careamist.train(train_source=train_file, val_source=val_file, use_in_memory=False)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -502,7 +506,7 @@ def test_train_array_supervised(tmp_path: Path, minimum_supervised_configuration
     )
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -563,7 +567,7 @@ def test_train_tiff_files_in_memory_supervised(
     )
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -627,7 +631,7 @@ def test_train_tiff_files_supervised(
     )
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -1206,7 +1210,7 @@ def test_enable_progress_bar(
     careamist.train(train_source=train_array)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
 
 
 def test_error_passing_careamics_callback(tmp_path, minimum_n2v_configuration):
@@ -1347,4 +1351,4 @@ def test_trainer_parameters_passed_correctly(
     assert careamist.trainer.max_epochs == 3
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "LevitatingFrog_last.ckpt").exists()
