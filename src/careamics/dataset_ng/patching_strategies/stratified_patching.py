@@ -321,7 +321,7 @@ class _ImageStratifiedPatching:
         self.probs: dict[tuple[int, ...], float]
 
         self.excluded_patches: set[tuple[int, ...]] = set()
-        self.bin_size: int
+        self.bin_size: float
         self.bins: list[list[tuple[int, ...]]]
         self.n_patches: int
 
@@ -511,8 +511,7 @@ class _ImageStratifiedPatching:
         else:
             n_patches = 0
 
-        bin_size, _ = _find_bin_size(self.areas, n_patches)
-        bins = _region_bin_packing(self.areas, bin_size)
+        bin_size, bins = _region_bin_packing(self.areas, n_patches)
         probs = {key: area / bin_size for key, area in self.areas.items()}
         return n_patches, bin_size, bins, probs
 
@@ -698,114 +697,40 @@ def _boxes_overlap(
     return (np.maximum(a_start, b_start) < np.minimum(a_end, b_end)).all().item()
 
 
-# bin packing using the best-fit-decreasing algorithm
 def _region_bin_packing(
-    areas: dict[tuple[int, ...], int], bin_size: int
-) -> list[list[tuple[int, ...]]]:
-    """Pack regions in bins with `bin_size` based on their area."""
+    areas: dict[tuple[int, ...], int],
+    n_patches: int,
+) -> tuple[float, list[list[tuple[int, ...]]]]:
     if len(areas) == 0:
-        return []
+        return 0, []
+    if len(areas) <= n_patches:
+        return max(areas.values()), [[key] for key in areas.keys()]
 
     sorted_keys = sorted(areas.keys(), key=lambda k: areas[k], reverse=True)
-    bins: list[list[tuple[int, ...]]] = []
-
+    bin_size = max(areas.values())
+    bins: list[list[tuple[int, ...]]] = [[] for _ in range(n_patches)]
+    remaining_space: NDArray[np.floating] = np.array(
+        [bin_size for _ in range(n_patches)]
+    )
     for key in sorted_keys:
-        # Find the bin with least remaining space that still fits this value
-        best_bin_idx = None
-        min_remaining_space = bin_size + 1
-
-        for i, bin_contents in enumerate(bins):
-            current_sum = sum([areas[k] for k in bin_contents])
-            remaining_space = bin_size - current_sum
-
-            # Can it fit? Is it tighter than our current best?
-            value = areas[key]
-            if remaining_space >= value and remaining_space < min_remaining_space:
-                best_bin_idx = i
-                min_remaining_space = remaining_space
-
-        # Add to best bin or create new one
-        if best_bin_idx is not None:
-            bins[best_bin_idx].append(key)
+        area = areas[key]
+        diff = remaining_space - area
+        # if the area doesn't fit in any bin, the bin size will be expanded.
+        if (diff < 0).all():
+            # find bin with the most remaining space -> results in the min bin expansion
+            bin_idx = np.argmax(remaining_space)
+            size_increase = area - remaining_space[bin_idx]
+            # increase the bin size and the capacity of all the bins
+            bin_size += size_increase
+            remaining_space += size_increase
         else:
-            bins.append([key])
+            # otherwise find bin with maximum load for which the area fits
+            # -> according to best fit decreasing algorithm
+            # set negative values to a large number, to find positive min
+            diff[diff < 0] = bin_size * 2
+            bin_idx = np.argmin(diff)
 
-    return bins
+        bins[bin_idx].append(key)
+        remaining_space[bin_idx] -= area
 
-
-# performs a binary search
-def _find_bin_size(
-    areas: dict[tuple[int, ...], int], target_n_bins: int
-) -> tuple[int, int]:
-    """Find the minimum bin size that will result in `target_n_bins` or less.
-
-    Parameters
-    ----------
-    areas : dict[tuple[int, ...], int]
-        A dictionary of sampling region areas. The key is the grid coordinate of the
-        corresponding sampling region. These are the sampling regions created by
-        `_ImageStratifiedPatching`.
-    target_n_bins : int
-        The desired number of bins.
-
-    Returns
-    -------
-    best_bin_size : int
-        The bin size found to result in `target_n_bins` number of bins or less.
-    best_num_bins : int
-        The resulting number of bins.
-    """
-    if len(areas) == 0:
-        return 0, 0
-
-    # Binary search bounds
-    min_size = max(areas.values())
-    max_size = sum(areas.values())
-
-    # Edge case: if we want 1 bin, we need bin size = sum of all region areas
-    if target_n_bins == 1:
-        return max_size, 1
-
-    # Edge case: if we want as many bins as there are regions, bin size = maximum area
-    if target_n_bins >= len(areas):
-        return min_size, len(areas)
-
-    best_bin_size = None
-    best_num_bins = None
-
-    while min_size <= max_size:
-        mid_size = (min_size + max_size) // 2
-
-        # Test how many bins we get with this size
-        bins = _region_bin_packing(areas, mid_size)
-        num_bins = len(bins)
-
-        if num_bins == target_n_bins:
-            # Found exact match! Save it and keep searching for smaller bin size
-            best_bin_size = mid_size
-            best_num_bins = num_bins
-            max_size = mid_size - 1  # Try smaller bin size
-        elif num_bins > target_n_bins:
-            # Too many bins, need larger bin size
-            min_size = mid_size + 1
-        else:
-            # Too few bins (num_bins < target_bins)
-            # Save as potential answer if it's our best so far
-            if best_num_bins is None or num_bins > best_num_bins:
-                best_bin_size = mid_size
-                best_num_bins = num_bins
-            elif (
-                best_bin_size is not None
-                and num_bins == best_num_bins
-                and mid_size < best_bin_size
-            ):
-                # Same number of bins but smaller size - better!
-                best_bin_size = mid_size
-
-            # Try smaller bin size to increase bins
-            max_size = mid_size - 1
-
-    best_bin_size = 0 if best_bin_size is None else best_bin_size
-    best_num_bins = 0 if best_num_bins is None else best_num_bins
-
-    return best_bin_size, best_num_bins
+    return bin_size, bins
