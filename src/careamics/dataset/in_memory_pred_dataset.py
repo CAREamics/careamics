@@ -6,10 +6,10 @@ from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
 from careamics.transforms import Compose
+from careamics.utils.reshape_array import reshape_array
 
 from ..config import InferenceConfig
 from ..config.transformations import NormalizeConfig
-from .dataset_utils import reshape_array
 
 
 class InMemoryPredDataset(Dataset):
