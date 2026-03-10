@@ -8,6 +8,7 @@ from tifffile import imwrite
 
 from careamics.config.data import NGDataConfig
 from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.patching_strategies import TilingStrategy
 from careamics.lightning.dataset_ng.prediction.stitch_prediction import (
     group_tiles_by_key,
