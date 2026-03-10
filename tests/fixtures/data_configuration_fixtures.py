@@ -38,20 +38,7 @@ def minimum_train_data_cfg() -> Callable:
         -------
         dict
             A complete training data configuration dictionary.
-
-        Raises
-        ------
-        ValueError
-            If the `mode` field is provided in `kwargs` and is not "training", since the
-            minimum data configuration is only valid for training mode.
         """
-
-        if "mode" in kwargs and kwargs["mode"] != "training":
-            raise ValueError(
-                f"Minimum data configuration is only valid for training mode. "
-                f"Received mode: {kwargs['mode']}"
-            )
-
         config = {
             "mode": "training",
             "data_type": "array",
