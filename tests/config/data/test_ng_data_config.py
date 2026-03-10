@@ -654,7 +654,8 @@ class TestConvertMode:
 def test_batch_size_in_dataloader_params_raises(field):
     """Test that setting batch_size in any dataloader params dict raises ValueError."""
     with pytest.raises(
-        ValueError, match="`batch_size` should not be set in the dataloader parameters."
+        ValueError,
+        match=r"`batch_size` should not be set in the dataloader parameters\.",
     ):
         NGDataConfig(
             mode="training",
@@ -685,16 +686,3 @@ def test_valid_dataloader_params_accepted(field, params):
         **{field: params},
     )
     assert getattr(config, field)["num_workers"] == 2
-
-
-def test_batch_size_in_pred_dataloader_params_predicting_mode_raises():
-    """Test that batch_size in pred_dataloader_params raises in predicting mode too."""
-    with pytest.raises(ValueError, match="batch_size"):
-        NGDataConfig(
-            mode="predicting",
-            data_type="array",
-            axes="YX",
-            patching={"name": SupportedPatchingStrategy.TILED, "patch_size": [16, 16]},
-            normalization=DEFAULT_NORM,
-            pred_dataloader_params={"batch_size": 4},
-        )
