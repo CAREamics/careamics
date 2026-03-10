@@ -11,7 +11,6 @@ from careamics.utils.reshape_array import reshape_array
 from ..config import InferenceConfig
 from ..config.augmentations import NormalizeConfig
 from ..config.data.tile_information import TileInformation
-from ..config.transformations import NormalizeConfig
 from .tiling import extract_tiles
 
 
