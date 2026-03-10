@@ -171,7 +171,6 @@ class AxesTransform:
 def reshape_array(
     array: NDArray,
     original_axes: str,
-    original_shape: Sequence[int],
 ) -> NDArray:
     """Reshape array from arbitrary axes order to `SC(Z)YX`.
 
@@ -181,15 +180,13 @@ def reshape_array(
         Input array.
     original_axes : str
         Original axes string describing current dimension order (e.g. `YXC`).
-    original_shape : Sequence[int]
-        Original shape of the array.
 
     Returns
     -------
     numpy.ndarray
         Array reshaped to `SC(Z)YX`.
     """
-    transform = AxesTransform(original_axes, original_shape)
+    transform = AxesTransform(original_axes, array.shape)
 
     # reorder axes to reference STCZYX
     permutation = transform.order_permutation
@@ -319,7 +316,6 @@ def restore_tile(
 
 
 def get_original_stitch_slices(
-    array_shape: Sequence[int],
     original_axes: str,
     original_shape: Sequence[int],
     sample_idx: int,
@@ -328,14 +324,12 @@ def get_original_stitch_slices(
 ) -> tuple[slice | int, ...]:
     """Get slices to stitch tile back into original array.
 
-    `sample_idx and `stitch_coords` are expressed with respect to the transofrmed space
+    `sample_idx and `stitch_coords` are expressed with respect to the transformed space
     (SCZYX or SCYX). The returned slices will index into the original array for
     stitching the tile back in place.
 
     Parameters
     ----------
-    array_shape : Sequence[int]
-        Shape of the array in transformed space (e.g. SCZYX).
     original_axes : str
         Original axes string of the full data.
     original_shape : Sequence[int]
@@ -369,7 +363,7 @@ def get_original_stitch_slices(
         which_axes.extend(sample_dims)
 
     if not transform.c_added:
-        stitch_slices.append(slice(0, array_shape[1]))
+        stitch_slices.append(slice(0, transform.dim_sizes["C"]))
         which_axes.append("C")
 
     # add spatial slices
