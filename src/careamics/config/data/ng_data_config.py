@@ -441,7 +441,7 @@ class NGDataConfig(BaseModel):
         "train_dataloader_params",
         "val_dataloader_params",
         "pred_dataloader_params",
-        mode="before",
+        mode="after",
     )
     @classmethod
     def batch_size_not_in_dataloader_params(
