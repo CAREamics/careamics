@@ -255,7 +255,7 @@ class CAREamist:
                 )
 
         checkpoint_callback = ModelCheckpoint(
-            dirpath=self.work_dir / Path("checkpoints"),
+            dirpath=self.work_dir / "checkpoints" / self.cfg.experiment_name,
             filename=f"{self.cfg.experiment_name}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
             **self.cfg.training_config.checkpoint_callback.model_dump(),
         )
