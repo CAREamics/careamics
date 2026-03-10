@@ -279,7 +279,7 @@ def _create_data_configuration(
         "axes": axes,
         "patch_size": patch_size,
         "batch_size": batch_size,
-        "augmentations": augmentations,
+        "transforms": augmentations,
     }
     # Don't override defaults set in DataConfig class
     if train_dataloader_params is not None:
@@ -343,7 +343,7 @@ def _create_microsplit_data_configuration(
         "grid_size": grid_size,
         "multiscale_lowres_count": multiscale_count,
         "batch_size": batch_size,
-        "augmentations": augmentations,
+        "transforms": augmentations,
     }
     # Don't override defaults set in DataConfig class
     if train_dataloader_params is not None:
