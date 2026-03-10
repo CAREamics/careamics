@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.lightning.dataset_ng.prediction.reshape_arrays import (
+from careamics.utils.reshape_array import (
     AxesTransform,
     get_original_stitch_slices,
     reshape_array,
@@ -128,7 +128,7 @@ class TestReshapeShape:
     @pytest.mark.parametrize("shape, axes", _ORDERED_CASES + _UNORDERED_CASES)
     def test_reshape_array_produces_correct_shape(self, shape, axes):
         array = np.zeros(shape)
-        result = reshape_array(array, axes, shape)
+        result = reshape_array(array, axes)
         transform = AxesTransform(axes, shape)
 
         assert result.shape == transform.transformed_shape
@@ -145,7 +145,7 @@ class TestReshapeShape:
     )
     def test_reshape_array_s_dimension(self, shape, axes, expected_s):
         array = np.zeros(shape)
-        result = reshape_array(array, axes, shape)
+        result = reshape_array(array, axes)
         assert result.shape[0] == expected_s
 
     @pytest.mark.parametrize(
@@ -157,7 +157,7 @@ class TestReshapeShape:
     )
     def test_reshape_array_c_dimension(self, shape, axes, expected_c):
         array = np.zeros(shape)
-        result = reshape_array(array, axes, shape)
+        result = reshape_array(array, axes)
         assert result.shape[1] == expected_c
 
 
@@ -231,7 +231,7 @@ class TestReshapeIntegrity:
         original_shape = (S_S, C_S, XY_S, XY_S)
 
         array = np.arange(np.prod(original_shape)).reshape(original_shape)
-        restored = reshape_array(array, original_axes, original_shape)
+        restored = reshape_array(array, original_axes)
         assert np.array_equal(restored, array)
 
     def test_singleton_s(self) -> None:
@@ -240,7 +240,7 @@ class TestReshapeIntegrity:
         original_shape = (C_S, XY_S, XY_S)
 
         array = np.arange(np.prod(original_shape)).reshape(original_shape)
-        restored = reshape_array(array, original_axes, original_shape)
+        restored = reshape_array(array, original_axes)
         assert np.array_equal(restored[0], array)
 
     def test_singleton_c(self) -> None:
@@ -249,7 +249,7 @@ class TestReshapeIntegrity:
         original_shape = (S_S, XY_S, XY_S)
 
         array = np.arange(np.prod(original_shape)).reshape(original_shape)
-        restored = reshape_array(array, original_axes, original_shape)
+        restored = reshape_array(array, original_axes)
         assert np.array_equal(restored[:, 0, ...], array)
 
     def test_unflatten_s_and_t(self) -> None:
@@ -258,7 +258,7 @@ class TestReshapeIntegrity:
         original_shape = (S_S, T_S, XY_S, XY_S)
 
         array = np.arange(np.prod(original_shape)).reshape(original_shape)
-        restored = reshape_array(array, original_axes, original_shape)
+        restored = reshape_array(array, original_axes)
 
         for s in range(original_shape[0]):
             for t in range(original_shape[1]):
@@ -272,7 +272,7 @@ class TestReshapeIntegrity:
         original_shape = (T_S, XY_S, XY_S)
 
         array = np.arange(np.prod(original_shape)).reshape(original_shape)
-        restored = reshape_array(array, original_axes, original_shape)
+        restored = reshape_array(array, original_axes)
         np.testing.assert_array_equal(restored[:, 0, ...], array)
 
     def test_reorder_axes(self) -> None:
@@ -281,7 +281,7 @@ class TestReshapeIntegrity:
         original_shape = (C_S, XY_S, XY_S, Z_S, S_S)
 
         array = np.arange(np.prod(original_shape)).reshape(original_shape)
-        restored = reshape_array(array, original_axes, original_shape)
+        restored = reshape_array(array, original_axes)
 
         for c in range(original_shape[0]):
             for z in range(original_shape[3]):
@@ -295,7 +295,7 @@ class TestReshapeIntegrity:
 def test_restore_array_roundtrip(shape, axes):
     """reshape then restore should recover the original array."""
     array = np.arange(np.prod(shape)).reshape(shape)
-    reshaped = reshape_array(array, axes, shape)
+    reshaped = reshape_array(array, axes)
     restored = restore_array(reshaped, axes, shape)
 
     assert restored.shape == shape
@@ -375,12 +375,12 @@ class TestOriginalStitchSlices:
             sample_idx = 0
 
         array = np.arange(np.prod(shape)).reshape(shape)
-        reshaped = reshape_array(array, axes, shape)
+        reshaped = reshape_array(array, axes)
         restored = restore_array(reshaped, axes, shape)
 
         # get slices and index into restored array
         slices = get_original_stitch_slices(
-            reshaped.shape, axes, shape, sample_idx, stitch_coords, crop_size
+            axes, shape, sample_idx, stitch_coords, crop_size
         )
 
         crop_axes = [a for a in axes if a in "CZYX"]

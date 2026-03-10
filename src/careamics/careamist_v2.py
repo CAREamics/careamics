@@ -11,8 +11,8 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from .config.ng_configs import NGConfiguration
 from .config.ng_configs.ng_configuration import AlgorithmConfig
 from .config.support import SupportedData, SupportedLogger
+from .utils.reshape_array import reshape_array
 from .config.utils.configuration_io import load_configuration_ng
-from .dataset.dataset_utils import reshape_array
 from .dataset_ng.dataset import ImageRegionData
 from .dataset_ng.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .file_io import WriteFunc, get_write_func
