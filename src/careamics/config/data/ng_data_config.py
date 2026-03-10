@@ -167,6 +167,10 @@ class NGDataConfig(BaseModel):
     `True` for 'array', 'tiff' and `custom`, and `False` for 'zarr' and 'czi' data
     types."""
 
+    n_val_patches: int = Field(default=8, ge=1, validate_default=True)
+    """The number of patches to set aside for validation during training. This parameter
+    will be ignored if separate validation data is specified for training."""
+
     channels: Sequence[int] | None = Field(default=None)
     """Channels to use from the data. If `None`, all channels are used."""
 

@@ -75,6 +75,7 @@ def create_ng_data_configuration(
     normalization: dict | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
+    n_val_patches: int = 8,
     num_workers: int = 0,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
@@ -110,6 +111,9 @@ def create_ng_data_configuration(
         'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
         'tiff' and `custom`, and `False` for 'zarr' and 'czi' data types. Must be `True`
         for `array`.
+    n_val_patches : int, default=8,
+        The number of patches to set aside for validation during training. This
+        parameter will be ignored if separate validation data is specified for training.
     num_workers : int, default=0
         Number of workers for data loading.
     augmentations : list of transforms or None, default=None
@@ -143,6 +147,7 @@ def create_ng_data_configuration(
         "batch_size": batch_size,
         "channels": channels,
         "transforms": augmentations,
+        "n_val_patches": n_val_patches,
         "seed": seed,
         "normalization": (
             normalization if normalization is not None else {"name": "mean_std"}
@@ -183,7 +188,7 @@ def create_ng_data_configuration(
 
     # add training patching
     data["patching"] = {
-        "name": "random",
+        "name": "stratified",
         "patch_size": patch_size,
     }
 

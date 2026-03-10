@@ -1,7 +1,7 @@
 import pytest
 
 from careamics.config.data import NGDataConfig
-from careamics.config.data.patching_strategies import RandomPatchingConfig
+from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.ng_factories.data_factory import (
     create_ng_data_configuration,
     list_spatial_augmentations,
@@ -85,4 +85,4 @@ class TestNGDataConfiguration:
             batch_size=2,
         )
 
-        assert isinstance(config.patching, RandomPatchingConfig)
+        assert isinstance(config.patching, StratifiedPatchingConfig)

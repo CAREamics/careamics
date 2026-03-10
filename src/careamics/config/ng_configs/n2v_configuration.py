@@ -6,7 +6,7 @@ import numpy as np
 from pydantic import model_validator
 
 from careamics.config.algorithms import N2VAlgorithm
-from careamics.config.data.patching_strategies import RandomPatchingConfig
+from careamics.config.data.patching_strategies import WholePatchingConfig
 
 from .ng_configuration import NGConfiguration
 
@@ -36,7 +36,7 @@ class N2VConfiguration(NGConfiguration):
             chosen masked pixel percentage and patch size.
         """
         if self.data_config.mode == "training":
-            assert isinstance(self.data_config.patching, RandomPatchingConfig)
+            assert not isinstance(self.data_config.patching, WholePatchingConfig)
 
             mask_pixel_perc = self.algorithm_config.n2v_config.masked_pixel_percentage
             patch_size = self.data_config.patching.patch_size
