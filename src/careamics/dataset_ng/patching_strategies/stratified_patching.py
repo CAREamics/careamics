@@ -641,6 +641,8 @@ class _SamplingRegion:
                 if not _boxes_overlap(orthant_region, region)
             ]
         )
+        # reshape for case that subregions is empty
+        self.subregions = self.subregions.reshape(len(self.subregions), self.ndims, 2)
         self.areas = self._calc_areas(self.subregions)
 
     def clip(
