@@ -167,15 +167,8 @@ def tiles(
     )
     n_tiles = tiling_strategy.n_patches
 
-    # create patch extractor
-    image_stacks = load_zarrs(source=sources, axes=data_config.axes)
-    patch_extractor = PatchExtractor(image_stacks)
-
     # create dataset
-    dataset = CareamicsDataset(
-        data_config=data_config,
-        input_extractor=patch_extractor,
-    )
+    dataset = create_dataset(config=data_config, inputs=sources, targets=None)
 
     # extract tiles
     tiles: list[ImageRegionData] = []

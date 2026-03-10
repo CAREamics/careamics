@@ -3,7 +3,7 @@
 import copy
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, overload
+from typing import Any, Literal, TypeVar, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -13,18 +13,43 @@ from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
-from careamics.dataset_ng.factory import create_dataset
+from careamics.dataset_ng.dataset import CareamicsDataset, ImageRegionData
+from careamics.dataset_ng.factory import (
+    ImageStackLoading,
+    Loading,
+    PredData,
+    ReadFuncLoading,
+    TrainValData,
+    TrainValSplitData,
+    create_pred_dataset,
+    create_train_val_datasets,
+    create_val_split_datasets,
+)
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
-from careamics.dataset_ng.image_stack_loader import ImageStackLoader
-from careamics.file_io import ReadFunc
-from careamics.lightning.dataset_ng.data_module_utils import initialize_data_pair
+from careamics.dataset_ng.image_stack import ImageStack
+from careamics.dataset_ng.patching_strategies import (
+    PatchSpecs,
+    TileSpecs,
+)
 from careamics.utils import get_logger
+
+from .data_module_utils import initialize_data_pair
 
 logger = get_logger(__name__)
 
-ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
-PathInput = str | Path | Sequence[str | Path]
-InputType = ArrayInput | PathInput
+
+InputVar = TypeVar(
+    "InputVar", NDArray[Any], Path, str, Sequence[NDArray[Any]], Sequence[Path | str]
+)
+"""
+Data source types, numpy arrays or paths or sequences of either.
+
+(Paths can be `str` or `pathlib.Path`).
+"""
+
+
+_Data = TrainValData[Any] | TrainValSplitData[Any] | PredData[Any]
+"""Data for training with validation or validation splitting or data for prediction."""
 
 
 class CareamicsDataModule(L.LightningDataModule):
@@ -32,48 +57,52 @@ class CareamicsDataModule(L.LightningDataModule):
 
     Parameters
     ----------
-    data_config : DataConfig
+    data_config : NGDataConfig
         Pydantic model for CAREamics data configuration.
-    train_data : Optional[InputType]
-        Training data, can be a path to a folder, a list of paths, or a numpy array.
-    train_data_target : Optional[InputType]
-        Training data target, can be a path to a folder,
-        a list of paths, or a numpy array.
-    train_data_mask : InputType (when filtering is needed)
-        Training data mask, can be a path to a folder,
-        a list of paths, or a numpy array. Used for coordinate filtering.
-        Only required when using coordinate-based patch filtering.
-    val_data : Optional[InputType]
-        Validation data, can be a path to a folder,
-        a list of paths, or a numpy array.
-    val_data_target : Optional[InputType]
-        Validation data target, can be a path to a folder,
-        a list of paths, or a numpy array.
-    pred_data : Optional[InputType]
-        Prediction data, can be a path to a folder, a list of paths,
-        or a numpy array.
-    pred_data_target : Optional[InputType]
-        Prediction data target, can be a path to a folder,
-        a list of paths, or a numpy array.
-    read_source_func : Optional[ReadFunc], default=None
-        Function to read the source data. Only used for `custom`
-        data type (see DataModel).
-    read_kwargs : Optional[dict[str, Any]]
-        The kwargs for the read source function.
-    image_stack_loader : Optional[ImageStackLoader]
-        The image stack loader.
-    image_stack_loader_kwargs : Optional[dict[str, Any]]
-        The image stack loader kwargs.
-    extension_filter : str, default=""
-        Filter for file extensions. Only used for `custom` data types
-        (see DataModel).
-    val_percentage : Optional[float]
+    train_data : Any, default=None
+        Training data. If custom `loading` is provided it can be any type, otherwise
+        it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+        or None.
+    train_data_target : Any, default=None
+        Training data target. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    train_data_mask : Any, default=None.
+        Training data mask, an optional mask that can be provided to filter regions
+        of the data during training, such as large areas of background. The mask
+        should be a binary image where a 1 indicates a pixel should be included in
+        the training data.
+        If custom `loading` is provided it can be any type, otherwise
+        it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+        or None.
+    val_data : Any, default=None
+        Validation data. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    val_data_target : Any, default=None
+        Validation data target. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    val_percentage : float | None, default=None
         Percentage of the training data to use for validation. Only
         used if `val_data` is None.
-    val_minimum_split : int, default=5
+    val_minimum_split : int
         Minimum number of patches or files to split from the training data for
-        validation. Only used if `val_data` is None.
-
+        validation, by default 5. Only used if `val_data` is None.
+    pred_data : Any, default=None
+        Prediction data. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    pred_data_target : Any, default=None
+        Prediction data target, this may be used for calculating metrics. If custom
+        `loading` is provided it can be any type, otherwise it must be a
+        `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these, or None.
+    loading : ReadFuncLoading | ImageStackLoading | None, default=None
+        The type of loading used for custom data. `ReadFuncLoading` is the use of
+        a simple function that will load full images into memory.
+        `ImageStackLoading` is for custom chunked or memory-mapped next-generation
+        file formats enabling  single patches to be read from disk at a time.
+        If the data type is not custom `loading` should be `None`.
 
     Attributes
     ----------
@@ -83,35 +112,6 @@ class CareamicsDataModule(L.LightningDataModule):
         Type of data, one of SupportedData.
     batch_size : int
         Batch size for the dataloaders.
-    extension_filter : str
-        Filter for file extensions, by default "".
-    read_source_func : Optional[ReadFunc], default=None
-        Function to read the source data.
-    read_kwargs : Optional[dict[str, Any]], default=None
-        The kwargs for the read source function.
-    val_percentage : Optional[float]
-        Percentage of the training data to use for validation.
-    val_minimum_split : int, default=5
-        Minimum number of patches or files to split from the training data for
-        validation.
-    train_data : Optional[Any]
-        Training data, can be a path to a folder, a list of paths, or a numpy array.
-    train_data_target : Optional[Any]
-        Training data target, can be a path to a folder, a list of paths, or a numpy
-        array.
-    train_data_mask : Optional[Any]
-        Training data mask, can be a path to a folder, a list of paths, or a numpy
-        array.
-    val_data : Optional[Any]
-        Validation data, can be a path to a folder, a list of paths, or a numpy array.
-    val_data_target : Optional[Any]
-        Validation data target, can be a path to a folder, a list of paths, or a numpy
-        array.
-    pred_data : Optional[Any]
-        Prediction data, can be a path to a folder, a list of paths, or a numpy array.
-    pred_data_target : Optional[Any]
-        Prediction data target, can be a path to a folder, a list of paths, or a numpy
-        array.
 
     Raises
     ------
@@ -121,120 +121,24 @@ class CareamicsDataModule(L.LightningDataModule):
         If input and target data types are not consistent.
     """
 
-    # standard use (no mask)
-    # TODO: remove pred data from overloads?
+    # if not using ImageStackLoading the input type should be array or path or sequence
     @overload
     def __init__(
         self,
-        data_config: NGDataConfig,
+        data_config: NGDataConfig | dict[str, Any],
         *,
-        train_data: InputType | None = None,
-        train_data_target: InputType | None = None,
-        val_data: InputType | None = None,
-        val_data_target: InputType | None = None,
-        pred_data: InputType | None = None,
-        pred_data_target: InputType | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
+        train_data: InputVar | None = None,
+        train_data_target: InputVar | None = None,
+        train_data_mask: InputVar | None = None,
+        val_data: InputVar | None = None,
+        val_data_target: InputVar | None = None,
+        pred_data: InputVar | None = None,
+        pred_data_target: InputVar | None = None,
+        loading: ReadFuncLoading | None = None,
     ) -> None: ...
 
-    # with training mask for filtering
+    # if using ImageStackLoading the input data can be anything.
     @overload
-    def __init__(
-        self,
-        data_config: NGDataConfig,
-        *,
-        train_data: InputType | None = None,
-        train_data_target: InputType | None = None,
-        train_data_mask: InputType,
-        val_data: InputType | None = None,
-        val_data_target: InputType | None = None,
-        pred_data: InputType | None = None,
-        pred_data_target: InputType | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
-
-    # custom read function (no mask)
-    @overload
-    def __init__(
-        self,
-        data_config: NGDataConfig,
-        *,
-        train_data: InputType | None = None,
-        train_data_target: InputType | None = None,
-        val_data: InputType | None = None,
-        val_data_target: InputType | None = None,
-        pred_data: InputType | None = None,
-        pred_data_target: InputType | None = None,
-        read_source_func: ReadFunc,
-        read_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
-
-    # custom read function with training mask
-    @overload
-    def __init__(
-        self,
-        data_config: NGDataConfig,
-        *,
-        train_data: InputType | None = None,
-        train_data_target: InputType | None = None,
-        train_data_mask: InputType,
-        val_data: InputType | None = None,
-        val_data_target: InputType | None = None,
-        pred_data: InputType | None = None,
-        pred_data_target: InputType | None = None,
-        read_source_func: ReadFunc,
-        read_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
-
-    # image stack loader (no mask)
-    @overload
-    def __init__(
-        self,
-        data_config: NGDataConfig,
-        *,
-        train_data: Any | None = None,
-        train_data_target: Any | None = None,
-        val_data: Any | None = None,
-        val_data_target: Any | None = None,
-        pred_data: Any | None = None,
-        pred_data_target: Any | None = None,
-        image_stack_loader: ImageStackLoader,
-        image_stack_loader_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
-
-    # image stack loader with training mask
-    @overload
-    def __init__(
-        self,
-        data_config: NGDataConfig,
-        *,
-        train_data: Any | None = None,
-        train_data_target: Any | None = None,
-        train_data_mask: Any,
-        val_data: Any | None = None,
-        val_data_target: Any | None = None,
-        pred_data: Any | None = None,
-        pred_data_target: Any | None = None,
-        image_stack_loader: ImageStackLoader,
-        image_stack_loader_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
-    ) -> None: ...
-
     def __init__(
         self,
         data_config: NGDataConfig | dict[str, Any],
@@ -246,13 +150,20 @@ class CareamicsDataModule(L.LightningDataModule):
         val_data_target: Any | None = None,
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
-        read_source_func: ReadFunc | None = None,
-        read_kwargs: dict[str, Any] | None = None,
-        image_stack_loader: ImageStackLoader | None = None,
-        image_stack_loader_kwargs: dict[str, Any] | None = None,
-        extension_filter: str = "",
-        val_percentage: float | None = None,
-        val_minimum_split: int = 5,
+        loading: ImageStackLoading = ...,
+    ) -> None: ...
+    def __init__(
+        self,
+        data_config: NGDataConfig | dict[str, Any],
+        *,
+        train_data: Any | None = None,
+        train_data_target: Any | None = None,
+        train_data_mask: Any | None = None,
+        val_data: Any | None = None,
+        val_data_target: Any | None = None,
+        pred_data: Any | None = None,
+        pred_data_target: Any | None = None,
+        loading: Loading = None,
     ) -> None:
         """
         Data module for Careamics dataset initialization.
@@ -264,56 +175,47 @@ class CareamicsDataModule(L.LightningDataModule):
         ----------
         data_config : NGDataConfig
             Pydantic model for CAREamics data configuration.
-        train_data : Optional[InputType]
-            Training data, can be a path to a folder, a list of paths, or a numpy array.
-        train_data_target : Optional[InputType]
-            Training data target, can be a path to a folder,
-            a list of paths, or a numpy array.
-        train_data_mask : InputType (when filtering is needed)
-            Training data mask, can be a path to a folder,
-            a list of paths, or a numpy array. Used for coordinate filtering.
-            Only required when using coordinate-based patch filtering.
-        val_data : Optional[InputType]
-            Validation data, can be a path to a folder,
-            a list of paths, or a numpy array.
-        val_data_target : Optional[InputType]
-            Validation data target, can be a path to a folder,
-            a list of paths, or a numpy array.
-        pred_data : Optional[InputType]
-            Prediction data, can be a path to a folder, a list of paths,
-            or a numpy array.
-        pred_data_target : Optional[InputType]
-            Prediction data target, can be a path to a folder,
-            a list of paths, or a numpy array.
-        read_source_func : Optional[ReadFunc]
-            Function to read the source data, by default None. Only used for `custom`
-            data type (see DataModel).
-        read_kwargs : Optional[dict[str, Any]]
-            The kwargs for the read source function.
-        image_stack_loader : Optional[ImageStackLoader]
-            The image stack loader.
-        image_stack_loader_kwargs : Optional[dict[str, Any]]
-            The image stack loader kwargs.
-        extension_filter : str
-            Filter for file extensions, by default "". Only used for `custom` data types
-            (see DataModel).
-        val_percentage : Optional[float]
-            Percentage of the training data to use for validation. Only
-            used if `val_data` is None.
-        val_minimum_split : int
-            Minimum number of patches or files to split from the training data for
-            validation, by default 5. Only used if `val_data` is None.
+        train_data : Any, default=None
+            Training data. If custom `loading` is provided it can be any type, otherwise
+            it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+            or None.
+        train_data_target : Any, default=None
+            Training data target. If custom `loading` is provided it can be any type,
+            otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+            of these, or None.
+        train_data_mask : Any, default=None.
+            Training data mask, an optional mask that can be provided to filter regions
+            of the data during training, such as large areas of background. The mask
+            should be a binary image where a 1 indicates a pixel should be included in
+            the training data.
+            If custom `loading` is provided it can be any type, otherwise
+            it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+            or None.
+        val_data : Any, default=None
+            Validation data. If not provided, `data_config.n_val_patches` patches will
+            selected from the training data for validation. If custom `loading` is
+            provided it can be any type, otherwise it must be a `pathlib.Path`, `str`,
+            `numpy.ndarray` or a sequence of these, or None.
+        val_data_target : Any, default=None
+            Validation data target. If custom `loading` is provided it can be any type,
+            otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+            of these, or None.
+        pred_data : Any, default=None
+            Prediction data. If custom `loading` is provided it can be any type,
+            otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+            of these, or None.
+        pred_data_target : Any, default=None
+            Prediction data target, this may be used for calculating metrics. If custom
+            `loading` is provided it can be any type, otherwise it must be a
+            `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these, or None.
+        loading : ReadFuncLoading | ImageStackLoading | None, default=None
+            The type of loading used for custom data. `ReadFuncLoading` is the use of
+            a simple function that will load full images into memory.
+            `ImageStackLoading` is for custom chunked or memory-mapped next-generation
+            file formats enabling  single patches to be read from disk at a time.
+            If the data type is not custom `loading` should be `None`.
         """
         super().__init__()
-
-        if train_data is None and val_data is None and pred_data is None:
-            raise ValueError(
-                "At least one of train_data, val_data or pred_data must be provided."
-            )
-        elif (train_data is None) != (val_data is None):
-            raise ValueError(
-                "If one of train_data or val_data is provided, both must be provided."
-            )
 
         if isinstance(data_config, NGDataConfig):
             self.config = data_config
@@ -339,43 +241,29 @@ class CareamicsDataModule(L.LightningDataModule):
             ],
         )
 
-        self.data_type: str = self.config.data_type
+        self.rng = np.random.default_rng(seed=self.config.seed)
+
+        self.data_type: SupportedData = SupportedData(self.config.data_type)
         self.batch_size: int = self.config.batch_size
 
-        self.extension_filter: str = (
-            extension_filter  # list_files pulls the correct ext
-        )
-        self.read_source_func = read_source_func
-        self.read_kwargs = read_kwargs
-        self.image_stack_loader = image_stack_loader
-        self.image_stack_loader_kwargs = image_stack_loader_kwargs
-
-        # TODO: implement the validation split logic
-        self.val_percentage = val_percentage
-        self.val_minimum_split = val_minimum_split
-        if self.val_percentage is not None:
-            raise NotImplementedError("Validation split is not implemented.")
-
-        custom_loader = self.image_stack_loader is not None
-        self.train_data, self.train_data_target = initialize_data_pair(
+        self._data: _Data = _validate_data(
             self.data_type,
-            train_data,
-            train_data_target,
-            extension_filter,
-            custom_loader,
-        )
-        self.train_data_mask, _ = initialize_data_pair(
-            self.data_type, train_data_mask, None, extension_filter, custom_loader
-        )
-
-        self.val_data, self.val_data_target = initialize_data_pair(
-            self.data_type, val_data, val_data_target, extension_filter, custom_loader
+            train_data=train_data,
+            train_data_target=train_data_target,
+            train_data_mask=train_data_mask,
+            val_data=val_data,
+            val_data_target=val_data_target,
+            n_val_patches=self.config.n_val_patches,
+            pred_data=pred_data,
+            pred_data_target=pred_data_target,
+            loading=loading,
         )
 
-        # The pred_data_target can be needed to count metrics on the prediction
-        self.pred_data, self.pred_data_target = initialize_data_pair(
-            self.data_type, pred_data, pred_data_target, extension_filter, custom_loader
-        )
+        self.loading: Loading = loading
+
+        self.train_dataset: CareamicsDataset[ImageStack] | None = None
+        self.val_dataset: CareamicsDataset[ImageStack] | None = None
+        self.predict_dataset: CareamicsDataset[ImageStack] | None = None
 
     def setup(self, stage: str) -> None:
         """
@@ -395,67 +283,26 @@ class CareamicsDataModule(L.LightningDataModule):
         NotImplementedError
             If stage is not one of "fit", "validate" or "predict".
         """
-        if stage == "fit":
-            if self.config.mode != "training":
-                raise ValueError(
-                    f"CAREamicsDataModule configured for {self.config.mode} cannot be "
-                    f"used for training. Please create a new CareamicsDataModule with "
-                    f"a configuration with mode='training'."
+        if stage == "fit" or stage == "validate":
+            if (self.train_dataset is not None) and (self.val_dataset is not None):
+                return
+
+            if isinstance(self._data, TrainValSplitData):
+                self.train_dataset, self.val_dataset = create_val_split_datasets(
+                    self.config, self._data, self.loading, self.rng
                 )
-
-            self.train_dataset = create_dataset(
-                config=self.config,
-                inputs=self.train_data,
-                targets=self.train_data_target,
-                masks=self.train_data_mask,
-                read_func=self.read_source_func,
-                read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
-            )
-
-            validation_config = self.config.convert_mode("validating")
-
-            self.val_dataset = create_dataset(
-                config=validation_config,
-                inputs=self.val_data,
-                targets=self.val_data_target,
-                read_func=self.read_source_func,
-                read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
-            )
-        elif stage == "validate":
-            validation_config = self.config.convert_mode("validating")
-            self.val_dataset = create_dataset(
-                config=validation_config,
-                inputs=self.val_data,
-                targets=self.val_data_target,
-                read_func=self.read_source_func,
-                read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
-            )
+            elif isinstance(self._data, TrainValData):
+                self.train_dataset, self.val_dataset = create_train_val_datasets(
+                    self.config, self._data, self.loading
+                )
+            else:
+                raise ValueError("Training and validation data has not been provided.")
         elif stage == "predict":
-            if self.config.mode == "validating":
-                raise ValueError(
-                    "CAREamicsDataModule configured for validating cannot be used for "
-                    "prediction. Please create a new CareamicsDataModule with a "
-                    "configuration with mode='predicting'."
-                )
+            if not isinstance(self._data, PredData):
+                raise ValueError("No data has been provided for prediction.")
 
-            self.predict_dataset = create_dataset(
-                config=(
-                    self.config.convert_mode("predicting")
-                    if self.config.mode == "training"
-                    else self.config
-                ),
-                inputs=self.pred_data,
-                targets=self.pred_data_target,
-                read_func=self.read_source_func,
-                read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
+            self.predict_dataset = create_pred_dataset(
+                self.config, self._data, self.loading
             )
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
@@ -476,12 +323,13 @@ class CareamicsDataModule(L.LightningDataModule):
                         f"Unrecognized dataset '{dataset}', should be one of 'train', "
                         "'val' or 'predict'."
                     )
+            assert ds is not None
             sampler = GroupedIndexSampler.from_dataset(ds, rng=rng)
         else:
             sampler = None
         return sampler
 
-    def train_dataloader(self) -> DataLoader:
+    def train_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
         """
         Create a dataloader for training.
 
@@ -497,7 +345,8 @@ class CareamicsDataModule(L.LightningDataModule):
         # TODO: there might be other parameters mutually exclusive with sampler
         if (sampler is not None) and ("shuffle" in dataloader_params):
             del dataloader_params["shuffle"]
-        return DataLoader(
+        assert self.train_dataset is not None
+        return DataLoader[ImageRegionData[PatchSpecs]](
             self.train_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
@@ -505,7 +354,7 @@ class CareamicsDataModule(L.LightningDataModule):
             **dataloader_params,
         )
 
-    def val_dataloader(self) -> DataLoader:
+    def val_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
         """
         Create a dataloader for validation.
 
@@ -518,7 +367,8 @@ class CareamicsDataModule(L.LightningDataModule):
         dataloader_params = copy.deepcopy(self.config.val_dataloader_params)
         if (sampler is not None) and ("shuffle" in dataloader_params):
             del dataloader_params["shuffle"]
-        return DataLoader(
+        assert self.val_dataset is not None
+        return DataLoader[ImageRegionData[PatchSpecs]](
             self.val_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
@@ -526,7 +376,7 @@ class CareamicsDataModule(L.LightningDataModule):
             **dataloader_params,
         )
 
-    def predict_dataloader(self) -> DataLoader:
+    def predict_dataloader(self) -> DataLoader[ImageRegionData[TileSpecs]]:
         """
         Create a dataloader for prediction.
 
@@ -535,9 +385,132 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Prediction dataloader.
         """
-        return DataLoader(
+        assert self.predict_dataset is not None
+        return DataLoader[ImageRegionData[TileSpecs]](
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
             **self.config.pred_dataloader_params,
         )
+
+
+def _validate_data(
+    data_type: SupportedData,
+    train_data: Any | None = None,
+    train_data_target: Any | None = None,
+    train_data_mask: Any | None = None,
+    val_data: Any | None = None,
+    val_data_target: Any | None = None,
+    n_val_patches: int | None = None,
+    pred_data: Any | None = None,
+    pred_data_target: Any | None = None,
+    loading: Loading = None,
+) -> TrainValData[Any] | TrainValSplitData[Any] | PredData[Any]:
+    """Validate the combination of input arguments and their types.
+
+    Parameters
+    ----------
+    data_type : SupportedData
+        The type of the data to validate against.
+    train_data : Any, default=None
+        Training data. If custom `loading` is provided it can be any type, otherwise
+        it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+        or None.
+    train_data_target : Any, default=None
+        Training data target. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    train_data_mask : Any, default=None.
+        Training data mask, an optional mask that can be provided to filter regions
+        of the data during training, such as large areas of background. The mask
+        should be a binary image where a 1 indicates a pixel should be included in
+        the training data.
+        If custom `loading` is provided it can be any type, otherwise
+        it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
+        or None.
+    n_val_patches : int | None, default=None
+        The number of patches to set aside for validation during training. Only
+        applicable for automatic validation splitting.
+    val_percentage : float | None, default=None
+        Percentage of the training data to use for validation. Only
+        used if `val_data` is None.
+    val_minimum_split : int
+        Minimum number of patches or files to split from the training data for
+        validation, by default 5. Only used if `val_data` is None.
+    pred_data : Any, default=None
+        Prediction data. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    pred_data_target : Any, default=None
+        Prediction data target, this may be used for calculating metrics. If custom
+        `loading` is provided it can be any type, otherwise it must be a
+        `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these, or None.
+    loading : ReadFuncLoading | ImageStackLoading | None, default=None
+        The type of loading used for custom data. `ReadFuncLoading` is the use of
+        a simple function that will load full images into memory.
+        `ImageStackLoading` is for custom chunked or memory-mapped next-generation
+        file formats enabling  single patches to be read from disk at a time.
+        If the data type is not custom `loading` should be `None`.
+
+    Returns
+    -------
+    data : _TrainVal[Any] | _TrainValSplit[Any] | _PredData[Any]
+        The validated data wrapped in a dataclass. The `_TrainVal` class is for training
+        with validation data provided; the `_TrainValSplit` class is used for training
+        with automatic validation splitting, and the `_PredData` class is used for
+        prediction.
+
+    Raises
+    ------
+    ValueError
+        In the case of incompatible combinations of arguments.
+    """
+    match train_data, val_data, n_val_patches, pred_data:
+        case train_data, val_data, _, None if (
+            train_data is not None and val_data is not None
+        ):
+            train_data, train_data_target = initialize_data_pair(
+                data_type, train_data, train_data_target, loading
+            )
+            if train_data_mask is not None:
+                train_data_mask, _ = initialize_data_pair(
+                    data_type, train_data_mask, None, loading
+                )
+            val_data, val_data_target = initialize_data_pair(
+                data_type, val_data, val_data_target, loading
+            )
+            return TrainValData(
+                train_data=train_data,
+                train_data_target=train_data_target,
+                train_data_mask=train_data_mask,
+                val_data=val_data,
+                val_data_target=val_data_target,
+            )
+        case train_data, None, n_val_patches, None if (
+            train_data is not None and n_val_patches is not None
+        ):
+            train_data, train_data_target = initialize_data_pair(
+                data_type, train_data, train_data_target, loading
+            )
+            if train_data_mask is not None:
+                train_data_mask, _ = initialize_data_pair(
+                    data_type, train_data_mask, None, loading
+                )
+            return TrainValSplitData(
+                train_data=train_data,
+                train_data_target=train_data_target,
+                train_data_mask=train_data_mask,
+                n_val_patches=n_val_patches,
+            )
+        case None, None, _, pred_data if pred_data is not None:
+            pred_data, pred_data_target = initialize_data_pair(
+                data_type, pred_data, pred_data_target, loading
+            )
+            return PredData(pred_data=pred_data, pred_data_target=pred_data_target)
+        case _:
+            raise ValueError(
+                "Incompatible combination of arguments for CAREamicsDataModule. "
+                "Please only provide, training data with validation data OR "
+                "training data with validation splitting arguments OR "
+                "prediction data."
+            )

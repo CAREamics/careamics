@@ -56,6 +56,7 @@ def test_target_unsupported_warning_n2v(tmp_path: Path):
             train_data=train_array,
             val_data=val_array,
             train_data_target=train_array,
+            val_data_target=val_array,
         )
 
 

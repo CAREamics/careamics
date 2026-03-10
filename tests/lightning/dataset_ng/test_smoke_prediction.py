@@ -11,7 +11,9 @@ from careamics.config import N2VAlgorithm, create_ng_data_configuration
 from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
     PredictionWriterCallback,
 )
-from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
+from careamics.lightning.dataset_ng.data_module import (
+    CareamicsDataModule,
+)
 from careamics.lightning.dataset_ng.lightning_modules import N2VModule
 from careamics.lightning.dataset_ng.prediction import convert_prediction
 
