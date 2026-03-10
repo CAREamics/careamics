@@ -9,8 +9,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.patching_strategies import TileSpecs
-
-from .convert_prediction import restore_original_shape
+from careamics.utils.reshape_array import restore_array
 
 
 def group_tiles_by_key(
@@ -127,7 +126,7 @@ def stitch_single_prediction(
         predicted_image[0] = stitch_single_sample(tiles)
 
     if restore_shape:
-        predicted_image = restore_original_shape(
+        predicted_image = restore_array(
             predicted_image, tiles[0].axes, tiles[0].original_data_shape
         )
 

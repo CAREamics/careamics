@@ -8,6 +8,7 @@ from pydantic import Discriminator, Tag, TypeAdapter
 
 from careamics.config import Configuration
 from careamics.config.ng_configs import N2VConfiguration
+from careamics.config.ng_configs.ng_configuration import NGConfiguration
 from careamics.config.support import SupportedAlgorithm
 
 
@@ -34,8 +35,12 @@ def _config_disciminator(v: Any) -> SupportedAlgorithm | None:
 
 
 # union
-NGConfiguration = Annotated[
-    Union[Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],],
+NGConfigs = Annotated[
+    Union[
+        Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],
+        Annotated[NGConfiguration, Tag(SupportedAlgorithm.CARE)],
+        Annotated[NGConfiguration, Tag(SupportedAlgorithm.N2N)],
+    ],
     Discriminator(_config_disciminator),
 ]
 
@@ -70,7 +75,7 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
     return Configuration(**dictionary)
 
 
-def load_configuration_ng(path: Union[str, Path]) -> NGConfiguration:
+def load_configuration_ng(path: Union[str, Path]) -> NGConfigs:
     """
     Load configuration from a yaml file.
 
@@ -97,7 +102,7 @@ def load_configuration_ng(path: Union[str, Path]) -> NGConfiguration:
 
     dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
 
-    return TypeAdapter(NGConfiguration).validate_python(dictionary)
+    return TypeAdapter(NGConfigs).validate_python(dictionary)
 
 
 def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
@@ -141,7 +146,10 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
 
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:
-        # dump configuration
-        yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
+        # dump configuration using mode="json" to ensure enum values are
+        # serialized as plain strings (compatible with yaml.SafeLoader)
+        yaml.dump(
+            config.model_dump(mode="json"), f, default_flow_style=False, sort_keys=False
+        )
 
     return config_path

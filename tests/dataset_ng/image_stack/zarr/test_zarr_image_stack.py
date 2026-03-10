@@ -6,9 +6,9 @@ import pytest
 import zarr
 from numpy.typing import NDArray
 
-from careamics.dataset.dataset_utils import reshape_array
 from careamics.dataset_ng.image_stack import ZarrImageStack
 from careamics.dataset_ng.image_stack.image_utils import channel_slice
+from careamics.utils.reshape_array import reshape_array
 
 # TODO test _reshaped_data_shape
 
