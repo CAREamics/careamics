@@ -65,6 +65,22 @@ config = create_n2v_config(
 )
 # --8<-- [end:config_n2v_channels]
 
+# %%
+# --8<-- [start:config_n2v_val]
+from careamics.config.ng_factories import create_n2v_config
+
+# create a configuration
+config = create_n2v_config(
+    experiment_name="n2v_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    n_val_patches=15,  # (1)!
+)
+# --8<-- [end:config_n2v_val]
+
 
 ############################################
 ################# CARE/N2N #################
@@ -130,7 +146,6 @@ config = create_care_config(
 )
 # --8<-- [end:config_care_augs]
 
-
 # %%
 # --8<-- [start:config_care_channels]
 from careamics.config.ng_factories import create_care_config
@@ -147,3 +162,19 @@ config = create_care_config(
     n_channels_out=2,  # (3)!
 )
 # --8<-- [end:config_care_channels]
+
+# %%
+# --8<-- [start:config_care_val]
+from careamics.config.ng_factories import create_care_config
+
+# create a configuration
+config = create_care_config(
+    experiment_name="care_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    n_val_patches=15,  # (1)!
+)
+# --8<-- [end:config_care_val]

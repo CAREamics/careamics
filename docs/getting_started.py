@@ -22,6 +22,7 @@ config = create_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
+    n_val_patches=2,
 )
 
 # instantiate a careamist
@@ -54,9 +55,9 @@ careamist = CAREamistV2(config)
 # train the model
 careamist.train(
     train_data=train_data,  # (2)!
-    train_target=train_target,
+    train_data_target=train_target,
     val_data=val_data,
-    val_target=val_target,
+    val_data_target=val_target,
 )
 
 # once trained, predict

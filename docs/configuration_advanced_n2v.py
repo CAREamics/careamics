@@ -45,7 +45,7 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    struct_n2v_axis=1,  # (1)!
-    struct_n2v_num_pix=5,  # (2)!
+    struct_n2v_axis="horizontal",  # (1)!
+    struct_n2v_span=5,  # (2)!
 )
 # --8<-- [end:adv_config_structn2v]

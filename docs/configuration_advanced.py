@@ -47,7 +47,7 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    optimizer="AdamW",  # (1)!
+    optimizer="Adam",  # (1)!
     optimizer_params={  # (2)!
         "lr": 1e-4,
     },
@@ -175,7 +175,7 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    optimizer="AdamW",  # (1)!
+    optimizer="Adam",  # (1)!
     optimizer_params={  # (2)!
         "lr": 1e-4,
     },
