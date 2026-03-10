@@ -2,6 +2,7 @@
 
 import itertools
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
@@ -26,6 +27,23 @@ Box = tuple[tuple[int, int], ...]
 # The `StratifiedPatchingStrategy` stores a `list[list[_ImageStratifiedPatching]]` where
 #  the elements of the outer list represent each image stack and there is an
 # `_ImageStratifiedPatching` instance for each sample in each image stack.
+
+
+@dataclass
+class _RegionBins:
+    bins: list[NDArray[np.int_]]
+    """
+    A list of numpy arrays which correspond to indices of regions contained in the bin.
+    """
+    probs: NDArray[np.floating]
+    """
+    The probability a region is selected per epoch.
+    The position corresponds to the region index.
+    """
+    bin_size: float
+    """
+    The capacity of the bins
+    """
 
 
 class StratifiedPatchingStrategy:
@@ -190,7 +208,9 @@ class StratifiedPatchingStrategy:
             given `data_idx`.
         """
         start = 0 if data_idx == 0 else self.cumulative_image_patches[data_idx - 1]
-        return np.arange(start, self.cumulative_image_patches[data_idx]).tolist()
+        return np.arange(
+            start, self.cumulative_image_patches[data_idx], dtype=int
+        ).tolist()
 
     def get_included_grid_coords(self) -> dict[tuple[int, int], list[tuple[int, ...]]]:
         """
@@ -316,35 +336,38 @@ class _ImageStratifiedPatching:
 
         # sampling regions will be stored in a dict
         # the keys correspond to a grid coordinate
-        self.regions: dict[tuple[int, ...], _SamplingRegion] = {}
-        self.areas: dict[tuple[int, ...], int] = {}
-        self.probs: dict[tuple[int, ...], float]
+        self.grid_coords: dict[tuple[int, ...], int] = {
+            grid_coord: idx
+            for idx, grid_coord in enumerate(
+                itertools.product(*[range(s) for s in self.grid_shape])
+            )
+        }
+        # keep as dicts because access is slightly faster than lists
+        self.regions: dict[int, _SamplingRegion] = {}
+        self.areas: dict[int, int] = {}
 
         self.excluded_patches: set[tuple[int, ...]] = set()
-        self.bin_size: float
-        self.bins: list[list[tuple[int, ...]]]
-        self.n_patches: int
 
         # populate the self.regions and self.areas dictionaries
-        for grid_coord in itertools.product(*[range(s) for s in self.grid_shape]):
+        for grid_coord, idx in self.grid_coords.items():
             # find pixel coord
             coord = np.array(grid_coord) * np.array(patch_size)
             sampling_region = _SamplingRegion(tuple(coord), self.patch_size, rng)
             # sampling regions are clipped to not overlap the bounds of the image
             # this is necessary when the image size is not divisible by the patch size
             sampling_region.clip(np.zeros(self.ndims, dtype=int), np.array(shape))
-            # if the area is zero do not store the region
-            if sum(sampling_region.areas) == 0:
-                continue
-            self.regions[grid_coord] = sampling_region
-            self.areas[grid_coord] = sum(sampling_region.areas)
+            self.regions[idx] = sampling_region
+            self.areas[idx] = sum(sampling_region.areas)
 
         # no. of patches calculated from how many patches fit into the selectable area
         # this ensures that a pixel is expected to be selected 1 time per epoch
         # patches are packed into bins where no. of bins < no. of patches
-        self.n_patches, self.bin_size, self.bins, self.probs = (
-            self._recalculate_sampling()
-        )
+        self.region_bins: _RegionBins
+        self._recalculate_sampling()
+
+    @property
+    def n_patches(self):
+        return len(self.region_bins.bins)
 
     def sample_patch_coord(self, index: int) -> NDArray[np.int_]:
         """
@@ -371,16 +394,10 @@ class _ImageStratifiedPatching:
         #
         # for index > no. of bins, it is effectively treated as an empty bin
         # all of sampling regions are selected proportionally to their area.
-
-        if index < len(self.bins):
-            bin_ = self.bins[index]
-        else:
-            bin_ = []
-
-        region = self._sample_region_from_bin(bin_)
+        region = self._sample_region_from_bin(index)
         return region.sample_patch_coord()
 
-    def _sample_region_from_bin(self, bin: list[tuple[int, ...]]) -> "_SamplingRegion":
+    def _sample_region_from_bin(self, index: int) -> "_SamplingRegion":
         """
         Sample a region from a given bin. Bins can contain multiple sampling regions.
 
@@ -388,20 +405,11 @@ class _ImageStratifiedPatching:
             A bin of sampling regions represented by a list of grid coordinates. Each
             grid coordinate corresponds to one sampling region.
         """
-        grid_coords = list(self.regions.keys())
-        probs = np.array([self.probs[key] for key in grid_coords])
-        if len(bin) != 0:
-            indices = np.where(
-                # behaves like isin but for multiple values
-                # i.e. finding the indices where grid_coords == bin
-                (np.array(grid_coords) == np.array(bin)[:, None])
-                .all(2)
-                .any(0)
-            )[0]
-        else:
-            indices = np.array([], dtype=int)
+        indices = self.region_bins.bins[index]
+
         # The ratio of the area of a region to the size of the bin is equal to the
         # probability that the region will be sampled.
+        probs = self.region_bins.probs
         weights = np.zeros_like(probs)
         weights[indices] = probs[indices]
 
@@ -411,9 +419,8 @@ class _ImageStratifiedPatching:
         weights += probs / probs.sum() * remaining_prob
 
         # the region is sampled using these calculated weights.
-        selected_key_idx = self.rng.choice(np.arange(len(grid_coords)), p=weights)
-        selected_key = grid_coords[selected_key_idx]
-        return self.regions[selected_key]
+        selected_idx = self.rng.choice(np.arange(len(weights)), p=weights)
+        return self.regions[selected_idx]
 
     def exclude_patches(self, grid_coords: Sequence[tuple[int, ...]]):
         """
@@ -440,22 +447,16 @@ class _ImageStratifiedPatching:
             for d_idx in itertools.product(*[d for _ in range(self.ndims)]):
                 # q is the ID of the orthant to remove
                 q: tuple[Literal[0, 1], ...] = tuple(0 if i == 1 else 1 for i in d_idx)
-                grid_idx = tuple(
+                grid_coord_neighbor = tuple(
                     g - (1 - i) for g, i in zip(grid_coord, d_idx, strict=True)
                 )
-                if grid_idx not in self.regions:
+                if grid_coord_neighbor not in self.grid_coords:
                     continue
-                self.regions[grid_idx].exclude_orthant(q)
-                self.areas[grid_idx] = sum(self.regions[grid_idx].areas)
+                idx = self.grid_coords[grid_coord_neighbor]
+                self.regions[idx].exclude_orthant(q)
+                self.areas[idx] = sum(self.regions[idx].areas)
 
-                if self.areas[grid_idx] == 0:
-                    del self.regions[grid_idx]
-                    del self.areas[grid_idx]
-                    del self.probs[grid_idx]
-
-        self.n_patches, self.bin_size, self.bins, self.probs = (
-            self._recalculate_sampling()
-        )
+        self._recalculate_sampling()
 
     def get_included_grid_coords(self) -> list[tuple[int, ...]]:
         """
@@ -469,7 +470,7 @@ class _ImageStratifiedPatching:
         grid_coords : list[tuple, ...]]
             The list of included grid coordinates.
         """
-        grid_coords_all: set[tuple[int, ...]] = set(self.regions.keys())
+        grid_coords_all: set[tuple[int, ...]] = set(self.grid_coords.keys())
         return list(grid_coords_all.difference(self.excluded_patches))
 
     def _recalculate_sampling(self):
@@ -512,8 +513,19 @@ class _ImageStratifiedPatching:
             n_patches = 0
 
         bin_size, bins = _region_bin_packing(self.areas, n_patches)
-        probs = {key: area / bin_size for key, area in self.areas.items()}
-        return n_patches, bin_size, bins, probs
+        probs = np.array(
+            [
+                (
+                    area / bin_size
+                    # avoid division by zero error (bin size will also be zero)
+                    if (area := self.areas[idx]) != 0
+                    else 0
+                )
+                for idx in range(len(self.grid_coords))
+            ]
+        )
+
+        self.region_bins = _RegionBins(bins=bins, probs=probs, bin_size=bin_size)
 
 
 class _SamplingRegion:
@@ -594,7 +606,7 @@ class _SamplingRegion:
         """Sample a patch coordinate from the sampling region."""
         areas = np.array(self.areas)
         # first a region is chosen (proportionally to area)
-        r_idx = self.rng.choice(np.arange(len(self.areas)), p=areas / areas.sum())
+        r_idx = int(self.rng.choice(np.arange(len(self.areas)), p=areas / areas.sum()))
         region = self.subregions[r_idx]
         # then a coordinate is chosen
         start = np.array([r[0] for r in region])
@@ -698,31 +710,34 @@ def _boxes_overlap(
 
 
 def _region_bin_packing(
-    areas: dict[tuple[int, ...], int],
+    areas: dict[int, int],
     n_patches: int,
-) -> tuple[float, list[list[tuple[int, ...]]]]:
-    if len(areas) == 0:
+) -> tuple[float, list[NDArray[np.int_]]]:
+    if n_patches == 0:
         return 0, []
     if len(areas) <= n_patches:
-        return max(areas.values()), [[key] for key in areas.keys()]
+        bins = [np.array([key], dtype=int) for key in areas.keys()] + [
+            np.array([], dtype=int) for _ in range(n_patches - len(areas))
+        ]
+        return max(areas.values()), bins
 
     sorted_keys = sorted(areas.keys(), key=lambda k: areas[k], reverse=True)
     bin_size = max(areas.values())
-    bins: list[list[tuple[int, ...]]] = [[] for _ in range(n_patches)]
-    remaining_space: NDArray[np.floating] = np.array(
+    bins_list: list[list[int]] = [[] for _ in range(n_patches)]
+    remaining_capacity: NDArray[np.floating] = np.array(
         [bin_size for _ in range(n_patches)]
     )
     for key in sorted_keys:
         area = areas[key]
-        diff = remaining_space - area
+        diff = remaining_capacity - area
         # if the area doesn't fit in any bin, the bin size will be expanded.
         if (diff < 0).all():
             # find bin with the most remaining space -> results in the min bin expansion
-            bin_idx = np.argmax(remaining_space)
-            size_increase = area - remaining_space[bin_idx]
+            bin_idx = np.argmax(remaining_capacity)
+            size_increase = area - remaining_capacity[bin_idx]
             # increase the bin size and the capacity of all the bins
             bin_size += size_increase
-            remaining_space += size_increase
+            remaining_capacity += size_increase
         else:
             # otherwise find bin with maximum load for which the area fits
             # -> according to best fit decreasing algorithm
@@ -730,7 +745,8 @@ def _region_bin_packing(
             diff[diff < 0] = bin_size * 2
             bin_idx = np.argmin(diff)
 
-        bins[bin_idx].append(key)
-        remaining_space[bin_idx] -= area
+        bins_list[bin_idx].append(key)
+        remaining_capacity[bin_idx] -= area
 
+    bins = [np.array(bin_, dtype=int) for bin_ in bins_list]
     return bin_size, bins
