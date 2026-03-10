@@ -653,7 +653,7 @@ class TestConvertMode:
 )
 def test_batch_size_in_dataloader_params_raises(field):
     """Test that setting batch_size in any dataloader params dict raises ValueError."""
-    with pytest.raises(ValueError, match="batch_size"):
+    with pytest.raises(ValueError, match="`batch_size` should not be set in the dataloader parameters."):
         NGDataConfig(
             mode="training",
             data_type="array",
