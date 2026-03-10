@@ -14,9 +14,9 @@ from careamics.config import Configuration
 from careamics.config.lightning import CheckpointConfig, EarlyStoppingConfig
 from careamics.config.support import SupportedAlgorithm, SupportedData
 from careamics.config.utils.configuration_io import save_configuration
-from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning.callbacks import HyperParametersCallback, ProgressBarCallback
 from careamics.lightning.predict_data_module import create_predict_datamodule
+from careamics.utils.reshape_array import reshape_array
 
 
 def random_array(shape: tuple[int, ...], seed: int = 42):

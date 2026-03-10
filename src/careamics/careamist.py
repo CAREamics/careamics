@@ -22,7 +22,7 @@ from careamics.config.support import (
     SupportedLogger,
 )
 from careamics.config.utils.configuration_io import load_configuration
-from careamics.dataset.dataset_utils import list_files, reshape_array
+from careamics.dataset.dataset_utils import list_files
 from careamics.file_io import WriteFunc, get_write_func
 from careamics.lightning import (
     FCNModule,
@@ -36,6 +36,7 @@ from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.prediction_utils import convert_outputs
 from careamics.utils import check_path_exists, get_logger
 from careamics.utils.lightning_utils import read_csv_logger
+from careamics.utils.reshape_array import reshape_array
 
 logger = get_logger(__name__)
 

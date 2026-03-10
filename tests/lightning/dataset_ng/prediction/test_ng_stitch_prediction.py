@@ -7,7 +7,6 @@ from numpy.typing import NDArray
 from tifffile import imwrite
 
 from careamics.config.data import NGDataConfig
-from careamics.dataset.dataset_utils import reshape_array
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.patching_strategies import TilingStrategy
@@ -17,6 +16,7 @@ from careamics.lightning.dataset_ng.prediction.stitch_prediction import (
     stitch_single_prediction,
     stitch_single_sample,
 )
+from careamics.utils.reshape_array import reshape_array
 
 
 @pytest.fixture
