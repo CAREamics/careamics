@@ -8,9 +8,8 @@ from tifffile import imwrite
 
 from careamics.config.data import NGDataConfig
 from careamics.dataset.dataset_utils import reshape_array
-from careamics.dataset_ng.dataset import CareamicsDataset, ImageRegionData
-from careamics.dataset_ng.image_stack_loader import load_arrays, load_tiffs
-from careamics.dataset_ng.patch_extractor import PatchExtractor
+from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.patching_strategies import TilingStrategy
 from careamics.lightning.dataset_ng.prediction.stitch_prediction import (
     group_tiles_by_key,
@@ -112,18 +111,8 @@ def tiles(
     )
     n_tiles = tiling_strategy.n_patches
 
-    # create patch extractor
-    if data_config.data_type == "tiff":
-        image_stacks = load_tiffs(source=sources, axes=data_config.axes)
-    else:
-        image_stacks = load_arrays(source=sources, axes=data_config.axes)
-    patch_extractor = PatchExtractor(image_stacks)
-
     # create dataset
-    dataset = CareamicsDataset(
-        data_config=data_config,
-        input_extractor=patch_extractor,
-    )
+    dataset = create_dataset(config=data_config, inputs=sources, targets=None)
 
     # extract tiles
     tiles: list[ImageRegionData] = []

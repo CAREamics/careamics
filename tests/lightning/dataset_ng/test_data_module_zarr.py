@@ -16,6 +16,7 @@ def test_zarr_data_module(zarr_with_target_and_mask):
     target_uris = str(g["target"].store_path)
     mask_uris = str(g["mask"].store_path)
     val_uris = str(g["val"].store_path)
+    val_target_uris = str(g["val_target"].store_path)
 
     # basic config
     config = NGDataConfig(
@@ -44,6 +45,7 @@ def test_zarr_data_module(zarr_with_target_and_mask):
         train_data_target=[target_uris],
         train_data_mask=[mask_uris],
         val_data=[val_uris],
+        val_data_target=[val_target_uris],
     )
     # simulate training call
     datamodule.setup(stage="fit")
