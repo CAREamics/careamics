@@ -41,8 +41,8 @@ def test_train(tmp_path: Path, minimum_n2v_configuration: dict):
             str(tmp_path),
         ],
     )
-    assert (tmp_path / "checkpoints").is_dir()
-    assert len(list((tmp_path / "checkpoints").glob("*.ckpt"))) > 0
+    assert (tmp_path / "checkpoints" / "LevitatingFrog").is_dir()
+    assert len(list((tmp_path / "checkpoints" / "LevitatingFrog").glob("*.ckpt"))) > 0
     assert result.exit_code == 0
 
 
@@ -63,7 +63,9 @@ def test_predict_single_file(tmp_path: Path, minimum_n2v_configuration: dict):
     careamist = CAREamist(config, work_dir=tmp_path)
     careamist.train(train_source=train_file)
 
-    checkpoint_path = next(iter((tmp_path / "checkpoints").glob("*.ckpt")))
+    checkpoint_path = next(
+        iter((tmp_path / "checkpoints" / "LevitatingFrog").glob("*.ckpt"))
+    )
 
     result = runner.invoke(
         app, ["predict", str(checkpoint_path), str(train_file), "-wd", str(tmp_path)]
@@ -95,7 +97,9 @@ def test_predict_directory(tmp_path: Path, minimum_n2v_configuration: dict):
     careamist = CAREamist(config, work_dir=tmp_path)
     careamist.train(train_source=data_dir)
 
-    checkpoint_path = next(iter((tmp_path / "checkpoints").glob("*.ckpt")))
+    checkpoint_path = next(
+        iter((tmp_path / "checkpoints" / "LevitatingFrog").glob("*.ckpt"))
+    )
 
     result = runner.invoke(
         app, ["predict", str(checkpoint_path), str(data_dir), "-wd", str(tmp_path)]
