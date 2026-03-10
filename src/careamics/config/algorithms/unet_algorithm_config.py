@@ -69,9 +69,6 @@ class UNetBasedAlgorithm(BaseModel):
     lr_scheduler: LrSchedulerConfig = LrSchedulerConfig()
     """Learning rate scheduler to use, defined in SupportedLrScheduler."""
 
-    monitor_metric: str = "val_loss"
-    """Metric to monitor for the learning rate scheduler."""
-
     def __str__(self) -> str:
         """Pretty string representing the configuration.
 

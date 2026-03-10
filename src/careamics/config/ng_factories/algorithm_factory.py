@@ -53,7 +53,6 @@ def create_algorithm_configuration(
     optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
     lr_scheduler_params: dict[str, Any] | None = None,
-    monitor_metric: str = "val_loss",
 ) -> dict:
     """
     Create a dictionary with the parameters of the algorithm model.
@@ -85,8 +84,6 @@ def create_algorithm_configuration(
     lr_scheduler_params : dict, default=None
         Parameters for the learning rate scheduler, see PyTorch documentation for more
         details.
-    monitor_metric : str, default="val_loss"
-        Metric to monitor for the learning rate scheduler.
 
     Returns
     -------
@@ -119,5 +116,4 @@ def create_algorithm_configuration(
             "name": lr_scheduler,
             "parameters": {} if lr_scheduler_params is None else lr_scheduler_params,
         },
-        "monitor_metric": monitor_metric,
     }
