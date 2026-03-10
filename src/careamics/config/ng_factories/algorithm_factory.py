@@ -85,6 +85,7 @@ def create_algorithm_configuration(
         Parameters for the learning rate scheduler, see PyTorch documentation for more
         details.
 
+
     Returns
     -------
     dict
