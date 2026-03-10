@@ -715,25 +715,47 @@ def _boxes_overlap(
 
 
 def _region_bin_packing(
-    areas: dict[int, int],
-    n_patches: int,
-) -> tuple[float, list[NDArray[np.int_]]]:
-    if n_patches == 0:
-        return 0, []
-    if len(areas) <= n_patches:
-        bins = [np.array([key], dtype=int) for key in areas.keys()] + [
-            np.array([], dtype=int) for _ in range(n_patches - len(areas))
-        ]
-        return max(areas.values()), bins
+    items: dict[int, int],
+    n_bins: int,
+) -> tuple[int, list[NDArray[np.int_]]]:
+    """
+    A bin packing algorithm to find the minimum bin size for a fixed number of bins.
 
-    sorted_keys = sorted(areas.keys(), key=lambda k: areas[k], reverse=True)
-    bin_size = max(areas.values())
-    bins_list: list[list[int]] = [[] for _ in range(n_patches)]
+    There are a fixed number of bins which are allowed to expand their capacity, but
+    the capacity should be kept to a minimum.
+
+    Parameters
+    ----------
+    items : dict[int, int]
+        A dictionary where the keys correspond to an ID and the values correspond to
+        the volume to be packed.
+    n_bins : int
+        The number of bins.
+
+    Returns
+    -------
+    bin_size : int
+        The capacity of all the bins
+    bins : list[NDArray[np.int_]]
+        The packed bins. Each bin is represented as a numpy array where the elements
+        correspond to the IDs of the input `items`.
+    """
+    if n_bins == 0:
+        return 0, []
+    if len(items) <= n_bins:
+        bins = [np.array([key], dtype=int) for key in items.keys()] + [
+            np.array([], dtype=int) for _ in range(n_bins - len(items))
+        ]
+        return max(items.values()), bins
+
+    sorted_keys = sorted(items.keys(), key=lambda k: items[k], reverse=True)
+    bin_size = max(items.values())
+    bins_list: list[list[int]] = [[] for _ in range(n_bins)]
     remaining_capacity: NDArray[np.floating] = np.array(
-        [bin_size for _ in range(n_patches)]
+        [bin_size for _ in range(n_bins)]
     )
     for key in sorted_keys:
-        area = areas[key]
+        area = items[key]
         diff = remaining_capacity - area
         # if the area doesn't fit in any bin, the bin size will be expanded.
         if (diff < 0).all():
