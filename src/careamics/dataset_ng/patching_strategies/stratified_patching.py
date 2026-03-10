@@ -10,8 +10,6 @@ from numpy.typing import NDArray
 
 from .patching_strategy_protocol import PatchSpecs
 
-Box = tuple[tuple[int, int], ...]
-
 # --- Structure overview
 # Sampling regions which have an area of double the patch size are created so that they
 # lie on a grid with a spacing equal to the patch size. This ensures that all possible
@@ -416,7 +414,8 @@ class _ImageStratifiedPatching:
         # remaining space in the bin must be used up
         # this is assigned to all the regions in the image
         remaining_prob = 1 - weights.sum()
-        weights += probs / probs.sum() * remaining_prob
+        if remaining_prob != 0:  # tiny time saving
+            weights += probs / probs.sum() * remaining_prob
 
         # the region is sampled using these calculated weights.
         selected_idx = self.rng.choice(np.arange(len(weights)), p=weights)
@@ -599,18 +598,21 @@ class _SamplingRegion:
 
         # a single subregion is represented by its extent in each axis
         # An extent is a tuple (start, end), where the end is exclusive.
-        self.subregions = list(itertools.product(*subregion_axis_extent))
-        self.areas = self._calc_areas(self.subregions)
+        self.subregions: np.ndarray[tuple[int, int, int], np.dtype[np.int_]] = np.array(
+            list(itertools.product(*subregion_axis_extent))
+        )
+        self.areas: NDArray[np.int_] = self._calc_areas(self.subregions)
 
     def sample_patch_coord(self) -> NDArray[np.int_]:
         """Sample a patch coordinate from the sampling region."""
-        areas = np.array(self.areas)
         # first a region is chosen (proportionally to area)
-        r_idx = int(self.rng.choice(np.arange(len(self.areas)), p=areas / areas.sum()))
-        region = self.subregions[r_idx]
+        r_idx = int(
+            self.rng.choice(np.arange(len(self.areas)), p=self.areas / self.areas.sum())
+        )
+        region: NDArray[np.int_] = self.subregions[r_idx]
         # then a coordinate is chosen
-        start = np.array([r[0] for r in region])
-        end = np.array([r[1] for r in region])
+        start = region[:, 0]
+        end = region[:, 1]
 
         return self.rng.integers(start, end) + np.array(self.coord)
 
@@ -629,14 +631,16 @@ class _SamplingRegion:
             A 2D or 3D tuple of 0s and 1s which identify orthants, e.g. (0, 0) would be
             the top left quadrant and (0, 1) would be the top right quadrant.
         """
-        orthant_region = tuple(
-            (r, r + self.patch_size[i]) for i, r in enumerate(orthant)
+        orthant_region = np.array(
+            [(r, r + self.patch_size[i]) for i, r in enumerate(orthant)]
         )
-        self.subregions = [
-            region
-            for region in self.subregions
-            if not _boxes_overlap(orthant_region, region)
-        ]
+        self.subregions = np.array(
+            [
+                region
+                for region in self.subregions
+                if not _boxes_overlap(orthant_region, region)
+            ]
+        )
         self.areas = self._calc_areas(self.subregions)
 
     def clip(
@@ -679,33 +683,34 @@ class _SamplingRegion:
             )
 
         # remove any regions with zero area
-        areas = self._calc_areas(subregions_clipped)
+        areas = self._calc_areas(np.array(subregions_clipped))
         subregions_clipped = [
             r for a, r in zip(areas, subregions_clipped, strict=True) if a > 0
         ]
-        areas = [a for a in areas if a > 0]
-        self.subregions = subregions_clipped
+        areas = np.array([a for a in areas if a > 0])
+        self.subregions = np.array(subregions_clipped)
         self.areas = areas
 
     @staticmethod
-    def _calc_areas(regions: Sequence[tuple[tuple[int, int], ...]]) -> list[int]:
-        return [np.prod([r[1] - r[0] for r in region]).item() for region in regions]
+    # Sequence[tuple[tuple[int, int], ...]]
+    def _calc_areas(regions: NDArray[np.int_]) -> NDArray[np.int_]:
+        return (regions[:, :, 1] - regions[:, :, 0]).prod(axis=1)
 
 
 # --- helper funcs
 
 
 def _boxes_overlap(
-    box_a: Box,
-    box_b: Box,
+    box_a: np.ndarray[tuple[int, int], np.dtype[np.int_]],
+    box_b: np.ndarray[tuple[int, int], np.dtype[np.int_]],
 ) -> bool:
     """
     Determine whether `box_a` and `box_b` overlap.
     """
-    a_start = np.array([axis_extent[0] for axis_extent in box_a])
-    a_end = np.array([axis_extent[1] for axis_extent in box_a])
-    b_start = np.array([axis_extent[0] for axis_extent in box_b])
-    b_end = np.array([axis_extent[1] for axis_extent in box_b])
+    a_start = box_a[:, 0]
+    a_end = box_a[:, 1]
+    b_start = box_b[:, 0]
+    b_end = box_b[:, 1]
     return (np.maximum(a_start, b_start) < np.minimum(a_end, b_end)).all().item()
 
 
