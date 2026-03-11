@@ -12,7 +12,7 @@ config = create_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    use_n2v2=True,  # (1)!
+    use_n2v2=True,
 )
 # --8<-- [end:config_n2v2]
 

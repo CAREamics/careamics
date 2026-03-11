@@ -1,0 +1,3 @@
+- Investigating Noise with autocorrelation
+- Choosing a structN2V mask
+- Residuals

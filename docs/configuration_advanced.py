@@ -2,23 +2,55 @@
 
 ############################################
 ################ Noise2Void ################
+
 # %%
-# --8<-- [start:adv_config_n2v_trainer]
+# --8<-- [start:adv_config_n2v_in_memory]
 from careamics.config.ng_factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
     experiment_name="adv_n2v_training",
-    data_type="array",
+    data_type="tiff",  # (1)!
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    trainer_params={},  # (1)!
+    in_memory=True,
 )
-# --8<-- [end:adv_config_n2v_trainer]
+# --8<-- [end:adv_config_n2v_in_memory]
 # %%
-# --8<-- [start:adv_config_n2v_model]
+# --8<-- [start:adv_config_n2v_subchannels]
+from careamics.config.ng_factories import create_advanced_n2v_config
+
+# create a configuration
+config = create_advanced_n2v_config(
+    experiment_name="adv_n2v_training",
+    data_type="array",
+    axes="CYX",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    channels=[0, 2],  # (2)!
+)
+# --8<-- [end:adv_config_n2v_subchannels]
+# %%
+# --8<-- [start:adv_config_n2v_ind_channels]
+from careamics.config.ng_factories import create_advanced_n2v_config
+
+# create a configuration
+config = create_advanced_n2v_config(
+    experiment_name="adv_n2v_training",
+    data_type="array",
+    axes="CYX",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    n_channels=3,  # (2)!
+    independent_channels=False,  # (3)!
+)
+# --8<-- [end:adv_config_n2v_ind_channels]
+# %%
+# --8<-- [start:adv_config_n2v_norm]
 from careamics.config.ng_factories import create_advanced_n2v_config
 
 # create a configuration
@@ -29,14 +61,50 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    model_params={  # (1)!
-        "depth": 4,
+    normalization="quantile",  # (1)!
+    normalization_params={"lower_quantile": [0.01], "upper_quantile": [0.99]},  # (2)!
+)
+# --8<-- [end:adv_config_n2v_norm]
+
+# %%
+# --8<-- [start:adv_config_n2v_norm_params]
+from careamics.config.ng_factories import create_advanced_n2v_config
+
+# create a configuration
+config = create_advanced_n2v_config(
+    experiment_name="adv_n2v_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    normalization="mean_std",  # (1)!
+    normalization_params={"input_means": [158.95], "input_stds": [10.21]},  # (2)!
+)
+# --8<-- [end:adv_config_n2v_norm_params]
+# %%
+# --8<-- [start:adv_config_n2v_norm_ch]
+from careamics.config.ng_factories import create_advanced_n2v_config
+
+# create a configuration
+config = create_advanced_n2v_config(
+    experiment_name="adv_n2v_training",
+    data_type="array",
+    axes="CYX",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    n_channels=2,  # (2)!
+    normalization="quantile",
+    normalization_params={
+        "lower_quantile": [0.01, 0.03],  # (3)!
+        "upper_quantile": [0.99, 0.99],
+        "per_channel": True,  # (4)!
     },
 )
-# --8<-- [end:adv_config_n2v_model]
-
+# --8<-- [end:adv_config_n2v_norm_ch]
 # %%
-# --8<-- [start:adv_config_n2v_opt]
+# --8<-- [start:adv_config_n2v_logger]
 from careamics.config.ng_factories import create_advanced_n2v_config
 
 # create a configuration
@@ -47,14 +115,11 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    optimizer="Adam",  # (1)!
-    optimizer_params={  # (2)!
-        "lr": 1e-4,
-    },
+    logger="wandb",  # (1)!
 )
-# --8<-- [end:adv_config_n2v_opt]
+# --8<-- [end:adv_config_n2v_logger]
 # %%
-# --8<-- [start:adv_config_n2v_lr]
+# --8<-- [start:adv_config_n2v_num_workers]
 from careamics.config.ng_factories import create_advanced_n2v_config
 
 # create a configuration
@@ -65,15 +130,12 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    lr_scheduler="StepLR",  # (1)!
-    lr_scheduler_params={  # (2)!
-        "step_size": 10,
-        "gamma": 0.1,
-    },
+    num_workers=4,  # (1)!
 )
-# --8<-- [end:adv_config_n2v_lr]
+# --8<-- [end:adv_config_n2v_num_workers]
+
 # %%
-# --8<-- [start:adv_config_n2v_train_dm]
+# --8<-- [start:adv_config_n2v_seed]
 from careamics.config.ng_factories import create_advanced_n2v_config
 
 # create a configuration
@@ -84,69 +146,60 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    train_dataloader_params={  # (1)!
-        "shuffle": True,
-        "drop_last": True,
-    },
+    seed=42,
 )
-# --8<-- [end:adv_config_n2v_train_dm]
-# %%
-# --8<-- [start:adv_config_n2v_val_dm]
-from careamics.config.ng_factories import create_advanced_n2v_config
-
-# create a configuration
-config = create_advanced_n2v_config(
-    experiment_name="adv_n2v_training",
-    data_type="array",
-    axes="YX",
-    patch_size=[64, 64],
-    batch_size=8,
-    num_epochs=30,
-    val_dataloader_params={  # (1)!
-        "shuffle": False,
-        "drop_last": False,
-    },
-)
-# --8<-- [end:adv_config_n2v_val_dm]
-# %%
-# --8<-- [start:adv_config_n2v_checkpoint]
-from careamics.config.ng_factories import create_advanced_n2v_config
-
-# create a configuration
-config = create_advanced_n2v_config(
-    experiment_name="adv_n2v_training",
-    data_type="array",
-    axes="YX",
-    patch_size=[64, 64],
-    batch_size=8,
-    num_epochs=30,
-    checkpoint_params={  # (1)!
-        "monitor": "val_loss",
-        "mode": "min",
-        "save_top_k": 3,
-    },
-)
-# --8<-- [end:adv_config_n2v_checkpoint]
+# --8<-- [end:adv_config_n2v_seed]
 
 ############################################
 ################# CARE/N2N #################
 # %%
-# --8<-- [start:adv_config_care_trainer]
+# --8<-- [start:adv_config_care_in_memory]
 from careamics.config.ng_factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
     experiment_name="adv_care_training",
-    data_type="array",
+    data_type="tiff",  # (1)!
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    trainer_params={},  # (1)!
+    in_memory=True,
 )
-# --8<-- [end:adv_config_care_trainer]
+# --8<-- [end:adv_config_care_in_memory]
 # %%
-# --8<-- [start:adv_config_care_model]
+# --8<-- [start:adv_config_care_subchannels]
+from careamics.config.ng_factories import create_advanced_care_config
+
+# create a configuration
+config = create_advanced_care_config(
+    experiment_name="adv_care_training",
+    data_type="array",
+    axes="CYX",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    channels=[0, 2],  # (2)!
+)
+# --8<-- [end:adv_config_care_subchannels]
+# %%
+# --8<-- [start:adv_config_care_ind_channels]
+from careamics.config.ng_factories import create_advanced_care_config
+
+# create a configuration
+config = create_advanced_care_config(
+    experiment_name="adv_care_training",
+    data_type="array",
+    axes="CYX",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    n_channels_in=3,  # (2)!
+    independent_channels=False,  # (3)!
+)
+# --8<-- [end:adv_config_care_ind_channels]
+# %%
+# --8<-- [start:adv_config_care_norm]
 from careamics.config.ng_factories import create_advanced_care_config
 
 # create a configuration
@@ -157,14 +210,56 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    model_params={  # (1)!
-        "depth": 4,
+    normalization="quantile",  # (1)!
+    normalization_params={"lower_quantile": [0.01], "upper_quantile": [0.99]},  # (2)!
+)
+# --8<-- [end:adv_config_care_norm]
+
+# %%
+# --8<-- [start:adv_config_care_norm_params]
+from careamics.config.ng_factories import create_advanced_care_config
+
+# create a configuration
+config = create_advanced_care_config(
+    experiment_name="adv_care_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    normalization="mean_std",  # (1)!
+    normalization_params={
+        "input_means": [158.95],  # (2)!
+        "input_stds": [10.21],
+        "target_means": [121.35],  # (3)!
+        "target_stds": [15.78],
     },
 )
-# --8<-- [end:adv_config_care_model]
+# --8<-- [end:adv_config_care_norm_params]
+# %%
+# --8<-- [start:adv_config_care_norm_ch]
+from careamics.config.ng_factories import create_advanced_care_config
+
+# create a configuration
+config = create_advanced_care_config(
+    experiment_name="adv_care_training",
+    data_type="array",
+    axes="CYX",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    n_channels_in=2,  # (2)!
+    normalization="quantile",
+    normalization_params={
+        "lower_quantile": [0.01, 0.03],  # (3)!
+        "upper_quantile": [0.99, 0.99],
+        "per_channel": True,  # (4)!
+    },
+)
+# --8<-- [end:adv_config_care_norm_ch]
 
 # %%
-# --8<-- [start:adv_config_care_opt]
+# --8<-- [start:adv_config_care_logger]
 from careamics.config.ng_factories import create_advanced_care_config
 
 # create a configuration
@@ -175,14 +270,11 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    optimizer="Adam",  # (1)!
-    optimizer_params={  # (2)!
-        "lr": 1e-4,
-    },
+    logger="wandb",  # (1)!
 )
-# --8<-- [end:adv_config_care_opt]
+# --8<-- [end:adv_config_care_logger]
 # %%
-# --8<-- [start:adv_config_care_lr]
+# --8<-- [start:adv_config_care_num_workers]
 from careamics.config.ng_factories import create_advanced_care_config
 
 # create a configuration
@@ -193,15 +285,12 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    lr_scheduler="StepLR",  # (1)!
-    lr_scheduler_params={  # (2)!
-        "step_size": 10,
-        "gamma": 0.1,
-    },
+    num_workers=4,  # (1)!
 )
-# --8<-- [end:adv_config_care_lr]
+# --8<-- [end:adv_config_care_num_workers]
+
 # %%
-# --8<-- [start:adv_config_care_train_dm]
+# --8<-- [start:adv_config_care_seed]
 from careamics.config.ng_factories import create_advanced_care_config
 
 # create a configuration
@@ -212,46 +301,6 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    train_dataloader_params={  # (1)!
-        "shuffle": True,
-        "drop_last": True,
-    },
+    seed=42,
 )
-# --8<-- [end:adv_config_care_train_dm]
-# %%
-# --8<-- [start:adv_config_care_val_dm]
-from careamics.config.ng_factories import create_advanced_care_config
-
-# create a configuration
-config = create_advanced_care_config(
-    experiment_name="adv_care_training",
-    data_type="array",
-    axes="YX",
-    patch_size=[64, 64],
-    batch_size=8,
-    num_epochs=30,
-    val_dataloader_params={  # (1)!
-        "shuffle": False,
-        "drop_last": False,
-    },
-)
-# --8<-- [end:adv_config_care_val_dm]
-# %%
-# --8<-- [start:adv_config_care_checkpoint]
-from careamics.config.ng_factories import create_advanced_care_config
-
-# create a configuration
-config = create_advanced_care_config(
-    experiment_name="adv_care_training",
-    data_type="array",
-    axes="YX",
-    patch_size=[64, 64],
-    batch_size=8,
-    num_epochs=30,
-    checkpoint_params={  # (1)!
-        "monitor": "val_loss",
-        "mode": "min",
-        "save_top_k": 3,
-    },
-)
-# --8<-- [end:adv_config_care_checkpoint]
+# --8<-- [end:adv_config_care_seed]
