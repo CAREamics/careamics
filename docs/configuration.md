@@ -51,10 +51,10 @@ commonly used. This is a good starting point for most experiments.
 saving. It should only contain letters, numbers, underscores, dashes and spaces.
 - `data_type`: The data type impacts other parameters and which features may be available.
 CAREamics supports `array` (when passing `numpy` arrays directly), `tiff`, `zarr`, `czi`
-and `custom`. Refer to the [data section]() for more details.
+and `custom`. Refer to the [data section](./data.md) for more details.
 - `axes`: The axes of the data, in the order they have on disk (or in memory). This is
 important to identify correctly the spatial and channel dimensions. Refer to the
-[data section]() for tips on how to identify axes.
+[data section](./data.md) for tips on how to identify axes.
 - `patch_size`: The size of the patches to extract from the data during training. Note
 that the patch size only refers to spatial axes (`X`, `Y` and optionally `Z`). Patch sizes
 are power of 2 and are greater than 8. They are also usually the same for `X` and `Y` axes.
@@ -62,6 +62,13 @@ are power of 2 and are greater than 8. They are also usually the same for `X` an
 - `batch_size`: The number of patches to use in each training batch.
 - `num_epochs`: The number of epochs to train for. Note that in the case of large
 datasets, you might want to also set the [number of steps parameter](#reducing-the-number-of-steps).
+
+
+
+!!! note "Training with `T` as depth axis"
+
+    If you want to use your `T` axis as the depth axis, simply relabel it as `Z`. Note
+    that this is not compatible with `data_type="czi"`, see [data section](./data.md).
 
 
 ### Reducing the number of steps
@@ -220,7 +227,7 @@ then governed by the `num_val_patches` parameter. By default, it is set to `8`.
     validation data.
 
     You can however limit the number of validation steps using PyTorch Lightning 
-    parameters, refer to the [advanced training parameters]() section.
+    parameters, refer to the [advanced training parameters](#pytorch-and-lightning-parameters) section.
 
 
 ## Advanced configuration
@@ -261,7 +268,7 @@ configuration.
     training is done by using random access to the data on disk and currently in-memory
     is not implemented.
 
-    For more details on `custom` data type, refer to the [data]() section.
+    For more details on `custom` data type, refer to the [data](./data.md) section.
 
 
 ### Subsetting channels
@@ -336,7 +343,7 @@ CAREamics offers various normalization methods that can be set using the `normal
 and `normalization_params` parameters. The normalization is applied to any patch or
 image before applying the model, therefore it is applied in both training and prediction.
 For more details on the available normalization methods and their parameters, refer to the
-[code reference]() section.
+[Code reference]() section.
 
 
 The various normalizations are the following:
@@ -681,3 +688,28 @@ If you want to overried the CAREamics defaults, set `checkpoint_params`.
     ```python title="Passing `Checkpoint` parameters"
     --8<-- "configuration_lightning.py:adv_config_care_checkpoint"
     ```
+
+### Noise2Void without validation
+
+Since validation is not strictly necessary for Noise2Void, it is possible to train
+without validation data and without automatic splitting of the training data. To do so,
+a few parameters need to be set in the configuration.
+
+```python title="Training Noise2Void without validation"
+--8<-- "configuration_lightning.py:adv_config_n2v_no_val"
+```
+
+1. We tell the trian/val splitting module to split `0` validation patches.
+2. We set the monitoring of the learning rate scheduler to `train_loss_epoch`.
+3. Finally, we disable the validation step in PyTorch Lightning.
+
+
+## Saving and loading
+
+Configurations are automatically saved with the checkpoints, but we can nonetheless
+manually save and load them.
+
+
+```python title="Save and load configurations"
+--8<-- "configuration_io.py:save_load"
+```

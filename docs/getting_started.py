@@ -3,7 +3,7 @@
 # %%
 import numpy as np
 
-train_data = np.random.randint(0, 255, (128, 128)).astype(np.float32)
+train_data = np.random.randint(0, 255, (512, 512)).astype(np.float32)
 train_target = train_data
 val_data = train_data
 val_target = train_data
@@ -22,7 +22,6 @@ config = create_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    n_val_patches=2,
 )
 
 # instantiate a careamist

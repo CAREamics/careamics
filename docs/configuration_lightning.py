@@ -17,6 +17,25 @@ config = create_advanced_n2v_config(
     trainer_params={},  # (1)!
 )
 # --8<-- [end:adv_config_n2v_trainer]
+
+# %%
+# --8<-- [start:adv_config_n2v_no_val]
+from careamics.config.ng_factories import create_advanced_n2v_config
+
+# create a configuration
+config = create_advanced_n2v_config(
+    experiment_name="adv_n2v_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    n_val_patches=0,  # (1)!
+    monitor_metric="train_loss_epoch",  # (2)!
+    trainer_params={"limit_val_batches": 0, "num_sanity_val_steps": 0},  # (3)!
+)
+# --8<-- [end:adv_config_n2v_no_val]
+
 # %%
 # --8<-- [start:adv_config_n2v_model]
 from careamics.config.ng_factories import create_advanced_n2v_config
