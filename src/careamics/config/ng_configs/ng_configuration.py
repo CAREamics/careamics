@@ -226,6 +226,20 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
         """
         return self.algorithm_config.get_algorithm_keywords()
 
+    def get_safe_experiment_name(self) -> str:
+        """
+        Return the experiment name safe for use in paths and filenames.
+
+        Spaces are replaced with underscores to avoid issues with folder
+        creation and checkpoint naming.
+
+        Returns
+        -------
+        str
+            Experiment name with spaces replaced with underscores.
+        """
+        return self.experiment_name.replace(" ", "_")
+
     def model_dump(
         self,
         **kwargs: Any,

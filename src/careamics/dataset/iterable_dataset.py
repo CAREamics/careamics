@@ -10,7 +10,7 @@ import numpy as np
 from torch.utils.data import IterableDataset
 
 from careamics.config import DataConfig
-from careamics.config.transformations import NormalizeConfig
+from careamics.config.augmentations import NormalizeConfig
 from careamics.file_io.read import read_tiff
 from careamics.transforms import Compose
 

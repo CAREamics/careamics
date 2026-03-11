@@ -211,7 +211,7 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
             "input_means": [example_data.mean()],
             "input_stds": [example_data.std()],
         },
-        transforms=_list_spatial_augmentations(),
+        augmentations=_list_spatial_augmentations(),
         batch_size=1,
         seed=42,
     )
