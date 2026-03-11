@@ -16,7 +16,7 @@
     - `integration/`: smoke and integration tests, putting several components together
     - `functional/`: higher level behaviour of components
     - `performance/`: if applicable, some speed performances, some output statistics, etc.
-    - `interoperability/`: test with external componenets (e.g. onnx, bmz)
+    - `interoperability/`: test with external components (e.g. onnx, bmz)
 
 ## In practice
 
