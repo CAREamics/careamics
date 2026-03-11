@@ -132,8 +132,13 @@ def axes():
 
 
 @pytest.fixture
-def patch_size():
-    return (16, 16)
+def patch_size(data_type: str, axes: str):
+    if data_type == "czi" and axes == "SCTYX":
+        return (8, 16, 16)
+    elif "Z" in axes:
+        return (8, 16, 16)
+    else:
+        return (16, 16)
 
 
 @pytest.fixture
@@ -183,24 +188,20 @@ def test_default_data_config(ng_data_config_dict):
 
 
 @pytest.mark.parametrize(
-    "data_type, axes, patch_size, expectation",
+    "data_type, axes, expectation",
     parameter_cartesian_prod(
         ["array"],
         AXES_WO_CHANNELS_2D + AXES_W_CHANNELS_2D,
-        {"params": [(16, 16)], "labels": ["2D_patch"]},
         {"params": [nullcontext(0)], "labels": ["pass"]},
     )
     + parameter_cartesian_prod(
         ["array"],
         AXES_WO_CHANNELS_3D + AXES_W_CHANNELS_3D,
-        {"params": [(8, 16, 16)], "labels": ["3D_patch"]},
         {"params": [nullcontext(0)], "labels": ["pass"]},
     )
     + parameter_cartesian_prod(
         ["array"],
         AXES_DISALLOWED,
-        # patch dims do not matter because axes is validated first
-        {"params": [(16, 16)], "labels": ["patch"]},
         {
             "params": [pytest.raises(ValueError, match="Invalid axes")],
             "labels": ["error"],
@@ -209,20 +210,16 @@ def test_default_data_config(ng_data_config_dict):
     + parameter_cartesian_prod(
         ["czi"],
         AXES_CZI_2D,
-        {"params": [(16, 16)], "labels": ["2D_patch"]},
         {"params": [nullcontext(0)], "labels": ["pass"]},
     )
     + parameter_cartesian_prod(
         ["czi"],
         AXES_CZI_3D,
-        {"params": [(8, 16, 16)], "labels": ["3D_patch"]},
         {"params": [nullcontext(0)], "labels": ["pass"]},
     )
     + parameter_cartesian_prod(
         ["czi"],
         AXES_CZI_DISALLOWED,
-        # patch dims do not matter because axes is validated first
-        {"params": [(16, 16)], "labels": ["patch"]},
         {
             "params": [pytest.raises(ValueError, match=r"axes .* are not valid")],
             "labels": ["error"],
