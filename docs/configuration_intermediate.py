@@ -2,20 +2,7 @@
 
 ############################################
 ################ Noise2Void ################
-# %%
-# --8<-- [start:adv_config_n2v]
-from careamics.config.ng_factories import create_advanced_n2v_config
 
-# create a configuration
-config = create_advanced_n2v_config(
-    experiment_name="adv_n2v_training",
-    data_type="array",
-    axes="YX",
-    patch_size=[64, 64],
-    batch_size=8,
-    num_epochs=30,
-)
-# --8<-- [end:adv_config_n2v]
 # %%
 # --8<-- [start:adv_config_n2v_in_memory]
 from careamics.config.ng_factories import create_advanced_n2v_config
@@ -23,12 +10,12 @@ from careamics.config.ng_factories import create_advanced_n2v_config
 # create a configuration
 config = create_advanced_n2v_config(
     experiment_name="adv_n2v_training",
-    data_type="array",
+    data_type="tiff",  # (1)!
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    in_memory=True,  # (1)!
+    in_memory=True,
 )
 # --8<-- [end:adv_config_n2v_in_memory]
 # %%
@@ -162,32 +149,18 @@ config = create_advanced_n2v_config(
 ############################################
 ################# CARE/N2N #################
 # %%
-# --8<-- [start:adv_config_care]
-from careamics.config.ng_factories import create_advanced_care_config
-
-# create a configuration
-config = create_advanced_care_config(
-    experiment_name="adv_care_training",
-    data_type="array",
-    axes="YX",
-    patch_size=[64, 64],
-    batch_size=8,
-    num_epochs=30,
-)
-# --8<-- [end:adv_config_care]
-# %%
 # --8<-- [start:adv_config_care_in_memory]
 from careamics.config.ng_factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
     experiment_name="adv_care_training",
-    data_type="array",
+    data_type="tiff",  # (1)!
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    in_memory=True,  # (1)!
+    in_memory=True,
 )
 # --8<-- [end:adv_config_care_in_memory]
 # %%

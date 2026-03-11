@@ -1,5 +1,18 @@
 #!/usr/bin/env python
 
+# %%
+# --8<-- [start:all_configs]
+from careamics.config.ng_factories import (
+    create_n2v_config,
+    create_care_config,
+    create_n2n_config,
+    create_advanced_n2v_config,
+    create_advanced_care_config,
+    create_advanced_n2n_config,
+)
+
+# --8<-- [end:all_configs]
+
 ############################################
 ################ Noise2Void ################
 # %%
@@ -8,12 +21,12 @@ from careamics.config.ng_factories import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
-    experiment_name="n2v_training",  # (1)!
-    data_type="array",  # (2)!
-    axes="ZYX",  # (3)!
-    patch_size=[16, 64, 64],  # (4)!
-    batch_size=8,  # (5)!
-    num_epochs=30,  # (6)!
+    experiment_name="n2v_training",
+    data_type="array",
+    axes="ZYX",
+    patch_size=[16, 64, 64],  # (1)!
+    batch_size=8,
+    num_epochs=30,
 )
 # --8<-- [end:config_n2v]
 
@@ -90,12 +103,12 @@ from careamics.config.ng_factories import create_care_config
 
 # create a configuration
 config = create_care_config(
-    experiment_name="care_training",  # (1)!
-    data_type="array",  # (2)!
-    axes="ZYX",  # (3)!
-    patch_size=[16, 64, 64],  # (4)!
-    batch_size=8,  # (5)!
-    num_epochs=30,  # (6)!
+    experiment_name="care_training",
+    data_type="array",
+    axes="ZYX",
+    patch_size=[16, 64, 64],  # (1)!
+    batch_size=8,
+    num_epochs=30,
 )
 # --8<-- [end:config_care]
 

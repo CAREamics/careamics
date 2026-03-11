@@ -101,7 +101,7 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
         """
         Validate experiment name.
 
-        A valid experiment name is a non-empty string with only contains letters,
+        A valid experiment name is a non-empty string that only contains letters,
         numbers, underscores, dashes and spaces.
 
         Parameters

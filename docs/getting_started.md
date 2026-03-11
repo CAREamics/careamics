@@ -1,4 +1,5 @@
 ---
+icon: lucide/house
 description: Quick start
 ---
 
@@ -41,12 +42,12 @@ to as the [Lightning API]().
 
 ## On the menu
 
-- [Configuring CAREamics]()
-    - [Basic configuration]()
-    - [Intermediate configuration]()
-    - [Advanced configuration]()
-    - [Other Noise2Void flavors (N2V2 and structN2V)]()
-    - [Saving and loading configurations]()
+- [Configuring CAREamics](configuration.md)
+    - [Simple configuration](configuration.md#simple-configuration)
+    - [Intermediate configuration](configuration.md#intermediate-configuration)
+    - [Advanced configuration](configuration.md#advanced-configuration)
+    - [Other Noise2Void flavors (N2V2 and structN2V)](configuration.md#n2v_flavors)
+    - [Saving and loading configurations](configuration.md#saving-and-loading)
 - [Assembling training data]()
     - [Arrays in memory]()
     - [Files on disk (TIFF, CZI, Zarr)]()
@@ -61,3 +62,4 @@ to as the [Lightning API]().
     - [Tiling predictions]()
     - [Writing predictions to disk]()
 - [Lightning API]()
+- [Frequently asked questions]()

@@ -14,7 +14,7 @@ Arrays are the simplest and fastest way to train and predict with CAREamics, the
 passed as is to the `CAREamist`.
 
 
-
+TODO: tip on axes order?
 
 
 ## Custom data formats
