@@ -186,7 +186,7 @@ class CAREamist:
 
         # instantiate logger
         csv_logger = CSVLogger(
-            name=self.cfg.experiment_name,
+            name=self.cfg.get_safe_experiment_name(),
             save_dir=self.work_dir / "csv_logs",
         )
 
@@ -194,7 +194,7 @@ class CAREamist:
             if self.cfg.training_config.logger == SupportedLogger.WANDB:
                 experiment_logger: LOGGER_TYPES = [
                     WandbLogger(
-                        name=self.cfg.experiment_name,
+                        name=self.cfg.get_safe_experiment_name(),
                         save_dir=self.work_dir / Path("wandb_logs"),
                     ),
                     csv_logger,
@@ -256,11 +256,13 @@ class CAREamist:
                 )
 
         checkpoint_callback = ModelCheckpoint(
-            dirpath=self.work_dir / "checkpoints" / self.cfg.experiment_name,
-            filename=f"{self.cfg.experiment_name}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
+            dirpath=self.work_dir / "checkpoints" / self.cfg.get_safe_experiment_name(),
+            filename=f"{self.cfg.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
             **self.cfg.training_config.checkpoint_callback.model_dump(),
         )
-        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{self.cfg.experiment_name}_last"
+        checkpoint_callback.CHECKPOINT_NAME_LAST = (
+            f"{self.cfg.get_safe_experiment_name()}_last"
+        )
         self.callbacks.extend(
             [
                 HyperParametersCallback(self.cfg),
@@ -963,4 +965,6 @@ class CAREamist:
         dict of str: list
             Dictionary containing the losses for each epoch.
         """
-        return read_csv_logger(self.cfg.experiment_name, self.work_dir / "csv_logs")
+        return read_csv_logger(
+            self.cfg.get_safe_experiment_name(), self.work_dir / "csv_logs"
+        )

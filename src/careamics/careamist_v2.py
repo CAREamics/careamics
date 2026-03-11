@@ -74,7 +74,7 @@ class CAREamistV2:
 
         experiment_loggers = self._create_loggers(
             self.config.training_config.logger,
-            self.config.experiment_name,
+            self.config.get_safe_experiment_name(),
             self.work_dir,
         )
 
@@ -168,15 +168,15 @@ class CAREamistV2:
                 )
 
         checkpoint_callback = ModelCheckpoint(
-            dirpath=work_dir / "checkpoints" / config.experiment_name,
-            filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
+            dirpath=work_dir / "checkpoints" / config.get_safe_experiment_name(),
+            filename=f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
             **config.training_config.checkpoint_callback.model_dump(),
         )
-        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.experiment_name}_last"        
+        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.get_safe_experiment_name()}_last"        
         internal_callbacks: list[Callback] = [
             checkpoint_callback,
             CareamicsCheckpointInfo(
-                config.version, config.experiment_name, config.training_config
+                config.version, config.get_safe_experiment_name(), config.training_config
             ),
         ]
 
@@ -773,7 +773,7 @@ class CAREamistV2:
         dict of str: list
             Dictionary containing losses for each epoch.
         """
-        return read_csv_logger(self.config.experiment_name, self.work_dir / "csv_logs")
+        return read_csv_logger(self.config.get_safe_experiment_name(), self.work_dir / "csv_logs")
 
     def stop_training(self) -> None:
         """Stop the training loop."""
