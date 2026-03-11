@@ -433,6 +433,44 @@ class NGDataConfig(BaseModel):
             )
         return filter_obj
 
+    @field_validator(
+        "train_dataloader_params",
+        "val_dataloader_params",
+        "pred_dataloader_params",
+        mode="after",
+    )
+    @classmethod
+    def batch_size_not_in_dataloader_params(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Validate that `batch_size` is not set in the dataloader parameters.
+
+        `batch_size` must be set through `batch_size` field, not
+        through the dataloader parameters.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The validated dataloader parameters.
+
+        Raises
+        ------
+        ValueError
+            If `batch_size` is present in the dataloader parameters.
+        """
+        if "batch_size" in dataloader_params:
+            raise ValueError(
+                "`batch_size` should not be set in the dataloader parameters. "
+                "Use the `batch_size` field of `NGDataConfig` instead."
+            )
+        return dataloader_params
+
     @field_validator("train_dataloader_params")
     @classmethod
     def shuffle_train_dataloader(

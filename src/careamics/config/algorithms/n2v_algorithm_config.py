@@ -97,6 +97,9 @@ class N2VAlgorithm(UNetBasedAlgorithm):
     loss: Literal["n2v"] = "n2v"
     """N2V loss function."""
 
+    monitor_metric: Literal["train_loss", "train_loss_epoch", "val_loss"] = "val_loss"
+    """Metric to monitor for the learning rate scheduler."""
+
     n2v_config: N2VManipulateConfig = N2VManipulateConfig()
 
     model: Annotated[

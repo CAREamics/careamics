@@ -10,13 +10,13 @@ import tifffile
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 
-from careamics.dataset.dataset_utils.dataset_utils import reshape_array
 from careamics.lvae_training.dataset import (
     DataSplitType,
     LCMultiChDloader,
     MicroSplitDataConfig,
 )
 from careamics.lvae_training.dataset.types import TilingMode
+from careamics.utils.reshape_array import reshape_array
 
 
 # TODO refactor
