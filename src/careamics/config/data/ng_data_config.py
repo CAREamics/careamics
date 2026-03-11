@@ -22,7 +22,7 @@ from pydantic import (
 
 from careamics.utils import BaseEnum
 
-from ..transformations import XYFlipConfig, XYRandomRotate90Config
+from ..augmentations import XYFlipConfig, XYRandomRotate90Config
 from ..utils.random import generate_random_seed
 from ..validators import check_axes_validity, check_czi_axes_validity
 from .normalization_config import NormalizationConfig
@@ -186,14 +186,14 @@ class NGDataConfig(BaseModel):
     """Number of consecutive patches not passing the filter before accepting the next
     patch."""
 
-    transforms: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
+    augmentations: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
         default=(
             XYFlipConfig(),
             XYRandomRotate90Config(),
         ),
         validate_default=True,
     )
-    """List of transformations to apply to the data, available transforms are defined
+    """List of augmentations to apply to the data, available transforms are defined
     in SupportedTransform."""
 
     train_dataloader_params: dict[str, Any] = Field(
@@ -583,12 +583,12 @@ class NGDataConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def propagate_seed_to_transforms(self: Self) -> Self:
+    def propagate_seed_to_augmentations(self: Self) -> Self:
         """
-        Propagate the main seed to all transforms that support seeds.
+        Propagate the main seed to all augmentations that support seeds.
 
-        This ensures that all transforms use the same seed for reproducibility,
-        unless they already have a seed explicitly set.
+        This ensures that all augmentations use the same seed for
+         reproducibility, unless they already have a seed explicitly set.
 
         Returns
         -------
@@ -596,7 +596,7 @@ class NGDataConfig(BaseModel):
             Data model with propagated seeds.
         """
         if self.seed is not None:
-            for transform in self.transforms:
+            for transform in self.augmentations:
                 if hasattr(transform, "seed") and transform.seed is None:
                     transform.seed = self.seed
         return self

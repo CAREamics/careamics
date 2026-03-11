@@ -192,7 +192,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     def _initialize_transforms(self) -> Compose | None:
         if self.config.mode == Mode.TRAINING:
-            return Compose(list(self.config.transforms))
+            return Compose(list(self.config.augmentations))
 
         # TODO: add TTA
         return Compose([])
