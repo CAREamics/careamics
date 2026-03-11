@@ -33,7 +33,7 @@ class TestStandardConfig:
             batch_size=8,
             augmentations=[],
         )
-        assert config.data_config.transforms == []
+        assert config.data_config.augmentations == []
 
     def test_num_epochs_and_num_steps(self):
         """Test that both num_epochs and num_steps can be set simultaneously."""

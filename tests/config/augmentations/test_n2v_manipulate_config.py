@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config.transformations import N2VManipulateConfig
+from careamics.config.augmentations import N2VManipulateConfig
 from careamics.transforms import N2VManipulate
 
 

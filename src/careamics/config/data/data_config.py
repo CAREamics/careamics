@@ -20,7 +20,7 @@ from pydantic import (
     model_validator,
 )
 
-from ..transformations import XYFlipConfig, XYRandomRotate90Config
+from ..augmentations import XYFlipConfig, XYRandomRotate90Config
 from ..validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 

@@ -4,11 +4,11 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm
-from careamics.config.ng_configs import NGConfiguration
-from careamics.config.transformations import (
+from careamics.config.augmentations import (
     XYFlipConfig,
     XYRandomRotate90Config,
 )
+from careamics.config.ng_configs import NGConfiguration
 
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import create_ng_data_configuration, list_spatial_augmentations

@@ -449,7 +449,7 @@ class TestSeed:
         assert cfg.patch_filter.seed == 42
         assert cfg.coord_filter.seed == 42
         assert cfg.patching.seed == 42
-        for aug in cfg.transforms:
+        for aug in cfg.augmentations:
             assert aug.seed == 42
 
 
