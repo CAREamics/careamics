@@ -3,15 +3,15 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
+from careamics.config.augmentations import (
+    N2VManipulateConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
+)
 from careamics.config.ng_configs import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedTransform,
-)
-from careamics.config.transformations import (
-    N2VManipulateConfig,
-    XYFlipConfig,
-    XYRandomRotate90Config,
 )
 
 from ..algorithms import N2VAlgorithm

@@ -11,7 +11,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from careamics.config import DataConfig
-from careamics.config.transformations import NormalizeConfig
+from careamics.config.augmentations import NormalizeConfig
 from careamics.dataset.patching.patching import (
     PatchedOutput,
     Stats,
