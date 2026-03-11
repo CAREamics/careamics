@@ -103,7 +103,7 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    checkpoint_params={  # (1)!
+    checkpoint_params={
         "monitor": "val_loss",
         "mode": "min",
         "save_top_k": 3,
