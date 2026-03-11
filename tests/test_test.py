@@ -43,38 +43,44 @@ TRAIN_PATCHING = ["stratified", "random"]
 VAL_PATCHING = ["fixed_random"]
 PRED_PATCHING = ["tiled", "whole"]
 
-AXES_ORDERED_2D: tuple[str, ...] = (
+AXES_WO_CHANNELS_2D: tuple[str, ...] = (
     "YX",
-    "CYX",
     "TYX",
     "SYX",
-    "SCYX",
     "STYX",
-    "TCYX",
-    "SCTYX",
-)
-
-AXES_ORDERED_3D: tuple[str, ...] = (
-    "ZYX",
-    "CZYX",
-    "TZYX",
-    "SZYX",
-    "SCZYX",
-    "STZYX",
-    "TCZYX",
-    "SCTZYX",
-)
-
-AXES_DISORDERED_2D: tuple[str, ...] = (
+    # disordered
     "XY",
-    "YXC",
     "TSYX",
 )
 
-AXES_DISORDERED_3D: tuple[str, ...] = (
+AXES_W_CHANNELS_2D: tuple[str, ...] = (
+    "CYX",
+    "SCYX",
+    "TCYX",
+    # disordered
+    "YXC",
+    "SCTYX",
+)
+
+AXES_WO_CHANNELS_3D: tuple[str, ...] = (
+    "ZYX",
+    "TZYX",
+    "SZYX",
+    # disordered
     "YXZ",
+)
+
+
+AXES_W_CHANNELS_3D: tuple[str, ...] = (
+    "CZYX",
+    "TCZYX",
+    "SCZYX",
+    "STZYX",
+    "TCZYX",
+    # disordered
     "YXCZ",
     "TCYXZS",
+    "SCTZYX",
 )
 
 AXES_DISALLOWED: tuple[str, ...] = (
@@ -180,13 +186,13 @@ def test_default_data_config(ng_data_config_dict):
     "data_type, axes, patch_size, expectation",
     parameter_cartesian_prod(
         ["array"],
-        AXES_ORDERED_2D + AXES_DISORDERED_2D,
+        AXES_WO_CHANNELS_2D + AXES_W_CHANNELS_2D,
         {"params": [(16, 16)], "labels": ["2D_patch"]},
         {"params": [nullcontext(0)], "labels": ["pass"]},
     )
     + parameter_cartesian_prod(
         ["array"],
-        AXES_ORDERED_3D + AXES_DISORDERED_3D,
+        AXES_WO_CHANNELS_3D + AXES_W_CHANNELS_3D,
         {"params": [(8, 16, 16)], "labels": ["3D_patch"]},
         {"params": [nullcontext(0)], "labels": ["pass"]},
     )
