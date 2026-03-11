@@ -641,3 +641,48 @@ class TestConvertMode:
                 "validating",
                 new_axes="YX",
             )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "train_dataloader_params",
+        "val_dataloader_params",
+        "pred_dataloader_params",
+    ],
+)
+def test_batch_size_in_dataloader_params_raises(field):
+    """Test that setting batch_size in any dataloader params dict raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match=r"`batch_size` should not be set in the dataloader parameters\.",
+    ):
+        NGDataConfig(
+            mode="training",
+            data_type="array",
+            axes="YX",
+            patching={"name": SupportedPatchingStrategy.RANDOM, "patch_size": [16, 16]},
+            normalization=DEFAULT_NORM,
+            **{field: {"batch_size": 4}},
+        )
+
+
+@pytest.mark.parametrize(
+    "field, params",
+    [
+        ("train_dataloader_params", {"num_workers": 2, "shuffle": True}),
+        ("val_dataloader_params", {"num_workers": 2}),
+        ("pred_dataloader_params", {"num_workers": 2}),
+    ],
+)
+def test_valid_dataloader_params_accepted(field, params):
+    """Test that valid dataloader params without batch_size are accepted."""
+    config = NGDataConfig(
+        mode="training",
+        data_type="array",
+        axes="YX",
+        patching={"name": SupportedPatchingStrategy.RANDOM, "patch_size": [16, 16]},
+        normalization=DEFAULT_NORM,
+        **{field: params},
+    )
+    assert getattr(config, field)["num_workers"] == 2
