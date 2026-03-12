@@ -240,6 +240,20 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
         """
         return self.experiment_name.replace(" ", "_")
 
+    def is_supervised(self) -> bool:
+        """
+        Return whether the algorithm is supervised.
+
+        This is true for CARE and N2N, and false for N2V. This is used to determine
+        whether a target is required for training.
+
+        Returns
+        -------
+        bool
+            True if the algorithm is supervised, False otherwise.
+        """
+        return self.algorithm_config.is_supervised()
+
     def model_dump(
         self,
         **kwargs: Any,
