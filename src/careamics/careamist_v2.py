@@ -311,6 +311,13 @@ class CAREamistV2:
                 f"ignored."
             )
 
+        if self.config.is_supervised() and val_data is not None and val_data_target is None:
+            raise ValueError(
+                f"Validation target data must be provided for supervised training (got "
+                f"{self.config.get_algorithm_friendly_name()} algorithm). Provide "
+                f"`val_data_target`."
+            )
+
         datamodule = CareamicsDataModule(
             data_config=self.config.data_config,
             train_data=train_data,
