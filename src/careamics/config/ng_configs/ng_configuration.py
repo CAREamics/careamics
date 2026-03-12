@@ -75,7 +75,7 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
     )
 
     # version
-    version: Literal["0.2.0"] = "0.2.0"
+    version: Literal["0.1.0"] = "0.1.0"
     """CAREamics configuration version."""
 
     # required parameters
