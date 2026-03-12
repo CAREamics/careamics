@@ -10,6 +10,10 @@ class SupportedOptimizer(str, BaseEnum):
     ----------
     Adam : str
         Adam optimizer.
+    AdamW : str
+        AdamW optimizer.
+    Adamax : str
+        Adamax optimizer.
     SGD : str
         Stochastic Gradient Descent optimizer.
     """
@@ -18,7 +22,7 @@ class SupportedOptimizer(str, BaseEnum):
     # Adadelta = "Adadelta"
     # Adagrad = "Adagrad"
     ADAM = "Adam"
-    # AdamW = "AdamW"
+    ADAMW = "AdamW"
     ADAMAX = "Adamax"
     # LBFGS = "LBFGS"
     # NAdam = "NAdam"

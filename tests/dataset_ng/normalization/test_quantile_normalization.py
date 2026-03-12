@@ -137,8 +137,8 @@ def test_scalar_config_values():
             "upper_quantiles": 0.95,
         },
     )
-    assert config.normalization.lower_quantiless == [0.05]
-    assert config.normalization.upper_quantiless == [0.95]
+    assert config.normalization.lower_quantiles == [0.05]
+    assert config.normalization.upper_quantiles == [0.95]
 
     _ = create_dataset(config=config, inputs=[data], targets=None)
 

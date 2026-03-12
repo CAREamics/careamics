@@ -31,7 +31,7 @@ class OptimizerConfig(BaseModel):
 
     Attributes
     ----------
-    name : {"Adam", "SGD"}
+    name : {"Adam", "SGD", "Adamax", "AdamW"}
         Name of the optimizer.
     parameters : dict
         Parameters of the optimizer (see torch documentation).
@@ -43,7 +43,7 @@ class OptimizerConfig(BaseModel):
     )
 
     # Mandatory field
-    name: Literal["Adam", "SGD", "Adamax"] = Field(
+    name: Literal["Adam", "SGD", "Adamax", "AdamW"] = Field(
         default="Adam", validate_default=True
     )
     """Name of the optimizer, supported optimizers are defined in SupportedOptimizer."""
