@@ -15,7 +15,7 @@ def test_with_known_range():
         axes="YX",
         patching={"name": "whole"},
         normalization={
-            "name": "minmax",
+            "name": "min_max",
             "input_mins": [0.0],
             "input_maxes": [255.0],
         },
@@ -40,7 +40,7 @@ def test_auto_computes_range():
         data_type="array",
         axes="YX",
         patching={"name": "whole"},
-        normalization={"name": "minmax"},
+        normalization={"name": "min_max"},
     )
     dataset = create_dataset(config=config, inputs=[data], targets=None)
 
@@ -66,7 +66,7 @@ def test_per_channel_different_ranges():
         axes="CYX",
         patching={"name": "whole"},
         normalization={
-            "name": "minmax",
+            "name": "min_max",
             "input_mins": [0.0, 100.0],
             "input_maxes": [100.0, 1000.0],
         },
@@ -90,7 +90,7 @@ def test_per_channel_auto_computes_range():
         data_type="array",
         axes="CYX",
         patching={"name": "whole"},
-        normalization={"name": "minmax", "per_channel": True},
+        normalization={"name": "min_max", "per_channel": True},
     )
     dataset = create_dataset(config=config, inputs=[data], targets=None)
 
@@ -116,7 +116,7 @@ def test_global_auto_computes_range():
         data_type="array",
         axes="CYX",
         patching={"name": "whole"},
-        normalization={"name": "minmax", "per_channel": False},
+        normalization={"name": "min_max", "per_channel": False},
     )
     dataset = create_dataset(config=config, inputs=[data], targets=None)
 
@@ -139,7 +139,7 @@ def test_scalar_config_values():
         axes="YX",
         patching={"name": "whole"},
         normalization={
-            "name": "minmax",
+            "name": "min_max",
             "input_mins": 0.0,
             "input_maxes": 255.0,
         },
@@ -166,7 +166,7 @@ def test_single_value_broadcast_to_multichannel():
         axes="CYX",
         patching={"name": "whole"},
         normalization={
-            "name": "minmax",
+            "name": "min_max",
             "input_mins": [0.0],
             "input_maxes": [255.0],
         },
@@ -190,7 +190,7 @@ def test_global_stats_denormalization_round_trip():
         data_type="array",
         axes="CYX",
         patching={"name": "whole"},
-        normalization={"name": "minmax", "per_channel": False},
+        normalization={"name": "min_max", "per_channel": False},
     )
     dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
@@ -210,7 +210,7 @@ def test_global_stats_pools_across_channels():
         data_type="array",
         axes="CYX",
         patching={"name": "whole"},
-        normalization={"name": "minmax", "per_channel": False},
+        normalization={"name": "min_max", "per_channel": False},
     )
     dataset = create_dataset(config=config, inputs=[data], targets=None)
 

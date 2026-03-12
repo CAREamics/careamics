@@ -370,7 +370,7 @@ class MinMaxConfig(BaseModel):
 
     Attributes
     ----------
-    name : Literal["minmax"]
+    name : Literal["min_max"]
         Identifier for min-max normalization.
     input_mins : float | list[float] | None
         Minimum values for input normalization. None for automatic computation.
@@ -387,7 +387,7 @@ class MinMaxConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
-    name: Literal["minmax"] = "minmax"
+    name: Literal["min_max"] = "min_max"
     input_mins: OptionalFloatStats = None
     input_maxes: OptionalFloatStats = None
     target_mins: OptionalFloatStats = None

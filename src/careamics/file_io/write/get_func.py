@@ -60,7 +60,7 @@ def get_write_func(data_type: SupportedWriteType) -> WriteFunc:
     if data_type_ not in WRITE_FUNCS:
         raise NotImplementedError(
             f"Unsupported type '{data_type}' for writing, pass your own custom "
-            f" write function."
+            f"write function."
         )
 
     return WRITE_FUNCS[data_type_]
