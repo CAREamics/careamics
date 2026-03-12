@@ -113,3 +113,14 @@ class N2NAlgorithm(UNetBasedAlgorithm):
             Algorithm description.
         """
         return N2N_DESCRIPTION
+
+    def is_supervised(self) -> bool:
+        """
+        Return whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return True

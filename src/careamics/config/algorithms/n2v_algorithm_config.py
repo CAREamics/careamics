@@ -297,3 +297,14 @@ class N2VAlgorithm(UNetBasedAlgorithm):
             return STR_N2V_DESCRIPTION
         else:
             return N2V_DESCRIPTION
+
+    def is_supervised(self) -> bool:
+        """
+        Return whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return False

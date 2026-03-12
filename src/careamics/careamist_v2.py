@@ -298,6 +298,19 @@ class CAREamistV2:
         if train_data is None:
             raise ValueError("Training data must be provided. Provide `train_data`.")
 
+        if self.config.is_supervised() and train_data_target is None:
+            raise ValueError(
+                f"Training target data must be provided for supervised training (got "
+                f"{self.config.get_algorithm_friendly_name()} algorithm). Provide "
+                f"`train_data_target`."
+            )
+        elif not self.config.is_supervised() and train_data_target is not None:
+            logger.warning(
+                f"Training target data provided for self-supervised training (got "
+                f"{self.config.get_algorithm_friendly_name()} algorithm) will be "
+                f"ignored."
+            )
+
         datamodule = CareamicsDataModule(
             data_config=self.config.data_config,
             train_data=train_data,
