@@ -3,12 +3,12 @@ from typing import Literal, Union
 import numpy as np
 import pytest
 import torch
+from careamics.config.noise_model.likelihood_config import GaussianLikelihoodConfig
 from torch import nn
 
 from careamics.config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEConfig
 from careamics.config.losses.loss_config import LVAELossConfig
-from careamics.config.noise_model.likelihood_config import GaussianLikelihoodConfig
 from careamics.models.model_factory import model_factory
 
 

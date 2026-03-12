@@ -10,8 +10,15 @@ except PackageNotFoundError:
 __all__ = [
     "CAREamist",
     "Configuration",
+    "NoiseModelTrainer",
     "algorithm_factory",
 ]
 
 from .careamist import CAREamist
-from .config import Configuration, algorithm_factory
+from .config import (
+    Configuration,
+    algorithm_factory,
+    load_configuration,
+    save_configuration,
+)
+from .noise_model import NoiseModelTrainer
