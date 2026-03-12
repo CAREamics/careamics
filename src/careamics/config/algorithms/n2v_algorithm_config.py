@@ -298,7 +298,8 @@ class N2VAlgorithm(UNetBasedAlgorithm):
         else:
             return N2V_DESCRIPTION
 
-    def is_supervised(self) -> bool:
+    @classmethod
+    def is_supervised(cls) -> bool:
         """
         Return whether the algorithm is supervised.
 
