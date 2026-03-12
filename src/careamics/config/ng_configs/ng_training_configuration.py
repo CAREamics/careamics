@@ -105,8 +105,8 @@ def default_training_dict(
     return {
         "trainer_params": {} if trainer_params is None else trainer_params,
         "logger": None if logger == "none" else logger,
-        "checkpoint_callback": checkpoint_params,
-        "early_stopping_callback": {
+        "checkpoint_params": checkpoint_params,
+        "early_stopping_params": {
             "monitor": monitor_metric,
             "mode": "min",
         },
@@ -159,11 +159,11 @@ class NGTrainingConfig(BaseModel):
         Additional Logger to use during training. If None, no logger will be used.
         Note that the `CAREamist` uses the `csv` logger regardless of the value of this
         field.
-    checkpoint_callback : dict[str, Any]
-        Checkpoint callback configuration, following PyTorch Lightning Checkpoint
+    checkpoint_params : dict[str, Any]
+        Checkpoint callback parameters, following PyTorch Lightning Checkpoint
         callback.
-    early_stopping_callback : dict[str, Any] | None
-        Early stopping callback configuration, following PyTorch Lightning Checkpoint
+    early_stopping_params : dict[str, Any] | None
+        Early stopping callback parameters, following PyTorch Lightning Checkpoint
         callback.
     """
 
@@ -180,12 +180,12 @@ class NGTrainingConfig(BaseModel):
     loggers are defined in SupportedLogger."""
 
     # Only basic callbacks - they may have different defaults for different algorithms
-    checkpoint_callback: dict[str, Any] = Field(default_factory=dict)
-    """Checkpoint callback configuration, following PyTorch Lightning Checkpoint
+    checkpoint_params: dict[str, Any] = Field(default_factory=dict)
+    """Checkpoint callback parameters, following PyTorch Lightning Checkpoint
     callback."""
 
-    early_stopping_callback: dict[str, Any] | None = Field(default_factory=dict)
-    """Early stopping callback configuration, following PyTorch Lightning Checkpoint
+    early_stopping_params: dict[str, Any] | None = Field(default_factory=dict)
+    """Early stopping callback parameters, following PyTorch Lightning Checkpoint
     callback."""
 
     def __str__(self) -> str:

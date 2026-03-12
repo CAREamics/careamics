@@ -170,7 +170,7 @@ class CAREamistV2:
         checkpoint_callback = ModelCheckpoint(
             dirpath=work_dir / "checkpoints" / config.get_safe_experiment_name(),
             filename=f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
-            **config.training_config.checkpoint_callback,
+            **config.training_config.checkpoint_params,
         )
         checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.get_safe_experiment_name()}_last"        
         internal_callbacks: list[Callback] = [
@@ -186,10 +186,10 @@ class CAREamistV2:
         if enable_progress_bar:
             internal_callbacks.append(ProgressBarCallback())
 
-        if config.training_config.early_stopping_callback is not None:
+        if config.training_config.early_stopping_params is not None:
             internal_callbacks.append(
                 EarlyStopping(
-                    **config.training_config.early_stopping_callback
+                    **config.training_config.early_stopping_params
                 )
             )
 
