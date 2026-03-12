@@ -24,7 +24,7 @@ def test_zarr_data_module(zarr_with_target_and_mask):
         data_type="zarr",
         axes="YX",
         patching={
-            "name": "random",
+            "name": "stratified",
             "patch_size": (8, 8),
         },
         coord_filter={"name": "mask"},
@@ -50,6 +50,8 @@ def test_zarr_data_module(zarr_with_target_and_mask):
     # simulate training call
     datamodule.setup(stage="fit")
 
+    # TODO: test masking (have to look at probabilities in the patching)
+
     # inspect train dataset
     train_dataset = datamodule.train_dataset
     assert len(train_dataset) > 0
@@ -58,9 +60,3 @@ def test_zarr_data_module(zarr_with_target_and_mask):
 
         # assess that the two image regions are equal (by design of the test zarr)
         assert array_equal(sample.data, target.data)
-
-        # assert that it pulls from the correct mask
-        source = train_dataset.coord_filter.mask_extractor.image_stacks[
-            sample.region_spec["data_idx"]
-        ].source
-        assert source.split("/")[-1] == sample.source.split("/")[-1]

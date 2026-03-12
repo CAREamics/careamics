@@ -310,6 +310,10 @@ class NGDataConfig(BaseModel):
     training. Patches can be classed as background by either the `patch_filter` or by
     providing a mask during training. If neither is used this parameter is ignored."""
 
+    # TODO: Move inside patch_filter
+    filter_ref_channel: int = 0
+    """The channel to use as reference for filtering."""
+
     augmentations: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
         default=(
             XYFlipConfig(),
