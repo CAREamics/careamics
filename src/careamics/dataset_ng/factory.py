@@ -10,6 +10,7 @@ from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
 
 from .dataset import CareamicsDataset
+from .filter_bg import filter_background, filter_background_with_mask
 from .image_stack import (
     GenericImageStack,
     ImageStack,
@@ -24,6 +25,7 @@ from .image_stack_loader import (
     load_zarrs,
 )
 from .patch_extractor import LimitFilesPatchExtractor, PatchExtractor
+from .patch_filter import create_patch_filter
 from .patching_strategies import StratifiedPatchingStrategy, create_patching_strategy
 from .val_split import create_val_split
 
@@ -85,11 +87,11 @@ class PredData(Generic[T]):
 
 # convenience function but should use `create_dataloader` function instead
 # For lazy loading custom batch sampler also needs to be set.
+# TODO: remove this function? Or is it good for tests
 def create_dataset(
     config: NGDataConfig,
     inputs: Any,
     targets: Any,
-    masks: Any = None,
     loading: ReadFuncLoading | ImageStackLoading | None = None,
 ) -> CareamicsDataset[ImageStack]:
     """
@@ -103,8 +105,6 @@ def create_dataset(
         The input sources to the dataset.
     targets : Any, optional
         The target sources to the dataset.
-    masks : Any, optional
-        The mask sources used to filter patches.
     read_func : ReadFunc, optional
         A function that can that can be used to load custom data. This argument is
         ignored unless the `data_type` in the `config` is "custom".
@@ -133,14 +133,6 @@ def create_dataset(
         )
     else:
         target_extractor = None
-
-    # TODO: filter patching strategy with mask if applicable
-    # if masks is not None:
-    #     mask_extractor = init_patch_extractor(
-    #         patch_extractor_type, image_stack_loader, masks, config.axes
-    #     )
-    # else:
-    #     mask_extractor = None
 
     patching_strategy = create_patching_strategy(
         input_extractor.shapes, config.patching
@@ -233,6 +225,93 @@ def select_image_stack_loader(
             )
 
 
+def create_train_dataset(
+    config: NGDataConfig,
+    data: TrainValData[Any] | TrainValSplitData,
+    loading: Loading,
+) -> CareamicsDataset[ImageStack]:
+    """Create the training dataset."""
+
+    if config.mode != "training":
+        raise ValueError(
+            f"CAREamicsDataModule configured for {config.mode} cannot be "
+            f"used for training. Please create a new CareamicsDataModule with "
+            f"a configuration with mode='training'."
+        )
+    inputs = data.train_data
+    targets = data.train_data_target
+    masks = data.train_data_mask
+
+    # init dataset components
+    image_stack_loader = select_image_stack_loader(
+        data_type=SupportedData(config.data_type),
+        in_memory=config.in_memory,
+        loading=loading,
+    )
+    patch_extractor_type = select_patch_extractor_type(
+        data_type=SupportedData(config.data_type), in_memory=config.in_memory
+    )
+    input_extractor = init_patch_extractor(
+        patch_extractor_type, image_stack_loader, inputs, config.axes
+    )
+    if targets is not None:
+        target_extractor = init_patch_extractor(
+            patch_extractor_type, image_stack_loader, targets, config.axes
+        )
+    else:
+        target_extractor = None
+    if masks is not None:
+        mask_extractor = init_patch_extractor(
+            patch_extractor_type, image_stack_loader, targets, config.axes
+        )
+    else:
+        mask_extractor = None
+
+    patching_strategy = create_patching_strategy(
+        input_extractor.shapes, config.patching
+    )
+
+    # patch filtering
+    if config.patch_filter is not None:
+        if not isinstance(patching_strategy, StratifiedPatchingStrategy):
+            raise TypeError(
+                "Background patch filtering is only compatible with stratified "
+                f"patching. Found {config.patching.name} patching in the configuration."
+            )
+
+        patch_filter = create_patch_filter(config.patch_filter)
+        filter_background(
+            patching_strategy,
+            input_extractor,
+            patch_filter,
+            config.filter_ref_channel,
+            config.filtered_patch_prob,
+        )
+    # if both masks and patch_filter are present they are both applied
+    if mask_extractor is not None:
+        if not isinstance(patching_strategy, StratifiedPatchingStrategy):
+            raise TypeError(
+                "Mask filtering is only compatible with stratified "
+                f"patching. Found {config.patching.name} patching in the configuration."
+            )
+
+        ndims = 3 if config.is_3D() else 2
+        threshold_ratio = 1 / 2**ndims  # TODO: make parametrizable ?
+        filter_background_with_mask(
+            patching_strategy,
+            mask_extractor,
+            threshold_ratio,
+            config.filtered_patch_prob,
+        )
+
+    return CareamicsDataset(
+        data_config=config,
+        patching_strategy=patching_strategy,
+        input_extractor=input_extractor,
+        target_extractor=target_extractor,
+    )
+
+
 def create_train_val_datasets(
     config: NGDataConfig,
     data: TrainValData[Any],
@@ -249,11 +328,9 @@ def create_train_val_datasets(
             f"a configuration with mode='training'."
         )
 
-    train_dataset = create_dataset(
+    train_dataset = create_train_dataset(
         config=config,
-        inputs=data.train_data,
-        targets=data.train_data_target,
-        masks=data.train_data_mask,
+        data=data,
         loading=loading,
     )
 
@@ -291,56 +368,21 @@ def create_val_split_datasets(
             "Validation split is only compatible with stratified patching."
         )
 
-    train_input = data.train_data
-    train_target = data.train_data_target
-    # train_mask = data.train_data_mask
-
-    # init dataset components
-    image_stack_loader = select_image_stack_loader(
-        data_type=SupportedData(config.data_type),
-        in_memory=config.in_memory,
-        loading=loading,
-    )
-    patch_extractor_type = select_patch_extractor_type(
-        data_type=SupportedData(config.data_type), in_memory=config.in_memory
-    )
-    input_extractor = init_patch_extractor(
-        patch_extractor_type, image_stack_loader, train_input, config.axes
-    )
-    if train_target is not None:
-        target_extractor = init_patch_extractor(
-            patch_extractor_type, image_stack_loader, train_target, config.axes
-        )
-    else:
-        target_extractor = None
-
-    # # TODO: filter patching strategy with masking strategy, if applicable
-    # if train_mask is not None:
-    #     mask_extractor = init_patch_extractor(
-    #         patch_extractor_type, image_stack_loader, train_mask, config.axes
-    #     )
-    # else:
-    #     mask_extractor = None
-
-    train_patching = create_patching_strategy(input_extractor.shapes, config.patching)
+    train_dataset = create_train_dataset(config, data, loading)
+    train_patching = train_dataset.patching_strategy
     # ensured by guard on config at the start of function
     assert isinstance(train_patching, StratifiedPatchingStrategy)
 
+    # TODO: select val patches according to filtered background distribution
     # val split applied to patching strat
     train_patching, val_patching = create_val_split(
         train_patching, data.n_val_patches, rng=rng
     )
 
-    train_dataset = CareamicsDataset(
-        data_config=config,
-        input_extractor=input_extractor,
-        target_extractor=target_extractor,
-        patching_strategy=train_patching,
-    )
     val_dataset = CareamicsDataset(
         data_config=config.convert_mode("validating"),
-        input_extractor=input_extractor,
-        target_extractor=target_extractor,
+        input_extractor=train_dataset.input_extractor,
+        target_extractor=train_dataset.target_extractor,
         patching_strategy=val_patching,
     )
     return train_dataset, val_dataset

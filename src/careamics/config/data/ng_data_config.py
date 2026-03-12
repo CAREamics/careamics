@@ -177,10 +177,15 @@ class NGDataConfig(BaseModel):
     patch_filter: PatchFilterConfig | None = Field(default=None, discriminator="name")
     """Patch filter to apply when using random patching. Only available if
     mode is `training`."""
+
     filtered_patch_prob: float = 0.1
     """The probability that each patch classed as background will be selected during
     training. Patches can be classed as background by either the `patch_filter` or by
     providing a mask during training. If neither is used this parameter is ignored."""
+
+    # TODO: Move inside patch_filter
+    filter_ref_channel: int = 0
+    """The channel to use as reference for filtering."""
 
     transforms: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
         default=(
