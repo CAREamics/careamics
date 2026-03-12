@@ -304,12 +304,6 @@ class CAREamistV2:
                 f"{self.config.get_algorithm_friendly_name()} algorithm). Provide "
                 f"`train_data_target`."
             )
-        elif not self.config.is_supervised() and train_data_target is not None:
-            logger.warning(
-                f"Training target data provided for self-supervised training (got "
-                f"{self.config.get_algorithm_friendly_name()} algorithm) will be "
-                f"ignored."
-            )
 
         if self.config.is_supervised() and val_data is not None and val_data_target is None:
             raise ValueError(
