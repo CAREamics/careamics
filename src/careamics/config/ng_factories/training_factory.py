@@ -1,37 +1,63 @@
 """Convenience functions to create training configurations."""
 
+from dataclasses import asdict
 from typing import Any, Literal
 
-from careamics.config.lightning.training_config import TrainingConfig
+from careamics.config.ng_configs.ng_training_configuration import (
+    NGTrainingConfig,
+    SelfSupervisedCheckpointing,
+    SupervisedCheckpointing,
+)
 
 
 def create_training_configuration(
+    algorithm: Literal["care", "n2n", "n2v"],
     trainer_params: dict,
     logger: Literal["wandb", "tensorboard", "none"],
     checkpoint_params: dict[str, Any] | None = None,
-) -> TrainingConfig:
+    monitor_metric: str = "val_loss",
+) -> NGTrainingConfig:
     """
     Create a dictionary with the parameters of the training model.
 
     Parameters
     ----------
+    algorithm : {"care", "n2n", "n2v"}
+        Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict
         Parameters for Lightning Trainer class, see PyTorch Lightning documentation.
     logger : {"wandb", "tensorboard", "none"}
         Logger to use.
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
-        (`ModelCheckpoint`) for the list of available parameters.
+        (`ModelCheckpoint`) for the list of available parameters. These override the
+        algorithm-specific defaults.
+    monitor_metric : str, default="val_loss"
+        Metric to monitor for early stopping.
 
     Returns
     -------
-    TrainingConfig
-        Training model with the specified parameters.
+    NGTrainingConfig
+        Training configuration with the specified parameters.
     """
-    return TrainingConfig(
+    # Select default checkpointing preset based on algorithm
+    default_preset = (
+        SupervisedCheckpointing if algorithm == "care" else SelfSupervisedCheckpointing
+    )
+    default_checkpoint = asdict(default_preset())
+
+    # User overrides take precedence over defaults
+    if checkpoint_params is not None:
+        default_checkpoint.update(checkpoint_params)
+
+    return NGTrainingConfig(
         lightning_trainer_config=trainer_params,
         logger=None if logger == "none" else logger,
-        checkpoint_callback={} if checkpoint_params is None else checkpoint_params,
+        checkpoint_callback=default_checkpoint,
+        early_stopping_callback={
+            "monitor": monitor_metric,
+            "mode": "min",
+        },
     )
 
 
