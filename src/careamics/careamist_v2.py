@@ -722,7 +722,7 @@ class CAREamistV2:
         data_description: str,
         covers: list[Path | str] | None = None,
         channel_names: list[str] | None = None,
-        model_version: str = "0.1.0",
+        model_version: str = "0.2.0",
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 

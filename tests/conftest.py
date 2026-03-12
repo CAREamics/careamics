@@ -477,7 +477,7 @@ def _checkpoint_trainer(request):
     """
     if request.param:
         info_callback = CareamicsCheckpointInfo(
-            careamics_version="0.1.0",
+            careamics_version="0.2.0",
             experiment_name="testing",
             training_config=TrainingConfig(),
         )
