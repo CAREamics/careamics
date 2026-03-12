@@ -5,7 +5,7 @@ from careamics.config.ng_factories import create_n2v_config, create_care_config
 # create a configuration
 config_n2v = create_n2v_config(
     experiment_name="n2v",
-    data_type="tiff",
+    data_type="array",
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
@@ -13,11 +13,12 @@ config_n2v = create_n2v_config(
 )
 config_care = create_care_config(
     experiment_name="care",
-    data_type="tiff",
+    data_type="array",
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=1,
+    n_val_patches=2,
 )
 config = config_n2v
 
@@ -34,24 +35,41 @@ from careamics.careamist_v2 import CAREamistV2
 careamist = CAREamistV2(config)  # (1)!
 
 # --8<-- [end:careamist_from_cfg]
+
 # %%
 # --8<-- [start:careamist_workdir]
 from careamics.careamist_v2 import CAREamistV2
 
 careamist = CAREamistV2(
-    config,
+    config_care,
     work_dir="path/to/work_dir",  # (1)!
 )
 
 # --8<-- [end:careamist_workdir]
+
+
+############################################
+################ Noise2Void ################
 
 # %%
 # --8<-- [start:train_n2v_no_val]
 careamist.train(train_data=train_data)  # (1)!
 
 # --8<-- [end:train_n2v_no_val]
+# %%
+# --8<-- [start:train_n2v_val]
+careamist.train(
+    train_data=train_data,
+    val_data=val_data,  # (1)!
+)
 
-careamist = CAREamistV2(config_care)
+# --8<-- [end:train_n2v_val]
+
+
+############################################
+################ CARE ######################
+
+# careamist = CAREamistV2(config_care)
 # %%
 # --8<-- [start:train_care_no_val]
 careamist.train(
@@ -61,14 +79,6 @@ careamist.train(
 
 # --8<-- [end:train_care_no_val]
 
-# %%
-# --8<-- [start:train_n2v_val]
-careamist.train(
-    train_data=train_data,
-    val_data=val_data,  # (1)!
-)
-
-# --8<-- [end:train_n2v_val]
 
 careamist = CAREamistV2(config_care)
 # %%
