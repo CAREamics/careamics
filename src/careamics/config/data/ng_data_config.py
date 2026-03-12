@@ -242,6 +242,9 @@ class NGDataConfig(BaseModel):
         ValueError
             If axes are not valid.
         """
+        if "data_type" not in info.data:
+            raise ValueError("`data_type` must be provided to validate axes.")
+
         # Additional validation for CZI files
         if info.data["data_type"] == "czi":
             if not check_czi_axes_validity(axes):
