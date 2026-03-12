@@ -167,7 +167,7 @@ class NGDataConfig(BaseModel):
     `True` for 'array', 'tiff' and `custom`, and `False` for 'zarr' and 'czi' data
     types."""
 
-    n_val_patches: int = Field(default=8, ge=1, validate_default=True)
+    n_val_patches: int = Field(default=8, ge=0, validate_default=True)
     """The number of patches to set aside for validation during training. This parameter
     will be ignored if separate validation data is specified for training."""
 
