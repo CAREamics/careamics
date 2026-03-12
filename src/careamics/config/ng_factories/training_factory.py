@@ -1,12 +1,10 @@
 """Convenience functions to create training configurations."""
 
-from dataclasses import asdict
 from typing import Any, Literal
 
 from careamics.config.ng_configs.ng_training_configuration import (
     NGTrainingConfig,
-    SelfSupervisedCheckpointing,
-    SupervisedCheckpointing,
+    default_training_dict,
 )
 
 
@@ -40,27 +38,14 @@ def create_training_configuration(
     NGTrainingConfig
         Training configuration with the specified parameters.
     """
-    # user parameters take precedence over defaults
-    # since resulting checkpointing behaviour depends on complex interactions between
-    # parameters, we keep either user defined or the defaults
-    if checkpoint_params is None:
-        # select default checkpointing preset based on algorithm
-        default_preset = (
-            SupervisedCheckpointing
-            if algorithm == "care"
-            else SelfSupervisedCheckpointing
-        )
-        default_checkpoint = asdict(default_preset())
-        checkpoint_params = default_checkpoint
-
     return NGTrainingConfig(
-        lightning_trainer_config=trainer_params,
-        logger=None if logger == "none" else logger,
-        checkpoint_callback=checkpoint_params,
-        early_stopping_callback={
-            "monitor": monitor_metric,
-            "mode": "min",
-        },
+        **default_training_dict(
+            algorithm=algorithm,
+            trainer_params=trainer_params,
+            logger=logger,
+            checkpoint_params=checkpoint_params,
+            monitor_metric=monitor_metric,
+        )
     )
 
 

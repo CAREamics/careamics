@@ -6,8 +6,11 @@ import pytest
 from pytorch_lightning import Callback, Trainer
 
 from careamics import CAREamist, Configuration
-from careamics.config import TrainingConfig
 from careamics.config.ng_configs import NGConfiguration
+from careamics.config.ng_configs.ng_training_configuration import (
+    NGTrainingConfig,
+    default_training_dict,
+)
 from careamics.config.ng_factories import (
     create_advanced_care_config,
     create_advanced_n2v_config,
@@ -475,17 +478,25 @@ def _checkpoint_trainer(request):
     """
     A trainer instance to save checkpoints, with and without CAREamicsCheckpointInfo.
     """
-    if request.param:
-        info_callback = CareamicsCheckpointInfo(
-            careamics_version="0.1.0",
-            experiment_name="testing",
-            training_config=TrainingConfig(),
-        )
-        callbacks: list[Callback] = [info_callback]
-    else:
-        info_callback = None
-        callbacks = []
-    return Trainer(max_epochs=1, callbacks=callbacks), info_callback
+
+    def _get_trainer_and_info(
+        algorithm: str,
+    ) -> tuple[Trainer, CareamicsCheckpointInfo | None]:
+        if request.param:
+            info_callback = CareamicsCheckpointInfo(
+                careamics_version="0.1.0",
+                experiment_name="testing",
+                training_config=NGTrainingConfig(
+                    **default_training_dict(algorithm=algorithm)
+                ),
+            )
+            callbacks: list[Callback] = [info_callback]
+        else:
+            info_callback = None
+            callbacks = []
+        return Trainer(max_epochs=1, callbacks=callbacks), info_callback
+
+    return _get_trainer_and_info
 
 
 @pytest.fixture(params=["n2v", "care"])
@@ -553,7 +564,7 @@ def checkpoint(
 
     module = module_cls(config.algorithm_config)
     dmodule = CareamicsDataModule(data_config=config.data_config, **data)
-    trainer, info_callback = _checkpoint_trainer
+    trainer, info_callback = _checkpoint_trainer(request.param)
     trainer.fit(model=module, datamodule=dmodule)
     ckpt_path = tmp_path / "checkpoint_test_fixture.ckpt"
     trainer.save_checkpoint(ckpt_path)
@@ -564,6 +575,8 @@ def checkpoint(
         config.training_config = info_callback.training_config
     else:
         config.experiment_name = _create_loaded_exp_name(ckpt_path)
-        config.training_config = TrainingConfig()
+        config.training_config = NGTrainingConfig(
+            **default_training_dict(request.param)
+        )
 
     return ckpt_path, module_cls, config

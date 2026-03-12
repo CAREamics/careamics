@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pprint import pformat
 from typing import Any, Literal
 
@@ -55,6 +55,96 @@ class SelfSupervisedCheckpointing:
 
     auto_insert_metric_name: bool = False
     """Do not insert the monitored value in the checkpoint name."""
+
+
+def default_training_dict(
+    algorithm: Literal["care", "n2n", "n2v"],
+    trainer_params: dict[str, Any] | None = None,
+    logger: Literal["wandb", "tensorboard", "none"] = "none",
+    checkpoint_params: dict[str, Any] | None = None,
+    monitor_metric: str = "val_loss",
+) -> dict:
+    """Default training configuration constructor.
+
+    This function sets default training parameters based on the algorithm configuration.
+    If the user provides any of the parameters, they will take precedence over the
+    defaults.
+
+    Parameters
+    ----------
+    algorithm : {"care", "n2n", "n2v"}
+        Algorithm type, used to select the default checkpointing preset.
+    trainer_params : dict, optional
+        Parameters for Lightning Trainer class, by default None.
+    logger : {"wandb", "tensorboard", "none"}, optional
+        Logger to use, by default "none".
+    checkpoint_params : dict, optional
+        Parameters for the checkpoint callback, by default None. If None, then default
+        parameters are applied based on the algorithm.
+    monitor_metric : str, optional
+        Metric to monitor for early stopping, by default "val_loss".
+
+    Returns
+    -------
+    dict
+        Training configuration dictionary with the specified parameters.
+    """
+    # user parameters take precedence over defaults
+    # since resulting checkpointing behaviour depends on complex interactions between
+    # parameters, we keep either user defined or the defaults
+    if checkpoint_params is None:
+        # select default checkpointing preset based on algorithm
+        default_preset = (
+            SupervisedCheckpointing
+            if algorithm == "care"
+            else SelfSupervisedCheckpointing
+        )
+        default_checkpoint = asdict(default_preset())
+        checkpoint_params = default_checkpoint
+
+    return {
+        "lightning_trainer_config": {} if trainer_params is None else trainer_params,
+        "logger": None if logger == "none" else logger,
+        "checkpoint_callback": checkpoint_params,
+        "early_stopping_callback": {
+            "monitor": monitor_metric,
+            "mode": "min",
+        },
+    }
+
+
+def default_training_factory(validated_dict: dict[str, Any]) -> NGTrainingConfig:
+    """Default training configuration constructor.
+
+    Parameters
+    ----------
+    validated_dict : dict
+        Validated configuration dictionary, used to set default training parameters
+        based on the algorithm configuration. This is expected to be passed by Pydantic
+        when calling the default constructor.
+
+    Returns
+    -------
+    NGTrainingConfig
+        Training configuration with the specified parameters.
+    """
+    key = "algorithm_config"
+
+    if key not in validated_dict:
+        raise ValueError(
+            "Algorithm configuration is required to set default training parameters."
+        )
+    algorithm = validated_dict[key].algorithm
+
+    # N2V algorithm has a monitor_metric parameter
+    monitor_metric = getattr(validated_dict[key], "monitor_metric", "val_loss")
+
+    return NGTrainingConfig(
+        **default_training_dict(
+            algorithm=algorithm,
+            monitor_metric=monitor_metric,
+        )
+    )
 
 
 class NGTrainingConfig(BaseModel):
