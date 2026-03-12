@@ -670,6 +670,11 @@ class CAREamistV2:
                 raise ValueError(
                     "A `write_func` must be provided for custom write types."
                 )
+        elif write_type == "zarr" and tile_size is None:
+            raise ValueError(
+                "Writing prediction to Zarr is only supported with tiling. Please "
+                "provide a value for `tile_size`, and optionally `tile_overlap`."
+            )
         else:
             write_func = get_write_func(write_type)
             write_extension = SupportedData.get_extension(write_type)
