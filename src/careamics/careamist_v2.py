@@ -170,7 +170,7 @@ class CAREamistV2:
         checkpoint_callback = ModelCheckpoint(
             dirpath=work_dir / "checkpoints" / config.get_safe_experiment_name(),
             filename=f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
-            **config.training_config.checkpoint_callback.model_dump(),
+            **config.training_config.checkpoint_callback,
         )
         checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.get_safe_experiment_name()}_last"        
         internal_callbacks: list[Callback] = [
@@ -189,7 +189,7 @@ class CAREamistV2:
         if config.training_config.early_stopping_callback is not None:
             internal_callbacks.append(
                 EarlyStopping(
-                    **config.training_config.early_stopping_callback.model_dump()
+                    **config.training_config.early_stopping_callback
                 )
             )
 
