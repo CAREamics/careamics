@@ -392,6 +392,13 @@ def create_advanced_n2v_config(
     if n_channels is None:
         n_channels = 1 if channels is None else len(channels)
 
+    # disabling validation
+    if n_val_patches == 0 and monitor_metric == "val_loss":
+        raise ValueError(
+            "When disabling validation (`n_val_patches==0`), set `monitor_metric` to "
+            '`"train_loss"` or `"train_loss_epoch"`.'
+        )
+
     # normalization
     norm_config = {"name": normalization}
     if normalization_params is not None:
