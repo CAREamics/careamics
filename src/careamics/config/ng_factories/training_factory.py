@@ -30,8 +30,8 @@ def create_training_configuration(
         Logger to use.
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
-        (`ModelCheckpoint`) for the list of available parameters. These override the
-        algorithm-specific defaults.
+        (`ModelCheckpoint`) for the list of available parameters. If `None`, then
+        default parameters are applied.
     monitor_metric : str, default="val_loss"
         Metric to monitor for early stopping.
 
@@ -40,20 +40,23 @@ def create_training_configuration(
     NGTrainingConfig
         Training configuration with the specified parameters.
     """
-    # Select default checkpointing preset based on algorithm
-    default_preset = (
-        SupervisedCheckpointing if algorithm == "care" else SelfSupervisedCheckpointing
-    )
-    default_checkpoint = asdict(default_preset())
-
-    # User overrides take precedence over defaults
-    if checkpoint_params is not None:
-        default_checkpoint.update(checkpoint_params)
+    # user parameters take precedence over defaults
+    # since resulting checkpointing behaviour depends on complex interactions between
+    # parameters, we keep either user defined or the defaults
+    if checkpoint_params is None:
+        # select default checkpointing preset based on algorithm
+        default_preset = (
+            SupervisedCheckpointing
+            if algorithm == "care"
+            else SelfSupervisedCheckpointing
+        )
+        default_checkpoint = asdict(default_preset())
+        checkpoint_params = default_checkpoint
 
     return NGTrainingConfig(
         lightning_trainer_config=trainer_params,
         logger=None if logger == "none" else logger,
-        checkpoint_callback=default_checkpoint,
+        checkpoint_callback=checkpoint_params,
         early_stopping_callback={
             "monitor": monitor_metric,
             "mode": "min",
