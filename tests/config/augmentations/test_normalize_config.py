@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config.transformations import NormalizeConfig
+from careamics.config.augmentations import NormalizeConfig
 from careamics.transforms import Normalize
 
 

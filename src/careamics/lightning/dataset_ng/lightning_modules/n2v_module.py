@@ -206,4 +206,5 @@ class N2VModule(L.LightningModule):
             optimizer_parameters=self.config.optimizer.parameters,
             lr_scheduler_name=self.config.lr_scheduler.name,
             lr_scheduler_parameters=self.config.lr_scheduler.parameters,
+            monitor=self.config.monitor_metric,
         )

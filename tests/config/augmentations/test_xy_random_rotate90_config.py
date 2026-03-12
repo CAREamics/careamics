@@ -1,4 +1,4 @@
-from careamics.config.transformations import XYRandomRotate90Config
+from careamics.config.augmentations import XYRandomRotate90Config
 from careamics.transforms import XYRandomRotate90
 
 

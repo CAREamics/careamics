@@ -3,15 +3,15 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
+from careamics.config.augmentations import (
+    N2VManipulateConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
+)
 from careamics.config.ng_configs import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedTransform,
-)
-from careamics.config.transformations import (
-    N2VManipulateConfig,
-    XYFlipConfig,
-    XYRandomRotate90Config,
 )
 
 from ..algorithms import N2VAlgorithm
@@ -226,6 +226,7 @@ def create_advanced_n2v_config(
     optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
     lr_scheduler_params: dict[str, Any] | None = None,
+    monitor_metric: Literal["train_loss", "train_loss_epoch", "val_loss"] = "val_loss",
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
@@ -345,6 +346,8 @@ def create_advanced_n2v_config(
     lr_scheduler_params : dict[str, Any] | None, default=None
         Parameters for the learning rate scheduler, see PyTorch documentation for more
         details.
+    monitor_metric : Literal["train_loss", "train_loss_epoch", "val_loss"]
+        Metric to monitor for the learning rate scheduler. Default: "val_loss".
     train_dataloader_params : dict[str, Any] | None, default=None
         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
         If left as `None`, `{"shuffle": True}` will be used.
@@ -463,6 +466,7 @@ def create_advanced_n2v_config(
         seed=seed,
     )
     algorithm_params["n2v_config"] = n2v_transform
+    algorithm_params["monitor_metric"] = monitor_metric
 
     # training
     final_trainer_params = update_trainer_params(

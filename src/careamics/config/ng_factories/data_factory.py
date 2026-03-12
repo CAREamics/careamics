@@ -3,12 +3,12 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
-from careamics.config.data import NGDataConfig
-from careamics.config.transformations import (
+from careamics.config.augmentations import (
     SPATIAL_TRANSFORMS_UNION,
     XYFlipConfig,
     XYRandomRotate90Config,
 )
+from careamics.config.data import NGDataConfig
 
 from ..utils.random import generate_random_seed
 
@@ -146,7 +146,7 @@ def create_ng_data_configuration(
         "axes": axes,
         "batch_size": batch_size,
         "channels": channels,
-        "transforms": augmentations,
+        "augmentations": augmentations,
         "n_val_patches": n_val_patches,
         "seed": seed,
         "normalization": (

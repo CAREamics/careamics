@@ -34,7 +34,8 @@ class CheckpointConfig(BaseModel):
     """When `True`, only the model's weights will be saved (model.save_weights)."""
 
     save_last: Literal[True, False, "link"] | None = Field(default=True)
-    """When `True`, saves a last.ckpt copy whenever a checkpoint file gets saved."""
+    """When `True`, saves a `{experiment_name}_last.ckpt` copy whenever a checkpoint
+    file gets saved."""
 
     save_top_k: int = Field(
         default=3,
@@ -53,7 +54,9 @@ class CheckpointConfig(BaseModel):
     """
 
     auto_insert_metric_name: bool = Field(default=False)
-    """When `True`, the checkpoints filenames will contain the metric name."""
+    """When `True`, the checkpoints filenames will contain the metric name. Note that
+    `val_loss` is already embedded in the default filename pattern and enabling this
+    field will produce redundant metric names in the filename."""
 
     every_n_train_steps: int | None = Field(default=None, ge=1, le=1000)
     """Number of training steps between checkpoints."""
