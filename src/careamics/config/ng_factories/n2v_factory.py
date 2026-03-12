@@ -317,7 +317,7 @@ def create_advanced_n2v_config(
         Strategy-specific normalization parameters. If None, default values are used.
         For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
         For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        For "quantile": {"lower_quantile": 0.01, "upper_quantile": 0.99} (optional)
+        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         For "none": No parameters needed.
     use_n2v2 : bool, default=False
         Whether to use N2V2.

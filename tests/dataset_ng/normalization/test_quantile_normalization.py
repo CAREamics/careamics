@@ -17,8 +17,8 @@ def test_clips_outliers():
         patching={"name": "whole"},
         normalization={
             "name": "quantile",
-            "lower_quantile": 0.01,
-            "upper_quantile": 0.99,
+            "lower_quantiles": 0.01,
+            "upper_quantiles": 0.99,
         },
     )
     dataset = create_dataset(config=config, inputs=[data], targets=None)
@@ -44,8 +44,8 @@ def test_per_channel_auto_computes_quantiles_multiple():
         patching={"name": "whole"},
         normalization={
             "name": "quantile",
-            "lower_quantile": [0.01, 0.05],
-            "upper_quantile": [0.99, 0.95],
+            "lower_quantiles": [0.01, 0.05],
+            "upper_quantiles": [0.99, 0.95],
             "per_channel": True,
         },
     )
@@ -76,8 +76,8 @@ def test_per_channel_auto_computes_quantiles():
         patching={"name": "whole"},
         normalization={
             "name": "quantile",
-            "lower_quantile": 0.01,
-            "upper_quantile": 0.99,
+            "lower_quantiles": 0.01,
+            "upper_quantiles": 0.99,
             "per_channel": True,
         },
     )
@@ -108,8 +108,8 @@ def test_global_auto_computes_quantiles():
         patching={"name": "whole"},
         normalization={
             "name": "quantile",
-            "lower_quantile": 0.01,
-            "upper_quantile": 0.99,
+            "lower_quantiles": 0.01,
+            "upper_quantiles": 0.99,
             "per_channel": False,
         },
     )
@@ -133,12 +133,12 @@ def test_scalar_config_values():
         patching={"name": "whole"},
         normalization={
             "name": "quantile",
-            "lower_quantile": 0.05,
-            "upper_quantile": 0.95,
+            "lower_quantiles": 0.05,
+            "upper_quantiles": 0.95,
         },
     )
-    assert config.normalization.lower_quantile == [0.05]
-    assert config.normalization.upper_quantile == [0.95]
+    assert config.normalization.lower_quantiless == [0.05]
+    assert config.normalization.upper_quantiless == [0.95]
 
     _ = create_dataset(config=config, inputs=[data], targets=None)
 
@@ -159,8 +159,8 @@ def test_global_stats_pools_across_channels():
         patching={"name": "whole"},
         normalization={
             "name": "quantile",
-            "lower_quantile": 0.01,
-            "upper_quantile": 0.99,
+            "lower_quantiless": 0.01,
+            "upper_quantiless": 0.99,
             "per_channel": False,
         },
     )
@@ -190,8 +190,8 @@ def test_per_channel_quantile_levels():
         patching={"name": "whole"},
         normalization={
             "name": "quantile",
-            "lower_quantile": [0.01, 0.10],
-            "upper_quantile": [0.99, 0.90],
+            "lower_quantiles": [0.01, 0.10],
+            "upper_quantiles": [0.99, 0.90],
         },
     )
     dataset = create_dataset(config=config, inputs=[data], targets=None)

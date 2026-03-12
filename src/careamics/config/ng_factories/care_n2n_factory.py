@@ -257,7 +257,7 @@ def create_advanced_care_config(
         Strategy-specific normalization parameters. If None, default values are used.
         For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
         For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        For "quantile": {"lower_quantile": 0.01, "upper_quantile": 0.99} (optional)
+        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         For "none": No parameters needed.
     num_workers : int, default=0
         Number of workers for data loading. Unless explicitly overridden in
@@ -402,7 +402,7 @@ def create_advanced_n2n_config(
         Strategy-specific normalization parameters. If None, default values are used.
         For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
         For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        For "quantile": {"lower_quantile": 0.01, "upper_quantile": 0.99} (optional)
+        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         For "none": No parameters needed.
     num_workers : int, default=0
         Number of workers for data loading. Unless explicitly overridden in
@@ -551,7 +551,7 @@ def _create_advanced_supervised_config(
         Strategy-specific normalization parameters. If None, default values are used.
         For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
         For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        For "quantile": {"lower_quantile": 0.01, "upper_quantile": 0.99} (optional)
+        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         For "none": No parameters needed.
     num_workers : int, default=0
         Number of workers for data loading. Unless explicitly overridden in
