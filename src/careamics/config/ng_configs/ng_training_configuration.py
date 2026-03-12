@@ -103,7 +103,7 @@ def default_training_dict(
         checkpoint_params = default_checkpoint
 
     return {
-        "lightning_trainer_config": {} if trainer_params is None else trainer_params,
+        "trainer_params": {} if trainer_params is None else trainer_params,
         "logger": None if logger == "none" else logger,
         "checkpoint_callback": checkpoint_params,
         "early_stopping_callback": {
@@ -153,9 +153,8 @@ class NGTrainingConfig(BaseModel):
 
     Attributes
     ----------
-    lightning_trainer_config : dict
-        Configuration for the PyTorch Lightning Trainer, following PyTorch Lightning
-        Trainer class.
+    trainer_params : dict
+        Parameters passed to the PyTorch Lightning Trainer class.
     logger : Literal["wandb", "tensorboard"] | None
         Additional Logger to use during training. If None, no logger will be used.
         Note that the `CAREamist` uses the `csv` logger regardless of the value of this
@@ -173,9 +172,8 @@ class NGTrainingConfig(BaseModel):
         validate_assignment=True,
     )
 
-    lightning_trainer_config: dict = Field(default={})
-    """Configuration for the PyTorch Lightning Trainer, following PyTorch Lightning
-    Trainer class"""
+    trainer_params: dict = Field(default={})
+    """Parameters passed to the PyTorch Lightning Trainer class"""
 
     logger: Literal["wandb", "tensorboard"] | None = None
     """Logger to use during training. If None, no logger will be used. Available

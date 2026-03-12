@@ -62,7 +62,7 @@ class CAREamistV2:
         self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
 
         enable_progress_bar = user_context.get("enable_progress_bar", True)
-        self.config.training_config.lightning_trainer_config["enable_progress_bar"] = (
+        self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
         )
         callbacks = user_context.get("callbacks", None)
@@ -82,7 +82,7 @@ class CAREamistV2:
             callbacks=[self.prediction_writer, *self.callbacks],
             default_root_dir=self.work_dir,
             logger=experiment_loggers,
-            **self.config.training_config.lightning_trainer_config or {},
+            **self.config.training_config.trainer_params or {},
         )
 
         self.train_datamodule: CareamicsDataModule | None = None
@@ -180,7 +180,7 @@ class CAREamistV2:
             ),
         ]
 
-        enable_progress_bar = config.training_config.lightning_trainer_config.get(
+        enable_progress_bar = config.training_config.trainer_params.get(
             "enable_progress_bar", True
         )
         if enable_progress_bar:
