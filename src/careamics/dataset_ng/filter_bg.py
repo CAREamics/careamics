@@ -1,9 +1,13 @@
 import numpy as np
 from tqdm import tqdm
 
+from careamics.utils import get_logger
+
 from .patch_extractor import PatchExtractor
 from .patch_filter.patch_filter_protocol import PatchFilterProtocol
 from .patching_strategies import StratifiedPatchingStrategy
+
+logger = get_logger("Patch filtering")
 
 
 def filter_background(
@@ -16,6 +20,8 @@ def filter_background(
     patch_size = patching_strategy.patch_size
     region_size = tuple(ps * 2 for ps in patch_size)
     all_grid_coords = patching_strategy.get_all_grid_coords().items()
+    n_patches = patching_strategy.n_patches
+    n_filtered = 0
     for (data_idx, sample_idx), grid_coords in tqdm(
         all_grid_coords, desc="Filtering background patches with filtering function."
     ):
@@ -33,7 +39,13 @@ def filter_background(
             )
             if patch_filter.filter_out(patch):
                 probs[coords] = bg_relative_prob
+                n_filtered += 1
         patching_strategy.set_region_probs(data_idx, sample_idx, probs)
+    reduced_patches = patching_strategy.n_patches
+    logger.info(
+        f"Found {n_filtered} background regions. Number of patches has been reduced to "
+        f"{reduced_patches} from {n_patches}."
+    )
 
 
 def filter_background_with_mask(
@@ -45,6 +57,8 @@ def filter_background_with_mask(
     patch_size = patching_strategy.patch_size
     region_size = tuple(ps * 2 for ps in patch_size)
     all_grid_coords = patching_strategy.get_all_grid_coords().items()
+    n_patches = patching_strategy.n_patches
+    n_filtered = 0
     for (data_idx, sample_idx), grid_coords in tqdm(
         all_grid_coords, desc="Filtering background patches with provided mask."
     ):
@@ -63,4 +77,10 @@ def filter_background_with_mask(
             mask_patch = mask_patch.astype(bool)
             if np.mean(mask_patch) < threshold_ratio:
                 probs[coords] = bg_relative_prob
+                n_filtered += 1
         patching_strategy.set_region_probs(data_idx, sample_idx, probs)
+    reduced_patches = patching_strategy.n_patches
+    logger.info(
+        f"Found {n_filtered} background regions. Number of patches has been reduced to "
+        f"{reduced_patches} from {n_patches}."
+    )
