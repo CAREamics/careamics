@@ -36,13 +36,6 @@ logger = get_logger(__name__)
 
 ExperimentLogger = TensorBoardLogger | WandbLogger | CSVLogger
 
-
-class UserContext(TypedDict, total=False):
-    work_dir: Path | str | None
-    callbacks: list[Callback] | None
-    enable_progress_bar: bool
-
-
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
@@ -312,7 +305,32 @@ class CAREamistV2:
         config: NGConfiguration[AlgorithmConfig],
         work_dir: Path,
     ) -> list[Callback]:
-        """"""
+        """Define callbacks for the training process.
+
+        Parameters
+        ----------
+        callbacks : list[Callback] | None
+            List of callbacks to use during training. If None, no additional callbacks
+            will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
+            already defined in CAREamics and instantiated in this method.
+        config : NGConfiguration[AlgorithmConfig]
+            The CAREamics configuration, used to instantiate the callbacks.
+        work_dir : Path
+            The working directory, used as a parameter to the checkpointing callback.
+
+        Returns
+        -------
+        list[Callback]
+            The list of callbacks to use during training.
+
+        Raises
+        ------
+        ValueError
+            If `ModelCheckpoint` or `EarlyStopping` callbacks are included in the
+            provided `callbacks` list, as these are already defined in CAREamics and
+            should only be modified through the training configuration (see
+            NGConfiguration and NGTrainingConfig).
+        """
         callbacks: list[Callback] = [] if callbacks is None else callbacks
         for c in callbacks:
             if isinstance(c, (ModelCheckpoint, EarlyStopping)):
@@ -360,6 +378,18 @@ class CAREamistV2:
     def _create_loggers(
         logger: str | None, experiment_name: str, work_dir: Path
     ) -> list[ExperimentLogger]:
+        """Create loggers for the experiment.
+
+        Parameters
+        ----------
+        logger : str | None
+            Logger to use during training. If None, no logger will be used. Available
+            loggers are defined in SupportedLogger.
+        experiment_name : str
+            Name of the experiment, used as a parameter to the loggers.
+        work_dir : Path
+            The working directory, used as a parameter to the loggers.
+        """
         csv_logger = CSVLogger(name=experiment_name, save_dir=work_dir / "csv_logs")
 
         if logger is not None:
