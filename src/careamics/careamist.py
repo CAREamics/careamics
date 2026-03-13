@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Literal, Union, overload
 
 import numpy as np
+import torch
 from numpy.typing import NDArray
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
@@ -35,7 +36,7 @@ from careamics.lightning import (
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.prediction_utils import convert_outputs
 from careamics.utils import check_path_exists, get_logger
-from careamics.utils.lightning_utils import read_csv_logger
+from careamics.utils.lightning_utils import _epoch_to_val_loss, read_csv_logger
 from careamics.utils.reshape_array import reshape_array
 
 logger = get_logger(__name__)
@@ -968,3 +969,93 @@ class CAREamist:
         return read_csv_logger(
             self.cfg.get_safe_experiment_name(), self.work_dir / "csv_logs"
         )
+
+    def _scan_checkpoints(self) -> list[dict]:
+        """Scan the checkpoint directory and return structured checkpoint info.
+
+        Returns
+        -------
+        list of dict
+            Each entry contains "epoch" (int), "val_loss" (float or None),
+            and "path" (Path). Sorted by epoch number. The last checkpoint
+            is excluded.
+        """
+        checkpoint_dir = (
+            self.work_dir / "checkpoints" / self.cfg.get_safe_experiment_name()
+        )
+        losses = read_csv_logger(
+            self.cfg.get_safe_experiment_name(), self.work_dir / "csv_logs"
+        )
+        epoch_to_loss = _epoch_to_val_loss(losses)
+
+        checkpoints = []
+        for ckpt_path in sorted(checkpoint_dir.glob("*.ckpt")):
+            if ckpt_path.stem.endswith("_last"):
+                continue
+            name = ckpt_path.stem
+            suffix = name[len(self.cfg.get_safe_experiment_name()) + 1 :]
+            try:
+                epoch = int(suffix.split("_")[0])
+            except ValueError:
+                continue
+            checkpoints.append(
+                {
+                    "epoch": epoch,
+                    "val_loss": epoch_to_loss.get(epoch),
+                    "path": ckpt_path,
+                }
+            )
+
+        return sorted(checkpoints, key=lambda x: x["epoch"])
+
+    def get_checkpoints(self) -> list[dict]:
+        """Return available checkpoints with their epoch and validation loss.
+
+        Scans the checkpoint directory for saved checkpoints matching the
+        experiment's naming pattern and joins them with validation losses
+        from the CSV log. Prints a summary table to stdout.
+
+        Returns
+        -------
+        list of dict
+            Each entry contains "epoch" (int), "val_loss" (float or None),
+            and "path" (Path). Sorted by epoch number. The last checkpoint
+            is excluded.
+        """
+        checkpoints = self._scan_checkpoints()
+        header = f"{'Epoch':>8}  {'Val Loss':>12}  Path"
+        print(header)
+        print("-" * len(header))
+        for ckpt in checkpoints:
+            loss_str = (
+                f"{ckpt['val_loss']:.6f}" if ckpt["val_loss"] is not None else "N/A"
+            )
+            print(f"{ckpt['epoch']:>8}  {loss_str:>12}  {ckpt['path'].name}")
+        return checkpoints
+
+    def load_checkpoint(self, epoch: int) -> None:
+        """Load model weights from the checkpoint saved at the given epoch.
+
+        This restores only the model weights (state_dict).
+        Use this to switch between saved checkpoints for inference or evaluation.
+
+        Parameters
+        ----------
+        epoch : int
+            Epoch number of the checkpoint to load.
+
+        Raises
+        ------
+        ValueError
+            If no checkpoint exists for the given epoch.
+        """
+        checkpoints = self._scan_checkpoints()
+        matches = [c for c in checkpoints if c["epoch"] == epoch]
+        if not matches:
+            available = [c["epoch"] for c in checkpoints]
+            raise ValueError(
+                f"No checkpoint found for epoch {epoch}. "
+                f"Available epochs: {available}."
+            )
+        checkpoint = torch.load(matches[0]["path"], map_location="cpu")
+        self.model.load_state_dict(checkpoint["state_dict"])
