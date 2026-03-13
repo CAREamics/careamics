@@ -240,7 +240,6 @@ def test_propagate_seed():
 
     assert config.seed == global_seed
     assert config.patching.seed == global_seed
-    assert config.patch_filter.seed == global_seed
     for transform in config.transforms:
         assert transform.seed == global_seed
 

@@ -16,7 +16,7 @@ from careamics.config.support.supported_filters import (
 from careamics.dataset_ng.image_stack import GenericImageStack
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 
-from .mask_filter import MaskCoordFilter
+from .mask_filter import MaskFilter
 from .max_filter import MaxPatchFilter
 from .mean_std_filter import MeanStdPatchFilter
 from .shannon_filter import ShannonPatchFilter
@@ -28,11 +28,11 @@ PatchFilter = Union[
 ]
 
 
-CoordFilter = Union[MaskCoordFilter]
+CoordFilter = Union[MaskFilter]
 
 
-def create_coord_filter(
-    filter_model: FilterConfig, mask: PatchExtractor[GenericImageStack]
+def create_mask_filter(
+    filter_config: MaskFilterConfig, mask: PatchExtractor[GenericImageStack]
 ) -> CoordFilter:
     """Factory function to create coordinate filter instances based on the filter name.
 
@@ -48,19 +48,15 @@ def create_coord_filter(
     CoordFilter
         Instance of the mask patch filter.
     """
-    if filter_model.name == SupportedCoordinateFilters.MASK:
-        assert isinstance(filter_model, MaskFilterConfig)
-        return MaskCoordFilter(
-            mask_extractor=mask,
-            coverage=filter_model.coverage,
-            p=filter_model.p,
-            seed=filter_model.seed,
+    if filter_config.name == SupportedCoordinateFilters.MASK:
+        return MaskFilter(
+            mask_extractor=mask, **filter_config.model_dump(exclude={"name"})
         )
     else:
-        raise ValueError(f"Unknown filter name: {filter_model}")
+        raise ValueError(f"Unknown filter name: {filter_config}")
 
 
-def create_patch_filter(filter_model: FilterConfig) -> PatchFilter:
+def create_patch_filter(filter_config: FilterConfig) -> PatchFilter:
     """Factory function to create patch filter instances based on the filter name.
 
     Parameters
@@ -73,23 +69,14 @@ def create_patch_filter(filter_model: FilterConfig) -> PatchFilter:
     PatchFilter
         Instance of the requested patch filter.
     """
-    if filter_model.name == SupportedPatchFilters.MAX:
-        assert isinstance(filter_model, MaxFilterConfig)
-        return MaxPatchFilter(
-            threshold=filter_model.threshold, p=filter_model.p, seed=filter_model.seed
-        )
-    elif filter_model.name == SupportedPatchFilters.MEANSTD:
-        assert isinstance(filter_model, MeanSTDFilterConfig)
-        return MeanStdPatchFilter(
-            mean_threshold=filter_model.mean_threshold,
-            std_threshold=filter_model.std_threshold,
-            p=filter_model.p,
-            seed=filter_model.seed,
-        )
-    elif filter_model.name == SupportedPatchFilters.SHANNON:
-        assert isinstance(filter_model, ShannonFilterConfig)
-        return ShannonPatchFilter(
-            threshold=filter_model.threshold, p=filter_model.p, seed=filter_model.seed
-        )
+    if filter_config.name == SupportedPatchFilters.MAX:
+        assert isinstance(filter_config, MaxFilterConfig)
+        return MaxPatchFilter(**filter_config.model_dump(exclude={"name"}))
+    elif filter_config.name == SupportedPatchFilters.MEANSTD:
+        assert isinstance(filter_config, MeanSTDFilterConfig)
+        return MeanStdPatchFilter(**filter_config.model_dump(exclude={"name"}))
+    elif filter_config.name == SupportedPatchFilters.SHANNON:
+        assert isinstance(filter_config, ShannonFilterConfig)
+        return ShannonPatchFilter(**filter_config.model_dump(exclude={"name"}))
     else:
-        raise ValueError(f"Unknown filter name: {filter_model}")
+        raise ValueError(f"Unknown filter name: {filter_config}")

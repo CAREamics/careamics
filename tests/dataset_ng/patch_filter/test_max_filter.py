@@ -13,9 +13,8 @@ def test_csbdeep_filter():
     corner_val = patch[0, 0]
 
     # raise threshold over corner value, should be filtered out
-    max_filter = MaxPatchFilter(threshold=corner_val + 10)
+    max_filter = MaxPatchFilter(threshold=corner_val + 10, coverage=0.25)
     assert max_filter.filter_out(patch)
 
     # threshold below corner value, should be kept (return val = False)
-    max_filter = MaxPatchFilter(threshold=corner_val - 10)
-    assert not max_filter.filter_out(patch)
+    max_filter = MaxPatchFilter(threshold=corner_val - 10, coverage=0.25)

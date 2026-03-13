@@ -1,6 +1,6 @@
 """Base class for patch and coordinate filtering models."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class FilterConfig(BaseModel):
@@ -9,8 +9,5 @@ class FilterConfig(BaseModel):
     name: str
     """Name of the filter."""
 
-    p: float = Field(1.0, ge=0.0, le=1.0)
-    """Probability of applying the filter to a patch or coordinate."""
-
-    seed: int | None = Field(default=None, gt=0)
-    """Seed for the random number generator for reproducibility."""
+    filter_ref_channel: int = 0
+    """The channel to use as reference for filtering."""

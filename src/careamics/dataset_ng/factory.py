@@ -25,7 +25,7 @@ from .image_stack_loader import (
     load_zarrs,
 )
 from .patch_extractor import LimitFilesPatchExtractor, PatchExtractor
-from .patch_filter import create_patch_filter
+from .patch_filter import create_mask_filter, create_patch_filter
 from .patching_strategies import StratifiedPatchingStrategy, create_patching_strategy
 from .val_split import create_val_split
 
@@ -284,24 +284,20 @@ def create_train_dataset(
             patching_strategy,
             input_extractor,
             patch_filter,
-            config.filter_ref_channel,
             config.filtered_patch_prob,
         )
     # if both masks and patch_filter are present they are both applied
-    if mask_extractor is not None:
+    if mask_extractor is not None and config.mask_filter is not None:
         if not isinstance(patching_strategy, StratifiedPatchingStrategy):
             raise TypeError(
                 "Mask filtering is only compatible with stratified "
                 f"patching. Found {config.patching.name} patching in the configuration."
             )
 
-        ndims = 3 if config.is_3D() else 2
-        threshold_ratio = 1 / 2**ndims  # TODO: make parametrizable ?
+        mask_filter = create_mask_filter(config.mask_filter, mask_extractor)
         filter_background_with_mask(
             patching_strategy,
-            mask_extractor,
-            threshold_ratio,
-            config.filtered_patch_prob,
+            mask_filter,
         )
 
     return CareamicsDataset(

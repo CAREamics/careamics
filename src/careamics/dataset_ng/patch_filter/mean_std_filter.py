@@ -21,25 +21,19 @@ class MeanStdPatchFilter(PatchFilterProtocol):
         Threshold for the mean of the patch.
     std_threshold : float
         Threshold for the standard deviation of the patch.
-    p : float
-        Probability of applying the filter to a patch.
-    rng : np.random.Generator
-        Random number generator for stochastic filtering.
     """
 
     def __init__(
         self,
         mean_threshold: float,
         std_threshold: float | None = None,
-        p: float = 1.0,
-        seed: int | None = None,
+        ref_channel: int = 0,
     ) -> None:
         """
         Create a MeanStdPatchFilter.
 
         This filter removes patches whose mean and standard deviation are both below
-        specified thresholds. The filtering is applied with a probability `p`, allowing
-        for stochastic filtering.
+        specified thresholds.
 
         Parameters
         ----------
@@ -48,10 +42,6 @@ class MeanStdPatchFilter(PatchFilterProtocol):
         std_threshold : float | None, default=None
             Threshold for the standard deviation of the patch. If None, then no
             standard deviation filtering is applied.
-        p : float, default=1
-            Probability of applying the filter to a patch. Must be between 0 and 1.
-        seed : int | None, default=None
-            Seed for the random number generator for reproducibility.
 
         Raises
         ------
@@ -59,22 +49,16 @@ class MeanStdPatchFilter(PatchFilterProtocol):
             If mean_threshold or std_threshold is negative.
         ValueError
             If std_threshold is negative.
-        ValueError
-            If p is not between 0 and 1.
         """
 
         if mean_threshold < 0:
             raise ValueError("Mean threshold must be non-negative.")
         if std_threshold is not None and std_threshold < 0:
             raise ValueError("Std threshold must be non-negative.")
-        if not (0 <= p <= 1):
-            raise ValueError("Probability p must be between 0 and 1.")
 
         self.mean_threshold = mean_threshold
         self.std_threshold = std_threshold
-
-        self.p = p
-        self.rng = np.random.default_rng(seed)
+        self.ref_channel = ref_channel
 
     def filter_out(self, patch: np.ndarray) -> bool:
         """
@@ -90,15 +74,12 @@ class MeanStdPatchFilter(PatchFilterProtocol):
         bool
             True if the patch should be filtered out, False otherwise.
         """
+        patch_mean = np.mean(patch[self.ref_channel])
+        patch_std = np.std(patch[self.ref_channel])
 
-        if self.rng.uniform(0, 1) < self.p:
-            patch_mean = np.mean(patch)
-            patch_std = np.std(patch)
-
-            return (patch_mean < self.mean_threshold) or (
-                self.std_threshold is not None and patch_std < self.std_threshold
-            )
-        return False
+        return (patch_mean < self.mean_threshold).item() or (
+            self.std_threshold is not None and (patch_std < self.std_threshold).item()
+        )
 
     @staticmethod
     def filter_map(image: np.ndarray, patch_size: Sequence[int]) -> np.ndarray:

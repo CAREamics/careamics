@@ -25,18 +25,12 @@ class MaxPatchFilter(PatchFilterProtocol):
     ----------
     threshold : float
         Threshold for the maximum filter of the patch.
-    p : float
-        Probability of applying the filter to a patch.
-    rng : np.random.Generator
-        Random number generator for stochastic filtering.
+    coverage : float
+        Ratio of pixels that must be above threshold for patch to be filtered out.
     """
 
     def __init__(
-        self,
-        threshold: float,
-        p: float = 1.0,
-        threshold_ratio: float = 0.25,
-        seed: int | None = None,
+        self, threshold: float, coverage: float | None, ref_channel: int = 0
     ) -> None:
         """
         Create a MaxPatchFilter.
@@ -50,28 +44,38 @@ class MaxPatchFilter(PatchFilterProtocol):
             Threshold for the maximum filter of the patch.
         p : float, default=1
             Probability of applying the filter to a patch. Must be between 0 and 1.
-        threshold_ratio : float, default=0.25
-            Ratio of pixels that must be below threshold for patch to be filtered out.
-            Must be between 0 and 1.
+        coverage : float | None, default=None
+            Ratio of pixels that must be above threshold for patch to be filtered out.
+            Must be between 0 and 1. If `None` then `1/(2**ndims)` is used where `ndims`
+            is the number of spatial dimensions.
         seed : int | None, default=None
             Seed for the random number generator for reproducibility.
+
+        Raises
+        ------
+        ValueError
+            If coverage is not between 0 and 1.
         """
+        if coverage is not None and not (0 <= coverage <= 1):
+            raise ValueError("Argument `coverage` must be between 0 and 1.")
         self.threshold = threshold
-        self.threshold_ratio = threshold_ratio
-        self.p = p
-        self.rng = np.random.default_rng(seed)
+        self.coverage = coverage
+        self.ref_channel = ref_channel
 
     def filter_out(self, patch: np.ndarray) -> bool:
-        if self.rng.uniform(0, 1) < self.p:
+        if self.coverage is None:
+            ndims = patch.ndim - 1  # subtract channels dim
+            coverage = 1 / (2**ndims)
+        else:
+            coverage = self.coverage
 
-            if np.max(patch) < self.threshold:
-                return True
+        patch = patch[self.ref_channel]
+        if np.max(patch) < self.threshold:
+            return True
 
-            patch_shape = [(p // 2 if p > 1 else 1) for p in patch.shape]
-            filtered = maximum_filter(patch, patch_shape, mode="constant")
-            return np.mean(filtered < self.threshold) > self.threshold_ratio
-
-        return False
+        patch_shape = [(p // 2 if p > 1 else 1) for p in patch.shape]
+        filtered = maximum_filter(patch, patch_shape, mode="constant")
+        return (np.mean(filtered > self.threshold) < coverage).item()
 
     @staticmethod
     def filter_map(
