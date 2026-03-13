@@ -692,8 +692,9 @@ If you want to overried the CAREamics defaults, set `checkpoint_params`.
 ### Noise2Void without validation
 
 Since validation is not strictly necessary for Noise2Void, it is possible to train
-without validation data and without automatic splitting of the training data. To do so,
-a few parameters need to be set in the configuration.
+without validation data and without automatic splitting of the training data, thus
+making the overall training faster. To do so, a few parameters need to be set in the
+configuration.
 
 ```python title="Training Noise2Void without validation"
 --8<-- "configuration_lightning.py:adv_config_n2v_no_val"
@@ -702,6 +703,11 @@ a few parameters need to be set in the configuration.
 1. We tell the trian/val splitting module to split `0` validation patches.
 2. We set the monitoring of the learning rate scheduler to `train_loss_epoch`.
 3. Finally, we disable the validation step in PyTorch Lightning.
+
+!!! note "Removing validation in other algorithms"
+
+    Do not remove validation for CARE! In supervised training, validation is critical
+    to assess whether the network has trained meaningfully.
 
 
 ## Saving and loading

@@ -26,11 +26,10 @@ algorithm_config:
     name: N2VManipulate
     roi_size: 11
     masked_pixel_percentage: 0.2
-    remove_center: true
     strategy: uniform
     struct_mask_axis: none
     struct_mask_span: 5
-    seed: 826551208
+    seed: 1737531218
 data_config:
   data_type: tiff
   axes: ZYX

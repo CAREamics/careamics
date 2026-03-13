@@ -32,7 +32,6 @@ config = create_advanced_n2v_config(
     num_epochs=30,
     n_val_patches=0,  # (1)!
     monitor_metric="train_loss_epoch",  # (2)!
-    trainer_params={"limit_val_batches": 0, "num_sanity_val_steps": 0},  # (3)!
 )
 # --8<-- [end:adv_config_n2v_no_val]
 
