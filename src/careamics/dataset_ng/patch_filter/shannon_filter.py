@@ -20,15 +20,9 @@ class ShannonPatchFilter(PatchFilterProtocol):
     ----------
     threshold : float
         Threshold for the Shannon entropy of the patch.
-    p : float
-        Probability of applying the filter to a patch.
-    rng : np.random.Generator
-        Random number generator for stochastic filtering.
     """
 
-    def __init__(
-        self, threshold: float, p: float = 1.0, seed: int | None = None
-    ) -> None:
+    def __init__(self, threshold: float, ref_channel: int = 0) -> None:
         """
         Create a ShannonEntropyFilter.
 
@@ -48,18 +42,12 @@ class ShannonPatchFilter(PatchFilterProtocol):
         ------
         ValueError
             If threshold is negative.
-        ValueError
-            If p is not between 0 and 1.
         """
         if threshold < 0:
             raise ValueError("Threshold must be non-negative.")
-        if not (0 <= p <= 1):
-            raise ValueError("Probability p must be between 0 and 1.")
 
         self.threshold = threshold
-
-        self.p = p
-        self.rng = np.random.default_rng(seed)
+        self.ref_channel = ref_channel
 
     def filter_out(self, patch: np.ndarray) -> bool:
         """
@@ -75,9 +63,7 @@ class ShannonPatchFilter(PatchFilterProtocol):
         bool
             True if the patch should be filtered out, False otherwise.
         """
-        if self.rng.uniform(0, 1) < self.p:
-            return shannon_entropy(patch) < self.threshold
-        return False
+        return (shannon_entropy(patch[self.ref_channel]) < self.threshold).item()
 
     @staticmethod
     def filter_map(

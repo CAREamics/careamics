@@ -2,7 +2,7 @@ import numpy as np
 
 from careamics.dataset_ng.image_stack_loader import load_arrays
 from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patch_filter import MaskCoordFilter
+from careamics.dataset_ng.patch_filter import MaskFilter
 from careamics.dataset_ng.patching_strategies import PatchSpecs
 
 # TODO test probability of application
@@ -15,7 +15,7 @@ def test_filter():
     mask[size // 4 : -size // 4, size // 4 : -size // 4] = 1
 
     image_stacks = load_arrays(source=[mask], axes="YX")
-    mask_filter = MaskCoordFilter(
+    mask_filter = MaskFilter(
         mask_extractor=PatchExtractor(image_stacks),
         coverage=0.50,
     )

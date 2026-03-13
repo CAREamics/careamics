@@ -1,11 +1,10 @@
-import numpy as np
 from tqdm import tqdm
 
 from careamics.utils import get_logger
 
 from .patch_extractor import PatchExtractor
-from .patch_filter.patch_filter_protocol import PatchFilterProtocol
-from .patching_strategies import StratifiedPatchingStrategy
+from .patch_filter import MaskFilter, PatchFilterProtocol
+from .patching_strategies import PatchSpecs, StratifiedPatchingStrategy
 
 logger = get_logger("Patch filtering")
 
@@ -14,7 +13,6 @@ def filter_background(
     patching_strategy: StratifiedPatchingStrategy,
     input_extractor: PatchExtractor,
     patch_filter: PatchFilterProtocol,
-    ref_channel: int,
     bg_relative_prob: float = 0.1,
 ) -> None:
     patch_size = patching_strategy.patch_size
@@ -30,10 +28,9 @@ def filter_background(
             region_coords = tuple(
                 ps * c for ps, c in zip(patch_size, coords, strict=True)
             )
-            patch = input_extractor.extract_channel_patch(
+            patch = input_extractor.extract_patch(
                 data_idx,
                 sample_idx=sample_idx,
-                channels=[ref_channel],
                 coords=region_coords,
                 patch_size=region_size,
             )
@@ -50,8 +47,7 @@ def filter_background(
 
 def filter_background_with_mask(
     patching_strategy: StratifiedPatchingStrategy,
-    mask_extractor: PatchExtractor,
-    threshold_ratio: float,
+    mask_filter: MaskFilter,
     bg_relative_prob: float = 0.1,
 ) -> None:
     patch_size = patching_strategy.patch_size
@@ -67,15 +63,13 @@ def filter_background_with_mask(
             region_coords = tuple(
                 ps * c for ps, c in zip(patch_size, coords, strict=True)
             )
-            mask_patch = mask_extractor.extract_channel_patch(
-                data_idx,
+            region_specs = PatchSpecs(
+                data_idx=data_idx,
                 sample_idx=sample_idx,
-                channels=None,
                 coords=region_coords,
                 patch_size=region_size,
             )
-            mask_patch = mask_patch.astype(bool)
-            if np.mean(mask_patch) < threshold_ratio:
+            if mask_filter.filter_out(region_specs):
                 probs[coords] = bg_relative_prob
                 n_filtered += 1
         patching_strategy.set_region_probs(data_idx, sample_idx, probs)
