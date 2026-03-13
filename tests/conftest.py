@@ -478,6 +478,7 @@ def _checkpoint_trainer(request):
     """
     A trainer instance to save checkpoints, with and without CAREamicsCheckpointInfo.
     """
+
     def _get_trainer_and_info(
         algorithm: str,
     ) -> tuple[Trainer, CareamicsCheckpointInfo | None]:
