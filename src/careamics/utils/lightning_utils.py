@@ -33,7 +33,6 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
 
         header = lines[0].strip().split(",")
         metrics: dict[str, list] = {value: [] for value in header}
-        print(metrics)
 
         for single_line in lines[1:]:
             values = single_line.strip().split(",")
@@ -69,3 +68,20 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
         "train_loss": train_losses,
         "val_loss": val_losses,
     }
+
+
+def _epoch_to_val_loss(losses: dict) -> dict[int, float]:
+    """Return a mapping of epoch number to validation loss.
+
+    Parameters
+    ----------
+    losses : dict
+        Dictionary as returned by `read_csv_logger`, containing keys
+        "val_epoch" and "val_loss".
+
+    Returns
+    -------
+    dict of int: float
+        Mapping from epoch number to validation loss.
+    """
+    return dict(zip(losses["val_epoch"], losses["val_loss"], strict=False))
