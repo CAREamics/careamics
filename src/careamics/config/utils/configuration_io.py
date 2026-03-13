@@ -53,7 +53,7 @@ def load_configuration_ng(path: Union[str, Path]) -> NGConfigs:
 
     Returns
     -------
-    NGConfigs
+    Configuration
         Configuration.
 
     Raises
