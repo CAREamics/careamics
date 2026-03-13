@@ -81,7 +81,7 @@ class CAREamistV2:
         List of callbacks to use during training. If None, no additional callbacks
         will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
         already defined in CAREamics and should only be modified through the
-        training configuration (see NGConfiguration and NGTrainingConfig).
+        training configuration (see NGConfiguration and TrainingConfig).
     enable_progress_bar : bool, default=True
         Whether to show the progress bar during training.
     """
@@ -121,7 +121,7 @@ class CAREamistV2:
             List of callbacks to use during training. If None, no additional callbacks
             will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
             already defined in CAREamics and should only be modified through the
-            training configuration (see NGConfiguration and NGTrainingConfig).
+            training configuration (see NGConfiguration and TrainingConfig).
         enable_progress_bar : bool, default=True
             Whether to show the progress bar during training.
         """
@@ -329,7 +329,7 @@ class CAREamistV2:
             If `ModelCheckpoint` or `EarlyStopping` callbacks are included in the
             provided `callbacks` list, as these are already defined in CAREamics and
             should only be modified through the training configuration (see
-            NGConfiguration and NGTrainingConfig).
+            NGConfiguration and TrainingConfig).
         """
         callbacks: list[Callback] = [] if callbacks is None else callbacks
         for c in callbacks:
@@ -337,7 +337,7 @@ class CAREamistV2:
                 raise ValueError(
                     "`ModelCheckpoint` and `EarlyStopping` callbacks are already "
                     "defined in CAREamics and should only be modified through the "
-                    "training configuration (see NGTrainingConfig)."
+                    "training configuration (see TrainingConfig)."
                 )
 
             if isinstance(c, (CareamicsCheckpointInfo, ProgressBarCallback)):
