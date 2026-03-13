@@ -21,8 +21,32 @@ from careamics.lightning.dataset_ng.lightning_modules import CAREModule, N2VModu
 from careamics.lightning.dataset_ng.load_checkpoint import _create_loaded_exp_name
 from careamics.model_io import export_to_bmz
 
-# TODO add details about where each of these fixture is used (e.g. smoke test)
-# TODO move each fixture to relevant conftest in subfolders
+############################################################
+# Importing fixtures for new test structure
+############################################################
+
+# currently limited to fixtures used in the on-going tests
+# refactoring, also avoid them being removed by pre-commit
+__all__ = [
+    "coord_filter_config",
+    "minimum_mode_data_cfg",
+    "minimum_train_data_cfg",
+    "patch_filter_config",
+    "patching_config",
+]
+
+from .fixtures.data_configuration_fixtures import (
+    coord_filter_config,
+    minimum_mode_data_cfg,
+    minimum_train_data_cfg,
+    patch_filter_config,
+    patching_config,
+)
+
+############################################################
+# Old fixtures below, kept for backwards compatibility, need
+# refactoring and cleaning.
+############################################################
 
 
 # Allows CI to run on macos-latest gh runner
