@@ -177,7 +177,7 @@ def _resolve_quantile_levels(
     the number of channels and the levels are broadcast accordingly.
     """
     if not norm_config.per_channel:
-        return norm_config.lower_quantile, norm_config.upper_quantile
+        return norm_config.lower_quantiles, norm_config.upper_quantiles
 
     first_spec = patching_strategy.get_patch_spec(0)
     first_patch = extractor.extract_channel_patch(
@@ -189,8 +189,8 @@ def _resolve_quantile_levels(
     )
     n_channels = first_patch.shape[0]
     return (
-        broadcast_stats(norm_config.lower_quantile, n_channels, "lower_quantile"),
-        broadcast_stats(norm_config.upper_quantile, n_channels, "upper_quantile"),
+        broadcast_stats(norm_config.lower_quantiles, n_channels, "lower_quantiles"),
+        broadcast_stats(norm_config.upper_quantiles, n_channels, "upper_quantiles"),
     )
 
 

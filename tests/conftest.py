@@ -478,13 +478,12 @@ def _checkpoint_trainer(request):
     """
     A trainer instance to save checkpoints, with and without CAREamicsCheckpointInfo.
     """
-
     def _get_trainer_and_info(
         algorithm: str,
     ) -> tuple[Trainer, CareamicsCheckpointInfo | None]:
         if request.param:
             info_callback = CareamicsCheckpointInfo(
-                careamics_version="0.1.0",
+                careamics_version="0.2.0",
                 experiment_name="testing",
                 training_config=NGTrainingConfig(
                     **default_training_dict(algorithm=algorithm)
