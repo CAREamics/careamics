@@ -361,7 +361,9 @@ def pre_trained(tmp_path, minimum_n2v_configuration):
     careamist.train(train_source=train_array)
 
     # check that it trained
-    pre_trained_path: Path = tmp_path / "checkpoints" / "last.ckpt"
+    pre_trained_path: Path = (
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    )
     assert pre_trained_path.exists()
 
     return pre_trained_path
@@ -395,7 +397,7 @@ def pre_trained_v2(tmp_path):
     careamist.train(train_data=train_array)
 
     # check that it trained
-    pre_trained_path: Path = tmp_path / "checkpoints" / "last.ckpt"
+    pre_trained_path: Path = tmp_path / "checkpoints" / "test_last.ckpt"
     assert pre_trained_path.exists()
 
     return pre_trained_path
@@ -475,7 +477,7 @@ def _checkpoint_trainer(request):
     """
     if request.param:
         info_callback = CareamicsCheckpointInfo(
-            careamics_version="0.1.0",
+            careamics_version="0.2.0",
             experiment_name="testing",
             training_config=TrainingConfig(),
         )

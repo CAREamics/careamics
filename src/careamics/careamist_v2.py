@@ -74,7 +74,7 @@ class CAREamistV2:
 
         experiment_loggers = self._create_loggers(
             self.config.training_config.logger,
-            self.config.experiment_name,
+            self.config.get_safe_experiment_name(),
             self.work_dir,
         )
 
@@ -167,14 +167,16 @@ class CAREamistV2:
                     "internally and should not be passed as callbacks."
                 )
 
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=work_dir / "checkpoints" / config.get_safe_experiment_name(),
+            filename=f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
+            **config.training_config.checkpoint_callback.model_dump(),
+        )
+        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.get_safe_experiment_name()}_last"        
         internal_callbacks: list[Callback] = [
-            ModelCheckpoint(
-                dirpath=work_dir / "checkpoints",
-                filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
-                **config.training_config.checkpoint_callback.model_dump(),
-            ),
+            checkpoint_callback,
             CareamicsCheckpointInfo(
-                config.version, config.experiment_name, config.training_config
+                config.version, config.get_safe_experiment_name(), config.training_config
             ),
         ]
 
@@ -295,6 +297,20 @@ class CAREamistV2:
         """
         if train_data is None:
             raise ValueError("Training data must be provided. Provide `train_data`.")
+
+        if self.config.is_supervised() and train_data_target is None:
+            raise ValueError(
+                f"Training target data must be provided for supervised training (got "
+                f"{self.config.get_algorithm_friendly_name()} algorithm). Provide "
+                f"`train_data_target`."
+            )
+
+        if self.config.is_supervised() and val_data is not None and val_data_target is None:
+            raise ValueError(
+                f"Validation target data must be provided for supervised training (got "
+                f"{self.config.get_algorithm_friendly_name()} algorithm). Provide "
+                f"`val_data_target`."
+            )
 
         datamodule = CareamicsDataModule(
             data_config=self.config.data_config,
@@ -654,6 +670,11 @@ class CAREamistV2:
                 raise ValueError(
                     "A `write_func` must be provided for custom write types."
                 )
+        elif write_type == "zarr" and tile_size is None:
+            raise ValueError(
+                "Writing prediction to Zarr is only supported with tiling. Please "
+                "provide a value for `tile_size`, and optionally `tile_overlap`."
+            )
         else:
             write_func = get_write_func(write_type)
             write_extension = SupportedData.get_extension(write_type)
@@ -701,7 +722,7 @@ class CAREamistV2:
         data_description: str,
         covers: list[Path | str] | None = None,
         channel_names: list[str] | None = None,
-        model_version: str = "0.1.0",
+        model_version: str = "0.2.0",
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
@@ -771,7 +792,7 @@ class CAREamistV2:
         dict of str: list
             Dictionary containing losses for each epoch.
         """
-        return read_csv_logger(self.config.experiment_name, self.work_dir / "csv_logs")
+        return read_csv_logger(self.config.get_safe_experiment_name(), self.work_dir / "csv_logs")
 
     def stop_training(self) -> None:
         """Stop the training loop."""

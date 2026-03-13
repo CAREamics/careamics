@@ -7,6 +7,7 @@ import pytest
 import tifffile
 
 from careamics.careamist_v2 import CAREamistV2
+from careamics.config.ng_factories.care_n2n_factory import create_advanced_care_config
 from careamics.config.ng_factories.n2v_factory import create_advanced_n2v_config
 
 
@@ -16,7 +17,7 @@ def random_array(shape: tuple[int, ...], seed: int = 42):
     return (rng.integers(0, 255, shape)).astype(np.float32)
 
 
-def test_v2_train_error_no_data(tmp_path: Path):
+def test_train_error_no_data(tmp_path: Path):
     """Test that a ValueError is raised when no training data is provided."""
     config = create_advanced_n2v_config(
         experiment_name="test",
@@ -34,6 +35,33 @@ def test_v2_train_error_no_data(tmp_path: Path):
         careamist.train()
 
 
+def test_train_error_no_target_data(tmp_path: Path):
+    """Test that a ValueError is raised when no training data is provided."""
+    train_array = np.ones((32, 32))
+    train_target_array = np.ones((32, 32))
+    val_array = np.ones((32, 32))
+
+    config = create_advanced_care_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=1,
+    )
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+
+    with pytest.raises(ValueError, match="Training target data must be provided"):
+        careamist.train(train_data=train_array, val_data=val_array)
+    with pytest.raises(ValueError, match="Validation target data must be provided"):
+        careamist.train(
+            train_data=train_array,
+            train_data_target=train_target_array,
+            val_data=val_array,
+        )
+
+
+# TODO since this happens in the LightningModule, this test should be removed
 def test_target_unsupported_warning_n2v(tmp_path: Path):
     """Test that a warning is emitted when a target is provided for N2V."""
     config = create_advanced_n2v_config(
@@ -80,7 +108,7 @@ def test_v2_train_array(tmp_path: Path):
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
 
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
 
 
 @pytest.mark.mps_gh_fail
@@ -108,7 +136,7 @@ def test_v2_train_array_channel(tmp_path: Path, independent_channels: bool):
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
 
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
 
 
 @pytest.mark.mps_gh_fail
@@ -131,7 +159,7 @@ def test_v2_train_array_3d(tmp_path: Path):
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
 
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
 
 
 @pytest.mark.mps_gh_fail
@@ -160,7 +188,7 @@ def test_v2_train_tiff_in_memory(tmp_path: Path):
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_file, val_data=val_file)
 
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
 
 
 @pytest.mark.mps_gh_fail
@@ -190,7 +218,7 @@ def test_v2_train_tiff_not_in_memory(tmp_path: Path):
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_file, val_data=val_file)
 
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
 
 
 def test_init_from_checkpoint(tmp_path: Path, checkpoint):

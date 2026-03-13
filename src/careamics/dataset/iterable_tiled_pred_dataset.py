@@ -13,8 +13,8 @@ from careamics.file_io.read import read_tiff
 from careamics.transforms import Compose
 
 from ..config import InferenceConfig
+from ..config.augmentations import NormalizeConfig
 from ..config.data.tile_information import TileInformation
-from ..config.transformations import NormalizeConfig
 from .dataset_utils import iterate_over_files
 from .tiling import extract_tiles
 

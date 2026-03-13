@@ -22,7 +22,7 @@ from pydantic import (
 
 from careamics.utils import BaseEnum
 
-from ..transformations import XYFlipConfig, XYRandomRotate90Config
+from ..augmentations import XYFlipConfig, XYRandomRotate90Config
 from ..utils.random import generate_random_seed
 from ..validators import check_axes_validity, check_czi_axes_validity
 from .normalization_config import NormalizationConfig
@@ -167,7 +167,7 @@ class NGDataConfig(BaseModel):
     `True` for 'array', 'tiff' and `custom`, and `False` for 'zarr' and 'czi' data
     types."""
 
-    n_val_patches: int = Field(default=8, ge=1, validate_default=True)
+    n_val_patches: int = Field(default=8, ge=0, validate_default=True)
     """The number of patches to set aside for validation during training. This parameter
     will be ignored if separate validation data is specified for training."""
 
@@ -186,14 +186,14 @@ class NGDataConfig(BaseModel):
     """Number of consecutive patches not passing the filter before accepting the next
     patch."""
 
-    transforms: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
+    augmentations: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
         default=(
             XYFlipConfig(),
             XYRandomRotate90Config(),
         ),
         validate_default=True,
     )
-    """List of transformations to apply to the data, available transforms are defined
+    """List of augmentations to apply to the data, available transforms are defined
     in SupportedTransform."""
 
     train_dataloader_params: dict[str, Any] = Field(
@@ -242,6 +242,12 @@ class NGDataConfig(BaseModel):
         ValueError
             If axes are not valid.
         """
+        if "data_type" not in info.data:
+            raise ValueError(
+                "Validation for `data_type` may have failed. Check for typos or "
+                "missing field."
+            )
+
         # Additional validation for CZI files
         if info.data["data_type"] == "czi":
             if not check_czi_axes_validity(axes):
@@ -437,6 +443,44 @@ class NGDataConfig(BaseModel):
             )
         return filter_obj
 
+    @field_validator(
+        "train_dataloader_params",
+        "val_dataloader_params",
+        "pred_dataloader_params",
+        mode="after",
+    )
+    @classmethod
+    def batch_size_not_in_dataloader_params(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Validate that `batch_size` is not set in the dataloader parameters.
+
+        `batch_size` must be set through `batch_size` field, not
+        through the dataloader parameters.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The validated dataloader parameters.
+
+        Raises
+        ------
+        ValueError
+            If `batch_size` is present in the dataloader parameters.
+        """
+        if "batch_size" in dataloader_params:
+            raise ValueError(
+                "`batch_size` should not be set in the dataloader parameters. "
+                "Use the `batch_size` field of `NGDataConfig` instead."
+            )
+        return dataloader_params
+
     @field_validator("train_dataloader_params")
     @classmethod
     def shuffle_train_dataloader(
@@ -545,12 +589,12 @@ class NGDataConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def propagate_seed_to_transforms(self: Self) -> Self:
+    def propagate_seed_to_augmentations(self: Self) -> Self:
         """
-        Propagate the main seed to all transforms that support seeds.
+        Propagate the main seed to all augmentations that support seeds.
 
-        This ensures that all transforms use the same seed for reproducibility,
-        unless they already have a seed explicitly set.
+        This ensures that all augmentations use the same seed for
+         reproducibility, unless they already have a seed explicitly set.
 
         Returns
         -------
@@ -558,7 +602,7 @@ class NGDataConfig(BaseModel):
             Data model with propagated seeds.
         """
         if self.seed is not None:
-            for transform in self.transforms:
+            for transform in self.augmentations:
                 if hasattr(transform, "seed") and transform.seed is None:
                     transform.seed = self.seed
         return self

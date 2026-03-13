@@ -4,7 +4,7 @@ from typing import Union, cast
 
 from numpy.typing import NDArray
 
-from careamics.config.transformations import NORM_AND_SPATIAL_UNION
+from careamics.config.augmentations import NORM_AND_SPATIAL_UNION
 
 from .normalize import Normalize
 from .transform import Transform
