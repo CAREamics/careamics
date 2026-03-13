@@ -170,7 +170,7 @@ def create_advanced_care_config(
     # advanced parameters
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
-    independent_channels: bool = True,
+    independent_channels: bool = False,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     # - Lightning parameters
@@ -249,7 +249,7 @@ def create_advanced_care_config(
         for `array`.
     channels : Sequence[int] | None, default=None
         List of channels to use. If `None`, all channels are used.
-    independent_channels : bool, default=True
+    independent_channels : bool, default=False
         Whether to train all channels independently.
     normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
         Normalization strategy to use.
@@ -462,7 +462,7 @@ def _create_advanced_supervised_config(
     # advanced parameters
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
-    independent_channels: bool = True,
+    independent_channels: bool = False,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     # - Lightning parameters
@@ -543,7 +543,7 @@ def _create_advanced_supervised_config(
         for `array`.
     channels : Sequence[int] | None, default=None
         List of channels to use. If `None`, all channels are used.
-    independent_channels : bool, default=True
+    independent_channels : bool, default=False
         Whether to train all channels independently.
     normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
         Normalization strategy to use.
