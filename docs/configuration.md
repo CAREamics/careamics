@@ -701,8 +701,8 @@ configuration.
 ```
 
 1. We tell the trian/val splitting module to split `0` validation patches.
-2. We set the monitoring of the learning rate scheduler to `train_loss_epoch`.
-3. Finally, we disable the validation step in PyTorch Lightning.
+2. We set the monitoring of the learning rate scheduler to `train_loss_epoch` to avoid
+an error.
 
 !!! note "Removing validation in other algorithms"
 
