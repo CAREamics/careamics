@@ -226,7 +226,7 @@ def minimum_training() -> dict:
     """
     # create dictionary
     training = {
-        "trainer_params": {"max_epochs": 1},
+        "lightning_trainer_config": {"max_epochs": 1},
     }
 
     return training
