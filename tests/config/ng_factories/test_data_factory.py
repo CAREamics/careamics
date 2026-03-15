@@ -9,6 +9,7 @@ from careamics.config.data import NGDataConfig
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.ng_factories.data_factory import (
     create_ng_data_configuration,
+    get_default_num_workers,
     list_spatial_augmentations,
 )
 from careamics.config.support import SupportedTransform
@@ -86,3 +87,32 @@ class TestNGDataConfiguration:
         )
 
         assert isinstance(config.patching, StratifiedPatchingConfig)
+
+    def test_num_workers_explicit(self):
+        """Test that an explicit num_workers value is passed through unchanged."""
+        config: NGDataConfig = create_ng_data_configuration(
+            data_type="array",
+            axes="YX",
+            patch_size=(16, 16),
+            batch_size=1,
+            num_workers=4,
+        )
+
+        assert config.train_dataloader_params["num_workers"] == 4
+        assert config.val_dataloader_params["num_workers"] == 4
+        assert config.pred_dataloader_params["num_workers"] == 4
+
+    def test_num_workers_auto_detect(self):
+        """Test that num_workers=-1 resolves to get_default_num_workers() value."""
+        expected = get_default_num_workers()
+        config: NGDataConfig = create_ng_data_configuration(
+            data_type="array",
+            axes="YX",
+            patch_size=(16, 16),
+            batch_size=1,
+            num_workers=-1,
+        )
+
+        assert config.train_dataloader_params["num_workers"] == expected
+        assert config.val_dataloader_params["num_workers"] == expected
+        assert config.pred_dataloader_params["num_workers"] == expected
