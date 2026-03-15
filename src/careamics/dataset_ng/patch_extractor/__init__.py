@@ -1,3 +1,5 @@
+"""Patch extractors and construction for dataset_ng."""
+
 __all__ = [
     "LimitFilesPatchExtractor",
     "PatchExtractor",

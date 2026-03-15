@@ -1,3 +1,5 @@
+"""Protocol and types for patch normalization."""
+
 from typing import Protocol
 
 import torch

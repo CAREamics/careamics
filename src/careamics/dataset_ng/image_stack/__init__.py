@@ -1,3 +1,5 @@
+"""Image stack implementations and protocol for dataset_ng."""
+
 __all__ = [
     "CziImageStack",
     "FileImageStack",

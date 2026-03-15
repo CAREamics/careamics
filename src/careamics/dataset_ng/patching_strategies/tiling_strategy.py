@@ -9,9 +9,16 @@ from .patching_strategy_protocol import TileSpecs
 
 class TilingStrategy:
     """
-    The tiling strategy should be used for prediction. The `get_patch_specs`
-    method returns `TileSpec` dictionaries that contains information on how to
-    stitch the tiles back together to create the full image.
+    Tiling strategy for prediction; get_patch_specs returns TileSpecs for stitching.
+
+    Parameters
+    ----------
+    data_shapes : sequence of (sequence of int)
+        Shapes of the underlying data (axes SC(Z)YX).
+    patch_size : sequence of int
+        Tile size per spatial dimension (length 2 or 3).
+    overlaps : sequence of int
+        Overlap with adjacent tiles per spatial dimension.
     """
 
     def __init__(
@@ -21,9 +28,7 @@ class TilingStrategy:
         overlaps: Sequence[int],
     ):
         """
-        The tiling strategy should be used for prediction. The `get_patch_specs`
-        method returns `TileSpec` dictionaries that contains information on how to
-        stitch the tiles back together to create the full image.
+        Initialize tiling strategy for prediction; get_patch_specs returns TileSpecs.
 
         Parameters
         ----------
@@ -48,6 +53,11 @@ class TilingStrategy:
         The number of patches that this patching strategy will return.
 
         It also determines the maximum index that can be given to `get_patch_spec`.
+
+        Returns
+        -------
+        int
+            Number of patches.
         """
         return len(self.tile_specs)
 
@@ -92,6 +102,13 @@ class TilingStrategy:
         ]
 
     def _generate_specs(self) -> list[TileSpecs]:
+        """Build the full list of tile specs from data shapes, patch size, and overlaps.
+
+        Returns
+        -------
+        list of TileSpecs
+            Full list of tile specs.
+        """
         tile_specs: list[TileSpecs] = []
         for data_idx, data_shape in enumerate(self.data_shapes):
             spatial_shape = data_shape[2:]
@@ -144,7 +161,7 @@ class TilingStrategy:
         axis_size: int, patch_size: int, overlap: int
     ) -> tuple[list[int], list[int], list[int], list[int]]:
         """
-        Computes the TileSpec information for a single axis.
+        Compute the TileSpec information for a single axis.
 
         Parameters
         ----------

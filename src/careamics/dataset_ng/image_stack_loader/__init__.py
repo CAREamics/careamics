@@ -1,3 +1,5 @@
+"""Image stack loaders and protocol for dataset_ng."""
+
 __all__ = [
     "ImageStackLoader",
     "load_arrays",

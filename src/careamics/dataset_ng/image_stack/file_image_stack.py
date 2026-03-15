@@ -1,3 +1,5 @@
+"""File-backed image stack; data loaded on demand."""
+
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Self
@@ -14,10 +16,29 @@ from .image_utils.image_stack_utils import channel_slice, pad_patch
 
 class FileImageStack:
     """
-    An ImageStack implementation for data that is coming from a file.
+    ImageStack implementation for file-backed data; load on demand via load().
 
-    The data will not be loaded until the `load` method is called. The `close` method
-    can be used to remove the internal reference to the data.
+    Parameters
+    ----------
+    source : Path
+        Path to the file.
+    axes : str
+        Axis order (e.g. STCZYX).
+    data_shape : tuple of int
+        Shape in SC(Z)YX order.
+    data_dtype : DTypeLike
+        NumPy dtype of the data.
+    read_func : ReadFunc
+        Function to read the file into an array.
+    read_kwargs : dict or Any, optional
+        Extra keyword arguments for read_func.
+    original_data_shape : tuple of int or None, optional
+        Shape in original axis order.
+
+    Notes
+    -----
+    The data will not be loaded until the `load` method is called. The `close`
+    method can be used to remove the internal reference to the data.
     """
 
     def __init__(
@@ -30,6 +51,25 @@ class FileImageStack:
         read_kwargs: dict[str, Any] | Any = None,
         original_data_shape: tuple[int, ...] | None = None,
     ):
+        """Initialize file-backed image stack; data is loaded on demand via load().
+
+        Parameters
+        ----------
+        source : Path
+            Path to the file.
+        axes : str
+            Axis order (e.g. STCZYX).
+        data_shape : tuple of int
+            Shape in SC(Z)YX order after transformation.
+        data_dtype : DTypeLike
+            NumPy dtype of the data.
+        read_func : ReadFunc
+            Function to read the file into an array.
+        read_kwargs : dict or Any, optional
+            Extra keyword arguments passed to read_func.
+        original_data_shape : tuple of int or None, optional
+            Shape in original axis order before transformation.
+        """
         self.source = source
         self.axes = axes
         self.data_shape = data_shape
@@ -48,6 +88,24 @@ class FileImageStack:
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
+        """Extract a patch at the given sample, channels, coords, and size; load first.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Sample index.
+        channels : sequence of int or None
+            Channel indices; None for all.
+        coords : sequence of int
+            Patch start coordinates.
+        patch_size : sequence of int
+            Patch size per spatial dimension.
+
+        Returns
+        -------
+        NDArray
+            Patch data C(Z)YX.
+        """
         if self._data is None:
             raise ValueError(
                 "Cannot extract patch because data has not been loaded from "
@@ -103,16 +161,35 @@ class FileImageStack:
 
     @property
     def is_loaded(self):
+        """True if the file has been loaded into memory.
+
+        Returns
+        -------
+        bool
+            True if the file has been loaded into memory, False otherwise.
+        """
         return self._data is not None
 
     @property
     def original_data_shape(self) -> tuple[int, ...]:
-        """Original shape of the data."""
+        """Original shape of the data.
+
+        Returns
+        -------
+        tuple of int
+            Shape in original axis order.
+        """
         return self._original_data_shape
 
     @property
     def original_axes(self) -> str:
-        """Original axes of the data."""
+        """Original axes of the data.
+
+        Returns
+        -------
+        str
+            Axis order string (e.g. STCZYX).
+        """
         return self.axes
 
     @classmethod

@@ -1,3 +1,5 @@
+"""No-op normalization that returns patches unchanged."""
+
 from typing import Any
 
 import numpy as np

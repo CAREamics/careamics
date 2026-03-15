@@ -1,3 +1,5 @@
+"""Mean/std normalization for patches."""
+
 import numpy as np
 import torch
 from numpy.typing import NDArray
@@ -35,6 +37,19 @@ class MeanStdNormalization(NormalizationProtocol):
         target_means: list[float] | None = None,
         target_stds: list[float] | None = None,
     ):
+        """Store mean/std for input and optional target normalization.
+
+        Parameters
+        ----------
+        input_means : list of float
+            Input mean(s).
+        input_stds : list of float
+            Input std(s).
+        target_means : list of float or None, optional
+            Target mean(s).
+        target_stds : list of float or None, optional
+            Target std(s).
+        """
         self.input_means = input_means
         self.input_stds = input_stds
         self.target_means = target_means

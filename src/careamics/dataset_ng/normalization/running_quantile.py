@@ -1,3 +1,5 @@
+"""Running quantile estimation for normalization stats."""
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -24,6 +26,19 @@ class QuantileEstimator:
         n_bins: int = 65536,
         margin: float = 0.1,
     ):
+        """Initialize histograms and bounds for streaming quantile estimation.
+
+        Parameters
+        ----------
+        lower_quantiles : list of float
+            Lower quantile per channel.
+        upper_quantiles : list of float
+            Upper quantile per channel.
+        n_bins : int, optional
+            Number of histogram bins.
+        margin : float, optional
+            Fractional margin for histogram range.
+        """
         self.n_bins = n_bins
         self.n_channels = len(lower_quantiles)
         self.margin = margin
@@ -41,6 +56,22 @@ class QuantileEstimator:
     def _rebin_histogram(
         self, old_hist: NDArray, old_edges: NDArray, new_edges: NDArray
     ) -> NDArray:
+        """Rebin histogram from old_edges to new_edges, preserving total count.
+
+        Parameters
+        ----------
+        old_hist : NDArray
+            Original histogram counts.
+        old_edges : NDArray
+            Original bin edges.
+        new_edges : NDArray
+            New bin edges.
+
+        Returns
+        -------
+        NDArray
+            Rebinned histogram.
+        """
         new_hist = np.zeros(len(new_edges) - 1, dtype=np.int64)
         old_total = np.sum(old_hist)
 
@@ -102,6 +133,13 @@ class QuantileEstimator:
         return new_hist
 
     def update(self, patch: NDArray) -> None:
+        """Update histograms and bounds with one patch (C(Z)YX).
+
+        Parameters
+        ----------
+        patch : NDArray
+            Patch with shape C(Z)YX.
+        """
         flattened_patch = patch.reshape(self.n_channels, -1)
 
         for ch in range(self.n_channels):
@@ -148,6 +186,20 @@ class QuantileEstimator:
             self.histograms[ch] += hist
 
     def _calculate_quantile(self, ch: int, quantile: float) -> float:
+        """Compute a single quantile for channel ch from its histogram.
+
+        Parameters
+        ----------
+        ch : int
+            Channel index.
+        quantile : float
+            Quantile in [0, 1].
+
+        Returns
+        -------
+        float
+            Quantile value.
+        """
         if self.total_counts[ch] == 0:
             return 0.0
 
@@ -175,6 +227,13 @@ class QuantileEstimator:
         return float(bin_start + fraction * (bin_end - bin_start))
 
     def finalize(self) -> tuple[NDArray, NDArray]:
+        """Return (lower_quantiles, upper_quantiles) arrays per channel.
+
+        Returns
+        -------
+        tuple of NDArray
+            (lower_quantiles, upper_quantiles) per channel.
+        """
         lower = np.array(
             [
                 self._calculate_quantile(ch, self.lower_quantiles[ch])

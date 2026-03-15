@@ -1,23 +1,55 @@
+"""Whole-sample patching: one patch per sample (full image)."""
+
 from collections.abc import Sequence
 
 from .patching_strategy_protocol import PatchSpecs
 
 
 class WholeSamplePatchingStrategy:
-    # TODO: warn this strategy should only be used with batch size = 1
-    #   for the case of multiple image stacks with different dimensions
+    """Patching strategy that returns one patch per sample (whole image).
 
-    # TODO: docs
+    Parameters
+    ----------
+    data_shapes : sequence of (sequence of int)
+        Shapes of the underlying data (axes SC(Z)YX).
+    """
+
     def __init__(self, data_shapes: Sequence[Sequence[int]]):
+        """Initialize from data shapes (SC(Z)YX per stack).
+
+        Parameters
+        ----------
+        data_shapes : sequence of (sequence of int)
+            Shapes of the underlying data (axes SC(Z)YX).
+        """
         self.data_shapes = data_shapes
 
         self.patch_specs: list[PatchSpecs] = self._initialize_patch_specs()
 
     @property
     def n_patches(self) -> int:
+        """Total number of patches (one per sample).
+
+        Returns
+        -------
+        int
+            Number of patches.
+        """
         return len(self.patch_specs)
 
     def get_patch_spec(self, index: int) -> PatchSpecs:
+        """Return the patch spec for the given index.
+
+        Parameters
+        ----------
+        index : int
+            Patch index.
+
+        Returns
+        -------
+        PatchSpecs
+            Patch spec for that index.
+        """
         return self.patch_specs[index]
 
     # Note: this is used by the FileIterSampler
@@ -46,6 +78,13 @@ class WholeSamplePatchingStrategy:
         ]
 
     def _initialize_patch_specs(self) -> list[PatchSpecs]:
+        """Build one patch spec per sample (coords=0, patch_size=spatial shape).
+
+        Returns
+        -------
+        list of PatchSpecs
+            One spec per sample.
+        """
         patch_specs: list[PatchSpecs] = []
         for data_idx, data_shape in enumerate(self.data_shapes):
             spatial_shape = data_shape[2:]

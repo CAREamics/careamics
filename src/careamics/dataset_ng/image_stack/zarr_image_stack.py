@@ -1,3 +1,5 @@
+"""Zarr-backed image stack for dataset_ng."""
+
 from collections.abc import Sequence
 
 import zarr
@@ -10,10 +12,30 @@ from .image_utils.image_stack_utils import channel_slice, pad_patch
 
 class ZarrImageStack:
     """
-    A class for extracting patches from an image stack that is stored as a zarr array.
+    Image stack backed by a zarr array.
+
+    Parameters
+    ----------
+    group : zarr.Group
+        Zarr group containing the array.
+    data_path : str
+        Key/path to the array within the group.
+    axes : str
+        Axis order (e.g. STCZYX).
     """
 
     def __init__(self, group: zarr.Group, data_path: str, axes: str):
+        """Initialize zarr-backed image stack.
+
+        Parameters
+        ----------
+        group : zarr.Group
+            Zarr group containing the array.
+        data_path : str
+            Key/path to the array within the group.
+        axes : str
+            Axis order (e.g. STCZYX).
+        """
         if not isinstance(group, zarr.Group):
             raise TypeError(f"group must be a zarr.Group instance, got {type(group)}.")
 
@@ -47,34 +69,70 @@ class ZarrImageStack:
         self._chunk_size = self._array.chunks
         self._shard_size = self._array.shards
 
-    # Used to identify the source of the data and write to similar path during pred
     @property
     def source(self) -> str:
-        # e.g. file://data/bsd68.zarr/train/
+        """Source path of the zarr array (e.g. for writing predictions).
+
+        Returns
+        -------
+        str
+            Source path.
+        """
         return str(self._source)
 
     @property
     def chunks(self) -> Sequence[int]:
-        """Chunks size in the order of data_shape (SC(Z)YX)."""
+        """Return chunk size in the order of data_shape (SC(Z)YX).
+
+        Returns
+        -------
+        Sequence[int]
+            Chunk size per dimension.
+        """
         return self._chunk_size
 
     @property
     def shards(self) -> Sequence[int] | None:
-        """Shard size in the order of data_shape (SC(Z)YX)."""
+        """Shard size in the order of data_shape (SC(Z)YX).
+
+        Returns
+        -------
+        Sequence[int] or None
+            Shard size per dimension, or None.
+        """
         return self._shard_size
 
     @property
     def data_dtype(self) -> DTypeLike:
+        """Data dtype of the array.
+
+        Returns
+        -------
+        DTypeLike
+            NumPy dtype of the data.
+        """
         return self._data_dtype
 
     @property
     def original_data_shape(self) -> tuple[int, ...]:
-        """Original shape of the data."""
+        """Original shape of the data.
+
+        Returns
+        -------
+        tuple of int
+            Shape in original axis order.
+        """
         return self._original_data_shape
 
     @property
     def original_axes(self) -> str:
-        """Original axes of the data."""
+        """Original axes of the data.
+
+        Returns
+        -------
+        str
+            Axis order string.
+        """
         return self._original_axes
 
     def extract_patch(
@@ -84,6 +142,24 @@ class ZarrImageStack:
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
+        """Extract a patch; indices are mapped from SC(Z)YX to original axis order.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Sample index.
+        channels : sequence of int or None
+            Channel indices; None for all.
+        coords : sequence of int
+            Patch start coordinates.
+        patch_size : sequence of int
+            Patch size per spatial dimension.
+
+        Returns
+        -------
+        NDArray
+            Patch data C(Z)YX.
+        """
         # original axes assumed to be any subset of STCZYX (containing YX), in any order
         # arguments must be transformed to index data in original axes order
         # to do this: loop through original axes and append correct index/slice
@@ -141,7 +217,18 @@ class ZarrImageStack:
         return patch
 
     def _get_T_index(self, sample_idx: int) -> int:
-        """Get T index given `sample_idx`."""
+        """Get T index given `sample_idx`.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Flat sample index (S*T or S).
+
+        Returns
+        -------
+        int
+            Index along the T axis.
+        """
         if "T" not in self._original_axes:
             raise ValueError("No 'T' axis specified in original data axes.")
         axis_idx = self._original_axes.index("T")
@@ -155,7 +242,18 @@ class ZarrImageStack:
         return sample_idx % dim
 
     def _get_S_index(self, sample_idx: int) -> int:
-        """Get S index given `sample_idx`."""
+        """Get S index given `sample_idx`.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Flat sample index (S*T or S).
+
+        Returns
+        -------
+        int
+            Index along the S axis.
+        """
         if "S" not in self._original_axes:
             raise ValueError("No 'S' axis specified in original data axes.")
         if "T" in self._original_axes:

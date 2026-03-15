@@ -1,3 +1,5 @@
+"""Zarr path and URI utilities for dataset_ng loaders."""
+
 import warnings
 from pathlib import Path
 from urllib.parse import urlparse

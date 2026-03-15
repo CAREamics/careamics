@@ -1,3 +1,5 @@
+"""Utility functions to construct image stack objects from different sources."""
+
 from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -27,14 +29,15 @@ def load_arrays(source: Sequence[NDArray[Any]], axes: str) -> list[InMemoryImage
 
     Parameters
     ----------
-    source: sequence of numpy.ndarray
+    source : sequence of numpy.ndarray
         The source arrays of the data.
-    axes: str
+    axes : str
         The original axes of the data, must be a subset of "STCZYX".
 
     Returns
     -------
     list[InMemoryImageStack]
+        Image stacks created from the input arrays.
     """
     return [InMemoryImageStack.from_array(data=array, axes=axes) for array in source]
 
@@ -46,14 +49,15 @@ def load_tiffs(source: Sequence[Path], axes: str) -> list[InMemoryImageStack]:
 
     Parameters
     ----------
-    source: sequence of Path
+    source : sequence of Path
         The source files for the data.
-    axes: str
+    axes : str
         The original axes of the data, must be a subset of "STCZYX".
 
     Returns
     -------
     list[InMemoryImageStack]
+        Image stacks created from the TIFF files.
     """
     return [InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source]
 
@@ -67,14 +71,15 @@ def load_iter_tiff(source: Sequence[Path], axes: str) -> list[FileImageStack]:
 
     Parameters
     ----------
-    source: sequence of Path
+    source : sequence of Path
         The source files for the data.
-    axes: str
+    axes : str
         The original axes of the data, must be a subset of "STCZYX".
 
     Returns
     -------
     list[FileImageStack]
+        Lazily loaded image stacks backed by the TIFF files.
     """
     return [FileImageStack.from_tiff(path=path, axes=axes) for path in source]
 
@@ -92,9 +97,9 @@ def load_custom_file(
 
     Parameters
     ----------
-    source: sequence of Path
+    source : sequence of Path
         The source files for the data.
-    axes: str
+    axes : str
         The original axes of the data, must be a subset of "STCZYX".
     read_func : ReadFunc
         A function to read the custom file type, see the `ReadFunc` protocol.
@@ -104,6 +109,7 @@ def load_custom_file(
     Returns
     -------
     list[InMemoryImageStack]
+        Image stacks created from the custom files.
     """
     # TODO: lazy loading custom files
     return [
@@ -143,7 +149,6 @@ def load_zarrs(
     list of ZarrImageStack
         A list of ZarrImageStack created from the sources.
     """
-
     image_stacks: list[ZarrImageStack] = []
 
     for data_source in source:
@@ -233,9 +238,9 @@ def load_czis(
 
     Parameters
     ----------
-    source: sequence of Path
+    source : sequence of Path
         The source files for the data.
-    axes: str
+    axes : str
         Specifies which axes of the data to use and how.
         If this string ends with `"ZYX"` or `"TYX"`, the data will consist of 3-D
         patches, using `Z` or `T` as third dimension, respectively.
@@ -244,6 +249,7 @@ def load_czis(
     Returns
     -------
     list[CziImageStack]
+        Image stacks created from the CZI files.
 
     Raises
     ------

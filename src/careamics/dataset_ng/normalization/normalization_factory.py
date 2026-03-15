@@ -1,3 +1,5 @@
+"""Factory to build normalization transforms from config."""
+
 from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.support import SupportedNormalization
 
