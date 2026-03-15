@@ -35,7 +35,7 @@ T = TypeVar("T")
 
 @dataclass
 class ReadFuncLoading:
-    """Loading specification using a custom read function (full image into memory)."""
+    """Loading specification using a custom read function."""
 
     read_source_func: ReadFunc
     read_kwargs: dict[str, Any] | None = None
@@ -44,7 +44,7 @@ class ReadFuncLoading:
 
 @dataclass
 class ImageStackLoading:
-    """Loading specification using a custom image stack loader (chunked / memory-mapped)."""
+    """Loading spec. for a custom image stack loader (chunked / memory-mapped)."""
 
     image_stack_loader: ImageStackLoader[..., ImageStack]
     image_stack_loader_kwargs: dict[str, Any] | None = None
@@ -163,12 +163,12 @@ def init_patch_extractor(
     source: Any,
     axes: str,
 ) -> PatchExtractor[GenericImageStack]:
-    """Build a patch extractor by loading image stacks from the source and instantiating the given class.
+    """Build a patch extractor by loading image stacks from the source.
 
     Parameters
     ----------
     patch_extractor : type[PatchExtractor]
-        The PatchExtractor class to instantiate (e.g. PatchExtractor or LimitFilesPatchExtractor).
+        The PatchExtractor class to instantiate (e.g. PatchExtractor).
     image_stack_loader : ImageStackLoader
         Callable that takes (source, axes) and returns a list of image stacks.
     source : Any
@@ -217,7 +217,7 @@ def select_image_stack_loader(
     in_memory: bool,
     loading: ReadFuncLoading | ImageStackLoading | None = None,
 ) -> ImageStackLoader[..., ImageStack]:
-    """Select the image stack loader function for the given data type and loading options.
+    """Select image stack loader function for the given data type and loading options.
 
     Parameters
     ----------
@@ -324,7 +324,7 @@ def create_val_split_datasets(
     loading: Loading,
     rng: np.random.Generator,
 ) -> tuple[CareamicsDataset[ImageStack], CareamicsDataset[ImageStack]]:
-    """Create train and validation datasets by splitting validation patches from training data.
+    """Create train and validation datasets by splitting from training data.
 
     Requires stratified patching in config.
 

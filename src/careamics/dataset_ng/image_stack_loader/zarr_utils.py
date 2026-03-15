@@ -66,7 +66,7 @@ def collect_arrays(zarr_group: zarr.Group) -> list[str]:
 
 
 def decipher_zarr_uri(source: str) -> tuple[str, str, str]:
-    """Extract the zarr store path, group path and array path from a zarr source string.
+    r"""Extract the zarr store path, group path and array path from a zarr source.
 
     The input string is expected to be in the format:
     \"file://path/to/zarr_store.zarr/group/path/array_name\"
