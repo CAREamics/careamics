@@ -1,5 +1,6 @@
 """Convenience functions to create NG data configurations."""
 
+import os
 from collections.abc import Sequence
 from typing import Any, Literal
 
@@ -11,6 +12,20 @@ from careamics.config.augmentations import (
 from careamics.config.data import NGDataConfig
 
 from ..utils.random import generate_random_seed
+
+
+def get_default_num_workers() -> int:
+    """Return a reasonable default number of dataloader workers for the current system.
+
+    Uses the CPU count reported by the OS, falling back to ``0`` if it cannot be
+    determined.
+
+    Returns
+    -------
+    int
+        Number of workers to use.
+    """
+    return os.cpu_count() or 0
 
 
 def list_spatial_augmentations(
@@ -76,7 +91,7 @@ def create_ng_data_configuration(
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
     n_val_patches: int = 8,
-    num_workers: int = 0,
+    num_workers: int = -1,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     pred_dataloader_params: dict[str, Any] | None = None,
@@ -114,8 +129,9 @@ def create_ng_data_configuration(
     n_val_patches : int, default=8,
         The number of patches to set aside for validation during training. This
         parameter will be ignored if separate validation data is specified for training.
-    num_workers : int, default=0
-        Number of workers for data loading.
+    num_workers : int, default=-1
+        Number of workers for data loading. Use ``-1`` to automatically choose based
+        on the number of available CPUs (calls :func:`get_default_num_workers`).
     augmentations : list of transforms or None, default=None
         List of transforms to apply. If `None`, default augmentations are applied
         (flip in X and Y, rotations by 90 degrees in the XY plane).
@@ -135,6 +151,9 @@ def create_ng_data_configuration(
     """
     if seed is None:
         seed = generate_random_seed()
+
+    if num_workers == -1:
+        num_workers = get_default_num_workers()
 
     if augmentations is None:
         augmentations = list_spatial_augmentations(seed=seed)
