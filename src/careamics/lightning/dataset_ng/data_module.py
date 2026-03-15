@@ -67,7 +67,7 @@ class CareamicsDataModule(L.LightningDataModule):
         Training data target. If custom `loading` is provided it can be any type,
         otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
         of these, or None.
-    train_data_mask : Any, default=None.
+    train_data_mask : Any, default=None
         Training data mask, an optional mask that can be provided to filter regions
         of the data during training, such as large areas of background. The mask
         should be a binary image where a 1 indicates a pixel should be included in
@@ -83,12 +83,6 @@ class CareamicsDataModule(L.LightningDataModule):
         Validation data target. If custom `loading` is provided it can be any type,
         otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
         of these, or None.
-    val_percentage : float | None, default=None
-        Percentage of the training data to use for validation. Only
-        used if `val_data` is None.
-    val_minimum_split : int
-        Minimum number of patches or files to split from the training data for
-        validation, by default 5. Only used if `val_data` is None.
     pred_data : Any, default=None
         Prediction data. If custom `loading` is provided it can be any type,
         otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
@@ -135,7 +129,9 @@ class CareamicsDataModule(L.LightningDataModule):
         pred_data: InputVar | None = None,
         pred_data_target: InputVar | None = None,
         loading: ReadFuncLoading | None = None,
-    ) -> None: ...
+    ) -> None:
+        """Overload for path/array input (no ImageStackLoading)."""
+        ...
 
     # if using ImageStackLoading the input data can be anything.
     @overload
@@ -151,7 +147,10 @@ class CareamicsDataModule(L.LightningDataModule):
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
         loading: ImageStackLoading = ...,
-    ) -> None: ...
+    ) -> None:
+        """Overload for ImageStackLoading input."""
+        ...
+
     def __init__(
         self,
         data_config: NGDataConfig | dict[str, Any],
@@ -183,7 +182,7 @@ class CareamicsDataModule(L.LightningDataModule):
             Training data target. If custom `loading` is provided it can be any type,
             otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
             of these, or None.
-        train_data_mask : Any, default=None.
+        train_data_mask : Any, default=None
             Training data mask, an optional mask that can be provided to filter regions
             of the data during training, such as large areas of background. The mask
             should be a binary image where a 1 indicates a pixel should be included in
@@ -308,6 +307,18 @@ class CareamicsDataModule(L.LightningDataModule):
             raise NotImplementedError(f"Stage {stage} not implemented")
 
     def _sampler(self, dataset: Literal["train", "val", "predict"]) -> Sampler | None:
+        """Return a sampler for the given dataset (train/val/predict), or None.
+
+        Parameters
+        ----------
+        dataset : {"train", "val", "predict"}
+            Which dataset to build a sampler for.
+
+        Returns
+        -------
+        Sampler or None
+            Sampler for TIFF non-in-memory, else None.
+        """
         sampler: GroupedIndexSampler | None
         rng = np.random.default_rng(self.config.seed)
         if not self.config.in_memory and self.config.data_type == SupportedData.TIFF:
@@ -420,7 +431,7 @@ def _validate_data(
         Training data target. If custom `loading` is provided it can be any type,
         otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
         of these, or None.
-    train_data_mask : Any, default=None.
+    train_data_mask : Any, default=None
         Training data mask, an optional mask that can be provided to filter regions
         of the data during training, such as large areas of background. The mask
         should be a binary image where a 1 indicates a pixel should be included in
@@ -428,15 +439,17 @@ def _validate_data(
         If custom `loading` is provided it can be any type, otherwise
         it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these,
         or None.
+    val_data : Any, default=None
+        Validation data. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
+    val_data_target : Any, default=None
+        Validation data target. If custom `loading` is provided it can be any type,
+        otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
+        of these, or None.
     n_val_patches : int | None, default=None
         The number of patches to set aside for validation during training. Only
         applicable for automatic validation splitting.
-    val_percentage : float | None, default=None
-        Percentage of the training data to use for validation. Only
-        used if `val_data` is None.
-    val_minimum_split : int
-        Minimum number of patches or files to split from the training data for
-        validation, by default 5. Only used if `val_data` is None.
     pred_data : Any, default=None
         Prediction data. If custom `loading` is provided it can be any type,
         otherwise it must be a `pathlib.Path`, `str`, `numpy.ndarray` or a sequence
@@ -454,11 +467,11 @@ def _validate_data(
 
     Returns
     -------
-    data : _TrainVal[Any] | _TrainValSplit[Any] | _PredData[Any]
-        The validated data wrapped in a dataclass. The `_TrainVal` class is for training
-        with validation data provided; the `_TrainValSplit` class is used for training
-        with automatic validation splitting, and the `_PredData` class is used for
-        prediction.
+    TrainValData[Any] | TrainValSplitData[Any] | PredData[Any]
+        The validated data wrapped in a dataclass. The `_TrainVal` class is for
+        training with validation data provided; the `_TrainValSplit` class is used
+        for training with automatic validation splitting, and the `_PredData` class
+        is used for prediction.
 
     Raises
     ------
