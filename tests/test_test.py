@@ -1,43 +1,13 @@
 import itertools
-from collections.abc import Sequence
 from contextlib import nullcontext
-from typing import Any, TypedDict
+from typing import Any
 
 import pytest
-from _pytest.mark.structures import ParameterSet
 
 from careamics.config.data.ng_data_config import NGDataConfig
 
 # --- can go in conftest.py
 
-
-class Params(TypedDict):
-    params: Sequence[Any]
-    labels: Sequence[str]
-
-
-def parameter_cartesian_prod(*param_sets: Sequence[Any] | Params):
-    params: list[list[Any]] = []
-    for param_set in param_sets:
-        if isinstance(param_set, dict):
-            params_list = [
-                pytest.param(p, id=id_)
-                for p, id_ in zip(param_set["params"], param_set["labels"], strict=True)
-            ]
-            params.append(params_list)
-        else:
-            params.append([pytest.param(p, id=str(p)) for p in param_set])
-
-    result: list[ParameterSet] = []
-    for combo in itertools.product(*params):
-        values = tuple(v for p in combo for v in p.values)  # flatten values
-        ids = [p.id for p in combo]
-        id_ = "-".join(ids) if ids else None
-        result.append(pytest.param(*values, id=id_))
-    return result
-
-
-# ---
 
 TRAIN_PATCHING = ["stratified", "random"]
 VAL_PATCHING = ["fixed_random"]
@@ -110,29 +80,13 @@ AXES_CZI_DISALLOWED = (
 )
 
 
-# fixtures to act as defaults
-@pytest.fixture
-def patching():
-    return "stratified"
+DEFAULT_PATCHING = "stratified"
+DEFAULT_AXES = "YX"
+DEFAULT_DATA_TYPE = "array"
+DEFAULT_MODE = "training"
 
 
-@pytest.fixture
-def mode():
-    return "training"
-
-
-@pytest.fixture
-def data_type():
-    return "array"
-
-
-@pytest.fixture
-def axes():
-    return "YX"
-
-
-@pytest.fixture
-def patch_size(data_type: str, axes: str):
+def patch_size_testing(data_type: str = DEFAULT_DATA_TYPE, axes: str = DEFAULT_AXES):
     if data_type == "czi" and axes == "SCTYX":
         return (8, 16, 16)
     elif "Z" in axes:
@@ -141,8 +95,14 @@ def patch_size(data_type: str, axes: str):
         return (16, 16)
 
 
-@pytest.fixture
-def patching_config_dict(patching: str, patch_size: tuple[int, ...]) -> dict[str, Any]:
+def patching_config_dict_testing(
+    patching: str = DEFAULT_PATCHING,
+    data_type: str = DEFAULT_DATA_TYPE,
+    axes: str = DEFAULT_AXES,
+    patch_size: tuple[int, ...] | None = None,
+) -> dict[str, Any]:
+    if patch_size is None:
+        patch_size = patch_size_testing(data_type, axes)
     match patching:
         case "random" | "fixed_random" | "stratified":
             # with seed
@@ -165,15 +125,18 @@ def patching_config_dict(patching: str, patch_size: tuple[int, ...]) -> dict[str
             }
 
 
-@pytest.fixture
-def ng_data_config_dict(
+def ng_data_config_dict_testing(
     # parameters `patching` and `patch_size` can be passed through
-    patching_config_dict: dict[str, Any],
-    mode: str,
-    data_type: str,
-    axes: str,
+    mode: str = DEFAULT_MODE,
+    data_type: str = DEFAULT_DATA_TYPE,
+    axes: str = DEFAULT_AXES,
+    patching: str = DEFAULT_PATCHING,
+    patch_size: tuple[int, ...] | None = None,
     # TODO: add normalization
 ) -> dict[str, Any]:
+    patching_config_dict = patching_config_dict_testing(
+        patching, data_type, axes, patch_size
+    )
     return {
         "mode": mode,
         "data_type": data_type,
@@ -183,50 +146,61 @@ def ng_data_config_dict(
     }
 
 
-def test_default_data_config(ng_data_config_dict):
+# ---
+
+
+def test_default_data_config():
+    ng_data_config_dict = ng_data_config_dict_testing()
     _ = NGDataConfig(**ng_data_config_dict)
 
 
 @pytest.mark.parametrize(
     "data_type, axes, expectation",
-    parameter_cartesian_prod(
-        ["array"],
-        AXES_WO_CHANNELS_2D + AXES_W_CHANNELS_2D,
-        {"params": [nullcontext(0)], "labels": ["pass"]},
+    list(
+        itertools.product(
+            ["array"],
+            AXES_WO_CHANNELS_2D + AXES_W_CHANNELS_2D,
+            [nullcontext(0)],
+        )
     )
-    + parameter_cartesian_prod(
-        ["array"],
-        AXES_WO_CHANNELS_3D + AXES_W_CHANNELS_3D,
-        {"params": [nullcontext(0)], "labels": ["pass"]},
+    + list(
+        itertools.product(
+            ["array"],
+            AXES_WO_CHANNELS_3D + AXES_W_CHANNELS_3D,
+            [nullcontext(0)],
+        )
     )
-    + parameter_cartesian_prod(
-        ["array"],
-        AXES_DISALLOWED,
-        {
-            "params": [pytest.raises(ValueError, match="Invalid axes")],
-            "labels": ["error"],
-        },
+    + list(
+        itertools.product(
+            ["array"],
+            AXES_DISALLOWED,
+            [pytest.raises(ValueError, match="Invalid axes")],
+        )
     )
-    + parameter_cartesian_prod(
-        ["czi"],
-        AXES_CZI_2D,
-        {"params": [nullcontext(0)], "labels": ["pass"]},
+    + list(
+        itertools.product(
+            ["czi"],
+            AXES_CZI_2D,
+            [nullcontext(0)],
+        )
     )
-    + parameter_cartesian_prod(
-        ["czi"],
-        AXES_CZI_3D,
-        {"params": [nullcontext(0)], "labels": ["pass"]},
+    + list(
+        itertools.product(
+            ["czi"],
+            AXES_CZI_3D,
+            [nullcontext(0)],
+        )
     )
-    + parameter_cartesian_prod(
-        ["czi"],
-        AXES_CZI_DISALLOWED,
-        {
-            "params": [pytest.raises(ValueError, match=r"axes .* are not valid")],
-            "labels": ["error"],
-        },
+    + list(
+        itertools.product(
+            ["czi"],
+            AXES_CZI_DISALLOWED,
+            [pytest.raises(ValueError, match=r"axes .* are not valid")],
+        )
     ),
 )
-def test_axes_valid(ng_data_config_dict: dict[str, Any], expectation):
+def test_axes_valid(data_type: str, axes: str, expectation):
+    ng_data_config_dict = ng_data_config_dict_testing(data_type=data_type, axes=axes)
     with expectation:
         cfg = NGDataConfig(**ng_data_config_dict)
         assert cfg.axes == ng_data_config_dict["axes"]
@@ -234,47 +208,33 @@ def test_axes_valid(ng_data_config_dict: dict[str, Any], expectation):
 
 @pytest.mark.parametrize(
     "mode, patching, expectation",
-    parameter_cartesian_prod(
-        ["training"],
-        TRAIN_PATCHING,
-        {"params": [nullcontext(0)], "labels": ["pass"]},
+    list(itertools.product(["training"], TRAIN_PATCHING, [nullcontext(0)]))
+    + list(itertools.product(["validating"], VAL_PATCHING, [nullcontext(0)]))
+    + list(itertools.product(["predicting"], PRED_PATCHING, [nullcontext(0)]))
+    + list(
+        itertools.product(
+            ["training"],
+            VAL_PATCHING + PRED_PATCHING,
+            [pytest.raises(ValueError, match="Patching strategy ")],
+        )
     )
-    + parameter_cartesian_prod(
-        ["validating"],
-        VAL_PATCHING,
-        {"params": [nullcontext(0)], "labels": ["pass"]},
+    + list(
+        itertools.product(
+            ["validating"],
+            TRAIN_PATCHING + PRED_PATCHING,
+            [pytest.raises(ValueError, match="Patching strategy ")],
+        )
     )
-    + parameter_cartesian_prod(
-        ["predicting"],
-        PRED_PATCHING,
-        {"params": [nullcontext(0)], "labels": ["pass"]},
-    )
-    + parameter_cartesian_prod(
-        ["training"],
-        VAL_PATCHING + PRED_PATCHING,
-        {
-            "params": [pytest.raises(ValueError, match="Patching strategy ")],
-            "labels": ["error"],
-        },
-    )
-    + parameter_cartesian_prod(
-        ["validating"],
-        TRAIN_PATCHING + PRED_PATCHING,
-        {
-            "params": [pytest.raises(ValueError, match="Patching strategy ")],
-            "labels": ["error"],
-        },
-    )
-    + parameter_cartesian_prod(
-        ["predicting"],
-        TRAIN_PATCHING + VAL_PATCHING,
-        {
-            "params": [pytest.raises(ValueError, match="Patching strategy ")],
-            "labels": ["error"],
-        },
+    + list(
+        itertools.product(
+            ["predicting"],
+            TRAIN_PATCHING + VAL_PATCHING,
+            [pytest.raises(ValueError, match="Patching strategy ")],
+        )
     ),
 )
-def test_validate_patching_mode(ng_data_config_dict: dict[str, Any], expectation):
+def test_validate_patching_mode(mode: str, patching: str, expectation):
+    ng_data_config_dict = ng_data_config_dict_testing(mode=mode, patching=patching)
     with expectation:
         cfg = NGDataConfig(**ng_data_config_dict)
         assert cfg.mode == ng_data_config_dict["mode"]
