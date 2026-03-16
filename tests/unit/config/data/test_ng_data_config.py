@@ -1,8 +1,10 @@
 """Unit tests for the NGDataConfig Pydantic model."""
 
+import itertools
 import sys
 import types
 from collections.abc import Callable
+from contextlib import nullcontext
 
 import pytest
 
@@ -82,8 +84,18 @@ class TestAxesValidation:
         "TCYXZ",
     )
 
-    @pytest.mark.parametrize("axes", ORDERED_AXES + DISORDERED_AXES)
-    def test_valid_axes(self, minimum_train_data_cfg, axes):
+    @pytest.mark.parametrize(
+        "axes, expected_error",
+        # valid axes
+        list(itertools.product(ORDERED_AXES + DISORDERED_AXES, [nullcontext(0)])) +
+        # invalid axes
+        list(
+            itertools.product(
+                DISALLOWED_AXES, [pytest.raises(ValueError, match="Invalid axes")]
+            )
+        ),
+    )
+    def test_valid_axes(self, minimum_train_data_cfg, axes, expected_error):
         """Test that valid axes are accepted."""
         cfg_dict = minimum_train_data_cfg(
             axes=axes,
@@ -92,22 +104,10 @@ class TestAxesValidation:
                 "patch_size": [16, 16] if "Z" not in axes else [8, 16, 16],
             },
         )
-        cfg = NGDataConfig(**cfg_dict)
 
-        assert cfg.axes == axes
-
-    @pytest.mark.parametrize("axes", DISALLOWED_AXES)
-    def test_invalid_axes(self, minimum_train_data_cfg, axes):
-        cfg_dict = minimum_train_data_cfg(
-            axes=axes,
-            patching={
-                "name": "stratified",
-                "patch_size": [16, 16] if "Z" not in axes else [8, 16, 16],
-            },
-        )
-
-        with pytest.raises(ValueError, match="Invalid axes"):
-            NGDataConfig(**cfg_dict)
+        with expected_error:
+            cfg = NGDataConfig(**cfg_dict)
+            assert cfg.axes == axes
 
     @pytest.mark.parametrize("axes", CZI_AXES)
     def test_czi_valid_axes(self, minimum_train_data_cfg, axes):
