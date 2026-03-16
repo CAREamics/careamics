@@ -928,7 +928,7 @@ class CAREamist:
             Paths to the cover images.
         channel_names : list of str, default=None
             Channel names.
-        model_version : str, default="0.1.0"
+        model_version : str, default="0.2.0"
             Version of the model.
         """
         # TODO: add in docs that it is expected that input_array dimensions match
