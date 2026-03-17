@@ -305,10 +305,11 @@ class NGDataConfig(BaseModel):
     """Coordinate filter to apply when using random patching. Only available if
     mode is `training`."""
 
-    filtered_patch_prob: float = 0.1
-    """The probability that each patch classed as background will be selected during
-    training. Patches can be classed as background by either the `patch_filter` or by
-    providing a mask during training. If neither is used this parameter is ignored."""
+    filtered_patch_prob: float = Field(0.1, ge=0.0, le=1.0)
+    """The probability that each patch classed as background will be selected each epoch
+    during training. Patches can be classes as background by either using a
+    `patch_filter` or by supplying a mask during training. If neither is chosen this
+    parameter is ignored."""
 
     # TODO: Move inside patch_filter
     filter_ref_channel: int = 0
@@ -1025,6 +1026,8 @@ class NGDataConfig(BaseModel):
                     if new_mode == Mode.PREDICTING and new_dataloader_params is not None
                     else self.pred_dataloader_params
                 ),
+                "patch_filter": None,
+                "coord_filter": None,
             }
         )
 
