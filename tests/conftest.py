@@ -22,28 +22,6 @@ from careamics.lightning.dataset_ng.load_checkpoint import _create_loaded_exp_na
 from careamics.model_io import export_to_bmz
 
 ############################################################
-# Importing fixtures for new test structure
-############################################################
-
-# currently limited to fixtures used in the on-going tests
-# refactoring, also avoid them being removed by pre-commit
-__all__ = [
-    "coord_filter_config",
-    "minimum_mode_data_cfg",
-    "minimum_train_data_cfg",
-    "patch_filter_config",
-    "patching_config",
-]
-
-from .fixtures.data_configuration_fixtures import (
-    coord_filter_config,
-    minimum_mode_data_cfg,
-    minimum_train_data_cfg,
-    patch_filter_config,
-    patching_config,
-)
-
-############################################################
 # Old fixtures below, kept for backwards compatibility, need
 # refactoring and cleaning.
 ############################################################

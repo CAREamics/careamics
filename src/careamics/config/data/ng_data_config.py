@@ -979,8 +979,8 @@ class NGDataConfig(BaseModel):
             else:
                 if overlap_size is None:
                     raise ValueError(
-                        "When switching to 'predicting' mode with 'tiled' patching, "
-                        "the `overlap_size` parameter must be specified."
+                        "`overlap_size` parameter must be specified when switching to "
+                        "'predicting' mode with a `new_patch_size`."
                     )
                 patching_strategy = TiledPatchingConfig(
                     patch_size=list(new_patch_size), overlaps=list(overlap_size)
