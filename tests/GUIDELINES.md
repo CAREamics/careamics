@@ -20,7 +20,9 @@
 
 ## In practice
 
-- Leverage pytest fixtures to ensure coherence over the whole test suite
+- Leverage pytest fixtures to ensure coherence over the whole test suite, use testing 
+utilities when applicable (e.g. `pytest-mock` for mocking, custom function to generate
+test data, etc.)
 - Describe fixtures properly and where they are used
 - Use a hierarchy of `conftest.py` if applicable
 - Use markers to categorize tests, see #markers
@@ -33,5 +35,4 @@
 
 - `lvae`: lvae-specific tests
 - `slow`: tests that are slow to run, e.g. training for several epochs
-- `ng`: tests that are concerning NG careamics
 - `mps_gh_fail`: tests that are expected to fail on MPS on Github (e.g. due to unsupported features)
