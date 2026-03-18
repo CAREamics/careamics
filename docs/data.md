@@ -97,12 +97,15 @@ levels, and showcase various ways to specify which array should be used for trai
     Therefore, to use an OME-Zarr file, you need to specify the URI to the array
     you want to train on.
 
+    In the near future, we will add full OME-Zarr support.
+
 
 !!! warning "Multiscales OME-Zarr and Noise2Void"
 
     Noise2Void is very sensitive to the noise distribution in the data, if a an image
     has been downscaled, correlations may have been introduced in the noise, causing
-    Noise2Void to perform poorly. We advise training on the raw unprocessed data.
+    Noise2Void to perform poorly. We advise training on the raw unprocessed data if
+    available.
 
 
 ## Custom data formats
