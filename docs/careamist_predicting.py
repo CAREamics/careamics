@@ -76,9 +76,8 @@ assert pred_data_path.exists()
 # --8<-- [start:pred_data_params]
 predictions = careamist.predict(
     pred_data=pred_data_path,  # (1)!
-    axes="CYX",
+    axes="SYX",
     data_type="tiff",
-    channels=[1],  # (2)!
     in_memory=False,
 )
 # --8<-- [end:pred_data_params]

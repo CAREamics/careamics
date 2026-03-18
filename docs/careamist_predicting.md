@@ -65,23 +65,29 @@ axes or format. The `predict` method allows changing these parameters (`axes`,
 `data_type`, `channels`, `in_memory`).
 
 Here, let's say we trained from arrays of axes `YX`, and now want to predict with the
-trained model on a TIFF file (we have a path `pred_data_path`) that has channels. Since
-we did not train on channels, we need to pass `channels` to specify a single channel
-we want to train on. We also need to specify the new axes and `data_type`. Finally, we
-do not want to train in-memory.
+trained model on a TIFF file (we have a path `pred_data_path`) that has multiple
+time-points. We need to set `new_axes` to `SYX` to specify the new axes order. We also
+need to specify the new axes and `data_type`. Finally, we do not want to train in-memory.
 
 ```python title="Prediction"
 --8<-- "careamist_predicting.py:pred_data_params"
 ```
 
 1. Now, data is a path.
-2. We specify only a single channel.
 
 !!! warning "Coherence of the data parameters"
 
     Prediction data must have the same type content as the training data (we talk about
     the data being "in distribution"). That means that it cannot have different spatial
     axes or suddenly have more channels.
+
+!!! note "New data has channels"
+
+    If the new data has channels, but the model was not trained on multiple channels,
+    then the `channels` parameter can be used to specify which channels to use for
+    prediction. For example, if the new data has 3 channels, but the model was
+    trained on single-channel data, then `channels=[1]` can be used to specify that
+    only the second channel should be used for prediction.
 
 
 ## Predicting to disk
