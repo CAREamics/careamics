@@ -1,3 +1,5 @@
+"""Zarr path and URI utilities for dataset_ng loaders."""
+
 import warnings
 from pathlib import Path
 from urllib.parse import urlparse
@@ -64,10 +66,10 @@ def collect_arrays(zarr_group: zarr.Group) -> list[str]:
 
 
 def decipher_zarr_uri(source: str) -> tuple[str, str, str]:
-    """Extract the zarr store path, group path and array path from a zarr source string.
+    """Extract the zarr store path, group path and array path from a zarr source.
 
     The input string is expected to be in the format:
-    \"file://path/to/zarr_store.zarr/group/path/array_name\"
+    `file://path/to/zarr_store.zarr/group/path/array_name`.
 
     Note that the root folder of the zarr store must end with ".zarr".
 

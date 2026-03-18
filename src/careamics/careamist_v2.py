@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, TypedDict, Unpack, overload
+from typing import Any, Literal, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -11,7 +11,6 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from .config.ng_configs import NGConfiguration
 from .config.ng_configs.ng_configuration import AlgorithmConfig
 from .config.support import SupportedData, SupportedLogger
-from .utils.reshape_array import reshape_array
 from .config.utils.configuration_io import load_configuration_ng
 from .dataset_ng.dataset import ImageRegionData
 from .dataset_ng.factory import ImageStackLoading, Loading, ReadFuncLoading
@@ -31,6 +30,7 @@ from .lightning.dataset_ng.prediction import convert_prediction
 from .model_io import export_to_bmz
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
+from .utils.reshape_array import reshape_array
 
 logger = get_logger(__name__)
 
@@ -85,7 +85,6 @@ class CAREamistV2:
     enable_progress_bar : bool, default=True
         Whether to show the progress bar during training.
     """
-
 
     def __init__(
         self,
@@ -351,7 +350,7 @@ class CAREamistV2:
             filename=f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
             **config.training_config.checkpoint_callback.model_dump(),
         )
-        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.get_safe_experiment_name()}_last"        
+        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.get_safe_experiment_name()}_last"
         internal_callbacks: list[Callback] = [
             checkpoint_callback,
             CareamicsCheckpointInfo(
