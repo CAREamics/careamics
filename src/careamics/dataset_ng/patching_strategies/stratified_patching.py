@@ -31,12 +31,12 @@ from .patching_strategy_protocol import PatchSpecs
 class _RegionBins:
     bins: list[NDArray[np.int_]]
     """
-    A list of numpy arrays which correspond to indices of regions contained in the bin.
+    A list of numpy arrays representing bins, each consisting of the indices of regions
+    contained in the bin.
     """
     probs: NDArray[np.floating]
     """
-    The probability a region is selected per epoch.
-    The position corresponds to the region index.
+    Probabilities to select each region bin each epoch.
     """
     bin_size: float
     """
