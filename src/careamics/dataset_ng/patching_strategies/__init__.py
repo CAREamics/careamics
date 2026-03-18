@@ -7,7 +7,6 @@ __all__ = [
     "PatchingStrategy",
     "RandomPatchingStrategy",
     "RegionSpecs",
-    "SequentialPatchingStrategy",
     "StratifiedPatchingStrategy",
     "TileSpecs",
     "TilingStrategy",
@@ -26,7 +25,6 @@ from .patching_strategy_protocol import (
     is_tile_specs,
 )
 from .random_patching import FixedRandomPatchingStrategy, RandomPatchingStrategy
-from .sequential_patching import SequentialPatchingStrategy
 from .stratified_patching import StratifiedPatchingStrategy
 from .tiling_strategy import TilingStrategy
 from .whole_sample import WholeSamplePatchingStrategy
