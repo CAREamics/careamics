@@ -489,6 +489,7 @@ class _ImageStratifiedPatching:
 
     def set_region_probs(self, probs: dict[tuple[int, ...], float]) -> None:
         for grid_coord, prob in probs.items():
+            # TODO: catch case that grid_coord does not exist
             idx = self.grid_coords[grid_coord]
             self.relative_probs[idx] = prob
         self._recalculate_sampling()
