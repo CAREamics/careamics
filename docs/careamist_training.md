@@ -71,7 +71,7 @@ The amount of validation data can be set [in the configuration](./configuration.
 
     If you are passing a path to a directory and the data type if `tiff` (or a custom
     type with the required reading utilities, see [custom data](#custom-data)), then
-    all the files with the expected file extension in that directory will be used for
+    all the files with the expected file extension in that directory (including sub-directories) will be used for
     training.
     
     Passing a dictionary is not compatible with CZI or Zarr data.
