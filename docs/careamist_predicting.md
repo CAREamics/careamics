@@ -52,7 +52,7 @@ a `tile_size` to the prediction method.
 ### Changing dataloading parameters
 
 During prediction, you can change the dataloading parameters by passing them to the
-`predict` method. Currently, we only expose `batch_size` and `num_workers`.
+`predict` method. The parameters `batch_size` and `num_workers` can be set through the `predict` function arguments, while any other parameters have to be changed through the configuration.
 
 ```python title="Prediction"
 --8<-- "careamist_predicting.py:pred_dataloader"
