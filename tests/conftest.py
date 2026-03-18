@@ -24,8 +24,10 @@ from careamics.lightning.dataset_ng.lightning_modules import CAREModule, N2VModu
 from careamics.lightning.dataset_ng.load_checkpoint import _create_loaded_exp_name
 from careamics.model_io import export_to_bmz
 
-# TODO add details about where each of these fixture is used (e.g. smoke test)
-# TODO move each fixture to relevant conftest in subfolders
+############################################################
+# Old fixtures below, kept for backwards compatibility, need
+# refactoring and cleaning.
+############################################################
 
 
 # Allows CI to run on macos-latest gh runner
