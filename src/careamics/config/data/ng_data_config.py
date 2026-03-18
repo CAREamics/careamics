@@ -53,6 +53,129 @@ from .patching_strategies import (
 #       leverage Pydantic to add validation directly to the declaration of each field?
 
 
+def _are_spatial_dims_maintained(
+    old_data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    old_axes: str,
+    new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    new_axes: str,
+) -> bool:
+    """Check that spatial dimensions are maintained between sets of data type and axes.
+
+    Note that in the case of CZI, 3D can be both due to `T` and `Z` axes. We consider
+    that spatial dims are maintained if converting between CZI `SCTYX` axes and `ZYX` in
+    non-CZI format (in effect hoping that `T` has been relabelled as `Z` in the non-CZI
+    format).
+
+    Parameters
+    ----------
+    old_data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
+        Original data type.
+    old_axes : str
+        Original axes.
+    new_data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
+        New data type.
+    new_axes : str
+        New axes.
+
+    Returns
+    -------
+    bool
+        Whether spatial dimensions are maintained.
+    """
+    is_3D_old = "Z" in old_axes
+    if old_data_type == "czi":
+        is_3D_old = "Z" in old_axes or "T" in old_axes
+
+    is_3D_new = "Z" in new_axes
+    if new_data_type == "czi":
+        is_3D_new = "Z" in new_axes or "T" in new_axes
+
+    if old_data_type == new_data_type and new_data_type == "czi":
+        # for CZI data, check that Z did not switch to T or inversely
+        if is_3D_old and is_3D_new:
+            return ("Z" in old_axes and "Z" in new_axes) or (
+                "T" in old_axes and "T" in new_axes
+            )
+
+    return is_3D_old == is_3D_new
+
+
+def _validate_channel_conversion(
+    old_axes: str,
+    old_channels: Sequence[int] | None,
+    new_axes: str,
+    new_channels: Sequence[int] | None,
+) -> None:
+    """Validate the channel conversion.
+
+    Parameters
+    ----------
+    old_axes : str
+        Original axes.
+    old_channels : Sequence[int] or None
+        Original channels.
+    new_axes : str
+        New axes.
+    new_channels : Sequence[int] or None
+        New channels.
+
+    Raises
+    ------
+    ValueError
+        If the channel conversion is not valid.
+    """
+    # if switching C axis:
+    # - removing C: original channels can be `None`, singleton or multiple. New
+    #   channels can be `None` if original were `None` or singleton, but not
+    #   multiple.
+    # - adding C: original channels can only be `None`. New channels can be `None`
+    #   (but we warn users that they need to have a singleton C axis in the data),
+    #   or singleton, but not multiple.
+    adding_C_axis = ("C" in new_axes) and ("C" not in old_axes)
+    removing_C_axis = ("C" not in new_axes) and ("C" in old_axes)
+    prev_channels_not_singleton = old_channels is not None and (len(old_channels) != 1)
+
+    if adding_C_axis:
+        if new_channels is None:
+            warn(
+                f"When switching to axes with 'C' (got {new_axes}) from axes "
+                f"{old_axes}, errors may be raised in the model if the channel "
+                f"dimension in the data is not a singleton dimension. To select a "
+                f"specific channel, use the `new_channels` parameter (e.g. "
+                f"`new_channels=[1]`).",
+                stacklevel=1,
+            )
+        elif len(new_channels) != 1:
+            raise ValueError(
+                f"Cannot switch to axes with 'C' (got {new_axes}) from axes "
+                f"{old_axes}, select a single channel using the `new_channels` "
+                f"parameter (got channels {new_channels})."
+            )
+    elif removing_C_axis and prev_channels_not_singleton:
+        raise ValueError(
+            f"Cannot switch to axes without 'C' (got {new_axes}) from axes "
+            f"{old_axes} when multiple channels were originally specified "
+            f"({old_channels})."
+        )
+
+    # different number of channels
+    if old_channels is not None and new_channels is not None:
+        if len(new_channels) != len(old_channels):
+            raise ValueError(
+                f"Cannot switch between axes with different number of channels. "
+                f"New channels length ({len(new_channels)}) does not match "
+                f"current channels length ({len(old_channels)})."
+            )
+    elif old_channels is None and new_channels is not None:
+        warn(
+            f"Switching from all channels (`channels=None`) to specifying channels "
+            f"{new_channels} may lead to errors if {new_channels} are not covering "
+            f"all channels.",
+            stacklevel=1,
+        )  # Note that in the opposite case, old_channels is kept because
+        # new_channels is None
+
+
 def np_float_to_scientific_str(x: float) -> str:
     """Return a string scientific representation of a float.
 
@@ -252,7 +375,7 @@ class NGDataConfig(BaseModel):
         if info.data["data_type"] == "czi":
             if not check_czi_axes_validity(axes):
                 raise ValueError(
-                    f"Provided axes '{axes}' are not valid. Axes must be in the "
+                    f"Invalid axes '{axes}'. Axes must be in the "
                     f"`SC(Z/T)YX` format, where Z or T are optional, and S and C can be"
                     f" singleton dimensions, but must be provided."
                 )
@@ -288,17 +411,11 @@ class NGDataConfig(BaseModel):
         """
         data_type = info.data.get("data_type")
 
-        if in_memory and data_type not in ("array", "tiff", "custom"):
-            raise ValueError(
-                f"`in_memory` can only be True for 'array', 'tiff' and 'custom' "
-                f"data types, got '{data_type}'. In memory loading of zarr and czi "
-                f"data types is not currently not implemented."
-            )
+        if in_memory and data_type in ("czi", "zarr"):
+            raise ValueError(f"`in_memory` not supported for `data_type` {data_type}.")
 
         if not in_memory and data_type == "array":
-            raise ValueError(
-                "`in_memory` must be True for 'array' data type, got False."
-            )
+            raise ValueError('`in_memory` must be True for "array" `data_type`.')
 
         return in_memory
 
@@ -335,7 +452,7 @@ class NGDataConfig(BaseModel):
         if channels is not None:
             if "C" not in info.data["axes"]:
                 raise ValueError(
-                    "Channels were specified but 'C' is not present in the axes."
+                    "Channels must be `None` if 'C' is not present in `axes`."
                 )
 
             if isinstance(channels, int):
@@ -365,7 +482,7 @@ class NGDataConfig(BaseModel):
         """
         Validate that the patching strategy is compatible with the dataset mode.
 
-        - If mode is `training`, patching strategy must be `random`.
+        - If mode is `training`, patching strategy must be `random` or `stratified`.
         - If mode is `validating`, patching must be `fixed_random`.
         - If mode is `predicting`, patching strategy must be `tiled` or `whole`.
 
@@ -389,10 +506,9 @@ class NGDataConfig(BaseModel):
         mode = info.data["mode"]
         if mode == Mode.TRAINING:
             if patching.name not in ["random", "stratified"]:
-                # TODO: update error message for stratified patching
                 raise ValueError(
                     f"Patching strategy '{patching.name}' is not compatible with "
-                    f"mode '{mode.value}'. Use 'random' for training."
+                    f"mode '{mode.value}'. Use 'stratified' or 'random' for training."
                 )
         elif mode == Mode.VALIDATING:
             if patching.name != "fixed_random":
@@ -438,7 +554,7 @@ class NGDataConfig(BaseModel):
         mode = info.data["mode"]
         if filter_obj is not None and mode != Mode.TRAINING:
             raise ValueError(
-                f"Filter '{filter_obj.name}' can only be used in 'training' mode, "
+                f"Filtering '{filter_obj.name}' only allowed in 'training' mode, "
                 f"got mode '{mode.value}'."
             )
         return filter_obj
@@ -508,14 +624,14 @@ class NGDataConfig(BaseModel):
         """
         if "shuffle" not in train_dataloader_params:
             raise ValueError(
-                "Value for 'shuffle' was not included in the `train_dataloader_params`."
+                "`train_dataloader_params` must include the `shuffle` parameter."
             )
         elif ("shuffle" in train_dataloader_params) and (
             not train_dataloader_params["shuffle"]
         ):
             warn(
-                "Dataloader parameters include `shuffle=False`, this will be passed to "
-                "the training dataloader and may lead to lower quality results.",
+                "`train_dataloader_params` includes `shuffle=False`, which may lead to "
+                "lower quality results.",
                 stacklevel=1,
             )
         return train_dataloader_params
@@ -710,18 +826,6 @@ class NGDataConfig(BaseModel):
         """
         return pformat(self.model_dump())
 
-    def _update(self, **kwargs: Any) -> None:
-        """
-        Update multiple arguments at once.
-
-        Parameters
-        ----------
-        **kwargs : Any
-            Keyword arguments to update.
-        """
-        self.__dict__.update(kwargs)
-        self.__class__.model_validate(self.__dict__)
-
     def is_3D(self) -> bool:
         """
         Check if the data is 3D based on the axes.
@@ -745,10 +849,8 @@ class NGDataConfig(BaseModel):
 
     # TODO: if switching from a state in which in_memory=True to an incompatible state
     # an error will be raised. Should that automatically be set to False instead?
-    # TODO `channels=None` is ambigouous: all channels or same channels as in training?
     # TODO this method could be private and we could have public `to_validation_config`
     #   and `to_prediction_config` methods with appropriate parameters
-    # TODO any use for switching to training mode?
     def convert_mode(
         self,
         new_mode: Literal["validating", "predicting"],
@@ -822,24 +924,36 @@ class NGDataConfig(BaseModel):
             If conversion to training mode is requested, or if incompatible changes
             are requested.
         """
-        if new_mode == Mode.TRAINING:
-            raise ValueError(
-                "Converting to 'training' mode is not supported. Create a new "
-                "NGDataConfig instead, for instance using "
-                "`create_ng_data_configuration`."
-            )
         if self.mode != Mode.TRAINING:
             raise ValueError(
-                f"Converting from mode '{self.mode}' to '{new_mode}' is not supported. "
+                f"Conversion from mode '{self.mode}' to '{new_mode}' is not supported. "
                 f"Only conversion from 'training' mode is supported."
+            )
+        if new_mode == Mode.TRAINING:
+            raise ValueError(
+                "Conversion to 'training' mode is not supported. Create a new "
+                "NGDataConfig instead, for instance using "
+                "`create_ng_data_configuration`."
             )
 
         # sanity checks
         # switching spatial axes
-        if new_axes is not None and ("Z" in new_axes) != (
-            "Z" in self.axes
+        if not _are_spatial_dims_maintained(
+            self.data_type,
+            self.axes,
+            new_data_type or self.data_type,
+            new_axes or self.axes,
         ):  # switching 2D/3D
-            raise ValueError("Cannot switch between 2D and 3D axes.")
+            additional_msg = ""
+            if self.data_type == "czi" or new_data_type == "czi":
+                additional_msg = " Note that for CZI data, Z and T are both depth axes."
+
+            raise ValueError(
+                "Conversion between different spatial dimensions is not allowed. Got "
+                f"new axes {new_axes} with new data type {new_data_type}, and current "
+                f"axes {self.axes} with current data type {self.data_type}."
+                f"{additional_msg}"
+            )
 
         # normalize new_channels parameter to lift ambiguity around `None`
         #   - If None, keep previous parameter
@@ -850,62 +964,12 @@ class NGDataConfig(BaseModel):
             new_channels = None  # all channels
 
         # switching channels
-        # if switching C axis:
-        # - removing C: original channels can be `None`, singleton or multiple. New
-        #   channels can be `None` if original were `None` or singleton, but not
-        #   multiple.
-        # - adding C: original channels can only be `None`. New channels can be `None`
-        #   (but we warn users that they need to have a singleton C axis in the data),
-        #   or singleton, but not multiple.
-        adding_C_axis = (
-            new_axes is not None and ("C" in new_axes) and ("C" not in self.axes)
+        _validate_channel_conversion(
+            self.axes,
+            self.channels,
+            new_axes or self.axes,  # if new_axes is None, we keep the same axes
+            new_channels,  # new_channel has already been updated to the correct value
         )
-        removing_C_axis = (
-            new_axes is not None and ("C" not in new_axes) and ("C" in self.axes)
-        )
-        prev_channels_not_singleton = self.channels is not None and (
-            len(self.channels) != 1
-        )
-
-        if adding_C_axis:
-            if new_channels is None:
-                warn(
-                    f"When switching to axes with 'C' (got {new_axes}) from axes "
-                    f"{self.axes}, errors may be raised or degraded performances may be"
-                    f" observed if the channel dimension in the data is not a singleton"
-                    f" dimension. To select a specific channel, use the `new_channels` "
-                    f"parameter (e.g. `new_channels=[1]`).",
-                    stacklevel=1,
-                )
-            elif len(new_channels) != 1:
-                raise ValueError(
-                    f"When switching to axes with 'C' (got {new_axes}) from axes "
-                    f"{self.axes}, a single channel only must be selected using the "
-                    f"`new_channels` parameter (got {new_channels})."
-                )
-        elif removing_C_axis and prev_channels_not_singleton:
-            raise ValueError(
-                f"Cannot switch to axes without 'C' (got {new_axes}) from axes "
-                f"{self.axes} when multiple channels were originally specified "
-                f"({self.channels})."
-            )
-
-        # different number of channels
-        if new_channels is not None and self.channels is not None:
-            if len(new_channels) != len(self.channels):
-                raise ValueError(
-                    f"New channels length ({len(new_channels)}) does not match "
-                    f"current channels length ({len(self.channels)})."
-                )
-
-        if self.channels is None and new_channels is not None:
-            warn(
-                f"Switching from all channels (`channels=None`) to specifying channels "
-                f"{new_channels} may lead to errors or degraded performances if "
-                f"{new_channels} are not all channels.",
-                stacklevel=1,
-            )  # Note that in the opposite case, self.channels is kept because
-            # new_channels is None
 
         # apply default values
         patching_strategy: PatchingConfig
@@ -915,13 +979,14 @@ class NGDataConfig(BaseModel):
             else:
                 if overlap_size is None:
                     raise ValueError(
-                        "When switching to 'predicting' mode with 'tiled' patching, "
-                        "the `overlap_size` parameter must be specified."
+                        "`overlap_size` parameter must be specified when switching to "
+                        "'predicting' mode with a `new_patch_size`."
                     )
                 patching_strategy = TiledPatchingConfig(
                     patch_size=list(new_patch_size), overlaps=list(overlap_size)
                 )
         else:  # validating
+            # to satisfy mypy, since self.mode=="training", patching has patch_size
             assert not isinstance(self.patching, WholePatchingConfig)
 
             patching_strategy = FixedRandomPatchingConfig(
@@ -941,7 +1006,7 @@ class NGDataConfig(BaseModel):
                 "batch_size": new_batch_size or self.batch_size,
                 "data_type": new_data_type or self.data_type,
                 "axes": new_axes or self.axes,
-                "channels": new_channels if new_channels is not None else self.channels,
+                "channels": new_channels,
                 "in_memory": (
                     new_in_memory if new_in_memory is not None else self.in_memory
                 ),
@@ -963,16 +1028,3 @@ class NGDataConfig(BaseModel):
         del model_dict["coord_filter"]
 
         return NGDataConfig(**model_dict)
-
-    # def set_3D(self, axes: str, patch_size: list[int]) -> None:
-    #     """
-    #     Set 3D parameters.
-
-    #     Parameters
-    #     ----------
-    #     axes : str
-    #         Axes.
-    #     patch_size : list of int
-    #         Patch size.
-    #     """
-    #     self._update(axes=axes, patch_size=patch_size)
