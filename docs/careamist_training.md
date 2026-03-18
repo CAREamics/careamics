@@ -67,6 +67,14 @@ The amount of validation data can be set [in the configuration](./configuration.
     2. For CARE and N2N, a target should be provided. It needs to be of the same type as
     `train_data` and pairs are formed by matching the order of the data and target lists.
 
+!!! note "Passing a directory"
+
+    If you are passing a path to a directory and the data type if `tiff` (or a custom
+    type with the required reading utilities, see [custom data](#custom-data)), then
+    all the files with the expected file extension in that directory will be used for
+    training.
+    
+    Passing a dictionary is not compatible with CZI or Zarr data.
 
 ### With validation
 
@@ -81,7 +89,7 @@ the validation data.
     --8<-- "careamist_training.py:train_n2v_val"
     ```
  
-    1. Both `ReadFuncLoading` and `ImageStackLoading` can be passed to `loading`.
+    1. Validation is passed to `val_data`.
 
 === "CARE/N2N"
 
@@ -89,7 +97,8 @@ the validation data.
     --8<-- "careamist_training.py:train_care_val"
     ```
     
-    1. Both `ReadFuncLoading` and `ImageStackLoading` can be passed to `loading`.
+    1. Validation is passed to `val_data`.
+    2. Target validation should be provided as well.
 
 
 ### Custom data
@@ -104,7 +113,7 @@ defined and instantiated, they can be passed to the `CAREamist` to train on cust
     --8<-- "careamist_training.py:train_n2v_custom"
     ```
  
-    1. Validation is passed to `val_data`.
+    1. Both `ReadFuncLoading` and `ImageStackLoading` can be passed to `loading`.
 
 === "CARE/N2N"
 
@@ -112,8 +121,7 @@ defined and instantiated, they can be passed to the `CAREamist` to train on cust
     --8<-- "careamist_training.py:train_care_custom"
     ```
     
-    1. Validation is passed to `val_data`.
-    2. Target validation should be provided as well.
+    1. Both `ReadFuncLoading` and `ImageStackLoading` can be passed to `loading`.
 
 
 ## Advanced training

@@ -46,6 +46,11 @@ as depth axis (as `Z`).
 4. The number of channels must be specified, and can be a singleton if there is a single
 channel.
 
+Only paths to CZI files can be used as input to CAREamics. Passing a directory containing
+multiple CZI files is not accepted as input, the list of files should be passed
+explicitly.
+
+
 !!! note "CARE and Noise2Noise"
 
     This example is valid for CARE and Noise2Noise, albeit with their respective
@@ -88,7 +93,8 @@ levels, and showcase various ways to specify which array should be used for trai
 
 CAREamics allows reading formats not natively supported using two mechanisms:
 
-- Simple loading using a python function, compatible with in-memory training.
+- Simple loading using a python function. If passing a dictionary, all files with the
+expectected file extension will be loaded in memory.
 - Advanced loading using a custom `ImageStack` implementation, useful for more complex
 formats such as chunked or memory-mapped ones.
 
