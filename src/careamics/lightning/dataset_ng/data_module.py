@@ -117,7 +117,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     # if not using ImageStackLoading the input type should be array or path or sequence
     @overload
-    def __init__(
+    def __init__(  # numpydoc ignore=GL08
         self,
         data_config: NGDataConfig | dict[str, Any],
         *,
@@ -129,13 +129,11 @@ class CareamicsDataModule(L.LightningDataModule):
         pred_data: InputVar | None = None,
         pred_data_target: InputVar | None = None,
         loading: ReadFuncLoading | None = None,
-    ) -> None:
-        """Overload for path/array input (no ImageStackLoading)."""
-        ...
+    ) -> None: ...
 
     # if using ImageStackLoading the input data can be anything.
     @overload
-    def __init__(
+    def __init__(  # numpydoc ignore=GL08
         self,
         data_config: NGDataConfig | dict[str, Any],
         *,
@@ -147,9 +145,7 @@ class CareamicsDataModule(L.LightningDataModule):
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
         loading: ImageStackLoading = ...,
-    ) -> None:
-        """Overload for ImageStackLoading input."""
-        ...
+    ) -> None: ...
 
     def __init__(
         self,

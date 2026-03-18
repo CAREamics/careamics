@@ -16,18 +16,18 @@ class FixedPatchingStrategy:
         Sequence of patch specifications to return in order.
     """
 
-    def __init__(self, fixed_patch_specs: Sequence[PatchSpecs]):
-        """Initialize from a fixed sequence of patch specs.
+    def __init__(self, fixed_patch_specs: Sequence[PatchSpecs]) -> None:
+        """Constructor.
 
         Parameters
         ----------
         fixed_patch_specs : Sequence[PatchSpecs]
-            Sequence of patch specifications to return in order.
+            Sequence of patch specifications.
         """
         self.fixed_patch_specs = fixed_patch_specs
 
     @property
-    def n_patches(self):
+    def n_patches(self) -> int:
         """Number of patches; max index for `get_patch_spec`.
 
         Returns

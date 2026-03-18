@@ -1,4 +1,4 @@
-"""Module for the `TilingStrategy` class."""
+"""Tiling patching strategy."""
 
 import itertools
 from collections.abc import Sequence
@@ -8,8 +8,11 @@ from .patching_strategy_protocol import TileSpecs
 
 
 class TilingStrategy:
-    """
-    Tiling strategy for prediction; get_patch_specs returns TileSpecs for stitching.
+    """Patching strategy used to extract overlapping tiles from an image.
+
+    The tiling strategy should be used for prediction. The `get_patch_specs`
+    method returns `TileSpec` dictionaries that contains information on how to
+    stitch the tiles back together to create the full image.
 
     Parameters
     ----------
@@ -27,8 +30,7 @@ class TilingStrategy:
         patch_size: Sequence[int],
         overlaps: Sequence[int],
     ):
-        """
-        Initialize tiling strategy for prediction; get_patch_specs returns TileSpecs.
+        """Constructor.
 
         Parameters
         ----------
@@ -102,7 +104,7 @@ class TilingStrategy:
         ]
 
     def _generate_specs(self) -> list[TileSpecs]:
-        """Build the full list of tile specs from data shapes, patch size, and overlaps.
+        """Build the full list of tile specs.
 
         Returns
         -------

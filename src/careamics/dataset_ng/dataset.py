@@ -1,4 +1,4 @@
-"""CAREamics dataset and image region types for training/validation/prediction."""
+"""CAREamics dataset and image region types."""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -138,7 +138,7 @@ def _patch_size_within_data_shapes(
 
 
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
-    """PyTorch Dataset for CAREamics: patch extraction, normalization, transforms.
+    """PyTorch Dataset for CAREamics.
 
     Parameters
     ----------
@@ -162,7 +162,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
         mask_extractor: PatchExtractor[GenericImageStack] | None = None,
     ) -> None:
-        """Initialize dataset from config, patching strategy, and extractors.
+        """Contructor.
 
         Parameters
         ----------
@@ -220,10 +220,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         )
         self.normalization = create_normalization(self.config.normalization)
 
-        self.transforms = self._initialize_transforms()
+        self.transforms = self._initialize_augmentations()
 
-    def _initialize_transforms(self) -> Compose | None:
-        """Build the composition of augmentations (or empty for non-training).
+    def _initialize_augmentations(self) -> Compose | None:
+        """Build the composition of augmentations.
 
         Returns
         -------
@@ -346,7 +346,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def _get_filtered_patch(
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any] | None, PatchSpecs]:
-        """Extract a patch that passes filtering criteria with retry logic.
+        """Extract a patch using filtering.
 
         Parameters
         ----------
@@ -394,7 +394,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __getitem__(
         self, index: int
     ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
-        """Return one or two ImageRegionData (input and optionally target) for index.
+        """Return a tuple of ImageRegionData for the given index.
 
         Parameters
         ----------

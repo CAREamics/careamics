@@ -1,4 +1,4 @@
-"""Whole-sample patching: one patch per sample (full image)."""
+"""Whole-sample patching."""
 
 from collections.abc import Sequence
 
@@ -15,7 +15,7 @@ class WholeSamplePatchingStrategy:
     """
 
     def __init__(self, data_shapes: Sequence[Sequence[int]]):
-        """Initialize from data shapes (SC(Z)YX per stack).
+        """Constructor.
 
         Parameters
         ----------

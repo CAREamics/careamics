@@ -1,4 +1,4 @@
-"""A module for random patching strategies."""
+"""Random patching strategies."""
 
 from collections.abc import Sequence
 
@@ -8,8 +8,7 @@ from .patching_strategy_protocol import PatchSpecs
 
 
 class RandomPatchingStrategy:
-    """
-    Random patching strategy implementing PatchingStrategy.
+    """Random patching strategy.
 
     Parameters
     ----------
@@ -213,7 +212,7 @@ class RandomPatchingStrategy:
 
 class FixedRandomPatchingStrategy:
     """
-    Deterministic random patching strategy implementing PatchingStrategy.
+    Deterministic random patching strategy for validation.
 
     Parameters
     ----------

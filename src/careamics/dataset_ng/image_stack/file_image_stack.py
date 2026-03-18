@@ -1,4 +1,4 @@
-"""File-backed image stack; data loaded on demand."""
+"""ImageStack implementation for file-backed data."""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -16,7 +16,10 @@ from .image_utils.image_stack_utils import channel_slice, pad_patch
 
 class FileImageStack:
     """
-    ImageStack implementation for file-backed data; load on demand via load().
+    ImageStack implementation for file-backed data.
+
+    This implementation is aimed at representing a single file from a set of multi-file
+    datasets, where the entire dataset cannot be loaded into memory at once.
 
     Parameters
     ----------
@@ -26,12 +29,12 @@ class FileImageStack:
         Axis order (e.g. STCZYX).
     data_shape : tuple of int
         Shape in SC(Z)YX order.
-    data_dtype : DTypeLike
-        NumPy dtype of the data.
+    data_dtype : numpy.DTypeLike
+        Type of the data.
     read_func : ReadFunc
         Function to read the file into an array.
     read_kwargs : dict or Any, optional
-        Extra keyword arguments for read_func.
+        Extra keyword arguments for `read_func`.
     original_data_shape : tuple of int or None, optional
         Shape in original axis order.
 
@@ -51,7 +54,12 @@ class FileImageStack:
         read_kwargs: dict[str, Any] | Any = None,
         original_data_shape: tuple[int, ...] | None = None,
     ):
-        """Initialize file-backed image stack; data is loaded on demand via load().
+        """Constructor.
+
+        This implementation is aimed at representing a single file from a set of
+        multi-file datasets, where the entire dataset cannot be loaded into memory at
+        once. The data is therefore only loaded when the `load` method is called, and
+        internal reference is deleted upon calling the `close` method.
 
         Parameters
         ----------
@@ -61,12 +69,12 @@ class FileImageStack:
             Axis order (e.g. STCZYX).
         data_shape : tuple of int
             Shape in SC(Z)YX order after transformation.
-        data_dtype : DTypeLike
-            NumPy dtype of the data.
+        data_dtype : numpy.DTypeLike
+            Type of the data.
         read_func : ReadFunc
             Function to read the file into an array.
         read_kwargs : dict or Any, optional
-            Extra keyword arguments passed to read_func.
+            Extra keyword arguments passed to `read_func`.
         original_data_shape : tuple of int or None, optional
             Shape in original axis order before transformation.
         """
@@ -88,23 +96,23 @@ class FileImageStack:
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
-        """Extract a patch at the given sample, channels, coords, and size; load first.
+        """Extract a patch for a given sample and channels within the image stack.
 
         Parameters
         ----------
         sample_idx : int
             Sample index.
         channels : sequence of int or None
-            Channel indices; None for all.
+            Channel indices to extract. If `None`, all channels will be extracted.
         coords : sequence of int
-            Patch start coordinates.
+            Spatial coordinates of the top-left corner of the patch.
         patch_size : sequence of int
-            Patch size per spatial dimension.
+            Size of the patch in each spatial dimension.
 
         Returns
         -------
-        NDArray
-            Patch data C(Z)YX.
+        numpy.ndarray
+            A patch of the image data from a particular sample with dimensions C(Z)YX.
         """
         if self._data is None:
             raise ValueError(

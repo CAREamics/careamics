@@ -1,1 +1,1 @@
-"""Next-generation dataset components for CAREamics."""
+"""Next-generation dataset components."""

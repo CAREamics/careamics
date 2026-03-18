@@ -37,13 +37,15 @@ def _compute_mean_std(
     channels : Sequence[int] | None, optional
         Channels to compute statistics for.
     per_channel : bool, optional
-        If True, computes per-channel statistics.
-        If False, collapse all channels into one to produce a single mean/std pair.
+        If True, computes per-channel statistics. If False, collapse all channels into
+        one to produce a single mean/std pair.
 
     Returns
     -------
-    tuple of (list of float, list of float)
-        (means, stds) per channel or single pair if not per_channel.
+    list of float
+        Mean values per channel or single value if `per_channel` is False.
+    list of float
+        Std values per channel or single value if `per_channel` is False.
     """
     image_stats = WelfordStatistics()
     n_patches = patching_strategy.n_patches
@@ -87,8 +89,10 @@ def _compute_min_max(
 
     Returns
     -------
-    tuple of (list of float, list of float)
-        (min_values, max_values) per channel or single pair if not per_channel.
+    list of float
+        Minimum values per channel or single value if `per_channel` is False.
+    list of float
+        Maximum values per channel or single value if `per_channel` is False.
     """
     n_patches = patching_strategy.n_patches
     if n_patches == 0:
@@ -155,8 +159,12 @@ def _compute_quantiles(
 
     Returns
     -------
-    tuple of (list of float, list of float)
-        (lower_values, upper_values) per channel or single pair if not per_channel.
+    list of float
+        Quantile values corresponding to `lower_quantiles` per channel or single value
+        if `per_channel` is False.
+    list of float
+        Quantile values corresponding to `upper_quantiles` per channel or single value
+        if `per_channel` is False.
     """
     estimator = QuantileEstimator(
         lower_quantiles=lower_quantiles,
@@ -187,9 +195,9 @@ def _resolve_quantile_levels(
     patching_strategy: PatchingStrategy,
     channels: Sequence[int] | None,
 ) -> tuple[list[float], list[float]]:
-    """Get quantile levels, broadcasting to n_channels if per_channel.
+    """Get quantile levels, broadcasting to n_channels if `per_channel` is True.
 
-    When ``per_channel=False`` the stored quantile levels (length 1) are
+    When `per_channel=False` the stored quantile levels (length 1) are
     returned directly. Otherwise a sample patch is extracted to determine
     the number of channels and the levels are broadcast accordingly.
 
@@ -206,8 +214,10 @@ def _resolve_quantile_levels(
 
     Returns
     -------
-    tuple of (list of float, list of float)
-        (lower_quantiles, upper_quantiles) broadcast to n_channels if per_channel.
+    list of float
+        Lower quantile levels.
+    list of float
+        Upper quantile levels.
     """
     if not norm_config.per_channel:
         return norm_config.lower_quantiles, norm_config.upper_quantiles

@@ -53,26 +53,23 @@ class ImageStack(Protocol):
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
-        """
-        Extract a patch for a given sample and channels within the image stack.
+        """Extract a patch for a given sample and channels within the image stack.
 
         Parameters
         ----------
         sample_idx : int
-            Sample index. The first dimension of the image data will be indexed at
-            this value.
+            Sample index.
         channels : sequence of int or None
-            Channel indices to extract; None for all channels.
+            Channel indices to extract. If `None`, all channels will be extracted.
         coords : sequence of int
-            The coordinates that define the start of a patch.
+            Spatial coordinates of the top-left corner of the patch.
         patch_size : sequence of int
-            The size of the patch in each spatial dimension.
+            Size of the patch in each spatial dimension.
 
         Returns
         -------
         numpy.ndarray
-            A patch of the image data from a particlular sample. It will have the
-            dimensions C(Z)YX.
+            A patch of the image data from a particular sample with dimensions C(Z)YX.
         """
         ...
 

@@ -1,4 +1,4 @@
-"""Image stack loaders and protocol for dataset_ng."""
+"""Image stack protocol, implementations and loading utilities."""
 
 __all__ = [
     "ImageStackLoader",

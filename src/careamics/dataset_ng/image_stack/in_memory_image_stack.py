@@ -1,4 +1,4 @@
-"""In-memory image stack for dataset_ng."""
+"""ImageStack implementation for in-memory data."""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -15,16 +15,17 @@ from .image_utils.image_stack_utils import channel_slice, pad_patch
 
 class InMemoryImageStack:
     """
-    Image stack with data already loaded in memory.
+    ImageStack with data already loaded in memory.
 
     Parameters
     ----------
     source : Path or "array"
-        Origin of the data.
-    data : NDArray
-        Array in SC(Z)YX order.
+        Origin of the data, either a path to a file or the string `"array"` for numpy
+        arrays.
+    data : numpy.ndarray
+        Array with axes SC(Z)YX.
     original_axes : str or None, optional
-        Axis order before transformation.
+        Axis in original order.
     original_data_shape : tuple of int or None, optional
         Shape in original axis order.
     """
@@ -36,16 +37,17 @@ class InMemoryImageStack:
         original_axes: str | None = None,
         original_data_shape: tuple[int, ...] | None = None,
     ):
-        """Initialize in-memory image stack.
+        """Constructor.
 
         Parameters
         ----------
         source : Path or "array"
-            Origin of the data (path or literal array).
-        data : NDArray
-            Array in SC(Z)YX order.
+            Origin of the data, either a path to a file or the string `"array"` for
+            numpy arrays.
+        data : numpy.ndarray
+            Array with axes SC(Z)YX.
         original_axes : str or None, optional
-            Axis order before transformation.
+            Axis in original order.
         original_data_shape : tuple of int or None, optional
             Shape in original axis order.
         """
@@ -66,23 +68,23 @@ class InMemoryImageStack:
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
-        """Extract a patch at the given sample, channels, coords, and size.
+        """Extract a patch for a given sample and channels within the image stack.
 
         Parameters
         ----------
         sample_idx : int
             Sample index.
         channels : sequence of int or None
-            Channel indices; None for all.
+            Channel indices to extract. If `None`, all channels will be extracted.
         coords : sequence of int
-            Patch start coordinates.
+            Spatial coordinates of the top-left corner of the patch.
         patch_size : sequence of int
-            Patch size per spatial dimension.
+            Size of the patch in each spatial dimension.
 
         Returns
         -------
-        NDArray
-            Patch data C(Z)YX.
+        numpy.ndarray
+            A patch of the image data from a particular sample with dimensions C(Z)YX.
         """
         if (coord_dims := len(coords)) != (patch_dims := len(patch_size)):
             raise ValueError(
@@ -146,14 +148,14 @@ class InMemoryImageStack:
 
     @classmethod
     def from_array(cls, data: NDArray, axes: str) -> Self:
-        """Build an in-memory stack from an array and axis order.
+        """Construct an in-memory stack from an array.
 
         Parameters
         ----------
-        data : NDArray
+        data : numpy.ndarray
             Array (any axis order).
         axes : str
-            Axis order of data.
+            Axis order of the data.
 
         Returns
         -------
@@ -176,7 +178,7 @@ class InMemoryImageStack:
         path : Path
             Path to TIFF file.
         axes : str
-            Axis order.
+            Axis order of the data.
 
         Returns
         -------
@@ -195,18 +197,18 @@ class InMemoryImageStack:
     def from_custom_file_type(
         cls, path: Path, axes: str, read_func: ReadFunc, **read_kwargs: Any
     ) -> Self:
-        """Build an in-memory stack from a custom file via read_func.
+        """Build an in-memory stack from a custom file type.
 
         Parameters
         ----------
         path : Path
             Path to file.
         axes : str
-            Axis order.
+            Axis order of the data.
         read_func : ReadFunc
             Function to read the file.
         **read_kwargs : Any
-            Passed to read_func.
+            Additional keyword arguments passed to `read_func`.
 
         Returns
         -------

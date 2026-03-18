@@ -56,20 +56,20 @@ class QuantileEstimator:
     def _rebin_histogram(
         self, old_hist: NDArray, old_edges: NDArray, new_edges: NDArray
     ) -> NDArray:
-        """Rebin histogram from old_edges to new_edges, preserving total count.
+        """Rebin histogram from `old_edges` to `new_edges`, preserving total count.
 
         Parameters
         ----------
-        old_hist : NDArray
+        old_hist : numpy.ndarray
             Original histogram counts.
-        old_edges : NDArray
+        old_edges : numpy.ndarray
             Original bin edges.
-        new_edges : NDArray
+        new_edges : numpy.ndarray
             New bin edges.
 
         Returns
         -------
-        NDArray
+        numpy.ndarray
             Rebinned histogram.
         """
         new_hist = np.zeros(len(new_edges) - 1, dtype=np.int64)
@@ -133,11 +133,11 @@ class QuantileEstimator:
         return new_hist
 
     def update(self, patch: NDArray) -> None:
-        """Update histograms and bounds with one patch (C(Z)YX).
+        """Update histograms and bounds with a single patch.
 
         Parameters
         ----------
-        patch : NDArray
+        patch : numpy.ndarray
             Patch with shape C(Z)YX.
         """
         flattened_patch = patch.reshape(self.n_channels, -1)
@@ -186,7 +186,7 @@ class QuantileEstimator:
             self.histograms[ch] += hist
 
     def _calculate_quantile(self, ch: int, quantile: float) -> float:
-        """Compute a single quantile for channel ch from its histogram.
+        """Compute a single quantile for channel `ch` from its histogram.
 
         Parameters
         ----------
@@ -231,7 +231,7 @@ class QuantileEstimator:
 
         Returns
         -------
-        tuple of NDArray
+        tuple of numpy.ndarray
             (lower_quantiles, upper_quantiles) per channel.
         """
         lower = np.array(

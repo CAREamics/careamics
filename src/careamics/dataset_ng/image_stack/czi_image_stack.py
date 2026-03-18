@@ -1,4 +1,4 @@
-"""Image stack implementation for Zeiss CZI files."""
+"""Image stack implementation for CZI files."""
 
 from __future__ import annotations
 
@@ -113,21 +113,31 @@ class CziImageStack:
         scene: int | None = None,
         depth_axis: Literal["none", "Z", "T"] = "none",
     ) -> None:
-        """Initialize the CZI image stack from a file path and options.
+        """Constructor.
+
+        As a CZI file can contain multiple scenes, the scene to extract can be specified
+        either as a separate argument `scene` or as part of the `data_path` by appending
+        an "@" followed by the scene index to the filename (e.g. `file.czi@0` for scene
+        0). If both are provided, a ValueError is raised.
+
+        Both `T` and `Z` axes can be used as depth axes for 3D denoising, other non
+        spatial axes will be merged into the sample dimension `S`.
 
         Parameters
         ----------
         data_path : str or Path
-            Path to the CZI file (optionally with ``@scene`` suffix).
+            Path to the CZI file (optionally with `@scene` suffix).
         scene : int or None, optional
             Scene index to load; see class docstring. Omit if encoded in path.
         depth_axis : {"none", "Z", "T"}, optional
-            Axis to use as depth for 3D patches; see class docstring.
+            Axis to use as depth for 3D patches.
 
-        Returns
-        -------
-        None
-            Constructor; no return value.
+        Raises
+        ------
+        ImportError
+            If the `pylibCZIrw` package is not installed.
+        ValueError
+            If the scene index is specified both in the filename and as an argument.
         """
         if not pyczi_available:
             raise ImportError(
@@ -177,7 +187,7 @@ class CziImageStack:
         Returns
         -------
         dict[str, Any]
-            Instance dictionary without the ``_czi`` key.
+            Instance dictionary without the CZI reader.
         """
         # Remove CziReader object from state to avoid pickling issues
         state = self.__dict__.copy()
@@ -190,7 +200,7 @@ class CziImageStack:
         Parameters
         ----------
         state : dict[str, Any]
-            State from ``__getstate__``.
+            State from `__getstate__`.
 
         Returns
         -------
@@ -210,7 +220,7 @@ class CziImageStack:
         Returns
         -------
         Path
-            Path that can be used to recreate this image stack (e.g. ``file.czi@0``).
+            Path that can be used to recreate this image stack (e.g. `file.czi@0`).
         """
         filename = self.data_path.name
         if self.scene is not None:
@@ -224,7 +234,7 @@ class CziImageStack:
         Returns
         -------
         str
-            Axis string before merging dimensions into the sample axis ``S``.
+            Axis string before merging dimensions into the sample axis `S`.
         """
         if not self._sample_axes:
             # No dimensions were merged into S, so axes are already original
@@ -243,7 +253,7 @@ class CziImageStack:
         Returns
         -------
         tuple[int, ...]
-            Shape before merging dimensions into the sample axis ``S``.
+            Shape before merging dimensions into the sample axis `S`.
         """
         if not self._sample_axes:
             # No dimensions were merged into S, so shape is already original
@@ -264,23 +274,23 @@ class CziImageStack:
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
-        """Extract a patch from the CZI stack at the given sample and coordinates.
+        """Extract a patch for a given sample and channels within the image stack.
 
         Parameters
         ----------
         sample_idx : int
-            Index of the sample (plane) in the combined sample dimension.
+            Sample index.
         channels : sequence of int or None
-            Channel indices to extract, or None for all channels.
+            Channel indices to extract. If `None`, all channels will be extracted.
         coords : sequence of int
-            Starting coordinates (Z or T, Y, X) or (Y, X) for 2D.
+            Spatial coordinates of the top-left corner of the patch.
         patch_size : sequence of int
-            Size of the patch per dimension (Z or T, Y, X) or (Y, X).
+            Size of the patch in each spatial dimension.
 
         Returns
         -------
-        numpy.typing.NDArray
-            Patch array with shape (C, Z, Y, X) or (C, Y, X).
+        numpy.ndarray
+            A patch of the image data from a particular sample with dimensions C(Z)YX.
         """
         # check that channels are within bounds
         if channels is not None:

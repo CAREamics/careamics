@@ -98,7 +98,7 @@ def create_dataset(
     masks: Any = None,
     loading: ReadFuncLoading | ImageStackLoading | None = None,
 ) -> CareamicsDataset[ImageStack]:
-    """Create a CAREamicsDataset from config and data sources.
+    """Create a CAREamicsDataset.
 
     Parameters
     ----------
@@ -226,7 +226,7 @@ def select_image_stack_loader(
     in_memory : bool
         Whether to load full data into memory (True) or use lazy loading.
     loading : ReadFuncLoading or ImageStackLoading or None, optional
-        Custom loading spec; required when data_type is custom.
+        Custom loading spec, required when data_type is custom.
 
     Returns
     -------
@@ -421,9 +421,9 @@ def create_pred_dataset(
     Parameters
     ----------
     config : NGDataConfig
-        Data configuration (must not be validating mode).
+        Data configuration.
     data : PredData
-        Prediction (and optional target) data sources.
+        Prediction data sources.
     loading : ReadFuncLoading or ImageStackLoading or None
         Custom loading specification when using custom data type.
 

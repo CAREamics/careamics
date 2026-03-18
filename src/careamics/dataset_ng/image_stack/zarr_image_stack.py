@@ -1,4 +1,4 @@
-"""Zarr-backed image stack for dataset_ng."""
+"""ImageStack implementation for Zarr-backed images."""
 
 from collections.abc import Sequence
 
@@ -12,27 +12,27 @@ from .image_utils.image_stack_utils import channel_slice, pad_patch
 
 class ZarrImageStack:
     """
-    Image stack backed by a zarr array.
+    ImageStack backed by a zarr array.
 
     Parameters
     ----------
     group : zarr.Group
         Zarr group containing the array.
     data_path : str
-        Key/path to the array within the group.
+        Path to the array within the group.
     axes : str
         Axis order (e.g. STCZYX).
     """
 
     def __init__(self, group: zarr.Group, data_path: str, axes: str):
-        """Initialize zarr-backed image stack.
+        """Constructor.
 
         Parameters
         ----------
         group : zarr.Group
             Zarr group containing the array.
         data_path : str
-            Key/path to the array within the group.
+            Path to the array within the group.
         axes : str
             Axis order (e.g. STCZYX).
         """
@@ -71,18 +71,22 @@ class ZarrImageStack:
 
     @property
     def source(self) -> str:
-        """Source path of the zarr array (e.g. for writing predictions).
+        """Source URI of the zarr array.
+
+        Local zarr URIs starts with the `file://` descriptor, and include the path to
+        the zarr file and internal path to the specific array. Source URIs are used
+        during prediction to disk to build destination paths.
 
         Returns
         -------
         str
-            Source path.
+            Source URI.
         """
         return str(self._source)
 
     @property
     def chunks(self) -> Sequence[int]:
-        """Return chunk size in the order of data_shape (SC(Z)YX).
+        """Chunk size per dimension.
 
         Returns
         -------
@@ -93,7 +97,7 @@ class ZarrImageStack:
 
     @property
     def shards(self) -> Sequence[int] | None:
-        """Shard size in the order of data_shape (SC(Z)YX).
+        """Shard size per dimension.
 
         Returns
         -------
@@ -104,12 +108,12 @@ class ZarrImageStack:
 
     @property
     def data_dtype(self) -> DTypeLike:
-        """Data dtype of the array.
+        """Data type of the array.
 
         Returns
         -------
-        DTypeLike
-            NumPy dtype of the data.
+        numpy.DTypeLike
+            Type of the data.
         """
         return self._data_dtype
 
@@ -142,23 +146,23 @@ class ZarrImageStack:
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
-        """Extract a patch; indices are mapped from SC(Z)YX to original axis order.
+        """Extract a patch for a given sample and channels within the image stack.
 
         Parameters
         ----------
         sample_idx : int
             Sample index.
         channels : sequence of int or None
-            Channel indices; None for all.
+            Channel indices to extract. If `None`, all channels will be extracted.
         coords : sequence of int
-            Patch start coordinates.
+            Spatial coordinates of the top-left corner of the patch.
         patch_size : sequence of int
-            Patch size per spatial dimension.
+            Size of the patch in each spatial dimension.
 
         Returns
         -------
-        NDArray
-            Patch data C(Z)YX.
+        numpy.ndarray
+            A patch of the image data from a particular sample with dimensions C(Z)YX.
         """
         # original axes assumed to be any subset of STCZYX (containing YX), in any order
         # arguments must be transformed to index data in original axes order
@@ -217,7 +221,7 @@ class ZarrImageStack:
         return patch
 
     def _get_T_index(self, sample_idx: int) -> int:
-        """Get T index given `sample_idx`.
+        """Get `T` dimension index given `sample_idx`.
 
         Parameters
         ----------
@@ -242,7 +246,7 @@ class ZarrImageStack:
         return sample_idx % dim
 
     def _get_S_index(self, sample_idx: int) -> int:
-        """Get S index given `sample_idx`.
+        """Get `S` dimension index given `sample_idx`.
 
         Parameters
         ----------

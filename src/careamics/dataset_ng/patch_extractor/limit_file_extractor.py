@@ -10,8 +10,10 @@ from .patch_extractor import PatchExtractor
 
 
 class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
-    """
-    Patch extractor that limits how many file stacks are loaded at once.
+    """Patch extractor that limits how many file stacks are loaded at once.
+
+    This patch extractor should be used when the data residing on disk is too large to
+    be loaded in memory at once.
 
     Parameters
     ----------
@@ -25,9 +27,8 @@ class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
         self,
         image_stacks: Sequence[FileImageStack],
         patch_constructor: PatchConstructor = default_patch_constr,
-    ):
-        """
-        Initialize extractor that limits how many file stacks are loaded at once.
+    ) -> None:
+        """Constructor.
 
         Parameters
         ----------
@@ -47,7 +48,7 @@ class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
-        """Extract patch, loading the file for data_idx if not already loaded.
+        """Extract patch, loading the file if not already loaded.
 
         Parameters
         ----------

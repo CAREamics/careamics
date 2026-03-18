@@ -1,4 +1,4 @@
-"""Patching strategies and factory for the next-generation dataset."""
+"""Patching strategies and factory."""
 
 __all__ = [
     "FixedPatchingStrategy",

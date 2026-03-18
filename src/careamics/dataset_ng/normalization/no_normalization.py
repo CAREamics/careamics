@@ -1,4 +1,4 @@
-"""No-op normalization that returns patches unchanged."""
+"""No-op normalization."""
 
 from typing import Any
 
@@ -10,7 +10,7 @@ from .normalization_protocol import NormalizationProtocol
 
 
 class NoNormalization(NormalizationProtocol):
-    """No normalization transform. Returns the patch as is.
+    """No-op normalization transform returning patches unchanged.
 
     Parameters
     ----------

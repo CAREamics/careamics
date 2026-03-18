@@ -47,8 +47,19 @@ class _RegionBins:
 
 
 class StratifiedPatchingStrategy:
-    """
-    Stratified patching strategy; allows excluding patches on a grid.
+    """Stratified patching strategy allowing patches on a grid to be excluded.
+
+    Patches will be sampled from sampling regions that are two times the patch size in
+    each dimension. Some sampling regions may be smaller than this because they are on
+    the edge of an image or because a nearby patch has been excluded.
+
+    If the same index is used twice to sample a patch with the method `get_patch_spec`
+    there will be a high probability that it will come from the same sampling region,
+    but not necessarily 100%. Smaller sampling regions may be binned together into a
+    single index. The mean of all the expected values that each pixel will be selected
+    in a patch per epoch is 1.
+
+    The number of patches is determined from the number of selectable patch coordinates.
 
     Parameters
     ----------
@@ -58,12 +69,6 @@ class StratifiedPatchingStrategy:
         Patch size per spatial dimension (length 2 or 3).
     seed : int or None, optional
         Seed for reproducibility.
-
-    Notes
-    -----
-    Patches are sampled from regions of size 2x patch size (smaller near edges or
-    exclusions). The same index often yields the same region but not always; smaller
-    regions may share a bin. The number of patches is from selectable patch coords.
     """
 
     def __init__(
@@ -229,7 +234,8 @@ class StratifiedPatchingStrategy:
         Returns
         -------
         dict[tuple[int, int], list[tuple, ...]]
-            Keys are (data_idx, sample_idx); values are the corresponding grid coords.
+            Dictionary with keys being (data_idx, sample_idx) and values corresponding
+            to the grid coords.
         """
         included_grid_coords: dict[tuple[int, int], list[tuple[int, ...]]] = {}
         for data_idx, image_patch_list in enumerate(self.image_patching):
@@ -274,6 +280,17 @@ class StratifiedPatchingStrategy:
 class _ImageStratifiedPatching:
     """Sample patch coordinates for a single sample.
 
+    The number of patches is determined from the number of selectable patch coordinates.
+
+    Sampling regions have a size of 2 times the patch size in each dimension, unless
+    the region is near an edge or a nearby patch that has been excluded.
+
+    Sampling regions are packed into bins to achieve the desired number of patches.
+    Each index now corresponds to a bin, the probability that a region in the bin is
+    sampled is equal to the ratio of the area of the region to the bin size. If there
+    is space left in the bin this remaining probability is used to give a small chance
+    that any of the regions in the image may be sampled.
+
     Parameters
     ----------
     shape : sequence of int
@@ -282,12 +299,6 @@ class _ImageStratifiedPatching:
         Patch size per spatial dimension.
     rng : numpy.random.Generator or None, optional
         Random number generator; if None, a default RNG is used.
-
-    Notes
-    -----
-    The number of patches is from selectable patch coordinates. Sampling regions are
-    2x patch size (smaller near edges/exclusions), packed into bins; index maps to a
-    bin and sampling probability is proportional to region area / bin size.
 
     Attributes
     ----------
@@ -398,7 +409,7 @@ class _ImageStratifiedPatching:
 
         Returns
         -------
-        NDArray[int]
+        numpy.ndarray
             Spatial coordinates of the sampled patch.
         """
         if index >= self.n_patches:
@@ -553,6 +564,10 @@ class _SamplingRegion:
     """
     Represent a small subregion that a patch can be sampled from.
 
+    The region is double the patch size in each dimension. Quadrants or octants, for
+    2D or 3D respectively, can be excluded from the region by calling the
+    `exclude_orthant` method.
+
     Parameters
     ----------
     coord : Sequence[int]
@@ -578,11 +593,6 @@ class _SamplingRegion:
         selectable patch coordinates.
     areas : list[int]
         The number of selectable patch coordinates in each sub-region.
-
-    Notes
-    -----
-    The region is double the patch size in each dimension. Quadrants or octants (2D/3D)
-    can be excluded via `exclude_orthant`.
     """
 
     def __init__(
@@ -640,7 +650,7 @@ class _SamplingRegion:
 
         Returns
         -------
-        NDArray[int]
+        numpy.ndarray
             Spatial coordinates of the sampled patch.
         """
         # first a region is chosen (proportionally to area)
@@ -737,13 +747,13 @@ class _SamplingRegion:
 
         Parameters
         ----------
-        regions : NDArray[np.int_]
+        regions : numpy.ndarray[np.int_]
             An array of shape (n_regions, n_dims, 2) where each region is defined
             by its start and end coordinates along each dimension.
 
         Returns
         -------
-        NDArray[np.int_]
+        numpy.ndarray[np.int_]
             An array of shape (n_regions,) containing the area of each region.
         """
         return (regions[:, :, 1] - regions[:, :, 0]).prod(axis=1)
@@ -802,7 +812,7 @@ def _region_bin_packing(
     -------
     bin_size : int
         The capacity of all the bins.
-    bins : list[NDArray[np.int_]]
+    bins : list of numpy.ndarray[np.int_]
         The packed bins. Each bin is represented as a numpy array where the elements
         correspond to the IDs of the input `items`.
     """

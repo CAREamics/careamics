@@ -1,4 +1,4 @@
-"""Patch extractor for multiple image stacks."""
+"""Default patch extractor."""
 
 from collections.abc import Sequence
 from typing import Generic
@@ -25,8 +25,8 @@ class PatchExtractor(Generic[GenericImageStack]):
         self,
         image_stacks: Sequence[GenericImageStack],
         patch_constructor: PatchConstructor = default_patch_constr,
-    ):
-        """Initialize patch extractor over a sequence of image stacks.
+    ) -> None:
+        """Constructor.
 
         Parameters
         ----------
@@ -137,6 +137,6 @@ class PatchExtractor(Generic[GenericImageStack]):
         Returns
         -------
         list of Sequence[int]
-            data_shape of each stack.
+            Shape of each stack.
         """
         return [stack.data_shape for stack in self.image_stacks]

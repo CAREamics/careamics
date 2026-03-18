@@ -5,21 +5,13 @@ from typing import Any, Protocol
 
 from typing_extensions import ParamSpec
 
-from careamics.utils import BaseEnum
-
 from ..image_stack import GenericImageStack
 
 P = ParamSpec("P")
 
 
-class SupportedDataDev(str, BaseEnum):
-    """Enum of supported development data types (e.g. Zarr)."""
-
-    ZARR = "zarr"
-
-
 class ImageStackLoader(Protocol[P, GenericImageStack]):
-    """Protocol to define how image stacks are loaded from a source.
+    """Protocol to define how ImageStacks are loaded from a source.
 
     An `ImageStackLoader` is a callable that must take the `source` of the data as the
     first argument, and the data `axes` as the second argument.
@@ -71,14 +63,14 @@ class ImageStackLoader(Protocol[P, GenericImageStack]):
     def __call__(
         self, source: Any, axes: str, *args: P.args, **kwargs: P.kwargs
     ) -> Sequence[GenericImageStack]:
-        """Load image stacks from a source for the given axes.
+        """Load `ImageStacks` from a source.
 
         Parameters
         ----------
         source : Any
-            The data source (paths, store, etc.).
+            Data source (paths, store, etc.).
         axes : str
-            Axis order string (e.g. "SYX", "SCZYX").
+            Axis order (e.g. "SYX", "SCZYX").
         *args : P.args
             Additional positional arguments for loading.
         **kwargs : P.kwargs
@@ -87,6 +79,6 @@ class ImageStackLoader(Protocol[P, GenericImageStack]):
         Returns
         -------
         Sequence[GenericImageStack]
-            The loaded image stacks.
+            The loaded ImageStacks.
         """
         ...
