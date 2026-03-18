@@ -723,7 +723,9 @@ def _region_bin_packing(
     ----------
     region_areas : dict[int, int]
         A dictionary where the keys correspond to an ID and the values correspond to
-        the volume to be packed.
+        the volume to be packed. In the stratified patching strategy, the volumes are
+        the sampling area, i.e. the number of pixels the patch coordinates can be
+        sampled from in a sampling region.
     n_bins : int
         The number of bins.
 
@@ -738,6 +740,8 @@ def _region_bin_packing(
     if n_bins == 0:
         return 0, []
     if len(region_areas) <= n_bins:
+        # faster for this case to just put one region in each bin.
+        # we don't care about the bin packing being efficient, just the number of bins
         bins = [np.array([key], dtype=int) for key in region_areas.keys()] + [
             np.array([], dtype=int) for _ in range(n_bins - len(region_areas))
         ]
