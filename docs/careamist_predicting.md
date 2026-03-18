@@ -66,8 +66,8 @@ axes or format. The `predict` method allows changing these parameters (`axes`,
 
 Here, let's say we trained from arrays of axes `YX`, and now want to predict with the
 trained model on a TIFF file (we have a path `pred_data_path`) that has channels. Since
-we did not trained on channels, we need to pass `channels` to specify a single channel
-we want to train on. We also need to specify the new axes and data_type. Finally, we
+we did not train on channels, we need to pass `channels` to specify a single channel
+we want to train on. We also need to specify the new axes and `data_type`. Finally, we
 do not want to train in-memory.
 
 ```python title="Prediction"
