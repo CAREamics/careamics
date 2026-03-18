@@ -44,8 +44,8 @@ repos:
     rev: v1.10.0
     hooks:
       - id: numpydoc-validation
-        exclude: "^docs/.*|^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*|^scripts/.*|^src/careamics/careamist_v2.py|^src/careamics/lightning/dataset_ng/data_module.py"
-        # data_module: overloads and config params (val_percentage etc.) don't match signature; see https://github.com/numpy/numpydoc/issues/559
+        exclude: "^docs/.*|^tests/.*|^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*|^scripts/.*"
+        # regarding src/careamics/lightning/dataset_ng/data_module.py: https://github.com/numpy/numpydoc/issues/559
 
   # # jupyter linting and formatting
   # - repo: https://github.com/nbQA-dev/nbQA
