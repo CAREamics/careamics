@@ -5,6 +5,9 @@ import numpy as np
 import pytest
 
 from careamics.dataset_ng.patching_strategies import StratifiedPatchingStrategy
+from careamics.dataset_ng.patching_strategies.stratified_patching import (
+    _region_bin_packing,
+)
 
 
 @pytest.mark.parametrize(
@@ -65,3 +68,40 @@ def test_excluded_patches_never_selected(
         assert (tracking_array[excluded_mask] == 0).all()
         # for good measure make sure the rest of the array isn't zeros
         assert (tracking_array[~excluded_mask] != 0).any()
+
+
+@pytest.mark.parametrize(
+    "areas,n_patches,expected_bin_size",
+    [
+        [
+            [2048, 2048, 2048, 1096, 1096, 1096, 1024, 1024, 1024, 1024],  # 10 areas
+            12,  # n_patches greater than n_areas
+            2048,
+        ],
+        [
+            [2048, 2048, 2048, 1096, 1096, 1096, 1024, 1024, 1024, 1024],  # 10 areas
+            8,
+            2048,
+        ],
+        [
+            [2048, 2048, 2048, 1096, 1096, 1096, 1024, 1024, 1024, 1024],  # 10 areas
+            7,
+            1096 + 1024,
+        ],
+        [
+            [2048, 2048, 2048, 1096, 1096, 1096, 1024, 1024, 1024, 1024],  # 10 areas
+            0,
+            0,
+        ],
+    ],
+)
+def test_region_bin_packing(
+    areas: list[int],
+    n_patches: int,
+    expected_bin_size: float,
+):
+    """Test that the bin packing algorithm produces the expected bin size."""
+    areas_dict = dict(enumerate(areas))
+    bin_size, bins = _region_bin_packing(areas_dict, n_patches)
+    assert len(bins) == n_patches
+    assert bin_size == expected_bin_size
