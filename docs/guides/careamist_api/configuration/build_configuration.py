@@ -17,7 +17,7 @@ from careamics.config.support import (
     SupportedData,
     SupportedLogger,
 )
-from careamics.config.transformations import XYFlipConfig
+from careamics.config.augmentations import XYFlipConfig
 
 experiment_name = "N2V_example"
 

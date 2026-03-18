@@ -9,7 +9,7 @@ from careamics.transforms import Compose
 from careamics.utils.reshape_array import reshape_array
 
 from ..config import InferenceConfig
-from ..config.transformations import NormalizeConfig
+from ..config.augmentations import NormalizeConfig
 
 
 class InMemoryPredDataset(Dataset):

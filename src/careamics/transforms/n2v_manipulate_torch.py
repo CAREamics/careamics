@@ -5,8 +5,8 @@ from typing import Any
 
 import torch
 
+from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
-from careamics.config.transformations import N2VManipulateConfig
 
 from .pixel_manipulation_torch import (
     median_manipulate_torch,
@@ -61,7 +61,6 @@ class N2VManipulateTorch:
         self.masked_pixel_percentage = n2v_manipulate_config.masked_pixel_percentage
         self.roi_size = n2v_manipulate_config.roi_size
         self.strategy = n2v_manipulate_config.strategy
-        self.remove_center = n2v_manipulate_config.remove_center
 
         if n2v_manipulate_config.struct_mask_axis == SupportedStructAxis.NONE:
             self.struct_mask: StructMaskParameters | None = None
@@ -122,7 +121,6 @@ class N2VManipulateTorch:
                     patch=batch[:, c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
-                    remove_center=self.remove_center,
                     struct_params=self.struct_mask,
                     rng=self.rng,
                 )

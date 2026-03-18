@@ -44,9 +44,6 @@ class N2VManipulateConfig(TransformConfig):
     masked_pixel_percentage: float = Field(default=0.2, ge=0.05, le=10.0)
     """Percentage of masked pixels per image."""
 
-    remove_center: bool = Field(default=True)  # TODO remove it
-    """Exclude center pixel from average calculation."""  # TODO rephrase this
-
     strategy: Literal["uniform", "median"] = Field(default="uniform")
     """Strategy for pixel value replacement."""
 
