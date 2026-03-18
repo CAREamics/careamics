@@ -382,16 +382,9 @@ class _ImageStratifiedPatching:
                 f"Index {index} out of bounds for image with {self.n_patches} patches."
             )
 
-        # the number of bins will be less than or equal to the number of patches,
-        #
-        # for index < no. of bins, the index will select a bin.
-        # A sampling region will be selected from the bin with a calculated probability,
-        # the probability is proportional to the no. of region's selectable coordinates.
         # A bin might not be perfectly filled, the remaining probability has to be used,
         # it is assigned to all the sampling regions proportionally to their area.
-        #
-        # for index > no. of bins, it is effectively treated as an empty bin
-        # all of sampling regions are selected proportionally to their area.
+        # Some bins may be empty.
         region = self._sample_region_from_bin(index)
         return region.sample_patch_coord()
 
@@ -717,7 +710,7 @@ def _boxes_overlap(
 
 
 def _region_bin_packing(
-    items: dict[int, int],
+    region_areas: dict[int, int],
     n_bins: int,
 ) -> tuple[int, list[NDArray[np.int_]]]:
     """
@@ -728,7 +721,7 @@ def _region_bin_packing(
 
     Parameters
     ----------
-    items : dict[int, int]
+    region_areas : dict[int, int]
         A dictionary where the keys correspond to an ID and the values correspond to
         the volume to be packed.
     n_bins : int
@@ -744,20 +737,23 @@ def _region_bin_packing(
     """
     if n_bins == 0:
         return 0, []
-    if len(items) <= n_bins:
-        bins = [np.array([key], dtype=int) for key in items.keys()] + [
-            np.array([], dtype=int) for _ in range(n_bins - len(items))
+    if len(region_areas) <= n_bins:
+        bins = [np.array([key], dtype=int) for key in region_areas.keys()] + [
+            np.array([], dtype=int) for _ in range(n_bins - len(region_areas))
         ]
-        return max(items.values()), bins
+        return max(region_areas.values()), bins
 
-    sorted_keys = sorted(items.keys(), key=lambda k: items[k], reverse=True)
-    bin_size = max(items.values())
+    # indices of the regions sorted in decreasing order of region area
+    sorted_indices = sorted(
+        region_areas.keys(), key=lambda idx: region_areas[idx], reverse=True
+    )
+    bin_size = max(region_areas.values())
     bins_list: list[list[int]] = [[] for _ in range(n_bins)]
     remaining_capacity: NDArray[np.floating] = np.array(
         [bin_size for _ in range(n_bins)]
     )
-    for key in sorted_keys:
-        area = items[key]
+    for region_idx in sorted_indices:
+        area = region_areas[region_idx]
         diff = remaining_capacity - area
         # if the area doesn't fit in any bin, the bin size will be expanded.
         if (diff < 0).all():
@@ -774,7 +770,7 @@ def _region_bin_packing(
             diff[diff < 0] = bin_size * 2
             bin_idx = np.argmin(diff)
 
-        bins_list[bin_idx].append(key)
+        bins_list[bin_idx].append(region_idx)
         remaining_capacity[bin_idx] -= area
 
     bins = [np.array(bin_, dtype=int) for bin_ in bins_list]
