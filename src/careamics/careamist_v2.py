@@ -128,7 +128,7 @@ class CAREamistV2:
         self.work_dir = self._resolve_work_dir(work_dir)
         self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
 
-        self.config.training_config.lightning_trainer_config["enable_progress_bar"] = (
+        self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
         )
         self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
