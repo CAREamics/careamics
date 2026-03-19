@@ -13,8 +13,16 @@ from careamics.dataset_ng.patching_strategies import TilingStrategy
 
 
 class ShannonPatchFilter(PatchFilterProtocol):
-    """
-    Filter patches based on Shannon entropy threshold.
+    """Filter patches based on Shannon entropy threshold.
+
+    Parameters
+    ----------
+    threshold : float
+        Shannon entropy threshold; patches below are filtered out.
+    p : float, default=1
+        Probability of applying the filter to a patch (0-1).
+    seed : int or None, default=None
+        Random seed for reproducibility.
 
     Attributes
     ----------
@@ -29,8 +37,7 @@ class ShannonPatchFilter(PatchFilterProtocol):
     def __init__(
         self, threshold: float, p: float = 1.0, seed: int | None = None
     ) -> None:
-        """
-        Create a ShannonEntropyFilter.
+        """Create a ShannonPatchFilter.
 
         This filter removes patches whose Shannon entropy is below a specified
         threshold.
@@ -108,12 +115,9 @@ class ShannonPatchFilter(PatchFilterProtocol):
         ValueError
             If the image is not 2D or 3D.
 
-        Example
-        -------
-        The `filter_map` method can be used to assess a useful threshold for the
-        Shannon entropy filter. Below is an example of how to compute and visualize
-        the Shannon entropy map of a random image and visualize thresholded versions
-        of the map.
+        Examples
+        --------
+        Assess a useful threshold by computing and visualizing the entropy map:
         >>> import numpy as np
         >>> from matplotlib import pyplot as plt
         >>> from careamics.dataset_ng.patch_filter import ShannonPatchFilter

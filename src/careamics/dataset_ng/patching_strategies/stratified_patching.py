@@ -1,4 +1,4 @@
-"Stratified patching strategy with the option to exclude coordinates."
+"""Stratified patching strategy with the option to exclude coordinates."""
 
 import itertools
 from collections.abc import Sequence
@@ -29,6 +29,8 @@ from .patching_strategy_protocol import PatchSpecs
 
 @dataclass
 class _RegionBins:
+    """A dataclass representing the binning of all sub-regions of a sample."""
+
     bins: list[NDArray[np.int_]]
     """
     A list of numpy arrays representing bins, each consisting of the indices of regions
@@ -45,8 +47,7 @@ class _RegionBins:
 
 
 class StratifiedPatchingStrategy:
-    """
-    A stratified patching strategy that also allows patches on a grid to be excluded.
+    """Stratified patching strategy allowing patches on a grid to be excluded.
 
     Patches will be sampled from sampling regions that are two times the patch size in
     each dimension. Some sampling regions may be smaller than this because they are on
@@ -59,6 +60,15 @@ class StratifiedPatchingStrategy:
     in a patch per epoch is 1.
 
     The number of patches is determined from the number of selectable patch coordinates.
+
+    Parameters
+    ----------
+    data_shapes : sequence of (sequence of int)
+        Shapes of the underlying data (axes SC(Z)YX).
+    patch_size : sequence of int
+        Patch size per spatial dimension (length 2 or 3).
+    seed : int or None, optional
+        Seed for reproducibility.
     """
 
     def __init__(
@@ -107,6 +117,11 @@ class StratifiedPatchingStrategy:
         The number of patches that this patching strategy will return.
 
         It also determines the maximum index that can be given to `get_patch_spec`.
+
+        Returns
+        -------
+        int
+            Number of patches.
         """
         return sum(
             sum([sample.n_patches for sample in image]) for image in self.image_patching
@@ -169,7 +184,6 @@ class StratifiedPatchingStrategy:
         PatchSpecs
             A dictionary that specifies a single patch in a series of `ImageStacks`.
         """
-
         # first find data_idx from cumulative image patches
         data_idx = np.digitize(index, self.cumulative_image_patches)
 
@@ -230,9 +244,9 @@ class StratifiedPatchingStrategy:
 
         Returns
         -------
-        grid_coords : dict[tuple[int, int], list[tuple, ...]]
-            The key of the returned dictionary corresponds to the
-            `(data_idx, sample_idx)` and the values are the corresponding grid coords.
+        dict[tuple[int, int], list[tuple, ...]]
+            Dictionary with keys being (data_idx, sample_idx) and values corresponding
+            to the grid coords.
         """
         included_grid_coords: dict[tuple[int, int], list[tuple[int, ...]]] = {}
         for data_idx, image_patch_list in enumerate(self.image_patching):
@@ -257,7 +271,7 @@ class StratifiedPatchingStrategy:
         Calculate bins to determine which image and sample a patch index maps to.
 
         Returns
-        ------
+        -------
         cumulative_image_patches : numpy.ndarray
             Bins that show which "image stack" a patch index belongs to.
         cumulative_sample_patches : numpy.ndarray
@@ -285,7 +299,7 @@ class StratifiedPatchingStrategy:
 
 
 class _ImageStratifiedPatching:
-    """A class used to sample the patch coordinates for a single sample.
+    """Sample patch coordinates for a single sample.
 
     The number of patches is determined from the number of selectable patch coordinates.
 
@@ -297,6 +311,15 @@ class _ImageStratifiedPatching:
     sampled is equal to the ratio of the area of the region to the bin size. If there
     is space left in the bin this remaining probability is used to give a small chance
     that any of the regions in the image may be sampled.
+
+    Parameters
+    ----------
+    shape : sequence of int
+        Full shape for this sample (SC(Z)YX); spatial part used for regions.
+    patch_size : sequence of int
+        Patch size per spatial dimension.
+    rng : numpy.random.Generator or None, optional
+        Random number generator; if None, a default RNG is used.
 
     Attributes
     ----------
@@ -386,7 +409,14 @@ class _ImageStratifiedPatching:
         self._recalculate_sampling()
 
     @property
-    def n_patches(self):
+    def n_patches(self) -> int:
+        """Number of patches.
+
+        Returns
+        -------
+        int
+            The number of patches.
+        """
         return len(self.region_bins.bins)
 
     def sample_patch_coord(self, index: int) -> NDArray[np.int_]:
@@ -398,6 +428,11 @@ class _ImageStratifiedPatching:
         index : int
             Corresponds with high probability to a patch from a particular region, or
             multiple regions.
+
+        Returns
+        -------
+        numpy.ndarray
+            Spatial coordinates of the sampled patch.
         """
         if index >= self.n_patches:
             raise ValueError(
@@ -414,9 +449,15 @@ class _ImageStratifiedPatching:
         """
         Sample a region from a given bin. Bins can contain multiple sampling regions.
 
-        bin : list[tuple[int, ...]]
-            A bin of sampling regions represented by a list of grid coordinates. Each
-            grid coordinate corresponds to one sampling region.
+        Parameters
+        ----------
+        index : int
+            The index of the bin to sample from.
+
+        Returns
+        -------
+        _SamplingRegion
+            The sampled region.
         """
         indices = self.region_bins.bins[index]
 
@@ -481,7 +522,7 @@ class _ImageStratifiedPatching:
 
         Returns
         -------
-        grid_coords : list[tuple, ...]]
+        list[tuple[int, ...]]
             The list of included grid coordinates.
         """
         grid_coords_all: set[tuple[int, ...]] = set(self.grid_coords.keys())
@@ -511,7 +552,6 @@ class _ImageStratifiedPatching:
         probs : dict[tuple[int, ...], float]
             The probability that a sampling region will be selected from its bin.
         """
-
         # NOTE: alternative number of patches:
         # - results in expected value of pixel not near edge being 1 per epoch.
         # n_patches = int(np.ceil(sum(self.areas.values()) / np.prod(self.patch_size)))
@@ -562,6 +602,15 @@ class _SamplingRegion:
     2D or 3D respectively, can be excluded from the region by calling the
     `exclude_orthant` method.
 
+    Parameters
+    ----------
+    coord : Sequence[int]
+        Top-left (and depth) coordinate of the region (length 2 or 3).
+    patch_size : Sequence[int]
+        Patch size; region is double this in each dimension.
+    rng : numpy.random.Generator or None, optional
+        Random number generator; if None, a default RNG is used.
+
     Attributes
     ----------
     coord : Sequence[int]
@@ -597,8 +646,8 @@ class _SamplingRegion:
         patch_size : Sequence[int]
             The patch size, a sampling region will have double the patch size in each
             dimension.
-        rng: numpy.random.Generator, optional
-            A numpy random number generator.
+        rng : numpy.random.Generator or None, optional
+            A numpy random number generator. If None, a default RNG is used.
         """
         if rng is not None:
             self.rng = rng
@@ -631,7 +680,13 @@ class _SamplingRegion:
         self.areas: NDArray[np.int_] = self._calc_areas(self.subregions)
 
     def sample_patch_coord(self) -> NDArray[np.int_]:
-        """Sample a patch coordinate from the sampling region."""
+        """Sample a patch coordinate from the sampling region.
+
+        Returns
+        -------
+        numpy.ndarray
+            Spatial coordinates of the sampled patch.
+        """
         # first a region is chosen (proportionally to area)
         r_idx = int(
             self.rng.choice(np.arange(len(self.areas)), p=self.areas / self.areas.sum())
@@ -654,9 +709,9 @@ class _SamplingRegion:
 
         Parameters
         ----------
-        orthant: tuple[{0, 1}, ...]
-            A 2D or 3D tuple of 0s and 1s which identify orthants, e.g. (0, 0) would be
-            the top left quadrant and (0, 1) would be the top right quadrant.
+        orthant : tuple of (0 or 1)
+            A 2D or 3D tuple of 0s and 1s which identify orthants, e.g. (0, 0) is
+            the top left quadrant and (0, 1) is the top right quadrant.
         """
         orthant_region = np.array(
             [(r, r + self.patch_size[i]) for i, r in enumerate(orthant)]
@@ -721,8 +776,20 @@ class _SamplingRegion:
         self.areas = areas
 
     @staticmethod
-    # Sequence[tuple[tuple[int, int], ...]]
     def _calc_areas(regions: NDArray[np.int_]) -> NDArray[np.int_]:
+        """Compute areas over all regions.
+
+        Parameters
+        ----------
+        regions : numpy.ndarray[np.int_]
+            An array of shape (n_regions, n_dims, 2) where each region is defined
+            by its start and end coordinates along each dimension.
+
+        Returns
+        -------
+        numpy.ndarray[np.int_]
+            An array of shape (n_regions,) containing the area of each region.
+        """
         return (regions[:, :, 1] - regions[:, :, 0]).prod(axis=1)
 
 
@@ -735,6 +802,18 @@ def _boxes_overlap(
 ) -> bool:
     """
     Determine whether `box_a` and `box_b` overlap.
+
+    Parameters
+    ----------
+    box_a : Box
+        First box (sequence of (start, end) per axis).
+    box_b : Box
+        Second box (sequence of (start, end) per axis).
+
+    Returns
+    -------
+    bool
+        True if the boxes overlap.
     """
     a_start = box_a[:, 0]
     a_end = box_a[:, 1]
@@ -748,10 +827,10 @@ def _region_bin_packing(
     n_bins: int,
 ) -> tuple[int, list[NDArray[np.int_]]]:
     """
-    A bin packing algorithm to find the minimum bin size for a fixed number of bins.
+    A bin packing algorithm finding the minimum bin size for a fixed number of bins.
 
-    There are a fixed number of bins which are allowed to expand their capacity, but
-    the capacity should be kept to a minimum.
+    A fixed number of bins are allowed to expand their capacity, while capacity should
+    be kept to a minimum.
 
     Parameters
     ----------
@@ -766,8 +845,8 @@ def _region_bin_packing(
     Returns
     -------
     bin_size : int
-        The capacity of all the bins
-    bins : list[NDArray[np.int_]]
+        The capacity of all the bins.
+    bins : list of numpy.ndarray[np.int_]
         The packed bins. Each bin is represented as a numpy array where the elements
         correspond to the IDs of the input `items`.
     """

@@ -1,3 +1,5 @@
+"""Factory functions and data types for building CAREamics datasets and loaders."""
+
 from dataclasses import dataclass
 from functools import partial
 from typing import Any, Generic, TypeVar
@@ -35,6 +37,8 @@ T = TypeVar("T")
 
 @dataclass
 class ReadFuncLoading:
+    """Loading specification using a custom read function."""
+
     read_source_func: ReadFunc
     read_kwargs: dict[str, Any] | None = None
     extension_filter: str = ""
@@ -42,6 +46,8 @@ class ReadFuncLoading:
 
 @dataclass
 class ImageStackLoading:
+    """Loading spec. for a custom image stack loader (chunked / memory-mapped)."""
+
     image_stack_loader: ImageStackLoader[..., ImageStack]
     image_stack_loader_kwargs: dict[str, Any] | None = None
 
@@ -94,27 +100,25 @@ def create_dataset(
     targets: Any,
     loading: ReadFuncLoading | ImageStackLoading | None = None,
 ) -> CareamicsDataset[ImageStack]:
-    """
-    Convenience function to create the CAREamicsDataset.
+    """Create a CAREamicsDataset.
 
     Parameters
     ----------
-    config : DataConfig or InferenceConfig
-        The data configuration.
+    config : NGDataConfig
+        The data configuration (data type, axes, patching, etc.).
     inputs : Any
-        The input sources to the dataset.
+        The input data sources (paths, arrays, or custom).
     targets : Any, optional
-        The target sources to the dataset.
-    read_func : ReadFunc, optional
-        A function that can that can be used to load custom data. This argument is
-        ignored unless the `data_type` in the `config` is "custom".
-    read_kwargs : dict of {str, Any}, optional
-        Additional key-word arguments to pass to the `read_func`.
-    image_stack_loader : ImageStackLoader, optional
-        A function for custom image stack loading. This argument is ignored unless the
-        `data_type` in the `config` is "custom".
-    image_stack_loader_kwargs : {str, Any}, optional
-        Additional key-word arguments to pass to the `image_stack_loader`.
+        The target data sources, or None.
+    loading : ReadFuncLoading or ImageStackLoading or None, optional
+        Custom loading specification. Required when `data_type` is "custom":
+        use ReadFuncLoading for a read function, or ImageStackLoading for a
+        custom image stack loader. Otherwise None.
+
+    Returns
+    -------
+    CareamicsDataset[ImageStack]
+        The configured dataset instance.
     """
     image_stack_loader = select_image_stack_loader(
         data_type=SupportedData(config.data_type),
@@ -152,6 +156,24 @@ def init_patch_extractor(
     source: Any,
     axes: str,
 ) -> PatchExtractor[GenericImageStack]:
+    """Build a patch extractor by loading image stacks from the source.
+
+    Parameters
+    ----------
+    patch_extractor : type[PatchExtractor]
+        The PatchExtractor class to instantiate (e.g. PatchExtractor).
+    image_stack_loader : ImageStackLoader
+        Callable that takes (source, axes) and returns a list of image stacks.
+    source : Any
+        Data source (paths, arrays, etc.) passed to the loader.
+    axes : str
+        Axis order string passed to the loader.
+
+    Returns
+    -------
+    PatchExtractor[GenericImageStack]
+        The constructed patch extractor instance.
+    """
     image_stacks = image_stack_loader(source, axes)
     return patch_extractor(image_stacks)
 
@@ -188,6 +210,22 @@ def select_image_stack_loader(
     in_memory: bool,
     loading: ReadFuncLoading | ImageStackLoading | None = None,
 ) -> ImageStackLoader[..., ImageStack]:
+    """Select image stack loader function for the given data type and loading options.
+
+    Parameters
+    ----------
+    data_type : SupportedData
+        The type of data (array, tiff, zarr, czi, custom).
+    in_memory : bool
+        Whether to load full data into memory (True) or use lazy loading.
+    loading : ReadFuncLoading or ImageStackLoading or None, optional
+        Custom loading spec, required when data_type is custom.
+
+    Returns
+    -------
+    ImageStackLoader
+        A callable that takes (source, axes) and returns a list of image stacks.
+    """
     match data_type:
         case SupportedData.ARRAY:
             return load_arrays
@@ -319,9 +357,21 @@ def create_train_val_datasets(
     data: TrainValData[Any],
     loading: Loading,
 ) -> tuple[CareamicsDataset[ImageStack], CareamicsDataset[ImageStack]]:
-    """Create the train and validation datasets.
+    """Create train and validation datasets when validation data is provided explicitly.
 
-    In the case where validation data has been provided.
+    Parameters
+    ----------
+    config : NGDataConfig
+        Data configuration (must have mode='training').
+    data : TrainValData
+        Train and validation data sources (and optional targets/masks).
+    loading : ReadFuncLoading or ImageStackLoading or None
+        Custom loading specification when using custom data type.
+
+    Returns
+    -------
+    tuple of (CareamicsDataset, CareamicsDataset)
+        (train_dataset, val_dataset).
     """
     if config.mode != "training":
         raise ValueError(
@@ -354,9 +404,25 @@ def create_val_split_datasets(
     loading: Loading,
     rng: np.random.Generator,
 ) -> tuple[CareamicsDataset[ImageStack], CareamicsDataset[ImageStack]]:
-    """Create the train and validation datasets.
+    """Create train and validation datasets by splitting from training data.
 
-    With validation patches automatically split from the training data.
+    Requires stratified patching in config.
+
+    Parameters
+    ----------
+    config : NGDataConfig
+        Data configuration (must have mode='training', patching.name='stratified').
+    data : TrainValSplitData
+        Training data sources and number of validation patches.
+    loading : ReadFuncLoading or ImageStackLoading or None
+        Custom loading specification when using custom data type.
+    rng : numpy.random.Generator
+        Random generator for reproducible validation split.
+
+    Returns
+    -------
+    tuple of (CareamicsDataset, CareamicsDataset)
+        (train_dataset, val_dataset).
     """
     if config.mode != "training":
         raise ValueError(
@@ -394,8 +460,23 @@ def create_pred_dataset(
     config: NGDataConfig,
     data: PredData[Any],
     loading: Loading,
-):
-    """Create the prediction dataset."""
+) -> CareamicsDataset[ImageStack]:
+    """Create the dataset for prediction.
+
+    Parameters
+    ----------
+    config : NGDataConfig
+        Data configuration.
+    data : PredData
+        Prediction data sources.
+    loading : ReadFuncLoading or ImageStackLoading or None
+        Custom loading specification when using custom data type.
+
+    Returns
+    -------
+    CareamicsDataset[ImageStack]
+        Dataset configured for prediction.
+    """
     if config.mode == "validating":
         raise ValueError(
             "CAREamicsDataModule configured for validating cannot be used for "

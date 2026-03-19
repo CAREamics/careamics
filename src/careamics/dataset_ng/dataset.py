@@ -1,3 +1,5 @@
+"""CAREamics dataset and image region types."""
+
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Generic, Literal, NamedTuple, Union
@@ -135,6 +137,22 @@ def _patch_size_within_data_shapes(
 
 
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
+    """PyTorch Dataset for CAREamics.
+
+    Parameters
+    ----------
+    data_config : NGDataConfig
+        Dataset configuration.
+    patching_strategy : PatchingStrategy
+        Strategy for sampling patches.
+    input_extractor : PatchExtractor
+        Extractor for input patches.
+    target_extractor : PatchExtractor or None, optional
+        Extractor for target patches.
+    mask_extractor : PatchExtractor or None, optional
+        Extractor for mask (e.g. for coord filter).
+    """
+
     def __init__(
         self,
         data_config: NGDataConfig,
@@ -142,7 +160,21 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
     ) -> None:
+        """Contructor.
 
+        Parameters
+        ----------
+        data_config : NGDataConfig
+            Dataset configuration.
+        patching_strategy : PatchingStrategy
+            Strategy for sampling patches.
+        input_extractor : PatchExtractor
+            Extractor for input patches.
+        target_extractor : PatchExtractor or None, optional
+            Extractor for target patches.
+        mask_extractor : PatchExtractor or None, optional
+            Extractor for mask (e.g. for coord filter).
+        """
         # Make sure all the image sizes are greater than the patch size for training
         data_shapes = [
             image_stack.data_shape for image_stack in input_extractor.image_stacks
@@ -174,9 +206,16 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         )
         self.normalization = create_normalization(self.config.normalization)
 
-        self.transforms = self._initialize_transforms()
+        self.transforms = self._initialize_augmentations()
 
-    def _initialize_transforms(self) -> Compose | None:
+    def _initialize_augmentations(self) -> Compose | None:
+        """Build the composition of augmentations.
+
+        Returns
+        -------
+        Compose or None
+            Augmentations or empty compose.
+        """
         if self.config.mode == Mode.TRAINING:
             return Compose(list(self.config.augmentations))
 
@@ -184,11 +223,34 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         return Compose([])
 
     def __len__(self):
+        """Return the number of patches (length of the dataset).
+
+        Returns
+        -------
+        int
+            Number of patches.
+        """
         return self.patching_strategy.n_patches
 
     def _create_image_region(
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
     ) -> ImageRegionData:
+        """Wrap a patch and its spec into an ImageRegionData for the given extractor.
+
+        Parameters
+        ----------
+        patch : np.ndarray
+            Patch data.
+        patch_spec : PatchSpecs
+            Patch specification.
+        extractor : PatchExtractor
+            Extractor used (for metadata).
+
+        Returns
+        -------
+        ImageRegionData
+            Region data for the patch.
+        """
         data_idx = patch_spec["data_idx"]
         image_stack: GenericImageStack = extractor.image_stacks[data_idx]
 
@@ -233,7 +295,18 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def _extract_patches(
         self, patch_spec: PatchSpecs
     ) -> tuple[NDArray, NDArray | None]:
-        """Extract input and target patches based on patch specifications."""
+        """Extract input and target patches based on patch specifications.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification (data_idx, sample_idx, coords, patch_size).
+
+        Returns
+        -------
+        tuple of (NDArray, NDArray or None)
+            Input patch and optional target patch.
+        """
         input_patch = self.input_extractor.extract_channel_patch(
             data_idx=patch_spec["data_idx"],
             sample_idx=patch_spec["sample_idx"],
@@ -259,6 +332,18 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __getitem__(
         self, index: int
     ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
+        """Return a tuple of ImageRegionData for the given index.
+
+        Parameters
+        ----------
+        index : int
+            Dataset index.
+
+        Returns
+        -------
+        tuple of ImageRegionData
+            (input_data,) or (input_data, target_data).
+        """
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch, target_patch = self._extract_patches(patch_spec)
 
