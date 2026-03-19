@@ -262,7 +262,7 @@ def create_train_dataset(
         target_extractor = None
     if masks is not None:
         mask_extractor = init_patch_extractor(
-            patch_extractor_type, image_stack_loader, targets, config.axes
+            patch_extractor_type, image_stack_loader, masks, config.axes
         )
     else:
         mask_extractor = None
@@ -303,8 +303,7 @@ def create_train_dataset(
 
         mask_filter = create_coord_filter(coord_filter_config, mask_extractor)
         filter_background_with_mask(
-            patching_strategy,
-            mask_filter,
+            patching_strategy, mask_filter, bg_relative_prob=config.filtered_patch_prob
         )
 
     return CareamicsDataset(
