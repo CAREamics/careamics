@@ -19,6 +19,8 @@ from .patching_strategies import PatchingStrategy, PatchSpecs
 # TODO: better name
 # mirrors format of ImageRegionData
 class UncorrelatedRegionData(NamedTuple):
+    """Named tuple for uncorrelated MicroSplit region (input/target with metadata)."""
+
     data: NDArray
     source: Sequence[str | Literal["array"]]
     data_shape: Sequence[Sequence[int]]
@@ -29,14 +31,64 @@ class UncorrelatedRegionData(NamedTuple):
 
 # --- for finding empty / signal channel patches in loop
 def is_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
+    """Return a callable that returns True if the patch is empty (filtered out).
+
+    Parameters
+    ----------
+    filter : PatchFilterProtocol
+        Filter used to decide if a patch is empty.
+
+    Returns
+    -------
+    callable
+        Callable that takes a patch and returns True if filtered out.
+    """
+
     def is_empty_check(patch: NDArray[Any]) -> bool:
+        """Return True if the patch is filtered out.
+
+        Parameters
+        ----------
+        patch : NDArray
+            Patch to check.
+
+        Returns
+        -------
+        bool
+            True if the patch is filtered out.
+        """
         return filter.filter_out(patch)
 
     return is_empty_check
 
 
 def is_not_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
+    """Return a callable that returns True if the patch is not empty (not filtered).
+
+    Parameters
+    ----------
+    filter : PatchFilterProtocol
+        Filter used to decide if a patch is empty.
+
+    Returns
+    -------
+    callable
+        Callable that takes a patch and returns True if not filtered out.
+    """
+
     def is_not_empty_check(patch: NDArray[Any]) -> bool:
+        """Return True if the patch is not filtered out.
+
+        Parameters
+        ----------
+        patch : NDArray
+            Patch to check.
+
+        Returns
+        -------
+        bool
+            True if the patch is not filtered out.
+        """
         return not filter.filter_out(patch)
 
     return is_not_empty_check
@@ -57,15 +109,15 @@ def create_default_input_target(
 
     Parameters
     ----------
-    idx: int
+    idx : int
         The dataset index.
-    patch_extractor: PatchExtractor
+    patch_extractor : PatchExtractor
         Used to extract patches from the data.
-    patching_strategy: PatchingStrategy
+    patching_strategy : PatchingStrategy
         Patch locations will be sampled using the patching strategy.
-    alphas: list[float]
+    alphas : list of float
         Weights for each channel for creating the synthetic input with summation.
-    axes: str
+    axes : str
         The axes of the data. This is only used to populate metadata.
 
     Returns
@@ -121,16 +173,17 @@ def create_uncorrelated_input_target(
 
     Parameters
     ----------
-    patches: NDArray
+    patches : NDArray
         Patches with dimensions LC(Z)YX, where L contains the lateral context at
         multiple scales.
-    patch_specs: list[PatchSpecs]
+    patch_specs : list of PatchSpecs
         The patch specs for each channel.
-    alphas: list[float]
+    alphas : list of float
         Weights for each channel for creating the synthetic input with summation.
-    patch_extractor: PatchExtractor
-        The patch extractor the patches were extracted from. Used for additional
-        metadata.
+    patch_extractor : PatchExtractor
+        The patch extractor the patches were extracted from. Used for metadata.
+    axes : str
+        The axes of the data (e.g. for metadata).
 
     Returns
     -------
@@ -184,15 +237,14 @@ def get_random_channel_patches(
 
     Parameters
     ----------
-    idx: int
+    idx : int
         The dataset index.
-    patch_extractor: PatchExtractor
+    patch_extractor : PatchExtractor
         Used to extract patches from the data.
-    patching_strategy: PatchingStrategy
+    patching_strategy : PatchingStrategy
         Patch locations will be sampled using the patching strategy.
-    rng: numpy.random.Generator | None
-        Useful for seeding the process. If `None` the default random number generator
-        will be used.
+    rng : numpy.random.Generator or None
+        Useful for seeding. If None, the default random number generator is used.
 
     Returns
     -------
@@ -233,25 +285,20 @@ def get_empty_channel_patches(
 
     Parameters
     ----------
-    idx: int
+    idx : int
         The dataset index.
-    patch_extractor: PatchExtractor
+    patch_extractor : PatchExtractor
         Used to extract patches from the data.
-    patching_strategy: PatchingStrategy
+    patching_strategy : PatchingStrategy
         Patch locations will be sampled using the patching strategy.
-    signal_channels: dict[int, PatchFilterProtocol]
-        A dictionary to specify the channels that should have signal and how they should
-        be filtered. The keys are the channel index and the values are the patch filters
-        used to determine if the channel patch is empty or not.
-    empty_channels: dict[int, PatchFilterProtocol]
-        A dictionary to specify the channels that should not have signal. Similar to
-        the `signal_channels`.
-    patience: int
-        New patches are selected at random until a patch with signal or without is
-        found, the `patience` determines how many times to look before giving up.
-    rng: numpy.random.Generator | None
-        Useful for seeding the process. If `None` the default random number generator
-        will be used.
+    signal_channels : dict[int, PatchFilterProtocol]
+        Channels that should have signal and the patch filters used to check them.
+    empty_channels : dict[int, PatchFilterProtocol]
+        Channels that should not have signal and the patch filters used to check them.
+    patience : int
+        How many random patches to try before giving up.
+    rng : numpy.random.Generator or None
+        Random generator for reproducibility; if None, a default RNG is used.
 
     Returns
     -------
@@ -335,12 +382,11 @@ def extract_microsplit_patch(
 
     Parameters
     ----------
-    patch_extractor: PatchExtractor
+    patch_extractor : PatchExtractor
         Used to extract patches from the data.
-    patch_specs: PatchSpec | list[PatchSpecs]
-        A patch specification or a list of patch specifications — one for each channel.
-        Different patch specs can be used or each channel to create uncorrelated channel
-        patches.
+    patch_specs : PatchSpecs or list of PatchSpecs
+        A patch specification or list of patch specs (one per channel). Different
+        specs per channel yield uncorrelated channel patches.
 
     Returns
     -------

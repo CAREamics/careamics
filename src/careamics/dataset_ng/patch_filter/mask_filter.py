@@ -15,6 +15,18 @@ class MaskCoordFilter(CoordinateFilterProtocol):
     """
     Filter patch coordinates based on an image mask.
 
+    Parameters
+    ----------
+    mask_extractor : PatchExtractor[GenericImageStack]
+        Patch extractor for the binary mask to use for filtering.
+    coverage : float
+        Minimum percentage of masked pixels required to keep a patch. Must be
+        between 0 and 1.
+    p : float, default=1
+        Probability of applying the filter to a patch. Must be between 0 and 1.
+    seed : int | None, default=None
+        Seed for the random number generator for reproducibility.
+
     Attributes
     ----------
     mask_extractor : PatchExtractor[GenericImageStack]
@@ -60,7 +72,6 @@ class MaskCoordFilter(CoordinateFilterProtocol):
         ValueError
             If p is not between 0 and 1.
         """
-
         if not (0 <= coverage <= 1):
             raise ValueError("Probability p must be between 0 and 1.")
         if not (0 <= p <= 1):
@@ -78,7 +89,7 @@ class MaskCoordFilter(CoordinateFilterProtocol):
 
         Parameters
         ----------
-        patch : PatchSpecs
+        patch_specs : PatchSpecs
             The patch coordinates to evaluate.
 
         Returns
@@ -86,7 +97,6 @@ class MaskCoordFilter(CoordinateFilterProtocol):
         bool
             True if the patch should be filtered out, False otherwise.
         """
-
         if self.rng.uniform(0, 1) < self.p:
             mask_patch = self.mask_extractor.extract_patch(**patch_specs)
 
