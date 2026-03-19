@@ -163,6 +163,22 @@ class StratifiedPatchingStrategy:
     def set_region_probs(
         self, data_idx: int, sample_idx: int, probs: dict[tuple[int, ...], float]
     ) -> None:
+        """
+        Set the probability that regions will be sampled from, each epoch.
+
+        Parameters
+        ----------
+        data_idx : int
+            The index of the "image stack" that the patches will be excluded from.
+        sample_idx : int
+            An index that corresponds to the sample in the "image stack" that the
+            patches will be excluded from.
+        probs : dict[tuple[int, ...], float]
+            The probabilities for each region. The keys of the dictionary correspond to
+            the grid coordinates of the regions. The values of the dictionary are the
+            probabilities.
+
+        """
         self.image_patching[data_idx][sample_idx].set_region_probs(probs)
         # update bins
         (
@@ -257,6 +273,15 @@ class StratifiedPatchingStrategy:
         return included_grid_coords
 
     def get_all_grid_coords(self) -> dict[tuple[int, int], Sequence[tuple[int, ...]]]:
+        """
+        Get all the grid coordinates for sampling regions in the patching strategy.
+
+        Returns
+        -------
+        dict[tuple[int, int], list[tuple, ...]]
+            Dictionary with keys being (data_idx, sample_idx) and values corresponding
+            to the grid coords.
+        """
         grid_coords: dict[tuple[int, int], Sequence[tuple[int, ...]]] = {}
 
         for data_idx, image_patch_list in enumerate(self.image_patching):
@@ -529,6 +554,16 @@ class _ImageStratifiedPatching:
         return list(grid_coords_all.difference(self.excluded_patches))
 
     def set_region_probs(self, probs: dict[tuple[int, ...], float]) -> None:
+        """
+        Set the probability that regions will be sampled from, each epoch.
+
+        Parameters
+        ----------
+        probs : dict[tuple[int, ...], float]
+            The probabilities for each region. The keys of the dictionary correspond to
+            the grid coordinates of the regions. The values of the dictionary are the
+            probabilities.
+        """
         for grid_coord, prob in probs.items():
             # TODO: catch case that grid_coord does not exist
             idx = self.grid_coords[grid_coord]

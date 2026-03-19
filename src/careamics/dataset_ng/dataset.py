@@ -149,8 +149,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         Extractor for input patches.
     target_extractor : PatchExtractor or None, optional
         Extractor for target patches.
-    mask_extractor : PatchExtractor or None, optional
-        Extractor for mask (e.g. for coord filter).
     """
 
     def __init__(
@@ -172,8 +170,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             Extractor for input patches.
         target_extractor : PatchExtractor or None, optional
             Extractor for target patches.
-        mask_extractor : PatchExtractor or None, optional
-            Extractor for mask (e.g. for coord filter).
         """
         # Make sure all the image sizes are greater than the patch size for training
         data_shapes = [

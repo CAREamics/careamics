@@ -268,8 +268,22 @@ def create_train_dataset(
     data: TrainValData[Any] | TrainValSplitData,
     loading: Loading,
 ) -> CareamicsDataset[ImageStack]:
-    """Create the training dataset."""
+    """Create a dataset for training.
 
+    Parameters
+    ----------
+    config : NGDataConfig
+        Data configuration (must have mode='training').
+    data : TrainValData | TrainValSplitData
+        Train and validation data sources (and optional targets/masks).
+    loading : ReadFuncLoading or ImageStackLoading or None
+        Custom loading specification when using custom data type.
+
+    Returns
+    -------
+    CareamicsDataset
+        The training dataset.
+    """
     if config.mode != "training":
         raise ValueError(
             f"CAREamicsDataModule configured for {config.mode} cannot be "
