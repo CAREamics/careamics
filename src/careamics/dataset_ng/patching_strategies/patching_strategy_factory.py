@@ -23,7 +23,7 @@ def create_patching_strategy(
     ----------
     data_shapes : list of Sequence of int
         The shapes of the data stacks to be patched.
-    patching_config: PatchingConfig
+    patching_config : PatchingConfig
         The configuration for the desired patching strategy.
 
     Returns

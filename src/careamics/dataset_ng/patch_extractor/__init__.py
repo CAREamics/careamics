@@ -1,3 +1,5 @@
+"""Patch extractors."""
+
 __all__ = [
     "LimitFilesPatchExtractor",
     "PatchExtractor",
