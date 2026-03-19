@@ -3,7 +3,10 @@ from collections.abc import Sequence
 
 import numpy as np
 import pytest
-from conftest import track_patching
+from tests.functional.dataset_ng.utils import (
+    assert_expected_pixel_probability,
+    track_patching,
+)
 
 from careamics.dataset_ng.patching_strategies import (
     StratifiedPatchingStrategy,
@@ -31,18 +34,10 @@ def test_reduced_probability(
     probs = dict.fromkeys(grid_coords, background_prob)
     patching_strategy.set_region_probs(data_idx, sample_idx, probs)
 
-    epochs = 100
-    tracking_arrays = track_patching(patching_strategy, data_shapes, patch_size, epochs)
-
-    for data_idx, tracking_array in enumerate(tracking_arrays):
-        for sample_idx, sample_tracking_array in enumerate(tracking_array):
-            mean_pixel_prob = np.mean(sample_tracking_array) / epochs
-            if data_idx == 0 and sample_idx == 0:
-                # NOTE: probability depends on n_patches which is calculated as the ceil
-                # means the resultant probability won't be exactly that set.
-                np.testing.assert_allclose(mean_pixel_prob, background_prob, rtol=0.1)
-            else:
-                np.testing.assert_allclose(mean_pixel_prob, 1.0, rtol=0.1)
+    mean_expected_prob = {(0, 0): background_prob}
+    assert_expected_pixel_probability(
+        patching_strategy, data_shapes, patch_size, mean_expected_prob
+    )
 
 
 @pytest.mark.parametrize(
