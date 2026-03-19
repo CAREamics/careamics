@@ -534,13 +534,17 @@ class _ImageStratifiedPatching:
         else:
             n_patches = 0
 
-        bin_size, bins = _region_bin_packing(self.areas, n_patches)
+        adjusted_area = {
+            idx: area * self.relative_probs.get(idx, 1)
+            for idx, area in self.areas.items()
+        }
+        bin_size, bins = _region_bin_packing(adjusted_area, n_patches)
         probs = np.array(
             [
                 (
                     area / bin_size
                     # avoid division by zero error (bin size will also be zero)
-                    if (area := self.areas[idx]) != 0
+                    if (area := adjusted_area[idx]) != 0
                     else 0
                 )
                 for idx in range(len(self.grid_coords))
@@ -740,7 +744,7 @@ def _boxes_overlap(
 
 
 def _region_bin_packing(
-    region_areas: dict[int, int],
+    region_areas: dict[int, float],
     n_bins: int,
 ) -> tuple[int, list[NDArray[np.int_]]]:
     """
@@ -775,7 +779,7 @@ def _region_bin_packing(
         bins = [np.array([key], dtype=int) for key in region_areas.keys()] + [
             np.array([], dtype=int) for _ in range(n_bins - len(region_areas))
         ]
-        return max(region_areas.values()), bins
+        return int(np.ceil(max(region_areas.values()))), bins
 
     # indices of the regions sorted in decreasing order of region area
     sorted_indices = sorted(
@@ -808,4 +812,4 @@ def _region_bin_packing(
         remaining_capacity[bin_idx] -= area
 
     bins = [np.array(bin_, dtype=int) for bin_ in bins_list]
-    return bin_size, bins
+    return int(np.ceil(bin_size)), bins
