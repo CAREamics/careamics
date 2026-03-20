@@ -97,6 +97,8 @@ def default_training_dict(
         default_preset = (
             SupervisedCheckpointing
             if algorithm == "care"
+            # since Noise2Noise is comparing noisy pixels to other noisy pixels, it
+            # cannot be monitored based on a metric, we use the self-supervised preset
             else SelfSupervisedCheckpointing
         )
         default_checkpoint = asdict(default_preset())
