@@ -123,6 +123,7 @@ class CAREamistV2:
         self.checkpoint_path = checkpoint_path
         self.work_dir = self._resolve_work_dir(work_dir)
 
+        # TODO remove type ignore once #817 is merged, hopefully it takes care of it
         self.config: NGConfiguration[AlgorithmConfig]
         self.config, self.model = self._load_model(
             config, checkpoint_path, bmz_path # type: ignore
