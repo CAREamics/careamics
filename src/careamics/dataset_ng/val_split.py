@@ -55,7 +55,7 @@ def create_val_split(
         ]
     )
     n_train_patches = int(n_patches_per_image.sum())
-    if n_val_patches > n_train_patches:
+    if n_val_patches >= n_train_patches:
         raise ValueError(
             f"The number of validation patches to be extracted from the training set "
             f"is too large for given training data size(got {n_val_patches} validation"
