@@ -4,16 +4,16 @@ from typing import Union
 import numpy as np
 import pytest
 import torch
-
 from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
+from careamics.models.lvae.likelihoods import likelihood_factory
+
 from careamics.config.noise_model.noise_model_config import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
 )
-from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import multichannel_noise_model_factory
 
 pytestmark = pytest.mark.lvae
