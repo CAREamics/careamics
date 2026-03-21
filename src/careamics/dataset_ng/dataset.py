@@ -8,7 +8,12 @@ import numpy as np
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
-from careamics.config.data.ng_data_config import Mode, NGDataConfig, WholePatchingConfig
+from careamics.config.data.ng_data_config import (
+    Mode,
+    NGDataConfig,
+    TiledPatchingConfig,
+    WholePatchingConfig,
+)
 from careamics.transforms import Compose
 
 from .image_stack import GenericImageStack, ZarrImageStack
@@ -137,6 +142,27 @@ def _patch_size_within_data_shapes(
     return all(smaller_than_shapes)
 
 
+def _all_spatial_dims_power_of_2(data_shapes: Sequence[Sequence[int]]) -> bool:
+    """Return True if all spatial dimensions in all data shapes are a power of 2.
+
+    Parameters
+    ----------
+    data_shapes : Sequence[Sequence[int]]
+        A sequence of data shapes in SC(Z)YX format. Spatial dimensions are
+        everything after the first two (sample and channel) dimensions.
+
+    Returns
+    -------
+    bool
+        True if every spatial dimension of every image is a power of 2.
+    """
+    for data_shape in data_shapes:
+        for dim in data_shape[2:]:
+            if dim <= 0 or (dim & (dim - 1)) != 0:
+                return False
+    return True
+
+
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     """PyTorch Dataset for CAREamics.
 
@@ -191,6 +217,14 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                     "Not all images sizes are greater or equal than the patch size for "
                     "training and validation."
                 )
+        else:
+            if not isinstance(data_config.patching, TiledPatchingConfig):
+                if not _all_spatial_dims_power_of_2(data_shapes):
+                    raise ValueError(
+                        "Image spatial dimensions must all be a power of 2 when "
+                        "predicting without tiling. Please use tiling by passing "
+                        "`tile_size` and `tile_overlap` to the predict method."
+                    )
 
         self.config = data_config
 
