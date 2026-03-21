@@ -93,28 +93,12 @@ def noise_model_factory(
         Currently only `GaussianMixtureNoiseModel` is implemented.
     """
     if model_config:
-        if model_config.path:
-            if model_config.model_type == "GaussianMixtureNoiseModel":
-                return GaussianMixtureNoiseModel(model_config)
-            else:
-                raise NotImplementedError(
-                    f"Model {model_config.model_type} is not implemented"
-                )
-
-        # TODO this is outdated and likely should be removed !!
-        else:  # TODO this means signal/obs are provided. Controlled in pydantic model
-            # TODO train a new model. Config should always be provided?
-            if model_config.model_type == "GaussianMixtureNoiseModel":
-                # TODO one model for each channel all make this choise inside the model?
-                # trained_nm = train_gm_noise_model(model_config)
-                # return trained_nm
-                raise NotImplementedError(
-                    "GaussianMixtureNoiseModel model training is not implemented."
-                )
-            else:
-                raise NotImplementedError(
-                    f"Model {model_config.model_type} is not implemented"
-                )
+        if model_config.model_type == "GaussianMixtureNoiseModel":
+            return GaussianMixtureNoiseModel(model_config)
+        else:
+            raise NotImplementedError(
+                f"Model {model_config.model_type} is not implemented"
+            )
     return None
 
 
@@ -143,28 +127,12 @@ def multichannel_noise_model_factory(
     if model_config:
         noise_models = []
         for nm in model_config.noise_models:
-            if nm.path:
-                if nm.model_type == "GaussianMixtureNoiseModel":
-                    noise_models.append(GaussianMixtureNoiseModel(nm))
-                else:
-                    raise NotImplementedError(
-                        f"Model {nm.model_type} is not implemented"
-                    )
-
-            # TODO this is outdated and likely should be removed !!
-            else:  # TODO this means signal/obs are provided. Controlled in pydantic model
-                # TODO train a new model. Config should always be provided?
-                if nm.model_type == "GaussianMixtureNoiseModel":
-                    # TODO one model for each channel all make this choise inside the model?
-                    # trained_nm = train_gm_noise_model(nm)
-                    # noise_models.append(trained_nm)
-                    raise NotImplementedError(
-                        "GaussianMixtureNoiseModel model training is not implemented."
-                    )
-                else:
-                    raise NotImplementedError(
-                        f"Model {nm.model_type} is not implemented"
-                    )
+            if nm.model_type == "GaussianMixtureNoiseModel":
+                noise_models.append(GaussianMixtureNoiseModel(nm))
+            else:
+                raise NotImplementedError(
+                    f"Model {nm.model_type} is not implemented"
+                )
         return MultiChannelNoiseModel(noise_models)
     return None
 
@@ -310,8 +278,9 @@ class MultiChannelNoiseModel(nn.Module):
 class GaussianMixtureNoiseModel(nn.Module):
     """Define a noise model parameterized as a mixture of gaussians.
 
-    If `config.path` is not provided a new object is initialized from scratch.
-    Otherwise, a model is loaded from `config.path`.
+    If `config.weight` is provided, the model is initialized from those weights.
+    Otherwise weights are randomly initialized using `config.min_signal` and
+    `config.max_signal`.
 
     Parameters
     ----------
@@ -324,8 +293,6 @@ class GaussianMixtureNoiseModel(nn.Module):
         Minimum signal intensity expected in the image.
     max_signal : float
         Maximum signal intensity expected in the image.
-    path: Union[str, Path]
-        Path to the directory where the trained noise model (*.npz) is saved in the `train` method.
     weight : torch.nn.Parameter
         A [3*n_gaussian, n_coeff] sized array containing the values of the weights
         describing the GMM noise model, with each row corresponding to one
@@ -353,10 +320,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         super().__init__()
         self.device = torch.device("cpu")
 
-        if config.path is not None:
-            params = np.load(config.path)
-        else:
-            params = config.model_dump(exclude_none=True)
+        params = config.model_dump(exclude_none=True)
 
         min_sigma = torch.tensor(params["min_sigma"])
         min_signal = torch.tensor(params["min_signal"])

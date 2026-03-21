@@ -324,7 +324,7 @@ class NoiseModelTrainer:
         """
         noise_models = []
         for path in paths:
-            config = GaussianMixtureNMConfig(path=str(path))
+            config = GaussianMixtureNMConfig.from_npz(path)
             noise_models.append(GaussianMixtureNoiseModel(config))
         return noise_models
 

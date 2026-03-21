@@ -93,6 +93,7 @@ def _compute_noise_model_log_likelihood(
         noise_model.to_device(reconstruction.device)
 
     # Denormalize predictions and targets
+    print(reconstruction.shape, data_std_tensor.shape, data_mean_tensor.shape)
     reconstruction_denorm = reconstruction * data_std_tensor + data_mean_tensor
     target_denorm = target * data_std_tensor + data_mean_tensor
 
@@ -373,7 +374,6 @@ def microsplit_loss(
         raise ValueError(
             "noise_model, data_mean, and data_std required when denoisplit_weight > 0"
         )
-
     recons_loss: torch.Tensor | float = 0.0
     if nm_weight > 0 and gaussian_weight > 0:
         if predictions.shape[1] == 2 * targets.shape[1]:

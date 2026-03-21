@@ -20,7 +20,7 @@ from careamics.config.lightning.optimizer_configs import (
 )
 from careamics.config.lightning.training_config import TrainingConfig
 from careamics.config.losses.loss_config import KLLossConfig, LVAELossConfig
-from careamics.config.noise_model import GaussianMixtureNMConfig
+from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
@@ -1773,7 +1773,9 @@ def create_microsplit_configuration(
     kl_weight: float = 1.0,
     musplit_weight: float = 0.0,
     denoisplit_weight: float = 1.0,
+    noise_model_config: MultiChannelNMConfig | None = None,
     mmse_count: int = 10,
+    nm_paths: list[str] | None = None,
     # Training parameters
     optimizer: Literal["Adam", "SGD", "Adamax"] = "Adamax",
     lr_scheduler_patience: int = 30,
@@ -1845,6 +1847,9 @@ def create_microsplit_configuration(
         Weight for muSplit loss, by default 0.0.
     denoisplit_weight : float, optional
         Weight for denoiSplit loss, by default 1.0.
+    noise_model_config : MultiChannelNMConfig | None, optional
+        Multi-channel noise model configuration, required when
+        `denoisplit_weight > 0`, by default None.
     mmse_count : int, optional
         Number of MMSE samples to use, by default 10.
     optimizer : Literal["Adam", "SGD", "Adamax"], optional
@@ -1903,8 +1908,7 @@ def create_microsplit_configuration(
         kl_params=KLLossConfig(loss_type=kl_type),
     )
 
-    # Noise model config should be passed directly via VAEBasedAlgorithm, not via paths
-    noise_model_config = None
+
 
     # Create the LVAE model
     network_model = _create_vae_configuration(
@@ -1938,22 +1942,17 @@ def create_microsplit_configuration(
             "min_lr": 1e-12,
         },
     )
-
-    optimizer_config = OptimizerConfig(
-        name=optimizer,
-        parameters={"lr": lr, "weight_decay": 0},
-    )
-
-    lr_scheduler_config = LrSchedulerConfig(
-        name="ReduceLROnPlateau",
-        parameters={
-            "mode": "min",
-            "factor": 0.5,
-            "patience": lr_scheduler_patience,
-            "verbose": True,
-            "min_lr": 1e-12,
-        },
-    )
+    #TODO refactor this to use the noise_model_factory or something else
+    gmm_list = []
+    if nm_paths is not None:
+        for NM_path in nm_paths:
+            gmm_list.append(
+                GaussianMixtureNMConfig(
+                    model_type="GaussianMixtureNoiseModel",
+                    path=NM_path,
+                )
+            )
+    noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
 
     algorithm_params = {
         "algorithm": "microsplit",
@@ -2308,7 +2307,7 @@ def create_pn2v_configuration(
     )
 
     # Create noise model configuration
-    noise_model_config = GaussianMixtureNMConfig(path=nm_path)
+    noise_model_config = GaussianMixtureNMConfig.from_npz(nm_path)
 
     # algorithm
     algorithm_params = _create_algorithm_configuration(

@@ -15,6 +15,7 @@ from careamics.config import (
     algorithm_factory,
 )
 from careamics.config.data.tile_information import TileInformation
+from careamics.config.noise_model import MultiChannelNMConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -26,6 +27,7 @@ from careamics.losses import loss_factory
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
+    multichannel_noise_model_factory,
     noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
@@ -378,13 +380,16 @@ class VAEModule(L.LightningModule):
 
     Parameters
     ----------
-    algorithm_config : Union[VAEAlgorithmConfig, dict]
-        Algorithm configuration.
+    algorithm_config : Union[VAEBasedAlgorithm, dict]
+        Algorithm configuration. If `algorithm_config.noise_model` is set,
+        `set_noise_model` is called automatically during initialization.
 
     Attributes
     ----------
     model : nn.Module
         PyTorch model.
+    noise_model : MultiChannelNoiseModel or None
+        Multi-channel noise model, built from the algorithm config if provided.
     loss_func : nn.Module
         Loss function.
     optimizer_name : str
@@ -398,7 +403,6 @@ class VAEModule(L.LightningModule):
     def __init__(
         self,
         algorithm_config: Union[VAEBasedAlgorithm, dict],
-        noise_model: MultiChannelNoiseModel | None = None,
     ) -> None:
         """Lightning module for CAREamics.
 
@@ -407,10 +411,9 @@ class VAEModule(L.LightningModule):
 
         Parameters
         ----------
-        algorithm_config : Union[AlgorithmModel, dict]
-            Algorithm configuration.
-        noise_model : MultiChannelNoiseModel | None, optional
-            Noise model for reconstruction, by default None.
+        algorithm_config : Union[VAEBasedAlgorithm, dict]
+            Algorithm configuration. If `algorithm_config.noise_model` is set,
+            the noise model is instantiated automatically via `set_noise_model`.
         """
         super().__init__()
         # if loading from a checkpoint, AlgorithmModel needs to be instantiated
@@ -429,8 +432,7 @@ class VAEModule(L.LightningModule):
         # supervised_mode
         self.supervised_mode = self.algorithm_config.is_supervised
 
-        # store noise model and data stats
-        self.noise_model: MultiChannelNoiseModel | None = noise_model
+        self.noise_model = multichannel_noise_model_factory(self.algorithm_config.noise_model)
         self._data_mean: float | None = None
         self._data_std: float | None = None
 
@@ -537,8 +539,6 @@ class VAEModule(L.LightningModule):
             noise_model=self.noise_model,
             data_mean=self._data_mean,
             data_std=self._data_std,
-            predict_logvar=self.loss_parameters.predict_logvar,
-            logvar_lowerbound=self.loss_parameters.logvar_lowerbound,
         )
 
         # Logging
@@ -590,8 +590,6 @@ class VAEModule(L.LightningModule):
             noise_model=self.noise_model,
             data_mean=self._data_mean,
             data_std=self._data_std,
-            predict_logvar=self.loss_parameters.predict_logvar,
-            logvar_lowerbound=self.loss_parameters.logvar_lowerbound,
         )
 
         # Logging
