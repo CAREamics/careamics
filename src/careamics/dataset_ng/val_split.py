@@ -62,7 +62,7 @@ def create_val_split(
             f"patches but only"
             f"{n_train_patches} training patches available with patch size "
             f"{patch_size}). Make sure you have enough data to train with, decrease "
-            f"'n_val_patches'."
+            f"'n_val_patches' or the patch size."
         )
 
     n_selected_image_patches = np.zeros_like(n_patches_per_image)
