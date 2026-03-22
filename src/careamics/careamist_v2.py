@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Literal, overload
 
 from numpy.typing import NDArray
-import torch
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
@@ -30,7 +29,8 @@ from .lightning.dataset_ng.load_checkpoint import (
 )
 from .lightning.dataset_ng.prediction import convert_prediction
 from .utils import get_logger
-from .utils.lightning_utils import read_csv_logger, _epoch_to_val_loss
+from .utils.lightning_utils import read_csv_logger
+from .utils.checkpoint_utils import get_checkpoint_info
 
 logger = get_logger(__name__)
 
@@ -427,6 +427,28 @@ class CAREamistV2:
             case _:
                 return [csv_logger]
 
+    def _resolve_ckpt_path(self, checkpoint: str | None) -> Path | None:
+        """Resolve a checkpoint filename to its full path.
+
+        Parameters
+        ----------
+        checkpoint : str or None
+            Checkpoint filename as returned by `get_checkpoints()`.
+
+        Returns
+        -------
+        Path or None
+            Full path to the checkpoint file, or None if no checkpoint
+            is specified.
+        """
+        if checkpoint is None:
+            return None
+        return (
+            self.work_dir
+            / "checkpoints"
+            / self.config.get_safe_experiment_name()
+            / checkpoint
+        )
     # Two overloads:
     # - 1st for supported data types & using ReadFuncLoading
     # - 2nd for ImageStackLoading
@@ -634,8 +656,13 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
+<<<<<<< HEAD
     ) -> tuple[list[NDArray], list[str]]:
         ...
+=======
+        checkpoint: str | None = None,
+    ) -> tuple[list[NDArray], list[str]]: ...
+>>>>>>> a15bbd51 (fix careamist_v2.py and add checkpoint utils)
 
     @overload  # any data input is allowed for ImageStackLoading
     def predict( # numpydoc ignore=GL08
@@ -653,8 +680,13 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
+<<<<<<< HEAD
     ) -> tuple[list[NDArray], list[str]]:
         ...
+=======
+        checkpoint: str | None = None,
+    ) -> tuple[list[NDArray], list[str]]: ...
+>>>>>>> a15bbd51 (fix careamist_v2.py and add checkpoint utils)
 
     def predict(
         self,
@@ -671,6 +703,7 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: Loading = None,
+        checkpoint: str | None = None,
     ) -> tuple[list[NDArray], list[str]]:
         """
         Predict on data and return the predictions.
@@ -712,10 +745,22 @@ class CAREamistV2:
         in_memory : bool, optional
             Whether to load all data into memory. If None, uses the training
             configuration setting.
+<<<<<<< HEAD
         loading : Loading, default=None
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
+=======
+        read_source_func : ReadFunc, optional
+            Function to read the source data.
+        read_kwargs : dict of {str: Any}, optional
+            Additional keyword arguments to be passed to the read function.
+        extension_filter : str, default=""
+            Filter for the file extension.
+        checkpoint : str, optional
+            Checkpoint filename as returned by `get_checkpoints()`. If None,
+            uses the current model weights.
+>>>>>>> a15bbd51 (fix careamist_v2.py and add checkpoint utils)
 
         Returns
         -------
@@ -741,7 +786,9 @@ class CAREamistV2:
         )
 
         predictions: list[ImageRegionData] = self.trainer.predict(
-            model=self.model, datamodule=datamodule
+            model=self.model, 
+            datamodule=datamodule,
+            ckpt_path=self._resolve_ckpt_path(checkpoint),
         )  # type: ignore[assignment]
         tiled = tile_size is not None
         predictions_output, sources = convert_prediction(
@@ -774,6 +821,7 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        checkpoint: str | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -799,6 +847,7 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        checkpoint: str | None = None,
     ) -> None: ...
 
     def predict_to_disk(
@@ -823,6 +872,7 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        checkpoint: str | None = None,
     ) -> None:
         """
         Make predictions on the provided data and save outputs to files.
@@ -890,6 +940,9 @@ class CAREamistV2:
             `write_type` a function to save the data must be passed. See notes below.
         write_func_kwargs : dict of {str: any}, optional
             Additional keyword arguments to be passed to the save function.
+        checkpoint : str, optional
+            Checkpoint filename as returned by `get_checkpoints()`. If None,
+            uses the current model weights.
 
         Raises
         ------
@@ -952,7 +1005,7 @@ class CAREamistV2:
             )
 
             self.trainer.predict(
-                model=self.model, datamodule=datamodule, return_predictions=False
+                model=self.model, datamodule=datamodule, return_predictions=False, ckpt_path=self._resolve_ckpt_path(checkpoint)
             )
 
         finally:
@@ -1050,90 +1103,32 @@ class CAREamistV2:
         self.trainer.should_stop = True
         self.trainer.limit_val_batches = 0  # skip validation
 
-    def _scan_checkpoints(self) -> list[dict]:
-        """Scan the checkpoint directory and return structured checkpoint info.
+    def get_checkpoints(self) -> list[str]:
+        """Return the names of available checkpoints.
+
+        Scans the checkpoint directory for saved checkpoints and prints
+        a summary table showing epoch number and validation loss for each.
 
         Returns
         -------
-        list of dict
-            Each entry contains "epoch" (int), "val_loss" (float or None),
-            and "path" (Path). Sorted by epoch number. The last checkpoint
-            is excluded.
-        """        
+        list of str
+            Checkpoint filenames, sorted by epoch number.
+        """
         checkpoint_dir = (
             self.work_dir / "checkpoints" / self.config.get_safe_experiment_name()
         )
-        losses = read_csv_logger(
-            self.config.get_safe_experiment_name(), self.work_dir / "csv_logs"
+        info = get_checkpoint_info(
+            self.config.get_safe_experiment_name(),
+            checkpoint_dir,
+            self.work_dir / "csv_logs",
         )
-        epoch_to_loss = _epoch_to_val_loss(losses)
 
-        checkpoints = []
-        for ckpt_path in sorted(checkpoint_dir.glob("*.ckpt")):
-            if ckpt_path.stem.endswith("_last"):
-                continue
-            name = ckpt_path.stem
-            suffix = name[len(self.config.get_safe_experiment_name()) + 1:]
-            try:
-                epoch = int(suffix.split("_")[0])
-            except ValueError:
-                continue
-            checkpoints.append({
-                "epoch": epoch,
-                "val_loss": epoch_to_loss.get(epoch),
-                "path": ckpt_path,
-            })
-
-        return sorted(checkpoints, key=lambda x: x["epoch"])
-
-    def get_checkpoints(self) -> list[dict]:
-        """Return available checkpoints with their epoch and validation loss.
-
-        Scans the checkpoint directory for saved checkpoints matching the
-        experiment's naming pattern and joins them with validation losses
-        from the CSV log. Prints a summary table to stdout.
-
-        Returns
-        -------
-        list of dict
-            Each entry contains "epoch" (int), "val_loss" (float or None),
-            and "path" (Path). Sorted by epoch number. The last checkpoint
-            is excluded.
-        """
-        checkpoints = self._scan_checkpoints()
-        header = f"{'Epoch':>8}  {'Val Loss':>12}  Path"
+        header = f"{'Epoch':>8}  {'Val Loss':>12}  Name"
         print(header)
         print("-" * len(header))
-        for ckpt in checkpoints:
+        for ckpt in info:
+            epoch_str = str(ckpt["epoch"]) if ckpt["epoch"] is not None else "last"
             loss_str = f"{ckpt['val_loss']:.6f}" if ckpt["val_loss"] is not None else "N/A"
-            print(f"{ckpt['epoch']:>8}  {loss_str:>12}  {ckpt['path'].name}")
-        return checkpoints
+            print(f"{epoch_str:>8}  {loss_str:>12}  {ckpt['name']}")
 
-
-    def load_checkpoint(self, epoch: int) -> None:
-        """Load model weights from the checkpoint saved at the given epoch.
-
-        This restores only the model weights (state_dict).
-        Use this to switch between saved checkpoints for inference or evaluation.
-
-        Parameters
-        ----------
-        epoch : int
-            Epoch number of the checkpoint to load.
-
-        Raises
-        ------
-        ValueError
-            If no checkpoint exists for the given epoch.
-        """
-        checkpoints = self._scan_checkpoints()  
-        matches = [c for c in checkpoints if c["epoch"] == epoch]
-        if not matches:
-            available = [c["epoch"] for c in checkpoints]
-            raise ValueError(
-                f"No checkpoint found for epoch {epoch}. "
-                f"Available epochs: {available}."
-            )
-        checkpoint = torch.load(matches[0]["path"], map_location="cpu")
-        self.model.load_state_dict(checkpoint["state_dict"])
-        
+        return [ckpt["name"] for ckpt in info]
