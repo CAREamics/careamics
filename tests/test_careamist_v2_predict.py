@@ -298,3 +298,99 @@ def test_predict_to_disk_custom_raises(tmp_path: Path):
             write_extension=".npy",
             write_func=None,
         )
+
+
+@pytest.mark.mps_gh_fail
+def test_get_checkpoints(tmp_path: Path):
+    """Test that get_checkpoints returns checkpoint names after training."""
+    train_array = random_array((32, 32), seed=42)
+    val_array = random_array((32, 32), seed=43)
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=2,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array, val_data=val_array)
+
+    checkpoints = careamist.get_checkpoints()
+
+    assert len(checkpoints) > 0
+    assert all(isinstance(name, str) for name in checkpoints)
+    assert all(name.endswith(".ckpt") for name in checkpoints)
+
+
+@pytest.mark.mps_gh_fail
+def test_predict_with_checkpoint(tmp_path: Path):
+    """Test that predict produces output when a checkpoint name is provided."""
+    train_array = random_array((32, 32), seed=42)
+    val_array = random_array((32, 32), seed=43)
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=2,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array, val_data=val_array)
+
+    checkpoints = careamist.get_checkpoints()
+    assert len(checkpoints) > 0
+
+    for ckpt in checkpoints:
+        predicted, _ = careamist.predict(
+            pred_data=train_array,
+            data_type="array",
+            checkpoint=ckpt,
+        )
+        assert predicted[0].shape == train_array.shape
+
+
+@pytest.mark.skipif(
+    not pytest.importorskip("torch").cuda.is_available(),
+    reason="CUDA GPU not available",
+)
+def test_predict_with_checkpoint_gpu(tmp_path: Path):
+    """Test that predict with a checkpoint runs on GPU without forcing CPU mapping."""
+
+    train_array = random_array((32, 32), seed=42)
+    val_array = random_array((32, 32), seed=43)
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=2,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array, val_data=val_array)
+
+    checkpoints = careamist.get_checkpoints()
+    assert len(checkpoints) > 0
+
+    predicted, _ = careamist.predict(
+        pred_data=train_array,
+        data_type="array",
+        checkpoint=checkpoints[0],
+    )
+
+    assert predicted[0].shape == train_array.shape
+    assert next(careamist.model.parameters()).device.type == "cuda"
