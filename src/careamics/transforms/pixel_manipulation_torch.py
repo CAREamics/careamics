@@ -79,6 +79,79 @@ def _apply_struct_mask_torch(
     return patch
 
 
+def _apply_struct_mask_torch_vec(
+    patch: torch.Tensor,
+    coords: torch.Tensor,
+    struct_params: StructMaskParameters,
+    rng: torch.Generator | None = None,
+) -> torch.Tensor:
+    """Apply structN2V masks to patch without a Python loop over batch items.
+
+    Functionally equivalent to `_apply_struct_mask_torch`, but replaces the
+    per-batch-item Python loop with a single vectorized random-value generation.
+    The replacement values are drawn from the uniform distribution
+    U(batch_min, batch_max) per image, using linear rescaling of a single
+    ``torch.rand`` call rather than per-item ``uniform_()`` calls.
+
+    .. note::
+        Due to the different RNG call pattern, outputs are **not** bit-identical
+        to ``_apply_struct_mask_torch`` for the same RNG state, but satisfy the
+        same distributional semantics (values in ``[batch_min, batch_max]``).
+
+    Parameters
+    ----------
+    patch : torch.Tensor
+        Patch to be manipulated, (batch, y, x) or (batch, z, y, x).
+    coords : torch.Tensor
+        Coordinates of the ROI (subpatch) centers.
+    struct_params : StructMaskParameters
+        Parameters for the structN2V mask (axis and span).
+    rng : torch.Generator, optional
+        Random number generator.
+
+    Returns
+    -------
+    torch.Tensor
+        Patch with the structN2V mask applied.
+    """
+    if rng is None:
+        rng = torch.Generator(device=patch.device)
+
+    moving_axis = -1 - struct_params.axis
+
+    mask_shape = [1] * len(patch.shape)
+    mask_shape[moving_axis] = struct_params.span
+    mask = torch.ones(mask_shape, device=patch.device)
+
+    center = torch.tensor(mask.shape, device=patch.device) // 2
+    mask[tuple(center)] = 0
+
+    displacements = torch.stack(torch.where(mask == 1)) - center.unsqueeze(1)
+
+    mix = displacements.T.unsqueeze(-1) + coords.T.unsqueeze(0)
+    mix = mix.permute([1, 0, 2]).reshape([mask.ndim, -1]).T
+
+    valid_indices = (mix[:, moving_axis] >= 0) & (
+        mix[:, moving_axis] < patch.shape[moving_axis]
+    )
+    mix = mix[valid_indices]
+
+    if mix.shape[0] == 0:
+        return patch
+
+    batch_mins = patch.view(patch.shape[0], -1).min(dim=-1).values
+    batch_maxs = patch.view(patch.shape[0], -1).max(dim=-1).values
+
+    # Single vectorized rand call; scale per-image using broadcast indexing
+    u = torch.rand(mix.shape[0], device=patch.device, generator=rng)
+    mins = batch_mins[mix[:, 0]]
+    maxs = batch_maxs[mix[:, 0]]
+    random_values = mins + u * (maxs - mins)
+    patch[tuple(mix.T)] = random_values
+
+    return patch
+
+
 def _get_stratified_coords_torch(
     mask_pixel_perc: float,
     shape: tuple[int, ...],
