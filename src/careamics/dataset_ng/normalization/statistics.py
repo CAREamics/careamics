@@ -1,3 +1,5 @@
+"""Compute and resolve normalization statistics from patch data."""
+
 from collections.abc import Sequence
 
 import numpy as np
@@ -35,8 +37,15 @@ def _compute_mean_std(
     channels : Sequence[int] | None, optional
         Channels to compute statistics for.
     per_channel : bool, optional
-        If True, computes per-channel statistics.
-        If False, collapse all channels into one to produce a single mean/std pair.
+        If True, computes per-channel statistics. If False, collapse all channels into
+        one to produce a single mean/std pair.
+
+    Returns
+    -------
+    list of float
+        Mean values per channel or single value if `per_channel` is False.
+    list of float
+        Std values per channel or single value if `per_channel` is False.
     """
     image_stats = WelfordStatistics()
     n_patches = patching_strategy.n_patches
@@ -77,6 +86,13 @@ def _compute_min_max(
     per_channel : bool, optional
         If True, computes per-channel statistics.
         If False, collapse all channels into one to produce a single min/max pair.
+
+    Returns
+    -------
+    list of float
+        Minimum values per channel or single value if `per_channel` is False.
+    list of float
+        Maximum values per channel or single value if `per_channel` is False.
     """
     n_patches = patching_strategy.n_patches
     if n_patches == 0:
@@ -140,6 +156,15 @@ def _compute_quantiles(
     per_channel : bool, optional
         If True, computes per-channel statistics.
         If False, collapse all channels into one to produce a single quantile pair.
+
+    Returns
+    -------
+    list of float
+        Quantile values corresponding to `lower_quantiles` per channel or single value
+        if `per_channel` is False.
+    list of float
+        Quantile values corresponding to `upper_quantiles` per channel or single value
+        if `per_channel` is False.
     """
     estimator = QuantileEstimator(
         lower_quantiles=lower_quantiles,
@@ -170,14 +195,32 @@ def _resolve_quantile_levels(
     patching_strategy: PatchingStrategy,
     channels: Sequence[int] | None,
 ) -> tuple[list[float], list[float]]:
-    """Get quantile levels, broadcasting to n_channels if per_channel.
+    """Get quantile levels, broadcasting to n_channels if `per_channel` is True.
 
-    When ``per_channel=False`` the stored quantile levels (length 1) are
+    When `per_channel=False` the stored quantile levels (length 1) are
     returned directly. Otherwise a sample patch is extracted to determine
     the number of channels and the levels are broadcast accordingly.
+
+    Parameters
+    ----------
+    norm_config : QuantileConfig
+        Quantile normalization config with lower/upper quantile levels.
+    extractor : PatchExtractor
+        Extractor used to get a sample patch for channel count.
+    patching_strategy : PatchingStrategy
+        Strategy used to get the first patch spec.
+    channels : sequence of int or None
+        Channels to extract; None for all.
+
+    Returns
+    -------
+    list of float
+        Lower quantile levels.
+    list of float
+        Upper quantile levels.
     """
     if not norm_config.per_channel:
-        return norm_config.lower_quantile, norm_config.upper_quantile
+        return norm_config.lower_quantiles, norm_config.upper_quantiles
 
     first_spec = patching_strategy.get_patch_spec(0)
     first_patch = extractor.extract_channel_patch(
@@ -189,8 +232,8 @@ def _resolve_quantile_levels(
     )
     n_channels = first_patch.shape[0]
     return (
-        broadcast_stats(norm_config.lower_quantile, n_channels, "lower_quantile"),
-        broadcast_stats(norm_config.upper_quantile, n_channels, "upper_quantile"),
+        broadcast_stats(norm_config.lower_quantiles, n_channels, "lower_quantiles"),
+        broadcast_stats(norm_config.upper_quantiles, n_channels, "upper_quantiles"),
     )
 
 
@@ -213,12 +256,12 @@ def resolve_normalization_config(
         The normalization configuration (may have missing statistics).
     patching_strategy : PatchingStrategy
         Strategy for iterating over patches.
-    channels : list[int]
-        Channels to compute statistics for.
     input_extractor : PatchExtractor
         Extractor for input data.
     target_extractor : PatchExtractor, optional
         Extractor for target data.
+    channels : sequence of int or None, optional
+        Channels to compute statistics for; None for all.
 
     Returns
     -------

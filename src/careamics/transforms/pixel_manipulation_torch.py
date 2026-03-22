@@ -181,7 +181,7 @@ def uniform_manipulate_torch(
     subpatch_size : int
         Size of the subpatch the new pixel value is sampled from, by default 11.
     remove_center : bool
-        Whether to remove the center pixel from the subpatch, by default False.
+        Whether to remove the center pixel from the subpatch, by default True.
     struct_params : StructMaskParameters or None
         Parameters for the structN2V mask (axis and span).
     rng : torch.default_generator or None

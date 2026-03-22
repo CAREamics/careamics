@@ -158,9 +158,9 @@ class QuantileConfig(BaseModel):
     ----------
     name : Literal["quantile"]
         Identifier for quantile normalization.
-    lower_quantile : float | list[float]
+    lower_quantiles : float | list[float]
         Lower quantile level(s). Values must be in [0, 1).
-    upper_quantile : float | list[float]
+    upper_quantiles : float | list[float]
         Upper quantile level(s). Values must be in (0, 1].
     input_lower_quantile_values : float | list[float] | None
         Computed lower quantile values for input.
@@ -179,8 +179,8 @@ class QuantileConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     name: Literal["quantile"] = "quantile"
-    lower_quantile: FloatStats = [0.01]
-    upper_quantile: FloatStats = [0.99]
+    lower_quantiles: FloatStats = [0.01]
+    upper_quantiles: FloatStats = [0.99]
     input_lower_quantile_values: OptionalFloatStats = None
     input_upper_quantile_values: OptionalFloatStats = None
     target_lower_quantile_values: OptionalFloatStats = None
@@ -196,20 +196,20 @@ class QuantileConfig(BaseModel):
         Self
             The validated model instance.
         """
-        for lq in self.lower_quantile:
+        for lq in self.lower_quantiles:
             if not (0.0 <= lq < 1.0):
                 raise ValueError(f"lower_quantile values must be in [0, 1), got {lq}")
-        for uq in self.upper_quantile:
+        for uq in self.upper_quantiles:
             if not (0.0 < uq <= 1.0):
                 raise ValueError(f"upper_quantile values must be in (0, 1], got {uq}")
 
-        if len(self.lower_quantile) != len(self.upper_quantile):
+        if len(self.lower_quantiles) != len(self.upper_quantiles):
             raise ValueError(
                 f"lower_quantile and upper_quantile lists must have same length, "
-                f"got {len(self.lower_quantile)} and {len(self.upper_quantile)}"
+                f"got {len(self.lower_quantiles)} and {len(self.upper_quantiles)}"
             )
         for i, (lq, uq) in enumerate(
-            zip(self.lower_quantile, self.upper_quantile, strict=True)
+            zip(self.lower_quantiles, self.upper_quantiles, strict=True)
         ):
             if lq >= uq:
                 raise ValueError(
@@ -305,11 +305,11 @@ class QuantileConfig(BaseModel):
             If per_channel=False but quantile levels are not length 1.
         """
         if not self.per_channel:
-            if len(self.lower_quantile) != 1 or len(self.upper_quantile) != 1:
+            if len(self.lower_quantiles) != 1 or len(self.upper_quantiles) != 1:
                 raise ValueError(
                     "When per_channel=False, quantile levels must be length 1. "
-                    f"Got lower_quantile length {len(self.lower_quantile)} "
-                    f"and upper_quantile length {len(self.upper_quantile)}."
+                    f"Got lower_quantiles length {len(self.lower_quantiles)} "
+                    f"and upper_quantiles length {len(self.upper_quantiles)}."
                 )
         return self
 
@@ -370,7 +370,7 @@ class MinMaxConfig(BaseModel):
 
     Attributes
     ----------
-    name : Literal["minmax"]
+    name : Literal["min_max"]
         Identifier for min-max normalization.
     input_mins : float | list[float] | None
         Minimum values for input normalization. None for automatic computation.
@@ -387,7 +387,7 @@ class MinMaxConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
-    name: Literal["minmax"] = "minmax"
+    name: Literal["min_max"] = "min_max"
     input_mins: OptionalFloatStats = None
     input_maxes: OptionalFloatStats = None
     target_mins: OptionalFloatStats = None
