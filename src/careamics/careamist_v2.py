@@ -29,8 +29,8 @@ from .lightning.dataset_ng.load_checkpoint import (
 from .lightning.dataset_ng.prediction import convert_prediction
 from .model_io import export_to_bmz
 from .utils import get_logger
+from .utils.checkpoint_utils import get_checkpoint_info
 from .utils.lightning_utils import read_csv_logger
-from .utils.reshape_array import reshape_array
 
 logger = get_logger(__name__)
 
@@ -408,6 +408,28 @@ class CAREamistV2:
             case _:
                 return [csv_logger]
 
+    def _resolve_ckpt_path(self, checkpoint: str | None) -> Path | None:
+        """Resolve a checkpoint filename to its full path.
+
+        Parameters
+        ----------
+        checkpoint : str or None
+            Checkpoint filename as returned by `get_checkpoints()`.
+
+        Returns
+        -------
+        Path or None
+            Full path to the checkpoint file, or None if no checkpoint
+            is specified.
+        """
+        if checkpoint is None:
+            return None
+        return (
+            self.work_dir
+            / "checkpoints"
+            / self.config.get_safe_experiment_name()
+            / checkpoint
+        )
     # Two overloads:
     # - 1st for supported data types & using ReadFuncLoading
     # - 2nd for ImageStackLoading
@@ -576,6 +598,7 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
+        checkpoint: str | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -594,6 +617,7 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
+        checkpoint: str | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
 
     def predict(
@@ -611,6 +635,7 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: Loading = None,
+        checkpoint: str | None = None,
     ) -> tuple[list[NDArray], list[str]]:
         """
         Predict on data and return the predictions.
@@ -658,6 +683,9 @@ class CAREamistV2:
             Additional keyword arguments to be passed to the read function.
         extension_filter : str, default=""
             Filter for the file extension.
+        checkpoint : str, optional
+            Checkpoint filename as returned by `get_checkpoints()`. If None,
+            uses the current model weights.
 
         Returns
         -------
@@ -683,7 +711,9 @@ class CAREamistV2:
         )
 
         predictions: list[ImageRegionData] = self.trainer.predict(
-            model=self.model, datamodule=datamodule
+            model=self.model, 
+            datamodule=datamodule,
+            ckpt_path=self._resolve_ckpt_path(checkpoint),
         )  # type: ignore[assignment]
         tiled = tile_size is not None
         predictions_output, sources = convert_prediction(
@@ -716,6 +746,7 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        checkpoint: str | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -741,6 +772,7 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        checkpoint: str | None = None,
     ) -> None: ...
 
     def predict_to_disk(
@@ -765,6 +797,7 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        checkpoint: str | None = None,
     ) -> None:
         """
         Make predictions on the provided data and save outputs to files.
@@ -834,6 +867,9 @@ class CAREamistV2:
             `write_type` a function to save the data must be passed. See notes below.
         write_func_kwargs : dict of {str: any}, optional
             Additional keyword arguments to be passed to the save function.
+        checkpoint : str, optional
+            Checkpoint filename as returned by `get_checkpoints()`. If None,
+            uses the current model weights.
 
         Raises
         ------
@@ -896,7 +932,7 @@ class CAREamistV2:
             )
 
             self.trainer.predict(
-                model=self.model, datamodule=datamodule, return_predictions=False
+                model=self.model, datamodule=datamodule, return_predictions=False, ckpt_path=self._resolve_ckpt_path(checkpoint)
             )
 
         finally:
@@ -988,3 +1024,33 @@ class CAREamistV2:
         """Stop the training loop."""
         self.trainer.should_stop = True
         self.trainer.limit_val_batches = 0  # skip validation
+
+    def get_checkpoints(self) -> list[str]:
+        """Return the names of available checkpoints.
+
+        Scans the checkpoint directory for saved checkpoints and prints
+        a summary table showing epoch number and validation loss for each.
+
+        Returns
+        -------
+        list of str
+            Checkpoint filenames, sorted by epoch number.
+        """
+        checkpoint_dir = (
+            self.work_dir / "checkpoints" / self.config.get_safe_experiment_name()
+        )
+        info = get_checkpoint_info(
+            self.config.get_safe_experiment_name(),
+            checkpoint_dir,
+            self.work_dir / "csv_logs",
+        )
+
+        header = f"{'Epoch':>8}  {'Val Loss':>12}  Name"
+        print(header)
+        print("-" * len(header))
+        for ckpt in info:
+            epoch_str = str(ckpt["epoch"]) if ckpt["epoch"] is not None else "last"
+            loss_str = f"{ckpt['val_loss']:.6f}" if ckpt["val_loss"] is not None else "N/A"
+            print(f"{epoch_str:>8}  {loss_str:>12}  {ckpt['name']}")
+
+        return [ckpt["name"] for ckpt in info]
