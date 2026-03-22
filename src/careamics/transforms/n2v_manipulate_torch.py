@@ -209,17 +209,13 @@ class N2VManipulateTorch:
                 )
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
             for c in range(batch.shape[1]):
-                masked[:, c, ...], mask[:, c, ...] = self._median_fast(
-                    batch[:, c, ...]
-                )
+                masked[:, c, ...], mask[:, c, ...] = self._median_fast(batch[:, c, ...])
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
 
         return masked, batch, mask
 
-    def _uniform_fast(
-        self, patch: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def _uniform_fast(self, patch: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Fast uniform manipulation using cached roi_span tensors.
 
         Mirrors ``uniform_manipulate_torch`` with ``remove_center=True``.
@@ -260,9 +256,7 @@ class N2VManipulateTorch:
 
         return transformed_patch, mask
 
-    def _median_fast(
-        self, batch: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def _median_fast(self, batch: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Fast median manipulation using lazily cached subpatch_mask.
 
         Mirrors ``median_manipulate_torch``.

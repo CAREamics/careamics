@@ -10,6 +10,7 @@ __all__ = [
     "TrainDenormalize",
     "XYFlip",
     "XYRandomRotate90",
+    "XYScheduledAugmentation",
     "get_all_transforms",
 ]
 
@@ -20,3 +21,4 @@ from .normalize import Denormalize, Normalize, TrainDenormalize
 from .tta import ImageRestorationTTA
 from .xy_flip import XYFlip
 from .xy_random_rotate90 import XYRandomRotate90
+from .xy_scheduled_aug import XYScheduledAugmentation

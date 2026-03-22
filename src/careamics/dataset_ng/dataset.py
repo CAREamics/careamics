@@ -413,6 +413,12 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         # apply transforms
         if self.transforms is not None:
+            # propagate sample index to transforms that support deterministic
+            # scheduling (duck-type check keeps this decoupled from Compose)
+            for t in self.transforms.transforms:
+                if hasattr(t, "set_sample_idx"):
+                    t.set_sample_idx(index)
+
             if self.target_extractor is not None:
                 input_patch, target_patch = self.transforms(input_patch, target_patch)
             else:

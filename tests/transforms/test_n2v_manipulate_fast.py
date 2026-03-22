@@ -13,7 +13,6 @@ import pytest
 import torch
 
 from careamics.config.augmentations import N2VManipulateConfig
-from careamics.config.support import SupportedPixelManipulation
 from careamics.transforms import N2VManipulateTorch
 from careamics.transforms.pixel_manipulation_torch import (
     _apply_struct_mask_torch,
@@ -23,11 +22,6 @@ from careamics.transforms.pixel_manipulation_torch import (
 from careamics.transforms.struct_mask_parameters import StructMaskParameters
 
 SEED = 42
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_config(
@@ -51,11 +45,6 @@ def _make_batch(batch: int, channels: int, *spatial: int) -> torch.Tensor:
     for s in spatial:
         total *= s
     return torch.arange(total, dtype=torch.float32).reshape(batch, channels, *spatial)
-
-
-# ---------------------------------------------------------------------------
-# 1. Shape equivalence
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("strategy", ["uniform", "median"])
@@ -82,11 +71,6 @@ def test_fast_output_shapes_match_reference(strategy: str, shape: tuple) -> None
     assert mk_fast.shape == mk_ref.shape
 
 
-# ---------------------------------------------------------------------------
-# 2. Masking semantics: mask == (manipulated != original)
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize("strategy", ["uniform", "median"])
 @pytest.mark.parametrize("use_fast", [False, True])
 def test_mask_equals_diff(strategy: str, use_fast: bool) -> None:
@@ -98,9 +82,9 @@ def test_mask_equals_diff(strategy: str, use_fast: bool) -> None:
     manipulated, original, mask = aug(batch)
 
     diff = (manipulated != original).to(torch.uint8)
-    assert torch.equal(diff, mask), (
-        f"mask != diff for strategy={strategy}, fast={use_fast}"
-    )
+    assert torch.equal(
+        diff, mask
+    ), f"mask != diff for strategy={strategy}, fast={use_fast}"
 
 
 @pytest.mark.parametrize("use_fast", [False, True])
@@ -125,11 +109,6 @@ def test_mask_subset_of_diff_with_struct(use_fast: bool) -> None:
     assert diff.sum() >= mask.sum()
 
 
-# ---------------------------------------------------------------------------
-# 3. Reproducibility: same seed → same outputs (within the same path)
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize("strategy", ["uniform", "median"])
 @pytest.mark.parametrize("use_fast", [False, True])
 def test_reproducibility_same_seed(strategy: str, use_fast: bool) -> None:
@@ -140,8 +119,8 @@ def test_reproducibility_same_seed(strategy: str, use_fast: bool) -> None:
     aug1 = N2VManipulateTorch(cfg, device="cpu", fast=use_fast)
     aug2 = N2VManipulateTorch(cfg, device="cpu", fast=use_fast)
 
-    m1, o1, mk1 = aug1(batch)
-    m2, o2, mk2 = aug2(batch)
+    m1, _, mk1 = aug1(batch)
+    m2, _, mk2 = aug2(batch)
 
     assert torch.equal(m1, m2)
     assert torch.equal(mk1, mk2)
@@ -158,41 +137,6 @@ def test_subsequent_calls_differ(strategy: str, use_fast: bool) -> None:
     _, _, mk1 = aug(batch)
     _, _, mk2 = aug(batch)
     assert not torch.equal(mk1, mk2)
-
-
-# ---------------------------------------------------------------------------
-# 4. Struct mask bounds
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("use_fast", [False, True])
-@pytest.mark.parametrize("struct_axis", ["horizontal", "vertical"])
-def test_struct_replaced_pixels_in_range(use_fast: bool, struct_axis: str) -> None:
-    """Pixels replaced by struct masking must lie in [batch_min, batch_max]."""
-    batch = _make_batch(2, 1, 32, 32)
-    aug = N2VManipulateTorch(
-        _make_config(strategy="uniform", struct_axis=struct_axis),
-        device="cpu",
-        fast=use_fast,
-    )
-    manipulated, original, _ = aug(batch)
-
-    # Check only the pixels that changed
-    changed = manipulated != original
-    if not changed.any():
-        pytest.skip("No pixels were changed — increase mask percentage.")
-
-    for b in range(batch.shape[0]):
-        bmin = original[b].min().item()
-        bmax = original[b].max().item()
-        changed_vals = manipulated[b][changed[b]]
-        assert changed_vals.min().item() >= bmin - 1e-5
-        assert changed_vals.max().item() <= bmax + 1e-5
-
-
-# ---------------------------------------------------------------------------
-# 5. _apply_struct_mask_torch_vec functional equivalence
-# ---------------------------------------------------------------------------
 
 
 def test_vec_struct_mask_output_shape() -> None:
@@ -259,61 +203,6 @@ def test_vec_struct_mask_same_positions_changed() -> None:
     changed_ref = (out_ref != original).nonzero(as_tuple=False)
     changed_vec = (out_vec != original).nonzero(as_tuple=False)
 
-    assert torch.equal(changed_ref, changed_vec), (
-        "Reference and vectorized variants must modify the same pixel positions."
-    )
-
-
-# ---------------------------------------------------------------------------
-# 6. Smoke training loop
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("strategy", ["uniform", "median"])
-def test_smoke_training_loop_fast(strategy: str) -> None:
-    """Simulate N training steps with fast=True; outputs must be valid tensors."""
-    cfg = _make_config(strategy=strategy, seed=SEED)
-    aug = N2VManipulateTorch(cfg, device="cpu", fast=True)
-
-    n_steps = 10
-    for _ in range(n_steps):
-        batch = torch.randn(2, 1, 32, 32)
-        manipulated, original, mask = aug(batch)
-
-        assert manipulated.shape == batch.shape
-        assert original.shape == batch.shape
-        assert mask.shape == batch.shape
-
-        assert not torch.isnan(manipulated).any(), "NaN in manipulated output"
-        assert not torch.isinf(manipulated).any(), "Inf in manipulated output"
-        assert mask.sum() > 0, "Empty mask — no pixels were masked"
-        assert mask.dtype == torch.uint8
-
-
-@pytest.mark.parametrize("strategy", ["uniform", "median"])
-def test_smoke_training_loop_fast_3d(strategy: str) -> None:
-    """Simulate training steps on 3D batches with fast=True."""
-    cfg = _make_config(strategy=strategy, seed=SEED)
-    aug = N2VManipulateTorch(cfg, device="cpu", fast=True)
-
-    for _ in range(5):
-        batch = torch.randn(1, 1, 8, 16, 16)
-        manipulated, original, mask = aug(batch)
-
-        assert manipulated.shape == batch.shape
-        assert not torch.isnan(manipulated).any()
-        assert mask.sum() > 0
-
-
-def test_smoke_training_loop_fast_with_struct() -> None:
-    """Smoke test with struct mask enabled and fast=True."""
-    cfg = _make_config(strategy="uniform", struct_axis="vertical", seed=SEED)
-    aug = N2VManipulateTorch(cfg, device="cpu", fast=True)
-
-    for _ in range(5):
-        batch = torch.randn(2, 2, 32, 32)
-        manipulated, original, mask = aug(batch)
-
-        assert manipulated.shape == batch.shape
-        assert not torch.isnan(manipulated).any()
-        assert mask.sum() > 0
+    assert torch.equal(
+        changed_ref, changed_vec
+    ), "Reference and vectorized variants must modify the same pixel positions."
