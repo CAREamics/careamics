@@ -1,4 +1,4 @@
-"""A module for random patching strategies."""
+"""Random patching strategies."""
 
 from collections.abc import Sequence
 
@@ -8,22 +8,25 @@ from .patching_strategy_protocol import PatchSpecs
 
 
 class RandomPatchingStrategy:
-    """
-    A patching strategy for sampling random patches, it implements the
-    `PatchingStrategy` `Protocol`.
+    """Random patching strategy.
 
+    Parameters
+    ----------
+    data_shapes : sequence of (sequence of int)
+        Shapes of the underlying data (axes SC(Z)YX).
+    patch_size : sequence of int
+        Patch size per spatial dimension (length 2 or 3).
+    seed : int or None, optional
+        Seed for reproducibility of random patches.
+
+    Notes
+    -----
     The output of `get_patch_spec` will be random, i.e. if the same index is given
-    twice the two outputs can be different.
-
-    However the strategy still ensures that there will be a known number of patches for
-    each sample in each image stack. This is achieved through defining a set of bins
-    that map to each sample in each image stack. Whichever bin an `index` passed to
-    `get_patch_spec` falls into, determines the `"data_idx"` and `"sample_idx"` in
-    the returned `PatchSpecs`, but the `"coords"` will be random.
-
-    The number of patches in each sample is based on the number of patches that would
-    fit if they were sampled sequentially, non-overlapping, and covering the entire
-    array.
+    twice the two outputs can be different. The strategy still ensures a known number
+    of patches per sample per image stack via bins; the index determines
+    `"data_idx"` and `"sample_idx"` in the returned `PatchSpecs`, while `"coords"` are
+    random. The number of patches per sample is based on sequential non-overlapping
+    coverage of the array.
     """
 
     def __init__(
@@ -66,6 +69,11 @@ class RandomPatchingStrategy:
         The number of patches that this patching strategy will return.
 
         It also determines the maximum index that can be given to `get_patch_spec`.
+
+        Returns
+        -------
+        int
+            Number of patches.
         """
         # last bin boundary will be total patches
         return self.image_stack_cumulative_patches[-1]
@@ -204,15 +212,21 @@ class RandomPatchingStrategy:
 
 class FixedRandomPatchingStrategy:
     """
-    A patching strategy for sampling random patches it implements the `PatchingStrategy`
-    `Protocol`.
+    Deterministic random patching strategy for validation.
 
-    The output of `get_patch_spec` will be deterministic, i.e. if the same index is
-    given twice the two outputs will be the same.
+    Parameters
+    ----------
+    data_shapes : sequence of (sequence of int)
+        Shapes of the underlying data (axes SC(Z)YX).
+    patch_size : sequence of int
+        Patch size per spatial dimension (length 2 or 3).
+    seed : int or None, optional
+        Seed for reproducibility.
 
-    The number of patches in each sample is based on the number of patches that would
-    fit if they were sampled sequentially, non-overlapping, and covering the entire
-    array.
+    Notes
+    -----
+    The output of `get_patch_spec` is deterministic (same index gives same output).
+    The number of patches per sample is based on sequential non-overlapping coverage.
     """
 
     def __init__(
@@ -262,6 +276,11 @@ class FixedRandomPatchingStrategy:
         The number of patches that this patching strategy will return.
 
         It also determines the maximum index that can be given to `get_patch_spec`.
+
+        Returns
+        -------
+        int
+            Number of patches.
         """
         return len(self.fixed_patch_specs)
 
@@ -361,7 +380,7 @@ def _generate_random_coords(
 
 def _calc_n_patches(spatial_shape: Sequence[int], patch_size: Sequence[int]) -> int:
     """
-    Calculates the number of patches for a given `spatial_shape` and `patch_size`.
+    Calculate the number of patches for a given `spatial_shape` and `patch_size`.
 
     This is based on the number of patches that would fit if they were sampled
     sequentially.

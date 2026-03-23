@@ -1,3 +1,5 @@
+"""Sequential (grid) patching strategy; prototype, not guaranteed complete."""
+
 import itertools
 from collections.abc import Sequence
 
@@ -12,13 +14,35 @@ P = ParamSpec("P")
 # TODO: this is an unfinished prototype based on current tiling implementation
 #  not guaranteed to work!
 class SequentialPatchingStrategy:
-    # TODO: docs
+    """Grid patching strategy with optional overlap; prototype.
+
+    Parameters
+    ----------
+    data_shapes : sequence of (sequence of int)
+        Shapes of the underlying data (axes SC(Z)YX).
+    patch_size : sequence of int
+        Patch size per spatial dimension.
+    overlaps : sequence of int or None, optional
+        Overlap per axis; if None, no overlap.
+    """
+
     def __init__(
         self,
         data_shapes: Sequence[Sequence[int]],
         patch_size: Sequence[int],
         overlaps: Sequence[int] | None = None,
     ):
+        """Initialize sequential patching with optional overlap per axis.
+
+        Parameters
+        ----------
+        data_shapes : sequence of (sequence of int)
+            Shapes of the underlying data (axes SC(Z)YX).
+        patch_size : sequence of int
+            Patch size per spatial dimension.
+        overlaps : sequence of int or None, optional
+            Overlap per axis; if None, no overlap.
+        """
         self.data_shapes = data_shapes
         self.patch_size = patch_size
         if overlaps is None:
@@ -29,9 +53,28 @@ class SequentialPatchingStrategy:
 
     @property
     def n_patches(self) -> int:
+        """Total number of patches.
+
+        Returns
+        -------
+        int
+            Number of patches.
+        """
         return len(self.patch_specs)
 
     def get_patch_spec(self, index: int) -> PatchSpecs:
+        """Return the patch spec for the given index.
+
+        Parameters
+        ----------
+        index : int
+            Patch index.
+
+        Returns
+        -------
+        PatchSpecs
+            Patch spec for that index.
+        """
         return self.patch_specs[index]
 
     # Note: this is used by the FileIterSampler
@@ -62,6 +105,22 @@ class SequentialPatchingStrategy:
     def _compute_coords_1d(
         self, patch_size: int, spatial_shape: int, overlap: int
     ) -> list[tuple[int, int]]:
+        """Compute 1D crop (start, end) coords along one axis with given overlap.
+
+        Parameters
+        ----------
+        patch_size : int
+            Size of patch along this axis.
+        spatial_shape : int
+            Size of spatial dimension.
+        overlap : int
+            Overlap along this axis.
+
+        Returns
+        -------
+        list of tuple of (int, int)
+            (start, end) for each crop.
+        """
         step = patch_size - overlap
         crop_coords = []
 
@@ -76,6 +135,13 @@ class SequentialPatchingStrategy:
         return crop_coords
 
     def _initialize_patch_specs(self) -> list[PatchSpecs]:
+        """Build the full list of patch specs for all data shapes.
+
+        Returns
+        -------
+        list of PatchSpecs
+            Full list of patch specs.
+        """
         patch_specs: list[PatchSpecs] = []
         for data_idx, data_shape in enumerate(self.data_shapes):
 

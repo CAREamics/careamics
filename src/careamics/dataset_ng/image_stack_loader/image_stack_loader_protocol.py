@@ -1,22 +1,17 @@
+"""Protocol and types for loading image stacks from data sources."""
+
 from collections.abc import Sequence
 from typing import Any, Protocol
 
 from typing_extensions import ParamSpec
-
-from careamics.utils import BaseEnum
 
 from ..image_stack import GenericImageStack
 
 P = ParamSpec("P")
 
 
-class SupportedDataDev(str, BaseEnum):
-    ZARR = "zarr"
-
-
 class ImageStackLoader(Protocol[P, GenericImageStack]):
-    """
-    Protocol to define how `ImageStacks` should be loaded.
+    """Protocol to define how ImageStacks are loaded from a source.
 
     An `ImageStackLoader` is a callable that must take the `source` of the data as the
     first argument, and the data `axes` as the second argument.
@@ -31,8 +26,8 @@ class ImageStackLoader(Protocol[P, GenericImageStack]):
     be a sequence of one of the existing concrete implementations, such as
     `ZarrImageStack`, or a custom user defined `ImageStack`.
 
-    Example
-    -------
+    Examples
+    --------
     The following example demonstrates how an `ImageStackLoader` could be defined
     for loading non-OME Zarr images. Returning a list of `ZarrImageStack` instances.
 
@@ -67,4 +62,23 @@ class ImageStackLoader(Protocol[P, GenericImageStack]):
 
     def __call__(
         self, source: Any, axes: str, *args: P.args, **kwargs: P.kwargs
-    ) -> Sequence[GenericImageStack]: ...
+    ) -> Sequence[GenericImageStack]:
+        """Load `ImageStacks` from a source.
+
+        Parameters
+        ----------
+        source : Any
+            Data source (paths, store, etc.).
+        axes : str
+            Axis order (e.g. "SYX", "SCZYX").
+        *args : P.args
+            Additional positional arguments for loading.
+        **kwargs : P.kwargs
+            Additional keyword arguments for loading.
+
+        Returns
+        -------
+        Sequence[GenericImageStack]
+            The loaded ImageStacks.
+        """
+        ...

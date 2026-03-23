@@ -1,3 +1,5 @@
+"""Utilities for channel slicing and patch padding."""
+
 from collections.abc import Sequence
 from types import EllipsisType
 from typing import TypeVar
@@ -54,7 +56,7 @@ def pad_patch(
     ----------
     coords : Sequence[int]
         The coordinates that describe where the patch starts in the spatial dimension of
-        the image
+        the image.
     patch_size : Sequence[int]
         The size of the patch in the spatial dimensions.
     data_shape : Sequence[int]
