@@ -691,9 +691,11 @@ def _create_advanced_supervised_config(
         num_steps=num_steps,
     )
     training_params = create_training_configuration(
+        algorithm=algorithm,
         trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
+        monitor_metric="val_loss",
     )
 
     return {

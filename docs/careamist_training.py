@@ -78,9 +78,10 @@ config = create_advanced_care_config(
     num_epochs=30,
     checkpoint_params={
         "save_top_k": 5,
+        "monitor": "val_loss",
     },
 )
-config.training_config.early_stopping_callback = {  # (1)!
+config.training_config.early_stopping_params = {  # (1)!
     "monitor": "val_loss",
     "patience": 10,
     "mode": "min",

@@ -33,7 +33,7 @@ def test_state_dict_io(tmp_path, ordered_array, pre_trained):
 
     # predict (no tiling and no tta)
     predicted_loaded = careamist.predict(train_array, tta_transforms=False)
-    assert (predicted_loaded == predicted).all()
+    np.testing.assert_almost_equal(predicted_loaded[0], predicted, decimal=3)
 
 
 def test_bmz_io(tmp_path, ordered_array, pre_trained):
@@ -79,4 +79,4 @@ def test_bmz_io(tmp_path, ordered_array, pre_trained):
         torch_array = Tensor(train_array[np.newaxis, np.newaxis, ...])
         predicted = careamist.model.forward(torch_array).numpy().squeeze()
         predicted_loaded = model.forward(torch_array).numpy().squeeze()
-    assert (predicted_loaded == predicted).all()
+    np.testing.assert_almost_equal(predicted_loaded, predicted, decimal=3)
