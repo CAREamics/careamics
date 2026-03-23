@@ -140,8 +140,11 @@ def _patch_size_within_data_shapes(
     return all(smaller_than_shapes)
 
 
-def _all_spatial_dims_power_of_2(data_shapes: Sequence[Sequence[int]]) -> bool:
-    """Return True if all spatial dimensions in all data shapes are a power of 2.
+def _check_all_spatial_dims(data_shapes: Sequence[Sequence[int]]) -> bool:
+    """Return True if all spatial dims comply with the requirements.
+
+    YX dimensions must be even and be greate or equal than 16. Z dimenstion must be
+    even and be greater or equal than 4.
 
     Parameters
     ----------
@@ -152,12 +155,14 @@ def _all_spatial_dims_power_of_2(data_shapes: Sequence[Sequence[int]]) -> bool:
     Returns
     -------
     bool
-        True if every spatial dimension of every image is a power of 2.
+        True if all spatial dimensions comply with the requirements.
     """
     for data_shape in data_shapes:
-        for dim in data_shape[2:]:
-            if dim <= 0 or (dim & (dim - 1)) != 0:
+        for dim in data_shape[3:]:
+            if dim < 16 or dim % 2 != 0:
                 return False
+        if data_shape[2] < 4 or data_shape[2] % 2 != 0:
+            return False
     return True
 
 
@@ -187,7 +192,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 )
         else:
             if not isinstance(data_config.patching, TiledPatchingConfig):
-                if not _all_spatial_dims_power_of_2(data_shapes):
+                if not _check_all_spatial_dims(data_shapes):
                     raise ValueError(
                         "Image spatial dimensions must all be a power of 2 when "
                         "predicting without tiling. Please use tiling by passing "

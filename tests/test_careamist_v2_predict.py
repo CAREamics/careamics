@@ -300,8 +300,8 @@ def test_predict_to_disk_custom_raises(tmp_path: Path):
         )
 
 
-def test_predict_non_power_of_2_no_tiling_raises(tmp_path: Path):
-    """Test that predict raises ValueError for non-power-of-2 shapes without tiling."""
+def test_predict_invalid_spatial_dims_no_tiling_raises(tmp_path: Path):
+    """Test that predict raises ValueError for invalid spatial dims without tiling."""
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="array",
@@ -315,14 +315,14 @@ def test_predict_non_power_of_2_no_tiling_raises(tmp_path: Path):
 
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
 
-    pred_array = random_array((30, 30))
+    pred_array = random_array((15, 30))
 
     with pytest.raises(ValueError, match="tiling"):
         careamist.predict(pred_data=pred_array)
 
 
-def test_predict_to_disk_non_power_of_2_no_tiling_raises(tmp_path: Path):
-    """Test that predict_to_disk raises ValueError for non-power-of-2 without tiling."""
+def test_predict_to_disk_invalid_spatial_dims_no_tiling_raises(tmp_path: Path):
+    """Test that predict_to_disk raises ValueError for invalid spatial dims."""
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
@@ -336,7 +336,7 @@ def test_predict_to_disk_non_power_of_2_no_tiling_raises(tmp_path: Path):
 
     image_dir = tmp_path / "images"
     image_dir.mkdir()
-    tifffile.imwrite(image_dir / "image.tiff", random_array((30, 30)))
+    tifffile.imwrite(image_dir / "image.tiff", random_array((15, 30)))
 
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
 
