@@ -55,7 +55,7 @@ earlystopping = EarlyStoppingConfig(
 checkpoints = CheckpointConfig(every_n_epochs=10)  # (11)!
 
 training_model = TrainingConfig(
-    num_epochs=30,
+    lightning_trainer_config={"num_epochs": 30},
     logger=SupportedLogger.WANDB.value,
     early_stopping_callback=earlystopping,
     checkpoint_callback=checkpoints,
@@ -103,7 +103,9 @@ config_dict = {
         },
     },
     "training_config": {
-        "num_epochs": 30,
+        "lightning_trainer_config": {
+            "num_epochs": 30,
+        },
         "logger": "wandb",
         "early_stopping_callback": {},  # (4)!
         "checkpoint_callback": {
