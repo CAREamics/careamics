@@ -14,10 +14,10 @@ _DIHEDRAL_OPS: list[tuple[int, bool, bool]] = [
     (1, False, False),  # rot90
     (2, False, False),  # rot180
     (3, False, False),  # rot270
-    (0, True, False),   # flip_x
-    (0, False, True),   # flip_y
-    (1, True, False),   # rot90 + flip_x
-    (1, False, True),   # rot90 + flip_y
+    (0, True, False),  # flip_x
+    (0, False, True),  # flip_y
+    (1, True, False),  # rot90 + flip_x
+    (1, False, True),  # rot90 + flip_y
 ]
 
 
@@ -138,9 +138,7 @@ class XYScheduledAugmentation(Transform):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _apply_op(
-        self, arr: NDArray, op: tuple[int, bool, bool]
-    ) -> NDArray:
+    def _apply_op(self, arr: NDArray, op: tuple[int, bool, bool]) -> NDArray:
         """Apply a single dihedral op tuple to ``arr``.
 
         Parameters
