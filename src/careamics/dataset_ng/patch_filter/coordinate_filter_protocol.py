@@ -6,9 +6,7 @@ from careamics.dataset_ng.patching_strategies import PatchSpecs
 
 
 class CoordinateFilterProtocol(Protocol):
-    """
-    An interface for implementing coordinate filtering strategies.
-    """
+    """Interface for implementing coordinate filtering strategies."""
 
     def filter_out(self, patch: PatchSpecs) -> bool:
         """

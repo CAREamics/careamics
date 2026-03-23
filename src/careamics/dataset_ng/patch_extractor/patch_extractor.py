@@ -1,3 +1,5 @@
+"""Default patch extractor."""
+
 from collections.abc import Sequence
 from typing import Generic
 
@@ -9,14 +11,30 @@ from .patch_construction import PatchConstructor, default_patch_constr
 
 class PatchExtractor(Generic[GenericImageStack]):
     """
-    A class for extracting patches from multiple image stacks.
+    Extract patches from multiple image stacks.
+
+    Parameters
+    ----------
+    image_stacks : sequence of ImageStack
+        Image stacks to extract patches from.
+    patch_constructor : PatchConstructor, optional
+        Callable used to build a patch from an image stack.
     """
 
     def __init__(
         self,
         image_stacks: Sequence[GenericImageStack],
         patch_constructor: PatchConstructor = default_patch_constr,
-    ):
+    ) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        image_stacks : sequence of ImageStack
+            Image stacks to extract patches from.
+        patch_constructor : PatchConstructor, optional
+            Callable used to build a patch from an image stack (default constructor).
+        """
         self.patch_constructor = patch_constructor
         self.image_stacks: list[GenericImageStack] = list(image_stacks)
 
@@ -114,4 +132,11 @@ class PatchExtractor(Generic[GenericImageStack]):
 
     @property
     def shapes(self) -> list[Sequence[int]]:
+        """Data shape of each image stack.
+
+        Returns
+        -------
+        list of Sequence[int]
+            Shape of each stack.
+        """
         return [stack.data_shape for stack in self.image_stacks]

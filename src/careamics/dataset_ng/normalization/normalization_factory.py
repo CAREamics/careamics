@@ -1,3 +1,5 @@
+"""Normalization factory."""
+
 from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.support import SupportedNormalization
 

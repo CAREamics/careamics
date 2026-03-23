@@ -7,9 +7,7 @@ import numpy as np
 
 
 class PatchFilterProtocol(Protocol):
-    """
-    An interface for implementing patch filtering strategies.
-    """
+    """Interface for implementing patch filtering strategies."""
 
     def filter_out(self, patch: np.ndarray) -> bool:
         """

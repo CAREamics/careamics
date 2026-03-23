@@ -15,6 +15,18 @@ class MeanStdPatchFilter(PatchFilterProtocol):
     """
     Filter patches based on mean and standard deviation thresholds.
 
+    Parameters
+    ----------
+    mean_threshold : float
+        Threshold for the mean of the patch.
+    std_threshold : float, optional
+        Threshold for the standard deviation of the patch. If None, then no
+        standard deviation filtering is applied.
+    p : float, default=1
+        Probability of applying the filter to a patch. Must be between 0 and 1.
+    seed : int | None, default=None
+        Seed for the random number generator for reproducibility.
+
     Attributes
     ----------
     mean_threshold : float
@@ -62,7 +74,6 @@ class MeanStdPatchFilter(PatchFilterProtocol):
         ValueError
             If p is not between 0 and 1.
         """
-
         if mean_threshold < 0:
             raise ValueError("Mean threshold must be non-negative.")
         if std_threshold is not None and std_threshold < 0:
@@ -90,7 +101,6 @@ class MeanStdPatchFilter(PatchFilterProtocol):
         bool
             True if the patch should be filtered out, False otherwise.
         """
-
         if self.rng.uniform(0, 1) < self.p:
             patch_mean = np.mean(patch)
             patch_std = np.std(patch)
@@ -125,8 +135,8 @@ class MeanStdPatchFilter(PatchFilterProtocol):
         ValueError
             If the image is not 2D or 3D.
 
-        Example
-        -------
+        Examples
+        --------
         The `filter_map` method can be used to assess useful thresholds for the
         MeanStd filter.
         >>> import numpy as np

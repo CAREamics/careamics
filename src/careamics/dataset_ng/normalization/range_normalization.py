@@ -1,3 +1,5 @@
+"""Range (min-max) normalization for image patches."""
+
 import numpy as np
 import torch
 from numpy.typing import NDArray
@@ -42,6 +44,19 @@ class RangeNormalization(NormalizationProtocol):
         target_mins: list[float] | None = None,
         target_maxes: list[float] | None = None,
     ):
+        """Initialize range normalization.
+
+        Parameters
+        ----------
+        input_mins : list of float
+            Minimum value per channel.
+        input_maxes : list of float
+            Maximum value per channel.
+        target_mins : list of float or None, optional
+            Target minimum per channel.
+        target_maxes : list of float or None, optional
+            Target maximum per channel.
+        """
         self.input_mins = input_mins
         self.input_maxes = input_maxes
         self.target_mins = target_mins
