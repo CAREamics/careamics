@@ -129,7 +129,7 @@ class CAREamistV2:
             config, checkpoint_path, bmz_path # type: ignore
         )
 
-        self.config.training_config.lightning_trainer_config["enable_progress_bar"] = (
+        self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
         )
         self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
@@ -148,7 +148,7 @@ class CAREamistV2:
             callbacks=[self.prediction_writer, *self.callbacks],
             default_root_dir=self.work_dir,
             logger=experiment_loggers,
-            **self.config.training_config.lightning_trainer_config or {},
+            **self.config.training_config.trainer_params or {},
         )
 
         self.train_datamodule: CareamicsDataModule | None = None
@@ -354,7 +354,7 @@ class CAREamistV2:
                 f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_"
                 f"{{val_loss:.4f}}"
             ),
-            **config.training_config.checkpoint_callback.model_dump(),
+            **config.training_config.checkpoint_params,
         )
         checkpoint_callback.CHECKPOINT_NAME_LAST = (
             f"{config.get_safe_experiment_name()}_last"
@@ -368,16 +368,16 @@ class CAREamistV2:
             ),
         ]
 
-        enable_progress_bar = config.training_config.lightning_trainer_config.get(
+        enable_progress_bar = config.training_config.trainer_params.get(
             "enable_progress_bar", True
         )
         if enable_progress_bar:
             internal_callbacks.append(ProgressBarCallback())
 
-        if config.training_config.early_stopping_callback is not None:
+        if config.training_config.early_stopping_params is not None:
             internal_callbacks.append(
                 EarlyStopping(
-                    **config.training_config.early_stopping_callback.model_dump()
+                    **config.training_config.early_stopping_params
                 )
             )
 
