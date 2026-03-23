@@ -9,8 +9,8 @@ from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
+from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.ng_configs import NGConfiguration
-from .config.ng_configs.ng_configuration import AlgorithmConfig
 from .config.support import SupportedData, SupportedLogger
 from .config.utils.configuration_io import load_configuration_ng
 from .dataset_ng.dataset import ImageRegionData
@@ -37,6 +37,11 @@ ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
 
+ConfigurationType = (
+    NGConfiguration[CAREAlgorithm]
+    | NGConfiguration[N2NAlgorithm]
+    | NGConfiguration[N2VAlgorithm]
+)
 
 class CAREamistV2:
     """Main interface for training and predicting with CAREamics.
@@ -62,7 +67,7 @@ class CAREamistV2:
 
     Parameters
     ----------
-    config : NGConfiguration[AlgorithmConfig] | Path, default=None
+    config : NGConfiguration | Path, default=None
         CAREamics configuration, or a path to a configuration file. See
         `careamics.config.ng_factories` for method to build configurations.
     checkpoint_path : Path, default=None
@@ -84,7 +89,7 @@ class CAREamistV2:
 
     def __init__(
         self,
-        config: NGConfiguration[AlgorithmConfig] | Path | None = None,
+        config: ConfigurationType | Path | None = None,
         *,
         checkpoint_path: Path | None = None,
         bmz_path: Path | None = None,
@@ -98,7 +103,7 @@ class CAREamistV2:
 
         Parameters
         ----------
-        config : NGConfiguration[AlgorithmConfig] | Path, default=None
+        config : NGConfiguration | Path, default=None
             CAREamics configuration, or a path to a configuration file. See
             `careamics.config.ng_factories` for method to build configurations. `config`
             is mutually exclusive with `checkpoint_path` and `bmz_path`.
@@ -123,10 +128,9 @@ class CAREamistV2:
         self.checkpoint_path = checkpoint_path
         self.work_dir = self._resolve_work_dir(work_dir)
 
-        # TODO remove type ignore once #817 is merged, hopefully it takes care of it
-        self.config: NGConfiguration[AlgorithmConfig]
+        self.config: ConfigurationType
         self.config, self.model = self._load_model(
-            config, checkpoint_path, bmz_path # type: ignore
+            config, checkpoint_path, bmz_path
         )
 
         self.config.training_config.trainer_params["enable_progress_bar"] = (
@@ -155,15 +159,15 @@ class CAREamistV2:
 
     def _load_model(
         self,
-        config: NGConfiguration[AlgorithmConfig] | Path | None,
+        config: ConfigurationType | Path | None,
         checkpoint_path: Path | None,
         bmz_path: Path | None,
-    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load model.
 
         Parameters
         ----------
-        config : NGConfiguration[AlgorithmConfig] | Path | None
+        config : NGConfiguration | Path | None
             CAREamics configuration, or a path to a configuration file.
         checkpoint_path : Path | None
             Path to a checkpoint file from which to load the model and configuration.
@@ -173,7 +177,7 @@ class CAREamistV2:
 
         Returns
         -------
-        NGConfiguration[AlgorithmConfig]
+        NGConfiguration
             The loaded configuration.
         CAREamicsModule
             The loaded model.
@@ -202,18 +206,18 @@ class CAREamistV2:
 
     @staticmethod
     def _from_config(
-        config: NGConfiguration[AlgorithmConfig] | Path,
-    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+        config: ConfigurationType | Path,
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Create model from configuration.
 
         Parameters
         ----------
-        config : NGConfiguration[AlgorithmConfig] | Path
+        config : NGConfiguration | Path
             CAREamics configuration, or a path to a configuration file.
 
         Returns
         -------
-        NGConfiguration[AlgorithmConfig]
+        NGConfiguration
             The loaded configuration if a path was provided, otherwise the original
             configuration.
         CAREamicsModule
@@ -229,7 +233,7 @@ class CAREamistV2:
     @staticmethod
     def _from_checkpoint(
         checkpoint_path: Path,
-    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load checkpoint and configuration from checkpoint file.
 
         Parameters
@@ -239,7 +243,7 @@ class CAREamistV2:
 
         Returns
         -------
-        NGConfiguration[AlgorithmConfig]
+        NGConfiguration
             The loaded configuration.
         CAREamicsModule
             The loaded model.
@@ -247,13 +251,12 @@ class CAREamistV2:
         config = load_config_from_checkpoint(checkpoint_path)
         module = load_module_from_checkpoint(checkpoint_path)
 
-        # TODO remove type ignore once #817 is merged, hopefully it takes care of it
-        return config, module # type: ignore
+        return config, module
 
     @staticmethod
     def _from_bmz(
         bmz_path: Path,
-    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load checkpoint and configuration from a BioImage Model Zoo archive.
 
         Parameters
@@ -264,7 +267,7 @@ class CAREamistV2:
 
         Returns
         -------
-        NGConfiguration[AlgorithmConfig]
+        NGConfiguration
             The loaded configuration.
         CAREamicsModule
             The loaded model.
@@ -304,7 +307,7 @@ class CAREamistV2:
     @staticmethod
     def _define_callbacks(
         callbacks: list[Callback] | None,
-        config: NGConfiguration[AlgorithmConfig],
+        config: ConfigurationType,
         work_dir: Path,
     ) -> list[Callback]:
         """Define callbacks for the training process.
@@ -315,7 +318,7 @@ class CAREamistV2:
             List of callbacks to use during training. If None, no additional callbacks
             will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
             already defined in CAREamics and instantiated in this method.
-        config : NGConfiguration[AlgorithmConfig]
+        config : NGConfiguration
             The CAREamics configuration, used to instantiate the callbacks.
         work_dir : Path
             The working directory, used as a parameter to the checkpointing callback.
