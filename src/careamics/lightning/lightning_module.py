@@ -105,6 +105,15 @@ class FCNModule(L.LightningModule):
 
         self.algorithm = self.algorithm_config.algorithm
         self.model: torch.nn.Module = model_factory(self.algorithm_config.model)
+
+        if (
+            isinstance(self.algorithm_config, UNetBasedAlgorithm)
+            and self.algorithm_config.compile is not None
+        ):
+            self.model = torch.compile(  # type: ignore[assignment]
+                self.model, mode=self.algorithm_config.compile
+            )
+
         self.noise_model: NoiseModel | None = noise_model_factory(
             self.algorithm_config.noise_model
             if isinstance(self.algorithm_config, PN2VAlgorithm)

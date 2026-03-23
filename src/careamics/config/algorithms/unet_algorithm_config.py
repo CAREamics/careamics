@@ -11,6 +11,8 @@ from careamics.config.lightning.optimizer_configs import (
     OptimizerConfig,
 )
 
+CompileMode = Literal["default", "reduce-overhead", "max-autotune"]
+
 
 class UNetBasedAlgorithm(BaseModel):
     """General UNet-based algorithm configuration.
@@ -36,6 +38,8 @@ class UNetBasedAlgorithm(BaseModel):
         Optimizer to use.
     lr_scheduler : LrSchedulerConfig, optional
         Learning rate scheduler to use.
+    compile : {"default", "reduce-overhead", "max-autotune"} or None, optional
+        torch.compile mode. None disables compilation.
 
     Raises
     ------
@@ -68,6 +72,10 @@ class UNetBasedAlgorithm(BaseModel):
 
     lr_scheduler: LrSchedulerConfig = LrSchedulerConfig()
     """Learning rate scheduler to use, defined in SupportedLrScheduler."""
+
+    compile: CompileMode | None = None
+    """torch.compile mode. Set to a mode string to enable compilation of the model
+    for faster execution. None disables compilation. Requires PyTorch >= 2.0."""
 
     def __str__(self) -> str:
         """Pretty string representing the configuration.

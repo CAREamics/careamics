@@ -176,6 +176,7 @@ def _create_algorithm_configuration(
     optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
     lr_scheduler_params: dict[str, Any] | None = None,
+    compile: Literal["default", "reduce-overhead", "max-autotune"] | None = None,
 ) -> dict:
     """
     Create a dictionary with the parameters of the algorithm model.
@@ -207,7 +208,8 @@ def _create_algorithm_configuration(
     lr_scheduler_params : dict, default=None
         Parameters for the learning rate scheduler, see PyTorch documentation for more
         details.
-
+    compile : {"default", "reduce-overhead", "max-autotune"} or None, default=None
+        torch.compile mode. None disables compilation.
 
     Returns
     -------
@@ -224,7 +226,7 @@ def _create_algorithm_configuration(
         model_params=model_params,
     )
 
-    return {
+    result: dict[str, Any] = {
         "algorithm": algorithm,
         "loss": loss,
         "model": unet_model,
@@ -237,6 +239,9 @@ def _create_algorithm_configuration(
             "parameters": {} if lr_scheduler_params is None else lr_scheduler_params,
         },
     }
+    if compile is not None:
+        result["compile"] = compile
+    return result
 
 
 def _create_data_configuration(
@@ -448,6 +453,7 @@ def _create_supervised_config_dict(
     checkpoint_params: dict[str, Any] | None = None,
     num_epochs: int | None = None,
     num_steps: int | None = None,
+    compile: Literal["default", "reduce-overhead", "max-autotune"] | None = None,
 ) -> dict:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -507,6 +513,8 @@ def _create_supervised_config_dict(
         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
+    compile : {"default", "reduce-overhead", "max-autotune"} or None, default=None
+        torch.compile mode. None disables compilation.
 
     Returns
     -------
@@ -551,6 +559,7 @@ def _create_supervised_config_dict(
         optimizer_params=optimizer_params,
         lr_scheduler=lr_scheduler,
         lr_scheduler_params=lr_scheduler_params,
+        compile=compile,
     )
 
     # data
@@ -607,6 +616,7 @@ def create_care_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    compile: Literal["default", "reduce-overhead", "max-autotune"] | None = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE.
@@ -686,6 +696,8 @@ def create_care_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    compile : {"default", "reduce-overhead", "max-autotune"} or None, default=None
+        torch.compile mode. None disables compilation.
 
     Returns
     -------
@@ -817,6 +829,7 @@ def create_care_configuration(
             checkpoint_params=checkpoint_params,
             num_epochs=num_epochs,
             num_steps=num_steps,
+            compile=compile,
         )
     )
 
@@ -844,6 +857,7 @@ def create_n2n_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    compile: Literal["default", "reduce-overhead", "max-autotune"] | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Noise.
@@ -923,6 +937,8 @@ def create_n2n_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    compile : {"default", "reduce-overhead", "max-autotune"} or None, default=None
+        torch.compile mode. None disables compilation.
 
     Returns
     -------
@@ -1053,6 +1069,7 @@ def create_n2n_configuration(
             checkpoint_params=checkpoint_params,
             num_epochs=num_epochs,
             num_steps=num_steps,
+            compile=compile,
         )
     )
 
@@ -1084,6 +1101,7 @@ def create_n2v_configuration(
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
     seed: int | None = None,
+    compile: Literal["default", "reduce-overhead", "max-autotune"] | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Void.
@@ -1191,6 +1209,8 @@ def create_n2v_configuration(
         (`ModelCheckpoint`) for the list of available parameters.
     seed : int or None, default=None
         Random seed for reproducibility of N2V pixel manipulation, by default None.
+    compile : {"default", "reduce-overhead", "max-autotune"} or None, default=None
+        torch.compile mode. None disables compilation.
 
     Returns
     -------
@@ -1361,6 +1381,7 @@ def create_n2v_configuration(
         optimizer_params=optimizer_params,
         lr_scheduler=lr_scheduler,
         lr_scheduler_params=lr_scheduler_params,
+        compile=compile,
     )
     algorithm_params["n2v_config"] = n2v_transform
 

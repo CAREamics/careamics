@@ -22,7 +22,11 @@ from pydantic import (
 
 from careamics.utils import BaseEnum
 
-from ..augmentations import XYFlipConfig, XYRandomRotate90Config
+from ..augmentations import (
+    SPATIAL_TRANSFORMS_UNION,
+    XYFlipConfig,
+    XYRandomRotate90Config,
+)
 from ..utils.random import generate_random_seed
 from ..validators import check_axes_validity, check_czi_axes_validity
 from .normalization_config import NormalizationConfig
@@ -309,7 +313,7 @@ class NGDataConfig(BaseModel):
     """Number of consecutive patches not passing the filter before accepting the next
     patch."""
 
-    augmentations: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
+    augmentations: Sequence[SPATIAL_TRANSFORMS_UNION] = Field(
         default=(
             XYFlipConfig(),
             XYRandomRotate90Config(),

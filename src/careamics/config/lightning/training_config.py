@@ -32,7 +32,8 @@ class TrainingConfig(BaseModel):
 
     lightning_trainer_config: dict = Field(default={})
     """Configuration for the PyTorch Lightning Trainer, following PyTorch Lightning
-    Trainer class"""
+    Trainer class. Mixed precision can be enabled by setting ``"precision"`` here,
+    e.g. ``{"precision": "16-mixed"}`` or ``{"precision": "bf16-mixed"}``."""
 
     logger: Literal["wandb", "tensorboard"] | None = None
     """Logger to use during training. If None, no logger will be used. Available
