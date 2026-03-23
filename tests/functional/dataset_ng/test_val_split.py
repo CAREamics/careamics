@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import pytest
+from tests.functional.dataset_ng.utils import track_patching
 
 from careamics.dataset_ng.patching_strategies import (
     StratifiedPatchingStrategy,
@@ -32,29 +33,10 @@ def test_train_val_complementary(
     n_val_patches = int(np.ceil(patching_strategy.n_patches * 0.1))  # 10% of patches
     train_strat, val_strat = create_val_split(patching_strategy, n_val_patches, rng)
 
-    train_tracking_arrays = [np.zeros(shape, dtype=int) for shape in data_shapes]
-    val_tracking_arrays = [np.zeros(shape, dtype=int) for shape in data_shapes]
-
-    epochs = 5
-    for _ in range(epochs):
-        for i in range(train_strat.n_patches):
-            patch_spec = train_strat.get_patch_spec(i)
-            data_idx = patch_spec["data_idx"]
-            sample_idx = patch_spec["sample_idx"]
-            coord = patch_spec["coords"]
-            patch_slice = [
-                slice(c, c + ps) for c, ps in zip(coord, patch_size, strict=True)
-            ]
-            train_tracking_arrays[data_idx][sample_idx, ..., *patch_slice] += 1
-        for i in range(val_strat.n_patches):
-            patch_spec = val_strat.get_patch_spec(i)
-            data_idx = patch_spec["data_idx"]
-            sample_idx = patch_spec["sample_idx"]
-            coord = patch_spec["coords"]
-            patch_slice = [
-                slice(c, c + ps) for c, ps in zip(coord, patch_size, strict=True)
-            ]
-            val_tracking_arrays[data_idx][sample_idx, ..., *patch_slice] += 1
+    train_tracking_arrays = track_patching(
+        train_strat, data_shapes, patch_size, epochs=5
+    )
+    val_tracking_arrays = track_patching(val_strat, data_shapes, patch_size, epochs=5)
 
     # check not all zeros
     assert any((train_array != 0).any() for train_array in train_tracking_arrays)

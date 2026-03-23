@@ -160,6 +160,33 @@ class StratifiedPatchingStrategy:
             self.cumulative_image_samples,
         ) = self._calc_bins()
 
+    def set_region_probs(
+        self, data_idx: int, sample_idx: int, probs: dict[tuple[int, ...], float]
+    ) -> None:
+        """
+        Set the probability that regions will be sampled from, each epoch.
+
+        Parameters
+        ----------
+        data_idx : int
+            The index of the "image stack" that the patches will be excluded from.
+        sample_idx : int
+            An index that corresponds to the sample in the "image stack" that the
+            patches will be excluded from.
+        probs : dict[tuple[int, ...], float]
+            The probabilities for each region. The keys of the dictionary correspond to
+            the grid coordinates of the regions. The values of the dictionary are the
+            probabilities.
+
+        """
+        self.image_patching[data_idx][sample_idx].set_region_probs(probs)
+        # update bins
+        (
+            self.cumulative_image_patches,
+            self.cumulative_sample_patches,
+            self.cumulative_image_samples,
+        ) = self._calc_bins()
+
     def get_patch_spec(self, index: int) -> PatchSpecs:
         """Return the patch specs for a given index.
 
@@ -244,6 +271,25 @@ class StratifiedPatchingStrategy:
                     sample_patching.get_included_grid_coords()
                 )
         return included_grid_coords
+
+    def get_all_grid_coords(self) -> dict[tuple[int, int], Sequence[tuple[int, ...]]]:
+        """
+        Get all the grid coordinates for sampling regions in the patching strategy.
+
+        Returns
+        -------
+        dict[tuple[int, int], list[tuple, ...]]
+            Dictionary with keys being (data_idx, sample_idx) and values corresponding
+            to the grid coords.
+        """
+        grid_coords: dict[tuple[int, int], Sequence[tuple[int, ...]]] = {}
+
+        for data_idx, image_patch_list in enumerate(self.image_patching):
+            for sample_idx, sample_patching in enumerate(image_patch_list):
+                grid_coords[(data_idx, sample_idx)] = list(
+                    itertools.product(*[range(gs) for gs in sample_patching.grid_shape])
+                )
+        return grid_coords
 
     def _calc_bins(self) -> tuple[NDArray[np.int_], NDArray[np.int_], NDArray[np.int_]]:
         """
@@ -366,6 +412,7 @@ class _ImageStratifiedPatching:
         # keep as dicts because access is slightly faster than lists
         self.regions: dict[int, _SamplingRegion] = {}
         self.areas: dict[int, int] = {}
+        self.relative_probs: dict[int, float] = {}
 
         self.excluded_patches: set[tuple[int, ...]] = set()
 
@@ -506,6 +553,23 @@ class _ImageStratifiedPatching:
         grid_coords_all: set[tuple[int, ...]] = set(self.grid_coords.keys())
         return list(grid_coords_all.difference(self.excluded_patches))
 
+    def set_region_probs(self, probs: dict[tuple[int, ...], float]) -> None:
+        """
+        Set the probability that regions will be sampled from, each epoch.
+
+        Parameters
+        ----------
+        probs : dict[tuple[int, ...], float]
+            The probabilities for each region. The keys of the dictionary correspond to
+            the grid coordinates of the regions. The values of the dictionary are the
+            probabilities.
+        """
+        for grid_coord, prob in probs.items():
+            # TODO: catch case that grid_coord does not exist
+            idx = self.grid_coords[grid_coord]
+            self.relative_probs[idx] = prob
+        self._recalculate_sampling()
+
     def _recalculate_sampling(self):
         """
         Recalculate how patches will be sampled.
@@ -537,20 +601,25 @@ class _ImageStratifiedPatching:
             # total_patches = int(
             #     np.prod(np.ceil(np.array(self.shape) / np.array(self.patch_size)))
             # )
-            total_patches = int(
-                np.ceil(np.prod(np.array(self.shape) / np.array(self.patch_size)))
-            )
-            n_patches = total_patches - len(self.excluded_patches)
+            total_patches = np.prod(np.array(self.shape) / np.array(self.patch_size))
+            for p in self.relative_probs.values():
+                # reduce n patches by relative probabilty
+                total_patches -= 1 - p
+            n_patches = int(np.ceil(total_patches - len(self.excluded_patches)))
         else:
             n_patches = 0
 
-        bin_size, bins = _region_bin_packing(self.areas, n_patches)
+        adjusted_area = {
+            idx: area * self.relative_probs.get(idx, 1)
+            for idx, area in self.areas.items()
+        }
+        bin_size, bins = _region_bin_packing(adjusted_area, n_patches)
         probs = np.array(
             [
                 (
                     area / bin_size
                     # avoid division by zero error (bin size will also be zero)
-                    if (area := self.areas[idx]) != 0
+                    if (area := adjusted_area[idx]) != 0
                     else 0
                 )
                 for idx in range(len(self.grid_coords))
@@ -789,7 +858,7 @@ def _boxes_overlap(
 
 
 def _region_bin_packing(
-    region_areas: dict[int, int],
+    region_areas: dict[int, float],
     n_bins: int,
 ) -> tuple[int, list[NDArray[np.int_]]]:
     """
@@ -824,7 +893,7 @@ def _region_bin_packing(
         bins = [np.array([key], dtype=int) for key in region_areas.keys()] + [
             np.array([], dtype=int) for _ in range(n_bins - len(region_areas))
         ]
-        return max(region_areas.values()), bins
+        return int(np.ceil(max(region_areas.values()))), bins
 
     # indices of the regions sorted in decreasing order of region area
     sorted_indices = sorted(
@@ -857,4 +926,4 @@ def _region_bin_packing(
         remaining_capacity[bin_idx] -= area
 
     bins = [np.array(bin_, dtype=int) for bin_ in bins_list]
-    return bin_size, bins
+    return int(np.ceil(bin_size)), bins

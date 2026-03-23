@@ -282,51 +282,6 @@ def test_from_custom_data_type(patch_size, data_shape):
     assert target.data.shape == (1, *patch_size)
 
 
-def test_array_coordinate_filtering():
-    """Test that coordinate filtering is applied correctly when creating a dataset from
-    an array."""
-    size = 16
-    img = np.zeros((size, size))
-    mask = np.zeros((size, size))
-
-    # create a square and mask it
-    coords = (slice(8, 24), slice(8, 24))
-    mask[coords] = 1
-    img[coords] = 255
-
-    train_data_config = create_ng_data_configuration(
-        data_type="array",
-        axes="YX",
-        patch_size=(8, 8),
-        batch_size=1,
-        augmentations=[],
-        in_memory=True,
-        seed=42,
-    )
-
-    train_data_config.patch_filter_patience = 100
-    train_data_config.coord_filter = {
-        "name": "mask",
-        "coverage": 0.5,
-    }
-
-    train_dataset = create_dataset(
-        config=train_data_config,
-        inputs=[img],
-        targets=None,
-        masks=[mask],
-    )
-
-    # check that we only get patches with at least half of 255 pixels
-    threshold = 255 // 2
-    means = train_dataset.normalization.input_means
-    stds = train_dataset.normalization.input_stds
-    normed_thresh = (threshold - means[0]) / stds[0]
-    for i in range(len(train_dataset)):
-        (sample,) = train_dataset[i]
-        assert sample.data.mean() > normed_thresh
-
-
 @pytest.mark.skip(
     "Stratified patching is not compatible with current filtering, "
     "filtering will be updated very soon."

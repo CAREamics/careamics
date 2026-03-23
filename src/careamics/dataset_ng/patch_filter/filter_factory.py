@@ -50,6 +50,10 @@ def create_coord_filter(
     """
     if filter_model.name == SupportedCoordinateFilters.MASK:
         assert isinstance(filter_model, MaskFilterConfig)
+        # TODO: work out how to not need `assert filter_model.coverage is not None`
+        # - I want the default to depend on the number of spatial dims
+        # - But in the MaskFilterConfig has no way to see the number of dimensions
+        assert filter_model.coverage is not None
         return MaskCoordFilter(
             mask_extractor=mask,
             coverage=filter_model.coverage,
