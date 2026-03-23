@@ -111,6 +111,31 @@ def test_v2_train_array(tmp_path: Path):
     assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
 
 
+def test_v2_train_array_auto_val_split_small_data(tmp_path: Path):
+    """Test that a clear ValueError is raised when auto val split has too few patches.
+
+    With a 16x16 image and 8x8 patches only 4 patches are available, but the default
+    n_val_patches is 8. This should raise a descriptive ValueError instead of a cryptic
+    NaN probabilities error from numpy.
+    """
+    train_array = random_array((32, 32), seed=42)
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(16, 16),
+        batch_size=1,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    with pytest.raises(ValueError, match="n_val_patches"):
+        careamist.train(train_data=train_array)
+
+
 @pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("independent_channels", [False, True])
 def test_v2_train_array_channel(tmp_path: Path, independent_channels: bool):
@@ -230,7 +255,5 @@ def test_init_from_checkpoint(tmp_path: Path, checkpoint):
     assert isinstance(careamist.model, expected_module_type)
 
     # careamist by default enables progress bar during initialization
-    expected_config.training_config.lightning_trainer_config["enable_progress_bar"] = (
-        True
-    )
+    expected_config.training_config.trainer_params["enable_progress_bar"] = True
     assert careamist.config == expected_config

@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, TypedDict, Unpack, overload
+from typing import Any, Literal, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -11,7 +11,6 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from .config.ng_configs import NGConfiguration
 from .config.ng_configs.ng_configuration import AlgorithmConfig
 from .config.support import SupportedData, SupportedLogger
-from .utils.reshape_array import reshape_array
 from .config.utils.configuration_io import load_configuration_ng
 from .dataset_ng.dataset import ImageRegionData
 from .dataset_ng.factory import ImageStackLoading, Loading, ReadFuncLoading
@@ -31,17 +30,11 @@ from .lightning.dataset_ng.prediction import convert_prediction
 from .model_io import export_to_bmz
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
+from .utils.reshape_array import reshape_array
 
 logger = get_logger(__name__)
 
 ExperimentLogger = TensorBoardLogger | WandbLogger | CSVLogger
-
-
-class UserContext(TypedDict, total=False):
-    work_dir: Path | str | None
-    callbacks: list[Callback] | None
-    enable_progress_bar: bool
-
 
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
@@ -49,23 +42,95 @@ InputType = ArrayInput | PathInput
 
 
 class CAREamistV2:
+    """Main interface for training and predicting with CAREamics.
+    
+    Attributes
+    ----------
+    workdir : Path
+        Working directory in which to save training outputs.
+    config : NGConfiguration[AlgorithmConfig]
+        CAREamics configuration.
+    model : CAREamicsModule
+        The PyTorch Lightning module to be trained and used for prediction.
+    checkpoint_path : Path | None
+        Path to a checkpoint file from which model and configuration may be loaded.
+    trainer : Trainer
+        The PyTorch Lightning Trainer used for training and prediction.
+    callbacks : list[Callback]
+        List of callbacks used during training.
+    prediction_writer : PredictionWriterCallback
+        Callback used to write predictions to disk during prediction.
+    train_datamodule : CareamicsDataModule | None
+        The datamodule used for training, set after calling `train()`.
+    
+
+    Parameters
+    ----------
+    config : NGConfiguration[AlgorithmConfig] | Path, default=None
+        CAREamics configuration, or a path to a configuration file. See 
+        `careamics.config.ng_factories` for method to build configurations.
+    checkpoint_path : Path, default=None
+        Path to a checkpoint file from which to load the model and configuration.
+    bmz_path : Path, default=None
+        Path to a BioImage Model Zoo archive from which to load the model and
+        configuration.
+    work_dir : Path | str, default=None
+        Working directory in which to save training outputs. If None, the current
+        working directory will be used.
+    callbacks : list of PyTorch Lightning Callbacks, default=None
+        List of callbacks to use during training. If None, no additional callbacks
+        will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
+        already defined in CAREamics and should only be modified through the
+        training configuration (see NGConfiguration and TrainingConfig).
+    enable_progress_bar : bool, default=True
+        Whether to show the progress bar during training.
+    """
+
     def __init__(
         self,
         config: NGConfiguration[AlgorithmConfig] | Path | None = None,
         *,
         checkpoint_path: Path | None = None,
         bmz_path: Path | None = None,
-        **user_context: Unpack[UserContext],
-    ):
+        work_dir: Path | str | None = None,
+        callbacks: list[Callback] | None = None,
+        enable_progress_bar: bool = True,
+    ) -> None:
+        """Constructor for CAREamistV2.
+
+        Exactly one of `config`, `checkpoint_path`, or `bmz_path` must be provided.
+        
+        Parameters
+        ----------
+        config : NGConfiguration[AlgorithmConfig] | Path, default=None
+            CAREamics configuration, or a path to a configuration file. See 
+            `careamics.config.ng_factories` for method to build configurations. `config`
+            is mutually exclusive with `checkpoint_path` and `bmz_path`.
+        checkpoint_path : Path, default=None
+            Path to a checkpoint file from which to load the model and configuration.
+            `checkpoint_path` is mutually exclusive with `config` and `bmz_path`.
+        bmz_path : Path, default=None
+            Path to a BioImage Model Zoo archive from which to load the model and
+            configuration. `bmz_path` is mutually exclusive with `config` and
+            `checkpoint_path`.
+        work_dir : Path | str, default=None
+            Working directory in which to save training outputs. If None, the current
+            working directory will be used.
+        callbacks : list of PyTorch Lightning Callbacks, default=None
+            List of callbacks to use during training. If None, no additional callbacks
+            will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
+            already defined in CAREamics and should only be modified through the
+            training configuration (see NGConfiguration and TrainingConfig).
+        enable_progress_bar : bool, default=True
+            Whether to show the progress bar during training.
+        """
         self.checkpoint_path = checkpoint_path
-        self.work_dir = self._resolve_work_dir(user_context.get("work_dir"))
+        self.work_dir = self._resolve_work_dir(work_dir)
         self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
 
-        enable_progress_bar = user_context.get("enable_progress_bar", True)
-        self.config.training_config.lightning_trainer_config["enable_progress_bar"] = (
+        self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
         )
-        callbacks = user_context.get("callbacks", None)
         self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
 
         self.prediction_writer = PredictionWriterCallback(
@@ -82,7 +147,7 @@ class CAREamistV2:
             callbacks=[self.prediction_writer, *self.callbacks],
             default_root_dir=self.work_dir,
             logger=experiment_loggers,
-            **self.config.training_config.lightning_trainer_config or {},
+            **self.config.training_config.trainer_params or {},
         )
 
         self.train_datamodule: CareamicsDataModule | None = None
@@ -93,6 +158,31 @@ class CAREamistV2:
         checkpoint_path: Path | None,
         bmz_path: Path | None,
     ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+        """Load model.
+        
+        Parameters
+        ----------
+        config : NGConfiguration[AlgorithmConfig] | Path | None
+            CAREamics configuration, or a path to a configuration file.
+        checkpoint_path : Path | None
+            Path to a checkpoint file from which to load the model and configuration.
+        bmz_path : Path | None
+            Path to a BioImage Model Zoo archive from which to load the model and
+            configuration.
+        
+        Returns
+        -------
+        NGConfiguration[AlgorithmConfig]
+            The loaded configuration.
+        CAREamicsModule
+            The loaded model.
+
+        Raises
+        ------
+        ValueError
+            If not exactly one of `config`, `checkpoint_path`, or `bmz_path` is
+            provided.
+        """
         n_inputs = sum(
             [config is not None, checkpoint_path is not None, bmz_path is not None]
         )
@@ -113,6 +203,21 @@ class CAREamistV2:
     def _from_config(
         config: NGConfiguration[AlgorithmConfig] | Path,
     ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+        """Create model from configuration.
+        
+        Parameters
+        ----------
+        config : NGConfiguration[AlgorithmConfig] | Path
+            CAREamics configuration, or a path to a configuration file.
+
+        Returns
+        -------
+        NGConfiguration[AlgorithmConfig]
+            The loaded configuration if a path was provided, otherwise the original
+            configuration.
+        CAREamicsModule
+            The created model.
+        """
         if isinstance(config, Path):
             config = load_configuration_ng(config)
         assert not isinstance(config, Path)
@@ -124,6 +229,20 @@ class CAREamistV2:
     def _from_checkpoint(
         checkpoint_path: Path,
     ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+        """Load checkpoint and configuration from checkpoint file.
+        
+        Parameters
+        ----------
+        checkpoint_path : Path
+            Path to a checkpoint file from which to load the model and configuration.
+        
+        Returns
+        -------
+        NGConfiguration[AlgorithmConfig]
+            The loaded configuration.
+        CAREamicsModule
+            The loaded model.
+        """
         config = load_config_from_checkpoint(checkpoint_path)
         module = load_module_from_checkpoint(checkpoint_path)
         return config, module
@@ -132,10 +251,43 @@ class CAREamistV2:
     def _from_bmz(
         bmz_path: Path,
     ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+        """Load checkpoint and configuration from a BioImage Model Zoo archive.
+        
+        Parameters
+        ----------
+        bmz_path : Path
+            Path to a BioImage Model Zoo archive from which to load the model and
+            configuration.
+
+        Returns
+        -------
+        NGConfiguration[AlgorithmConfig]
+            The loaded configuration.
+        CAREamicsModule
+            The loaded model.
+
+        Raises
+        ------
+        NotImplementedError
+            Loading from BMZ is not implemented yet.
+        """
         raise NotImplementedError("Loading from BMZ is not implemented yet.")
 
     @staticmethod
     def _resolve_work_dir(work_dir: str | Path | None) -> Path:
+        """Resolve working directory.
+        
+        Parameters
+        ----------
+        work_dir : str | Path | None
+            The working directory to resolve. If None, the current working directory
+            will be used.
+        
+        Returns
+        -------
+        Path
+            The resolved working directory.
+        """
         if work_dir is None:
             work_dir = Path.cwd().resolve()
             logger.warning(
@@ -152,6 +304,32 @@ class CAREamistV2:
         config: NGConfiguration[AlgorithmConfig],
         work_dir: Path,
     ) -> list[Callback]:
+        """Define callbacks for the training process.
+
+        Parameters
+        ----------
+        callbacks : list[Callback] | None
+            List of callbacks to use during training. If None, no additional callbacks
+            will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
+            already defined in CAREamics and instantiated in this method.
+        config : NGConfiguration[AlgorithmConfig]
+            The CAREamics configuration, used to instantiate the callbacks.
+        work_dir : Path
+            The working directory, used as a parameter to the checkpointing callback.
+
+        Returns
+        -------
+        list[Callback]
+            The list of callbacks to use during training.
+
+        Raises
+        ------
+        ValueError
+            If `ModelCheckpoint` or `EarlyStopping` callbacks are included in the
+            provided `callbacks` list, as these are already defined in CAREamics and
+            should only be modified through the training configuration (see
+            NGConfiguration and TrainingConfig).
+        """
         callbacks: list[Callback] = [] if callbacks is None else callbacks
         for c in callbacks:
             if isinstance(c, (ModelCheckpoint, EarlyStopping)):
@@ -170,9 +348,9 @@ class CAREamistV2:
         checkpoint_callback = ModelCheckpoint(
             dirpath=work_dir / "checkpoints" / config.get_safe_experiment_name(),
             filename=f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
-            **config.training_config.checkpoint_callback.model_dump(),
+            **config.training_config.checkpoint_params,
         )
-        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.get_safe_experiment_name()}_last"        
+        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.get_safe_experiment_name()}_last"
         internal_callbacks: list[Callback] = [
             checkpoint_callback,
             CareamicsCheckpointInfo(
@@ -180,16 +358,16 @@ class CAREamistV2:
             ),
         ]
 
-        enable_progress_bar = config.training_config.lightning_trainer_config.get(
+        enable_progress_bar = config.training_config.trainer_params.get(
             "enable_progress_bar", True
         )
         if enable_progress_bar:
             internal_callbacks.append(ProgressBarCallback())
 
-        if config.training_config.early_stopping_callback is not None:
+        if config.training_config.early_stopping_params is not None:
             internal_callbacks.append(
                 EarlyStopping(
-                    **config.training_config.early_stopping_callback.model_dump()
+                    **config.training_config.early_stopping_params
                 )
             )
 
@@ -199,6 +377,18 @@ class CAREamistV2:
     def _create_loggers(
         logger: str | None, experiment_name: str, work_dir: Path
     ) -> list[ExperimentLogger]:
+        """Create loggers for the experiment.
+
+        Parameters
+        ----------
+        logger : str | None
+            Logger to use during training. If None, no logger will be used. Available
+            loggers are defined in SupportedLogger.
+        experiment_name : str
+            Name of the experiment, used as a parameter to the loggers.
+        work_dir : Path
+            The working directory, used as a parameter to the loggers.
+        """
         csv_logger = CSVLogger(name=experiment_name, save_dir=work_dir / "csv_logs")
 
         if logger is not None:

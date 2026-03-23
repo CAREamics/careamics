@@ -6,27 +6,34 @@ from .patching_strategy_protocol import PatchSpecs
 
 
 class FixedPatchingStrategy:
-    """A simple patching strategy that returns patches from a fixed sequence.
+    """Patching strategy that returns patches from a fixed sequence.
 
-    This class implements the `PatchingStrategy` `Protocol`.
+    Implements the `PatchingStrategy` protocol.
+
+    Parameters
+    ----------
+    fixed_patch_specs : Sequence[PatchSpecs]
+        Sequence of patch specifications to return in order.
     """
 
-    def __init__(self, fixed_patch_specs: Sequence[PatchSpecs]):
-        """A simple patching strategy that returns patches from a fixed list.
+    def __init__(self, fixed_patch_specs: Sequence[PatchSpecs]) -> None:
+        """Constructor.
 
         Parameters
         ----------
-        fixed_patch_specs: Sequence[PatchSpecs]
-            A sequence of patch specifications.
+        fixed_patch_specs : Sequence[PatchSpecs]
+            Sequence of patch specifications.
         """
         self.fixed_patch_specs = fixed_patch_specs
 
     @property
-    def n_patches(self):
-        """
-        The number of patches that this patching strategy will return.
+    def n_patches(self) -> int:
+        """Number of patches; max index for `get_patch_spec`.
 
-        It also determines the maximum index that can be given to `get_patch_spec`.
+        Returns
+        -------
+        int
+            Length of the fixed patch specs sequence.
         """
         return len(self.fixed_patch_specs)
 

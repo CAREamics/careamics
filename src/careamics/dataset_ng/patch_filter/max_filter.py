@@ -16,10 +16,18 @@ logger = get_logger(__name__)
 
 
 class MaxPatchFilter(PatchFilterProtocol):
-    """
-    A patch filter based on thresholding the maximum filter of the patch.
+    """Patch filter based on thresholding the maximum filter (CSBDeep-inspired).
 
-    Inspired by the CSBDeep approach.
+    Parameters
+    ----------
+    threshold : float
+        Maximum-filter threshold; patches below are filtered out.
+    p : float, default=1
+        Probability of applying the filter (0-1).
+    threshold_ratio : float, default=0.25
+        Ratio of pixels below threshold to filter out (0-1).
+    seed : int or None, default=None
+        Random seed for reproducibility.
 
     Attributes
     ----------
@@ -38,23 +46,18 @@ class MaxPatchFilter(PatchFilterProtocol):
         threshold_ratio: float = 0.25,
         seed: int | None = None,
     ) -> None:
-        """
-        Create a MaxPatchFilter.
-
-        This filter removes patches whose maximum filter valuepixels are below a
-        specified threshold.
+        """Create a MaxPatchFilter. Removes patches below max-filter threshold.
 
         Parameters
         ----------
         threshold : float
-            Threshold for the maximum filter of the patch.
+            Maximum-filter threshold.
         p : float, default=1
-            Probability of applying the filter to a patch. Must be between 0 and 1.
+            Probability of applying the filter (0-1).
         threshold_ratio : float, default=0.25
-            Ratio of pixels that must be below threshold for patch to be filtered out.
-            Must be between 0 and 1.
-        seed : int | None, default=None
-            Seed for the random number generator for reproducibility.
+            Ratio of pixels below threshold to filter out (0-1).
+        seed : int or None, default=None
+            Random seed for reproducibility.
         """
         self.threshold = threshold
         self.threshold_ratio = threshold_ratio
@@ -62,6 +65,18 @@ class MaxPatchFilter(PatchFilterProtocol):
         self.rng = np.random.default_rng(seed)
 
     def filter_out(self, patch: np.ndarray) -> bool:
+        """Return True if patch should be filtered out by max-filter criteria.
+
+        Parameters
+        ----------
+        patch : numpy.ndarray
+            Image patch to evaluate.
+
+        Returns
+        -------
+        bool
+            True if patch should be filtered out, False otherwise.
+        """
         if self.rng.uniform(0, 1) < self.p:
 
             if np.max(patch) < self.threshold:
@@ -102,12 +117,9 @@ class MaxPatchFilter(PatchFilterProtocol):
         ValueError
             If the image is not 2D or 3D.
 
-        Example
-        -------
-        The `filter_map` method can be used to assess a useful threshold for the
-        Shannon entropy filter. Below is an example of how to compute and visualize
-        the Shannon entropy map of a random image and visualize thresholded versions
-        of the map.
+        Examples
+        --------
+        Assess a useful threshold by computing and visualizing the max map:
         >>> import numpy as np
         >>> from matplotlib import pyplot as plt
         >>> from careamics.dataset_ng.patch_filter import MaxPatchFilter

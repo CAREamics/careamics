@@ -1,3 +1,5 @@
+"""Image stack protocol, implementations and loading utilities."""
+
 __all__ = [
     "ImageStackLoader",
     "load_arrays",

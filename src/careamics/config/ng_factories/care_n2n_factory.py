@@ -53,7 +53,8 @@ def create_care_config(
     Parameters
     ----------
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -122,7 +123,8 @@ def create_n2n_config(
     Parameters
     ----------
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -213,7 +215,8 @@ def create_advanced_care_config(
     Parameters
     ----------
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -358,7 +361,8 @@ def create_advanced_n2n_config(
     Parameters
     ----------
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -507,7 +511,8 @@ def _create_advanced_supervised_config(
     algorithm : Literal["care", "n2n"]
         Algorithm for which to create the configuration.
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -686,9 +691,11 @@ def _create_advanced_supervised_config(
         num_steps=num_steps,
     )
     training_params = create_training_configuration(
+        algorithm=algorithm,
         trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
+        monitor_metric="val_loss",
     )
 
     return {

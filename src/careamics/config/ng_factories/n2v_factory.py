@@ -59,7 +59,8 @@ def create_n2v_config(
     Parameters
     ----------
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -145,7 +146,8 @@ def create_structn2v_config(
     Parameters
     ----------
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -276,7 +278,8 @@ def create_advanced_n2v_config(
     Parameters
     ----------
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -482,9 +485,11 @@ def create_advanced_n2v_config(
         num_steps=num_steps,
     )
     training_params = create_training_configuration(
+        algorithm="n2v",
         trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
+        monitor_metric=monitor_metric,
     )
 
     algorithm_config = N2VAlgorithm(**algorithm_params)

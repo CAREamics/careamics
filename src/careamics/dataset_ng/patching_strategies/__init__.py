@@ -1,3 +1,5 @@
+"""Patching strategies and factory for the next-generation dataset."""
+
 __all__ = [
     "FixedPatchingStrategy",
     "FixedRandomPatchingStrategy",
