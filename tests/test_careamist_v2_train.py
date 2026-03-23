@@ -255,7 +255,5 @@ def test_init_from_checkpoint(tmp_path: Path, checkpoint):
     assert isinstance(careamist.model, expected_module_type)
 
     # careamist by default enables progress bar during initialization
-    expected_config.training_config.lightning_trainer_config["enable_progress_bar"] = (
-        True
-    )
+    expected_config.training_config.trainer_params["enable_progress_bar"] = True
     assert careamist.config == expected_config

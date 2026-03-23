@@ -42,7 +42,7 @@ callbacks = [
     ModelCheckpoint(  # (5)!
         dirpath="checkpoints",
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
-        **config.training_config.checkpoint_callback.model_dump(),
+        **config.training_config.checkpoint_params,
     ),
     CareamicsCheckpointInfo(  # (6)!
         config.version, config.experiment_name, config.training_config
@@ -52,7 +52,7 @@ callbacks = [
 trainer = Trainer(
     enable_progress_bar=True,
     callbacks=callbacks,
-    **config.training_config.lightning_trainer_config,  # (7)!
+    **config.training_config.trainer_params,  # (7)!
 )
 
 trainer.fit(model, datamodule=data_module)  # (8)!
@@ -93,7 +93,7 @@ callbacks = [
     ModelCheckpoint(
         dirpath="checkpoints",
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
-        **config.training_config.checkpoint_callback.model_dump(),
+        **config.training_config.checkpoint_params,
     ),
     CareamicsCheckpointInfo(
         config.version, config.experiment_name, config.training_config
@@ -104,7 +104,7 @@ callbacks = [
 trainer = Trainer(
     enable_progress_bar=True,
     callbacks=callbacks,
-    **config.training_config.lightning_trainer_config,
+    **config.training_config.trainer_params,
 )
 
 trainer.fit(model, datamodule=data_module)
