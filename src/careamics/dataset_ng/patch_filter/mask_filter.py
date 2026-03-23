@@ -22,29 +22,19 @@ class MaskCoordFilter(CoordinateFilterProtocol):
     coverage : float
         Minimum percentage of masked pixels required to keep a patch. Must be
         between 0 and 1.
-    p : float, default=1
-        Probability of applying the filter to a patch. Must be between 0 and 1.
-    seed : int | None, default=None
-        Seed for the random number generator for reproducibility.
 
     Attributes
     ----------
     mask_extractor : PatchExtractor[GenericImageStack]
         Patch extractor for the binary mask to use for filtering.
-    coverage_perc : float
+    coverage : float
         Minimum percentage of masked pixels required to keep a patch.
-    p : float
-        Probability of applying the filter to a patch.
-    rng : np.random.Generator
-        Random number generator for stochastic filtering.
     """
 
     def __init__(
         self,
         mask_extractor: PatchExtractor[GenericImageStack],
         coverage: float,
-        p: float = 1.0,
-        seed: int | None = None,
     ) -> None:
         """
         Create a MaskCoordFilter.
@@ -60,28 +50,17 @@ class MaskCoordFilter(CoordinateFilterProtocol):
         coverage : float
             Minimum percentage of masked pixels required to keep a patch. Must be
             between 0 and 1.
-        p : float, default=1
-            Probability of applying the filter to a patch. Must be between 0 and 1.
-        seed : int | None, default=None
-            Seed for the random number generator for reproducibility.
 
         Raises
         ------
         ValueError
             If coverage is not between 0 and 1.
-        ValueError
-            If p is not between 0 and 1.
         """
         if not (0 <= coverage <= 1):
-            raise ValueError("Probability p must be between 0 and 1.")
-        if not (0 <= p <= 1):
             raise ValueError("Probability p must be between 0 and 1.")
 
         self.mask_extractor = mask_extractor
         self.coverage = coverage
-
-        self.p = p
-        self.rng = np.random.default_rng(seed)
 
     def filter_out(self, patch_specs: PatchSpecs) -> bool:
         """
@@ -97,10 +76,7 @@ class MaskCoordFilter(CoordinateFilterProtocol):
         bool
             True if the patch should be filtered out, False otherwise.
         """
-        if self.rng.uniform(0, 1) < self.p:
-            mask_patch = self.mask_extractor.extract_patch(**patch_specs)
+        mask_patch = self.mask_extractor.extract_patch(**patch_specs)
 
-            masked_fraction = np.sum(mask_patch) / mask_patch.size
-            if masked_fraction < self.coverage:
-                return True
-        return False
+        masked_fraction = np.sum(mask_patch) / mask_patch.size
+        return masked_fraction < self.coverage

@@ -54,12 +54,7 @@ def create_coord_filter(
         # - I want the default to depend on the number of spatial dims
         # - But in the MaskFilterConfig has no way to see the number of dimensions
         assert filter_model.coverage is not None
-        return MaskCoordFilter(
-            mask_extractor=mask,
-            coverage=filter_model.coverage,
-            p=filter_model.p,
-            seed=filter_model.seed,
-        )
+        return MaskCoordFilter(mask_extractor=mask, coverage=filter_model.coverage)
     else:
         raise ValueError(f"Unknown filter name: {filter_model}")
 
@@ -79,21 +74,15 @@ def create_patch_filter(filter_model: FilterConfig) -> PatchFilter:
     """
     if filter_model.name == SupportedPatchFilters.MAX:
         assert isinstance(filter_model, MaxFilterConfig)
-        return MaxPatchFilter(
-            threshold=filter_model.threshold, p=filter_model.p, seed=filter_model.seed
-        )
+        return MaxPatchFilter(threshold=filter_model.threshold)
     elif filter_model.name == SupportedPatchFilters.MEANSTD:
         assert isinstance(filter_model, MeanSTDFilterConfig)
         return MeanStdPatchFilter(
             mean_threshold=filter_model.mean_threshold,
             std_threshold=filter_model.std_threshold,
-            p=filter_model.p,
-            seed=filter_model.seed,
         )
     elif filter_model.name == SupportedPatchFilters.SHANNON:
         assert isinstance(filter_model, ShannonFilterConfig)
-        return ShannonPatchFilter(
-            threshold=filter_model.threshold, p=filter_model.p, seed=filter_model.seed
-        )
+        return ShannonPatchFilter(threshold=filter_model.threshold)
     else:
         raise ValueError(f"Unknown filter name: {filter_model}")

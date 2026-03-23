@@ -531,11 +531,9 @@ class TestSeed:
         )
         cfg = NGDataConfig(**cfg)
         assert cfg.seed == 42
-        assert cfg.patch_filter.seed == 42
-        assert cfg.coord_filter.seed == 42
-        assert cfg.patching.seed == 42
         for aug in cfg.augmentations:
             assert aug.seed == 42
+        # TODO: check if seed is propagated to random/stratified patching
 
 
 @pytest.mark.parametrize(
