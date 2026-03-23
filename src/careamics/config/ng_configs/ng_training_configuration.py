@@ -48,7 +48,7 @@ class SelfSupervisedCheckpointing:
     """Save a checkpoint every 10 epochs."""
 
     save_top_k: int = -1
-    """Do not save the checkpoints based on a monitored value."""
+    """Save all checkpoints. Checkpoints are checked `every_n_epochs`."""
 
     save_last: bool = True
     """Save the last checkpoint."""
