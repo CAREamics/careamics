@@ -102,7 +102,9 @@ class TestNGDataConfiguration:
         assert config.val_dataloader_params["num_workers"] == 4
         assert config.pred_dataloader_params["num_workers"] == 4
 
-    def test_get_default_num_workers_returns_cpu_count(monkeypatch: pytest.MonkeyPatch):
+    def test_get_default_num_workers_returns_cpu_count(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setattr(
             "careamics.config.ng_factories.data_factory.os.cpu_count",
             lambda: 12,
@@ -110,6 +112,7 @@ class TestNGDataConfiguration:
         assert get_default_num_workers() == 12
 
     def test_get_default_num_workers_falls_back_to_zero(
+        self,
         monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr(
