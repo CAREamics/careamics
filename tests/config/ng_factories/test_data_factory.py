@@ -102,17 +102,18 @@ class TestNGDataConfiguration:
         assert config.val_dataloader_params["num_workers"] == 4
         assert config.pred_dataloader_params["num_workers"] == 4
 
-    def test_num_workers_auto_detect(self):
-        """Test that num_workers=-1 resolves to get_default_num_workers() value."""
-        expected = get_default_num_workers()
-        config: NGDataConfig = create_ng_data_configuration(
-            data_type="array",
-            axes="YX",
-            patch_size=(16, 16),
-            batch_size=1,
-            num_workers=-1,
+    def test_get_default_num_workers_returns_cpu_count(monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr(
+            "careamics.config.ng_factories.data_factory.os.cpu_count",
+            lambda: 12,
         )
+        assert get_default_num_workers() == 12
 
-        assert config.train_dataloader_params["num_workers"] == expected
-        assert config.val_dataloader_params["num_workers"] == expected
-        assert config.pred_dataloader_params["num_workers"] == expected
+    def test_get_default_num_workers_falls_back_to_zero(
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "careamics.config.ng_factories.data_factory.os.cpu_count",
+            lambda: None,
+        )
+        assert get_default_num_workers() == 0

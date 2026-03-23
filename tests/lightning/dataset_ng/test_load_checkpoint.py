@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from careamics.config.ng_configs import NGConfiguration
 from careamics.lightning.dataset_ng.load_checkpoint import (
     load_config_from_checkpoint,
