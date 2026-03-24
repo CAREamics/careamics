@@ -199,9 +199,8 @@ def np_float_to_scientific_str(x: float) -> str:
 def get_default_num_workers() -> int:
     """Return the default number of dataloader workers for the current platform.
 
-    Returns 0 for pytest, Windows, and macOS without MPS (Intel Macs). For MPS
-    (Apple Silicon) and Linux, returns ``min(cpu_count - 1, 4)`` to leave one
-    core free (e.g. for a Qt event loop) while capping parallelism at 4.
+    Returns 0 for pytest, Windows, and macOS. On Linux, returns `min(cpu_count - 1, 4)`
+    to leave one core free (e.g. for a Qt event loop) while capping parallelism at 4.
 
     Returns
     -------
@@ -211,19 +210,12 @@ def get_default_num_workers() -> int:
     if "pytest" in sys.modules:
         return 0
 
-    if platform.system() == "Windows":
-        return 0
-
-    import torch
-
-    if platform.system() == "Darwin" and not torch.backends.mps.is_available():
+    if platform.system() in ("Windows", "Darwin"):
         return 0
 
     max_workers = 4
     available_workers = os.cpu_count() or 0
-    available_workers = max(
-        0, available_workers - 1
-    )  # reserve one worker in case of qt
+    available_workers = max(0, available_workers - 1)
     return min(available_workers, max_workers)
 
 
@@ -366,8 +358,8 @@ class NGDataConfig(BaseModel):
 
     num_workers: int = Field(default_factory=get_default_num_workers, ge=0)
     """Default number of workers for all dataloaders that do not explicitly set
-    ``num_workers``. Automatically detected based on the current platform:
-    0 on Windows and MPS (macOS GPU), ``min(cpu_count, 8)`` on Linux."""
+    `num_workers`. Automatically detected based on the current platform:
+    0 on Windows and macOS, `min(cpu_count - 1, 4)` on Linux."""
 
     seed: int = Field(default_factory=generate_random_seed, gt=0)
     """Random seed for reproducibility. If not specified, a random seed is generated."""
@@ -806,11 +798,11 @@ class NGDataConfig(BaseModel):
 
     @model_validator(mode="after")
     def warn_inconsistent_num_workers(self: Self) -> Self:
-        """Warn if ``num_workers`` conflicts with a per-dataloader value.
+        """Warn if `num_workers` conflicts with a per-dataloader value.
 
         This validator runs before ``set_default_workers_in_dataloaders``, so
         the dataloader dicts only contain user-supplied values at this point.
-        Only fires when ``num_workers`` was explicitly set on the model.
+        Only fires when `num_workers` was explicitly set on the model.
 
         Returns
         -------
@@ -834,17 +826,17 @@ class NGDataConfig(BaseModel):
 
     @model_validator(mode="after")
     def set_default_workers_in_dataloaders(self: Self) -> Self:
-        """
-        Set num_workers in all dataloaders that do not explicitly specify it.
+        """Set `num_workers` and `persistent_workers` defaults in all dataloaders.
 
-        Uses the ``num_workers`` field as the default for each of
-        ``train_dataloader_params``, ``val_dataloader_params``, and
-        ``pred_dataloader_params``.
+        For each of `train_dataloader_params`, `val_dataloader_params`, and
+        `pred_dataloader_params`: sets `num_workers` from the `num_workers`
+        field if not already present, and sets ``persistent_workers=True`` when
+        ``num_workers > 0`` and not already specified.
 
         Returns
         -------
         Self
-            Validated data model with num_workers applied to all dataloaders.
+            Validated data model with worker defaults applied to all dataloaders.
         """
         for params in (
             self.train_dataloader_params,

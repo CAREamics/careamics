@@ -128,15 +128,12 @@ class TestNGDataConfiguration:
         monkeypatch.delitem(sys.modules, "pytest")
         assert get_default_num_workers() == 0
 
-    def test_get_default_num_workers_intel_mac_returns_0(
+    def test_get_default_num_workers_macos_returns_0(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """Test that macOS without MPS (Intel Mac) returns 0."""
-        import torch
-
+        """Test that macOS always returns 0 (worker startup overhead not worth it)."""
         monkeypatch.setattr(
             "careamics.config.data.ng_data_config.platform.system", lambda: "Darwin"
         )
-        monkeypatch.setattr(torch.backends.mps, "is_available", lambda: False)
         monkeypatch.delitem(sys.modules, "pytest")
         assert get_default_num_workers() == 0

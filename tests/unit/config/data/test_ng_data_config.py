@@ -536,14 +536,12 @@ class TestDataloaderParams:
         assert cfg.train_dataloader_params["pin_memory"] is True
         assert cfg.val_dataloader_params["pin_memory"] is True
 
-    def test_val_dataloader_num_workers_set_to_train(self):
-        """Test that `num_workers` in `val_dataloader_params` is set to match
-        `train_dataloader_params` if not explicitly set."""
-        # set to train
-        cfg_dict = ng_data_config_dict_testing(
-            train_dataloader_params={"shuffle": True, "num_workers": 3},
-        )
+    def test_val_dataloader_num_workers_set(self):
+        """Test that `num_workers` from the `num_workers` field is applied to all
+        dataloaders."""
+        cfg_dict = ng_data_config_dict_testing(num_workers=3)
         cfg = NGDataConfig(**cfg_dict)
+        assert cfg.train_dataloader_params["num_workers"] == 3
         assert cfg.val_dataloader_params["num_workers"] == 3
 
     def test_val_dataloader_num_workers_not_overwritten(self):
@@ -845,10 +843,16 @@ class TestConvertMode:
         assert converted_cfg.channels == new_channels
         assert converted_cfg.in_memory == new_in_memory
         if mode == "validating":
-            assert converted_cfg.val_dataloader_params == new_dataloader_params
+            assert (
+                new_dataloader_params.items()
+                <= converted_cfg.val_dataloader_params.items()
+            )
             assert converted_cfg.pred_dataloader_params == cfg.pred_dataloader_params
         elif mode == "predicting":
-            assert converted_cfg.pred_dataloader_params == new_dataloader_params
+            assert (
+                new_dataloader_params.items()
+                <= converted_cfg.pred_dataloader_params.items()
+            )
             assert converted_cfg.val_dataloader_params == cfg.val_dataloader_params
 
     def test_normalization_conservation(self):
