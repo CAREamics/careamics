@@ -1,3 +1,6 @@
+import os
+import sys
+
 import pytest
 
 from careamics.config.augmentations import (
@@ -6,10 +9,10 @@ from careamics.config.augmentations import (
     XYRandomRotate90Config,
 )
 from careamics.config.data import NGDataConfig
+from careamics.config.data.ng_data_config import get_default_num_workers
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.ng_factories.data_factory import (
     create_ng_data_configuration,
-    get_default_num_workers,
     list_spatial_augmentations,
 )
 from careamics.config.support import SupportedTransform
@@ -102,21 +105,38 @@ class TestNGDataConfiguration:
         assert config.val_dataloader_params["num_workers"] == 4
         assert config.pred_dataloader_params["num_workers"] == 4
 
-    def test_get_default_num_workers_returns_cpu_count(
+    def test_get_default_num_workers_in_pytest(self):
+        """Test that get_default_num_workers returns 0 when running under pytest."""
+        assert get_default_num_workers() == 0
+
+    def test_get_default_num_workers_linux(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that Linux returns min(cpu_count - 1, 4)."""
+        expected = min((os.cpu_count() or 1) - 1, 4)
+        monkeypatch.setattr(
+            "careamics.config.data.ng_data_config.platform.system", lambda: "Linux"
+        )
+        monkeypatch.delitem(sys.modules, "pytest")
+        assert get_default_num_workers() == expected
+
+    def test_get_default_num_workers_windows_returns_0(
         self, monkeypatch: pytest.MonkeyPatch
     ):
+        """Test that Windows returns 0."""
         monkeypatch.setattr(
-            "careamics.config.ng_factories.data_factory.os.cpu_count",
-            lambda: 12,
+            "careamics.config.data.ng_data_config.platform.system", lambda: "Windows"
         )
-        assert get_default_num_workers() == 12
+        monkeypatch.delitem(sys.modules, "pytest")
+        assert get_default_num_workers() == 0
 
-    def test_get_default_num_workers_falls_back_to_zero(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
+    def test_get_default_num_workers_intel_mac_returns_0(
+        self, monkeypatch: pytest.MonkeyPatch
     ):
+        """Test that macOS without MPS (Intel Mac) returns 0."""
+        import torch
+
         monkeypatch.setattr(
-            "careamics.config.ng_factories.data_factory.os.cpu_count",
-            lambda: None,
+            "careamics.config.data.ng_data_config.platform.system", lambda: "Darwin"
         )
+        monkeypatch.setattr(torch.backends.mps, "is_available", lambda: False)
+        monkeypatch.delitem(sys.modules, "pytest")
         assert get_default_num_workers() == 0

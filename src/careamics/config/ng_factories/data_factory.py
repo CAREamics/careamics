@@ -1,6 +1,5 @@
 """Convenience functions to create NG data configurations."""
 
-import os
 from collections.abc import Sequence
 from typing import Any, Literal
 
@@ -12,20 +11,6 @@ from careamics.config.augmentations import (
 from careamics.config.data import NGDataConfig
 
 from ..utils.random import generate_random_seed
-
-
-def get_default_num_workers() -> int:
-    """Return a reasonable default number of dataloader workers for the current system.
-
-    Uses the CPU count reported by the OS, falling back to ``0`` if it cannot be
-    determined.
-
-    Returns
-    -------
-    int
-        Number of workers to use.
-    """
-    return os.cpu_count() or 0
 
 
 def list_spatial_augmentations(
@@ -152,9 +137,6 @@ def create_ng_data_configuration(
     if seed is None:
         seed = generate_random_seed()
 
-    if num_workers == -1:
-        num_workers = get_default_num_workers()
-
     if augmentations is None:
         augmentations = list_spatial_augmentations(seed=seed)
 
@@ -176,34 +158,21 @@ def create_ng_data_configuration(
     if in_memory is not None:
         data["in_memory"] = in_memory
 
+    if num_workers != -1:
+        data["num_workers"] = num_workers
+
     if train_dataloader_params is not None:
-        # the presence of `shuffle` key in the dataloader parameters is enforced
-        # by the NGDataConfig class
         if "shuffle" not in train_dataloader_params:
             train_dataloader_params["shuffle"] = True
-
-        if "num_workers" not in train_dataloader_params:
-            train_dataloader_params["num_workers"] = num_workers
-
         data["train_dataloader_params"] = train_dataloader_params
     else:
-        data["train_dataloader_params"] = {"shuffle": True, "num_workers": num_workers}
+        data["train_dataloader_params"] = {"shuffle": True}
 
     if val_dataloader_params is not None:
-        if "num_workers" not in val_dataloader_params:
-            val_dataloader_params["num_workers"] = num_workers
-
         data["val_dataloader_params"] = val_dataloader_params
-    else:
-        data["val_dataloader_params"] = {"shuffle": False, "num_workers": num_workers}
 
     if pred_dataloader_params is not None:
-        if "num_workers" not in pred_dataloader_params:
-            pred_dataloader_params["num_workers"] = num_workers
-
         data["pred_dataloader_params"] = pred_dataloader_params
-    else:
-        data["pred_dataloader_params"] = {"shuffle": False, "num_workers": num_workers}
 
     # add training patching
     data["patching"] = {
