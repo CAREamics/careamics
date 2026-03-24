@@ -1,6 +1,7 @@
 """Next-Generation CAREamics DataModule."""
 
 import copy
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, TypeVar, overload
@@ -37,6 +38,7 @@ from .data_module_utils import initialize_data_pair
 
 logger = get_logger(__name__)
 
+_MULTIPROCESSING_CONTEXT: str | None = None if sys.platform == "win32" else "fork"
 
 InputVar = TypeVar(
     "InputVar", NDArray[Any], Path, str, Sequence[NDArray[Any]], Sequence[Path | str]
@@ -352,6 +354,10 @@ class CareamicsDataModule(L.LightningDataModule):
         # TODO: there might be other parameters mutually exclusive with sampler
         if (sampler is not None) and ("shuffle" in dataloader_params):
             del dataloader_params["shuffle"]
+        if dataloader_params.get("num_workers", 0) > 0:
+            dataloader_params.setdefault(
+                "multiprocessing_context", _MULTIPROCESSING_CONTEXT
+            )
         assert self.train_dataset is not None
         return DataLoader[ImageRegionData[PatchSpecs]](
             self.train_dataset,
@@ -374,6 +380,10 @@ class CareamicsDataModule(L.LightningDataModule):
         dataloader_params = copy.deepcopy(self.config.val_dataloader_params)
         if (sampler is not None) and ("shuffle" in dataloader_params):
             del dataloader_params["shuffle"]
+        if dataloader_params.get("num_workers", 0) > 0:
+            dataloader_params.setdefault(
+                "multiprocessing_context", _MULTIPROCESSING_CONTEXT
+            )
         assert self.val_dataset is not None
         return DataLoader[ImageRegionData[PatchSpecs]](
             self.val_dataset,
@@ -392,12 +402,17 @@ class CareamicsDataModule(L.LightningDataModule):
         DataLoader
             Prediction dataloader.
         """
+        dataloader_params = copy.deepcopy(self.config.pred_dataloader_params)
+        if dataloader_params.get("num_workers", 0) > 0:
+            dataloader_params.setdefault(
+                "multiprocessing_context", _MULTIPROCESSING_CONTEXT
+            )
         assert self.predict_dataset is not None
         return DataLoader[ImageRegionData[TileSpecs]](
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
-            **self.config.pred_dataloader_params,
+            **dataloader_params,
         )
 
 
