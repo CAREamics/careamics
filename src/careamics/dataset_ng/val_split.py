@@ -56,6 +56,17 @@ def create_val_split(
             for data_idx, sample_idx in sample_ids
         ]
     )
+    n_train_patches = int(n_patches_per_image.sum())
+    if n_val_patches >= n_train_patches:
+        raise ValueError(
+            f"The number of validation patches to be extracted from the training set "
+            f"is too large for given training data size(got {n_val_patches} validation"
+            f"patches but only"
+            f"{n_train_patches} training patches available with patch size "
+            f"{patch_size}). Make sure you have enough data to train with, decrease "
+            f"'n_val_patches' or the patch size."
+        )
+
     n_selected_image_patches = np.zeros_like(n_patches_per_image)
     for _ in range(n_val_patches):
         probs = n_patches_per_image / n_patches_per_image.sum()
@@ -64,7 +75,6 @@ def create_val_split(
         n_patches_per_image[idx] -= 1
 
     for idx, n_patches in enumerate(n_selected_image_patches):
-
         data_idx, sample_idx = sample_ids[idx]
         # randomly choose the validation patches in the image
         coord_indices = rng.choice(
