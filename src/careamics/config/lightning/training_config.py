@@ -28,6 +28,7 @@ class TrainingConfig(BaseModel):
     # Pydantic class configuration
     model_config = ConfigDict(
         validate_assignment=True,
+        extra="forbid",
     )
 
     lightning_trainer_config: dict = Field(default={})

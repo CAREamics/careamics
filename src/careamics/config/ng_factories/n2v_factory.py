@@ -486,9 +486,11 @@ def create_advanced_n2v_config(
         num_steps=num_steps,
     )
     training_params = create_training_configuration(
+        algorithm="n2v",
         trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
+        monitor_metric=monitor_metric,
     )
 
     algorithm_config = N2VAlgorithm(**algorithm_params)
