@@ -31,7 +31,7 @@ def filter_background(
     patch_filter : PatchFilterProtocol
         The function to filter patches with.
     ref_channel : int
-        Which channel to filter the data with.
+        On which channel to filter the data.
     bg_relative_prob : float
         The probability that a region determined as background will be sampled from each
         epoch.

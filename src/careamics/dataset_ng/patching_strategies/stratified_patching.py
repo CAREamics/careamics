@@ -164,7 +164,7 @@ class StratifiedPatchingStrategy:
         self, data_idx: int, sample_idx: int, probs: dict[tuple[int, ...], float]
     ) -> None:
         """
-        Set the probability that regions will be sampled from, each epoch.
+        Set the probability that regions will be sampled from at each epoch.
 
         Parameters
         ----------
@@ -555,7 +555,7 @@ class _ImageStratifiedPatching:
 
     def set_region_probs(self, probs: dict[tuple[int, ...], float]) -> None:
         """
-        Set the probability that regions will be sampled from, each epoch.
+        Set the probability that regions will be sampled from at each epoch.
 
         Parameters
         ----------

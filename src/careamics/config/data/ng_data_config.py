@@ -306,8 +306,8 @@ class NGDataConfig(BaseModel):
     mode is `training`."""
 
     filtered_patch_prob: float = Field(0.1, ge=0.0, le=1.0)
-    """The probability that each patch classed as background will be selected each epoch
-    during training. Patches can be classes as background by either using a
+    """The probability that each patch considered background will be selected each epoch
+    during training. Patches can be considered background by either using a
     `patch_filter` or by supplying a mask during training. If neither is chosen this
     parameter is ignored."""
 
