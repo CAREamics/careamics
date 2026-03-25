@@ -10,53 +10,20 @@ from careamics.config.data.patch_filter import (
     ShannonFilterConfig,
 )
 from careamics.config.support.supported_filters import (
-    SupportedCoordinateFilters,
     SupportedPatchFilters,
 )
-from careamics.dataset_ng.image_stack import GenericImageStack
-from careamics.dataset_ng.patch_extractor import PatchExtractor
 
-from .mask_filter import MaskCoordFilter
+from .mask_filter import MaskFilter
 from .max_filter import MaxPatchFilter
 from .mean_std_filter import MeanStdPatchFilter
 from .shannon_filter import ShannonPatchFilter
 
 PatchFilter = Union[
+    MaskFilter,
     MaxPatchFilter,
     MeanStdPatchFilter,
     ShannonPatchFilter,
 ]
-
-
-CoordFilter = Union[MaskCoordFilter]
-
-
-def create_coord_filter(
-    filter_model: FilterConfig, mask: PatchExtractor[GenericImageStack]
-) -> CoordFilter:
-    """Factory function to create coordinate filter instances based on the filter name.
-
-    Parameters
-    ----------
-    filter_model : FilterModel
-        Pydantic model of the filter to be created.
-    mask : PatchExtractor[GenericImageStack]
-        Mask extractor to be used for the mask filter.
-
-    Returns
-    -------
-    CoordFilter
-        Instance of the mask patch filter.
-    """
-    if filter_model.name == SupportedCoordinateFilters.MASK:
-        assert isinstance(filter_model, MaskFilterConfig)
-        # TODO: work out how to not need `assert filter_model.coverage is not None`
-        # - I want the default to depend on the number of spatial dims
-        # - But in the MaskFilterConfig has no way to see the number of dimensions
-        assert filter_model.coverage is not None
-        return MaskCoordFilter(mask_extractor=mask, coverage=filter_model.coverage)
-    else:
-        raise ValueError(f"Unknown filter name: {filter_model}")
 
 
 def create_patch_filter(filter_model: FilterConfig) -> PatchFilter:
@@ -84,5 +51,9 @@ def create_patch_filter(filter_model: FilterConfig) -> PatchFilter:
     elif filter_model.name == SupportedPatchFilters.SHANNON:
         assert isinstance(filter_model, ShannonFilterConfig)
         return ShannonPatchFilter(threshold=filter_model.threshold)
+    # TODO: add mask to enum?
+    elif filter_model.name == "mask":
+        assert isinstance(filter_model, MaskFilterConfig)
+        return MaskFilter(coverage=filter_model.coverage)
     else:
         raise ValueError(f"Unknown filter name: {filter_model}")

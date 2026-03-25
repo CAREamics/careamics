@@ -6,8 +6,8 @@ from careamics.utils import get_logger
 
 from .image_stack import ImageStack
 from .patch_extractor import PatchExtractor
-from .patch_filter import MaskCoordFilter, PatchFilterProtocol
-from .patching_strategies import PatchSpecs, StratifiedPatchingStrategy
+from .patch_filter import MaskFilter, PatchFilterProtocol
+from .patching_strategies import StratifiedPatchingStrategy
 
 logger = get_logger("Patch filtering")
 
@@ -69,18 +69,21 @@ def filter_background(
 
 def filter_background_with_mask(
     patching_strategy: StratifiedPatchingStrategy,
-    mask_filter: MaskCoordFilter,
+    mask_filter: MaskFilter,
+    mask_extractor: PatchExtractor[ImageStack],
     bg_relative_prob: float = 0.1,
 ) -> None:
     """
-    Apply filtering to the `patching_strategy` with a masks.
+    Apply filtering to the `patching_strategy` with a mask filter.
 
     Parameters
     ----------
     patching_strategy : StratifiedPatchingStrategy
         A stratified patching strategy to filter.
-    mask_filter : MaskCoordFilter
+    mask_filter : MaskFilter
         A filter based on masks.
+    mask_extractor : PatchExtractor[ImageStack]
+        A patch extractor holding the mask data.
     bg_relative_prob : float
         The probability that a region determined as background will be sampled from each
         epoch.
@@ -98,13 +101,13 @@ def filter_background_with_mask(
             region_coords = tuple(
                 ps * c for ps, c in zip(patch_size, coords, strict=True)
             )
-            region_specs = PatchSpecs(
+            mask_patch = mask_extractor.extract_patch(
                 data_idx=data_idx,
                 sample_idx=sample_idx,
                 coords=region_coords,
                 patch_size=region_size,
             )
-            if mask_filter.filter_out(region_specs):
+            if mask_filter.filter_out(mask_patch):
                 probs[coords] = bg_relative_prob
                 n_filtered += 1
         patching_strategy.set_region_probs(data_idx, sample_idx, probs)

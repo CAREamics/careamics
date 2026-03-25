@@ -71,17 +71,6 @@ def patch_filter_dict_testing(name: str = "shannon") -> dict[str, Any]:
             raise ValueError(f"Invalid patch filter name: {name}")
 
 
-def coord_filter_dict_testing(name: str = "mask") -> dict[str, Any]:
-    """Return a coordinate filter configuration dictionary."""
-    match name:
-        case "mask":
-            return {
-                "name": name,
-            }
-        case _:
-            raise ValueError(f"Invalid coordinate filter name: {name}")
-
-
 def ng_data_config_dict_testing(
     mode: str = DEFAULT_MODE,
     data_type: str = DEFAULT_DATA_TYPE,

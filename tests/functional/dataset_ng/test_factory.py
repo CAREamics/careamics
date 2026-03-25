@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from tests.functional.dataset_ng.utils import assert_expected_pixel_probability
 from tests.utils import (
-    coord_filter_dict_testing,
     ng_data_config_dict_testing,
     patch_filter_dict_testing,
 )
@@ -77,8 +76,7 @@ def test_filter_background_w_mask(
         patch_size=patch_size,
         filtered_patch_prob=background_prob,
     )
-    coord_filter = coord_filter_dict_testing()
-    config_dict["coord_filter"] = coord_filter
+    # mask filter should always be in the training config by default
     config = NGDataConfig(**config_dict)
 
     # data set-up

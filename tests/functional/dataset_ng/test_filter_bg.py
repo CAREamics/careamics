@@ -13,7 +13,7 @@ from careamics.dataset_ng.filter_bg import (
 )
 from careamics.dataset_ng.image_stack_loader import load_arrays
 from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patch_filter import MaskCoordFilter, MaxPatchFilter
+from careamics.dataset_ng.patch_filter import MaskFilter, MaxPatchFilter
 from careamics.dataset_ng.patching_strategies import StratifiedPatchingStrategy
 
 
@@ -75,7 +75,7 @@ def test_filter_background_w_mask(
 
     # set up components
     mask_extractor = init_patch_extractor(PatchExtractor, load_arrays, masks, axes)
-    mask_filter = MaskCoordFilter(mask_extractor, coverage=0.25)
+    mask_filter = MaskFilter(coverage=0.25)
     patching = StratifiedPatchingStrategy(
         mask_extractor.shapes, patch_size=patch_size, seed=42
     )
@@ -83,6 +83,7 @@ def test_filter_background_w_mask(
     filter_background_with_mask(
         patching,
         mask_filter,
+        mask_extractor,
         bg_relative_prob=background_prob,
     )
 

@@ -2,18 +2,17 @@
 
 __all__ = [
     "CoordinateFilterProtocol",
-    "MaskCoordFilter",
+    "MaskFilter",
     "MaxPatchFilter",
     "MeanStdPatchFilter",
     "PatchFilterProtocol",
     "ShannonPatchFilter",
-    "create_coord_filter",
     "create_patch_filter",
 ]
 
 from .coordinate_filter_protocol import CoordinateFilterProtocol
-from .filter_factory import create_coord_filter, create_patch_filter
-from .mask_filter import MaskCoordFilter
+from .filter_factory import create_patch_filter
+from .mask_filter import MaskFilter
 from .max_filter import MaxPatchFilter
 from .mean_std_filter import MeanStdPatchFilter
 from .patch_filter_protocol import PatchFilterProtocol

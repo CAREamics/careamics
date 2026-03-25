@@ -246,9 +246,6 @@ PatchFilterConfig = Union[
 ]
 """Patch filter type."""
 
-CoordFilterConfig = Union[MaskFilterConfig]  # add more here as needed
-"""Coordinate filter type."""
-
 
 class Mode(str, BaseEnum):
     """Dataset mode."""
@@ -276,6 +273,38 @@ def default_in_memory(validated_params: dict[str, Any]) -> bool:
         Default value for the `in_memory` field.
     """
     return validated_params.get("data_type") not in ("zarr", "czi")
+
+
+def _create_mask_filter(validated_params: dict[str, Any]) -> MaskFilterConfig | None:
+    """Create a mask filter with auto-calculated coverage based on dimensionality.
+
+    Parameters
+    ----------
+    validated_params : dict of {str: Any}
+        Validated parameters containing 'mode', 'data_type', and 'axes'.
+
+    Returns
+    -------
+    MaskFilterConfig | None
+        Mask filter with auto-calculated coverage if in TRAINING mode, None otherwise.
+    """
+    mode = validated_params.get("mode")
+    data_type = validated_params.get("data_type")
+    axes = validated_params.get("axes", "")
+
+    # only create mask filter in training mode
+    if mode != Mode.TRAINING:
+        return None
+
+    # determine if data is 3D
+    is_3d = "Z" in axes
+    if data_type == "czi":
+        is_3d = is_3d or "T" in axes
+
+    ndims = 3 if is_3d else 2
+    coverage = 1 / (2**ndims)
+
+    return MaskFilterConfig(coverage=coverage)
 
 
 class NGDataConfig(BaseModel):
@@ -333,9 +362,12 @@ class NGDataConfig(BaseModel):
     """Patch filter to apply when using random patching. Only available if
     mode is `training`."""
 
-    coord_filter: CoordFilterConfig | None = Field(default=None, discriminator="name")
-    """Coordinate filter to apply when using random patching. Only available if
-    mode is `training`."""
+    mask_filter: MaskFilterConfig | None = Field(
+        default_factory=lambda data: _create_mask_filter(data)
+    )
+    """Mask filter configuration to apply when using a mask during training.
+    Coverage is automatically set to 1/(2**ndims) based on data dimensionality
+    where ndims is determined from axes. Only available in `training` mode."""
 
     filtered_patch_prob: float = Field(0.1, ge=0.0, le=1.0)
     """The probability that each patch considered background will be selected each epoch
@@ -567,26 +599,26 @@ class NGDataConfig(BaseModel):
                 )
         return patching
 
-    @field_validator("patch_filter", "coord_filter")
+    @field_validator("patch_filter", "mask_filter")
     @classmethod
-    def validate_filters_against_mode(
+    def validate_patch_filter_against_mode(
         cls,
-        filter_obj: PatchFilterConfig | CoordFilterConfig | None,
+        filter_obj: PatchFilterConfig | None,
         info: ValidationInfo,
-    ) -> PatchFilterConfig | CoordFilterConfig | None:
+    ) -> PatchFilterConfig | None:
         """
-        Validate that the filters are only used during training.
+        Validate that the patch filter is only used during training.
 
         Parameters
         ----------
-        filter_obj : PatchFilters or CoordFilters or None
-            Filter to validate.
+        filter_obj : PatchFilterConfig | MaskFilterConfig | None
+            Patch filter to validate.
         info : ValidationInfo
             Validation information.
 
         Returns
         -------
-        PatchFilters or CoordFilters or None
+        PatchFilterConfig | None
             Validated filter.
 
         Raises
@@ -716,34 +748,6 @@ class NGDataConfig(BaseModel):
             )
 
         return self
-
-    @model_validator(mode="after")
-    def propagate_seed_to_filters(self: Self) -> Self:
-        """
-        Propagate the main seed to patch and coordinate filters that support seeds.
-
-        This ensures that all filters use the same seed for reproducibility,
-        unless they already have a seed explicitly set.
-
-        Returns
-        -------
-        Self
-            Data model with propagated seeds.
-        """
-        if self.seed is not None:
-            if self.patch_filter is not None:
-                if (
-                    hasattr(self.patch_filter, "seed")
-                    and self.patch_filter.seed is None
-                ):
-                    self.patch_filter.seed = self.seed
-
-            if self.coord_filter is not None:
-                if (
-                    hasattr(self.coord_filter, "seed")
-                    and self.coord_filter.seed is None
-                ):
-                    self.coord_filter.seed = self.seed
 
         return self
 
@@ -1069,12 +1073,12 @@ class NGDataConfig(BaseModel):
                     else self.pred_dataloader_params
                 ),
                 "patch_filter": None,
-                "coord_filter": None,
+                "mask_filter": None,
             }
         )
 
-        # remove patch and coord filters when switching to validation or prediction
+        # remove patch filter when switching to validation or prediction
         del model_dict["patch_filter"]
-        del model_dict["coord_filter"]
+        del model_dict["mask_filter"]
 
         return NGDataConfig(**model_dict)

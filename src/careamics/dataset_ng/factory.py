@@ -27,7 +27,7 @@ from .image_stack_loader import (
     load_zarrs,
 )
 from .patch_extractor import LimitFilesPatchExtractor, PatchExtractor
-from .patch_filter import create_coord_filter, create_patch_filter
+from .patch_filter import MaskFilter, create_patch_filter
 from .patching_strategies import StratifiedPatchingStrategy, create_patching_strategy
 from .val_split import create_val_split
 
@@ -339,23 +339,22 @@ def create_train_dataset(
             config.filter_ref_channel,
             config.filtered_patch_prob,
         )
-    # if both masks and patch_filter are present they are both applied
-    if mask_extractor is not None and config.coord_filter is not None:
+    # if a mask is provided, apply mask filtering
+    if mask_extractor is not None:
+        if config.mask_filter is None:
+            raise ValueError("No `MaskFilterConfig` found for mask filtering.")
         if not isinstance(patching_strategy, StratifiedPatchingStrategy):
             raise TypeError(
                 "Mask filtering is only compatible with stratified "
                 f"patching. Found {config.patching.name} patching in the configuration."
             )
-        # TODO: move overwriting of `None` coverage somewhere else
-        coord_filter_config = config.coord_filter.model_copy()
-        if coord_filter_config.coverage is None:
-            ndims = 3 if config.is_3D() else 2
-            coverage = 1 / 2**ndims
-            coord_filter_config.coverage = coverage
 
-        mask_filter = create_coord_filter(coord_filter_config, mask_extractor)
+        mask_filter = MaskFilter(coverage=config.mask_filter.coverage)
         filter_background_with_mask(
-            patching_strategy, mask_filter, bg_relative_prob=config.filtered_patch_prob
+            patching_strategy,
+            mask_filter,
+            mask_extractor,
+            bg_relative_prob=config.filtered_patch_prob,
         )
 
     return CareamicsDataset(

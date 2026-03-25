@@ -19,7 +19,6 @@ from careamics.config.data.ng_data_config import (
 from tests.utils import (
     DEFAULT_MODE,
     DEFAULT_PATCHING,
-    coord_filter_dict_testing,
     ng_data_config_dict_testing,
     patch_filter_dict_testing,
 )
@@ -42,7 +41,7 @@ NON_TRAINING_STAGES = [VALIDATING, PREDICTING]
 
 # -- Patch filters
 PATCH_FILTERS = ["shannon", "max", "mean_std"]
-COORD_FILTERS = ["mask"]
+MASK_FILTERS = ["mask"]
 
 # -- Patching strategies
 TRAIN_PATCHING = ["stratified", "random"]
@@ -333,28 +332,26 @@ def test_patch_filter_vs_mode(stage, filter_name, expected_error):
 
 
 @pytest.mark.parametrize(
-    "stage, filter_name, expected_error",
+    "stage, expected_error",
     # valid
-    list(itertools.product([TRAINING], COORD_FILTERS, [nullcontext(0)]))
+    list(itertools.product([TRAINING], [nullcontext(0)]))
     # invalid
     + list(
         itertools.product(
             NON_TRAINING_STAGES,
-            COORD_FILTERS,
             [pytest.raises(ValueError, match="only allowed in 'training' mode")],
         )
     ),
 )
-def test_coords_filter_vs_mode(stage, filter_name, expected_error):
+def test_mask_filter_vs_mode(stage, expected_error):
     """Test that coordinate filters are only allowed in training mode."""
     cfg_dict = ng_data_config_dict_testing(
-        mode=stage, coord_filter=coord_filter_dict_testing(filter_name)
+        mode=stage, mask_filter={"name": "mask", "coverage": 0.25}
     )
 
     with expected_error:
         cfg = NGDataConfig(**cfg_dict)
-        assert cfg.coord_filter is not None
-        assert cfg.coord_filter.name == filter_name
+        assert cfg.mask_filter is not None
 
 
 class TestDataloaderParams:
@@ -864,17 +861,55 @@ class TestConvertMode:
                         assert cfg.patching.name == "whole"
 
     @pytest.mark.parametrize("mode", NON_TRAINING_STAGES)
-    def test_patch_coord_filters_removal(self, mode):
-        """Test that patch and coordinate filters are removed upon conversion."""
+    def test_patch_filters_removal(self, mode):
+        """Test that patch, coordinate, and mask filters are removed upon conversion."""
         cfg_dict = ng_data_config_dict_testing(
             mode=TRAINING,
             patch_filter=patch_filter_dict_testing("shannon"),
-            coord_filter=coord_filter_dict_testing(),
         )
         cfg = NGDataConfig(**cfg_dict)
         converted_cfg = cfg.convert_mode(mode)
         assert converted_cfg.patch_filter is None
-        assert converted_cfg.coord_filter is None
+        assert converted_cfg.mask_filter is None
+
+    @pytest.mark.parametrize(
+        "mode, axes, data_type, expected_coverage",
+        list(
+            itertools.product(
+                [TRAINING], AXES_WO_CHANNELS_2D + AXES_W_CHANNELS_2D, ["array"], [0.25]
+            )
+        )
+        + list(
+            itertools.product(
+                [TRAINING], AXES_WO_CHANNELS_3D + AXES_W_CHANNELS_3D, ["array"], [0.125]
+            )
+        )
+        + list(itertools.product([TRAINING], AXES_CZI_2D, ["czi"], [0.25]))
+        + list(itertools.product([TRAINING], AXES_CZI_3D, ["czi"], [0.125]))
+        # Non-training modes should have None
+        + list(
+            itertools.product(
+                NON_TRAINING_STAGES,
+                AXES_W_CHANNELS_2D[:1],  # just use one 2D axes for non-training
+                ["array"],
+                [None],
+            )
+        ),
+    )
+    def test_mask_filter_default_factory(
+        self, mode: str, axes: str, data_type: str, expected_coverage: float | None
+    ):
+        """Test mask filter coverage based on mode and dimensionality."""
+        cfg_dict = ng_data_config_dict_testing(
+            mode=mode, axes=axes, data_type=data_type
+        )
+        cfg = NGDataConfig(**cfg_dict)
+
+        if expected_coverage is None:
+            assert cfg.mask_filter is None
+        else:
+            assert cfg.mask_filter is not None
+            assert cfg.mask_filter.coverage == expected_coverage
 
 
 class TestGetDefaultNumWorkers:
