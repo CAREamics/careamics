@@ -93,7 +93,6 @@ def _compute_noise_model_log_likelihood(
         noise_model.to_device(reconstruction.device)
 
     # Denormalize predictions and targets
-    print(reconstruction.shape, data_std_tensor.shape, data_mean_tensor.shape)
     reconstruction_denorm = reconstruction * data_std_tensor + data_mean_tensor
     target_denorm = target * data_std_tensor + data_mean_tensor
 
@@ -397,8 +396,13 @@ def microsplit_loss(
         recons_loss = nm_weight * recons_loss_nm + gaussian_weight * recons_loss_gm
 
     elif nm_weight > 0:
+        # Chunk off logvar channels if predict_logvar doubled the output channels
+        if predictions.shape[1] == 2 * targets.shape[1]:
+            pred_mean, _ = predictions.chunk(2, dim=1)
+        else:
+            pred_mean = predictions
         recons_loss = -_compute_noise_model_log_likelihood(
-            reconstruction=predictions,
+            reconstruction=pred_mean,
             target=targets,
             noise_model=noise_model,
             data_mean=data_mean,
@@ -413,6 +417,9 @@ def microsplit_loss(
             logvar_lowerbound=config.logvar_lowerbound,
         )
 
+    # reconstruction_weight is applied uniformly in all modes (musplit, denoisplit,
+    # combined). Legacy denoisplit_musplit_loss did NOT apply it in combined mode;
+    # with default reconstruction_weight=1.0 behaviour is identical.
     recons_loss = config.reconstruction_weight * recons_loss
     if isinstance(recons_loss, torch.Tensor) and torch.isnan(recons_loss).any():
         recons_loss = 0.0

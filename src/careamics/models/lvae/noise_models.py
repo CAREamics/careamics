@@ -330,10 +330,10 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.register_buffer("min_sigma", min_sigma)
         self.register_buffer("tolerance", torch.tensor([1e-10]))
 
-        if "trained_weight" in params:
-            weight = torch.tensor(params["trained_weight"])
-        elif "weight" in params and params["weight"] is not None:
-            weight = torch.tensor(params["weight"])
+        # Use config.weight directly to avoid Array PlainSerializer converting
+        # the numpy array to a JSON string via model_dump().
+        if config.weight is not None:
+            weight = torch.as_tensor(np.asarray(config.weight), dtype=torch.float32)
         else:
             weight = self._initialize_weights(
                 params["n_gaussian"], params["n_coeff"], max_signal, min_signal

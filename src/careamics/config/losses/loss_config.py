@@ -6,7 +6,13 @@ from pydantic import BaseModel, ConfigDict
 
 
 class KLLossConfig(BaseModel):
-    """KL loss configuration."""
+    """KL loss configuration.
+
+    Note: KL annealing (epoch-dependent kl_weight ramping) was intentionally
+    removed in the microsplit refactor. The kl_weight in LVAELossConfig is now
+    applied directly without epoch-dependent scaling. With the legacy default
+    annealing=False this is behaviorally identical.
+    """
 
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
@@ -33,9 +39,9 @@ class LVAELossConfig(BaseModel):
     kl_weight: float = 1.0
     """Weight for the KL loss in the total net loss.
     (i.e., `net_loss = reconstruction_weight * rec_loss + kl_weight * kl_loss`)."""
-    musplit_weight: float = 0.0
+    musplit_weight: float = 0.1
     """Weight for the Gaussian likelihood (muSplit). Set to 0 to disable."""
-    denoisplit_weight: float = 1.0
+    denoisplit_weight: float = 0.9
     """Weight for the noise model likelihood (denoiSplit). Set to 0 to disable."""
     predict_logvar: bool = True
     """Whether to predict log-variance (pixelwise uncertainty)."""

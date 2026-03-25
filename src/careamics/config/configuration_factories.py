@@ -1706,7 +1706,7 @@ def create_hdn_configuration(
         encoder_dropout=encoder_dropout,
         decoder_dropout=decoder_dropout,
         nonlinearity=nonlinearity,
-        predict_logvar=predict_logvar,
+        predict_logvar=predict_logvar == "pixelwise",
         analytical_kl=analytical_kl,
     )
 
@@ -1771,8 +1771,8 @@ def create_microsplit_configuration(
     kl_type: Literal["kl", "kl_restricted"] = "kl_restricted",
     reconstruction_weight: float = 1.0,
     kl_weight: float = 1.0,
-    musplit_weight: float = 0.0,
-    denoisplit_weight: float = 1.0,
+    musplit_weight: float = 0.1,
+    denoisplit_weight: float = 0.9,
     noise_model_config: MultiChannelNMConfig | None = None,
     mmse_count: int = 10,
     nm_paths: list[str] | None = None,
@@ -1905,7 +1905,7 @@ def create_microsplit_configuration(
         denoisplit_weight=denoisplit_weight,
         predict_logvar=predict_logvar,
         logvar_lowerbound=logvar_lowerbound,
-        kl_params=KLLossConfig(loss_type=kl_type),
+        kl_params=KLLossConfig(),
     )
 
 
@@ -1942,17 +1942,12 @@ def create_microsplit_configuration(
             "min_lr": 1e-12,
         },
     )
-    #TODO refactor this to use the noise_model_factory or something else
-    gmm_list = []
-    if nm_paths is not None:
-        for NM_path in nm_paths:
-            gmm_list.append(
-                GaussianMixtureNMConfig(
-                    model_type="GaussianMixtureNoiseModel",
-                    path=NM_path,
-                )
-            )
-    noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
+    if noise_model_config is None:
+        gmm_list = []
+        if nm_paths is not None:
+            for NM_path in nm_paths:
+                gmm_list.append(GaussianMixtureNMConfig.from_npz(NM_path))
+        noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
 
     algorithm_params = {
         "algorithm": "microsplit",

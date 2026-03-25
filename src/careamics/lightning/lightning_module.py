@@ -432,7 +432,9 @@ class VAEModule(L.LightningModule):
         # supervised_mode
         self.supervised_mode = self.algorithm_config.is_supervised
 
-        self.noise_model = multichannel_noise_model_factory(self.algorithm_config.noise_model)
+        self.noise_model = multichannel_noise_model_factory(
+            self.algorithm_config.noise_model
+        )
         self._data_mean: float | None = None
         self._data_std: float | None = None
 
@@ -757,10 +759,10 @@ class VAEModule(L.LightningModule):
             Reconstructed tensor, i.e., the predicted mean.
         """
         predictions, _ = model_outputs
-        if self.model.predict_logvar is None:
-            return predictions
-        elif self.model.predict_logvar == "pixelwise":
+        if self.model.predict_logvar:
             return predictions.chunk(2, dim=1)[0]
+        else:
+            return predictions
 
     def compute_val_psnr(
         self,
