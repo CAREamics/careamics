@@ -3,15 +3,15 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
+from careamics.config.augmentations import (
+    N2VManipulateConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
+)
 from careamics.config.ng_configs import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedTransform,
-)
-from careamics.config.transformations import (
-    N2VManipulateConfig,
-    XYFlipConfig,
-    XYRandomRotate90Config,
 )
 
 from ..algorithms import N2VAlgorithm
@@ -32,6 +32,7 @@ def create_n2v_config(
     num_epochs: int = 30,  # not too high, in case data is very large
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
+    n_val_patches: int = 8,
     use_n2v2: bool = False,
     n_channels: int | None = None,
 ) -> N2VConfiguration:
@@ -58,7 +59,8 @@ def create_n2v_config(
     Parameters
     ----------
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -73,6 +75,9 @@ def create_n2v_config(
         Number of batches in 1 epoch.
     augmentations : Sequence of {"x_flip", "y_flip", "rotate_90"}, default=None
         List of augmentations to apply. If `None`, all augmentations are applied.
+    n_val_patches : int, default=8,
+        The number of patches to set aside for validation during training. This
+        parameter will be ignored if separate validation data is specified for training.
     use_n2v2 : bool, default=False
         Whether to use N2V2.
     n_channels : int or None, default=None
@@ -92,6 +97,7 @@ def create_n2v_config(
         num_epochs=num_epochs,
         num_steps=num_steps,
         augmentations=augmentations,
+        n_val_patches=n_val_patches,
         use_n2v2=use_n2v2,
         n_channels=n_channels,
     )
@@ -111,6 +117,7 @@ def create_structn2v_config(
     num_epochs: int = 30,
     num_steps: int | None = None,
     # TODO no rotation until we support 2D masks for structN2V
+    n_val_patches: int = 8,
     use_n2v2: bool = False,
     n_channels: int | None = None,
 ) -> N2VConfiguration:
@@ -139,7 +146,8 @@ def create_structn2v_config(
     Parameters
     ----------
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -156,6 +164,9 @@ def create_structn2v_config(
         Number of epochs to train for.
     num_steps : int, default=None
         Number of batches in 1 epoch.
+    n_val_patches : int, default=8,
+        The number of patches to set aside for validation during training. This
+        parameter will be ignored if separate validation data is specified for training.
     use_n2v2 : bool, default=False
         Whether to use N2V2.
     n_channels : int or None, default=None
@@ -177,6 +188,7 @@ def create_structn2v_config(
         augmentations=[],
         use_n2v2=use_n2v2,
         n_channels=n_channels,
+        n_val_patches=n_val_patches,
         struct_n2v_axis=struct_n2v_axis,
         struct_n2v_span=struct_n2v_span,
     )
@@ -194,11 +206,12 @@ def create_advanced_n2v_config(
     num_steps: int | None = None,
     n_channels: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
+    n_val_patches: int = 8,
     # advanced parameters
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = True,
-    normalization: Literal["mean_std", "minmax", "quantile", "none"] = "mean_std",
+    normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     # - N2V specific
     use_n2v2: bool = False,
@@ -215,6 +228,7 @@ def create_advanced_n2v_config(
     optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
     lr_scheduler_params: dict[str, Any] | None = None,
+    monitor_metric: Literal["train_loss", "train_loss_epoch", "val_loss"] = "val_loss",
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
@@ -264,7 +278,8 @@ def create_advanced_n2v_config(
     Parameters
     ----------
     experiment_name : str
-        Name of the experiment.
+        Name of the experiment. A valid experiment name is a non-empty string that only
+        contains letters, numbers, underscores, dashes and spaces.
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
@@ -287,6 +302,9 @@ def create_advanced_n2v_config(
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
+    n_val_patches : int, default=8,
+        The number of patches to set aside for validation during training. This
+        parameter will be ignored if separate validation data is specified for training.
     in_memory : bool | None, default=None
         Whether to load all data into memory. This is only supported for 'array',
         'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
@@ -296,13 +314,13 @@ def create_advanced_n2v_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=True
         Whether to train all channels independently.
-    normalization : {"mean_std", "minmax", "quantile", "none"}, default="mean_std"
+    normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
         Normalization strategy to use.
     normalization_params : dict[str, Any] | None, default=None
         Strategy-specific normalization parameters. If None, default values are used.
         For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        For "minmax": {"input_mins": [...], "input_maxes": [...]} (optional)
-        For "quantile": {"lower_quantile": 0.01, "upper_quantile": 0.99} (optional)
+        For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
+        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         For "none": No parameters needed.
     use_n2v2 : bool, default=False
         Whether to use N2V2.
@@ -331,6 +349,8 @@ def create_advanced_n2v_config(
     lr_scheduler_params : dict[str, Any] | None, default=None
         Parameters for the learning rate scheduler, see PyTorch documentation for more
         details.
+    monitor_metric : Literal["train_loss", "train_loss_epoch", "val_loss"]
+        Metric to monitor for the learning rate scheduler. Default: "val_loss".
     train_dataloader_params : dict[str, Any] | None, default=None
         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
         If left as `None`, `{"shuffle": True}` will be used.
@@ -375,6 +395,13 @@ def create_advanced_n2v_config(
     if n_channels is None:
         n_channels = 1 if channels is None else len(channels)
 
+    # disabling validation
+    if n_val_patches == 0 and monitor_metric == "val_loss":
+        raise ValueError(
+            "When disabling validation (`n_val_patches==0`), set `monitor_metric` to "
+            '`"train_loss"` or `"train_loss_epoch"`.'
+        )
+
     # normalization
     norm_config = {"name": normalization}
     if normalization_params is not None:
@@ -411,6 +438,7 @@ def create_advanced_n2v_config(
         normalization=norm_config,
         channels=channels,
         in_memory=in_memory,
+        n_val_patches=n_val_patches,
         num_workers=num_workers,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
@@ -448,6 +476,7 @@ def create_advanced_n2v_config(
         seed=seed,
     )
     algorithm_params["n2v_config"] = n2v_transform
+    algorithm_params["monitor_metric"] = monitor_metric
 
     # training
     final_trainer_params = update_trainer_params(
@@ -456,9 +485,11 @@ def create_advanced_n2v_config(
         num_steps=num_steps,
     )
     training_params = create_training_configuration(
+        algorithm="n2v",
         trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
+        monitor_metric=monitor_metric,
     )
 
     algorithm_config = N2VAlgorithm(**algorithm_params)

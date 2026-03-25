@@ -6,8 +6,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.utils.reshape_array import restore_array
 
-from .restore_original_shape import restore_original_shape
 from .stitch_prediction import group_tiles_by_key, stitch_prediction
 
 if TYPE_CHECKING:
@@ -158,7 +158,7 @@ def combine_samples(
             # get original shape info from the first image region
             original_axes = image_regions[0].axes
             original_data_shape = image_regions[0].original_data_shape
-            combined_data = restore_original_shape(
+            combined_data = restore_array(
                 combined_data, original_axes, original_data_shape
             )
 

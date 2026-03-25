@@ -1,16 +1,17 @@
 """Noise2Void Lightning Module."""
 
 import warnings
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytorch_lightning as L
 import torch
 from torch import nn
 from torchmetrics import MetricCollection
-from torchmetrics.image import PeakSignalNoiseRatio
 
 from careamics.config import N2VAlgorithm, algorithm_factory
 from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.lightning.dataset_ng.data_module import TrainValData, TrainValSplitData
+from careamics.lightning.dataset_ng.metrics import SIPSNR
 from careamics.losses import n2v_loss
 from careamics.models.unet import UNet
 from careamics.transforms import N2VManipulateTorch
@@ -19,6 +20,9 @@ from careamics.utils.logging import get_logger
 from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 
 
 class N2VModule(L.LightningModule):
@@ -56,15 +60,23 @@ class N2VModule(L.LightningModule):
         self.n2v_manipulate = N2VManipulateTorch(self.config.n2v_config)
         self.loss_func = n2v_loss
 
-        self.metrics = MetricCollection(PeakSignalNoiseRatio())
+        self.metrics: MetricCollection = MetricCollection(
+            {
+                f"SIPSNR_{i}": SIPSNR(
+                    n_channels=self.config.model.num_classes,
+                    output_channel=i,
+                    use_scale_invariance=True,
+                )
+                for i in range(self.config.model.num_classes)
+            }
+        )
 
     def on_fit_start(self) -> None:
         """On fit start hook for N2V module."""
-        datamodule = self._trainer.datamodule  # type: ignore[union-attr]
-        if (
-            datamodule is not None
-            and getattr(datamodule, "train_data_target", None) is not None
-        ):
+        assert self._trainer is not None
+        datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
+        assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
+        if datamodule._data.train_data_target is not None:
             warnings.warn(
                 "N2V is a self-supervised algorithm — `train_data_target` will be "
                 "ignored.",
@@ -194,4 +206,5 @@ class N2VModule(L.LightningModule):
             optimizer_parameters=self.config.optimizer.parameters,
             lr_scheduler_name=self.config.lr_scheduler.name,
             lr_scheduler_parameters=self.config.lr_scheduler.parameters,
+            monitor=self.config.monitor_metric,
         )

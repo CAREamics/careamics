@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 import torch
 
+from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation
-from careamics.config.transformations import N2VManipulateConfig
 from careamics.transforms import N2VManipulate, N2VManipulateTorch
 
 

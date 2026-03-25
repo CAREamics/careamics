@@ -89,14 +89,14 @@ class TestInitializeDataPairArrays:
                 target_data=target_data,
             )
 
-    def test_dropping_non_arrays(self):
+    def test_error_for_non_arrays(self):
         input_data = [np.random.rand(10, 10), "not an array", np.random.rand(5, 5)]
 
-        inp, _ = initialize_data_pair(
-            data_type="array",
-            input_data=input_data,
-        )
-        assert isinstance(inp, list) and len(inp) == 2
+        with pytest.raises(ValueError):
+            initialize_data_pair(
+                data_type="array",
+                input_data=input_data,
+            )
 
 
 class TestInitializeDataPairPaths:
@@ -195,7 +195,7 @@ class TestIntializeDataPairWrongType:
         input_data = np.random.rand(10, 10)
         target_data = np.random.rand(10, 10)
 
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(ValueError):
             initialize_data_pair(
                 data_type="unsupported_type",
                 input_data=input_data,

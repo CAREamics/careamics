@@ -1,43 +1,15 @@
 """I/O functions for Configuration objects."""
 
 from pathlib import Path
-from typing import Annotated, Any, Union
+from typing import Union
 
 import yaml
-from pydantic import Discriminator, Tag, TypeAdapter
 
 from careamics.config import Configuration
-from careamics.config.ng_configs import N2VConfiguration
-from careamics.config.support import SupportedAlgorithm
-
-
-def _config_disciminator(v: Any) -> SupportedAlgorithm | None:
-    """
-    Extract algorithm type from configuration dict for Pydantic discriminator.
-
-    Parameters
-    ----------
-    v : Any
-        Configuration dictionary.
-
-    Returns
-    -------
-    SupportedAlgorithm or None
-        Algorithm type if found, None otherwise.
-    """
-    if not isinstance(v, dict):
-        return None
-    alg_config = v.get("algorithm_config", None)
-    if not isinstance(alg_config, dict):
-        return None
-    return alg_config.get("algorithm", None)
-
-
-# union
-NGConfiguration = Annotated[
-    Union[Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],],
-    Discriminator(_config_disciminator),
-]
+from careamics.config.ng_factories.ng_config_discriminator import (
+    NGConfigs,
+    validate_ng_config,
+)
 
 
 def load_configuration(path: Union[str, Path]) -> Configuration:
@@ -70,7 +42,7 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
     return Configuration(**dictionary)
 
 
-def load_configuration_ng(path: Union[str, Path]) -> NGConfiguration:
+def load_configuration_ng(path: Union[str, Path]) -> NGConfigs:
     """
     Load configuration from a yaml file.
 
@@ -97,7 +69,7 @@ def load_configuration_ng(path: Union[str, Path]) -> NGConfiguration:
 
     dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
 
-    return TypeAdapter(NGConfiguration).validate_python(dictionary)
+    return validate_ng_config(dictionary)
 
 
 def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
@@ -141,7 +113,10 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
 
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:
-        # dump configuration
-        yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
+        # dump configuration using mode="json" to ensure enum values are
+        # serialized as plain strings (compatible with yaml.SafeLoader)
+        yaml.dump(
+            config.model_dump(mode="json"), f, default_flow_style=False, sort_keys=False
+        )
 
     return config_path

@@ -22,7 +22,7 @@ from careamics.config.support import (
     SupportedLogger,
 )
 from careamics.config.utils.configuration_io import load_configuration
-from careamics.dataset.dataset_utils import list_files, reshape_array
+from careamics.dataset.dataset_utils import list_files
 from careamics.file_io import WriteFunc, get_write_func
 from careamics.lightning import (
     FCNModule,
@@ -36,6 +36,7 @@ from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.prediction_utils import convert_outputs
 from careamics.utils import check_path_exists, get_logger
 from careamics.utils.lightning_utils import read_csv_logger
+from careamics.utils.reshape_array import reshape_array
 
 logger = get_logger(__name__)
 
@@ -185,7 +186,7 @@ class CAREamist:
 
         # instantiate logger
         csv_logger = CSVLogger(
-            name=self.cfg.experiment_name,
+            name=self.cfg.get_safe_experiment_name(),
             save_dir=self.work_dir / "csv_logs",
         )
 
@@ -193,7 +194,7 @@ class CAREamist:
             if self.cfg.training_config.logger == SupportedLogger.WANDB:
                 experiment_logger: LOGGER_TYPES = [
                     WandbLogger(
-                        name=self.cfg.experiment_name,
+                        name=self.cfg.get_safe_experiment_name(),
                         save_dir=self.work_dir / Path("wandb_logs"),
                     ),
                     csv_logger,
@@ -254,15 +255,18 @@ class CAREamist:
                     "and should not be passed as callbacks."
                 )
 
-        # checkpoint callback saves checkpoints during training
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=self.work_dir / "checkpoints" / self.cfg.get_safe_experiment_name(),
+            filename=f"{self.cfg.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
+            **self.cfg.training_config.checkpoint_callback.model_dump(),
+        )
+        checkpoint_callback.CHECKPOINT_NAME_LAST = (
+            f"{self.cfg.get_safe_experiment_name()}_last"
+        )
         self.callbacks.extend(
             [
                 HyperParametersCallback(self.cfg),
-                ModelCheckpoint(
-                    dirpath=self.work_dir / Path("checkpoints"),
-                    filename=f"{self.cfg.experiment_name}_{{epoch:02d}}_step_{{step}}",
-                    **self.cfg.training_config.checkpoint_callback.model_dump(),
-                ),
+                checkpoint_callback,
             ]
         )
         if enable_progress_bar:
@@ -924,7 +928,7 @@ class CAREamist:
             Paths to the cover images.
         channel_names : list of str, default=None
             Channel names.
-        model_version : str, default="0.1.0"
+        model_version : str, default="0.2.0"
             Version of the model.
         """
         # TODO: add in docs that it is expected that input_array dimensions match
@@ -961,4 +965,6 @@ class CAREamist:
         dict of str: list
             Dictionary containing the losses for each epoch.
         """
-        return read_csv_logger(self.cfg.experiment_name, self.work_dir / "csv_logs")
+        return read_csv_logger(
+            self.cfg.get_safe_experiment_name(), self.work_dir / "csv_logs"
+        )

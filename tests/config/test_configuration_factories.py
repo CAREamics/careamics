@@ -17,6 +17,11 @@ from careamics.config import (
     create_n2v_configuration,
     create_pn2v_configuration,
 )
+from careamics.config.augmentations import (
+    N2VManipulateConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
+)
 from careamics.config.configuration_factories import (
     _create_data_configuration,
     _create_supervised_config_dict,
@@ -28,11 +33,6 @@ from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedStructAxis,
     SupportedTransform,
-)
-from careamics.config.transformations import (
-    N2VManipulateConfig,
-    XYFlipConfig,
-    XYRandomRotate90Config,
 )
 
 

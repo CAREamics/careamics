@@ -5,7 +5,7 @@ from typing import Any
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import Callback
 
-from careamics.config import TrainingConfig
+from careamics.config.ng_configs.ng_training_configuration import NGTrainingConfig
 
 
 class CareamicsCheckpointInfo(Callback):
@@ -21,7 +21,7 @@ class CareamicsCheckpointInfo(Callback):
         Version of CAREamics used for training.
     experiment_name : str
         Name of the experiment.
-    training_config : TrainingConfig
+    training_config : NGTrainingConfig
         Training configuration to store in checkpoint.
 
     Attributes
@@ -30,7 +30,7 @@ class CareamicsCheckpointInfo(Callback):
         Version of CAREamics used for training.
     experiment_name : str
         Name of the experiment.
-    training_config : TrainingConfig
+    training_config : NGTrainingConfig
         Training configuration to store in checkpoint.
     """
 
@@ -38,7 +38,7 @@ class CareamicsCheckpointInfo(Callback):
         self,
         careamics_version: str,
         experiment_name: str,
-        training_config: TrainingConfig,
+        training_config: NGTrainingConfig,
     ):
         """
         Initialize the callback.

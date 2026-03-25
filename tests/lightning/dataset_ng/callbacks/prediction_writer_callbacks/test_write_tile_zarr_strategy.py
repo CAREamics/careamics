@@ -8,20 +8,20 @@ from numpy.typing import NDArray
 
 import careamics.lightning.dataset_ng.callbacks.prediction_writer as pd_writer
 from careamics.config.data import NGDataConfig
-from careamics.dataset.dataset_utils import reshape_array
-from careamics.dataset_ng.dataset import CareamicsDataset, ImageRegionData
-from careamics.dataset_ng.image_stack_loader import load_arrays, load_tiffs, load_zarrs
+from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.dataset_ng.factory import create_dataset
+from careamics.dataset_ng.image_stack_loader import load_arrays, load_tiffs
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patching_strategies import (
     PatchSpecs,
     TileSpecs,
     TilingStrategy,
 )
+from careamics.utils.reshape_array import AxesTransform, reshape_array, restore_array
 
 # to comply with ruff line length
 WriteTilesZarr = pd_writer.write_tiles_zarr_strategy.WriteTilesZarr
 _auto_chunks = pd_writer.write_tiles_zarr_strategy._auto_chunks
-_update_data_shape = pd_writer.write_tiles_zarr_strategy._update_data_shape
 
 # TODO test chunking and sharding errors and handling (e.g. when missing)
 
@@ -159,16 +159,7 @@ def tiles(
         )
         sources.append(arr.store_path)
 
-    if "S" in data_config.axes:
-        if "C" in data_config.axes:
-            shape_with_sc = shape
-        else:
-            shape_with_sc = (shape[0], 1, *shape[1:])
-    else:
-        if "C" in data_config.axes:
-            shape_with_sc = (1, *shape)
-        else:
-            shape_with_sc = (1, 1, *shape)
+    shape_with_sc = AxesTransform(data_config.axes, shape).transformed_shape
 
     tiling_strategy = TilingStrategy(
         data_shapes=[shape_with_sc] * n_data,
@@ -177,15 +168,8 @@ def tiles(
     )
     n_tiles = tiling_strategy.n_patches
 
-    # create patch extractor
-    image_stacks = load_zarrs(source=sources, axes=data_config.axes)
-    patch_extractor = PatchExtractor(image_stacks)
-
     # create dataset
-    dataset = CareamicsDataset(
-        data_config=data_config,
-        input_extractor=patch_extractor,
-    )
+    dataset = create_dataset(config=data_config, inputs=sources, targets=None)
 
     # extract tiles
     tiles: list[ImageRegionData] = []
@@ -199,54 +183,31 @@ def tiles(
 
 
 @pytest.mark.parametrize(
-    "axes, data_shape, expected_shape",
-    [
-        ("YX", (1, 1, 32, 64), (32, 64)),
-        ("ZYX", (1, 1, 8, 32, 64), (8, 32, 64)),
-        ("YXZ", (1, 1, 8, 32, 64), (8, 32, 64)),
-        ("CYX", (1, 3, 32, 64), (3, 32, 64)),
-        ("YXC", (1, 3, 32, 64), (3, 32, 64)),
-        ("CZYX", (1, 3, 32, 64, 64), (3, 32, 64, 64)),
-        ("ZCYX", (1, 3, 32, 64, 64), (3, 32, 64, 64)),
-        ("ZYXC", (1, 3, 32, 64, 64), (3, 32, 64, 64)),
-        ("SCYX", (8, 3, 32, 64), (8, 3, 32, 64)),
-        ("SYXC", (8, 3, 32, 64), (8, 3, 32, 64)),
-        ("SCZYX", (8, 3, 32, 64, 64), (8, 3, 32, 64, 64)),
-        ("SZCYX", (8, 3, 32, 64, 64), (8, 3, 32, 64, 64)),
-        ("ZSYXC", (8, 3, 32, 64, 64), (8, 3, 32, 64, 64)),
-    ],
-)
-def test_update_data_shape(axes, data_shape, expected_shape):
-    new_shape = _update_data_shape(axes, data_shape)
-    assert new_shape == expected_shape
-
-
-@pytest.mark.parametrize(
     "axes, data_shape, expected_chunks",
     [
         # axes are original data, can be STCZYX in any order
         # data_shape is in format SC(Z)YX with potential singleton dimensions
         # expected_chunks is in format SC(Z)YX as data is currently not reshaped
         # simple usual shapes
-        ("YX", (1, 1, 32, 64), (32, 64)),
-        ("YX", (1, 1, 128, 32), (128, 32)),
-        ("ZYX", (1, 1, 32, 64, 64), (1, 64, 64)),
-        ("ZYX", (1, 1, 64, 128, 64), (1, 128, 64)),
-        ("CYX", (1, 5, 64, 64), (1, 64, 64)),
-        ("SYX", (5, 1, 64, 256), (1, 64, 128)),
+        ("YX", (32, 64), (32, 64)),
+        ("YX", (128, 32), (128, 32)),
+        ("ZYX", (32, 64, 64), (1, 64, 64)),
+        ("ZYX", (64, 128, 64), (1, 128, 64)),
+        ("CYX", (5, 64, 64), (1, 64, 64)),
+        ("SYX", (5, 64, 256), (1, 64, 128)),
         ("SCYX", (8, 5, 64, 64), (1, 1, 64, 64)),
         ("SCZYX", (5, 5, 32, 256, 64), (1, 1, 1, 128, 64)),
         # different orders (but YX together)
-        ("YXZ", (1, 1, 32, 64, 64), (1, 64, 64)),
-        ("YXC", (1, 5, 64, 64), (1, 64, 64)),
-        ("SYXZ", (1, 1, 32, 64, 64), (1, 1, 64, 64)),
-        ("CSYX", (8, 5, 64, 64), (1, 1, 64, 64)),
-        ("SZCYX", (8, 5, 512, 256, 64), (1, 1, 1, 128, 64)),
+        ("YXZ", (64, 64, 32), (64, 64, 1)),
+        ("YXC", (64, 64, 3), (64, 64, 1)),
+        ("SYXZ", (4, 64, 64, 32), (1, 64, 64, 1)),
+        ("CSYX", (3, 5, 64, 64), (1, 1, 64, 64)),
+        ("SZCYX", (8, 16, 3, 256, 64), (1, 1, 1, 128, 64)),
         # T dimension
-        ("TYX", (5, 1, 64, 64), (1, 64, 64)),
+        ("TYX", (5, 64, 64), (1, 64, 64)),
         ("TCYX", (5, 3, 64, 64), (1, 1, 64, 64)),
-        ("STYX", (5, 1, 64, 64), (1, 64, 64)),  # S and T together
-        ("STCYX", (5, 3, 256, 64), (1, 1, 128, 64)),
+        ("STYX", (5, 4, 64, 64), (1, 1, 64, 64)),
+        ("STCYX", (5, 4, 3, 256, 64), (1, 1, 1, 128, 64)),
     ],
 )
 def test_auto_chunks(axes, data_shape, expected_chunks):
@@ -318,6 +279,67 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
             expected_array = expected_array.squeeze(axis=1)
         if "S" not in axes:
             expected_array = expected_array.squeeze(axis=0)
+
+        np.testing.assert_allclose(pred_array, expected_array, rtol=1e-5, atol=0)
+
+
+@pytest.mark.parametrize("n_data", [1, 3])
+@pytest.mark.parametrize(
+    "axes, shape, shards, chunks, channels",
+    [
+        ("YXC", (32, 32, 3), (16, 16, 1), (8, 8, 1), None),
+        ("YXC", (32, 32, 3), (16, 16, 1), (8, 8, 1), [1]),
+        ("YXC", (32, 32, 3), (16, 16, 1), (8, 8, 1), [0, 2]),
+        ("YXZ", (32, 32, 16), (16, 16, 8), (8, 8, 4), None),
+        ("STZYX", (5, 4, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), None),
+    ],
+)
+def test_write_tile_restore(tmp_path, tiles, axes, shape, shards, chunks, channels):
+    """Test that `write_tile` correctly restores data to original axes order."""
+    arrays, tiles_list = tiles
+
+    source_set = {tile.source for tile in tiles_list}
+
+    # use writer to write predictions
+    writer = WriteTilesZarr()
+    for region in tiles_list:
+        writer.write_tile(tmp_path, region)
+
+    for src in source_set:
+        filename = Path(src[len("file://") :]).parent.stem
+        array_name = Path(src[len("file://") :]).name
+
+        # check if zarr prediction exists
+        zarr_path = tmp_path / f"{filename}_output.zarr"
+        assert zarr_path.exists()
+
+        # load array and compare with original
+        g = zarr.open(zarr_path, mode="r")
+
+        # check sharding and chunking
+        if shards is not None:
+            assert g[array_name].shards == shards
+        if chunks is not None:
+            assert g[array_name].chunks == chunks
+
+        # pull array
+        pred_array = g[array_name][:]
+        data_idx = int(array_name.split("_")[-1])
+
+        expected_array = arrays[data_idx]
+
+        # apply channel subsetting
+        if channels is not None:
+            expected_array = expected_array[:, channels]
+
+        # compute expected original shape (adjusted for channel subsetting)
+        expected_shape = list(shape)
+        if channels is not None and "C" in axes:
+            c_idx = axes.index("C")
+            expected_shape[c_idx] = len(channels)
+
+        # restore from SC(Z)YX to original axes order
+        expected_array = restore_array(expected_array, axes, tuple(expected_shape))
 
         np.testing.assert_allclose(pred_array, expected_array, rtol=1e-5, atol=0)
 

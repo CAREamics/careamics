@@ -1,17 +1,17 @@
 import pytest
 
+from careamics.config.augmentations import (
+    N2VManipulateConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
+)
 from careamics.config.data import NGDataConfig
-from careamics.config.data.patching_strategies import RandomPatchingConfig
+from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.ng_factories.data_factory import (
     create_ng_data_configuration,
     list_spatial_augmentations,
 )
 from careamics.config.support import SupportedTransform
-from careamics.config.transformations import (
-    N2VManipulateConfig,
-    XYFlipConfig,
-    XYRandomRotate90Config,
-)
 
 
 class TestSpatialAugmentations:
@@ -61,7 +61,7 @@ class TestNGDataConfiguration:
             seed=42,
         )
 
-        assert config.transforms == list_spatial_augmentations(seed=42)
+        assert config.augmentations == list_spatial_augmentations(seed=42)
 
     def test_train_dataloader_params(self):
         """Test that shuffle is added silently to the train_dataloader_params."""
@@ -85,4 +85,4 @@ class TestNGDataConfiguration:
             batch_size=2,
         )
 
-        assert isinstance(config.patching, RandomPatchingConfig)
+        assert isinstance(config.patching, StratifiedPatchingConfig)

@@ -1,3 +1,5 @@
+"""Zero-mean and unit-variance normalization."""
+
 import numpy as np
 import torch
 from numpy.typing import NDArray
@@ -7,11 +9,9 @@ from .utils import broadcast_stats, reshape_stats
 
 
 class MeanStdNormalization(NormalizationProtocol):
-    """
-    Normalize an image or image patch.
+    """Zero-mean and unit-variance normalization.
 
-    Normalization is a zero mean and unit variance. This transform expects C(Z)YX
-    dimensions.
+    The normalization expects arrays of dimensions `C(Z)YX`.
 
     Parameters
     ----------
@@ -34,7 +34,23 @@ class MeanStdNormalization(NormalizationProtocol):
         input_stds: list[float],
         target_means: list[float] | None = None,
         target_stds: list[float] | None = None,
-    ):
+    ) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        input_means : list[float]
+            Mean values (length 1 for global, multiple values for per channel).
+        input_stds : list[float]
+            Standard deviation values (length 1 for global,
+            multiple values for per channel).
+        target_means : list[float] | None, optional
+            Target mean values (length 1 for global,
+            multiple values for per channel), by default None.
+        target_stds : list[float] | None, optional
+            Target standard deviation values (length 1 for global,
+            multiple values for per channel), by default None.
+        """
         self.input_means = input_means
         self.input_stds = input_stds
         self.target_means = target_means
@@ -51,14 +67,14 @@ class MeanStdNormalization(NormalizationProtocol):
 
         Parameters
         ----------
-        patch : NDArray
+        patch : numpy.ndarray
             Patch, 2D or 3D, shape C(Z)YX.
-        target : NDArray, optional
+        target : numpy.ndarray, optional
             Target for the patch, by default None.
 
         Returns
         -------
-        tuple of NDArray
+        tuple of numpy.ndarray
             Transformed patch and target, the target can be returned as `None`.
         """
         n_channels = patch.shape[0]
@@ -124,9 +140,9 @@ class MeanStdNormalization(NormalizationProtocol):
         ----------
         array : torch.Tensor
             Image patch, 2D or 3D, shape BC(Z)YX.
-        mean : NDArray
+        mean : numpy.ndarray
             Mean values.
-        std : NDArray
+        std : numpy.ndarray
             Standard deviations.
 
         Returns

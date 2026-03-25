@@ -33,7 +33,7 @@ class TestStandardConfig:
             batch_size=8,
             augmentations=[],
         )
-        assert config.data_config.transforms == []
+        assert config.data_config.augmentations == []
 
     def test_num_epochs_and_num_steps(self):
         """Test that both num_epochs and num_steps can be set simultaneously."""
@@ -49,13 +49,8 @@ class TestStandardConfig:
             num_epochs=num_epochs,
             num_steps=num_steps,
         )
-        assert (
-            config.training_config.lightning_trainer_config["max_epochs"] == num_epochs
-        )
-        assert (
-            config.training_config.lightning_trainer_config["limit_train_batches"]
-            == num_steps
-        )
+        assert config.training_config.trainer_params["max_epochs"] == num_epochs
+        assert config.training_config.trainer_params["limit_train_batches"] == num_steps
 
 
 class TestAdvancedCAREConfig:

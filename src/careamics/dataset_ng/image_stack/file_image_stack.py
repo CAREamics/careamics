@@ -1,3 +1,5 @@
+"""ImageStack implementation for file-backed data."""
+
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Self
@@ -6,18 +8,40 @@ import numpy as np
 import tifffile
 from numpy.typing import DTypeLike, NDArray
 
-from careamics.dataset.dataset_utils import reshape_array
 from careamics.file_io.read import ReadFunc, read_tiff
+from careamics.utils.reshape_array import AxesTransform, reshape_array
 
-from .image_utils.image_stack_utils import channel_slice, pad_patch, reshape_array_shape
+from .image_utils.image_stack_utils import channel_slice, pad_patch
 
 
 class FileImageStack:
     """
-    An ImageStack implementation for data that is coming from a file.
+    ImageStack implementation for file-backed data.
 
-    The data will not be loaded until the `load` method is called. The `close` method
-    can be used to remove the internal reference to the data.
+    This implementation is aimed at representing a single file from a set of multi-file
+    datasets, where the entire dataset cannot be loaded into memory at once.
+
+    Parameters
+    ----------
+    source : Path
+        Path to the file.
+    axes : str
+        Axis order (e.g. STCZYX).
+    data_shape : tuple of int
+        Shape in SC(Z)YX order.
+    data_dtype : numpy.DTypeLike
+        Type of the data.
+    read_func : ReadFunc
+        Function to read the file into an array.
+    read_kwargs : dict or Any, optional
+        Extra keyword arguments for `read_func`.
+    original_data_shape : tuple of int or None, optional
+        Shape in original axis order.
+
+    Notes
+    -----
+    The data will not be loaded until the `load` method is called. The `close`
+    method can be used to remove the internal reference to the data.
     """
 
     def __init__(
@@ -30,6 +54,30 @@ class FileImageStack:
         read_kwargs: dict[str, Any] | Any = None,
         original_data_shape: tuple[int, ...] | None = None,
     ):
+        """Constructor.
+
+        This implementation is aimed at representing a single file from a set of
+        multi-file datasets, where the entire dataset cannot be loaded into memory at
+        once. The data is therefore only loaded when the `load` method is called, and
+        internal reference is deleted upon calling the `close` method.
+
+        Parameters
+        ----------
+        source : Path
+            Path to the file.
+        axes : str
+            Axis order (e.g. STCZYX).
+        data_shape : tuple of int
+            Shape in SC(Z)YX order after transformation.
+        data_dtype : numpy.DTypeLike
+            Type of the data.
+        read_func : ReadFunc
+            Function to read the file into an array.
+        read_kwargs : dict or Any, optional
+            Extra keyword arguments passed to `read_func`.
+        original_data_shape : tuple of int or None, optional
+            Shape in original axis order before transformation.
+        """
         self.source = source
         self.axes = axes
         self.data_shape = data_shape
@@ -48,6 +96,24 @@ class FileImageStack:
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
+        """Extract a patch for a given sample and channels within the image stack.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Sample index.
+        channels : sequence of int or None
+            Channel indices to extract. If `None`, all channels will be extracted.
+        coords : sequence of int
+            Spatial coordinates of the top-left corner of the patch.
+        patch_size : sequence of int
+            Size of the patch in each spatial dimension.
+
+        Returns
+        -------
+        numpy.ndarray
+            A patch of the image data from a particular sample with dimensions C(Z)YX.
+        """
         if self._data is None:
             raise ValueError(
                 "Cannot extract patch because data has not been loaded from "
@@ -103,16 +169,35 @@ class FileImageStack:
 
     @property
     def is_loaded(self):
+        """True if the file has been loaded into memory.
+
+        Returns
+        -------
+        bool
+            True if the file has been loaded into memory, False otherwise.
+        """
         return self._data is not None
 
     @property
     def original_data_shape(self) -> tuple[int, ...]:
-        """Original shape of the data."""
+        """Original shape of the data.
+
+        Returns
+        -------
+        tuple of int
+            Shape in original axis order.
+        """
         return self._original_data_shape
 
     @property
     def original_axes(self) -> str:
-        """Original axes of the data."""
+        """Original axes of the data.
+
+        Returns
+        -------
+        str
+            Axis order string (e.g. STCZYX).
+        """
         return self.axes
 
     @classmethod
@@ -139,7 +224,7 @@ class FileImageStack:
         # TODO: think this is correct but need more examples to test
         file = tifffile.TiffFile(path)
         original_data_shape = file.series[0].shape
-        data_shape = reshape_array_shape(axes, original_data_shape)
+        data_shape = AxesTransform(axes, original_data_shape).transformed_shape
         dtype = file.series[0].dtype
         return cls(
             source=path,
