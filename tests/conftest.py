@@ -538,7 +538,6 @@ def checkpoint(
             normalization_params={"input_means": [0.5], "input_stds": [0.3]},
             num_workers=0,
             num_steps=1,
-            n_val_patches=1,
         )
         data = {"train_data": train_data, "val_data": val_data}
 

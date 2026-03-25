@@ -199,8 +199,16 @@ def np_float_to_scientific_str(x: float) -> str:
 def get_default_num_workers() -> int:
     """Return the default number of dataloader workers for the current platform.
 
-    Returns 0 for pytest, Windows, and macOS. On Linux, returns `min(cpu_count - 1, 4)`
-    to leave one core free (e.g. for a Qt event loop) while capping parallelism at 4.
+    Defaults by platform (benchmarked on BSD68, may need revisiting for larger datasets
+    or more performant machines):
+    - pytest: 0 - avoids multiprocessing overhead in tests.
+    - Windows: 0 - multiprocessing with spawn is unreliable in dataloaders.
+    - macOS: 0 - spawn-based worker init causes ~1 min startup hang even for a
+      small number of workers, the throughput gain does not justify the wait.
+    - Linux: min(cpu_count - 1, 4) - one core is left free to keep the UI
+      responsive when training inside napari. Performance gains plateau around 4
+      workers, so we cap there to avoid wasting resources.
+
 
     Returns
     -------

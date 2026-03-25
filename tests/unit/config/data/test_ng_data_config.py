@@ -1,6 +1,7 @@
 """Unit tests for the NGDataConfig Pydantic model."""
 
 import itertools
+import os
 import sys
 from collections.abc import Callable
 from contextlib import nullcontext
@@ -14,6 +15,7 @@ from careamics.config.data.ng_data_config import (
     _are_spatial_dims_maintained,
     _validate_channel_conversion,
     default_in_memory,
+    get_default_num_workers,
 )
 
 # Notes:
@@ -986,3 +988,28 @@ class TestConvertMode:
         converted_cfg = cfg.convert_mode(mode)
         assert converted_cfg.patch_filter is None
         assert converted_cfg.coord_filter is None
+
+
+class TestGetDefaultNumWorkers:
+
+    def test_returns_0_in_pytest(self):
+        """Test that get_default_num_workers returns 0 when running under pytest."""
+        assert get_default_num_workers() == 0
+
+    @pytest.mark.parametrize(
+        "platform, expected",
+        [
+            ("Linux", min((os.cpu_count() or 1) - 1, 4)),
+            ("Windows", 0),
+            ("Darwin", 0),
+        ],
+    )
+    def test_returns_expected_per_platform(
+        self, monkeypatch: pytest.MonkeyPatch, platform: str, expected: int
+    ):
+        """Test that each platform returns the correct number of workers."""
+        monkeypatch.setattr(
+            "careamics.config.data.ng_data_config.platform.system", lambda: platform
+        )
+        monkeypatch.delitem(sys.modules, "pytest")
+        assert get_default_num_workers() == expected

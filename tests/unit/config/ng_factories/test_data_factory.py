@@ -1,6 +1,3 @@
-import os
-import sys
-
 import pytest
 
 from careamics.config.augmentations import (
@@ -9,7 +6,6 @@ from careamics.config.augmentations import (
     XYRandomRotate90Config,
 )
 from careamics.config.data import NGDataConfig
-from careamics.config.data.ng_data_config import get_default_num_workers
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.ng_factories.data_factory import (
     create_ng_data_configuration,
@@ -104,36 +100,3 @@ class TestNGDataConfiguration:
         assert config.train_dataloader_params["num_workers"] == 4
         assert config.val_dataloader_params["num_workers"] == 4
         assert config.pred_dataloader_params["num_workers"] == 4
-
-    def test_get_default_num_workers_in_pytest(self):
-        """Test that get_default_num_workers returns 0 when running under pytest."""
-        assert get_default_num_workers() == 0
-
-    def test_get_default_num_workers_linux(self, monkeypatch: pytest.MonkeyPatch):
-        """Test that Linux returns min(cpu_count - 1, 4)."""
-        expected = min((os.cpu_count() or 1) - 1, 4)
-        monkeypatch.setattr(
-            "careamics.config.data.ng_data_config.platform.system", lambda: "Linux"
-        )
-        monkeypatch.delitem(sys.modules, "pytest")
-        assert get_default_num_workers() == expected
-
-    def test_get_default_num_workers_windows_returns_0(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        """Test that Windows returns 0."""
-        monkeypatch.setattr(
-            "careamics.config.data.ng_data_config.platform.system", lambda: "Windows"
-        )
-        monkeypatch.delitem(sys.modules, "pytest")
-        assert get_default_num_workers() == 0
-
-    def test_get_default_num_workers_macos_returns_0(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        """Test that macOS always returns 0 (worker startup overhead not worth it)."""
-        monkeypatch.setattr(
-            "careamics.config.data.ng_data_config.platform.system", lambda: "Darwin"
-        )
-        monkeypatch.delitem(sys.modules, "pytest")
-        assert get_default_num_workers() == 0
