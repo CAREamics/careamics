@@ -364,12 +364,12 @@ class CAREamistV2:
         if enable_progress_bar:
             internal_callbacks.append(ProgressBarCallback())
 
-        if config.training_config.early_stopping_params is not None:
-            internal_callbacks.append(
-                EarlyStopping(
-                    **config.training_config.early_stopping_params
-                )
-            )
+        # if config.training_config.early_stopping_params is not None:
+        #     internal_callbacks.append(
+        #         EarlyStopping(
+        #             **config.training_config.early_stopping_params
+        #         )
+        #     )
 
         return internal_callbacks + callbacks
 
