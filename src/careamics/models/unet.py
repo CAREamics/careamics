@@ -119,17 +119,6 @@ class UnetEncoder(nn.Module):
             Output of each encoder block (skip connections) and final output of the
             encoder.
         """
-        factor = 10.0
-        stack: torch.Tensor = None
-        for i in range(10):
-            scale = x.clone() * (factor ** (-i))
-            scale = torch.sin(scale)
-            if stack is None:
-                stack = scale
-            else:
-                stack = torch.cat((stack, scale), 1)
-
-        x = stack
         encoder_features = []
         for module in self.encoder_blocks:
             x = module(x)
@@ -417,7 +406,7 @@ class UNet(nn.Module):
 
         self.encoder = UnetEncoder(
             conv_dims,
-            in_channels=in_channels,
+            in_channels=in_channels * 10,
             depth=depth,
             num_channels_init=num_channels_init,
             use_batch_norm=use_batch_norm,
@@ -460,6 +449,18 @@ class UNet(nn.Module):
             Output of the model.
         """
         input_tensor = x.clone()
+
+        factor = 10.0
+        stack: torch.Tensor = None
+        for i in range(10):
+            scale = x.clone() * (factor ** (-i))
+            scale = torch.sin(scale)
+            if stack is None:
+                stack = scale
+            else:
+                stack = torch.cat((stack, scale), 1)
+
+        x = stack
 
         encoder_features = self.encoder(x)
         x = self.decoder(*encoder_features)
