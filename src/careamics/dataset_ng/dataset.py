@@ -145,8 +145,8 @@ def _patch_size_within_data_shapes(
 def _check_all_spatial_dims(data_shapes: Sequence[Sequence[int]]) -> bool:
     """Return True if all spatial dims comply with the requirements.
 
-    YX dimensions must be even and be greate or equal than 16. Z dimenstion must be
-    even and be greater or equal than 4.
+    YX dimensions must be even and greater or equal than 16. Z dimension must be
+    even and greater or equal than 4.
 
     Parameters
     ----------
