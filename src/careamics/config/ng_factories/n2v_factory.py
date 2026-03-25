@@ -333,7 +333,7 @@ def create_advanced_n2v_config(
     struct_n2v_span : int, default=5
         Span of the structN2V mask.
     num_workers : int, default=-1
-        Number of workers for data loading. Use ``-1`` to automatically choose based
+        Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
         `train_dataloader_params` and `val_dataloader_params`, this will be applied to
         all dataloaders.
