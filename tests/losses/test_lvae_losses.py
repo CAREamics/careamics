@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
 from contextlib import nullcontext as does_not_raise
-from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -25,13 +23,12 @@ from careamics.losses.lvae.losses import (
     _compute_gaussian_log_likelihood,
     _compute_noise_model_log_likelihood,
     get_kl_divergence_loss,
-    get_reconstruction_loss,
     microsplit_loss,
 )
 from careamics.models.lvae.noise_models import multichannel_noise_model_factory
 
 if TYPE_CHECKING:
-    from careamics.models.lvae.noise_models import MultiChannelNoiseModel
+    pass
 
 pytestmark = pytest.mark.lvae
 
@@ -214,7 +211,9 @@ def test_microsplit_loss_musplit_mode(batch_size, target_ch, n_layers, enable_lc
 @pytest.mark.parametrize("target_ch", [1, 3])
 @pytest.mark.parametrize("predict_logvar", [False, True])
 @pytest.mark.parametrize("n_layers", [1, 4])
-def test_microsplit_loss_denoisplit_mode(tmp_path, batch_size, target_ch, predict_logvar, n_layers):
+def test_microsplit_loss_denoisplit_mode(
+    tmp_path, batch_size, target_ch, predict_logvar, n_layers
+):
     """Pure denoisplit mode. predict_logvar=True validates the P0 chunking fix."""
     img_size = 32
     inp_ch = target_ch * (2 if predict_logvar else 1)
@@ -307,9 +306,9 @@ def test_equiv_gaussian_log_likelihood(predict_logvar, logvar_lowerbound):
         log_prob = -0.5 * (reconstruction - target) ** 2
     legacy_loss = -log_prob.mean()
 
-    assert torch.isclose(new_loss, legacy_loss, rtol=1e-5, atol=1e-6), (
-        f"Gaussian LL mismatch: new={new_loss.item():.6f} legacy={legacy_loss.item():.6f}"
-    )
+    assert torch.isclose(
+        new_loss, legacy_loss, rtol=1e-5, atol=1e-6
+    ), f"Gaussian LL mismatch: new={new_loss.item():.6f} legacy={legacy_loss.item():.6f}"
 
 
 def test_equiv_noise_model_log_likelihood(tmp_path):
@@ -335,9 +334,9 @@ def test_equiv_noise_model_log_likelihood(tmp_path):
     target_denorm = target * ds + dm
     legacy_loss = -torch.log(nm.likelihood(target_denorm, pred_denorm)).mean()
 
-    assert torch.isclose(new_loss, legacy_loss, rtol=1e-5, atol=1e-6), (
-        f"NM LL mismatch: new={new_loss.item():.6f} legacy={legacy_loss.item():.6f}"
-    )
+    assert torch.isclose(
+        new_loss, legacy_loss, rtol=1e-5, atol=1e-6
+    ), f"NM LL mismatch: new={new_loss.item():.6f} legacy={legacy_loss.item():.6f}"
 
 
 @pytest.mark.parametrize("kl_weight", [0.5, 1.0])
@@ -385,9 +384,9 @@ def test_equiv_musplit_loss(kl_weight):
     )
     legacy_net = legacy_recons + legacy_kl
 
-    assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
-        f"musplit mismatch: new={new_output['loss'].item():.6f} legacy={legacy_net.item():.6f}"
-    )
+    assert torch.isclose(
+        new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5
+    ), f"musplit mismatch: new={new_output['loss'].item():.6f} legacy={legacy_net.item():.6f}"
 
 
 def test_equiv_denoisplit_loss(tmp_path):
@@ -439,9 +438,9 @@ def test_equiv_denoisplit_loss(tmp_path):
     )
     legacy_net = legacy_recons + legacy_kl
 
-    assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
-        f"denoisplit mismatch: new={new_output['loss'].item():.6f} legacy={legacy_net.item():.6f}"
-    )
+    assert torch.isclose(
+        new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5
+    ), f"denoisplit mismatch: new={new_output['loss'].item():.6f} legacy={legacy_net.item():.6f}"
 
 
 def test_equiv_denoisplit_musplit_loss(tmp_path):
@@ -510,6 +509,6 @@ def test_equiv_denoisplit_musplit_loss(tmp_path):
     legacy_kl = denoisplit_w * denoisplit_kl + musplit_w * musplit_kl
     legacy_net = legacy_recons + legacy_kl
 
-    assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
-        f"combined mismatch: new={new_output['loss'].item():.6f} legacy={legacy_net.item():.6f}"
-    )
+    assert torch.isclose(
+        new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5
+    ), f"combined mismatch: new={new_output['loss'].item():.6f} legacy={legacy_net.item():.6f}"

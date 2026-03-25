@@ -130,9 +130,7 @@ def multichannel_noise_model_factory(
             if nm.model_type == "GaussianMixtureNoiseModel":
                 noise_models.append(GaussianMixtureNoiseModel(nm))
             else:
-                raise NotImplementedError(
-                    f"Model {nm.model_type} is not implemented"
-                )
+                raise NotImplementedError(f"Model {nm.model_type} is not implemented")
         return MultiChannelNoiseModel(noise_models)
     return None
 

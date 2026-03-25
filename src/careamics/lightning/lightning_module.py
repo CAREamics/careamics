@@ -15,7 +15,6 @@ from careamics.config import (
     algorithm_factory,
 )
 from careamics.config.data.tile_information import TileInformation
-from careamics.config.noise_model import MultiChannelNMConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,

@@ -1908,8 +1908,6 @@ def create_microsplit_configuration(
         kl_params=KLLossConfig(),
     )
 
-
-
     # Create the LVAE model
     network_model = _create_vae_configuration(
         input_shape=patch_size,
