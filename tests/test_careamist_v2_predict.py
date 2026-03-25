@@ -394,3 +394,31 @@ def test_predict_with_checkpoint_gpu(tmp_path: Path):
 
     assert predicted[0].shape == train_array.shape
     assert next(careamist.model.parameters()).device.type == "cuda"
+
+
+@pytest.mark.mps_gh_fail
+def test_get_checkpoints_no_validation(tmp_path: Path):
+    """Test get_checkpoints works when training without validation."""
+    train_array = random_array((32, 32), seed=42)
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=3,
+        n_val_patches=0,
+        monitor_metric="train_loss_epoch",
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array)
+
+    checkpoints = careamist.get_checkpoints()
+
+    assert len(checkpoints) > 0
+    assert all(isinstance(name, str) for name in checkpoints)
+    assert all(name.endswith(".ckpt") for name in checkpoints)
