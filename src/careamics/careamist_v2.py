@@ -1123,12 +1123,12 @@ class CAREamistV2:
             self.work_dir / "csv_logs",
         )
 
-        header = f"{'Epoch':>8}  {'Val Loss':>12}  Name"
+        header = f"{'Epoch':>8}  {'Monitored Val':>14}  Name"
         print(header)
         print("-" * len(header))
         for ckpt in info:
             epoch_str = str(ckpt["epoch"]) if ckpt["epoch"] is not None else "last"
-            loss_str = f"{ckpt['val_loss']:.6f}" if ckpt["val_loss"] is not None else "N/A"
-            print(f"{epoch_str:>8}  {loss_str:>12}  {ckpt['name']}")
+            val_str = f"{ckpt['monitored_val']:.6f}" if ckpt["monitored_val"] is not None else "N/A"
+            print(f"{epoch_str:>8}  {val_str:>12}  {ckpt['name']}")
 
         return [ckpt["name"] for ckpt in info]

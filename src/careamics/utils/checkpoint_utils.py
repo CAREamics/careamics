@@ -11,7 +11,7 @@ class CheckpointInfo(TypedDict):
 
     name: str
     epoch: int | None
-    val_loss: float | None
+    monitored_val: float | None
     path: Path
 
 
@@ -35,7 +35,7 @@ def get_checkpoint_info(
     -------
     list of CheckpointInfo
         Each entry contains "name" (str), "epoch" (int or None),
-        "val_loss" (float or None), and "path" (Path). Epoch-based
+        "monitored_val" (float or None), and "path" (Path). Epoch-based
         checkpoints are sorted by epoch number, with the last checkpoint
         appended at the end.
     """
@@ -55,7 +55,7 @@ def get_checkpoint_info(
             last_checkpoint = CheckpointInfo(
                 name=ckpt_path.name,
                 epoch=None,
-                val_loss=None,
+                monitored_val=None,
                 path=ckpt_path,
             )
             continue
@@ -70,7 +70,7 @@ def get_checkpoint_info(
             CheckpointInfo(
                 name=ckpt_path.name,
                 epoch=epoch,
-                val_loss=epoch_to_loss.get(epoch),
+                monitored_val=epoch_to_loss.get(epoch),
                 path=ckpt_path,
             )
         )

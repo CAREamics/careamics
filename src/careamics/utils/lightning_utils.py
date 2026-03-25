@@ -71,7 +71,7 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
 
 
 def _epoch_to_val_loss(losses: dict) -> dict[int, float]:
-    """Return a mapping of epoch number to validation loss.
+    """Return a mapping of epoch number to monitored validation value.
 
     Parameters
     ----------
@@ -82,6 +82,9 @@ def _epoch_to_val_loss(losses: dict) -> dict[int, float]:
     Returns
     -------
     dict of int: float
-        Mapping from epoch number to validation loss.
+        Mapping from epoch number to monitored value. Returns an empty
+        dict if "val_loss" is not present in the losses dictionary.
     """
+    if "val_loss" not in losses or "val_epoch" not in losses:
+        return {}
     return dict(zip(losses["val_epoch"], losses["val_loss"], strict=False))
