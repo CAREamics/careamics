@@ -536,6 +536,8 @@ def checkpoint(
             masked_pixel_percentage=0.4,
             normalization="mean_std",
             normalization_params={"input_means": [0.5], "input_stds": [0.3]},
+            num_workers=0,
+            num_steps=1,
         )
         data = {"train_data": train_data, "val_data": val_data}
 

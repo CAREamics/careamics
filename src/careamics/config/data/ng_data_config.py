@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import sys
 from collections.abc import Sequence
 from pprint import pformat
@@ -195,6 +196,37 @@ def np_float_to_scientific_str(x: float) -> str:
     return np.format_float_scientific(x, precision=7)
 
 
+def get_default_num_workers() -> int:
+    """Return the default number of dataloader workers for the current platform.
+
+    Defaults by platform (benchmarked on BSD68, may need revisiting for larger datasets
+    or more performant machines):
+    - pytest: 0 - avoids multiprocessing overhead in tests.
+    - Windows: 0 - multiprocessing with spawn is unreliable in dataloaders.
+    - macOS: 0 - spawn-based worker init causes ~1 min startup hang even for a
+      small number of workers, the throughput gain does not justify the wait.
+    - Linux: min(cpu_count - 1, 4) - one core is left free to keep the UI
+      responsive when training inside napari. Performance gains plateau around 4
+      workers, so we cap there to avoid wasting resources.
+
+
+    Returns
+    -------
+    int
+        Default number of dataloader workers.
+    """
+    if "pytest" in sys.modules:
+        return 0
+
+    if platform.system() in ("Windows", "Darwin"):
+        return 0
+
+    max_workers = 4
+    available_workers = os.cpu_count() or 0
+    available_workers = max(0, available_workers - 1)
+    return min(available_workers, max_workers)
+
+
 Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type=str)]
 """Annotated float type, used to serialize floats to strings."""
 
@@ -331,6 +363,11 @@ class NGDataConfig(BaseModel):
 
     pred_dataloader_params: dict[str, Any] = Field(default={})
     """Dictionary of PyTorch prediction dataloader parameters."""
+
+    num_workers: int = Field(default_factory=get_default_num_workers, ge=0)
+    """Default number of workers for all dataloaders that do not explicitly set
+    `num_workers`. Automatically detected based on the current platform:
+    0 on Windows and macOS, `min(cpu_count - 1, 4)` on Linux."""
 
     seed: int = Field(default_factory=generate_random_seed, gt=0)
     """Random seed for reproducibility. If not specified, a random seed is generated."""
@@ -767,52 +804,57 @@ class NGDataConfig(BaseModel):
             dataloader_params["pin_memory"] = torch.cuda.is_available()
         return dataloader_params
 
-    @field_validator("train_dataloader_params", mode="before")
-    @classmethod
-    def set_default_train_workers(
-        cls, dataloader_params: dict[str, Any]
-    ) -> dict[str, Any]:
-        """
-        Set default num_workers for training dataloader if not provided.
-
-        - If 'num_workers' is not set, it defaults to the number of available CPU cores.
-
-        Parameters
-        ----------
-        dataloader_params : dict of {str: Any}
-            The training dataloader parameters.
-
-        Returns
-        -------
-        dict of {str: Any}
-            The dataloader parameters with num_workers default applied.
-        """
-        if "num_workers" not in dataloader_params:
-            # Use 0 workers during tests, otherwise use all available CPU cores
-            if "pytest" in sys.modules:
-                dataloader_params["num_workers"] = 0
-            else:
-                dataloader_params["num_workers"] = os.cpu_count()
-
-        return dataloader_params
-
     @model_validator(mode="after")
-    def set_val_workers_to_match_train(self: Self) -> Self:
-        """
-        Set validation dataloader num_workers to match training dataloader.
+    def warn_inconsistent_num_workers(self: Self) -> Self:
+        """Warn if `num_workers` conflicts with a per-dataloader value.
 
-        If num_workers is not specified in val_dataloader_params, it will be set to the
-        same value as train_dataloader_params["num_workers"].
+        This validator runs before ``set_default_workers_in_dataloaders``, so
+        the dataloader dicts only contain user-supplied values at this point.
+        Only fires when `num_workers` was explicitly set on the model.
 
         Returns
         -------
         Self
-            Validated data model with synchronized num_workers.
+            Unchanged data model.
         """
-        if "num_workers" not in self.val_dataloader_params:
-            self.val_dataloader_params["num_workers"] = self.train_dataloader_params[
-                "num_workers"
-            ]
+        if "num_workers" not in self.model_fields_set:
+            return self
+        for name, params in (
+            ("train_dataloader_params", self.train_dataloader_params),
+            ("val_dataloader_params", self.val_dataloader_params),
+            ("pred_dataloader_params", self.pred_dataloader_params),
+        ):
+            if "num_workers" in params and params["num_workers"] != self.num_workers:
+                print(
+                    f"Warning: `num_workers={self.num_workers}` conflicts with "
+                    f"`{name}['num_workers']={params['num_workers']}`. "
+                    f"The per-dataloader value takes precedence."
+                )
+        return self
+
+    @model_validator(mode="after")
+    def set_default_workers_in_dataloaders(self: Self) -> Self:
+        """Set `num_workers` and `persistent_workers` defaults in all dataloaders.
+
+        For each of `train_dataloader_params`, `val_dataloader_params`, and
+        `pred_dataloader_params`: sets `num_workers` from the `num_workers`
+        field if not already present, and sets ``persistent_workers=True`` when
+        ``num_workers > 0`` and not already specified.
+
+        Returns
+        -------
+        Self
+            Validated data model with worker defaults applied to all dataloaders.
+        """
+        for params in (
+            self.train_dataloader_params,
+            self.val_dataloader_params,
+            self.pred_dataloader_params,
+        ):
+            if "num_workers" not in params:
+                params["num_workers"] = self.num_workers
+            if "persistent_workers" not in params and params["num_workers"] > 0:
+                params["persistent_workers"] = True
         return self
 
     def __str__(self) -> str:
