@@ -11,15 +11,18 @@ from careamics.config.losses.loss_config import LVAELossConfig
 
 MICROSPLIT = "MicroSplit"
 
-MICROSPLIT_DESCRIPTION = """MicroSplit is a self-supervised deep learning method for
-microscopy image splitting that combines the strengths of both denoising and
-representation learning approaches."""
+MICROSPLIT_DESCRIPTION = (
+    "A computational multiplexing technique based on deep learning that allows multiple"
+    " cellular structures to be imaged in a single fluorescent channel and then unmix "
+    "them by computational means, allowing faster imaging and reduced photon exposure."
+)
 
 MICROSPLIT_REF = CiteEntry(
-    text='Prakash, M., Delbracio, M., Milanfar, P., Jug, F. 2022. "Interpretable '
-    'Unsupervised Diversity Denoising and Artefact Removal." The International '
-    "Conference on Learning Representations (ICLR).",
-    doi="10.1561/2200000056",
+    text=(
+        'Ashesh, et al. "MicroSplit: Semantic Unmixing of Fluorescent Microscopy '
+        'Data.", Nat. Methods (2026).'
+    ),
+    doi="10.1101/2025.02.10.637323 ",
 )
 
 
