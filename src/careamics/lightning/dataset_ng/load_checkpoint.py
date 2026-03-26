@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Any
 
 import torch
-from pydantic import TypeAdapter
 
-from careamics.config.ng_configs import N2VConfiguration, NGConfiguration
+from careamics.config.ng_configs import NGConfiguration
 from careamics.config.ng_configs.ng_configuration import AlgorithmConfig
+from careamics.config.ng_factories.ng_config_discriminator import validate_ng_config
 from careamics.config.support import SupportedAlgorithm
 
 from .lightning_modules import CAREModule, N2VModule
@@ -107,19 +107,12 @@ def load_config_from_checkpoint(
             f"checkpoint at: {checkpoint_path}."
         ) from e
 
-    # NOTE: it is important for subclasses to appear first in the Union
-    # type adapter will check each class until one fits
-    type_adapter: TypeAdapter[NGConfiguration[AlgorithmConfig]] = TypeAdapter(
-        N2VConfiguration | NGConfiguration
-    )
-    config = type_adapter.validate_python(
-        {
-            "algorithm_config": algorithm_config,
-            "data_config": data_config,
-            **careamics_info,
-        }
-    )
-    return config
+    config_dict = {
+        "algorithm_config": algorithm_config,
+        "data_config": data_config,
+    }
+    config_dict.update(careamics_info)
+    return validate_ng_config(config_dict)
 
 
 def _create_loaded_exp_name(checkpoint_path: Path):

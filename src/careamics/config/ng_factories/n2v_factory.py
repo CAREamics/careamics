@@ -221,7 +221,7 @@ def create_advanced_n2v_config(
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
     # - Lightning parameters
-    num_workers: int = 0,
+    num_workers: int = -1,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -332,8 +332,9 @@ def create_advanced_n2v_config(
         Axis along which to apply structN2V mask.
     struct_n2v_span : int, default=5
         Span of the structN2V mask.
-    num_workers : int, default=0
-        Number of workers for data loading. Unless explicitly overridden in
+    num_workers : int, default=-1
+        Number of workers for data loading. Use `-1` to automatically choose based
+        on the number of available CPUs. Unless explicitly overridden in
         `train_dataloader_params` and `val_dataloader_params`, this will be applied to
         all dataloaders.
     trainer_params : dict | None, default=None
@@ -485,9 +486,11 @@ def create_advanced_n2v_config(
         num_steps=num_steps,
     )
     training_params = create_training_configuration(
+        algorithm="n2v",
         trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
+        monitor_metric=monitor_metric,
     )
 
     algorithm_config = N2VAlgorithm(**algorithm_params)
