@@ -132,5 +132,4 @@ tiled_predictions = trainer.predict(
 # --8<-- [end:predict_to_disk]
 from pathlib import Path
 
-assert (Path("predictions") / "train.tiff").exists()
-# assert (Path("predictions") / train )
+assert (Path(__file__).parent / "predictions" / "train.tiff").exists()
