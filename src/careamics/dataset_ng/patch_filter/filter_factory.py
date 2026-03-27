@@ -41,7 +41,9 @@ def create_patch_filter(filter_model: FilterConfig) -> PatchFilter:
     """
     if filter_model.name == SupportedPatchFilters.MAX:
         assert isinstance(filter_model, MaxFilterConfig)
-        return MaxPatchFilter(threshold=filter_model.threshold)
+        return MaxPatchFilter(
+            threshold=filter_model.threshold, coverage=filter_model.coverage
+        )
     elif filter_model.name == SupportedPatchFilters.MEANSTD:
         assert isinstance(filter_model, MeanSTDFilterConfig)
         return MeanStdPatchFilter(

@@ -36,7 +36,7 @@ def test_filter_background(
     data[data_idx][sample_idx] *= 0.01
 
     # set up components
-    patch_filter = MaxPatchFilter(threshold=0.8, threshold_ratio=0.75)
+    patch_filter = MaxPatchFilter(threshold=0.8, coverage=0.75)
     patch_extractor = init_patch_extractor(PatchExtractor, load_arrays, data, axes)
     patching = StratifiedPatchingStrategy(
         patch_extractor.shapes, patch_size=patch_size, seed=42

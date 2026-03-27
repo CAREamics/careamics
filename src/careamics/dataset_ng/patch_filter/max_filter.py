@@ -22,7 +22,7 @@ class MaxPatchFilter(PatchFilterProtocol):
     ----------
     threshold : float
         Maximum-filter threshold; patches below are filtered out.
-    threshold_ratio : float, default=0.25
+    coverage : float, default=0.25
         Ratio of pixels below threshold to filter out (0-1).
 
     Attributes
@@ -34,7 +34,7 @@ class MaxPatchFilter(PatchFilterProtocol):
     def __init__(
         self,
         threshold: float,
-        threshold_ratio: float = 0.25,
+        coverage: float = 0.25,
     ) -> None:
         """Create a MaxPatchFilter. Removes patches below max-filter threshold.
 
@@ -42,11 +42,11 @@ class MaxPatchFilter(PatchFilterProtocol):
         ----------
         threshold : float
             Maximum-filter threshold.
-        threshold_ratio : float, default=0.25
+        coverage : float, default=0.25
             Ratio of pixels below threshold to filter out (0-1).
         """
         self.threshold = threshold
-        self.threshold_ratio = threshold_ratio
+        self.coverage = coverage
 
     def filter_out(self, patch: np.ndarray) -> bool:
         """Return True if patch should be filtered out by max-filter criteria.
@@ -66,7 +66,7 @@ class MaxPatchFilter(PatchFilterProtocol):
 
         patch_shape = [(p // 2 if p > 1 else 1) for p in patch.shape]
         filtered = maximum_filter(patch, patch_shape, mode="constant")
-        return (np.mean(filtered < self.threshold) > self.threshold_ratio).item()
+        return (np.mean(filtered > self.threshold) < self.coverage).item()
 
     @staticmethod
     def filter_map(
