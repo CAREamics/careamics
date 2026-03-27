@@ -220,9 +220,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             if not isinstance(data_config.patching, TiledPatchingConfig):
                 if not _check_all_spatial_dims(data_shapes):
                     raise ValueError(
-                        "Image spatial dimensions must all be a power of 2 when "
-                        "predicting without tiling. Please use tiling by passing "
-                        "`tile_size` and `tile_overlap` to the predict method."
+                        "Image spatial dimensions must all be even, and greater or "
+                        "equal than 4 (Z) and 16 (YX) when predicting without tiling. "
+                        "Please use tiling by passing `tile_size` and `tile_overlap` "
+                        "to the predict method."
                     )
 
         self.config = data_config
