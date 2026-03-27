@@ -137,7 +137,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         if stage == "predict":
             if self.dirpath is not None:
                 # make prediction output directory
-                logger.info(f"Making prediction output directory:\n {self.dirpath}")
+                logger.info(f"Creating prediction output directory: '{self.dirpath}'")
                 self.dirpath.mkdir(parents=True, exist_ok=True)
 
     def set_writing_strategy(

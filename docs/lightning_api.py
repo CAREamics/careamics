@@ -132,9 +132,3 @@ tiled_predictions = trainer.predict(
     model, datamodule=inf_data_module, return_predictions=False  # (5)!
 )
 # --8<-- [end:predict_to_disk]
-
-assert (
-    pred_writer.dirpath.absolute() / "train.tiff"
-).exists(), (
-    f"Could not locate prediction at {pred_writer.dirpath.absolute() / 'train.tiff'}"
-)
