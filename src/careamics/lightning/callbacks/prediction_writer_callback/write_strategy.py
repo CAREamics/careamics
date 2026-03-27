@@ -195,6 +195,7 @@ class CacheTiles(WriteStrategy):
                 file_path=input_file_path,
                 write_extension=self.write_extension,
             )
+            print(f"Writing prediction to {file_path}.")
             self.write_func(
                 file_path=file_path, img=prediction_image[0], **self.write_func_kwargs
             )
