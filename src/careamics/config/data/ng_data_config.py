@@ -591,11 +591,11 @@ class NGDataConfig(BaseModel):
 
     @field_validator("patch_filter", "mask_filter")
     @classmethod
-    def validate_filter_against_mode(
+    def validate_filters_against_mode(
         cls,
-        filter_obj: PatchFilterConfig | None,
+        filter_obj: PatchFilterConfig | MaskFilterConfig | None,
         info: ValidationInfo,
-    ) -> PatchFilterConfig | None:
+    ) -> PatchFilterConfig | MaskFilterConfig | None:
         """
         Validate that the filters are only used during training.
 
@@ -608,7 +608,7 @@ class NGDataConfig(BaseModel):
 
         Returns
         -------
-        PatchFilterConfig | None
+        PatchFilterConfig | MaskFilterConfig | None
             Validated filter.
 
         Raises
