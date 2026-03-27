@@ -20,7 +20,6 @@ from .image_stack import GenericImageStack, ZarrImageStack
 from .normalization import create_normalization
 from .normalization.statistics import resolve_normalization_config
 from .patch_extractor import PatchExtractor
-from .patch_filter import create_coord_filter, create_patch_filter
 from .patching_strategies import (
     PatchingStrategy,
     PatchSpecs,
@@ -181,8 +180,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         Extractor for input patches.
     target_extractor : PatchExtractor or None, optional
         Extractor for target patches.
-    mask_extractor : PatchExtractor or None, optional
-        Extractor for mask (e.g. for coord filter).
     """
 
     def __init__(
@@ -191,7 +188,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         patching_strategy: PatchingStrategy,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
-        mask_extractor: PatchExtractor[GenericImageStack] | None = None,
     ) -> None:
         """Contructor.
 
@@ -205,8 +201,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             Extractor for input patches.
         target_extractor : PatchExtractor or None, optional
             Extractor for target patches.
-        mask_extractor : PatchExtractor or None, optional
-            Extractor for mask (e.g. for coord filter).
         """
         # Make sure all the image sizes are greater than the patch size for training
         data_shapes = [
@@ -235,18 +229,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
-
-        self.patch_filter = (
-            create_patch_filter(self.config.patch_filter)
-            if self.config.patch_filter is not None
-            else None
-        )
-        self.coord_filter = (
-            create_coord_filter(self.config.coord_filter, mask=mask_extractor)
-            if self.config.coord_filter is not None and mask_extractor is not None
-            else None
-        )
-        self.patch_filter_patience = self.config.patch_filter_patience
 
         self.patching_strategy = patching_strategy
 
@@ -382,54 +364,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         )
         return input_patch, target_patch
 
-    def _get_filtered_patch(
-        self, index: int
-    ) -> tuple[NDArray[Any], NDArray[Any] | None, PatchSpecs]:
-        """Extract a patch using filtering.
-
-        Parameters
-        ----------
-        index : int
-            Dataset index used to obtain the patch spec.
-
-        Returns
-        -------
-        tuple of (NDArray, NDArray or None, PatchSpecs)
-            Input patch, optional target patch, and patch spec.
-        """
-        should_filter = self.config.mode == Mode.TRAINING and (
-            self.patch_filter is not None or self.coord_filter is not None
-        )
-        empty_patch = True
-        patch_filter_patience = self.patch_filter_patience  # reset patience
-
-        while empty_patch and patch_filter_patience > 0:
-            # query patches
-            patch_spec = self.patching_strategy.get_patch_spec(index)
-
-            # filter patch based on coordinates if needed
-            if should_filter and self.coord_filter is not None:
-                if self.coord_filter.filter_out(patch_spec):
-                    patch_filter_patience -= 1
-
-                    # TODO should we raise an error rather than silently accept patches?
-                    # if patience runs out without ever finding coordinates
-                    # then we need to guard against an exist before defining
-                    # input_patch and target_patch
-                    if patch_filter_patience != 0:
-                        continue
-
-            input_patch, target_patch = self._extract_patches(patch_spec)
-
-            # filter patch based on values if needed
-            if should_filter and self.patch_filter is not None:
-                empty_patch = self.patch_filter.filter_out(input_patch)
-                patch_filter_patience -= 1  # decrease patience
-            else:
-                empty_patch = False
-
-        return input_patch, target_patch, patch_spec
-
     def __getitem__(
         self, index: int
     ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
@@ -445,7 +379,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         tuple of ImageRegionData
             (input_data,) or (input_data, target_data).
         """
-        input_patch, target_patch, patch_spec = self._get_filtered_patch(index)
+        patch_spec = self.patching_strategy.get_patch_spec(index)
+        input_patch, target_patch = self._extract_patches(patch_spec)
 
         # apply normalization
         input_patch, target_patch = self.normalization(input_patch, target_patch)
