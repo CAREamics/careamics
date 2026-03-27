@@ -4,7 +4,6 @@ from typing import Union
 
 from careamics.config.data.patch_filter import (
     FilterConfig,
-    MaskFilterConfig,
     MaxFilterConfig,
     MeanSTDFilterConfig,
     ShannonFilterConfig,
@@ -26,36 +25,32 @@ PatchFilter = Union[
 ]
 
 
-def create_patch_filter(filter_model: FilterConfig) -> PatchFilter:
+def create_patch_filter(filter_config: FilterConfig) -> PatchFilter:
     """Factory function to create patch filter instances based on the filter name.
 
     Parameters
     ----------
-    filter_model : FilterModel
-        Pydantic model of the filter to be created.
+    filter_config : FilterConfig
+        Pydantic config of the filter to be created.
 
     Returns
     -------
     PatchFilter
         Instance of the requested patch filter.
     """
-    if filter_model.name == SupportedPatchFilters.MAX:
-        assert isinstance(filter_model, MaxFilterConfig)
+    if filter_config.name == SupportedPatchFilters.MAX:
+        assert isinstance(filter_config, MaxFilterConfig)
         return MaxPatchFilter(
-            threshold=filter_model.threshold, coverage=filter_model.coverage
+            threshold=filter_config.threshold, coverage=filter_config.coverage
         )
-    elif filter_model.name == SupportedPatchFilters.MEANSTD:
-        assert isinstance(filter_model, MeanSTDFilterConfig)
+    elif filter_config.name == SupportedPatchFilters.MEANSTD:
+        assert isinstance(filter_config, MeanSTDFilterConfig)
         return MeanStdPatchFilter(
-            mean_threshold=filter_model.mean_threshold,
-            std_threshold=filter_model.std_threshold,
+            mean_threshold=filter_config.mean_threshold,
+            std_threshold=filter_config.std_threshold,
         )
-    elif filter_model.name == SupportedPatchFilters.SHANNON:
-        assert isinstance(filter_model, ShannonFilterConfig)
-        return ShannonPatchFilter(threshold=filter_model.threshold)
-    # TODO: add mask to enum?
-    elif filter_model.name == "mask":
-        assert isinstance(filter_model, MaskFilterConfig)
-        return MaskFilter(coverage=filter_model.coverage)
+    elif filter_config.name == SupportedPatchFilters.SHANNON:
+        assert isinstance(filter_config, ShannonFilterConfig)
+        return ShannonPatchFilter(threshold=filter_config.threshold)
     else:
-        raise ValueError(f"Unknown filter name: {filter_model}")
+        raise ValueError(f"Unknown filter name: {filter_config}")
