@@ -1,11 +1,11 @@
 """Unit tests for the NGDataConfig Pydantic model."""
 
 import itertools
+import os
 import sys
 from collections.abc import Callable
 from contextlib import nullcontext
 from types import ModuleType, SimpleNamespace
-from typing import Any
 
 import pytest
 
@@ -14,6 +14,14 @@ from careamics.config.data.ng_data_config import (
     _are_spatial_dims_maintained,
     _validate_channel_conversion,
     default_in_memory,
+    get_default_num_workers,
+)
+from tests.utils import (
+    DEFAULT_MODE,
+    DEFAULT_PATCHING,
+    coord_filter_dict_testing,
+    ng_data_config_dict_testing,
+    patch_filter_dict_testing,
 )
 
 # Notes:
@@ -105,123 +113,6 @@ AXES_CZI_DISALLOWED = (
     "TCZYX",
     "TCYXZ",
 )
-
-# -- Default values for testing
-
-DEFAULT_PATCHING = "stratified"
-DEFAULT_AXES = "YX"
-DEFAULT_DATA_TYPE = "array"
-DEFAULT_MODE = TRAINING
-
-# ------------------------ Utilities --------------------------
-
-
-def patch_size_testing(data_type: str = DEFAULT_DATA_TYPE, axes: str = DEFAULT_AXES):
-    """Return a patch size compatible with the data_type and axes."""
-    if data_type == "czi" and axes == "SCTYX":
-        return (8, 16, 16)
-    elif "Z" in axes:
-        return (8, 16, 16)
-    else:
-        return (16, 16)
-
-
-def patching_config_dict_testing(
-    patching: str = DEFAULT_PATCHING,
-    data_type: str = DEFAULT_DATA_TYPE,
-    axes: str = DEFAULT_AXES,
-    patch_size: tuple[int, ...] | None = None,
-) -> dict[str, Any]:
-    """Return a patching configuration dictionary."""
-    if patch_size is None:
-        patch_size = patch_size_testing(data_type, axes)
-    match patching:
-        case "random" | "fixed_random" | "stratified":
-            # with seed
-            return {
-                "name": patching,
-                "patch_size": patch_size,
-                "seed": 42,
-            }
-        case "tiled":
-            # with overlaps
-            return {
-                "name": patching,
-                "patch_size": patch_size,
-                "overlaps": tuple(ps // 2 for ps in patch_size),
-            }
-        case _:
-            return {
-                "name": patching,
-                "patch_size": patch_size,
-            }
-
-
-def patch_filter_dict_testing(name: str = "shannon") -> dict[str, Any]:
-    """Return a patch filter configuration dictionary."""
-    match name:
-        case "shannon":
-            return {
-                "name": name,
-                "threshold": 0.5,
-            }
-        case "max":
-            return {
-                "name": name,
-                "threshold": 0.5,
-            }
-        case "mean_std":
-            return {
-                "name": name,
-                "mean_threshold": 0.5,
-            }
-        case _:
-            raise ValueError(f"Invalid patch filter name: {name}")
-
-
-def coord_filter_dict_testing(name: str = "mask") -> dict[str, Any]:
-    """Return a coordinate filter configuration dictionary."""
-    match name:
-        case "mask":
-            return {
-                "name": name,
-            }
-        case _:
-            raise ValueError(f"Invalid coordinate filter name: {name}")
-
-
-def ng_data_config_dict_testing(
-    mode: str = DEFAULT_MODE,
-    data_type: str = DEFAULT_DATA_TYPE,
-    axes: str = DEFAULT_AXES,
-    patching: str | None = None,
-    patch_size: tuple[int, ...] | None = None,
-    **kwargs,
-    # TODO: add normalization
-) -> dict[str, Any]:
-    """Return a NGDataConfig dictionary."""
-    if patching is None:
-        match mode:
-            case "training":
-                patching = "stratified"
-            case "validating":
-                patching = "fixed_random"
-            case "predicting":
-                patching = "whole"
-            case _:
-                raise ValueError(f"Invalid mode: {mode}")
-
-    patching_config_dict = patching_config_dict_testing(
-        patching, data_type, axes, patch_size
-    )
-    return {
-        "mode": mode,
-        "data_type": data_type,
-        "axes": axes,
-        "patching": patching_config_dict,
-        "normalization": {"name": "mean_std"},
-        **kwargs,
-    }
 
 
 # ------------------------ Test utilities --------------------------
@@ -536,14 +427,12 @@ class TestDataloaderParams:
         assert cfg.train_dataloader_params["pin_memory"] is True
         assert cfg.val_dataloader_params["pin_memory"] is True
 
-    def test_val_dataloader_num_workers_set_to_train(self):
-        """Test that `num_workers` in `val_dataloader_params` is set to match
-        `train_dataloader_params` if not explicitly set."""
-        # set to train
-        cfg_dict = ng_data_config_dict_testing(
-            train_dataloader_params={"shuffle": True, "num_workers": 3},
-        )
+    def test_val_dataloader_num_workers_set(self):
+        """Test that `num_workers` from the `num_workers` field is applied to all
+        dataloaders."""
+        cfg_dict = ng_data_config_dict_testing(num_workers=3)
         cfg = NGDataConfig(**cfg_dict)
+        assert cfg.train_dataloader_params["num_workers"] == 3
         assert cfg.val_dataloader_params["num_workers"] == 3
 
     def test_val_dataloader_num_workers_not_overwritten(self):
@@ -845,10 +734,16 @@ class TestConvertMode:
         assert converted_cfg.channels == new_channels
         assert converted_cfg.in_memory == new_in_memory
         if mode == "validating":
-            assert converted_cfg.val_dataloader_params == new_dataloader_params
+            assert (
+                new_dataloader_params.items()
+                <= converted_cfg.val_dataloader_params.items()
+            )
             assert converted_cfg.pred_dataloader_params == cfg.pred_dataloader_params
         elif mode == "predicting":
-            assert converted_cfg.pred_dataloader_params == new_dataloader_params
+            assert (
+                new_dataloader_params.items()
+                <= converted_cfg.pred_dataloader_params.items()
+            )
             assert converted_cfg.val_dataloader_params == cfg.val_dataloader_params
 
     def test_normalization_conservation(self):
@@ -982,3 +877,28 @@ class TestConvertMode:
         converted_cfg = cfg.convert_mode(mode)
         assert converted_cfg.patch_filter is None
         assert converted_cfg.coord_filter is None
+
+
+class TestGetDefaultNumWorkers:
+
+    def test_returns_0_in_pytest(self):
+        """Test that get_default_num_workers returns 0 when running under pytest."""
+        assert get_default_num_workers() == 0
+
+    @pytest.mark.parametrize(
+        "platform, expected",
+        [
+            ("Linux", min((os.cpu_count() or 1) - 1, 4)),
+            ("Windows", 0),
+            ("Darwin", 0),
+        ],
+    )
+    def test_returns_expected_per_platform(
+        self, monkeypatch: pytest.MonkeyPatch, platform: str, expected: int
+    ):
+        """Test that each platform returns the correct number of workers."""
+        monkeypatch.setattr(
+            "careamics.config.data.ng_data_config.platform.system", lambda: platform
+        )
+        monkeypatch.delitem(sys.modules, "pytest")
+        assert get_default_num_workers() == expected
