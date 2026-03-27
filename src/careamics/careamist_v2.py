@@ -1,15 +1,16 @@
+"""Main interface for training and predicting with CAREamics."""
+
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, overload
 
-import numpy as np
 from numpy.typing import NDArray
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
+from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.ng_configs import NGConfiguration
-from .config.ng_configs.ng_configuration import AlgorithmConfig
 from .config.support import SupportedData, SupportedLogger
 from .config.utils.configuration_io import load_configuration_ng
 from .dataset_ng.dataset import ImageRegionData
@@ -27,23 +28,24 @@ from .lightning.dataset_ng.load_checkpoint import (
     load_module_from_checkpoint,
 )
 from .lightning.dataset_ng.prediction import convert_prediction
-from .model_io import export_to_bmz
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
-from .utils.reshape_array import reshape_array
 
 logger = get_logger(__name__)
-
-ExperimentLogger = TensorBoardLogger | WandbLogger | CSVLogger
 
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
 
+ConfigurationType = (
+    NGConfiguration[CAREAlgorithm]
+    | NGConfiguration[N2NAlgorithm]
+    | NGConfiguration[N2VAlgorithm]
+)
 
 class CAREamistV2:
     """Main interface for training and predicting with CAREamics.
-    
+
     Attributes
     ----------
     workdir : Path
@@ -62,12 +64,11 @@ class CAREamistV2:
         Callback used to write predictions to disk during prediction.
     train_datamodule : CareamicsDataModule | None
         The datamodule used for training, set after calling `train()`.
-    
 
     Parameters
     ----------
-    config : NGConfiguration[AlgorithmConfig] | Path, default=None
-        CAREamics configuration, or a path to a configuration file. See 
+    config : NGConfiguration | Path, default=None
+        CAREamics configuration, or a path to a configuration file. See
         `careamics.config.ng_factories` for method to build configurations.
     checkpoint_path : Path, default=None
         Path to a checkpoint file from which to load the model and configuration.
@@ -88,7 +89,7 @@ class CAREamistV2:
 
     def __init__(
         self,
-        config: NGConfiguration[AlgorithmConfig] | Path | None = None,
+        config: ConfigurationType | Path | None = None,
         *,
         checkpoint_path: Path | None = None,
         bmz_path: Path | None = None,
@@ -99,11 +100,11 @@ class CAREamistV2:
         """Constructor for CAREamistV2.
 
         Exactly one of `config`, `checkpoint_path`, or `bmz_path` must be provided.
-        
+
         Parameters
         ----------
-        config : NGConfiguration[AlgorithmConfig] | Path, default=None
-            CAREamics configuration, or a path to a configuration file. See 
+        config : NGConfiguration | Path, default=None
+            CAREamics configuration, or a path to a configuration file. See
             `careamics.config.ng_factories` for method to build configurations. `config`
             is mutually exclusive with `checkpoint_path` and `bmz_path`.
         checkpoint_path : Path, default=None
@@ -126,7 +127,11 @@ class CAREamistV2:
         """
         self.checkpoint_path = checkpoint_path
         self.work_dir = self._resolve_work_dir(work_dir)
-        self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
+
+        self.config: ConfigurationType
+        self.config, self.model = self._load_model(
+            config, checkpoint_path, bmz_path
+        )
 
         self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
@@ -154,25 +159,25 @@ class CAREamistV2:
 
     def _load_model(
         self,
-        config: NGConfiguration[AlgorithmConfig] | Path | None,
+        config: ConfigurationType | Path | None,
         checkpoint_path: Path | None,
         bmz_path: Path | None,
-    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load model.
-        
+
         Parameters
         ----------
-        config : NGConfiguration[AlgorithmConfig] | Path | None
+        config : NGConfiguration | Path | None
             CAREamics configuration, or a path to a configuration file.
         checkpoint_path : Path | None
             Path to a checkpoint file from which to load the model and configuration.
         bmz_path : Path | None
             Path to a BioImage Model Zoo archive from which to load the model and
             configuration.
-        
+
         Returns
         -------
-        NGConfiguration[AlgorithmConfig]
+        NGConfiguration
             The loaded configuration.
         CAREamicsModule
             The loaded model.
@@ -201,18 +206,18 @@ class CAREamistV2:
 
     @staticmethod
     def _from_config(
-        config: NGConfiguration[AlgorithmConfig] | Path,
-    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+        config: ConfigurationType | Path,
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Create model from configuration.
-        
+
         Parameters
         ----------
-        config : NGConfiguration[AlgorithmConfig] | Path
+        config : NGConfiguration | Path
             CAREamics configuration, or a path to a configuration file.
 
         Returns
         -------
-        NGConfiguration[AlgorithmConfig]
+        NGConfiguration
             The loaded configuration if a path was provided, otherwise the original
             configuration.
         CAREamicsModule
@@ -228,31 +233,32 @@ class CAREamistV2:
     @staticmethod
     def _from_checkpoint(
         checkpoint_path: Path,
-    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load checkpoint and configuration from checkpoint file.
-        
+
         Parameters
         ----------
         checkpoint_path : Path
             Path to a checkpoint file from which to load the model and configuration.
-        
+
         Returns
         -------
-        NGConfiguration[AlgorithmConfig]
+        NGConfiguration
             The loaded configuration.
         CAREamicsModule
             The loaded model.
         """
         config = load_config_from_checkpoint(checkpoint_path)
         module = load_module_from_checkpoint(checkpoint_path)
+
         return config, module
 
     @staticmethod
     def _from_bmz(
         bmz_path: Path,
-    ) -> tuple[NGConfiguration[AlgorithmConfig], CAREamicsModule]:
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load checkpoint and configuration from a BioImage Model Zoo archive.
-        
+
         Parameters
         ----------
         bmz_path : Path
@@ -261,7 +267,7 @@ class CAREamistV2:
 
         Returns
         -------
-        NGConfiguration[AlgorithmConfig]
+        NGConfiguration
             The loaded configuration.
         CAREamicsModule
             The loaded model.
@@ -276,13 +282,13 @@ class CAREamistV2:
     @staticmethod
     def _resolve_work_dir(work_dir: str | Path | None) -> Path:
         """Resolve working directory.
-        
+
         Parameters
         ----------
         work_dir : str | Path | None
             The working directory to resolve. If None, the current working directory
             will be used.
-        
+
         Returns
         -------
         Path
@@ -301,7 +307,7 @@ class CAREamistV2:
     @staticmethod
     def _define_callbacks(
         callbacks: list[Callback] | None,
-        config: NGConfiguration[AlgorithmConfig],
+        config: ConfigurationType,
         work_dir: Path,
     ) -> list[Callback]:
         """Define callbacks for the training process.
@@ -312,7 +318,7 @@ class CAREamistV2:
             List of callbacks to use during training. If None, no additional callbacks
             will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
             already defined in CAREamics and instantiated in this method.
-        config : NGConfiguration[AlgorithmConfig]
+        config : NGConfiguration
             The CAREamics configuration, used to instantiate the callbacks.
         work_dir : Path
             The working directory, used as a parameter to the checkpointing callback.
@@ -330,8 +336,8 @@ class CAREamistV2:
             should only be modified through the training configuration (see
             NGConfiguration and TrainingConfig).
         """
-        callbacks: list[Callback] = [] if callbacks is None else callbacks
-        for c in callbacks:
+        callback_lst: list[Callback] = [] if callbacks is None else callbacks
+        for c in callback_lst:
             if isinstance(c, (ModelCheckpoint, EarlyStopping)):
                 raise ValueError(
                     "`ModelCheckpoint` and `EarlyStopping` callbacks are already "
@@ -347,14 +353,21 @@ class CAREamistV2:
 
         checkpoint_callback = ModelCheckpoint(
             dirpath=work_dir / "checkpoints" / config.get_safe_experiment_name(),
-            filename=f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
+            filename=(
+                f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_"
+                f"{{val_loss:.4f}}"
+            ),
             **config.training_config.checkpoint_params,
         )
-        checkpoint_callback.CHECKPOINT_NAME_LAST = f"{config.get_safe_experiment_name()}_last"
+        checkpoint_callback.CHECKPOINT_NAME_LAST = (
+            f"{config.get_safe_experiment_name()}_last"
+        )
         internal_callbacks: list[Callback] = [
             checkpoint_callback,
             CareamicsCheckpointInfo(
-                config.version, config.get_safe_experiment_name(), config.training_config
+                config.version,
+                config.get_safe_experiment_name(),
+                config.training_config
             ),
         ]
 
@@ -371,12 +384,12 @@ class CAREamistV2:
                 )
             )
 
-        return internal_callbacks + callbacks
+        return internal_callbacks + callback_lst
 
     @staticmethod
     def _create_loggers(
         logger: str | None, experiment_name: str, work_dir: Path
-    ) -> list[ExperimentLogger]:
+    ) -> list[TensorBoardLogger | WandbLogger | CSVLogger]:
         """Create loggers for the experiment.
 
         Parameters
@@ -388,6 +401,11 @@ class CAREamistV2:
             Name of the experiment, used as a parameter to the loggers.
         work_dir : Path
             The working directory, used as a parameter to the loggers.
+
+        Returns
+        -------
+        list[TensorBoardLogger | WandbLogger | CSVLogger]
+            The list of loggers to use during training.
         """
         csv_logger = CSVLogger(name=experiment_name, save_dir=work_dir / "csv_logs")
 
@@ -417,7 +435,7 @@ class CAREamistV2:
     #   The first overload will be displaced first by most code editors, this is what
     #   most users will see.
     @overload
-    def train(
+    def train( # numpydoc ignore=GL08
         self,
         *,
         # BASIC PARAMS
@@ -431,7 +449,7 @@ class CAREamistV2:
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
-    def train(
+    def train( # numpydoc ignore=GL08
         self,
         *,
         # BASIC PARAMS
@@ -464,21 +482,19 @@ class CAREamistV2:
         ----------
         train_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Training data, by default None.
-        train_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+        train_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these
             Training target data, by default None.
         val_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Validation data. If not provided, `data_config.n_val_patches` patches will
             selected from the training data for validation.
-        val_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+        val_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these
             Validation target data, by default None.
-        filtering_mask : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+        filtering_mask : pathlib.Path, str, numpy.ndarray, or sequence of these
             Filtering mask for coordinate-based patch filtering, by default None.
-        read_source_func : ReadFunc, optional
-            Function to read the source data.
-        read_kwargs : dict of {str: Any}, optional
-            Additional keyword arguments to be passed to the read function.
-        extension_filter : str, default=""
-            Filter for the file extension.
+        loading : Loading, default=None
+            Loading strategy to use for the prediction data. May be a ReadFuncLoading or
+            ImageStackLoading. If None, uses the loading strategy from the training
+            configuration.
 
         Raises
         ------
@@ -495,21 +511,25 @@ class CAREamistV2:
                 f"`train_data_target`."
             )
 
-        if self.config.is_supervised() and val_data is not None and val_data_target is None:
+        if (
+            self.config.is_supervised()
+            and val_data is not None
+            and val_data_target is None
+        ):
             raise ValueError(
                 f"Validation target data must be provided for supervised training (got "
                 f"{self.config.get_algorithm_friendly_name()} algorithm). Provide "
                 f"`val_data_target`."
             )
 
-        datamodule = CareamicsDataModule(
+        datamodule = CareamicsDataModule( # type: ignore
             data_config=self.config.data_config,
             train_data=train_data,
             val_data=val_data,
             train_data_target=train_data_target,
             val_data_target=val_data_target,
             train_data_mask=filtering_mask,
-            loading=loading,
+            loading=loading, # type: ignore
         )
 
         self.train_datamodule = datamodule
@@ -537,6 +557,43 @@ class CAREamistV2:
         in_memory: bool | None = None,
         loading: Loading = None,
     ) -> CareamicsDataModule:
+        """Create prediction data module.
+
+        Parameters
+        ----------
+        pred_data : Any
+            Prediction data.
+        pred_data_target : Any | None, default=None
+            Prediction target data, by default None. Can be used to compute metrics
+            during prediction.
+        batch_size : int | None, default=None
+            Batch size for prediction. If None, uses the batch size from the training
+            configuration.
+        tile_size : tuple[int, ...] | None, default=None
+            Tile size for prediction. If None, uses whole image prediction.
+        tile_overlap : tuple[int, ...] | None, default=(48, 48)
+            Tile overlap for prediction. If None, defaults to (48, 48).
+        axes : str | None, default=None
+            Axes for prediction. If None, uses training configuration axes.
+        data_type : {"array", "tiff", "zarr", "czi", "custom"} | None, default=None
+            Data type for prediction. If None, uses training configuration data type.
+        num_workers : int | None, default=None
+            Number of workers for data loading during prediction.
+        channels : Sequence[int] | Literal["all"] | None, default=None
+            Channels to use for prediction. If "all", uses all channels. If None, uses
+            the channels from the training configuration.
+        in_memory : bool | None, default=None
+            Whether to load data into memory during prediction. If None, uses training
+            configuration.
+        loading : Loading, default=None
+            Loading strategy for prediction data if data type (either from training
+            configuration or specified) is `"custom"`.
+
+        Returns
+        -------
+        CareamicsDataModule
+            Prediction data module.
+        """
         dataloader_params: dict[str, Any] | None = None
         if num_workers is not None:
             dataloader_params = {"num_workers": num_workers}
@@ -561,7 +618,7 @@ class CAREamistV2:
 
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
-    def predict(
+    def predict( # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
         pred_data: InputVar,
@@ -576,10 +633,11 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
-    ) -> tuple[list[NDArray], list[str]]: ...
+    ) -> tuple[list[NDArray], list[str]]:
+        ...
 
     @overload  # any data input is allowed for ImageStackLoading
-    def predict(
+    def predict( # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
         pred_data: Any,
@@ -594,7 +652,8 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
-    ) -> tuple[list[NDArray], list[str]]: ...
+    ) -> tuple[list[NDArray], list[str]]:
+        ...
 
     def predict(
         self,
@@ -652,12 +711,10 @@ class CAREamistV2:
         in_memory : bool, optional
             Whether to load all data into memory. If None, uses the training
             configuration setting.
-        read_source_func : ReadFunc, optional
-            Function to read the source data.
-        read_kwargs : dict of {str: Any}, optional
-            Additional keyword arguments to be passed to the read function.
-        extension_filter : str, default=""
-            Filter for the file extension.
+        loading : Loading, default=None
+            Loading strategy to use for the prediction data. May be a ReadFuncLoading or
+            ImageStackLoading. If None, uses the loading strategy from the training
+            configuration.
 
         Returns
         -------
@@ -694,7 +751,7 @@ class CAREamistV2:
 
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
-    def predict_to_disk(
+    def predict_to_disk( # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
         pred_data: InputVar,
@@ -719,7 +776,7 @@ class CAREamistV2:
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
-    def predict_to_disk(
+    def predict_to_disk( # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
         pred_data: Any,
@@ -791,7 +848,7 @@ class CAREamistV2:
         ----------
         pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
             Data to predict on. Can be a single item or a sequence of paths/arrays.
-        pred_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+        pred_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these
             Prediction data target, by default None.
         prediction_dir : Path | str, default="predictions"
             The path to save the prediction results to. If `prediction_dir` is an
@@ -818,12 +875,10 @@ class CAREamistV2:
         in_memory : bool, optional
             Whether to load all data into memory. If None, uses the training
             configuration setting.
-        read_source_func : ReadFunc, optional
-            Function to read the source data.
-        read_kwargs : dict of {str: Any}, optional
-            Additional keyword arguments to be passed to the read function.
-        extension_filter : str, default=""
-            Filter for the file extension.
+        loading : Loading, default=None
+            Loading strategy to use for the prediction data. May be a ReadFuncLoading or
+            ImageStackLoading. If None, uses the loading strategy from the training
+            configuration.
         write_type : {"tiff", "zarr", "custom"}, default="tiff"
             The data type to save as, includes custom.
         write_extension : str, optional
@@ -952,27 +1007,30 @@ class CAREamistV2:
         model_version : str, default="0.1.0"
             Version of the model.
         """
-        output_patch = self.predict(
-            pred_data=input_array,
-            data_type=SupportedData.ARRAY.value,
-        )
-        output = np.concatenate(output_patch, axis=0)
-        input_array = reshape_array(input_array, self.config.data_config.axes)
+        # from .model_io import export_to_bmz
 
-        export_to_bmz(
-            model=self.model,
-            config=self.config,
-            path_to_archive=path_to_archive,
-            model_name=friendly_model_name,
-            general_description=general_description,
-            data_description=data_description,
-            authors=authors,
-            input_array=input_array,
-            output_array=output,
-            covers=covers,
-            channel_names=channel_names,
-            model_version=model_version,
-        )
+        # output_patch = self.predict(
+        #     pred_data=input_array,
+        #     data_type=SupportedData.ARRAY.value,
+        # )
+        # output = np.concatenate(output_patch, axis=0)
+        # input_array = reshape_array(input_array, self.config.data_config.axes)
+
+        # export_to_bmz(
+        #     model=self.model,
+        #     config=self.config,
+        #     path_to_archive=path_to_archive,
+        #     model_name=friendly_model_name,
+        #     general_description=general_description,
+        #     data_description=data_description,
+        #     authors=authors,
+        #     input_array=input_array,
+        #     output_array=output,
+        #     covers=covers,
+        #     channel_names=channel_names,
+        #     model_version=model_version,
+        # )
+        raise NotImplementedError("Exporting to BMZ is not implemented yet.")
 
     def get_losses(self) -> dict[str, list]:
         """Return data that can be used to plot train and validation loss curves.
@@ -982,7 +1040,9 @@ class CAREamistV2:
         dict of str: list
             Dictionary containing losses for each epoch.
         """
-        return read_csv_logger(self.config.get_safe_experiment_name(), self.work_dir / "csv_logs")
+        return read_csv_logger(
+            self.config.get_safe_experiment_name(), self.work_dir / "csv_logs"
+        )
 
     def stop_training(self) -> None:
         """Stop the training loop."""

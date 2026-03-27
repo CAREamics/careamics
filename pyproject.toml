@@ -139,8 +139,6 @@ convention = "numpy"
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["D", "S"]
 "setup.py" = ["D"]
-"src/careamics/lightning/dataset_ng/data_module.py" = ["D418"]
-# temporarily ignore docstrings in next generation dataset development
 
 [tool.black]
 line-length = 88
