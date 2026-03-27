@@ -13,5 +13,8 @@ class MaskFilterConfig(FilterConfig):
     name: Literal["mask"] = "mask"
     """Name of the filter."""
 
-    coverage: float = Field(0.5, ge=0.0, le=1.0)
-    """Percentage of masked pixels required to keep a patch."""
+    coverage: float | None = Field(None, ge=0.0, le=1.0)
+    """Minimum ratio of masked pixels required to keep a sampling region,
+    `default=None`. If `None` then `1/(ndims**2)` is used where `ndims` is the number of
+    spatial dimensions.
+    """
