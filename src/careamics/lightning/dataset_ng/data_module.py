@@ -275,7 +275,8 @@ class CareamicsDataModule(L.LightningDataModule):
                 raise ValueError("Training and validation data has not been provided.")
 
             # statistics may have been calculated now, save config to hparams
-            self._save_hparams()
+            if stage == "fit":
+                self._save_hparams()
 
         elif stage == "predict":
             if not isinstance(self._data, PredData):
