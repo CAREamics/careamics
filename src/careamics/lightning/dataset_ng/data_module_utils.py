@@ -54,8 +54,7 @@ def _compatible_input_types(data_type: SD) -> str:
         case SD.CUSTOM:
             return (
                 "a ReadFuncLoading or an ImageStackLoading is expected to be passed "
-                "alongside the data (which influences the expected input type, see "
-                "documentation)"
+                "alongside the data (which influences the expected input type)"
             )
         case _:
             raise ValueError(f"Unrecognized data type: {data_type}.")
