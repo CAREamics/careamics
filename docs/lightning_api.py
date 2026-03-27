@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-path_to_my_predictions = Path("prediction").absolute()
-
 # %%
 # --8<-- [start:lightning_api]
 from pytorch_lightning import Trainer
@@ -90,7 +88,7 @@ from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
 )
 
 pred_writer = PredictionWriterCallback(  # (1)!
-    dirpath=path_to_my_predictions, enable_writing=False
+    dirpath="predictions", enable_writing=False
 )
 
 callbacks = [
@@ -135,5 +133,4 @@ tiled_predictions = trainer.predict(
 )
 # --8<-- [end:predict_to_disk]
 
-
-assert (path_to_my_predictions / "train.tiff").exists()
+assert (pred_writer.dirpath.absolute() / "train.tiff").exists()
