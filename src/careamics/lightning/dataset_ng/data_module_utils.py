@@ -19,6 +19,48 @@ InputType = ArrayInput | PathInput
 """Type of input data passed to the dataset."""
 
 
+def _compatible_input_types(data_type: SD) -> str:
+    """String representation of the compatible input types for a given data type.
+
+    Parameters
+    ----------
+    data_type : SD
+        The data type for which to get the compatible input types.
+
+    Returns
+    -------
+    str
+        A string representation of the compatible input types.
+
+    Raises
+    ------
+    ValueError
+        If the data type is not recognized.
+    """
+    match data_type:
+        case SD.ARRAY:
+            return (
+                "the expected input is a numpy.ndarray or a sequence of numpy.ndarray"
+            )
+        case SD.TIFF | SD.CZI:
+            return (
+                "the expected input is a str, a pathlib.Path, or a sequence of either"
+            )
+        case SD.ZARR:
+            return (
+                "the expected input is a str or a pathlib.Path (see documentation), or "
+                "a sequence of either"
+            )
+        case SD.CUSTOM:
+            return (
+                "a ReadFuncLoading or an ImageStackLoading is expected to be passed "
+                "alongside the data (which influences the expected input type, see "
+                "documentation)"
+            )
+        case _:
+            raise ValueError(f"Unrecognized data type: {data_type}.")
+
+
 def _is_array_input(x: Any) -> TypeIs[ArrayInput]:
     """
     Narrow the type of `x` to `ArrayInput`.
@@ -316,7 +358,7 @@ def validate_path_input(
     else:
         raise ValueError(
             f"Wrong input type, expected str or Path or list[str | Path], got "
-            f"{type(input_data)}. Check the data_type parameter or your inputs."
+            f"{type(input_data)}. Check the `data_type` parameter or your inputs."
         )
 
 
@@ -443,13 +485,22 @@ def initialize_data_pair(
         case (SD.CUSTOM, ImageStackLoading()):
             input_data, target_data = input_data, target_data
         case _:
+            # check if the input type is a Sequence
+            if isinstance(input_data, Sequence) and not isinstance(input_data, str):
+                type_input = (
+                    f"input type `{type(input_data[0])}`"
+                    if len(input_data) > 0
+                    else "empty list"
+                )
+            else:
+                type_input = f"input type `{type(input_data)}`"
+
             raise ValueError(
-                f"Invalid argument combination for data initialization. "
-                f"data_type={data_type!s}, input type is {type(input_data)}. "
-                "For custom data, you must provide either a `ReadFuncLoading` or "
-                "`ImageStackLoading` dataclass as instruction on how to load the data. "
-                "If a training target is provided, a validation target must also be "
-                "provided, unless automatic validation splitting is being used."
+                f"Invalid argument combination for data initialization. The data type "
+                f"is set to `{data_type.value}`, but received non-compatible "
+                f"{type_input}. For `{data_type.value}` data type, "
+                f"{_compatible_input_types(data_type)}. Refer to the documentation for "
+                "more details."
             )
 
     validate_input_target_type_consistency(input_data, target_data)
