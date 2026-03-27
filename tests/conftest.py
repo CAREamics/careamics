@@ -24,6 +24,9 @@ from careamics.lightning.dataset_ng.lightning_modules import CAREModule, N2VModu
 from careamics.lightning.dataset_ng.load_checkpoint import _create_loaded_exp_name
 from careamics.model_io import export_to_bmz
 
+pytest.register_assert_rewrite("functional.dataset_ng.utils")
+
+
 ############################################################
 # Old fixtures below, kept for backwards compatibility, need
 # refactoring and cleaning.

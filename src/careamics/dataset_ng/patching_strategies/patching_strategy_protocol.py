@@ -104,6 +104,8 @@ class PatchingStrategy(Protocol):
         Get a patch specification for a given patch index.
     """
 
+    # TODO: add data_shapes and patch_size as properties (more convenient in tests)
+
     @property
     def n_patches(self) -> int:
         """

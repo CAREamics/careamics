@@ -337,9 +337,15 @@ class NGDataConfig(BaseModel):
     """Coordinate filter to apply when using random patching. Only available if
     mode is `training`."""
 
-    patch_filter_patience: int = Field(default=5, ge=1)
-    """Number of consecutive patches not passing the filter before accepting the next
-    patch."""
+    filtered_patch_prob: float = Field(0.1, ge=0.0, le=1.0)
+    """The probability that each patch considered background will be selected each epoch
+    during training. Patches can be considered background by either using a
+    `patch_filter` or by supplying a mask during training. If neither is chosen this
+    parameter is ignored."""
+
+    # TODO: Move inside patch_filter
+    filter_ref_channel: int = 0
+    """The channel to use as reference for filtering."""
 
     augmentations: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
         default=(
@@ -1062,6 +1068,8 @@ class NGDataConfig(BaseModel):
                     if new_mode == Mode.PREDICTING and new_dataloader_params is not None
                     else self.pred_dataloader_params
                 ),
+                "patch_filter": None,
+                "coord_filter": None,
             }
         )
 
