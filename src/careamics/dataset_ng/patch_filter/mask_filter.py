@@ -67,8 +67,7 @@ class MaskFilter(PatchFilterProtocol):
         Returns
         -------
         bool
-            True if the patch should be filtered out (masked fraction < coverage),
-            False otherwise.
+            True if the patch should be filtered out, False otherwise.
         """
         masked_fraction = np.sum(patch) / patch.size
         return bool(masked_fraction < self.coverage)
@@ -80,9 +79,6 @@ class MaskFilter(PatchFilterProtocol):
     ) -> NDArray[np.bool_]:
         """
         Return the mask image as the filter map.
-
-        For a mask image, the filter map is simply the mask itself since it
-        already indicates regions of interest.
 
         Parameters
         ----------

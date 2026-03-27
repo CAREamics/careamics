@@ -2,8 +2,6 @@ import numpy as np
 
 from careamics.dataset_ng.patch_filter import MaskFilter
 
-# TODO test multiple patches at once
-
 
 def test_filter():
     """Test MaskFilter functionality."""
