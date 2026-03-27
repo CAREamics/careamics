@@ -38,7 +38,8 @@ def filter_background(
     n_patches = patching_strategy.n_patches
     n_filtered = 0
     for (data_idx, sample_idx), grid_coords in tqdm(
-        all_grid_coords, desc="Filtering background patches with filtering function."
+        all_grid_coords,
+        desc=f"Filtering background patches with filtering function {config.name}",
     ):
         probs: dict[tuple[int, ...], float] = {}
         for coords in grid_coords:
@@ -87,7 +88,7 @@ def filter_background_with_mask(
     n_patches = patching_strategy.n_patches
     n_filtered = 0
     for (data_idx, sample_idx), grid_coords in tqdm(
-        all_grid_coords, desc="Filtering background patches with provided mask."
+        all_grid_coords, desc="Filtering background patches with provided mask"
     ):
         probs: dict[tuple[int, ...], float] = {}
         for coords in grid_coords:
