@@ -4,6 +4,7 @@ __all__ = [
     "check_axes_validity",
     "check_czi_axes_validity",
     "model_matching_in_out_channels",
+    "model_no_c_ind_for_mismatching_channels",
     "model_without_final_activation",
     "model_without_n2v2",
     "patch_size_ge_than_8_power_of_2",
@@ -12,6 +13,7 @@ __all__ = [
 from .axes_validators import check_axes_validity, check_czi_axes_validity
 from .model_validators import (
     model_matching_in_out_channels,
+    model_no_c_ind_for_mismatching_channels,
     model_without_final_activation,
     model_without_n2v2,
 )
