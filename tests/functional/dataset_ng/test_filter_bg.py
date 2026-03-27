@@ -37,18 +37,22 @@ def test_filter_background(
     data[data_idx][sample_idx] *= 0.01
 
     # set up components
-    patch_filter_config = MaxFilterConfig(threshold=0.8, coverage=(1 / (2**ndims)))
+    background_prob = 0.1
+    patch_filter_config = MaxFilterConfig(
+        filtered_patch_prob=background_prob,
+        ref_channel=0,
+        threshold=0.8,
+        coverage=(1 / (2**ndims)),
+    )
+
     patch_extractor = init_patch_extractor(PatchExtractor, load_arrays, data, axes)
     patching = StratifiedPatchingStrategy(
         patch_extractor.shapes, patch_size=patch_size, seed=42
     )
-    background_prob = 0.1
     filter_background(
+        patch_filter_config,
         patching,
         patch_extractor,
-        patch_filter_config,
-        ref_channel=0,
-        bg_relative_prob=background_prob,
     )
 
     mean_expected_prob = {(0, 0): background_prob}
@@ -76,17 +80,18 @@ def test_filter_background_w_mask(
     masks[data_idx][sample_idx][...] = False
 
     # set up components
+    background_prob = 0.1
     mask_extractor = init_patch_extractor(PatchExtractor, load_arrays, masks, axes)
-    mask_filter_config = MaskFilterConfig(coverage=(1 / 2**ndims))
+    mask_filter_config = MaskFilterConfig(
+        coverage=(1 / 2**ndims), filtered_patch_prob=background_prob
+    )
     patching = StratifiedPatchingStrategy(
         mask_extractor.shapes, patch_size=patch_size, seed=42
     )
-    background_prob = 0.1
     filter_background_with_mask(
-        patching,
         mask_filter_config,
+        patching,
         mask_extractor,
-        bg_relative_prob=background_prob,
     )
 
     mean_expected_prob = {(0, 0): background_prob}

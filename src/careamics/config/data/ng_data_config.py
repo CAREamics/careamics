@@ -369,16 +369,6 @@ class NGDataConfig(BaseModel):
     Coverage is automatically set to 1/(2**ndims) based on data dimensionality
     where ndims is determined from axes. Only available in `training` mode."""
 
-    filtered_patch_prob: float = Field(0.1, ge=0.0, le=1.0)
-    """The probability that each patch considered background will be selected each epoch
-    during training. Patches can be considered background by either using a
-    `patch_filter` or by supplying a mask during training. If neither is chosen this
-    parameter is ignored."""
-
-    # TODO: Move inside patch_filter
-    filter_ref_channel: int = 0
-    """The channel to use as reference for filtering."""
-
     augmentations: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
         default=(
             XYFlipConfig(),

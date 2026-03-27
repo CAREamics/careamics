@@ -49,23 +49,28 @@ def patching_config_dict_testing(
             }
 
 
-def patch_filter_dict_testing(name: str = "shannon") -> dict[str, Any]:
+def patch_filter_dict_testing(
+    name: str = "shannon", filtered_patch_prob: float = 0.1
+) -> dict[str, Any]:
     """Return a patch filter configuration dictionary."""
     match name:
         case "shannon":
             return {
                 "name": name,
                 "threshold": 0.5,
+                "filtered_patch_prob": filtered_patch_prob,
             }
         case "max":
             return {
                 "name": name,
                 "threshold": 0.5,
+                "filtered_patch_prob": filtered_patch_prob,
             }
         case "mean_std":
             return {
                 "name": name,
                 "mean_threshold": 0.5,
+                "filtered_patch_prob": filtered_patch_prob,
             }
         case _:
             raise ValueError(f"Invalid patch filter name: {name}")

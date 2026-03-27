@@ -330,11 +330,9 @@ def create_train_dataset(
                 f"patching. Found {config.patching.name} patching in the configuration."
             )
         filter_background(
+            config.patch_filter,
             patching_strategy,
             input_extractor,
-            config.patch_filter,
-            config.filter_ref_channel,
-            config.filtered_patch_prob,
         )
     # if a mask is provided, apply mask filtering
     if mask_extractor is not None:
@@ -346,10 +344,9 @@ def create_train_dataset(
                 f"patching. Found {config.patching.name} patching in the configuration."
             )
         filter_background_with_mask(
-            patching_strategy,
             config.mask_filter,
+            patching_strategy,
             mask_extractor,
-            bg_relative_prob=config.filtered_patch_prob,
         )
 
     return CareamicsDataset(

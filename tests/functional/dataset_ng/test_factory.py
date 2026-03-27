@@ -33,7 +33,9 @@ def test_filter_background(
         patch_size=patch_size,
         filtered_patch_prob=background_prob,
     )
-    patch_filter = patch_filter_dict_testing(name="max")
+    patch_filter = patch_filter_dict_testing(
+        name="max", filtered_patch_prob=background_prob
+    )
     patch_filter["threshold"] = threshold
     patch_filter["threshold_ratio"] = 0.75
     config_dict["patch_filter"] = patch_filter
@@ -74,10 +76,11 @@ def test_filter_background_w_mask(
         mode="training",
         axes=axes,
         patch_size=patch_size,
-        filtered_patch_prob=background_prob,
     )
     # mask filter should always be in the training config by default
     config = NGDataConfig(**config_dict)
+    assert config.mask_filter is not None
+    config.mask_filter.filtered_patch_prob = background_prob
 
     # data set-up
     rng = np.random.default_rng(42)
