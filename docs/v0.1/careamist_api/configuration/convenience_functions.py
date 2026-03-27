@@ -223,6 +223,9 @@ config = create_n2n_configuration(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=20,
+    # when in/out channels have different number, they
+    # cannot be independent
+    independent_channels=False,
     n_channels_in=3,  # (2)!
     n_channels_out=2,  # (3)!
 )
@@ -238,8 +241,9 @@ config = create_n2n_configuration(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=20,
+    # n_chennls_in=n_channels out, channels can be independent
     n_channels_in=3,
-    independent_channels=False,  # (2)!
+    independent_channels=True,  # (2)!
 )
 # --8<-- [end:n2n_mix_channels]
 
