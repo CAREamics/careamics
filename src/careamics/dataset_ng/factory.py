@@ -516,4 +516,5 @@ def create_pred_dataset(
         inputs=data.pred_data,
         targets=data.pred_data_target,
         loading=loading,
+        model_constraints=model_constraints,
     )

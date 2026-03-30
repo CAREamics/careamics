@@ -610,6 +610,12 @@ class CAREamistV2:
             new_channels=channels,
             new_in_memory=in_memory,
         )
+
+        # validate new data config against the rest of the configuration by triggering
+        # the model level validation
+        self.config.model_copy().data_config = pred_data_config
+
+
         return CareamicsDataModule(
             data_config=pred_data_config,
             pred_data=pred_data,

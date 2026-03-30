@@ -44,7 +44,7 @@ def _incompatible_shapes(depth: int):
             _incompatible_shapes(depth=2),
             [0] + _compatible_shapes(depth=2),
             [2],
-            [pytest.raises(ValueError)],
+            [pytest.raises(ValueError, match="Input data dimension")],
         )
     )
     + list(
@@ -52,7 +52,7 @@ def _incompatible_shapes(depth: int):
             _incompatible_shapes(depth=3),
             [0] + _compatible_shapes(depth=3),
             [3],
-            [pytest.raises(ValueError)],
+            [pytest.raises(ValueError, match="Input data dimension")],
         )
     )
     + list(
@@ -60,7 +60,7 @@ def _incompatible_shapes(depth: int):
             _compatible_shapes(depth=2),
             _incompatible_shapes(depth=2),
             [2],
-            [pytest.raises(ValueError)],
+            [pytest.raises(ValueError, match="Input data dimension")],
         )
     )
     + list(
@@ -68,7 +68,7 @@ def _incompatible_shapes(depth: int):
             _compatible_shapes(depth=3),
             _incompatible_shapes(depth=3),
             [3],
-            [pytest.raises(ValueError)],
+            [pytest.raises(ValueError, match="Input data dimension")],
         )
     ),
 )

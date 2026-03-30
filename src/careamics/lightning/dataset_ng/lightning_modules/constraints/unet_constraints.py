@@ -54,8 +54,8 @@ class UNetConstraints:
             if dim % (2**depth) != 0 or dim < 2**depth:
                 raise ValueError(
                     f"Input data dimension {dim_label[i]} (size {dim}) is not a "
-                    f"multiple of `2**depth` ({2**depth}). If you are training, adjust "
-                    f"the `patch_size`. If you are predicting, your input data shape is"
-                    f" not compatible, use tiling by passing `tile_size`. If you are "
-                    f"already using tiling, adjust `tile_size`."
+                    f"multiple of {2**depth} (2 to the power of the model depth). If "
+                    f"you are training, adjust `patch_size`. If you are predicting,"
+                    f" your input data shape is not compatible, use tiling by passing "
+                    f"`tile_size`. If you are already using tiling, adjust `tile_size`."
                 )

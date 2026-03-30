@@ -183,7 +183,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         target_extractor : PatchExtractor or None, optional
             Extractor for target patches.
         model_constraints : ModelConstraints, optional
-            If provided, the dataset will validate that the input patch size is
+            If provided, the dataset will validate that the input spatial shape is
             compatible with the model constraints. Only used for prediction datasets.
         """
         # Make sure all the image sizes are greater than the patch size for training
@@ -208,7 +208,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             ):
                 for shape in data_shapes:
                     # raise errors if shape is not compatible with model constraints
-                    model_constraints.validate_input_shape(shape)
+                    model_constraints.validate_input_shape(shape[2:])
 
         self.config = data_config
 
