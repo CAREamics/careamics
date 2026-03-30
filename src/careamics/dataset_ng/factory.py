@@ -10,6 +10,9 @@ from typing_extensions import ParamSpec
 from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
+from careamics.lightning.dataset_ng.lightning_modules.constraints import (
+    ModelConstraints,
+)
 
 from .dataset import CareamicsDataset
 from .filter_bg import filter_background, filter_background_with_mask
@@ -99,6 +102,7 @@ def create_dataset(
     inputs: Any,
     targets: Any,
     loading: ReadFuncLoading | ImageStackLoading | None = None,
+    model_constraints: ModelConstraints | None = None,
 ) -> CareamicsDataset[ImageStack]:
     """Create a CAREamicsDataset.
 
@@ -114,6 +118,9 @@ def create_dataset(
         Custom loading specification. Required when `data_type` is "custom":
         use ReadFuncLoading for a read function, or ImageStackLoading for a
         custom image stack loader. Otherwise None.
+    model_constraints : ModelConstraints, optional
+        If provided, the data module will validate that the input data shape is
+        compatible with the model constraints. Only used for prediction datasets.
 
     Returns
     -------
@@ -147,6 +154,7 @@ def create_dataset(
         patching_strategy=patching_strategy,
         input_extractor=input_extractor,
         target_extractor=target_extractor,
+        model_constraints=model_constraints,
     )
 
 
@@ -474,6 +482,7 @@ def create_pred_dataset(
     config: NGDataConfig,
     data: PredData[Any],
     loading: Loading,
+    model_constraints: ModelConstraints | None = None,
 ) -> CareamicsDataset[ImageStack]:
     """Create the dataset for prediction.
 
@@ -485,6 +494,9 @@ def create_pred_dataset(
         Prediction data sources.
     loading : ReadFuncLoading or ImageStackLoading or None
         Custom loading specification when using custom data type.
+    model_constraints : ModelConstraints, optional
+        If provided, the data module will validate that the prediction data shape is
+        compatible with the model constraints.
 
     Returns
     -------

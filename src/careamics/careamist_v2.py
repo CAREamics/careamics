@@ -22,6 +22,7 @@ from .lightning.dataset_ng.data_module import CareamicsDataModule, InputVar
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
     create_module,
+    get_model_constraints,
 )
 from .lightning.dataset_ng.load_checkpoint import (
     load_config_from_checkpoint,
@@ -613,6 +614,9 @@ class CAREamistV2:
             data_config=pred_data_config,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
+            model_constraints=get_model_constraints(
+                self.config.algorithm_config.model
+            ),
             loading=loading,
         )
 

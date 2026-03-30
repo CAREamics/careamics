@@ -14,6 +14,9 @@ from careamics.config.data.ng_data_config import (
     TiledPatchingConfig,
     WholePatchingConfig,
 )
+from careamics.lightning.dataset_ng.lightning_modules.constraints import (
+    ModelConstraints,
+)
 from careamics.transforms import Compose
 
 from .image_stack import GenericImageStack, ZarrImageStack
@@ -141,32 +144,6 @@ def _patch_size_within_data_shapes(
     return all(smaller_than_shapes)
 
 
-def _check_all_spatial_dims(data_shapes: Sequence[Sequence[int]]) -> bool:
-    """Return True if all spatial dims comply with the requirements.
-
-    YX dimensions must be even and greater or equal than 16. Z dimension must be
-    even and greater or equal than 4.
-
-    Parameters
-    ----------
-    data_shapes : Sequence[Sequence[int]]
-        A sequence of data shapes in SC(Z)YX format. Spatial dimensions are
-        everything after the first two (sample and channel) dimensions.
-
-    Returns
-    -------
-    bool
-        True if all spatial dimensions comply with the requirements.
-    """
-    for data_shape in data_shapes:
-        for dim in data_shape[3:]:
-            if dim < 16 or dim % 2 != 0:
-                return False
-        if data_shape[2] < 4 or data_shape[2] % 2 != 0:
-            return False
-    return True
-
-
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     """PyTorch Dataset for CAREamics.
 
@@ -180,6 +157,9 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         Extractor for input patches.
     target_extractor : PatchExtractor or None, optional
         Extractor for target patches.
+    model_constraints : ModelConstraints, optional
+        If provided, the dataset will validate that the input patch size is compatible
+        with the model constraints. Only used for prediction datasets.
     """
 
     def __init__(
@@ -188,8 +168,9 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         patching_strategy: PatchingStrategy,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
+        model_constraints: ModelConstraints | None = None,
     ) -> None:
-        """Contructor.
+        """Constructor.
 
         Parameters
         ----------
@@ -201,6 +182,9 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             Extractor for input patches.
         target_extractor : PatchExtractor or None, optional
             Extractor for target patches.
+        model_constraints : ModelConstraints, optional
+            If provided, the dataset will validate that the input patch size is
+            compatible with the model constraints. Only used for prediction datasets.
         """
         # Make sure all the image sizes are greater than the patch size for training
         data_shapes = [
@@ -217,14 +201,14 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                     "training and validation."
                 )
         else:
-            if not isinstance(data_config.patching, TiledPatchingConfig):
-                if not _check_all_spatial_dims(data_shapes):
-                    raise ValueError(
-                        "Image spatial dimensions must all be even, and greater or "
-                        "equal than 4 (Z) and 16 (YX) when predicting without tiling. "
-                        "Please use tiling by passing `tile_size` and `tile_overlap` "
-                        "to the predict method."
-                    )
+            # model constraints not applied if tiled, since the tiles are validated
+            # in the configuration itself
+            if model_constraints is not None and not isinstance(
+                data_config.patching, TiledPatchingConfig
+            ):
+                for shape in data_shapes:
+                    # raise errors if shape is not compatible with model constraints
+                    model_constraints.validate_input_shape(shape)
 
         self.config = data_config
 

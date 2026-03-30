@@ -8,12 +8,12 @@ def model_without_n2v2(model: UNetConfig) -> UNetConfig:
 
     Parameters
     ----------
-    model : UNetModel
+    model : UNetConfig
         Model to validate.
 
     Returns
     -------
-    UNetModel
+    UNetConfig
         The validated model.
 
     Raises
@@ -35,12 +35,12 @@ def model_without_final_activation(model: UNetConfig) -> UNetConfig:
 
     Parameters
     ----------
-    model : UNetModel
+    model : UNetConfig
         Model to validate.
 
     Returns
     -------
-    UNetModel
+    UNetConfig
         The validated model.
 
     Raises
@@ -62,12 +62,12 @@ def model_matching_in_out_channels(model: UNetConfig) -> UNetConfig:
 
     Parameters
     ----------
-    model : UNetModel
+    model : UNetConfig
         Model to validate.
 
     Returns
     -------
-    UNetModel
+    UNetConfig
         Validated model.
 
     Raises
