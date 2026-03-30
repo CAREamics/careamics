@@ -46,12 +46,16 @@ class UNetConstraints:
                 f" 3 (ZYX), but got shape {input_shape}."
             )
 
+        dim_label = "ZYX" if len(input_shape) == 3 else "YX"
+
         # check spatial dims against model depth constraints
         depth = self.model_config.depth
         for i, dim in enumerate(input_shape):
             if dim % (2**depth) != 0 or dim < 2**depth:
                 raise ValueError(
-                    f"Input data dimension {i} (size {dim}) is not a multiple of "
-                    f"2**depth ({2**depth}) or is smaller than 2**depth. Make sure that"
-                    f" the input data shape is compatible with the model."
+                    f"Input data dimension {dim_label[i]} (size {dim}) is not a "
+                    f"multiple of `2**depth` ({2**depth}). If you are training, adjust "
+                    f"the `patch_size`. If you are predicting, your input data shape is"
+                    f" not compatible, use tiling by passing `tile_size`. If you are "
+                    f"already using tiling, adjust `tile_size`."
                 )
