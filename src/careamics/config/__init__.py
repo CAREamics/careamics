@@ -2,7 +2,6 @@
 
 __all__ = [
     "CAREAlgorithm",
-    "CheckpointConfig",
     "GaussianMixtureNMConfig",
     "HDNAlgorithm",
     "LVAEConfig",
@@ -13,7 +12,6 @@ __all__ = [
     "N2VAlgorithm",
     "NGDataConfig",
     "PN2VAlgorithm",
-    "TrainingConfig",
     "UNetBasedAlgorithm",
     "UNetConfig",
     "VAEBasedAlgorithm",
@@ -32,8 +30,6 @@ from .algorithms import (
 )
 from .architectures import LVAEConfig, UNetConfig
 from .data import NGDataConfig
-from .lightning.callbacks import CheckpointConfig
-from .lightning.training_config import TrainingConfig
 from .losses.loss_config import LVAELossConfig
 from .ng_factories.data_factory import create_ng_data_configuration
 from .noise_model import (

@@ -6,6 +6,7 @@ from typing import Annotated, Any, Literal, Union
 from pydantic import Field, TypeAdapter
 
 from careamics.compat.config.data import DataConfig
+from careamics.compat.config.lightning.training_config import TrainingConfig
 from careamics.config.algorithms import (
     CAREAlgorithm,
     MicroSplitAlgorithm,
@@ -24,7 +25,6 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.lightning.training_config import TrainingConfig
 from careamics.config.losses.loss_config import KLLossConfig, LVAELossConfig
 from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.config.noise_model.likelihood_config import (

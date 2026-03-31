@@ -964,7 +964,9 @@ def test_pn2v_configuration(tmp_path: Path, create_dummy_noise_model):
 
 def test_checkpoint_model_save_top_k_default():
     """CheckpointConfig's default save_top_k=3 doesn't conflict with trainer params."""
-    from careamics.config.lightning.callbacks.callback_config import CheckpointConfig
+    from careamics.compat.config.lightning.callbacks.callback_config import (
+        CheckpointConfig,
+    )
 
     # Test default save_top_k value
     checkpoint_model = CheckpointConfig()
@@ -1039,7 +1041,9 @@ def test_checkpoint_model_save_top_k_edge_cases():
     """Test edge cases for save_top_k parameter."""
     import pytest
 
-    from careamics.config.lightning.callbacks.callback_config import CheckpointConfig
+    from careamics.compat.config.lightning.callbacks.callback_config import (
+        CheckpointConfig,
+    )
 
     # Test that save_top_k accepts valid range (-1 to 100)
     checkpoint_model = CheckpointConfig(save_top_k=-1)  # Save all

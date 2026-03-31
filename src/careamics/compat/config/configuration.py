@@ -11,6 +11,7 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from careamics.compat.config.data import DataConfig
+from careamics.compat.config.lightning.training_config import TrainingConfig
 from careamics.config.algorithms import (
     CAREAlgorithm,
     HDNAlgorithm,
@@ -19,7 +20,6 @@ from careamics.config.algorithms import (
     N2VAlgorithm,
     PN2VAlgorithm,
 )
-from careamics.config.lightning.training_config import TrainingConfig
 from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 ALGORITHMS = Union[
