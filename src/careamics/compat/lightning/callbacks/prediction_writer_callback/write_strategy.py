@@ -14,8 +14,11 @@ from careamics.compat.dataset import IterablePredDataset, IterableTiledPredDatas
 from careamics.compat.prediction_utils.stitch_prediction import stitch_prediction_single
 from careamics.dataset.dataset_utils.file_utils import create_write_file_path
 from careamics.file_io import WriteFunc
+from careamics.utils import get_logger
 
 from .file_path_utils import get_sample_file_path
+
+logger = get_logger(__name__)
 
 
 class WriteStrategy(Protocol):
@@ -196,6 +199,7 @@ class CacheTiles(WriteStrategy):
                 file_path=input_file_path,
                 write_extension=self.write_extension,
             )
+            logger.info(f"Writing prediction to {file_path}.")
             self.write_func(
                 file_path=file_path, img=prediction_image[0], **self.write_func_kwargs
             )
