@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import InferenceConfig
+from careamics.compat.config.data import InferenceConfig
 from careamics.dataset import IterablePredDataset
 
 

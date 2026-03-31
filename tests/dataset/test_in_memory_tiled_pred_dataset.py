@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.config import InferenceConfig
+from careamics.compat.config.data import InferenceConfig
 from careamics.dataset import InMemoryTiledPredDataset
 
 

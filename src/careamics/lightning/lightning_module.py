@@ -8,13 +8,13 @@ import pytorch_lightning as L
 import torch
 
 from careamics.compat.config.configuration_factories import algorithm_factory
+from careamics.compat.config.data.tile_information import TileInformation
 from careamics.config import (
     N2VAlgorithm,
     PN2VAlgorithm,
     UNetBasedAlgorithm,
     VAEBasedAlgorithm,
 )
-from careamics.config.data.tile_information import TileInformation
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,

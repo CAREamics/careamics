@@ -6,11 +6,11 @@ from typing import cast
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.config.data.tile_information import TileInformation
+from careamics.compat.config.data.tile_information import TileInformation
 from careamics.utils.deprecation import deprecated
 
-from .dataset import ImageRegionData
-from .patching_strategies import TileSpecs
+from ...dataset_ng.dataset import ImageRegionData
+from ...dataset_ng.patching_strategies import TileSpecs
 
 
 @deprecated(

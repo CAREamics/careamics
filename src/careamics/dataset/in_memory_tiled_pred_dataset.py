@@ -9,8 +9,8 @@ from careamics.compat.config.data import InferenceConfig
 from careamics.transforms import Compose
 from careamics.utils.reshape_array import reshape_array
 
+from ..compat.config.data.tile_information import TileInformation
 from ..config.augmentations import NormalizeConfig
-from ..config.data.tile_information import TileInformation
 from .tiling import extract_tiles
 
 

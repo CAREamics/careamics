@@ -32,10 +32,7 @@ class ImageStackLoader(Protocol[P, GenericImageStack]):
     for loading non-OME Zarr images. Returning a list of `ZarrImageStack` instances.
 
     >>> from typing import TypedDict
-
     >>> from zarr.storage import FsspecStore
-
-    >>> from careamics.config import DataConfig
     >>> from careamics.dataset_ng.image_stack import ZarrImageStack
 
     >>> # Define a zarr source

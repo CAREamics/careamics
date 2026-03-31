@@ -3,7 +3,9 @@
 __all__ = [
     "DataConfig",
     "InferenceConfig",
+    "TileInformation",
 ]
 
 from .data_config import DataConfig
 from .inference_config import InferenceConfig
+from .tile_information import TileInformation

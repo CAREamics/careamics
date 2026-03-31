@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.config.data.tile_information import TileInformation
+from careamics.compat.config.data.tile_information import TileInformation
 
 
 def test_defaults():

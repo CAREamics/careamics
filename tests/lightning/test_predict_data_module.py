@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config import InferenceConfig
+from careamics.compat.config.data import InferenceConfig
 from careamics.config.support import SupportedData
 from careamics.lightning import PredictDataModule, create_predict_datamodule
 

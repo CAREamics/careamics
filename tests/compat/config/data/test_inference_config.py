@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config.data.inference_config import InferenceConfig
+from careamics.compat.config.data.inference_config import InferenceConfig
 
 
 @pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr", "npy"])

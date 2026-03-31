@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import Mock
 
-from careamics.config import InferenceConfig
+from careamics.compat.config.data import InferenceConfig
 from careamics.dataset import IterablePredDataset, IterableTiledPredDataset
 from careamics.lightning.callbacks.prediction_writer_callback.file_path_utils import (
     create_write_file_path,
