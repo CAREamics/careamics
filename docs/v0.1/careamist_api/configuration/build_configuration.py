@@ -2,12 +2,10 @@
 
 # %%
 # --8<-- [start:pydantic]
-from careamics.config import (  # (1)!
-    Configuration,
-    DataConfig,
-    N2VAlgorithm,
-    TrainingConfig,
-)
+from careamics.compat.config import Configuration  # (1)!
+from careamics.compat.config.data import DataConfig
+from careamics.config import TrainingConfig
+from careamics.config.algorithms import N2VAlgorithm
 from careamics.config.architectures import UNetConfig
 from careamics.config.lightning.callbacks.callback_config import (
     CheckpointConfig,
@@ -73,7 +71,7 @@ config = Configuration(  # (13)!
 
 # %%
 # --8<-- [start:as_dict]
-from careamics.config import Configuration
+from careamics.compat.config import Configuration
 
 config_dict = {
     "experiment_name": "N2V_example",

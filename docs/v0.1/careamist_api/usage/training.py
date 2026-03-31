@@ -65,7 +65,7 @@ careamist.train(
 
 # %%
 # --8<-- [start:datamodule]
-from careamics.lightning import TrainDataModule
+from careamics.compat.lightning import TrainDataModule
 
 data_module = TrainDataModule(  # (1)!
     data_config=config.data_config, train_data=train_array

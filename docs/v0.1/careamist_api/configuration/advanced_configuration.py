@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # %%
 # --8<-- [start:data]
-from careamics.config import DataConfig
+from careamics.compat.config.data import DataConfig
 
 data_config = DataConfig(
     data_type="custom",  # (1)!

@@ -17,7 +17,7 @@ save_configuration(config, "config.yml")
 
 # %%
 # --8<-- [start:load]
-from careamics.config.utils.configuration_io import load_configuration
+from careamics.compat.config.utils.configuration_io import load_configuration
 
 config = load_configuration("config.yml")
 # --8<-- [end:load]
