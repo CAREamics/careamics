@@ -10,11 +10,6 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader, IterableDataset
 
 from careamics.compat.config.data import DataConfig
-from careamics.compat.dataset.dataset_utils import (
-    get_files_size,
-    list_files,
-    validate_source_target_files,
-)
 from careamics.compat.dataset.in_memory_dataset import (
     InMemoryDataset,
 )
@@ -23,6 +18,11 @@ from careamics.compat.dataset.iterable_dataset import (
 )
 from careamics.config.augmentations import TransformConfig
 from careamics.config.support import SupportedData
+from careamics.dataset.dataset_utils import (
+    get_files_size,
+    list_files,
+    validate_source_target_files,
+)
 from careamics.file_io.read import get_read_func
 from careamics.utils import get_logger, get_ram_size
 

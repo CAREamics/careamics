@@ -4,16 +4,10 @@ __all__ = [
     "CareamicsCheckpointInfo",
     "DataStatsCallback",
     "PredictionStoppedException",
-    "PredictionWriterCallback",
     "ProgressBarCallback",
     "StopPredictionCallback",
-    "create_write_strategy",
 ]
 
-from careamics.compat.lightning.callbacks.prediction_writer_callback import (
-    PredictionWriterCallback,
-    create_write_strategy,
-)
 
 from .careamics_checkpoint_info_callback import CareamicsCheckpointInfo
 from .data_stats_callback import DataStatsCallback

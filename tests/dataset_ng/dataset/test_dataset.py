@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.compat.config.configuration_factories import (
-    _list_spatial_augmentations,
-)
 from careamics.config import create_ng_data_configuration
 from careamics.config.data import NGDataConfig
+from careamics.config.ng_factories.data_factory import (
+    list_spatial_augmentations,
+)
 from careamics.dataset_ng.dataset import _adjust_shape_for_channels
 from careamics.dataset_ng.factory import ReadFuncLoading, create_dataset
 
@@ -46,7 +46,7 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
-        augmentations=_list_spatial_augmentations(),
+        augmentations=list_spatial_augmentations(),
         in_memory=True,
         seed=42,
     )
@@ -156,7 +156,7 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
-        augmentations=_list_spatial_augmentations(),
+        augmentations=list_spatial_augmentations(),
         in_memory=True,
         seed=42,
     )
@@ -211,7 +211,7 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
             "input_means": [example_data.mean()],
             "input_stds": [example_data.std()],
         },
-        augmentations=_list_spatial_augmentations(),
+        augmentations=list_spatial_augmentations(),
         batch_size=1,
         seed=42,
     )
@@ -247,7 +247,7 @@ def test_from_custom_data_type(patch_size, data_shape):
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
-        augmentations=_list_spatial_augmentations(),
+        augmentations=list_spatial_augmentations(),
         in_memory=True,
         seed=42,
     )
@@ -345,7 +345,7 @@ def test_error_data_smaller_than_patch():
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
-        augmentations=_list_spatial_augmentations(),
+        augmentations=list_spatial_augmentations(),
         in_memory=True,
         seed=42,
     )

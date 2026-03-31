@@ -3,7 +3,7 @@
 
 
 def test_smoke():
-    """Import careamics.compat.CAREamist."""
+    """Import CAREamist."""
     from careamics import CAREamistV2
     from careamics.config.ng_factories import create_n2v_config
 
