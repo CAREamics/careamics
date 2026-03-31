@@ -4,10 +4,10 @@
 # --8<-- [start:pydantic]
 from careamics.compat.config import Configuration  # (1)!
 from careamics.compat.config.data import DataConfig
-from careamics.config import TrainingConfig
+from careamics.compat.config.lightning import TrainingConfig
 from careamics.config.algorithms import N2VAlgorithm
 from careamics.config.architectures import UNetConfig
-from careamics.config.lightning.callbacks.callback_config import (
+from careamics.compat.config.lightning.callbacks.callback_config import (
     CheckpointConfig,
     EarlyStoppingConfig,
 )

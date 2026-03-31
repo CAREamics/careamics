@@ -29,7 +29,7 @@ algorithm_config:
     strategy: uniform
     struct_mask_axis: none
     struct_mask_span: 5
-    seed: 1497629571
+    seed: 1918893887
 data_config:
   data_type: tiff
   axes: ZYX
