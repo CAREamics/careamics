@@ -21,6 +21,7 @@ from pydantic import (
     model_validator,
 )
 
+from careamics.config.support import SupportedData
 from careamics.utils import BaseEnum
 
 from ..augmentations import XYFlipConfig, XYRandomRotate90Config
@@ -54,10 +55,31 @@ from .patching_strategies import (
 #       leverage Pydantic to add validation directly to the declaration of each field?
 
 
+def _is_3D(axes: str, data_type: SupportedData) -> bool:
+    """Determine whether the `axes` and `data_type` combination specifies 3D data.
+
+    Parameters
+    ----------
+    axes : str
+        The axes of the data.
+    data_type : SupportedData
+        The data format.
+
+    Returns
+    -------
+    bool
+        Whether the parameters specify 3D data.
+    """
+    if data_type != SupportedData.CZI:
+        return "Z" in axes
+    else:
+        return ("Z" in axes) or ("T" in axes)
+
+
 def _are_spatial_dims_maintained(
-    old_data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    old_data_type: SupportedData,
     old_axes: str,
-    new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    new_data_type: SupportedData,
     new_axes: str,
 ) -> bool:
     """Check that spatial dimensions are maintained between sets of data type and axes.
@@ -83,13 +105,8 @@ def _are_spatial_dims_maintained(
     bool
         Whether spatial dimensions are maintained.
     """
-    is_3D_old = "Z" in old_axes
-    if old_data_type == "czi":
-        is_3D_old = "Z" in old_axes or "T" in old_axes
-
-    is_3D_new = "Z" in new_axes
-    if new_data_type == "czi":
-        is_3D_new = "Z" in new_axes or "T" in new_axes
+    is_3D_old = _is_3D(old_axes, old_data_type)
+    is_3D_new = _is_3D(new_axes, new_data_type)
 
     if old_data_type == new_data_type and new_data_type == "czi":
         # for CZI data, check that Z did not switch to T or inversely
@@ -297,9 +314,7 @@ def _create_mask_filter(validated_params: dict[str, Any]) -> MaskFilterConfig | 
         return None
 
     # determine if data is 3D
-    is_3d = "Z" in axes
-    if data_type == "czi":
-        is_3d = is_3d or "T" in axes
+    is_3d = _is_3D(axes, SupportedData(data_type))
 
     ndims = 3 if is_3d else 2
     coverage = 1 / (2**ndims)
@@ -884,10 +899,7 @@ class NGDataConfig(BaseModel):
         bool
             True if the data is 3D, False otherwise.
         """
-        if self.data_type == "czi":
-            return "Z" in self.axes or "T" in self.axes
-        else:
-            return "Z" in self.axes
+        return _is_3D(self.axes, SupportedData(self.data_type))
 
     # TODO: if switching from a state in which in_memory=True to an incompatible state
     # an error will be raised. Should that automatically be set to False instead?
@@ -981,9 +993,9 @@ class NGDataConfig(BaseModel):
         # sanity checks
         # switching spatial axes
         if not _are_spatial_dims_maintained(
-            self.data_type,
+            SupportedData(self.data_type),
             self.axes,
-            new_data_type or self.data_type,
+            SupportedData(new_data_type or self.data_type),
             new_axes or self.axes,
         ):  # switching 2D/3D
             additional_msg = ""
