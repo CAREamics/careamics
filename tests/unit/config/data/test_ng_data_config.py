@@ -905,7 +905,7 @@ class TestConvertMode:
         )
         cfg = NGDataConfig(**cfg_dict)
 
-        if expected_coverage is None:
+        if mode != TRAINING:
             assert cfg.mask_filter is None
         else:
             assert cfg.mask_filter is not None
@@ -913,7 +913,6 @@ class TestConvertMode:
 
 
 class TestGetDefaultNumWorkers:
-
     def test_returns_0_in_pytest(self):
         """Test that get_default_num_workers returns 0 when running under pytest."""
         assert get_default_num_workers() == 0
