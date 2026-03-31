@@ -3,8 +3,8 @@
 # --8<-- [start:quick_start_n2v]
 import numpy as np
 
-from careamics import CAREamist
-from careamics.config import create_n2v_configuration
+from careamics.compat.careamist import CAREamist
+from careamics.compat.config import create_n2v_configuration
 
 # create a configuration
 config = create_n2v_configuration(
@@ -31,8 +31,8 @@ prediction = careamist.predict(source=pred_data)
 # --8<-- [start:quick_start_care]
 import numpy as np
 
-from careamics import CAREamist
-from careamics.config import create_care_configuration
+from careamics.compat.careamist import CAREamist
+from careamics.compat.config import create_care_configuration
 
 # create a configuration
 config = create_care_configuration(
@@ -67,8 +67,8 @@ prediction = careamist.predict(source=pred_data, axes="YX")
 # --8<-- [start:quick_start_n2n]
 import numpy as np
 
-from careamics import CAREamist
-from careamics.config import create_n2n_configuration
+from careamics.compat.careamist import CAREamist
+from careamics.compat.config import create_n2n_configuration
 
 # create a configuration
 config = create_n2n_configuration(

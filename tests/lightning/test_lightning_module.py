@@ -323,8 +323,8 @@ def test_prediction_callback_during_training(
     import numpy as np
     from pytorch_lightning import Callback, Trainer
 
-    from careamics import CAREamist
-    from careamics.config import Configuration
+    from careamics.compat.careamist import CAREamist
+    from careamics.compat.config import Configuration
     from careamics.lightning import PredictDataModule, create_predict_datamodule
     from careamics.prediction_utils import convert_outputs
 

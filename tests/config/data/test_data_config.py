@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 import yaml
 
+from careamics.compat.config.data import DataConfig
 from careamics.config.augmentations import NormalizeConfig
-from careamics.config.data.data_config import DataConfig
 from careamics.config.support import (
     SupportedTransform,
 )

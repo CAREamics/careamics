@@ -9,8 +9,8 @@ import pytorch_lightning as L
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, IterableDataset
 
+from careamics.compat.config.data import DataConfig
 from careamics.config.augmentations import TransformConfig
-from careamics.config.data import DataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import (
     get_files_size,

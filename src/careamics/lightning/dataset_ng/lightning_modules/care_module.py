@@ -8,7 +8,8 @@ import torch
 from torch import nn
 from torchmetrics import MetricCollection
 
-from careamics.config import CAREAlgorithm, N2NAlgorithm, algorithm_factory
+from careamics.config import CAREAlgorithm, N2NAlgorithm
+from careamics.config.ng_factories.algorithm_factory import algorithm_factory
 from careamics.config.support import SupportedLoss
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.lightning.dataset_ng.data_module import TrainValData, TrainValSplitData

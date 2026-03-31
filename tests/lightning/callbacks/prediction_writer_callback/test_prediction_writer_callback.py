@@ -12,7 +12,7 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
 
-from careamics.config import Configuration
+from careamics.compat.config import Configuration
 from careamics.config.support import SupportedData
 from careamics.dataset import IterablePredDataset
 from careamics.lightning import (

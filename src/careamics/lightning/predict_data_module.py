@@ -9,7 +9,7 @@ import pytorch_lightning as L
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 
-from careamics.config import InferenceConfig
+from careamics.compat.config.data import InferenceConfig
 from careamics.config.support import SupportedData
 from careamics.dataset import (
     InMemoryPredDataset,

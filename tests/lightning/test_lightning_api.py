@@ -7,8 +7,8 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 
-from careamics.config import Configuration
-from careamics.config.configuration_factories import create_pn2v_configuration
+from careamics.compat.config import Configuration
+from careamics.compat.config.configuration_factories import create_pn2v_configuration
 from careamics.lightning import (
     create_careamics_module,
     create_predict_datamodule,

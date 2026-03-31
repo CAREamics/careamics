@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import DataConfig
+from careamics.compat.config.data import DataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset import InMemoryDataset
 

@@ -76,8 +76,8 @@ from typing import Any
 
 import numpy as np
 
-from careamics import CAREamist
-from careamics.config import create_n2v_configuration
+from careamics.compat.careamist import CAREamist
+from careamics.compat.config import create_n2v_configuration
 from careamics.lightning import TrainDataModule
 
 

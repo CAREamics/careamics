@@ -3,7 +3,6 @@
 __all__ = [
     "DataStatsCallback",
     "FCNModule",
-    "HyperParametersCallback",
     "MicroSplitDataModule",
     "PredictDataModule",
     "PredictionStoppedException",
@@ -22,7 +21,6 @@ __all__ = [
 
 from .callbacks import (
     DataStatsCallback,
-    HyperParametersCallback,
     PredictionStoppedException,
     ProgressBarCallback,
     StopPredictionCallback,

@@ -10,7 +10,7 @@ from typing import Any, Union
 import numpy as np
 from torch.utils.data import Dataset
 
-from careamics.config import DataConfig
+from careamics.compat.config.data import DataConfig
 from careamics.config.augmentations import NormalizeConfig
 from careamics.dataset.patching.patching import (
     PatchedOutput,

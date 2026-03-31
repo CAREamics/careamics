@@ -5,7 +5,9 @@ import numpy as np
 import pytest
 from pytorch_lightning import Callback, Trainer
 
-from careamics import CAREamist, Configuration
+from careamics.compat.careamist import CAREamist
+from careamics.compat.config import Configuration
+from careamics.compat.model_io import export_to_bmz
 from careamics.config.ng_configs import NGConfiguration
 from careamics.config.ng_configs.ng_training_configuration import (
     NGTrainingConfig,
@@ -22,10 +24,10 @@ from careamics.lightning.callbacks.careamics_checkpoint_info_callback import (
 from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 from careamics.lightning.dataset_ng.lightning_modules import CAREModule, N2VModule
 from careamics.lightning.dataset_ng.load_checkpoint import _create_loaded_exp_name
-from careamics.model_io import export_to_bmz
 
 pytest.register_assert_rewrite("functional.dataset_ng.utils")
 
+# TODO move to compat/conftest.py
 
 ############################################################
 # Old fixtures below, kept for backwards compatibility, need

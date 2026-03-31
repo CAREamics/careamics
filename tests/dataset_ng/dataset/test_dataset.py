@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import create_ng_data_configuration
-from careamics.config.configuration_factories import (
+from careamics.compat.config.configuration_factories import (
     _list_spatial_augmentations,
 )
+from careamics.config import create_ng_data_configuration
 from careamics.config.data import NGDataConfig
 from careamics.dataset_ng.dataset import _adjust_shape_for_channels
 from careamics.dataset_ng.factory import ReadFuncLoading, create_dataset

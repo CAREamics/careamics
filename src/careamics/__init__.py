@@ -8,10 +8,7 @@ except PackageNotFoundError:
     __version__ = "uninstalled"
 
 __all__ = [
-    "CAREamist",
-    "Configuration",
-    "algorithm_factory",
+    "CAREamistV2",
 ]
 
-from .careamist import CAREamist
-from .config import Configuration, algorithm_factory
+from .careamist_v2 import CAREamistV2

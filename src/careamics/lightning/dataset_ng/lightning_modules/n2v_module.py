@@ -8,7 +8,8 @@ import torch
 from torch import nn
 from torchmetrics import MetricCollection
 
-from careamics.config import N2VAlgorithm, algorithm_factory
+from careamics.config import N2VAlgorithm
+from careamics.config.ng_factories.algorithm_factory import algorithm_factory
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.lightning.dataset_ng.data_module import TrainValData, TrainValSplitData
 from careamics.lightning.dataset_ng.metrics import SIPSNR

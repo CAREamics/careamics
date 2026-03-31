@@ -9,7 +9,7 @@ from typing import Union
 from numpy.typing import NDArray
 from torch.utils.data import get_worker_info
 
-from careamics.config import DataConfig, InferenceConfig
+from careamics.compat.config.data import DataConfig, InferenceConfig
 from careamics.file_io.read import read_tiff
 from careamics.utils.logging import get_logger
 from careamics.utils.reshape_array import reshape_array

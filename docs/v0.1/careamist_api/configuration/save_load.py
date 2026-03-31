@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # %%
 # --8<-- [start:save]
-from careamics.config.utils.configuration_io import save_configuration
-from careamics.config import create_n2v_configuration
+from careamics.compat.config.utils.configuration_io import save_configuration
+from careamics.compat.config import create_n2v_configuration
 
 config = create_n2v_configuration(
     experiment_name="Config_to_save",

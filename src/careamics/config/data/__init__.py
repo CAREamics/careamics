@@ -17,7 +17,6 @@ __all__ = [
     "WholePatchingConfig",
 ]
 
-from .data_config import DataConfig
 from .ng_data_config import NGDataConfig
 from .normalization_config import (
     MeanStdConfig,

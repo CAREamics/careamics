@@ -12,7 +12,7 @@ from typing import Union
 from numpy.typing import NDArray
 from pytorch_lightning.callbacks import Callback
 
-from careamics.config.configuration import Configuration
+from careamics.compat.config.configuration import Configuration
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
 )

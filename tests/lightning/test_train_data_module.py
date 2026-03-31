@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from tifffile import imwrite
 
-from careamics.config import DataConfig
+from careamics.compat.config.data import DataConfig
 from careamics.config.augmentations import N2VManipulateConfig, XYFlipConfig
 from careamics.config.support import (
     SupportedData,
