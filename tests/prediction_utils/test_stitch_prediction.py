@@ -2,7 +2,10 @@ import numpy as np
 import pytest
 
 from careamics.compat.dataset.tiling import extract_tiles
-from careamics.prediction_utils import stitch_prediction, stitch_prediction_single
+from careamics.compat.prediction_utils import (
+    stitch_prediction,
+    stitch_prediction_single,
+)
 
 
 @pytest.mark.parametrize(

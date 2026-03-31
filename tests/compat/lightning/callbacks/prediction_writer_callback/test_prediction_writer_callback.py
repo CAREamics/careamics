@@ -14,18 +14,18 @@ from torch.utils.data import DataLoader
 
 from careamics.compat.config import Configuration
 from careamics.compat.dataset import IterablePredDataset
+from careamics.compat.lightning import (
+    create_careamics_module,
+    create_predict_datamodule,
+    create_train_datamodule,
+)
 from careamics.compat.lightning.callbacks.prediction_writer_callback import (
     PredictionWriterCallback,
     WriteStrategy,
     create_write_strategy,
 )
+from careamics.compat.prediction_utils import convert_outputs
 from careamics.config.support import SupportedData
-from careamics.lightning import (
-    create_careamics_module,
-    create_predict_datamodule,
-    create_train_datamodule,
-)
-from careamics.prediction_utils import convert_outputs
 
 
 @pytest.fixture

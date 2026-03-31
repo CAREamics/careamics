@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from careamics.compat.dataset.tiling import extract_tiles
-from careamics.prediction_utils import convert_outputs
+from careamics.compat.prediction_utils import convert_outputs
 
 
 @pytest.mark.parametrize("n_samples", [1, 2])

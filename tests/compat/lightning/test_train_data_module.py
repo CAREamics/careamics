@@ -4,12 +4,12 @@ from tifffile import imwrite
 
 from careamics.compat.config.data import DataConfig
 from careamics.compat.dataset import InMemoryDataset, PathIterableDataset
+from careamics.compat.lightning import TrainDataModule, create_train_datamodule
 from careamics.config.augmentations import N2VManipulateConfig, XYFlipConfig
 from careamics.config.support import (
     SupportedData,
     SupportedTransform,
 )
-from careamics.lightning import TrainDataModule, create_train_datamodule
 
 
 @pytest.fixture

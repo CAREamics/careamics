@@ -573,7 +573,7 @@ def create_train_datamodule(
     --------
     Create a TrainingDataModule with default transforms with a numpy array:
     >>> import numpy as np
-    >>> from careamics.lightning import create_train_datamodule
+    >>> from careamics.compat.lightning import create_train_datamodule
     >>> my_array = np.arange(256).reshape(16, 16)
     >>> data_module = create_train_datamodule(
     ...     train_data=my_array,
@@ -586,7 +586,7 @@ def create_train_datamodule(
     For custom data types (those not supported by CAREamics), then one can pass a read
     function and a filter for the files extension:
     >>> import numpy as np
-    >>> from careamics.lightning import create_train_datamodule
+    >>> from careamics.compat.lightning import create_train_datamodule
     >>>
     >>> def read_npy(path):
     ...     return np.load(path)
@@ -604,7 +604,7 @@ def create_train_datamodule(
     If you want to use a different set of augmentations, you can pass a list of
     transforms:
     >>> import numpy as np
-    >>> from careamics.lightning import create_train_datamodule
+    >>> from careamics.compat.lightning import create_train_datamodule
     >>> from careamics.config.augmentations import XYFlipConfig
     >>> from careamics.config.support import SupportedTransform
     >>> my_array = np.arange(256).reshape(16, 16)

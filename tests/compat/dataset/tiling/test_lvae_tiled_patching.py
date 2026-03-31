@@ -11,9 +11,9 @@ from careamics.compat.dataset.tiling.lvae_tiled_patching import (
     n_tiles_1d,
     total_n_tiles,
 )
+from careamics.compat.prediction_utils.stitch_prediction import stitch_prediction
 from careamics.lvae_training.dataset import TilingMode
 from careamics.lvae_training.dataset.utils.index_manager import GridIndexManager
-from careamics.prediction_utils.stitch_prediction import stitch_prediction
 
 
 @pytest.mark.parametrize(

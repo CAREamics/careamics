@@ -14,8 +14,8 @@ from careamics.compat.lightning import (
     create_predict_datamodule,
     create_train_datamodule,
 )
+from careamics.compat.lightning.lightning_module import FCNModule
 from careamics.compat.prediction_utils import convert_outputs, convert_outputs_pn2v
-from careamics.lightning.lightning_module import FCNModule
 
 pytestmark = pytest.mark.mps_gh_fail
 

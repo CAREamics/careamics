@@ -7,9 +7,9 @@ from careamics.compat.config.data import InferenceConfig
 from careamics.compat.config.data.tile_information import TileInformation
 from careamics.compat.dataset import InMemoryTiledPredDataset
 from careamics.compat.dataset.tiling.collate_tiles import collate_tiles
+from careamics.compat.prediction_utils import convert_outputs
 from careamics.models.lvae.likelihoods import GaussianLikelihood
 from careamics.models.lvae.lvae import LadderVAE
-from careamics.prediction_utils import convert_outputs
 from careamics.prediction_utils.lvae_prediction import (
     lvae_predict_mmse_tiled_batch,
     lvae_predict_tiled_batch,

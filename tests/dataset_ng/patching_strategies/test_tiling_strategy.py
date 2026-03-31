@@ -2,11 +2,11 @@ import numpy as np
 import pytest
 
 from careamics.compat.dataset.legacy_interoperability import imageregions_to_tileinfos
+from careamics.compat.prediction_utils.stitch_prediction import stitch_prediction
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.image_stack_loader import load_arrays
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patching_strategies import TilingStrategy
-from careamics.prediction_utils.stitch_prediction import stitch_prediction
 
 
 def _test_tiling_output(
