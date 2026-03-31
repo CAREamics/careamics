@@ -27,7 +27,7 @@ def test_unet_algorithm_configs(algorithm, cfg_class):
 
 
 @pytest.mark.parametrize(
-    "algorithm, n_in, n_out", list(zip(ALGORITHMS, [1, 3], [1, 2, 3], strict=True))
+    "algorithm, n_in, n_out", list(zip(ALGORITHMS, [1, 2, 3], [1, 2, 3], strict=True))
 )
 def test_unet_algorithm_config_channels(algorithm, n_in, n_out):
     """Test that an algorithm config can be created for all UNet-based algorithms with
