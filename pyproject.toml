@@ -173,6 +173,7 @@ addopts = "-p no:doctest"
 markers = [
     # "gpu: marks tests as requiring gpu",
     "lvae: marks tests as testing lvae",
+    "compat: marks tests as testing v0.1 compat modules",
     "mps_gh_fail: marks tests as failing on Github macos-latest runner",
     "czi: marks tests using czi files",
 ]
