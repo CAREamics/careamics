@@ -593,7 +593,7 @@ def create_care_configuration(
     num_epochs: int = 100,
     num_steps: int | None = None,
     augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
-    independent_channels: bool = True,
+    independent_channels: bool = False,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
@@ -741,9 +741,9 @@ def create_care_configuration(
     ...     ]
     ... )
 
-    If you are training multiple channels they will be trained independently by default,
-    you simply need to specify the number of channels input (and optionally, the number
-    of channels output):
+    If you are training multiple channels they will be trained together by default,
+    you simply need to specify the number of channels input (and the output if
+    different):
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
     ...     data_type="array",
@@ -751,12 +751,13 @@ def create_care_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     n_channels_in=3, # number of input channels
-    ...     n_channels_out=1 # if applicable
+    ...     n_channels_in=3,
+    ...     n_channels_out=2 # if applicable
     ... )
 
-    If instead you want to train multiple channels together, you need to turn off the
-    `independent_channels` parameter:
+    If instead you want to train channels independently, you need to turn on the
+    `independent_channels` parameter (input and output channels must be the same in this
+    case):
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
     ...     data_type="array",
@@ -764,9 +765,8 @@ def create_care_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     independent_channels=False,
+    ...     independent_channels=True,
     ...     n_channels_in=3,
-    ...     n_channels_out=1 # if applicable
     ... )
 
     If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
@@ -858,8 +858,9 @@ def create_n2n_configuration(
     To set the number of output channels, use the `n_channels_out` parameter. If it is
     not specified, it will be assumed to be equal to `n_channels_in`.
 
-    By default, all channels are trained together. To train all channels independently,
-    set `independent_channels` to True.
+    By default, all channels are trained independently. To train all channels together,
+    set `independent_channels` to True. If the number of input and output channels are
+    the same, channels cannot be independent.
 
     By setting `augmentations` to `None`, the default augmentations (flip in X and Y,
     rotations by 90 degrees in the XY plane) are applied. Rather than the default
@@ -978,8 +979,8 @@ def create_n2n_configuration(
     ... )
 
     If you are training multiple channels they will be trained independently by default,
-    you simply need to specify the number of channels input (and optionally, the number
-    of channels output):
+    you simply need to specify the number of channels input (the number of output
+    channels must be the same as input in this case):
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
     ...     data_type="array",
@@ -988,11 +989,10 @@ def create_n2n_configuration(
     ...     batch_size=32,
     ...     num_epochs=100,
     ...     n_channels_in=3, # number of input channels
-    ...     n_channels_out=1 # if applicable
     ... )
 
-    If instead you want to train multiple channels together, you need to turn off the
-    `independent_channels` parameter:
+    If instead you want to train multiple channels with different number of input and
+    output channels, you need to turn off the `independent_channels` parameter:
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
     ...     data_type="array",

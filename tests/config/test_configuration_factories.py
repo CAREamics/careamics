@@ -360,6 +360,7 @@ def test_n2n_configuration_n_channels():
         axes="CYX",
         patch_size=[64, 64],
         batch_size=8,
+        independent_channels=False,
         n_channels_in=n_channels_in,
         n_channels_out=n_channels_out,
     )
