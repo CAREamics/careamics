@@ -6,6 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 from tqdm import tqdm
 
+from careamics.compat.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.config.data.normalization_config import (
     MeanStdConfig,
     MinMaxConfig,
@@ -13,7 +14,6 @@ from careamics.config.data.normalization_config import (
     NormalizationConfig,
     QuantileConfig,
 )
-from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset_ng.normalization.running_quantile import QuantileEstimator
 from careamics.dataset_ng.normalization.utils import broadcast_stats
 from careamics.dataset_ng.patch_extractor import PatchExtractor

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.tiling import extract_tiles
+from careamics.compat.dataset.tiling import extract_tiles
 from careamics.prediction_utils import convert_outputs
 
 

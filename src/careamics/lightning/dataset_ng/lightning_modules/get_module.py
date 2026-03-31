@@ -61,6 +61,7 @@ def get_module_cls(algorithm: SupportedAlgorithm) -> CAREamicsModuleCls:
     NotImplementedError
         If the chosen algorithm is not get supported.
     """
+    algorithm = SupportedAlgorithm(algorithm)  # guard against string input
     match algorithm:
         case SupportedAlgorithm.CARE:
             return CAREModule

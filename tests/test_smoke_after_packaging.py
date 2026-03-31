@@ -15,7 +15,7 @@ def test_smoke():
         patch_size=(64, 64),
         batch_size=8,
     )
-    CAREamistV2(source=config)
+    CAREamistV2(config=config)
 
 
 if __name__ == "__main__":

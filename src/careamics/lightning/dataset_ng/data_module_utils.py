@@ -9,7 +9,10 @@ from numpy.typing import NDArray
 from typing_extensions import TypeIs
 
 from careamics.config.support import SupportedData as SD
-from careamics.dataset.dataset_utils import list_files, validate_source_target_files
+from careamics.dataset.dataset_utils.file_utils import (
+    list_files,
+    validate_source_target_files,
+)
 from careamics.dataset_ng.factory import ImageStackLoading, ReadFuncLoading
 from careamics.dataset_ng.image_stack_loader.zarr_utils import is_valid_uri
 

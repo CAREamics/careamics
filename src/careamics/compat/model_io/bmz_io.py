@@ -17,8 +17,9 @@ from careamics.compat.config.utils.configuration_io import (
     load_configuration,
     save_configuration,
 )
+from careamics.compat.lightning.lightning_module import FCNModule
 from careamics.config.support import SupportedArchitecture
-from careamics.lightning.lightning_module import FCNModule, VAEModule
+from careamics.lightning.lightning_module import VAEModule
 from careamics.utils.version import get_careamics_version
 
 from .bioimage import (

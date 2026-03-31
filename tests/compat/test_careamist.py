@@ -13,10 +13,10 @@ from careamics.compat.careamist import CAREamist
 from careamics.compat.config import Configuration
 from careamics.compat.config.utils.configuration_io import save_configuration
 from careamics.compat.lightning.callbacks import HyperParametersCallback
+from careamics.compat.lightning.predict_data_module import create_predict_datamodule
 from careamics.config.lightning import CheckpointConfig, EarlyStoppingConfig
 from careamics.config.support import SupportedAlgorithm, SupportedData
 from careamics.lightning.callbacks import ProgressBarCallback
-from careamics.lightning.predict_data_module import create_predict_datamodule
 from careamics.utils.reshape_array import reshape_array
 
 

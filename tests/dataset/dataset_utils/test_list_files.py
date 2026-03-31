@@ -5,11 +5,23 @@ import pytest
 import tifffile
 
 from careamics.config.support import SupportedData
-from careamics.dataset.dataset_utils import (
+from careamics.dataset.dataset_utils.file_utils import (
+    create_write_file_path,
     get_files_size,
     list_files,
     validate_source_target_files,
 )
+
+
+def test_create_write_file_path():
+    dirpath = Path("output_directory")
+    file_path = Path("input_directory/file_name.in_ext")
+    write_extension = ".out_ext"
+
+    write_file_path = create_write_file_path(
+        dirpath=dirpath, file_path=file_path, write_extension=write_extension
+    )
+    assert write_file_path == Path("output_directory/file_name.out_ext")
 
 
 def test_get_files_size_tiff(tmp_path: Path):

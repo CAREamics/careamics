@@ -6,8 +6,9 @@ from typing import Union
 import torch
 
 from careamics.compat.config import Configuration
+from careamics.compat.lightning.lightning_module import FCNModule
 from careamics.compat.model_io.bmz_io import load_from_bmz
-from careamics.lightning.lightning_module import FCNModule, VAEModule
+from careamics.lightning.lightning_module import VAEModule
 from careamics.utils import check_path_exists
 
 
