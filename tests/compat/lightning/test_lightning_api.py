@@ -9,13 +9,13 @@ from pytorch_lightning.callbacks import (
 
 from careamics.compat.config import Configuration
 from careamics.compat.config.configuration_factories import create_pn2v_configuration
-from careamics.lightning import (
+from careamics.compat.lightning import (
     create_careamics_module,
     create_predict_datamodule,
     create_train_datamodule,
 )
+from careamics.compat.prediction_utils import convert_outputs, convert_outputs_pn2v
 from careamics.lightning.lightning_module import FCNModule
-from careamics.prediction_utils import convert_outputs, convert_outputs_pn2v
 
 pytestmark = pytest.mark.mps_gh_fail
 

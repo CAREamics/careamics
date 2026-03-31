@@ -4,15 +4,13 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.config import UNetBasedAlgorithm
-from careamics.config.algorithms import PN2VAlgorithm
-from careamics.config.noise_model import GaussianMixtureNMConfig
-from careamics.lightning.lightning_module import (
+from careamics.compat.lightning.lightning_module import (
     FCNModule,
     create_careamics_module,
 )
-
-# TODO: rename to test_FCN_lightining_module.py
+from careamics.config import UNetBasedAlgorithm
+from careamics.config.algorithms import PN2VAlgorithm
+from careamics.config.noise_model import GaussianMixtureNMConfig
 
 
 def test_careamics_module(minimum_algorithm_n2v):
@@ -325,8 +323,8 @@ def test_prediction_callback_during_training(
 
     from careamics.compat.careamist import CAREamist
     from careamics.compat.config import Configuration
-    from careamics.lightning import PredictDataModule, create_predict_datamodule
-    from careamics.prediction_utils import convert_outputs
+    from careamics.compat.lightning import PredictDataModule, create_predict_datamodule
+    from careamics.compat.prediction_utils import convert_outputs
 
     config = Configuration(**minimum_n2v_configuration)
 

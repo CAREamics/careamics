@@ -1,6 +1,6 @@
 """Deprecated CAREamics Lightning module."""
 
-from typing import Any, Union
+from typing import Any, Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -12,7 +12,13 @@ from careamics.config import (
     N2VAlgorithm,
     PN2VAlgorithm,
     UNetBasedAlgorithm,
-    VAEBasedAlgorithm,
+)
+from careamics.config.support import (
+    SupportedAlgorithm,
+    SupportedArchitecture,
+    SupportedLoss,
+    SupportedOptimizer,
+    SupportedScheduler,
 )
 from careamics.losses import loss_factory
 from careamics.models.lvae.noise_models import (
@@ -58,9 +64,7 @@ class FCNModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(
-        self, algorithm_config: Union[UNetBasedAlgorithm, VAEBasedAlgorithm, dict]
-    ) -> None:
+    def __init__(self, algorithm_config: Union[UNetBasedAlgorithm, dict]) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
@@ -357,3 +361,101 @@ class FCNModule(L.LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "val_loss",  # otherwise triggers MisconfigurationException
         }
+
+
+# TODO: make this LVAE compatible (?)
+def create_careamics_module(
+    algorithm: Union[SupportedAlgorithm, str],
+    loss: Union[SupportedLoss, str],
+    architecture: Union[SupportedArchitecture, str],
+    use_n2v2: bool = False,
+    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
+    struct_n2v_span: int = 5,
+    model_parameters: dict | None = None,
+    optimizer: Union[SupportedOptimizer, str] = "Adam",
+    optimizer_parameters: dict | None = None,
+    lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
+    lr_scheduler_parameters: dict | None = None,
+) -> FCNModule:
+    """Create a CAREamics Lightning module.
+
+    This function exposes parameters used to create an AlgorithmModel instance,
+    triggering parameters validation.
+
+    Parameters
+    ----------
+    algorithm : SupportedAlgorithm or str
+        Algorithm to use for training (see SupportedAlgorithm).
+    loss : SupportedLoss or str
+        Loss function to use for training (see SupportedLoss).
+    architecture : SupportedArchitecture or str
+        Model architecture to use for training (see SupportedArchitecture).
+    use_n2v2 : bool, default=False
+        Whether to use N2V2 or Noise2Void.
+    struct_n2v_axis : "horizontal", "vertical", or "none", default="none"
+        Axis of the StructN2V mask.
+    struct_n2v_span : int, default=5
+        Span of the StructN2V mask.
+    model_parameters : dict, optional
+        Model parameters to use for training, by default {}. Model parameters are
+        defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
+        `careamics.config.architectures`).
+    optimizer : SupportedOptimizer or str, optional
+        Optimizer to use for training, by default "Adam" (see SupportedOptimizer).
+    optimizer_parameters : dict, optional
+        Optimizer parameters to use for training, as defined in `torch.optim`, by
+        default {}.
+    lr_scheduler : SupportedScheduler or str, optional
+        Learning rate scheduler to use for training, by default "ReduceLROnPlateau"
+        (see SupportedScheduler).
+    lr_scheduler_parameters : dict, optional
+        Learning rate scheduler parameters to use for training, as defined in
+        `torch.optim`, by default {}.
+
+    Returns
+    -------
+    CAREamicsModule
+        CAREamics Lightning module.
+    """
+    # TODO should use the same functions are in configuration_factory.py
+    # create an AlgorithmModel compatible dictionary
+    if lr_scheduler_parameters is None:
+        lr_scheduler_parameters = {}
+    if optimizer_parameters is None:
+        optimizer_parameters = {}
+    if model_parameters is None:
+        model_parameters = {}
+    algorithm_dict: dict[str, Any] = {
+        "algorithm": algorithm,
+        "loss": loss,
+        "optimizer": {
+            "name": optimizer,
+            "parameters": optimizer_parameters,
+        },
+        "lr_scheduler": {
+            "name": lr_scheduler,
+            "parameters": lr_scheduler_parameters,
+        },
+    }
+
+    model_dict = {"architecture": architecture}
+    model_dict.update(model_parameters)
+
+    # add model parameters to algorithm configuration
+    algorithm_dict["model"] = model_dict
+
+    which_algo = algorithm_dict["algorithm"]
+    if which_algo in UNetBasedAlgorithm.get_compatible_algorithms():
+        algorithm_cfg = algorithm_factory(algorithm_dict)
+
+        # if use N2V
+        if isinstance(algorithm_cfg, N2VAlgorithm | PN2VAlgorithm):
+            algorithm_cfg.n2v_config.struct_mask_axis = struct_n2v_axis
+            algorithm_cfg.n2v_config.struct_mask_span = struct_n2v_span
+            algorithm_cfg.set_n2v2(use_n2v2)
+
+        return FCNModule(algorithm_cfg)
+    else:
+        raise NotImplementedError(
+            f"Algorithm {which_algo} is not implemented or unknown."
+        )
