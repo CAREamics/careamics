@@ -97,8 +97,8 @@ config = create_advanced_n2v_config(
     n_channels=2,  # (2)!
     normalization="quantile",
     normalization_params={
-        "lower_quantile": [0.01, 0.03],  # (3)!
-        "upper_quantile": [0.99, 0.99],
+        "lower_quantiles": [0.01, 0.03],  # (3)!
+        "upper_quantiles": [0.99, 0.99],
         "per_channel": True,  # (4)!
     },
 )
