@@ -334,13 +334,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 "val_data_target",
                 "pred_data",
                 "pred_data_target",
-                "read_source_func",
-                "read_kwargs",
-                "image_stack_loader",
-                "image_stack_loader_kwargs",
-                "extension_filter",
-                "val_percentage",
-                "val_minimum_split",
+                "loading",
             ],
         )
 
