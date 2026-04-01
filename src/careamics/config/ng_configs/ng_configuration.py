@@ -172,6 +172,29 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_channels_against_inputs(self: Self) -> Self:
+        """
+        Validate that the number of channels in the data is compatible with the model.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        if self.data_config.channels is not None:
+
+            n_channels = len(self.data_config.channels)
+            expected_channels = self.algorithm_config.get_num_input_channels()
+
+            if n_channels != expected_channels:
+                raise ValueError(
+                    f"Mismatch between number of channels in `channels` ({n_channels}) "
+                    f"and expected by model ({expected_channels})."
+                )
+
+        return self
+
     def __str__(self) -> str:
         """
         Pretty string reprensenting the configuration.

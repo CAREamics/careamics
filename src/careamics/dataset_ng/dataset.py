@@ -11,7 +11,6 @@ from torch.utils.data import Dataset
 from careamics.config.data.ng_data_config import (
     Mode,
     NGDataConfig,
-    TiledPatchingConfig,
     WholePatchingConfig,
 )
 from careamics.lightning.dataset_ng.lightning_modules.constraints import (
@@ -203,8 +202,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         else:
             # model constraints not applied if tiled, since the tiles are validated
             # in the configuration itself
-            if model_constraints is not None and not isinstance(
-                data_config.patching, TiledPatchingConfig
+            if model_constraints is not None and isinstance(
+                data_config.patching, WholePatchingConfig
             ):
                 for shape in data_shapes:
                     # raise errors if shape is not compatible with model constraints
