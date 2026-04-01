@@ -694,7 +694,7 @@ If you want to override the CAREamics defaults, set `checkpoint_params`.
     By default, CARE saves the top 3 best models according to the validation loss, and the last model at the end of training.
 
     Noise2Void, on the other hand, saves a checkpoint every 10 epochs,
-    as well as the last one. The reaosn behind this choice is that
+    as well as the last one. The reason behind this choice is that
     Noise2Void trains by comparing predicted denoised pixels with their
     original noisy values. As a consequence, a lower validation loss
     does not ensure a better model.
