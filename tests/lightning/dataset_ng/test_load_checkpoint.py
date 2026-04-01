@@ -19,3 +19,4 @@ def test_load_config_from_checkpoint(
     checkpoint_path, _, expected_config = checkpoint
     config = load_config_from_checkpoint(checkpoint_path)
     assert config == expected_config
+    assert config.data_config.normalization.input_means is not None
