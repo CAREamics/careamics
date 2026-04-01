@@ -24,7 +24,7 @@ def _compatible_input_types(data_type: SD) -> str:
 
     Parameters
     ----------
-    data_type : SD
+    data_type : SupportedData
         The data type for which to get the compatible input types.
 
     Returns
@@ -42,14 +42,9 @@ def _compatible_input_types(data_type: SD) -> str:
             return (
                 "the expected input is a numpy.ndarray or a sequence of numpy.ndarray"
             )
-        case SD.TIFF | SD.CZI:
+        case SD.TIFF | SD.CZI | SD.ZARR:
             return (
                 "the expected input is a str, a pathlib.Path, or a sequence of either"
-            )
-        case SD.ZARR:
-            return (
-                "the expected input is a str or a pathlib.Path (see documentation), or "
-                "a sequence of either"
             )
         case SD.CUSTOM:
             return (
@@ -119,7 +114,7 @@ def _is_path_input(x: Any) -> TypeIs[PathInput]:
     bool
         Whether `x` is of the type `PathType`.
     """
-    if isinstance(x, Sequence):
+    if isinstance(x, Sequence) and not isinstance(x, str):
         return len(x) == 0 or all(isinstance(e, str | Path) for e in x)
     else:
         return isinstance(x, str | Path)
@@ -242,7 +237,12 @@ def validate_input_target_type_consistency(
             f"Inputs for input and target must be of the same type or None. "
             f"Got {type(input_data)} and {type(target_data)}."
         )
-    if isinstance(input_data, Sequence) and isinstance(target_data, Sequence):
+    if (
+        isinstance(input_data, Sequence)
+        and not isinstance(input_data, str)
+        and isinstance(target_data, Sequence)
+        and not isinstance(target_data, str)
+    ):
         if len(input_data) != len(target_data):
             raise ValueError(
                 f"Inputs and targets must have the same length. "
