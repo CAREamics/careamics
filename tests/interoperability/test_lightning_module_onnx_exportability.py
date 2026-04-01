@@ -2,12 +2,10 @@ import pytest
 import torch
 from onnx import checker
 
-from careamics.config import UNetBasedAlgorithm
-from careamics.lightning.lightning_module import FCNModule
+from careamics.config.ng_factories.algorithm_factory import algorithm_factory
+from careamics.lightning.dataset_ng.lightning_modules import get_module_cls
 
 
-# TODO: move a module for special integration tests
-# TODO revisit for specific algorithm configuration
 @pytest.mark.parametrize(
     "algorithm, architecture, conv_dim, n2v2, loss, shape",
     [
@@ -33,13 +31,16 @@ def test_onnx_export(tmp_path, algorithm, architecture, conv_dim, n2v2, loss, sh
             "n2v2": n2v2,
         },
         "loss": loss,
+        "n2v_config": (
+            None
+            if algorithm != "n2v"
+            else {"strategy": "median"} if n2v2 else {"strategy": "uniform"}
+        ),
     }
-    algo_config = UNetBasedAlgorithm(**algo_config)
-
-    # instantiate CAREamicsKiln
-    model = FCNModule(algo_config)
-    # set model to evaluation mode to avoid batch dimension error
+    algo_config = algorithm_factory(algo_config)
+    model = get_module_cls(algo_config.algorithm)(algo_config)
     model.model.eval()
+
     # create a sample input of BC(Z)XY
     x = torch.rand((1, 1, *shape))
 
