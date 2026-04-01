@@ -671,11 +671,11 @@ PyTorch dataloaders have various parameters that can be set to optimize data loa
     If passing `train_dataloader_params`, then `shuffle` needs to be present. That is not the case for the validation dataloader. The reason is that CAREamics automatically uses `shuffle=True` (the advised setting) for the training dataloader. If you wish to override the CAREamics training dataloader parameters, you need to specify which `shuffle` value you desire.
 
 
-### Checkpoint parameters
+### Checkpoint callback
 
 A checkpoint is the state of the training and of the model at a particular time point during training. In particular, the final model is also saved as a checkpoint. There are several [Lightning checkpoints parameters](https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.ModelCheckpoint.html) that govern the behavior of the checkpointing. 
 
-If you want to overried the CAREamics defaults, set `checkpoint_params`.
+If you want to override the CAREamics defaults, set `checkpoint_params`.
 
 === "Noise2Void"
     
@@ -688,6 +688,28 @@ If you want to overried the CAREamics defaults, set `checkpoint_params`.
     ```python title="Passing `Checkpoint` parameters"
     --8<-- "configuration_lightning.py:adv_config_care_checkpoint"
     ```
+
+!!! note "Default checkpointing behavior"
+
+    By default, CARE saves the top 3 best models according to the validation loss, and the last model at the end of training.
+
+    Noise2Void, on the other hand, saves a checkpoint every 10 epochs,
+    as well as the last one. The reason behind this choice is that
+    Noise2Void trains by comparing predicted denoised pixels with their
+    original noisy values. As a consequence, a lower validation loss
+    does not ensure a better model.
+
+### Early stopping callback
+
+The early stopping callback allows stopping the training when a certain metric has not improved for a certain number of epochs. To set the early stopping parameters, use the `early_stopping_params` parameter in the configuration. Refer to the [Lightning early stopping callback](https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.EarlyStopping.html) page for a list of parameters and their meaning.
+
+```python title="Passing `EarlyStopping` parameters"
+--8<-- "configuration_lightning.py:adv_config_care_early_stop"
+```
+
+!!! note "Early stopping and Noise2Void"
+
+    Early stopping is not recommended for Noise2Void, as the validation loss does not necessarily reflect the quality of the model. By default, the early stopping is disabled for Noise2Void.
 
 ### Noise2Void without validation
 

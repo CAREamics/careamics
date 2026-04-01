@@ -228,25 +228,6 @@ class CareamicsDataModule(L.LightningDataModule):
             self.config = data_config
         else:
             self.config = NGDataConfig.model_validate(data_config)
-        self.save_hyperparameters(
-            {"data_config": self.config.model_dump(mode="json")},
-            ignore=[
-                "train_data",
-                "train_data_target",
-                "train_data_mask",
-                "val_data",
-                "val_data_target",
-                "pred_data",
-                "pred_data_target",
-                "read_source_func",
-                "read_kwargs",
-                "image_stack_loader",
-                "image_stack_loader_kwargs",
-                "extension_filter",
-                "val_percentage",
-                "val_minimum_split",
-            ],
-        )
 
         self.rng = np.random.default_rng(seed=self.config.seed)
 
@@ -305,6 +286,11 @@ class CareamicsDataModule(L.LightningDataModule):
                 )
             else:
                 raise ValueError("Training and validation data has not been provided.")
+
+            # statistics may have been calculated now, save config to hparams
+            if stage == "fit":
+                self._save_hparams()
+
         elif stage == "predict":
             if not isinstance(self._data, PredData):
                 raise ValueError("No data has been provided for prediction.")
@@ -348,6 +334,22 @@ class CareamicsDataModule(L.LightningDataModule):
         else:
             sampler = None
         return sampler
+
+    def _save_hparams(self) -> None:
+        """Save configuration in hyperparameters."""
+        self.save_hyperparameters(
+            {"data_config": self.config.model_dump(mode="json")},
+            ignore=[
+                "train_data",
+                "train_data_target",
+                "train_data_mask",
+                "val_data",
+                "val_data_target",
+                "pred_data",
+                "pred_data_target",
+                "loading",
+            ],
+        )
 
     def train_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
         """

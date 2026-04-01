@@ -535,9 +535,10 @@ class CAREamistV2:
 
         self.train_datamodule = datamodule
 
-        # set defaults (in case `stop_training` was called before)
+        # set parameters back to defaults, this is a guard against `stop_training`
+        # which changes them in order to interrupt training gracefully
         self.trainer.should_stop = False
-        self.trainer.limit_val_batches = 1.0
+        self.trainer.limit_val_batches = 1.0 # equivalent to all validation batches
 
         self.trainer.fit(
             self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path

@@ -62,6 +62,7 @@ def default_training_dict(
     trainer_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     checkpoint_params: dict[str, Any] | None = None,
+    early_stopping_params: dict[str, Any] | None = None,
     monitor_metric: str = "val_loss",
 ) -> dict:
     """Default training configuration constructor.
@@ -81,6 +82,9 @@ def default_training_dict(
     checkpoint_params : dict, optional
         Parameters for the checkpoint callback, by default None. If None, then default
         parameters are applied based on the algorithm.
+    early_stopping_params : dict, optional
+        Parameters for the early stopping callback, by default None. If None, then
+        default parameters are applied based on the algorithm.
     monitor_metric : str, optional
         Metric to monitor for early stopping, by default "val_loss".
 
@@ -94,24 +98,33 @@ def default_training_dict(
     # parameters, we keep either user defined or the defaults
     if checkpoint_params is None:
         # select default checkpointing preset based on algorithm
-        default_preset = (
+        default_ckpt_preset = (
             SupervisedCheckpointing
             if algorithm == "care"
             # since Noise2Noise is comparing noisy pixels to other noisy pixels, it
             # cannot be monitored based on a metric, we use the self-supervised preset
             else SelfSupervisedCheckpointing
         )
-        default_checkpoint = asdict(default_preset())
+        default_checkpoint = asdict(default_ckpt_preset())
         checkpoint_params = default_checkpoint
+
+    if early_stopping_params is None:
+        # early stopping is only relevant for supervised algorithms, we set it to None
+        # for self-supervised ones
+        early_stopping_params = (
+            {
+                "monitor": monitor_metric,
+                "mode": "min",
+            }
+            if algorithm == "care"
+            else None
+        )
 
     return {
         "trainer_params": {} if trainer_params is None else trainer_params,
         "logger": None if logger == "none" else logger,
         "checkpoint_params": checkpoint_params,
-        "early_stopping_params": {
-            "monitor": monitor_metric,
-            "mode": "min",
-        },
+        "early_stopping_params": early_stopping_params,
     }
 
 
@@ -152,6 +165,13 @@ def default_training_factory(validated_dict: dict[str, Any]) -> NGTrainingConfig
 class NGTrainingConfig(BaseModel):
     """
     Parameters related to the training.
+
+    By default, `checkpoint_params` and `early_stopping_params` have presets based on
+    whether the algorithm is supervised (CARE) or not (Noise2Void and by extension
+    Noise2Noise). In the case of CARE, the top 3 checkpoints are saved based on
+    `val_loss`. For the self-supervised algorithms, checkpoints are saved every 10
+    epochs. In both cases, the last checkpoint is saved. Early stopping is disabled
+    for self-supervised algorithms.
 
     Attributes
     ----------

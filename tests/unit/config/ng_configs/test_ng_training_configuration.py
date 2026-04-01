@@ -50,3 +50,11 @@ def test_default_training_factory(algo):
 
     config = default_training_factory(validated_dict)
     assert isinstance(config, NGTrainingConfig)
+
+    # check the algorithm defaults
+    if algo == "care":
+        assert config.checkpoint_params == asdict(SupervisedCheckpointing())
+        assert config.early_stopping_params is not None
+    else:
+        assert config.checkpoint_params == asdict(SelfSupervisedCheckpointing())
+        assert config.early_stopping_params is None
