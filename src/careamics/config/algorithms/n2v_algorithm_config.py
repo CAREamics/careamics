@@ -98,15 +98,18 @@ class N2VAlgorithm(UNetBasedAlgorithm):
     """N2V loss function."""
 
     monitor_metric: Literal["train_loss", "train_loss_epoch", "val_loss"] = "val_loss"
-    """Metric to monitor for the learning rate scheduler."""
+    """Metric to monitor for the learning rate scheduler. Used in the returned dict of
+    PyTorch Lightning `configure_optimizers` method."""
 
     n2v_config: N2VManipulateConfig = N2VManipulateConfig()
+    """Noise2Void pixel manipulation configuration."""
 
     model: Annotated[
         UNetConfig,
         AfterValidator(model_matching_in_out_channels),
         AfterValidator(model_without_final_activation),
     ]
+    """Model parameters."""
 
     @model_validator(mode="after")
     def validate_n2v2(self) -> Self:

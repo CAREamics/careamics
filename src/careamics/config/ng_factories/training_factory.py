@@ -13,6 +13,7 @@ def create_training_configuration(
     trainer_params: dict,
     logger: Literal["wandb", "tensorboard", "none"],
     checkpoint_params: dict[str, Any] | None = None,
+    early_stopping_params: dict[str, Any] | None = None,
     monitor_metric: str = "val_loss",
 ) -> NGTrainingConfig:
     """
@@ -30,6 +31,10 @@ def create_training_configuration(
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters. If `None`, then
         default parameters are applied.
+    early_stopping_params : dict, default=None
+        Parameters for the early stopping callback, see PyTorch Lightning documentation
+        (`EarlyStopping`) for the list of available parameters. If `None`, then default
+        parameters are applied.
     monitor_metric : str, default="val_loss"
         Metric to monitor for early stopping.
 
@@ -44,6 +49,7 @@ def create_training_configuration(
             trainer_params=trainer_params,
             logger=logger,
             checkpoint_params=checkpoint_params,
+            early_stopping_params=early_stopping_params,
             monitor_metric=monitor_metric,
         )
     )

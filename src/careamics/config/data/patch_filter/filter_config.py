@@ -9,8 +9,9 @@ class FilterConfig(BaseModel):
     name: str
     """Name of the filter."""
 
-    p: float = Field(1.0, ge=0.0, le=1.0)
-    """Probability of applying the filter to a patch or coordinate."""
+    ref_channel: int = 0
+    """The channel to use as reference for filtering."""
 
-    seed: int | None = Field(default=None, gt=0)
-    """Seed for the random number generator for reproducibility."""
+    filtered_patch_prob: float = Field(default=0.1, ge=0.0, le=1.0)
+    """The probability that each patch classed as background will be selected each epoch
+    during training."""
