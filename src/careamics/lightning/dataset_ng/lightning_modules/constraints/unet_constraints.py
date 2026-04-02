@@ -96,7 +96,7 @@ class UNetConstraints:
         # check spatial dims against model depth constraints
         depth = self.model_config.depth
         for i, dim in enumerate(input_shape):
-            if dim % (2**depth) != 0 or dim < 2**depth:
+            if dim % (2**depth) != 0 or dim == 0:
                 raise ValueError(
                     f"Input data dimension {dim_label[i]} (size {dim}) is not a "
                     f"multiple of {2**depth} (2 to the power of the model depth). If "
