@@ -371,7 +371,8 @@ class NGDataConfig(BaseModel):
     will be ignored if separate validation data is specified for training."""
 
     channels: Sequence[int] | None = Field(default=None)
-    """Channels to use from the data. If `None`, all channels are used."""
+    """Channels to use from the data. If `None`, all channels are used. Note that it is
+    applied to both inputs and targets."""
 
     patch_filter: PatchFilterConfig | None = Field(default=None, discriminator="name")
     """Patch filter to apply when using random patching. Only available if

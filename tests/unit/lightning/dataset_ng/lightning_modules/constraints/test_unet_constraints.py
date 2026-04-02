@@ -82,7 +82,7 @@ def test_validate_input_shape(x_shape, z_shape, depth, expected_error):
     input_shape = (x_shape, x_shape) if z_shape == 0 else (z_shape, x_shape, x_shape)
 
     with expected_error:
-        constraints.validate_input_shape(input_shape)
+        constraints.validate_spatial_shape(input_shape)
 
 
 @pytest.mark.parametrize("length", [1, 4])
@@ -98,4 +98,4 @@ def test_validate_input_shape_wrong_length(length):
     constraints = UNetConstraints(cfg)
 
     with pytest.raises(ValueError, match="Spatial input shape"):
-        constraints.validate_input_shape(shape)
+        constraints.validate_spatial_shape(shape)

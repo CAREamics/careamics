@@ -126,3 +126,23 @@ class UNetConfig(ArchitectureConfig):
             Whether the model is 3D or not.
         """
         return self.conv_dims == 3
+
+    def get_num_input_channels(self) -> int:
+        """Get the number of input channels.
+
+        Returns
+        -------
+        int
+            Number of input channels.
+        """
+        return self.in_channels
+
+    def get_num_output_channels(self) -> int:
+        """Get the number of output channels.
+
+        Returns
+        -------
+        int
+            Number of output channels.
+        """
+        return self.num_classes

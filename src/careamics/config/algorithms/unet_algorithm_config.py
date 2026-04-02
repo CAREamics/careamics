@@ -87,7 +87,7 @@ class UNetBasedAlgorithm(BaseModel):
         int
             Number of input channels.
         """
-        return self.model.in_channels
+        return self.model.get_num_input_channels()
 
     # TODO: remove, used in v0.1.0 only
     @classmethod

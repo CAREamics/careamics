@@ -168,7 +168,7 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
             return self
 
         model_constraints = get_model_constraints(self.algorithm_config.model)
-        model_constraints.validate_input_shape(self.data_config.patching.patch_size)
+        model_constraints.validate_spatial_shape(self.data_config.patching.patch_size)
 
         return self
 
@@ -183,15 +183,8 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
             Validated configuration.
         """
         if self.data_config.channels is not None:
-
-            n_channels = len(self.data_config.channels)
-            expected_channels = self.algorithm_config.get_num_input_channels()
-
-            if n_channels != expected_channels:
-                raise ValueError(
-                    f"Mismatch between number of channels in `channels` ({n_channels}) "
-                    f"and expected by model ({expected_channels})."
-                )
+            model_constraints = get_model_constraints(self.algorithm_config.model)
+            model_constraints.validate_input_channels(len(self.data_config.channels))
 
         return self
 
