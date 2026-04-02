@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-
-from pathlib import Path
-
 # %%
 # --8<-- [start:lightning_api]
 from pytorch_lightning import Trainer

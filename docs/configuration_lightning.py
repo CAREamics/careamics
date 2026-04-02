@@ -238,3 +238,23 @@ config = create_advanced_care_config(
     },
 )
 # --8<-- [end:adv_config_care_checkpoint]
+
+# %%
+# --8<-- [start:adv_config_care_early_stop]
+from careamics.config.ng_factories import create_advanced_care_config
+
+# create a configuration
+config = create_advanced_care_config(
+    experiment_name="adv_care_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    early_stopping_params={  # (1)!
+        "monitor": "val_loss",
+        "mode": "min",
+        "patience": 5,
+    },
+)
+# --8<-- [end:adv_config_care_early_stop]
