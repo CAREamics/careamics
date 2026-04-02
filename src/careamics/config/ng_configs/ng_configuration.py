@@ -158,48 +158,25 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
         return self
 
     @model_validator(mode="after")
-    def validate_quantile_norm_with_channels(self: Self) -> Self:
-        """Validate that quantile normalization is correctly set up.
-
-        Quantile normalization has `per_channel` and quantiles values parameters.
-        The quantiles are defined for both input and output channels, and therefore
-        require a matching number of input and output channels when `per_channel` is
-        True.
+    def validate_norm_against_channels(self: Self) -> Self:
+        """Validate that normalization is compatible with the model in/out channels.
 
         Raises
         ------
         ValueError
-            If quantile normalization is set to per channel but the number of input and
-            output channels do not match, or if the number of quantiles does not match
-            the number of input channels.
+            If any of the normalization parameters is incompatible with model input or
+            output channels.
 
         Returns
         -------
         Self
             Validated configuration.
         """
-        if (
-            self.data_config.normalization.name == "quantile"
-            and self.data_config.normalization.per_channel
-        ):
-            n_in = self.algorithm_config.model.get_num_input_channels()
-            n_out = self.algorithm_config.model.get_num_output_channels()
-
-            if n_in != n_out:
-                raise ValueError(
-                    f"Quantile normalization per channel is only compatible with "
-                    f"matching number of input and output channels. Got {n_in} input "
-                    f"channels and {n_out} output channels."
-                )
-
-            # lower quantiles are validated against upper quantiles
-            n_quantiles = len(self.data_config.normalization.lower_quantiles)
-            if n_quantiles != n_in:
-                raise ValueError(
-                    f"Number of quantiles ({n_quantiles}) must match the number of "
-                    f"input channels ({n_in})."
-                )
-
+        # delegate validation to the specific norm
+        self.data_config.normalization.validate_size(
+            self.algorithm_config.model.get_num_input_channels(),
+            self.algorithm_config.model.get_num_output_channels(),
+        )
         return self
 
     def __str__(self) -> str:
