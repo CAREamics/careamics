@@ -415,7 +415,7 @@ requires-dist = [
     { name = "microssim" },
     { name = "numpy", specifier = ">=1.21" },
     { name = "numpy", marker = "python_full_version >= '3.13'", specifier = ">=2.1.0" },
-    { name = "pillow", specifier = "<=12.1.1" },
+    { name = "pillow", specifier = "<=12.2.0" },
     { name = "protobuf", marker = "extra == 'tensorboard'", specifier = "==5.29.1" },
     { name = "psutil", specifier = "<=7.2.2" },
     { name = "pydantic", specifier = ">=2.11,<=2.12.5" },

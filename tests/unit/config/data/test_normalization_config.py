@@ -15,7 +15,7 @@ NORMS_WO_NONE_QUANT = ["mean_std", "min_max"]
 NORMS_WO_NONE = NORMS_WO_NONE_QUANT + ["quantile"]
 NORMS_W_NONE = NORMS_WO_NONE + ["none"]
 NORMS_ORDERED = ["quantile", "min_max"]
-NORMS_W_NONE_CLASSES = [MeanStdConfig, QuantileConfig, MinMaxConfig, NoNormConfig]
+NORMS_W_NONE_CLASSES = [MeanStdConfig, MinMaxConfig, QuantileConfig, NoNormConfig]
 
 
 def create_optional_params(
