@@ -36,10 +36,10 @@ FloatStats = Annotated[list[float], BeforeValidator(_wrap_scalar)]
 OptionalFloatStats = Annotated[list[float] | None, BeforeValidator(_wrap_scalar)]
 
 
-def _validate_length_per_channel(
+def _validate_global_stats_single_element(
     v: list[float] | None, info: ValidationInfo
 ) -> list[float] | None:
-    """Validate that per-channel statistics are provided as single-element lists.
+    """Validate that global statistics are provided as single-element lists.
 
     Parameters
     ----------
@@ -56,13 +56,18 @@ def _validate_length_per_channel(
     Raises
     ------
     ValueError
-        If ``per_channel`` is True and the list has more than one element.
+        If ``per_channel`` is False and the list does not have exactly one element.
     """
-    per_channel = info.data.get("per_channel", True)
+    if "per_channel" not in info.data:
+        raise ValueError("per_channel parameter must be provided for validation.")
+
+    per_channel = info.data["per_channel"]
     if not per_channel and v is not None and len(v) != 1:
         raise ValueError(
-            "Per-channel statistics must be provided as single-element lists."
+            f'Global statistics (`per_channel="False"`) must be provided as '
+            f"single-element lists (got {v})."
         )
+
     return v
 
 
@@ -103,16 +108,16 @@ class MeanStdConfig(BaseModel):
     target_means: OptionalFloatStats = None
     target_stds: OptionalFloatStats = None
 
-    @classmethod
     @field_validator(
         "input_means", "input_stds", "target_means", "target_stds", mode="after"
     )
-    def validate_length_per_channel(
+    @classmethod
+    def validate_global_stats_single_element(
         cls,
         v: OptionalFloatStats,
         info: ValidationInfo,
     ) -> OptionalFloatStats:
-        """Validate stats length against the pre_channel parameter.
+        """Validate stats length against the `per_channel` parameter.
 
         Parameters
         ----------
@@ -126,7 +131,7 @@ class MeanStdConfig(BaseModel):
         OptionalFloatStats
             Validate value.
         """
-        return _validate_length_per_channel(v, info)
+        return _validate_global_stats_single_element(v, info)
 
     @model_validator(mode="after")
     def validate_means_stds(self: Self) -> Self:
@@ -310,7 +315,6 @@ class QuantileConfig(BaseModel):
     target_lower_quantile_values: OptionalFloatStats = None
     target_upper_quantile_values: OptionalFloatStats = None
 
-    @classmethod
     @field_validator(
         "lower_quantiles",
         "upper_quantiles",
@@ -320,12 +324,13 @@ class QuantileConfig(BaseModel):
         "target_upper_quantile_values",
         mode="after",
     )
-    def validate_length_per_channel(
+    @classmethod
+    def validate_global_stats_single_element(
         cls,
         v: OptionalFloatStats,
         info: ValidationInfo,
     ) -> OptionalFloatStats:
-        """Validate stats length against the pre_channel parameter.
+        """Validate stats length against the `per_channel` parameter.
 
         Parameters
         ----------
@@ -339,7 +344,7 @@ class QuantileConfig(BaseModel):
         OptionalFloatStats
             Validate value.
         """
-        return _validate_length_per_channel(v, info)
+        return _validate_global_stats_single_element(v, info)
 
     @model_validator(mode="after")
     def validate_quantile_levels(self: Self) -> Self:
@@ -630,16 +635,16 @@ class MinMaxConfig(BaseModel):
     target_mins: OptionalFloatStats = None
     target_maxes: OptionalFloatStats = None
 
-    @classmethod
     @field_validator(
         "input_mins", "input_maxes", "target_mins", "target_maxes", mode="after"
     )
-    def validate_length_per_channel(
+    @classmethod
+    def validate_global_stats_single_element(
         cls,
         v: OptionalFloatStats,
         info: ValidationInfo,
     ) -> OptionalFloatStats:
-        """Validate stats length against the pre_channel parameter.
+        """Validate stats length against the `per_channel` parameter.
 
         Parameters
         ----------
@@ -653,7 +658,7 @@ class MinMaxConfig(BaseModel):
         OptionalFloatStats
             Validate value.
         """
-        return _validate_length_per_channel(v, info)
+        return _validate_global_stats_single_element(v, info)
 
     @model_validator(mode="after")
     def validate_mins_maxes(self: Self) -> Self:
@@ -678,6 +683,15 @@ class MinMaxConfig(BaseModel):
             if len(self.input_mins) != len(self.input_maxes):
                 raise ValueError("input_mins and input_maxes must have same length.")
 
+            for i, (min_val, max_val) in enumerate(
+                zip(self.input_mins, self.input_maxes, strict=True)
+            ):
+                if min_val >= max_val:
+                    raise ValueError(
+                        f"input_mins[{i}] ({min_val}) must be less than "
+                        f"input_maxes[{i}] ({max_val})"
+                    )
+
         if (self.target_mins is None) != (self.target_maxes is None):
             raise ValueError(
                 "target_mins and target_maxes must be both provided or both None."
@@ -685,6 +699,15 @@ class MinMaxConfig(BaseModel):
         if self.target_mins is not None and self.target_maxes is not None:
             if len(self.target_mins) != len(self.target_maxes):
                 raise ValueError("target_mins and target_maxes must have same length.")
+
+            for i, (min_val, max_val) in enumerate(
+                zip(self.target_mins, self.target_maxes, strict=True)
+            ):
+                if min_val >= max_val:
+                    raise ValueError(
+                        f"target_mins[{i}] ({min_val}) must be less than "
+                        f"target_maxes[{i}] ({max_val})"
+                    )
 
         return self
 

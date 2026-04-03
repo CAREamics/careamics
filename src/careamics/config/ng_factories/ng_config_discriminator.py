@@ -5,6 +5,7 @@ from typing import Annotated, Any, Union
 from pydantic import Discriminator, Tag, TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.ng_configs import N2VConfiguration
 from careamics.config.ng_configs.ng_configuration import NGConfiguration
 from careamics.config.support import SupportedAlgorithm
@@ -117,4 +118,27 @@ def validate_ng_algos(config: dict[str, Any]) -> NGAlgos:
         If the configuration is not valid.
     """
     adapter: TypeAdapter[NGAlgos] = TypeAdapter(NGAlgos)
+    return adapter.validate_python(config)
+
+
+def validate_norm_config(config: dict[str, Any]) -> NormalizationConfig:
+    """
+    Validate a configuration dictionary as a NormalizationConfig.
+
+    Parameters
+    ----------
+    config : dict[str, Any]
+        Configuration dictionary to validate.
+
+    Returns
+    -------
+    NormalizationConfig
+        Validated configuration as a NormalizationConfig.
+
+    Raises
+    ------
+    ValueError
+        If the configuration is not valid.
+    """
+    adapter: TypeAdapter[NormalizationConfig] = TypeAdapter(NormalizationConfig)
     return adapter.validate_python(config)

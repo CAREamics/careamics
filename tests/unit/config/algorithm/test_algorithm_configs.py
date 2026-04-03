@@ -31,7 +31,19 @@ def test_unet_algorithm_configs(algorithm, cfg_class):
 )
 def test_unet_algorithm_config_channels(algorithm, n_in, n_out):
     """Test that an algorithm config can be created for all UNet-based algorithms with
-    different channel configurations."""
+    equal channels."""
+    algo_config_dict = unet_ng_algo_dict_testing(
+        algorithm=algorithm, n_channels_in=n_in, n_channels_out=n_out
+    )
+    validate_ng_algos(algo_config_dict)
+
+
+@pytest.mark.parametrize(
+    "algorithm, n_in, n_out", list(zip(["care", "n2n"], [3, 2], [2, 3], strict=True))
+)
+def test_unet_algorithm_config_diff_channels(algorithm, n_in, n_out):
+    """Test that an algorithm config can be created for all UNet-based algorithms with
+    different channels."""
     algo_config_dict = unet_ng_algo_dict_testing(
         algorithm=algorithm, n_channels_in=n_in, n_channels_out=n_out
     )

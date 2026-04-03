@@ -103,12 +103,15 @@ def ng_data_config_dict_testing(
     patching_config_dict = patching_config_dict_testing(
         patching, data_type, axes, patch_size
     )
+
+    norm_dict = kwargs.get("normalization", {"name": "mean_std"})
+
     return {
         "mode": mode,
         "data_type": data_type,
         "axes": axes,
         "patching": patching_config_dict,
-        "normalization": {"name": "mean_std"},
+        "normalization": norm_dict,
         **kwargs,
     }
 
