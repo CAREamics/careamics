@@ -75,9 +75,12 @@ NGAlgos = Annotated[
 # ------------------------ Validators --------------------------
 
 
-def validate_ng_config(config: dict[str, Any]) -> NGConfigs:
+def instantiate_config(config: dict[str, Any]) -> NGConfigs:
     """
-    Validate a configuration dictionary as an NGConfig.
+    Instantiate a NG configuration from a configuration dictionary.
+
+    This method uses a `TypeAdapter` to validate the configuration and instantiate the
+    correct NG configuration.
 
     Parameters
     ----------
@@ -98,9 +101,13 @@ def validate_ng_config(config: dict[str, Any]) -> NGConfigs:
     return adapter.validate_python(config)
 
 
-def validate_ng_algos(config: dict[str, Any]) -> NGAlgos:
+def instantiate_algorithm_config(config: dict[str, Any]) -> NGAlgos:
     """
-    Validate a configuration dictionary as a UNetBasedAlgorithm.
+    Instantiate an algorithm configuration from a configuration dictionary.
+
+    This method uses a `TypeAdapter` to validate the configuration and instantiate the
+    correct algorithm configuration. Currently only compatible with UNet-based
+    algorithms.
 
     Parameters
     ----------
@@ -121,9 +128,12 @@ def validate_ng_algos(config: dict[str, Any]) -> NGAlgos:
     return adapter.validate_python(config)
 
 
-def validate_norm_config(config: dict[str, Any]) -> NormalizationConfig:
+def instantiate_norm_config(config: dict[str, Any]) -> NormalizationConfig:
     """
-    Validate a configuration dictionary as a NormalizationConfig.
+    Instantiate a NormalizationConfig from a configuration dictionary.
+
+    This method uses a `TypeAdapter` to validate the configuration and instantiate the
+    correct NormalizationConfig.
 
     Parameters
     ----------

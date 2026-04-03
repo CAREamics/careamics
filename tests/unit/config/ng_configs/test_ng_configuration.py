@@ -3,7 +3,7 @@
 import pytest
 
 from careamics.config.ng_configs import N2VConfiguration, NGConfiguration
-from careamics.config.ng_factories.ng_config_discriminator import validate_ng_config
+from careamics.config.ng_factories.ng_config_discriminator import instantiate_config
 from tests.utils import unet_ng_config_dict_testing
 
 ALGORITHMS = ["care", "n2n", "n2v"]
@@ -15,7 +15,7 @@ ALGORITHMS_CONFIGS = [NGConfiguration, NGConfiguration, N2VConfiguration]
 def test_default_unet_config():
     """Test that the default NGConfiguration can be created."""
     unet_config_dict = unet_ng_config_dict_testing()
-    validate_ng_config(unet_config_dict)
+    instantiate_config(unet_config_dict)
 
 
 @pytest.mark.parametrize(
@@ -24,7 +24,7 @@ def test_default_unet_config():
 def test_unet_configs(algorithm, config_class):
     """Test that an NGConfiguration can be created for each UNet-based algorithm."""
     unet_config_dict = unet_ng_config_dict_testing(algorithm=algorithm)
-    cfg = validate_ng_config(unet_config_dict)
+    cfg = instantiate_config(unet_config_dict)
     assert isinstance(cfg, config_class)
 
 
