@@ -7,7 +7,7 @@ import torch
 
 from careamics.config.ng_configs import NGConfiguration
 from careamics.config.ng_configs.ng_configuration import AlgorithmConfig
-from careamics.config.ng_factories.ng_config_discriminator import validate_ng_config
+from careamics.config.ng_factories.ng_config_discriminator import instantiate_config
 from careamics.config.support import SupportedAlgorithm
 
 from .lightning_modules import CAREModule, N2VModule
@@ -112,7 +112,7 @@ def load_config_from_checkpoint(
         "data_config": data_config,
     }
     config_dict.update(careamics_info)
-    return validate_ng_config(config_dict)
+    return instantiate_config(config_dict)
 
 
 def _create_loaded_exp_name(checkpoint_path: Path):

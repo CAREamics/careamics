@@ -8,7 +8,7 @@ import yaml
 from careamics.config.ng_configs import NGConfiguration
 from careamics.config.ng_factories.ng_config_discriminator import (
     NGConfigs,
-    validate_ng_config,
+    instantiate_config,
 )
 
 
@@ -39,7 +39,7 @@ def load_configuration_ng(path: Union[str, Path]) -> NGConfigs:
 
     dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
 
-    return validate_ng_config(dictionary)
+    return instantiate_config(dictionary)
 
 
 def save_configuration(config: NGConfiguration, path: Union[str, Path]) -> Path:
