@@ -25,7 +25,7 @@ class UNetConfig(ArchitectureConfig):
     """
 
     # pydantic model config
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
     # discriminator used for choosing the pydantic model in Model
     architecture: Literal["UNet"]
@@ -128,7 +128,8 @@ class UNetConfig(ArchitectureConfig):
         return self.conv_dims == 3
 
     def get_num_input_channels(self) -> int:
-        """Get the number of input channels.
+        """
+        Get the number of input channels.
 
         Returns
         -------
@@ -138,7 +139,8 @@ class UNetConfig(ArchitectureConfig):
         return self.in_channels
 
     def get_num_output_channels(self) -> int:
-        """Get the number of output channels.
+        """
+        Get the number of output channels.
 
         Returns
         -------

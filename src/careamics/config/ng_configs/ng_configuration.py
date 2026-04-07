@@ -188,6 +188,22 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_norm_against_channels(self: Self) -> Self:
+        """Validate that normalization is compatible with the model in/out channels.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        # delegate validation to the specific norm
+        self.data_config.normalization.validate_size(
+            self.algorithm_config.model.get_num_input_channels(),
+            self.algorithm_config.model.get_num_output_channels(),
+        )
+        return self
+
     def __str__(self) -> str:
         """
         Pretty string reprensenting the configuration.
