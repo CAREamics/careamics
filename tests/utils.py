@@ -49,7 +49,6 @@ def patching_config_dict_testing(
         case _:
             return {
                 "name": patching,
-                "patch_size": patch_size,
             }
 
 
@@ -148,6 +147,7 @@ def unet_ng_algo_dict_testing(
 
 # TODO not compatible with n2v2, structn2v, needs extension to N2VManipulateConfig
 def unet_ng_config_dict_testing(
+    experiment_name: str = "test_experiment",
     # algorithm
     algorithm: str = DEFAULT_ALGORITHM,
     n_channels_in: int = DEFAULT_N_CHANNELS_IN,
@@ -168,7 +168,7 @@ def unet_ng_config_dict_testing(
     dims = len(patch_size)
 
     return {
-        "experiment_name": "test_experiment",
+        "experiment_name": experiment_name,
         "algorithm_config": unet_ng_algo_dict_testing(
             algorithm, dims, n_channels_in, n_channels_out, **(model_kwargs or {})
         ),

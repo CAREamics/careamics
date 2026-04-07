@@ -755,8 +755,6 @@ class NGDataConfig(BaseModel):
 
         return self
 
-        return self
-
     @model_validator(mode="after")
     def propagate_seed_to_augmentations(self: Self) -> Self:
         """
