@@ -11,11 +11,11 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.ng_configs import NGConfiguration
-from .config.support import SupportedData, SupportedLogger
+from .config.support import SupportedLogger
 from .config.utils.configuration_io import load_configuration_ng
 from .dataset_ng.dataset import ImageRegionData
 from .dataset_ng.factory import ImageStackLoading, Loading, ReadFuncLoading
-from .file_io import WriteFunc, get_write_func
+from .file_io import WriteFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.data_module import CareamicsDataModule, InputVar
@@ -916,16 +916,11 @@ class CAREamistV2:
                 raise ValueError(
                     "A `write_func` must be provided for custom write types."
                 )
-        elif write_type == "zarr" and tile_size is None:
+        if write_type == "zarr" and tile_size is None:
             raise ValueError(
                 "Writing prediction to Zarr is only supported with tiling. Please "
                 "provide a value for `tile_size`, and optionally `tile_overlap`."
             )
-        elif write_type == "zarr" and tile_size is not None:
-            pass
-        else:
-            write_func = get_write_func(write_type)
-            write_extension = SupportedData.get_extension(write_type)
 
         tiled = tile_size is not None
         self.prediction_writer.set_writing_strategy(
