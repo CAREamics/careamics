@@ -6,6 +6,10 @@ from typing import Union
 import yaml
 
 from careamics.config import Configuration
+from careamics.config.ng_factories.ng_config_discriminator import (
+    NGConfigs,
+    instantiate_config,
+)
 
 
 def load_configuration(path: Union[str, Path]) -> Configuration:
@@ -36,6 +40,36 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
     dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
 
     return Configuration(**dictionary)
+
+
+def load_configuration_ng(path: Union[str, Path]) -> NGConfigs:
+    """
+    Load configuration from a yaml file.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the configuration.
+
+    Returns
+    -------
+    Configuration
+        Configuration.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the configuration file does not exist.
+    """
+    # load dictionary from yaml
+    if not Path(path).exists():
+        raise FileNotFoundError(
+            f"Configuration file {path} does not exist in " f" {Path.cwd()!s}"
+        )
+
+    dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
+
+    return instantiate_config(dictionary)
 
 
 def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
@@ -79,7 +113,10 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
 
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:
-        # dump configuration
-        yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
+        # dump configuration using mode="json" to ensure enum values are
+        # serialized as plain strings (compatible with yaml.SafeLoader)
+        yaml.dump(
+            config.model_dump(mode="json"), f, default_flow_style=False, sort_keys=False
+        )
 
     return config_path

@@ -4,10 +4,13 @@ import numpy as np
 import pytest
 
 from careamics.dataset_ng.patching_strategies import (
+    FixedPatchingStrategy,
     FixedRandomPatchingStrategy,
     PatchingStrategy,
+    PatchSpecs,
     RandomPatchingStrategy,
     SequentialPatchingStrategy,
+    StratifiedPatchingStrategy,
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
@@ -36,6 +39,53 @@ def _create_sequential_patching_strategy(
 ) -> SequentialPatchingStrategy:
     overlap = tuple(2 for _ in patch_size)
     return SequentialPatchingStrategy(data_shapes, patch_size, overlap)
+
+
+def _create_stratified_patching_strategy(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+) -> StratifiedPatchingStrategy:
+    seed = 42
+    return StratifiedPatchingStrategy(data_shapes, patch_size, seed=seed)
+
+
+def _create_fixed_patching_strategy(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+):
+    fixed_specs: list[PatchSpecs] = []
+    for data_idx, data_shape in enumerate(data_shapes):
+        spatial_shape = np.array(data_shape[2:])
+        n_dims = len(spatial_shape)
+        # create patches evenly spaced on a grid with gaps
+        # cover 60% to pass cover50percent test
+        patch_grid_size = np.ceil(
+            spatial_shape * (0.6 ** (1 / n_dims)) / np.array(patch_size)
+        ).astype(int)
+        coords = np.stack(
+            np.meshgrid(
+                *[
+                    np.round(np.linspace(0, s - ps - 1, gs)).astype(int)
+                    for s, ps, gs in zip(
+                        spatial_shape, patch_size, patch_grid_size, strict=True
+                    )
+                ],
+                indexing="ij",
+            ),
+            axis=-1,
+        )
+        coords = coords.reshape(np.prod(patch_grid_size), -1)
+        for sample_idx in range(data_shape[0]):
+            fixed_specs.extend(
+                [
+                    {
+                        "data_idx": data_idx,
+                        "sample_idx": sample_idx,
+                        "coords": tuple(coord),
+                        "patch_size": patch_size,
+                    }
+                    for coord in coords
+                ]
+            )
+    return FixedPatchingStrategy(fixed_specs)
 
 
 def _create_tiling_strategy(
@@ -70,6 +120,8 @@ PATCHING_STRATEGY_CONSTR: tuple[PatchingStrategyConstr, ...] = (
     _create_sequential_patching_strategy,
     _create_tiling_strategy,
     _create_whole_sample_patching_strategy,
+    _create_stratified_patching_strategy,
+    _create_fixed_patching_strategy,
 )
 
 
@@ -120,6 +172,7 @@ def test_patches_cover_50percent(
     patch_size: Sequence[int],
 ):
     # Testing more than 50% because some patching strategies are random (but seeded)
+    # (Fixed random patching fails < 50%)
     """Test that more than 50% of the data is covered by the sampled patches"""
     patching_strategy = strategy_constr(data_shapes, patch_size)
 
@@ -134,7 +187,7 @@ def test_patches_cover_50percent(
         spatial_slice = tuple(
             slice(c, c + ps)
             for c, ps in zip(
-                patch_spec["coords"], patch_spec["patch_size"], strict=False
+                patch_spec["coords"], patch_spec["patch_size"], strict=True
             )
         )
         # set to true where the patches would be sampled from

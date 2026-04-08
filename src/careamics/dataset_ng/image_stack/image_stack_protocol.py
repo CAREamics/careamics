@@ -1,3 +1,5 @@
+"""Image stack protocol and type variable for dataset_ng."""
+
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, Protocol, TypeVar, Union
@@ -20,72 +22,54 @@ class ImageStack(Protocol):
     """
 
     @property
-    def source(self) -> Union[str, Path, Literal["array"]]: ...
-
-    """Source of the image data."""
-
-    @property
-    def data_shape(self) -> Sequence[int]: ...
-
-    """Shape of the image data."""
-
-    @property
-    def data_dtype(self) -> DTypeLike: ...
-
-    """Data type of the image data."""
-
-    def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
-    ) -> NDArray:
-        """
-        Extract a patch for a given sample within the image stack.
-
-        Parameters
-        ----------
-        sample_idx: int
-            Sample index. The first dimension of the image data will be indexed at this
-            value.
-        coords: Sequence of int
-            The coordinates that define the start of a patch.
-        patch_size: Sequence of int
-            The size of the patch in each spatial dimension.
-
-        Returns
-        -------
-        numpy.ndarray
-            A patch of the image data from a particlular sample. It will have the
-            dimensions C(Z)YX.
-        """
+    def source(self) -> Union[str, Path, Literal["array"]]:
+        """Source of the image data."""
         ...
 
-    def extract_channel_patch(
+    @property
+    def data_shape(self) -> Sequence[int]:
+        """Shape of the image data (SC(Z)YX)."""
+        ...
+
+    @property
+    def data_dtype(self) -> DTypeLike:
+        """Data type of the image data."""
+        ...
+
+    @property
+    def original_data_shape(self) -> Sequence[int]:
+        """Original shape of the data."""
+        ...
+
+    @property
+    def original_axes(self) -> str:
+        """Original axes of the data."""
+        ...
+
+    def extract_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
-        """
-        Extract a patch of a single channel for a given sample within the image stack.
+        """Extract a patch for a given sample and channels within the image stack.
 
         Parameters
         ----------
-        sample_idx: int
-            Sample index. The first dimension of the image data will be indexed at this
-            value.
-        channels: Sequence[int] | None
-            Channel indices to extract. If `None` is given all channels will be
-            extracted.
-        coords: Sequence of int
-            The coordinates that define the start of a patch.
-        patch_size: Sequence of int
-            The size of the patch in each spatial dimension.
+        sample_idx : int
+            Sample index.
+        channels : sequence of int or None
+            Channel indices to extract. If `None`, all channels will be extracted.
+        coords : sequence of int
+            Spatial coordinates of the top-left corner of the patch.
+        patch_size : sequence of int
+            Size of the patch in each spatial dimension.
 
         Returns
         -------
         numpy.ndarray
-            A patch of the image data from a particlular sample. It will have the
-            dimensions C(Z)YX.
+            A patch of the image data from a particular sample with dimensions C(Z)YX.
         """
         ...
 

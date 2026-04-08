@@ -12,7 +12,7 @@ class SupportedNormalization(str, BaseEnum):
     QUANTILE = "quantile"
     """Quantile normalization strategy."""
 
-    MINMAX = "minmax"
+    MINMAX = "min_max"
     """Min-max normalization strategy."""
 
     NONE = "none"

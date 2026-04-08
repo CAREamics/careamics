@@ -1,96 +1,95 @@
 """Filter using an image mask."""
 
-import numpy as np
+from collections.abc import Sequence
 
-from careamics.dataset_ng.image_stack import GenericImageStack
-from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patch_filter.coordinate_filter_protocol import (
-    CoordinateFilterProtocol,
+import numpy as np
+from numpy.typing import NDArray
+
+from careamics.dataset_ng.patch_filter.patch_filter_protocol import (
+    PatchFilterProtocol,
 )
-from careamics.dataset_ng.patching_strategies import PatchSpecs
 
 
 # TODO is it more intuitive to have a negative mask? (mask of what to avoid)
-class MaskCoordFilter(CoordinateFilterProtocol):
+class MaskFilter(PatchFilterProtocol):
     """
-    Filter patch coordinates based on an image mask.
+    Filter patches based on a boolean image mask.
+
+    Evaluates patches by computing the fraction of True pixels in a boolean mask
+    and filters out patches that fall below a coverage threshold.
+
+    Parameters
+    ----------
+    coverage : float
+        Minimum percentage of masked pixels (True values) required to keep a patch.
+        Must be between 0 and 1.
 
     Attributes
     ----------
-    mask_extractor : PatchExtractor[GenericImageStack]
-        Patch extractor for the binary mask to use for filtering.
-    coverage_perc : float
+    coverage : float
         Minimum percentage of masked pixels required to keep a patch.
-    p : float
-        Probability of applying the filter to a patch.
-    rng : np.random.Generator
-        Random number generator for stochastic filtering.
     """
 
-    def __init__(
-        self,
-        mask_extractor: PatchExtractor[GenericImageStack],
-        coverage: float,
-        p: float = 1.0,
-        seed: int | None = None,
-    ) -> None:
+    def __init__(self, coverage: float) -> None:
         """
-        Create a MaskCoordFilter.
+        Create a MaskFilter.
 
-        This filter removes patches who fall below a threshold of masked pixels
-        percentage. The mask is expected to be a positive mask where masked pixels
-        correspond to regions of interest.
+        This filter removes patches that fall below a threshold of masked pixels
+        (True values) in a boolean mask. The mask is expected to be a boolean array
+        where True represents regions of interest and False represents background.
 
         Parameters
         ----------
-        mask_extractor : PatchExtractor[GenericImageStack]
-            The patch extractor for the mask used for filtering.
         coverage : float
-            Minimum percentage of masked pixels required to keep a patch. Must be
-            between 0 and 1.
-        p : float, default=1
-            Probability of applying the filter to a patch. Must be between 0 and 1.
-        seed : int | None, default=None
-            Seed for the random number generator for reproducibility.
+            Minimum percentage of masked pixels (True values) required to keep a patch.
+            Must be between 0 and 1.
 
         Raises
         ------
         ValueError
             If coverage is not between 0 and 1.
-        ValueError
-            If p is not between 0 and 1.
         """
-
         if not (0 <= coverage <= 1):
-            raise ValueError("Probability p must be between 0 and 1.")
-        if not (0 <= p <= 1):
-            raise ValueError("Probability p must be between 0 and 1.")
+            raise ValueError("Coverage must be between 0 and 1.")
 
-        self.mask_extractor = mask_extractor
         self.coverage = coverage
 
-        self.p = p
-        self.rng = np.random.default_rng(seed)
-
-    def filter_out(self, patch_specs: PatchSpecs) -> bool:
+    def filter_out(self, patch: NDArray[np.bool_]) -> bool:
         """
-        Determine whether to filter out a patch based an image mask.
+        Determine whether to filter out a patch based on mask coverage.
 
         Parameters
         ----------
-        patch : PatchSpecs
-            The patch coordinates to evaluate.
+        patch : NDArray[np.bool_]
+            A boolean mask patch to evaluate. Expected to have dtype bool where
+            True indicates regions of interest and False indicates background.
 
         Returns
         -------
         bool
             True if the patch should be filtered out, False otherwise.
         """
+        masked_fraction = np.sum(patch) / patch.size
+        return bool(masked_fraction < self.coverage)
 
-        if self.rng.uniform(0, 1) < self.p:
-            mask_patch = self.mask_extractor.extract_patch(**patch_specs)
+    @staticmethod
+    def filter_map(
+        image: NDArray[np.bool_],
+        patch_size: Sequence[int],
+    ) -> NDArray[np.bool_]:
+        """
+        Return the mask image as the filter map.
 
-            masked_fraction = np.sum(mask_patch) / mask_patch.size
-            if masked_fraction < self.coverage:
-                return True
-        return False
+        Parameters
+        ----------
+        image : NDArray[np.bool_]
+            The boolean mask image to evaluate.
+        patch_size : Sequence[int]
+            The size of the patches to consider (unused for mask filter).
+
+        Returns
+        -------
+        NDArray[np.bool_]
+            The mask image itself.
+        """
+        return image

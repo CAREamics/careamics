@@ -29,8 +29,6 @@ __all__ = [
     "create_n2v_configuration",
     "create_ng_data_configuration",
     "create_pn2v_configuration",
-    "load_configuration",
-    "save_configuration",
 ]
 
 from .algorithms import (
@@ -65,4 +63,3 @@ from .noise_model import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
 )
-from .utils.configuration_io import load_configuration, save_configuration

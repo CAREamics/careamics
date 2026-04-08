@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 import torch
 
+from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation
-from careamics.config.transformations import N2VManipulateConfig
 from careamics.transforms import N2VManipulate, N2VManipulateTorch
 
 
@@ -57,3 +57,22 @@ def test_manipulate_n2v_torch(strategy):
     diff_coords = torch.nonzero(tr_patch != orig_patch, as_tuple=False).T
     mask_coords = torch.nonzero(mask == 1, as_tuple=False).T
     assert torch.equal(diff_coords, mask_coords)
+
+
+def test_manipulate_n2v_torch_with_seed():
+    """Test that seed is properly used for reproducibility."""
+    array = torch.arange(16 * 16).reshape(1, 16, 16).float()
+
+    config = N2VManipulateConfig(roi_size=5, masked_pixel_percentage=5, seed=1)
+    aug1 = N2VManipulateTorch(config, device="cpu")
+    aug2 = N2VManipulateTorch(config, device="cpu")
+
+    _, _, mask1 = aug1(array)
+    _, _, mask2 = aug2(array)
+
+    # Same seed should produce same masks
+    assert torch.equal(mask1, mask2)
+
+    # Subsequent calls produce a different mask
+    _, _, mask3 = aug2(array)
+    assert not torch.equal(mask2, mask3)

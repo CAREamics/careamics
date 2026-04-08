@@ -12,6 +12,8 @@ class SupportedPatchingStrategy(str, BaseEnum):
     RANDOM = "random"
     """Random patching strategy, used during training."""
 
+    STRATIFIED = "stratified"
+
     # SEQUENTIAL = "sequential"
     # """Sequential patching strategy, used during training."""
 

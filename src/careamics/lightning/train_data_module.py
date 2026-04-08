@@ -9,9 +9,9 @@ import pytorch_lightning as L
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, IterableDataset
 
+from careamics.config.augmentations import TransformConfig
 from careamics.config.data import DataConfig
 from careamics.config.support import SupportedData
-from careamics.config.transformations import TransformConfig
 from careamics.dataset.dataset_utils import (
     get_files_size,
     list_files,
@@ -499,7 +499,7 @@ def create_train_datamodule(
     are coherent.
 
     The default augmentations are XY flip and XY rotation. To use a different set of
-    transformations, you can pass a list of transforms to `transforms`.
+    augmentations, you can pass a list of transforms to `transforms`.
 
     The data module can be used with Path, str or numpy arrays. In the case of
     numpy arrays, it loads and computes all the patches in memory. For Path and str
@@ -601,11 +601,11 @@ def create_train_datamodule(
     ...     extension_filter="*.npy",
     ... )
 
-    If you want to use a different set of transformations, you can pass a list of
+    If you want to use a different set of augmentations, you can pass a list of
     transforms:
     >>> import numpy as np
     >>> from careamics.lightning import create_train_datamodule
-    >>> from careamics.config.transformations import XYFlipConfig
+    >>> from careamics.config.augmentations import XYFlipConfig
     >>> from careamics.config.support import SupportedTransform
     >>> my_array = np.arange(256).reshape(16, 16)
     >>> my_transforms = [

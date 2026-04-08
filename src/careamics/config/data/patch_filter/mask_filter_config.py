@@ -1,4 +1,4 @@
-"""Pydantic model for the mask coordinate filter."""
+"""Pydantic model for the mask patch filter."""
 
 from typing import Literal
 
@@ -8,10 +8,12 @@ from .filter_config import FilterConfig
 
 
 class MaskFilterConfig(FilterConfig):
-    """Pydantic model for the mask coordinate filter."""
+    """Pydantic model for the mask patch filter."""
 
     name: Literal["mask"] = "mask"
     """Name of the filter."""
 
-    coverage: float = Field(0.5, ge=0.0, le=1.0)
-    """Percentage of masked pixels required to keep a patch."""
+    coverage: float = Field(0.25, ge=0.0, le=1.0)
+    """Minimum ratio of masked pixels required to keep a sampling region. The optimum
+    value is 1/(2**ndims) where ndims is the number of spatial dimensions.
+    """

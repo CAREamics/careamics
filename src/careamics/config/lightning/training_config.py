@@ -28,9 +28,10 @@ class TrainingConfig(BaseModel):
     # Pydantic class configuration
     model_config = ConfigDict(
         validate_assignment=True,
+        extra="forbid",
     )
 
-    lightning_trainer_config: dict | None = None
+    lightning_trainer_config: dict = Field(default={})
     """Configuration for the PyTorch Lightning Trainer, following PyTorch Lightning
     Trainer class"""
 

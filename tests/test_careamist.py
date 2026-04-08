@@ -4,16 +4,19 @@ from threading import Thread
 import numpy as np
 import pytest
 import tifffile
+import torch
 from numpy.typing import NDArray
-from pytorch_lightning import Trainer
+from pytorch_lightning import seed_everything
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from careamics import CAREamist
-from careamics.config import Configuration, save_configuration
+from careamics.config import Configuration
+from careamics.config.lightning import CheckpointConfig, EarlyStoppingConfig
 from careamics.config.support import SupportedAlgorithm, SupportedData
-from careamics.dataset.dataset_utils import reshape_array
+from careamics.config.utils.configuration_io import save_configuration
 from careamics.lightning.callbacks import HyperParametersCallback, ProgressBarCallback
 from careamics.lightning.predict_data_module import create_predict_datamodule
+from careamics.utils.reshape_array import reshape_array
 
 
 def random_array(shape: tuple[int, ...], seed: int = 42):
@@ -107,7 +110,9 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: di
     careamist.train(train_source=train_array)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -152,21 +157,29 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
     careamist.train(train_source=train_array, val_source=val_array)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
     # check save_top_k=2 functionality
-    # Should have: 2 best checkpoints + 1 last.ckpt = 3 total files
-    checkpoint_files = list((tmp_path / "checkpoints").glob("*.ckpt"))
+    # Should have: 2 best checkpoints + 1 LevitatingFrog_last.ckpt = 3 total files
+    checkpoint_files = list(
+        (tmp_path / "checkpoints" / "LevitatingFrog").glob("*.ckpt")
+    )
     assert (
         len(checkpoint_files) == 3
     ), f"Expected 3 checkpoint files (2 best + last), found {len(checkpoint_files)}"
 
-    # Verify last.ckpt exists
-    last_ckpt_exists = any(f.name == "last.ckpt" for f in checkpoint_files)
-    assert last_ckpt_exists, "last.ckpt should exist when save_last=True"
+    # Verify that the checkpoint exists
+    last_ckpt_exists = any(
+        f.name == "LevitatingFrog_last.ckpt" for f in checkpoint_files
+    )
+    assert last_ckpt_exists, "LevitatingFrog_last.ckpt should exist when save_last=True"
 
     # Verify we have exactly 2 non-last checkpoint files
-    non_last_checkpoints = [f for f in checkpoint_files if f.name != "last.ckpt"]
+    non_last_checkpoints = [
+        f for f in checkpoint_files if f.name != "LevitatingFrog_last.ckpt"
+    ]
     assert (
         len(non_last_checkpoints) == 2
     ), f"Expected exactly 2 best checkpoints, found {len(non_last_checkpoints)}"
@@ -181,6 +194,61 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
         data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
+
+
+@pytest.mark.mps_gh_fail
+def test_train_array_different_with_seed(
+    tmp_path: Path, minimum_n2v_configuration: dict
+):
+    """Test that training with the same config produces identical N2V masks."""
+    seed_everything(42)
+
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
+
+    config = Configuration(**minimum_n2v_configuration)
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+    config.training_config.lightning_trainer_config = {"max_epochs": 1}
+
+    class MaskCaptureCallback(Callback):
+        """Wraps n2v_preprocess to capture masks without extra RNG calls."""
+
+        def __init__(self):
+            self.masks: list[torch.Tensor] = []
+
+        def on_train_start(self, trainer, pl_module):
+            preprocess = getattr(pl_module, "n2v_preprocess", None)
+            if preprocess is None:
+                return
+            masks = self.masks
+
+            class _Wrapper:
+                def __call__(self, batch, *args, **kwargs):
+                    result = preprocess(batch, *args, **kwargs)
+                    masks.append(result[2].clone())
+                    return result
+
+            pl_module.n2v_preprocess = _Wrapper()
+
+    masks_per_run: list[list[torch.Tensor]] = []
+    for i in range(2):
+        config.algorithm_config.n2v_config.seed = i + 1
+        cb = MaskCaptureCallback()
+        work_dir = tmp_path / f"run{i}"
+        work_dir.mkdir()
+        careamist = CAREamist(source=config, work_dir=work_dir, callbacks=[cb])
+        careamist.train(train_source=train_array, val_source=val_array)
+        masks_per_run.append(cb.masks)
+
+    assert len(masks_per_run[0]) > 0
+    assert len(masks_per_run[0]) == len(masks_per_run[1])
+    for m1, m2 in zip(masks_per_run[0], masks_per_run[1], strict=True):
+        assert not torch.equal(
+            m1, m2
+        ), "Different seed should produce different masks across runs"
 
 
 @pytest.mark.mps_gh_fail
@@ -210,7 +278,9 @@ def test_train_array_channel(
     careamist.train(train_source=train_array, val_source=val_array)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -246,7 +316,9 @@ def test_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     careamist.train(train_source=train_array, val_source=val_array)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -286,7 +358,9 @@ def test_train_tiff_files_in_memory_no_val(
     careamist.train(train_source=train_file)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -328,7 +402,9 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration: d
     careamist.train(train_source=train_file, val_source=val_file)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -372,7 +448,9 @@ def test_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
     careamist.train(train_source=train_file, val_source=val_file, use_in_memory=False)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -384,6 +462,36 @@ def test_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
         data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
+
+
+@pytest.mark.mps_gh_fail
+def test_train_w_callbacks(tmp_path: Path, minimum_n2v_configuration: dict):
+    """
+    Test that basic training with arrays runs without error with supported callbacks.
+    """
+    # training data
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_n2v_configuration)
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # add supported callback configuration
+    config.training_config.checkpoint_callback = CheckpointConfig()
+    config.training_config.early_stopping_callback = EarlyStoppingConfig()
+
+    # set epochs 2 to make sure callbacks are accessed.
+    config.training_config.lightning_trainer_config["max_epochs"] = 2
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array, val_source=val_array)
 
 
 @pytest.mark.mps_gh_fail
@@ -414,7 +522,9 @@ def test_train_array_supervised(tmp_path: Path, minimum_supervised_configuration
     )
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -475,7 +585,9 @@ def test_train_tiff_files_in_memory_supervised(
     )
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -539,7 +651,9 @@ def test_train_tiff_files_supervised(
     )
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -1118,7 +1232,9 @@ def test_enable_progress_bar(
     careamist.train(train_source=train_array)
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()
 
 
 def test_error_passing_careamics_callback(tmp_path, minimum_n2v_configuration):
@@ -1136,12 +1252,7 @@ def test_error_passing_careamics_callback(tmp_path, minimum_n2v_configuration):
     with pytest.raises(ValueError):
         CAREamist(source=config, work_dir=tmp_path, callbacks=[model_ckp])
 
-    early_stp = EarlyStopping(
-        Trainer(
-            max_epochs=1,
-            default_root_dir=tmp_path,
-        )
-    )
+    early_stp = EarlyStopping(monitor="val_loss")
 
     with pytest.raises(ValueError):
         CAREamist(source=config, work_dir=tmp_path, callbacks=[early_stp])
@@ -1264,4 +1375,6 @@ def test_trainer_parameters_passed_correctly(
     assert careamist.trainer.max_epochs == 3
 
     # check that it trained
-    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+    assert Path(
+        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
+    ).exists()

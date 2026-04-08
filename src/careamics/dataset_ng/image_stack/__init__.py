@@ -1,3 +1,5 @@
+"""Image stack protocol and implementations."""
+
 __all__ = [
     "CziImageStack",
     "FileImageStack",

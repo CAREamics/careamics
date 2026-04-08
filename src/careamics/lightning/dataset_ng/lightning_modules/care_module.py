@@ -1,17 +1,19 @@
 """CARE Lightning Module."""
 
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytorch_lightning as L
 import torch
 from torch import nn
 from torchmetrics import MetricCollection
-from torchmetrics.image import PeakSignalNoiseRatio
 
-from careamics.config import CAREAlgorithm, N2NAlgorithm, algorithm_factory
+from careamics.config import CAREAlgorithm, N2NAlgorithm
+from careamics.config.ng_factories import instantiate_algorithm_config
 from careamics.config.support import SupportedLoss
 from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.lightning.dataset_ng.data_module import TrainValData, TrainValSplitData
+from careamics.lightning.dataset_ng.metrics import SIPSNR
 from careamics.losses import mae_loss, mse_loss
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
@@ -22,6 +24,9 @@ from .module_utils import (
     log_training_stats,
     log_validation_stats,
 )
+
+if TYPE_CHECKING:
+    from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 
 logger = get_logger(__name__)
 
@@ -48,15 +53,18 @@ class CAREModule(L.LightningModule):
         super().__init__()
 
         if isinstance(algorithm_config, dict):
-            config = algorithm_factory(algorithm_config)
+            config = instantiate_algorithm_config(algorithm_config)
         else:
             config = algorithm_config
 
         if not isinstance(config, (CAREAlgorithm, N2NAlgorithm)):
-            raise TypeError(
-                "algorithm_config must be a CAREAlgorithm or a N2NAlgorithm"
+            raise ValueError(
+                f"Parameter `algorithm_config` must be a CAREAlgorithm, N2NAlgorithm, "
+                f"or a dict that represents a valid CAREAlgorithm or N2NAlgorithm "
+                f"Pydantic model (got {type(config).__name__})."
             )
 
+        self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
         loss = self.config.loss
@@ -67,9 +75,38 @@ class CAREModule(L.LightningModule):
         else:
             raise ValueError(f"Unsupported loss for Care: {loss}")
 
-        self.metrics: MetricCollection = MetricCollection(PeakSignalNoiseRatio())
+        self.metrics: MetricCollection = MetricCollection(
+            {
+                f"SIPSNR_{i}": SIPSNR(
+                    n_channels=self.config.model.num_classes,
+                    output_channel=i,
+                    use_scale_invariance=True,
+                )
+                for i in range(self.config.model.num_classes)
+            }
+        )
 
         self._best_checkpoint_loaded: bool = False
+
+    def on_fit_start(self) -> None:
+        """On fit start hook for CARE module.
+
+        Check that training and validation target data have been supplied.
+        """
+        assert self._trainer is not None
+        datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
+        assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
+        if datamodule._data.train_data_target is None:
+            raise ValueError(
+                "Training target data must be provided for supervised training."
+            )
+        if (
+            isinstance(datamodule._data, TrainValData)
+            and datamodule._data.val_data_target is None
+        ):
+            raise ValueError(
+                "Validation target data must be provided for supervised training."
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -179,6 +216,7 @@ class CAREModule(L.LightningModule):
             axes=x.axes,
             region_spec=x.region_spec,
             additional_metadata={},
+            original_data_shape=x.original_data_shape,
         )
         return output_batch
 

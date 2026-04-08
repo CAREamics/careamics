@@ -7,6 +7,7 @@ from pydantic import AfterValidator
 
 from careamics.config.architectures import UNetConfig
 from careamics.config.validators import (
+    model_no_c_ind_for_mismatching_channels,
     model_without_final_activation,
     model_without_n2v2,
 )
@@ -52,8 +53,10 @@ class CAREAlgorithm(UNetBasedAlgorithm):
         UNetConfig,
         AfterValidator(model_without_n2v2),
         AfterValidator(model_without_final_activation),
+        AfterValidator(model_no_c_ind_for_mismatching_channels),
     ]
-    """UNet without a final activation function and without the `n2v2` modifications."""
+    """UNet without a final activation function, without the `n2v2` modifications, and
+    without independent channels for mismatching input/output channel numbers."""
 
     def get_algorithm_friendly_name(self) -> str:
         """
@@ -120,3 +123,15 @@ class CAREAlgorithm(UNetBasedAlgorithm):
             Algorithm description.
         """
         return CARE_DESCRIPTION
+
+    @classmethod
+    def is_supervised(cls) -> bool:
+        """
+        Whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return True

@@ -42,19 +42,19 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=1.21",
-    "numpy>=2.1.0; python_version>='3.13'",  # prevents ml_dtypes conflict in py313
-    'torch>=2.0,<=2.10.0',
+    "numpy>=2.1.0; python_version>='3.13'",  # prevents ml_dtypes conflict in py313, see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
+    'torch>=2.1.0,<2.10.0', # lightning currently does not support torch 2.10.0
     'torchvision<=0.25.0',
     'bioimageio.core>=0.9.0',
-    'tifffile<=2026.1.14',
-    'psutil<=7.2.1',
+    'tifffile<=2026.3.3',
+    'psutil<=7.2.2',
     'pydantic>=2.11,<=2.12.5',
-    'pytorch_lightning>=2.2,<=2.6.0',
+    'pytorch_lightning>=2.2,<=2.6.1',
     'pyyaml!=6.0.0,<=6.0.3',
-    'typer>=0.12.3,<=0.21.1',
+    'typer>=0.12.3,<=0.24.1',
     'scikit-image<=0.26.0',
     'zarr>=3.0.0,<4.0.0',
-    'pillow<=12.1.0',
+    'pillow<=12.2.0',
     'matplotlib<=3.10.8',
     'validators<=0.35.0',
     'torchmetrics>=0.11.0,<1.5.0', # 1.5.0 causes `data_range` mandatory parameter issue
@@ -64,7 +64,7 @@ dependencies = [
 [project.optional-dependencies]
 
 # czi format
-czi = ['pylibCZIrw>=4.1.2,<6.0.0']
+czi = ['pylibCZIrw>=4.1.2,<7.0.0']
 
 # notebooks
 examples = ["jupyter", "careamics-portfolio"]
@@ -83,9 +83,9 @@ dev = [
     "sybil",  # doctesting
 
     # libraries used in some tests
-    "onnxscript<=0.5.7",
+    "onnxscript<=0.6.2",
     "ml_dtypes>=0.5.0",  # required by onnx, causes issues in gh runners with py313
-    'pylibCZIrw>=4.1.2,<6.0.0',  # czi files testing
+    'pylibCZIrw>=4.1.2,<7.0.0',  # czi files testing
 ]
 
 [project.urls]
@@ -139,8 +139,6 @@ convention = "numpy"
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["D", "S"]
 "setup.py" = ["D"]
-# temporarily ignore docstrings in next generation dataset development
-"src/careamics/dataset_ng/*" = ["D"]
 
 [tool.black]
 line-length = 88

@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.patching_strategies import TileSpecs
+from careamics.utils.reshape_array import restore_array
 
 
 def group_tiles_by_key(
@@ -38,6 +39,7 @@ def group_tiles_by_key(
 
 def stitch_prediction(
     tiles: list[ImageRegionData],
+    restore_shape: bool = False,
 ) -> tuple[list[NDArray], list[str]]:
     """
     Stitch tiles back together to form full images.
@@ -50,6 +52,8 @@ def stitch_prediction(
     tiles : list of ImageRegionData
         Cropped tiles and their respective stitching coordinates. Can contain tiles
         from multiple images.
+    restore_shape : bool, default=False
+        If True, restore predictions to their original shape and dimension order.
 
     Returns
     -------
@@ -67,7 +71,11 @@ def stitch_prediction(
     image_predictions: list[NDArray] = []
     image_sources: list[str] = []
     for data_idx in sorted(grouped_tiles.keys()):
-        image_predictions.append(stitch_single_prediction(grouped_tiles[data_idx]))
+        image_predictions.append(
+            stitch_single_prediction(
+                grouped_tiles[data_idx], restore_shape=restore_shape
+            )
+        )
         image_sources.append(grouped_tiles[data_idx][0].source)
 
     return image_predictions, image_sources
@@ -75,6 +83,7 @@ def stitch_prediction(
 
 def stitch_single_prediction(
     tiles: list[ImageRegionData],
+    restore_shape: bool = False,
 ) -> NDArray:
     """
     Stitch tiles back together to form a full image.
@@ -86,6 +95,8 @@ def stitch_single_prediction(
     ----------
     tiles : list of ImageRegionData
         Cropped tiles and their respective stitching coordinates.
+    restore_shape : bool, default=False
+        If True, restore prediction to its original shape and dimension order.
 
     Returns
     -------
@@ -113,6 +124,11 @@ def stitch_single_prediction(
         # stitch as a single sample
         # predicted_image has singleton sample dimension
         predicted_image[0] = stitch_single_sample(tiles)
+
+    if restore_shape:
+        predicted_image = restore_array(
+            predicted_image, tiles[0].axes, tiles[0].original_data_shape
+        )
 
     return predicted_image
 

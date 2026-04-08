@@ -1,10 +1,14 @@
+"""Patching strategies and factory for the next-generation dataset."""
+
 __all__ = [
+    "FixedPatchingStrategy",
     "FixedRandomPatchingStrategy",
     "PatchSpecs",
     "PatchingStrategy",
     "RandomPatchingStrategy",
     "RegionSpecs",
     "SequentialPatchingStrategy",
+    "StratifiedPatchingStrategy",
     "TileSpecs",
     "TilingStrategy",
     "WholeSamplePatchingStrategy",
@@ -12,6 +16,7 @@ __all__ = [
     "is_tile_specs",
 ]
 
+from .fixed_patching import FixedPatchingStrategy
 from .patching_strategy_factory import create_patching_strategy
 from .patching_strategy_protocol import (
     PatchingStrategy,
@@ -22,5 +27,6 @@ from .patching_strategy_protocol import (
 )
 from .random_patching import FixedRandomPatchingStrategy, RandomPatchingStrategy
 from .sequential_patching import SequentialPatchingStrategy
+from .stratified_patching import StratifiedPatchingStrategy
 from .tiling_strategy import TilingStrategy
 from .whole_sample import WholeSamplePatchingStrategy

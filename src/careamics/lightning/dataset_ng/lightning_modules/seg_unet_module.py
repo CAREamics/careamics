@@ -8,7 +8,8 @@ from torch import nn
 from torchmetrics import MetricCollection
 from torchmetrics.segmentation import GeneralizedDiceScore
 
-from careamics.config import SegAlgorithm, algorithm_factory
+from careamics.config import SegAlgorithm
+from careamics.config.ng_factories import instantiate_algorithm_config
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.lightning.dataset_ng.loss import get_seg_loss
 from careamics.models.unet import UNet
@@ -46,14 +47,15 @@ class SegModule(L.LightningModule):
         super().__init__()
 
         if isinstance(algorithm_config, dict):
-            config = algorithm_factory(algorithm_config)
+            config = instantiate_algorithm_config(algorithm_config)
         else:
             config = algorithm_config
 
         if not isinstance(config, SegAlgorithm):
-            raise TypeError(
-                "Parameter `algorithm_config` must be a SegAlgorithm, or a dict "
-                "that representing a SegAlgorithm Pydantic model."
+            raise ValueError(
+                f"Parameter `algorithm_config` must be a N2VAlgorithm "
+                f"or a dict that represents a valid N2VAlgorithm Pydantic model "
+                f"(got {type(config).__name__})."
             )
 
         self.config = config
@@ -193,8 +195,9 @@ class SegModule(L.LightningModule):
             data_shape=x.data_shape,
             dtype=x.dtype,
             axes=x.axes,
+            original_data_shape=x.original_data_shape,
             region_spec=x.region_spec,
-            additional_metadata={},
+            additional_metadata=x.additional_metadata,
         )
         return output_batch
 

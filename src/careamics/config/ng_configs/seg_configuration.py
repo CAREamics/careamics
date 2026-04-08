@@ -35,6 +35,18 @@ class SegConfiguration(NGConfiguration):
         if self.data_config.channels is not None:
             raise ValueError(
                 "The `channels` parameter must be set to `None` for segmentation "
-                "tasks, as all channels are used for prediction."
+                "tasks."
             )
         return self
+
+    @classmethod
+    def is_supervised(cls) -> bool:
+        """
+        Whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return True

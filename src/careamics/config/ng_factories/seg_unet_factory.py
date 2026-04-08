@@ -3,11 +3,11 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
-from careamics.config.ng_configs import SegConfiguration
-from careamics.config.transformations import (
+from careamics.config.augmentations import (
     XYFlipConfig,
     XYRandomRotate90Config,
 )
+from careamics.config.ng_configs import SegConfiguration
 
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import create_ng_data_configuration, list_spatial_augmentations
@@ -173,6 +173,7 @@ def create_seg_configuration(
         num_steps=num_steps,
     )
     training_params = create_training_configuration(
+        algorithm="seg",
         trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,

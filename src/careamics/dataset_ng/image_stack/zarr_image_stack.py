@@ -1,19 +1,41 @@
+"""ImageStack implementation for Zarr-backed images."""
+
 from collections.abc import Sequence
 
 import zarr
 from numpy.typing import DTypeLike, NDArray
 
-from careamics.dataset.dataset_utils import reshape_array
+from careamics.utils.reshape_array import AxesTransform, reshape_array
 
-from .image_utils.image_stack_utils import channel_slice, pad_patch, reshape_array_shape
+from .image_utils.image_stack_utils import channel_slice, pad_patch
 
 
 class ZarrImageStack:
     """
-    A class for extracting patches from an image stack that is stored as a zarr array.
+    ImageStack backed by a zarr array.
+
+    Parameters
+    ----------
+    group : zarr.Group
+        Zarr group containing the array.
+    data_path : str
+        Path to the array within the group.
+    axes : str
+        Axis order (e.g. STCZYX).
     """
 
     def __init__(self, group: zarr.Group, data_path: str, axes: str):
+        """Constructor.
+
+        Parameters
+        ----------
+        group : zarr.Group
+            Zarr group containing the array.
+        data_path : str
+            Path to the array within the group.
+        axes : str
+            Axis order (e.g. STCZYX).
+        """
         if not isinstance(group, zarr.Group):
             raise TypeError(f"group must be a zarr.Group instance, got {type(group)}.")
 
@@ -39,49 +61,109 @@ class ZarrImageStack:
         #   - must be subset of STCZYX
         self._original_axes = axes
         self._original_data_shape: tuple[int, ...] = self._array.shape
-        self.data_shape = reshape_array_shape(axes, self._original_data_shape)
-        self._data_dtype = self._array.dtype
-        self._chunk_size = reshape_array_shape(
-            axes, self._array.chunks, add_singleton=False
-        )
-        self._shard_size = (
-            reshape_array_shape(axes, self._array.shards, add_singleton=False)
-            if self._array.shards is not None
-            else None
-        )
+        self.data_shape = AxesTransform(
+            axes, self._original_data_shape
+        ).transformed_shape
 
-    # Used to identify the source of the data and write to similar path during pred
+        self._data_dtype = self._array.dtype
+        self._chunk_size = self._array.chunks
+        self._shard_size = self._array.shards
+
     @property
     def source(self) -> str:
-        # e.g. file://data/bsd68.zarr/train/
+        """Source URI of the zarr array.
+
+        Local zarr URIs starts with the `file://` descriptor, and include the path to
+        the zarr file and internal path to the specific array. Source URIs are used
+        during prediction to disk to build destination paths.
+
+        Returns
+        -------
+        str
+            Source URI.
+        """
         return str(self._source)
 
     @property
     def chunks(self) -> Sequence[int]:
-        """Chunks size in the order of data_shape (SC(Z)YX)."""
+        """Chunk size per dimension.
+
+        Returns
+        -------
+        Sequence[int]
+            Chunk size per dimension.
+        """
         return self._chunk_size
 
     @property
     def shards(self) -> Sequence[int] | None:
-        """Shard size in the order of data_shape (SC(Z)YX)."""
+        """Shard size per dimension.
+
+        Returns
+        -------
+        Sequence[int] or None
+            Shard size per dimension, or None.
+        """
         return self._shard_size
 
     @property
     def data_dtype(self) -> DTypeLike:
+        """Data type of the array.
+
+        Returns
+        -------
+        numpy.DTypeLike
+            Type of the data.
+        """
         return self._data_dtype
 
-    def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
-    ) -> NDArray:
-        return self.extract_channel_patch(sample_idx, None, coords, patch_size)
+    @property
+    def original_data_shape(self) -> tuple[int, ...]:
+        """Original shape of the data.
 
-    def extract_channel_patch(
+        Returns
+        -------
+        tuple of int
+            Shape in original axis order.
+        """
+        return self._original_data_shape
+
+    @property
+    def original_axes(self) -> str:
+        """Original axes of the data.
+
+        Returns
+        -------
+        str
+            Axis order string.
+        """
+        return self._original_axes
+
+    def extract_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,  # `channels = None` to select all channels,
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
+        """Extract a patch for a given sample and channels within the image stack.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Sample index.
+        channels : sequence of int or None
+            Channel indices to extract. If `None`, all channels will be extracted.
+        coords : sequence of int
+            Spatial coordinates of the top-left corner of the patch.
+        patch_size : sequence of int
+            Size of the patch in each spatial dimension.
+
+        Returns
+        -------
+        numpy.ndarray
+            A patch of the image data from a particular sample with dimensions C(Z)YX.
+        """
         # original axes assumed to be any subset of STCZYX (containing YX), in any order
         # arguments must be transformed to index data in original axes order
         # to do this: loop through original axes and append correct index/slice
@@ -139,7 +221,18 @@ class ZarrImageStack:
         return patch
 
     def _get_T_index(self, sample_idx: int) -> int:
-        """Get T index given `sample_idx`."""
+        """Get `T` dimension index given `sample_idx`.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Flat sample index (S*T or S).
+
+        Returns
+        -------
+        int
+            Index along the T axis.
+        """
         if "T" not in self._original_axes:
             raise ValueError("No 'T' axis specified in original data axes.")
         axis_idx = self._original_axes.index("T")
@@ -153,7 +246,18 @@ class ZarrImageStack:
         return sample_idx % dim
 
     def _get_S_index(self, sample_idx: int) -> int:
-        """Get S index given `sample_idx`."""
+        """Get `S` dimension index given `sample_idx`.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Flat sample index (S*T or S).
+
+        Returns
+        -------
+        int
+            Index along the S axis.
+        """
         if "S" not in self._original_axes:
             raise ValueError("No 'S' axis specified in original data axes.")
         if "T" in self._original_axes:

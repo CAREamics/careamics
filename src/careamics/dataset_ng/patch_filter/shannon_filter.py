@@ -13,24 +13,21 @@ from careamics.dataset_ng.patching_strategies import TilingStrategy
 
 
 class ShannonPatchFilter(PatchFilterProtocol):
-    """
-    Filter patches based on Shannon entropy threshold.
+    """Filter patches based on Shannon entropy threshold.
+
+    Parameters
+    ----------
+    threshold : float
+        Shannon entropy threshold; patches below are filtered out.
 
     Attributes
     ----------
     threshold : float
         Threshold for the Shannon entropy of the patch.
-    p : float
-        Probability of applying the filter to a patch.
-    rng : np.random.Generator
-        Random number generator for stochastic filtering.
     """
 
-    def __init__(
-        self, threshold: float, p: float = 1.0, seed: int | None = None
-    ) -> None:
-        """
-        Create a ShannonEntropyFilter.
+    def __init__(self, threshold: float) -> None:
+        """Create a ShannonPatchFilter.
 
         This filter removes patches whose Shannon entropy is below a specified
         threshold.
@@ -39,27 +36,16 @@ class ShannonPatchFilter(PatchFilterProtocol):
         ----------
         threshold : float
             Threshold for the Shannon entropy of the patch.
-        p : float, default=1
-            Probability of applying the filter to a patch. Must be between 0 and 1.
-        seed : int | None, default=None
-            Seed for the random number generator for reproducibility.
 
         Raises
         ------
         ValueError
             If threshold is negative.
-        ValueError
-            If p is not between 0 and 1.
         """
         if threshold < 0:
             raise ValueError("Threshold must be non-negative.")
-        if not (0 <= p <= 1):
-            raise ValueError("Probability p must be between 0 and 1.")
 
         self.threshold = threshold
-
-        self.p = p
-        self.rng = np.random.default_rng(seed)
 
     def filter_out(self, patch: np.ndarray) -> bool:
         """
@@ -75,9 +61,7 @@ class ShannonPatchFilter(PatchFilterProtocol):
         bool
             True if the patch should be filtered out, False otherwise.
         """
-        if self.rng.uniform(0, 1) < self.p:
-            return shannon_entropy(patch) < self.threshold
-        return False
+        return shannon_entropy(patch) < self.threshold
 
     @staticmethod
     def filter_map(
@@ -108,12 +92,9 @@ class ShannonPatchFilter(PatchFilterProtocol):
         ValueError
             If the image is not 2D or 3D.
 
-        Example
-        -------
-        The `filter_map` method can be used to assess a useful threshold for the
-        Shannon entropy filter. Below is an example of how to compute and visualize
-        the Shannon entropy map of a random image and visualize thresholded versions
-        of the map.
+        Examples
+        --------
+        Assess a useful threshold by computing and visualizing the entropy map:
         >>> import numpy as np
         >>> from matplotlib import pyplot as plt
         >>> from careamics.dataset_ng.patch_filter import ShannonPatchFilter

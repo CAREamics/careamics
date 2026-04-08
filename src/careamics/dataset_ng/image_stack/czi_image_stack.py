@@ -1,3 +1,5 @@
+"""Image stack implementation for CZI files."""
+
 from __future__ import annotations
 
 import re
@@ -111,6 +113,32 @@ class CziImageStack:
         scene: int | None = None,
         depth_axis: Literal["none", "Z", "T"] = "none",
     ) -> None:
+        """Constructor.
+
+        As a CZI file can contain multiple scenes, the scene to extract can be specified
+        either as a separate argument `scene` or as part of the `data_path` by appending
+        an "@" followed by the scene index to the filename (e.g. `file.czi@0` for scene
+        0). If both are provided, a ValueError is raised.
+
+        Both `T` and `Z` axes can be used as depth axes for 3D denoising, other non
+        spatial axes will be merged into the sample dimension `S`.
+
+        Parameters
+        ----------
+        data_path : str or Path
+            Path to the CZI file (optionally with `@scene` suffix).
+        scene : int or None, optional
+            Scene index to load; see class docstring. Omit if encoded in path.
+        depth_axis : {"none", "Z", "T"}, optional
+            Axis to use as depth for 3D patches.
+
+        Raises
+        ------
+        ImportError
+            If the `pylibCZIrw` package is not installed.
+        ValueError
+            If the scene index is specified both in the filename and as an argument.
+        """
         if not pyczi_available:
             raise ImportError(
                 "The CZI image stack requires the `pylibCZIrw` package to be installed."
@@ -147,18 +175,38 @@ class CziImageStack:
         )
         self.data_dtype = np.float32
 
-    def __del__(self):
+    def __del__(self) -> None:
+        """Close the CZI file handle when the instance is destroyed."""
         if hasattr(self, "_czi"):
             # Close CZI file
             self._czi.close()
 
     def __getstate__(self) -> dict[str, Any]:
+        """Return state for pickling, excluding the non-picklable CZI reader.
+
+        Returns
+        -------
+        dict[str, Any]
+            Instance dictionary without the CZI reader.
+        """
         # Remove CziReader object from state to avoid pickling issues
         state = self.__dict__.copy()
         del state["_czi"]
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
+        """Restore state after unpickling and reopen the CZI file.
+
+        Parameters
+        ----------
+        state : dict[str, Any]
+            State from `__getstate__`.
+
+        Returns
+        -------
+        None
+            No return value; instance state is updated in place.
+        """
         # Reopen CZI file after unpickling
         self.__dict__.update(state)
         self._czi = CziReader(str(self.data_path))
@@ -167,23 +215,83 @@ class CziImageStack:
     #       - not sure if this is a good approach
     @property
     def source(self) -> Path:
+        """Path to the CZI file, including scene index in the filename if set.
+
+        Returns
+        -------
+        Path
+            Path that can be used to recreate this image stack (e.g. `file.czi@0`).
+        """
         filename = self.data_path.name
         if self.scene is not None:
             filename = f"{filename}@{self.scene}"
         return self.data_path.parent / filename
 
-    def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
-    ) -> NDArray:
-        return self.extract_channel_patch(sample_idx, None, coords, patch_size)
+    @property
+    def original_axes(self) -> str:
+        """Original axes of the data.
 
-    def extract_channel_patch(
+        Returns
+        -------
+        str
+            Axis string before merging dimensions into the sample axis `S`.
+        """
+        if not self._sample_axes:
+            # No dimensions were merged into S, so axes are already original
+            return self.axes
+
+        # Reconstruct original axes by replacing S with the sample axes
+        # The sample axes are in the order they appear in the CZI file
+        sample_axes_str = "".join(self._sample_axes.keys())
+        original = self.axes.replace("S", sample_axes_str)
+        return original
+
+    @property
+    def original_data_shape(self) -> tuple[int, ...]:
+        """Original shape of the data.
+
+        Returns
+        -------
+        tuple[int, ...]
+            Shape before merging dimensions into the sample axis `S`.
+        """
+        if not self._sample_axes:
+            # No dimensions were merged into S, so shape is already original
+            return tuple(self.data_shape)
+
+        # Reconstruct original shape by replacing S dimension with sample axes
+        shape_list = list(self.data_shape)
+        s_idx = self.axes.index("S")
+        # Replace S dimension with the sample axes dimensions
+        sample_sizes = list(self._sample_axes.values())
+        shape_list[s_idx : s_idx + 1] = sample_sizes
+        return tuple(shape_list)
+
+    def extract_patch(
         self,
         sample_idx: int,
         channels: Sequence[int] | None,  # `channels = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
+        """Extract a patch for a given sample and channels within the image stack.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Sample index.
+        channels : sequence of int or None
+            Channel indices to extract. If `None`, all channels will be extracted.
+        coords : sequence of int
+            Spatial coordinates of the top-left corner of the patch.
+        patch_size : sequence of int
+            Size of the patch in each spatial dimension.
+
+        Returns
+        -------
+        numpy.ndarray
+            A patch of the image data from a particular sample with dimensions C(Z)YX.
+        """
         # check that channels are within bounds
         if channels is not None:
             max_channel = self.data_shape[1] - 1  # channel is second dimension
@@ -277,7 +385,7 @@ class CziImageStack:
         return patch
 
     def _get_shape(self) -> tuple[str, list[int], Rectangle, dict[str, int]]:
-        """Determines the shape of the selected scene.
+        """Determine the shape of the selected scene.
 
         Returns
         -------
@@ -339,10 +447,10 @@ class CziImageStack:
         else:
             axes = "SCYX"
 
-        # Calculcate size of sample dimension S, combining all axes not used elsewhere.
+        # Calculate size of sample dimension S, combining all axes not used elsewhere.
         # This could, for example, be a time axis. If we only perform 2-D denoising, a
-        # potentially present Z axis would also be used as sample dimension. If both,
-        # T and Z, are present, both need to be combined into the sample dimension.
+        # potentially present Z axis would also be used as sample dimension. If both
+        # T and Z are present, both need to be combined into the sample dimension.
         # The same needs to be done to any other potentially present axis in the CZI
         # file which is not a spatial or channel axis.
         # The following code calculates the size of the combined sample axis.
@@ -373,7 +481,7 @@ class CziImageStack:
     def get_bounding_rectangles(
         cls, czi: Path | str | CziReader
     ) -> dict[int | None, Rectangle]:
-        """Gets the bounding rectangles of all scenes in a CZI file.
+        """Get the bounding rectangles of all scenes in a CZI file.
 
         Parameters
         ----------

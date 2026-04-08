@@ -1,7 +1,4 @@
-"""
-A module for utility functions that adapts the new dataset outputs to work with previous
-code until it is updated.
-"""
+"""Utility functions adapting new dataset outputs for legacy code compatibility."""
 
 from collections.abc import Sequence
 from typing import cast
@@ -17,14 +14,14 @@ from .patching_strategies import TileSpecs
 
 
 @deprecated(
-    "use careamics.lightning.dataset_ng.prediction functions instead for stitching and"
+    "Use careamics.lightning.dataset_ng.prediction functions instead for stitching and"
     " combining predictions."
 )
 def imageregions_to_tileinfos(
     image_regions: Sequence[ImageRegionData],
 ) -> list[tuple[NDArray, list[TileInformation]]]:
     """
-    Converts a series of `TileSpecs` dictionaries to `TileInformation` pydantic class.
+    Convert a series of `TileSpecs` dictionaries to `TileInformation` pydantic class.
 
     Parameters
     ----------
@@ -37,7 +34,6 @@ def imageregions_to_tileinfos(
     list of TileInformation
         The converted tile information.
     """
-
     tile_infos: list[TileInformation] = []
 
     data = [image_region.data for image_region in image_regions]
@@ -88,8 +84,9 @@ def _imageregion_to_tileinfo(
     image_region: ImageRegionData, last_tile: bool
 ) -> TileInformation:
     """
-    Convert a single `ImageRegionData` instance to a `TileInformation` instance. Whether
-    it is the last tile in a sequence needs to be supplied.
+    Convert a single `ImageRegionData` instance to a `TileInformation` instance.
+
+    Whether it is the last tile in a sequence needs to be supplied.
 
     Parameters
     ----------
@@ -134,8 +131,9 @@ def _tilespec_to_tileinfo(
     tile_spec: TileSpecs, data_shape: Sequence[int], last_tile: bool
 ) -> TileInformation:
     """
-    Convert a single `TileSpec` to a `TileInformation`. Whether it is the last tile
-    needs to be supplied.
+    Convert a single `TileSpec` to a `TileInformation`.
+
+    Whether it is the last tile needs to be supplied.
 
     Parameters
     ----------

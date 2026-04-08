@@ -1,3 +1,5 @@
+"""CAREamics dataset and image region types."""
+
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Generic, Literal, NamedTuple, Union
@@ -13,11 +15,10 @@ from .image_stack import GenericImageStack, ZarrImageStack
 from .normalization import create_normalization
 from .normalization.statistics import resolve_normalization_config
 from .patch_extractor import PatchExtractor
-from .patch_filter import create_coord_filter, create_patch_filter
 from .patching_strategies import (
+    PatchingStrategy,
     PatchSpecs,
     RegionSpecs,
-    create_patching_strategy,
 )
 
 
@@ -61,7 +62,10 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     """Data type of the original image as a string."""
 
     axes: str
-    """Axes of the original data array, in format SCZYX."""
+    """Axes of the original data array. SCTZYX dimensions are allowed in any order."""
+
+    original_data_shape: Sequence[int]
+    """Original shape of the data before any reshaping."""
 
     region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
     """Specifications of the region within the original image from where `data` is
@@ -133,14 +137,40 @@ def _patch_size_within_data_shapes(
 
 
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
+    """PyTorch Dataset for CAREamics.
+
+    Parameters
+    ----------
+    data_config : NGDataConfig
+        Dataset configuration.
+    patching_strategy : PatchingStrategy
+        Strategy for sampling patches.
+    input_extractor : PatchExtractor
+        Extractor for input patches.
+    target_extractor : PatchExtractor or None, optional
+        Extractor for target patches.
+    """
+
     def __init__(
         self,
         data_config: NGDataConfig,
+        patching_strategy: PatchingStrategy,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
-        mask_extractor: PatchExtractor[GenericImageStack] | None = None,
     ) -> None:
+        """Contructor.
 
+        Parameters
+        ----------
+        data_config : NGDataConfig
+            Dataset configuration.
+        patching_strategy : PatchingStrategy
+            Strategy for sampling patches.
+        input_extractor : PatchExtractor
+            Extractor for input patches.
+        target_extractor : PatchExtractor or None, optional
+            Extractor for target patches.
+        """
         # Make sure all the image sizes are greater than the patch size for training
         data_shapes = [
             image_stack.data_shape for image_stack in input_extractor.image_stacks
@@ -161,22 +191,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
 
-        self.patch_filter = (
-            create_patch_filter(self.config.patch_filter)
-            if self.config.patch_filter is not None
-            else None
-        )
-        self.coord_filter = (
-            create_coord_filter(self.config.coord_filter, mask=mask_extractor)
-            if self.config.coord_filter is not None and mask_extractor is not None
-            else None
-        )
-        self.patch_filter_patience = self.config.patch_filter_patience
-
-        self.patching_strategy = create_patching_strategy(
-            data_shapes=self.input_extractor.shapes,
-            patching_config=self.config.patching,
-        )
+        self.patching_strategy = patching_strategy
 
         resolve_normalization_config(
             norm_config=self.config.normalization,
@@ -187,21 +202,51 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         )
         self.normalization = create_normalization(self.config.normalization)
 
-        self.transforms = self._initialize_transforms()
+        self.transforms = self._initialize_augmentations()
 
-    def _initialize_transforms(self) -> Compose | None:
+    def _initialize_augmentations(self) -> Compose | None:
+        """Build the composition of augmentations.
+
+        Returns
+        -------
+        Compose or None
+            Augmentations or empty compose.
+        """
         if self.config.mode == Mode.TRAINING:
-            return Compose(list(self.config.transforms))
+            return Compose(list(self.config.augmentations))
 
         # TODO: add TTA
         return Compose([])
 
     def __len__(self):
+        """Return the number of patches (length of the dataset).
+
+        Returns
+        -------
+        int
+            Number of patches.
+        """
         return self.patching_strategy.n_patches
 
     def _create_image_region(
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
     ) -> ImageRegionData:
+        """Wrap a patch and its spec into an ImageRegionData for the given extractor.
+
+        Parameters
+        ----------
+        patch : np.ndarray
+            Patch data.
+        patch_spec : PatchSpecs
+            Patch specification.
+        extractor : PatchExtractor
+            Extractor used (for metadata).
+
+        Returns
+        -------
+        ImageRegionData
+            Region data for the patch.
+        """
         data_idx = patch_spec["data_idx"]
         image_stack: GenericImageStack = extractor.image_stacks[data_idx]
 
@@ -210,6 +255,16 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             shape=image_stack.data_shape,
             channels=self.config.channels,
         )
+
+        # get original shape from image stack
+        original_data_shape = image_stack.original_data_shape
+
+        # adjust original_data_shape for channel subsetting if needed
+        if self.config.channels is not None and "C" in self.config.axes:
+            c_idx = self.config.axes.index("C")
+            adjusted_original_shape = list(original_data_shape)
+            adjusted_original_shape[c_idx] = len(self.config.channels)
+            original_data_shape = tuple(adjusted_original_shape)
 
         # additional metadata for zarr image stacks
         if isinstance(image_stack, ZarrImageStack):
@@ -227,8 +282,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             source=str(image_stack.source),
             dtype=str(image_stack.data_dtype),
             data_shape=data_shape,
-            # TODO: should it be axes of the original image instead?
             axes=self.config.axes,
+            original_data_shape=original_data_shape,
             region_spec=patch_spec,
             additional_metadata=additional_metadata,
         )
@@ -236,7 +291,18 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def _extract_patches(
         self, patch_spec: PatchSpecs
     ) -> tuple[NDArray, NDArray | None]:
-        """Extract input and target patches based on patch specifications."""
+        """Extract input and target patches based on patch specifications.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification (data_idx, sample_idx, coords, patch_size).
+
+        Returns
+        -------
+        tuple of (NDArray, NDArray or None)
+            Input patch and optional target patch.
+        """
         input_patch = self.input_extractor.extract_channel_patch(
             data_idx=patch_spec["data_idx"],
             sample_idx=patch_spec["sample_idx"],
@@ -259,47 +325,23 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         )
         return input_patch, target_patch
 
-    def _get_filtered_patch(
-        self, index: int
-    ) -> tuple[NDArray[Any], NDArray[Any] | None, PatchSpecs]:
-        """Extract a patch that passes filtering criteria with retry logic."""
-        should_filter = self.config.mode == Mode.TRAINING and (
-            self.patch_filter is not None or self.coord_filter is not None
-        )
-        empty_patch = True
-        patch_filter_patience = self.patch_filter_patience  # reset patience
-
-        while empty_patch and patch_filter_patience > 0:
-            # query patches
-            patch_spec = self.patching_strategy.get_patch_spec(index)
-
-            # filter patch based on coordinates if needed
-            if should_filter and self.coord_filter is not None:
-                if self.coord_filter.filter_out(patch_spec):
-                    patch_filter_patience -= 1
-
-                    # TODO should we raise an error rather than silently accept patches?
-                    # if patience runs out without ever finding coordinates
-                    # then we need to guard against an exist before defining
-                    # input_patch and target_patch
-                    if patch_filter_patience != 0:
-                        continue
-
-            input_patch, target_patch = self._extract_patches(patch_spec)
-
-            # filter patch based on values if needed
-            if should_filter and self.patch_filter is not None:
-                empty_patch = self.patch_filter.filter_out(input_patch)
-                patch_filter_patience -= 1  # decrease patience
-            else:
-                empty_patch = False
-
-        return input_patch, target_patch, patch_spec
-
     def __getitem__(
         self, index: int
     ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
-        input_patch, target_patch, patch_spec = self._get_filtered_patch(index)
+        """Return a tuple of ImageRegionData for the given index.
+
+        Parameters
+        ----------
+        index : int
+            Dataset index.
+
+        Returns
+        -------
+        tuple of ImageRegionData
+            (input_data,) or (input_data, target_data).
+        """
+        patch_spec = self.patching_strategy.get_patch_spec(index)
+        input_patch, target_patch = self._extract_patches(patch_spec)
 
         # apply normalization
         input_patch, target_patch = self.normalization(input_patch, target_patch)

@@ -25,7 +25,7 @@ class UNetConfig(ArchitectureConfig):
     """
 
     # pydantic model config
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
     # discriminator used for choosing the pydantic model in Model
     architecture: Literal["UNet"]
@@ -47,6 +47,9 @@ class UNetConfig(ArchitectureConfig):
 
     num_channels_init: int = Field(default=32, ge=8, le=1024, validate_default=True)
     """Number of convolutional filters in the first layer of the UNet."""
+
+    residual: bool = Field(default=False, validate_default=True)
+    """Whether to add a residual connection from the input to the output."""
 
     # TODO we are not using this, so why make it a choice?
     final_activation: Literal[
@@ -123,3 +126,25 @@ class UNetConfig(ArchitectureConfig):
             Whether the model is 3D or not.
         """
         return self.conv_dims == 3
+
+    def get_num_input_channels(self) -> int:
+        """
+        Get the number of input channels.
+
+        Returns
+        -------
+        int
+            Number of input channels.
+        """
+        return self.in_channels
+
+    def get_num_output_channels(self) -> int:
+        """
+        Get the number of output channels.
+
+        Returns
+        -------
+        int
+            Number of output channels.
+        """
+        return self.num_classes

@@ -1,3 +1,5 @@
+"""Patch construction protocol and default/lateral-context constructors."""
+
 from collections.abc import Sequence
 from typing import Any, Literal, Protocol
 
@@ -26,16 +28,20 @@ class PatchConstructor(Protocol):
         patch_size: Sequence[int],
     ) -> NDArray[Any]:
         """
+        Build a single patch from an image stack at the given sample and coords.
+
         Parameters
         ----------
-        image_stack: ImageStack
+        image_stack : ImageStack
             The image stack to construct a patch from.
-        sample_idx: int
-            Sample index. The first dimension of the image data will be indexed at this
-            value.
-        coords: Sequence of int
+        sample_idx : int
+            Sample index. The first dimension of the image data will be indexed at
+            this value.
+        channels : sequence of int or None
+            Channel indices to use; None for all channels.
+        coords : sequence of int
             The coordinates that define the start of a patch.
-        patch_size: Sequence of int
+        patch_size : sequence of int
             The size of the patch in each spatial dimension.
 
         Returns
@@ -53,7 +59,27 @@ def default_patch_constr(
     coords: Sequence[int],
     patch_size: Sequence[int],
 ) -> NDArray[Any]:
-    return image_stack.extract_channel_patch(
+    """Extract a single patch from the image stack (default constructor).
+
+    Parameters
+    ----------
+    image_stack : ImageStack
+        Image stack.
+    sample_idx : int
+        Sample index.
+    channels : sequence of int or None
+        Channel indices; None for all.
+    coords : sequence of int
+        Patch start coordinates.
+    patch_size : sequence of int
+        Patch size per spatial dimension.
+
+    Returns
+    -------
+    NDArray
+        Patch data.
+    """
+    return image_stack.extract_patch(
         sample_idx=sample_idx,
         channels=channels,
         coords=coords,
@@ -96,6 +122,26 @@ def lateral_context_patch_constr(
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray[Any]:
+        """Build a multiscale lateral-context patch (C, L, (Z), Y, X).
+
+        Parameters
+        ----------
+        image_stack : ImageStack
+            Image stack.
+        sample_idx : int
+            Sample index.
+        channels : sequence of int or None
+            Channel indices; None for all.
+        coords : sequence of int
+            Patch start coordinates.
+        patch_size : sequence of int
+            Patch size per spatial dimension.
+
+        Returns
+        -------
+        NDArray
+            Patch with shape (C, L, (Z), Y, X).
+        """
         if channels is not None and len(channels) > 1:
             raise NotImplementedError(
                 "Selecting multiple channels is currently not implemented for lateral "
@@ -126,7 +172,7 @@ def lateral_context_patch_constr(
             )
             size_clipped = end_clipped - start_clipped
 
-            lc_patch = image_stack.extract_channel_patch(
+            lc_patch = image_stack.extract_patch(
                 sample_idx, channels, start_clipped, size_clipped
             )
             pad_before = start_clipped - lc_start

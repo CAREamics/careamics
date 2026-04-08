@@ -1,15 +1,18 @@
 """Noise2Void Lightning Module."""
 
-from typing import Any, cast
+import warnings
+from typing import TYPE_CHECKING, Any, cast
 
 import pytorch_lightning as L
 import torch
 from torch import nn
 from torchmetrics import MetricCollection
-from torchmetrics.image import PeakSignalNoiseRatio
 
-from careamics.config import N2VAlgorithm, algorithm_factory
+from careamics.config import N2VAlgorithm
+from careamics.config.ng_factories import instantiate_algorithm_config
 from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.lightning.dataset_ng.data_module import TrainValData, TrainValSplitData
+from careamics.lightning.dataset_ng.metrics import SIPSNR
 from careamics.losses import n2v_loss
 from careamics.models.unet import UNet
 from careamics.transforms import N2VManipulateTorch
@@ -18,6 +21,9 @@ from careamics.utils.logging import get_logger
 from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 
 
 class N2VModule(L.LightningModule):
@@ -30,8 +36,8 @@ class N2VModule(L.LightningModule):
         dictionary.
     """
 
-    def __init__(self, algorithm_config: N2VAlgorithm | dict) -> None:
-        """Instantiate N2V Module.
+    def __init__(self, algorithm_config: N2VAlgorithm | dict[str, Any]) -> None:
+        """Instantiate N2VModule.
 
         Parameters
         ----------
@@ -42,21 +48,46 @@ class N2VModule(L.LightningModule):
         super().__init__()
 
         if isinstance(algorithm_config, dict):
-            config = algorithm_factory(algorithm_config)
+            config = instantiate_algorithm_config(algorithm_config)
         else:
             config = algorithm_config
 
         if not isinstance(config, N2VAlgorithm):
-            raise TypeError("algorithm_config must be a N2VAlgorithm")
+            raise ValueError(
+                f"Parameter `algorithm_config` must be a N2VAlgorithm "
+                f"or a dict that represents a valid N2VAlgorithm Pydantic model "
+                f"(got {type(config).__name__})."
+            )
 
+        self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
-        self.n2v_manipulate = N2VManipulateTorch(
-            n2v_manipulate_config=self.config.n2v_config
-        )
+        self.n2v_manipulate = N2VManipulateTorch(self.config.n2v_config)
         self.loss_func = n2v_loss
 
-        self.metrics = MetricCollection(PeakSignalNoiseRatio())
+        self.metrics: MetricCollection = MetricCollection(
+            {
+                f"SIPSNR_{i}": SIPSNR(
+                    n_channels=self.config.model.num_classes,
+                    output_channel=i,
+                    use_scale_invariance=True,
+                )
+                for i in range(self.config.model.num_classes)
+            }
+        )
+
+    def on_fit_start(self) -> None:
+        """On fit start hook for N2V module."""
+        assert self._trainer is not None
+        datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
+        assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
+        if datamodule._data.train_data_target is not None:
+            warnings.warn(
+                "N2V is a self-supervised algorithm — `train_data_target` will be "
+                "ignored.",
+                UserWarning,
+                stacklevel=2,
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -162,6 +193,7 @@ class N2VModule(L.LightningModule):
             axes=x.axes,
             region_spec=x.region_spec,
             additional_metadata={},
+            original_data_shape=x.original_data_shape,
         )
         return output_batch
 
@@ -179,4 +211,5 @@ class N2VModule(L.LightningModule):
             optimizer_parameters=self.config.optimizer.parameters,
             lr_scheduler_name=self.config.lr_scheduler.name,
             lr_scheduler_parameters=self.config.lr_scheduler.parameters,
+            monitor=self.config.monitor_metric,
         )

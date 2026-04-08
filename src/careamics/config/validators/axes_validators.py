@@ -3,6 +3,7 @@
 _AXES = "STCZYX"
 
 
+# TODO: turn into proper validator f(str) -> str
 def check_axes_validity(axes: str) -> None:
     """
     Sanity check on axes.
@@ -11,7 +12,7 @@ def check_axes_validity(axes: str) -> None:
     - must be a combination of 'STCZYX'
     - must not contain duplicates
     - must contain at least 2 contiguous axes: X and Y
-    - must contain at most 4 axes
+
 
     Axes do not need to be in the order 'STCZYX', as this depends on the user data.
 
@@ -22,7 +23,7 @@ def check_axes_validity(axes: str) -> None:
     """
     _axes = axes.upper()
 
-    # Minimum is 2 (XY) and maximum is 4 (TZYX)
+    # Minimum is 2 (XY) and maximum is 6 (STCZYX)
     if len(_axes) < 2 or len(_axes) > 6:
         raise ValueError(
             f"Invalid axes {axes}. Must contain at least 2 and at most 6 axes."
@@ -46,6 +47,7 @@ def check_axes_validity(axes: str) -> None:
             )
 
 
+# TODO: turn into proper validator f(str) -> str
 def check_czi_axes_validity(axes: str) -> bool:
     """
     Check if the provided axes string is valid for CZI files.

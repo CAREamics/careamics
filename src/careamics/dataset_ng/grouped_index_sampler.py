@@ -11,23 +11,31 @@ from careamics.dataset_ng.dataset import CareamicsDataset
 
 
 class GroupedIndexSampler(Sampler):
-    """
-    A PyTorch Sampler iterates through groups of indices.
+    """A PyTorch Sampler that iterates through groups of indices.
 
-    The order of the groups will be shuffled and the order of the indices within the
-    groups will be shuffled.
+    The order of the groups and the order of indices within each group are shuffled.
 
     This sampler is useful for iterative file loading — one file should be loaded at a
     time so indices belonging to the same file should be grouped, but the order of the
     files and the order of the indices should be shuffled.
+
+    Parameters
+    ----------
+    grouped_indices : Sequence of (Sequence of int)
+        The indices to iterate through, grouped (e.g. by file).
+    rng : numpy.random.Generator or None
+        Random number generator for shuffling. If None, a default generator is used.
     """
 
     def __init__(self, grouped_indices: Sequence[Sequence[int]], rng: Generator | None):
-        """
+        """Initialize the sampler from grouped index sequences.
+
         Parameters
         ----------
         grouped_indices : Sequence of (Sequence of int)
-            The indices that should be iterated through in groups.
+            The indices to iterate through, grouped (e.g. by file).
+        rng : numpy.random.Generator or None
+            Random number generator for shuffling. If None, a default generator is used.
         """
         super().__init__()
         if rng is None:
@@ -41,17 +49,22 @@ class GroupedIndexSampler(Sampler):
     def from_dataset(
         cls, dataset: CareamicsDataset, rng: Generator | None = None
     ) -> Self:
-        """
-        Create the sampler from a CareamicsDataset.
+        """Create the sampler from a CareamicsDataset.
 
         The grouped indices will be retrieved from the dataset's patching strategy.
 
         Parameters
         ----------
-        dataset: CareamicsDataset
+        dataset : CareamicsDataset
             An instance of the CareamicsDataset to create the sampler for.
-        rng: numpy.random.Generator, optional
-            Numpy random number generator that can be used to seed the sampler.
+        rng : numpy.random.Generator, optional
+            Random number generator used to seed the sampler. If None, a default
+            generator is used.
+
+        Returns
+        -------
+        GroupedIndexSampler
+            A sampler yielding indices grouped by the dataset's patching strategy.
         """
         n_data_samples = len(dataset.input_extractor.shapes)
         grouped_indices: list[Sequence[int]] = [
@@ -61,7 +74,14 @@ class GroupedIndexSampler(Sampler):
         return cls(grouped_indices=grouped_indices, rng=rng)
 
     def __iter__(self) -> Iterator[int]:
+        """Iterate over indices with groups and within-group order shuffled.
 
+        Returns
+        -------
+        Iterator[int]
+            Indices from all groups in shuffled group order and shuffled order
+            within each group.
+        """
         # shuffle the groups and the sub groups but keep indices in a group adjacent
         group_order = np.arange(len(self.grouped_indices))
         self.rng.shuffle(group_order)

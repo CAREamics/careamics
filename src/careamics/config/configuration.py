@@ -96,7 +96,8 @@ class Configuration(BaseModel):
     >>> config_dict = config.model_dump()
 
     Configurations can also be exported or imported from yaml files:
-    >>> from careamics.config import save_configuration, load_configuration
+    >>> from careamics.config.utils.configuration_io import save_configuration
+    >>> from careamics.config.utils.configuration_io import load_configuration
     >>> path_to_config = save_configuration(config, my_path / "config.yml")
     >>> other_config = load_configuration(path_to_config)
 
@@ -340,6 +341,20 @@ class Configuration(BaseModel):
             List of keywords.
         """
         return self.algorithm_config.get_algorithm_keywords()
+
+    def get_safe_experiment_name(self) -> str:
+        """
+        Return the experiment name safe for use in paths and filenames.
+
+        Spaces are replaced with underscores to avoid issues with folder
+        creation and checkpoint naming.
+
+        Returns
+        -------
+        str
+            Experiment name with spaces replaced with underscores.
+        """
+        return self.experiment_name.replace(" ", "_")
 
     def model_dump(
         self,

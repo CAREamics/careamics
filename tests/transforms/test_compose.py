@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.config.transformations import (
+from careamics.config.augmentations import (
     NormalizeConfig,
     XYFlipConfig,
     XYRandomRotate90Config,

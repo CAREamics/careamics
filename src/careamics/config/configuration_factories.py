@@ -13,6 +13,12 @@ from careamics.config.algorithms import (
     PN2VAlgorithm,
 )
 from careamics.config.architectures import LVAEConfig, UNetConfig
+from careamics.config.augmentations import (
+    SPATIAL_TRANSFORMS_UNION,
+    N2VManipulateConfig,
+    XYFlipConfig,
+    XYRandomRotate90Config,
+)
 from careamics.config.data import DataConfig
 from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
@@ -30,15 +36,10 @@ from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedTransform,
 )
-from careamics.config.transformations import (
-    SPATIAL_TRANSFORMS_UNION,
-    N2VManipulateConfig,
-    XYFlipConfig,
-    XYRandomRotate90Config,
-)
 from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 
 from .configuration import Configuration
+from .utils.random import generate_random_seed
 
 ALGORITHMS = Union[
     N2VAlgorithm,
@@ -81,21 +82,21 @@ def _list_spatial_augmentations(
 
     Parameters
     ----------
-    augmentations : list of transforms, optional
-        List of transforms to apply, either both or one of XYFlipConfig and
-        XYRandomRotate90Config.
+    augmentations : list of augmentations, optional
+        List of augmentations to apply, either both or one of
+        XYFlipConfig and XYRandomRotate90Config.
 
     Returns
     -------
-    list of transforms
-        List of transforms to apply.
+    list of augmentations
+        List of augmentations to apply.
 
     Raises
     ------
     ValueError
-        If the transforms are not XYFlipConfig or XYRandomRotate90Config.
+        If the augmentations are not XYFlipConfig or XYRandomRotate90Config.
     ValueError
-        If there are duplicate transforms.
+        If there are duplicate augmentations.
     """
     if augmentations is None:
         transform_list: list[SPATIAL_TRANSFORMS_UNION] = [
@@ -103,20 +104,20 @@ def _list_spatial_augmentations(
             XYRandomRotate90Config(),
         ]
     else:
-        # throw error if not all transforms are pydantic models
+        # throw error if not all augmentations are pydantic models
         if not all(
             isinstance(t, XYFlipConfig) or isinstance(t, XYRandomRotate90Config)
             for t in augmentations
         ):
             raise ValueError(
-                "Accepted transforms are either XYFlipConfig or "
+                "Accepted augmentations are either XYFlipConfig or "
                 "XYRandomRotate90Config."
             )
 
         # check that there is no duplication
         aug_types = [t.__class__ for t in augmentations]
         if len(set(aug_types)) != len(aug_types):
-            raise ValueError("Duplicate transforms are not allowed.")
+            raise ValueError("Duplicate augmentations are not allowed.")
 
         transform_list = augmentations
 
@@ -267,8 +268,8 @@ def _create_data_configuration(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
-    augmentations : list of transforms
-        List of transforms to apply.
+    augmentations : list of augmentations
+        List of augmentations to apply.
     train_dataloader_params : dict
         Parameters for the training dataloader, see PyTorch notes, by default None.
     val_dataloader_params : dict
@@ -329,8 +330,8 @@ def _create_microsplit_data_configuration(
         Number of multiscale levels.
     batch_size : int
         Batch size.
-    augmentations : list of transforms
-        List of transforms to apply.
+    augmentations : list of augmentations
+        List of augmentations to apply.
     train_dataloader_params : dict
         Parameters for the training dataloader, see PyTorch notes, by default None.
     val_dataloader_params : dict
@@ -474,8 +475,8 @@ def _create_supervised_config_dict(
         Batch size.
     trainer_params : dict
         Parameters for the training configuration.
-    augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipConfig and
+    augmentations : list of augmentations, default=None
+        List of augmentations to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
@@ -599,7 +600,7 @@ def create_care_configuration(
     num_epochs: int = 100,
     num_steps: int | None = None,
     augmentations: list[Union[XYFlipConfig, XYRandomRotate90Config]] | None = None,
-    independent_channels: bool = True,
+    independent_channels: bool = False,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
@@ -630,10 +631,10 @@ def create_care_configuration(
     By default, all channels are trained together. To train all channels independently,
     set `independent_channels` to True.
 
-    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    By setting `augmentations` to `None`, the default augmentations (flip in X and Y,
     rotations by 90 degrees in the XY plane) are applied. Rather than the default
-    transforms, a list of transforms can be passed to the `augmentations` parameter. To
-    disable the transforms, simply pass an empty list.
+    augmentations, a list of augmentations can be passed to the `augmentations`
+    parameter. To disable the augmentations, simply pass an empty list.
 
     Parameters
     ----------
@@ -654,8 +655,8 @@ def create_care_configuration(
         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
-    augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipConfig and
+    augmentations : list of augmentations, default=None
+        List of augmentations to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
@@ -720,7 +721,7 @@ def create_care_configuration(
     ...     num_steps=100  # limit to 100 batches per epoch
     ... )
 
-    To disable transforms, simply set `augmentations` to an empty list:
+    To disable augmentations, simply set `augmentations` to an empty list:
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
     ...     data_type="array",
@@ -731,9 +732,9 @@ def create_care_configuration(
     ...     augmentations=[]
     ... )
 
-    A list of transforms can be passed to the `augmentations` parameter to replace the
-    default augmentations:
-    >>> from careamics.config.transformations import XYFlipConfig
+    A list of augmentations can be passed to the `augmentations` parameter:
+    to replace the default augmentations:
+    >>> from careamics.config.augmentations import XYFlipConfig
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
     ...     data_type="array",
@@ -747,9 +748,9 @@ def create_care_configuration(
     ...     ]
     ... )
 
-    If you are training multiple channels they will be trained independently by default,
-    you simply need to specify the number of channels input (and optionally, the number
-    of channels output):
+    If you are training multiple channels they will be trained together by default,
+    you simply need to specify the number of channels input (and the output if
+    different):
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
     ...     data_type="array",
@@ -757,12 +758,13 @@ def create_care_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     n_channels_in=3, # number of input channels
-    ...     n_channels_out=1 # if applicable
+    ...     n_channels_in=3,
+    ...     n_channels_out=2 # if applicable
     ... )
 
-    If instead you want to train multiple channels together, you need to turn off the
-    `independent_channels` parameter:
+    If instead you want to train channels independently, you need to turn on the
+    `independent_channels` parameter (input and output channels must be the same in this
+    case):
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
     ...     data_type="array",
@@ -770,9 +772,8 @@ def create_care_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     independent_channels=False,
+    ...     independent_channels=True,
     ...     n_channels_in=3,
-    ...     n_channels_out=1 # if applicable
     ... )
 
     If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
@@ -864,13 +865,14 @@ def create_n2n_configuration(
     To set the number of output channels, use the `n_channels_out` parameter. If it is
     not specified, it will be assumed to be equal to `n_channels_in`.
 
-    By default, all channels are trained together. To train all channels independently,
-    set `independent_channels` to True.
+    By default, all channels are trained independently. To train all channels together,
+    set `independent_channels` to True. If the number of input and output channels are
+    the same, channels cannot be independent.
 
-    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    By setting `augmentations` to `None`, the default augmentations (flip in X and Y,
     rotations by 90 degrees in the XY plane) are applied. Rather than the default
-    transforms, a list of transforms can be passed to the `augmentations` parameter. To
-    disable the transforms, simply pass an empty list.
+    augmentations, a list of augmentations can be passed to the `augmentations`
+    parameter. To disable the augmentations, simply pass an empty list.
 
     Parameters
     ----------
@@ -891,8 +893,8 @@ def create_n2n_configuration(
         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
-    augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipConfig and
+    augmentations : list of augmentations, default=None
+        List of augmentations to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
@@ -957,7 +959,7 @@ def create_n2n_configuration(
     ...     num_steps=100  # limit to 100 batches per epoch
     ... )
 
-    To disable transforms, simply set `augmentations` to an empty list:
+    To disable augmentations, simply set `augmentations` to an empty list:
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
     ...     data_type="array",
@@ -968,8 +970,8 @@ def create_n2n_configuration(
     ...     augmentations=[]
     ... )
 
-    A list of transforms can be passed to the `augmentations` parameter:
-    >>> from careamics.config.transformations import XYFlipConfig
+    A list of augmentations can be passed to the `augmentations` parameter:
+    >>> from careamics.config.augmentations import XYFlipConfig
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
     ...     data_type="array",
@@ -984,8 +986,8 @@ def create_n2n_configuration(
     ... )
 
     If you are training multiple channels they will be trained independently by default,
-    you simply need to specify the number of channels input (and optionally, the number
-    of channels output):
+    you simply need to specify the number of channels input (the number of output
+    channels must be the same as input in this case):
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
     ...     data_type="array",
@@ -994,11 +996,10 @@ def create_n2n_configuration(
     ...     batch_size=32,
     ...     num_epochs=100,
     ...     n_channels_in=3, # number of input channels
-    ...     n_channels_out=1 # if applicable
     ... )
 
-    If instead you want to train multiple channels together, you need to turn off the
-    `independent_channels` parameter:
+    If instead you want to train multiple channels with different number of input and
+    output channels, you need to turn off the `independent_channels` parameter:
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
     ...     data_type="array",
@@ -1089,6 +1090,7 @@ def create_n2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    seed: int | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Void.
@@ -1111,14 +1113,14 @@ def create_n2v_configuration(
     By default, all channels are trained independently. To train all channels together,
     set `independent_channels` to False.
 
-    By default, the transformations applied are a random flip along X or Y, and a random
+    By default, the augmentations applied are a random flip along X or Y, and a random
     90 degrees rotation in the XY plane. Normalization is always applied, as well as the
     N2V manipulation.
 
-    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    By setting `augmentations` to `None`, the default augmentations (flip in X and Y,
     rotations by 90 degrees in the XY plane) are applied. Rather than the default
-    transforms, a list of transforms can be passed to the `augmentations` parameter. To
-    disable the transforms, simply pass an empty list.
+    augmentations, a list of augmentations can be passed to the `augmentations`
+    parameter. To disable the augmentations, simply pass an empty list.
 
     The `roi_size` parameter specifies the size of the area around each pixel that will
     be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
@@ -1150,8 +1152,8 @@ def create_n2v_configuration(
         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
-    augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipConfig and
+    augmentations : list of augmentations, default=None
+        List of augmentations to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
@@ -1194,6 +1196,8 @@ def create_n2v_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    seed : int or None, default=None
+        Random seed for reproducibility of N2V pixel manipulation, by default None.
 
     Returns
     -------
@@ -1222,7 +1226,7 @@ def create_n2v_configuration(
     ...     num_steps=100  # limit to 100 batches per epoch
     ... )
 
-    To disable transforms, simply set `augmentations` to an empty list:
+    To disable augmentations, simply set `augmentations` to an empty list:
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
@@ -1233,8 +1237,8 @@ def create_n2v_configuration(
     ...     augmentations=[]
     ... )
 
-    A list of transforms can be passed to the `augmentations` parameter:
-    >>> from careamics.config.transformations import XYFlipConfig
+    A list of augmentations can be passed to the `augmentations` parameter:
+    >>> from careamics.config.augmentations import XYFlipConfig
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
@@ -1347,6 +1351,7 @@ def create_n2v_configuration(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
+        seed=seed if seed is not None else generate_random_seed(),
     )
 
     # algorithm
@@ -1694,10 +1699,10 @@ def create_hdn_configuration(
     By default, all channels are trained independently. To train all channels together,
     set `independent_channels` to False.
 
-    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    By setting `augmentations` to `None`, the default augmentations (flip in X and Y,
     rotations by 90 degrees in the XY plane) are applied. Rather than the default
-    transforms, a list of transforms can be passed to the `augmentations` parameter. To
-    disable the transforms, simply pass an empty list.
+    augmentations, a list of augmentations can be passed to the `augmentations`
+    parameter. To disable the augmentations, simply pass an empty list.
 
     # TODO revisit the necessity of model_params
 
@@ -2134,6 +2139,7 @@ def create_pn2v_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    seed: int | None = None,
 ) -> Configuration:
     """
     Create a configuration for training Probabilistic Noise2Void (PN2V).
@@ -2152,14 +2158,14 @@ def create_pn2v_configuration(
     will have `num_out_channels` outputs (default 400). When training together, all
     input channels will share `num_out_channels` outputs.
 
-    By default, the transformations applied are a random flip along X or Y, and a random
+    By default, the augmentations applied are a random flip along X or Y, and a random
     90 degrees rotation in the XY plane. Normalization is always applied, as well as the
     N2V manipulation.
 
-    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    By setting `augmentations` to `None`, the default augmentations (flip in X and Y,
     rotations by 90 degrees in the XY plane) are applied. Rather than the default
-    transforms, a list of transforms can be passed to the `augmentations` parameter. To
-    disable the transforms, simply pass an empty list.
+    augmentations, a list of augmentations can be passed to the `augmentations`
+    parameter. To disable the augmentations, simply pass an empty list.
 
     The `roi_size` parameter specifies the size of the area around each pixel that will
     be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
@@ -2193,8 +2199,8 @@ def create_pn2v_configuration(
         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
-    augmentations : list of transforms, default=None
-        List of transforms to apply, either both or one of XYFlipModel and
+    augmentations : list of augmentations, default=None
+        List of augmentations to apply, either both or one of XYFlipModel and
         XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
@@ -2243,6 +2249,8 @@ def create_pn2v_configuration(
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    seed : int or None, default=None
+        Random seed for reproducibility of N2V pixel manipulation, by default None.
 
     Returns
     -------
@@ -2273,7 +2281,7 @@ def create_pn2v_configuration(
     # ...     num_steps=100  # limit to 100 batches per epoch
     # ... )
 
-    # To disable transforms, simply set `augmentations` to an empty list:
+    # To disable augmentations, simply set `augmentations` to an empty list:
     # >>> config = create_pn2v_configuration(
     # ...     experiment_name="pn2v_experiment",
     # ...     data_type="array",
@@ -2285,8 +2293,8 @@ def create_pn2v_configuration(
     # ...     augmentations=[]
     # ... )
 
-    # A list of transforms can be passed to the `augmentations` parameter:
-    # >>> from careamics.config.transformations import XYFlipModel
+    # A list of augmentations can be passed to the `augmentations` parameter:
+    # >>> from careamics.config.augmentations import XYFlipModel
     # >>> config = create_pn2v_configuration(
     # ...     experiment_name="pn2v_experiment",
     # ...     data_type="array",
@@ -2408,6 +2416,7 @@ def create_pn2v_configuration(
         masked_pixel_percentage=masked_pixel_percentage,
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
+        seed=seed if seed is not None else generate_random_seed(),
     )
 
     # Create noise model configuration

@@ -6,8 +6,8 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import AfterValidator, ConfigDict, model_validator
 
 from careamics.config.architectures import UNetConfig
+from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
-from careamics.config.transformations import N2VManipulateConfig
 from careamics.config.validators import (
     model_matching_in_out_channels,
     model_without_final_activation,
@@ -97,13 +97,19 @@ class N2VAlgorithm(UNetBasedAlgorithm):
     loss: Literal["n2v"] = "n2v"
     """N2V loss function."""
 
+    monitor_metric: Literal["train_loss", "train_loss_epoch", "val_loss"] = "val_loss"
+    """Metric to monitor for the learning rate scheduler. Used in the returned dict of
+    PyTorch Lightning `configure_optimizers` method."""
+
     n2v_config: N2VManipulateConfig = N2VManipulateConfig()
+    """Noise2Void pixel manipulation configuration."""
 
     model: Annotated[
         UNetConfig,
         AfterValidator(model_matching_in_out_channels),
         AfterValidator(model_without_final_activation),
     ]
+    """Model parameters."""
 
     @model_validator(mode="after")
     def validate_n2v2(self) -> Self:
@@ -294,3 +300,15 @@ class N2VAlgorithm(UNetBasedAlgorithm):
             return STR_N2V_DESCRIPTION
         else:
             return N2V_DESCRIPTION
+
+    @classmethod
+    def is_supervised(cls) -> bool:
+        """
+        Whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return False

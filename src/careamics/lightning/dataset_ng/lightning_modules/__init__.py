@@ -1,11 +1,19 @@
 """CAREamics PyTorch Lightning modules."""
 
 from .care_module import CAREModule
+from .get_module import (
+    CAREamicsModule,
+    create_module,
+    get_module_cls,
+)
 from .n2v_module import N2VModule
 from .seg_unet_module import SegModule
 
 __all__ = [
     "CAREModule",
+    "CAREamicsModule",
     "N2VModule",
     "SegModule",
+    "create_module",
+    "get_module_cls",
 ]

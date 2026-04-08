@@ -1,38 +1,9 @@
 """Convenience function to create algorithm configurations."""
 
-from typing import Annotated, Any, Literal
-
-from pydantic import Field, TypeAdapter
+from typing import Any, Literal
 
 from careamics.config.architectures import UNetConfig
-from careamics.config.ng_configs.ng_configuration import ALGORITHMS
 from careamics.config.support.supported_architectures import SupportedArchitecture
-
-
-# TODO rename so that it does not bear the same name as the module?
-def algorithm_factory(
-    algorithm: dict[str, Any],
-) -> ALGORITHMS:
-    """
-    Create an algorithm model for training CAREamics.
-
-    Parameters
-    ----------
-    algorithm : dict
-        Algorithm dictionary.
-
-    Returns
-    -------
-    ALGORITHMS
-        Algorithm model for training CAREamics.
-    """
-    adapter: TypeAdapter = TypeAdapter(
-        Annotated[
-            ALGORITHMS,
-            Field(discriminator="algorithm"),
-        ]
-    )
-    return adapter.validate_python(algorithm)
 
 
 def create_algorithm_configuration(

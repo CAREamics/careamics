@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-import random
+import platform
 import sys
 from collections.abc import Sequence
 from pprint import pformat
@@ -21,9 +21,11 @@ from pydantic import (
     model_validator,
 )
 
+from careamics.config.support import SupportedData
 from careamics.utils import BaseEnum
 
-from ..transformations import XYFlipConfig, XYRandomRotate90Config
+from ..augmentations import XYFlipConfig, XYRandomRotate90Config
+from ..utils.random import generate_random_seed
 from ..validators import check_axes_validity, check_czi_axes_validity
 from .normalization_config import NormalizationConfig
 from .patch_filter import (
@@ -35,6 +37,7 @@ from .patch_filter import (
 from .patching_strategies import (
     FixedRandomPatchingConfig,
     RandomPatchingConfig,
+    StratifiedPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
 )
@@ -52,15 +55,143 @@ from .patching_strategies import (
 #       leverage Pydantic to add validation directly to the declaration of each field?
 
 
-def generate_random_seed() -> int:
-    """Generate a random seed for reproducibility.
+def _is_3D(axes: str, data_type: SupportedData) -> bool:
+    """Determine whether the `axes` and `data_type` combination specifies 3D data.
+
+    Parameters
+    ----------
+    axes : str
+        The axes of the data.
+    data_type : SupportedData
+        The data format.
 
     Returns
     -------
-    int
-        A random integer between 1 and 2^31 - 1.
+    bool
+        Whether the parameters specify 3D data.
     """
-    return random.randint(1, 2**31 - 1)
+    if data_type != SupportedData.CZI:
+        return "Z" in axes
+    else:
+        return ("Z" in axes) or ("T" in axes)
+
+
+def _are_spatial_dims_maintained(
+    old_data_type: SupportedData,
+    old_axes: str,
+    new_data_type: SupportedData,
+    new_axes: str,
+) -> bool:
+    """Check that spatial dimensions are maintained between sets of data type and axes.
+
+    Note that in the case of CZI, 3D can be both due to `T` and `Z` axes. We consider
+    that spatial dims are maintained if converting between CZI `SCTYX` axes and `ZYX` in
+    non-CZI format (in effect hoping that `T` has been relabelled as `Z` in the non-CZI
+    format).
+
+    Parameters
+    ----------
+    old_data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
+        Original data type.
+    old_axes : str
+        Original axes.
+    new_data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
+        New data type.
+    new_axes : str
+        New axes.
+
+    Returns
+    -------
+    bool
+        Whether spatial dimensions are maintained.
+    """
+    is_3D_old = _is_3D(old_axes, old_data_type)
+    is_3D_new = _is_3D(new_axes, new_data_type)
+
+    if old_data_type == new_data_type and new_data_type == "czi":
+        # for CZI data, check that Z did not switch to T or inversely
+        if is_3D_old and is_3D_new:
+            return ("Z" in old_axes and "Z" in new_axes) or (
+                "T" in old_axes and "T" in new_axes
+            )
+
+    return is_3D_old == is_3D_new
+
+
+def _validate_channel_conversion(
+    old_axes: str,
+    old_channels: Sequence[int] | None,
+    new_axes: str,
+    new_channels: Sequence[int] | None,
+) -> None:
+    """Validate the channel conversion.
+
+    Parameters
+    ----------
+    old_axes : str
+        Original axes.
+    old_channels : Sequence[int] or None
+        Original channels.
+    new_axes : str
+        New axes.
+    new_channels : Sequence[int] or None
+        New channels.
+
+    Raises
+    ------
+    ValueError
+        If the channel conversion is not valid.
+    """
+    # if switching C axis:
+    # - removing C: original channels can be `None`, singleton or multiple. New
+    #   channels can be `None` if original were `None` or singleton, but not
+    #   multiple.
+    # - adding C: original channels can only be `None`. New channels can be `None`
+    #   (but we warn users that they need to have a singleton C axis in the data),
+    #   or singleton, but not multiple.
+    adding_C_axis = ("C" in new_axes) and ("C" not in old_axes)
+    removing_C_axis = ("C" not in new_axes) and ("C" in old_axes)
+    prev_channels_not_singleton = old_channels is not None and (len(old_channels) != 1)
+
+    if adding_C_axis:
+        if new_channels is None:
+            warn(
+                f"When switching to axes with 'C' (got {new_axes}) from axes "
+                f"{old_axes}, errors may be raised in the model if the channel "
+                f"dimension in the data is not a singleton dimension. To select a "
+                f"specific channel, use the `new_channels` parameter (e.g. "
+                f"`new_channels=[1]`).",
+                stacklevel=1,
+            )
+        elif len(new_channels) != 1:
+            raise ValueError(
+                f"Cannot switch to axes with 'C' (got {new_axes}) from axes "
+                f"{old_axes}, select a single channel using the `new_channels` "
+                f"parameter (got channels {new_channels})."
+            )
+    elif removing_C_axis and prev_channels_not_singleton:
+        raise ValueError(
+            f"Cannot switch to axes without 'C' (got {new_axes}) from axes "
+            f"{old_axes} when multiple channels were originally specified "
+            f"({old_channels})."
+        )
+
+    # different number of channels
+    if old_channels is not None and new_channels is not None:
+        if len(new_channels) != len(old_channels):
+            raise ValueError(
+                f"Cannot switch between axes with different number of channels. "
+                f"New channels length ({len(new_channels)}) does not match "
+                f"current channels length ({len(old_channels)})."
+            )
+    elif old_channels is None and new_channels is not None:
+        warn(
+            f"Switching from all channels (`channels=None`) to specifying channels "
+            f"{new_channels} may lead to errors if {new_channels} are not covering "
+            f"all channels.",
+            stacklevel=1,
+        )  # Note that in the opposite case, old_channels is kept because
+        # new_channels is None
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -82,12 +213,44 @@ def np_float_to_scientific_str(x: float) -> str:
     return np.format_float_scientific(x, precision=7)
 
 
+def get_default_num_workers() -> int:
+    """Return the default number of dataloader workers for the current platform.
+
+    Defaults by platform (benchmarked on BSD68, may need revisiting for larger datasets
+    or more performant machines):
+    - pytest: 0 - avoids multiprocessing overhead in tests.
+    - Windows: 0 - multiprocessing with spawn is unreliable in dataloaders.
+    - macOS: 0 - spawn-based worker init causes ~1 min startup hang even for a
+      small number of workers, the throughput gain does not justify the wait.
+    - Linux: min(cpu_count - 1, 4) - one core is left free to keep the UI
+      responsive when training inside napari. Performance gains plateau around 4
+      workers, so we cap there to avoid wasting resources.
+
+
+    Returns
+    -------
+    int
+        Default number of dataloader workers.
+    """
+    if "pytest" in sys.modules:
+        return 0
+
+    if platform.system() in ("Windows", "Darwin"):
+        return 0
+
+    max_workers = 4
+    available_workers = os.cpu_count() or 0
+    available_workers = max(0, available_workers - 1)
+    return min(available_workers, max_workers)
+
+
 Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type=str)]
 """Annotated float type, used to serialize floats to strings."""
 
 PatchingConfig = Union[
     FixedRandomPatchingConfig,
     RandomPatchingConfig,
+    StratifiedPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
 ]
@@ -99,9 +262,6 @@ PatchFilterConfig = Union[
     ShannonFilterConfig,
 ]
 """Patch filter type."""
-
-CoordFilterConfig = Union[MaskFilterConfig]  # add more here as needed
-"""Coordinate filter type."""
 
 
 class Mode(str, BaseEnum):
@@ -132,6 +292,36 @@ def default_in_memory(validated_params: dict[str, Any]) -> bool:
     return validated_params.get("data_type") not in ("zarr", "czi")
 
 
+def _create_mask_filter(validated_params: dict[str, Any]) -> MaskFilterConfig | None:
+    """Create a mask filter with auto-calculated coverage based on dimensionality.
+
+    Parameters
+    ----------
+    validated_params : dict of {str: Any}
+        Validated parameters containing 'mode', 'data_type', and 'axes'.
+
+    Returns
+    -------
+    MaskFilterConfig | None
+        Mask filter with auto-calculated coverage if in TRAINING mode, None otherwise.
+    """
+    mode = validated_params.get("mode")
+    data_type = validated_params.get("data_type")
+    axes = validated_params.get("axes", "")
+
+    # only create mask filter in training mode
+    if mode != Mode.TRAINING:
+        return None
+
+    # determine if data is 3D
+    is_3d = _is_3D(axes, SupportedData(data_type))
+
+    ndims = 3 if is_3d else 2
+    coverage = 1 / (2**ndims)
+
+    return MaskFilterConfig(coverage=coverage)
+
+
 class NGDataConfig(BaseModel):
     """Next-Generation Dataset configuration.
 
@@ -158,6 +348,7 @@ class NGDataConfig(BaseModel):
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
+    # TODO: update docs for stratified patching
     patching: PatchingConfig = Field(..., discriminator="name")
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
@@ -175,6 +366,10 @@ class NGDataConfig(BaseModel):
     `True` for 'array', 'tiff' and `custom`, and `False` for 'zarr' and 'czi' data
     types."""
 
+    n_val_patches: int = Field(default=8, ge=0, validate_default=True)
+    """The number of patches to set aside for validation during training. This parameter
+    will be ignored if separate validation data is specified for training."""
+
     channels: Sequence[int] | None = Field(default=None)
     """Channels to use from the data. If `None`, all channels are used."""
 
@@ -182,22 +377,21 @@ class NGDataConfig(BaseModel):
     """Patch filter to apply when using random patching. Only available if
     mode is `training`."""
 
-    coord_filter: CoordFilterConfig | None = Field(default=None, discriminator="name")
-    """Coordinate filter to apply when using random patching. Only available if
-    mode is `training`."""
+    mask_filter: MaskFilterConfig | None = Field(
+        default_factory=lambda data: _create_mask_filter(data)
+    )
+    """Mask filter configuration to apply when using a mask during training.
+    Coverage is automatically set to 1/(2**ndims) based on data dimensionality
+    where ndims is determined from axes. Only available in `training` mode."""
 
-    patch_filter_patience: int = Field(default=5, ge=1)
-    """Number of consecutive patches not passing the filter before accepting the next
-    patch."""
-
-    transforms: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
+    augmentations: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
         default=(
             XYFlipConfig(),
             XYRandomRotate90Config(),
         ),
         validate_default=True,
     )
-    """List of transformations to apply to the data, available transforms are defined
+    """List of augmentations to apply to the data, available transforms are defined
     in SupportedTransform."""
 
     train_dataloader_params: dict[str, Any] = Field(
@@ -213,7 +407,12 @@ class NGDataConfig(BaseModel):
     pred_dataloader_params: dict[str, Any] = Field(default={})
     """Dictionary of PyTorch prediction dataloader parameters."""
 
-    seed: int | None = Field(default_factory=generate_random_seed, gt=0)
+    num_workers: int = Field(default_factory=get_default_num_workers, ge=0)
+    """Default number of workers for all dataloaders that do not explicitly set
+    `num_workers`. Automatically detected based on the current platform:
+    0 on Windows and macOS, `min(cpu_count - 1, 4)` on Linux."""
+
+    seed: int = Field(default_factory=generate_random_seed, gt=0)
     """Random seed for reproducibility. If not specified, a random seed is generated."""
 
     @field_validator("axes")
@@ -246,11 +445,17 @@ class NGDataConfig(BaseModel):
         ValueError
             If axes are not valid.
         """
+        if "data_type" not in info.data:
+            raise ValueError(
+                "Validation for `data_type` may have failed. Check for typos or "
+                "missing field."
+            )
+
         # Additional validation for CZI files
         if info.data["data_type"] == "czi":
             if not check_czi_axes_validity(axes):
                 raise ValueError(
-                    f"Provided axes '{axes}' are not valid. Axes must be in the "
+                    f"Invalid axes '{axes}'. Axes must be in the "
                     f"`SC(Z/T)YX` format, where Z or T are optional, and S and C can be"
                     f" singleton dimensions, but must be provided."
                 )
@@ -286,17 +491,11 @@ class NGDataConfig(BaseModel):
         """
         data_type = info.data.get("data_type")
 
-        if in_memory and data_type not in ("array", "tiff", "custom"):
-            raise ValueError(
-                f"`in_memory` can only be True for 'array', 'tiff' and 'custom' "
-                f"data types, got '{data_type}'. In memory loading of zarr and czi "
-                f"data types is not currently not implemented."
-            )
+        if in_memory and data_type in ("czi", "zarr"):
+            raise ValueError(f"`in_memory` not supported for `data_type` {data_type}.")
 
         if not in_memory and data_type == "array":
-            raise ValueError(
-                "`in_memory` must be True for 'array' data type, got False."
-            )
+            raise ValueError('`in_memory` must be True for "array" `data_type`.')
 
         return in_memory
 
@@ -333,7 +532,7 @@ class NGDataConfig(BaseModel):
         if channels is not None:
             if "C" not in info.data["axes"]:
                 raise ValueError(
-                    "Channels were specified but 'C' is not present in the axes."
+                    "Channels must be `None` if 'C' is not present in `axes`."
                 )
 
             if isinstance(channels, int):
@@ -363,7 +562,7 @@ class NGDataConfig(BaseModel):
         """
         Validate that the patching strategy is compatible with the dataset mode.
 
-        - If mode is `training`, patching strategy must be `random`.
+        - If mode is `training`, patching strategy must be `random` or `stratified`.
         - If mode is `validating`, patching must be `fixed_random`.
         - If mode is `predicting`, patching strategy must be `tiled` or `whole`.
 
@@ -386,10 +585,10 @@ class NGDataConfig(BaseModel):
         """
         mode = info.data["mode"]
         if mode == Mode.TRAINING:
-            if patching.name != "random":
+            if patching.name not in ["random", "stratified"]:
                 raise ValueError(
                     f"Patching strategy '{patching.name}' is not compatible with "
-                    f"mode '{mode.value}'. Use 'random' for training."
+                    f"mode '{mode.value}'. Use 'stratified' or 'random' for training."
                 )
         elif mode == Mode.VALIDATING:
             if patching.name != "fixed_random":
@@ -405,26 +604,26 @@ class NGDataConfig(BaseModel):
                 )
         return patching
 
-    @field_validator("patch_filter", "coord_filter")
+    @field_validator("patch_filter", "mask_filter")
     @classmethod
     def validate_filters_against_mode(
         cls,
-        filter_obj: PatchFilterConfig | CoordFilterConfig | None,
+        filter_obj: PatchFilterConfig | MaskFilterConfig | None,
         info: ValidationInfo,
-    ) -> PatchFilterConfig | CoordFilterConfig | None:
+    ) -> PatchFilterConfig | MaskFilterConfig | None:
         """
         Validate that the filters are only used during training.
 
         Parameters
         ----------
-        filter_obj : PatchFilters or CoordFilters or None
+        filter_obj : PatchFilterConfig | MaskFilterConfig | None
             Filter to validate.
         info : ValidationInfo
             Validation information.
 
         Returns
         -------
-        PatchFilters or CoordFilters or None
+        PatchFilterConfig | MaskFilterConfig | None
             Validated filter.
 
         Raises
@@ -435,10 +634,48 @@ class NGDataConfig(BaseModel):
         mode = info.data["mode"]
         if filter_obj is not None and mode != Mode.TRAINING:
             raise ValueError(
-                f"Filter '{filter_obj.name}' can only be used in 'training' mode, "
+                f"Filtering '{filter_obj.name}' only allowed in 'training' mode, "
                 f"got mode '{mode.value}'."
             )
         return filter_obj
+
+    @field_validator(
+        "train_dataloader_params",
+        "val_dataloader_params",
+        "pred_dataloader_params",
+        mode="after",
+    )
+    @classmethod
+    def batch_size_not_in_dataloader_params(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Validate that `batch_size` is not set in the dataloader parameters.
+
+        `batch_size` must be set through `batch_size` field, not
+        through the dataloader parameters.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The validated dataloader parameters.
+
+        Raises
+        ------
+        ValueError
+            If `batch_size` is present in the dataloader parameters.
+        """
+        if "batch_size" in dataloader_params:
+            raise ValueError(
+                "`batch_size` should not be set in the dataloader parameters. "
+                "Use the `batch_size` field of `NGDataConfig` instead."
+            )
+        return dataloader_params
 
     @field_validator("train_dataloader_params")
     @classmethod
@@ -467,14 +704,14 @@ class NGDataConfig(BaseModel):
         """
         if "shuffle" not in train_dataloader_params:
             raise ValueError(
-                "Value for 'shuffle' was not included in the `train_dataloader_params`."
+                "`train_dataloader_params` must include the `shuffle` parameter."
             )
         elif ("shuffle" in train_dataloader_params) and (
             not train_dataloader_params["shuffle"]
         ):
             warn(
-                "Dataloader parameters include `shuffle=False`, this will be passed to "
-                "the training dataloader and may lead to lower quality results.",
+                "`train_dataloader_params` includes `shuffle=False`, which may lead to "
+                "lower quality results.",
                 stacklevel=1,
             )
         return train_dataloader_params
@@ -517,43 +754,15 @@ class NGDataConfig(BaseModel):
 
         return self
 
-    @model_validator(mode="after")
-    def propagate_seed_to_filters(self: Self) -> Self:
-        """
-        Propagate the main seed to patch and coordinate filters that support seeds.
-
-        This ensures that all filters use the same seed for reproducibility,
-        unless they already have a seed explicitly set.
-
-        Returns
-        -------
-        Self
-            Data model with propagated seeds.
-        """
-        if self.seed is not None:
-            if self.patch_filter is not None:
-                if (
-                    hasattr(self.patch_filter, "seed")
-                    and self.patch_filter.seed is None
-                ):
-                    self.patch_filter.seed = self.seed
-
-            if self.coord_filter is not None:
-                if (
-                    hasattr(self.coord_filter, "seed")
-                    and self.coord_filter.seed is None
-                ):
-                    self.coord_filter.seed = self.seed
-
         return self
 
     @model_validator(mode="after")
-    def propagate_seed_to_transforms(self: Self) -> Self:
+    def propagate_seed_to_augmentations(self: Self) -> Self:
         """
-        Propagate the main seed to all transforms that support seeds.
+        Propagate the main seed to all augmentations that support seeds.
 
-        This ensures that all transforms use the same seed for reproducibility,
-        unless they already have a seed explicitly set.
+        This ensures that all augmentations use the same seed for
+         reproducibility, unless they already have a seed explicitly set.
 
         Returns
         -------
@@ -561,7 +770,7 @@ class NGDataConfig(BaseModel):
             Data model with propagated seeds.
         """
         if self.seed is not None:
-            for transform in self.transforms:
+            for transform in self.augmentations:
                 if hasattr(transform, "seed") and transform.seed is None:
                     transform.seed = self.seed
         return self
@@ -610,52 +819,57 @@ class NGDataConfig(BaseModel):
             dataloader_params["pin_memory"] = torch.cuda.is_available()
         return dataloader_params
 
-    @field_validator("train_dataloader_params", mode="before")
-    @classmethod
-    def set_default_train_workers(
-        cls, dataloader_params: dict[str, Any]
-    ) -> dict[str, Any]:
-        """
-        Set default num_workers for training dataloader if not provided.
-
-        - If 'num_workers' is not set, it defaults to the number of available CPU cores.
-
-        Parameters
-        ----------
-        dataloader_params : dict of {str: Any}
-            The training dataloader parameters.
-
-        Returns
-        -------
-        dict of {str: Any}
-            The dataloader parameters with num_workers default applied.
-        """
-        if "num_workers" not in dataloader_params:
-            # Use 0 workers during tests, otherwise use all available CPU cores
-            if "pytest" in sys.modules:
-                dataloader_params["num_workers"] = 0
-            else:
-                dataloader_params["num_workers"] = os.cpu_count()
-
-        return dataloader_params
-
     @model_validator(mode="after")
-    def set_val_workers_to_match_train(self: Self) -> Self:
-        """
-        Set validation dataloader num_workers to match training dataloader.
+    def warn_inconsistent_num_workers(self: Self) -> Self:
+        """Warn if `num_workers` conflicts with a per-dataloader value.
 
-        If num_workers is not specified in val_dataloader_params, it will be set to the
-        same value as train_dataloader_params["num_workers"].
+        This validator runs before ``set_default_workers_in_dataloaders``, so
+        the dataloader dicts only contain user-supplied values at this point.
+        Only fires when `num_workers` was explicitly set on the model.
 
         Returns
         -------
         Self
-            Validated data model with synchronized num_workers.
+            Unchanged data model.
         """
-        if "num_workers" not in self.val_dataloader_params:
-            self.val_dataloader_params["num_workers"] = self.train_dataloader_params[
-                "num_workers"
-            ]
+        if "num_workers" not in self.model_fields_set:
+            return self
+        for name, params in (
+            ("train_dataloader_params", self.train_dataloader_params),
+            ("val_dataloader_params", self.val_dataloader_params),
+            ("pred_dataloader_params", self.pred_dataloader_params),
+        ):
+            if "num_workers" in params and params["num_workers"] != self.num_workers:
+                print(
+                    f"Warning: `num_workers={self.num_workers}` conflicts with "
+                    f"`{name}['num_workers']={params['num_workers']}`. "
+                    f"The per-dataloader value takes precedence."
+                )
+        return self
+
+    @model_validator(mode="after")
+    def set_default_workers_in_dataloaders(self: Self) -> Self:
+        """Set `num_workers` and `persistent_workers` defaults in all dataloaders.
+
+        For each of `train_dataloader_params`, `val_dataloader_params`, and
+        `pred_dataloader_params`: sets `num_workers` from the `num_workers`
+        field if not already present, and sets ``persistent_workers=True`` when
+        ``num_workers > 0`` and not already specified.
+
+        Returns
+        -------
+        Self
+            Validated data model with worker defaults applied to all dataloaders.
+        """
+        for params in (
+            self.train_dataloader_params,
+            self.val_dataloader_params,
+            self.pred_dataloader_params,
+        ):
+            if "num_workers" not in params:
+                params["num_workers"] = self.num_workers
+            if "persistent_workers" not in params and params["num_workers"] > 0:
+                params["persistent_workers"] = True
         return self
 
     def __str__(self) -> str:
@@ -668,18 +882,6 @@ class NGDataConfig(BaseModel):
             Pretty string.
         """
         return pformat(self.model_dump())
-
-    def _update(self, **kwargs: Any) -> None:
-        """
-        Update multiple arguments at once.
-
-        Parameters
-        ----------
-        **kwargs : Any
-            Keyword arguments to update.
-        """
-        self.__dict__.update(kwargs)
-        self.__class__.model_validate(self.__dict__)
 
     def is_3D(self) -> bool:
         """
@@ -697,17 +899,12 @@ class NGDataConfig(BaseModel):
         bool
             True if the data is 3D, False otherwise.
         """
-        if self.data_type == "czi":
-            return "Z" in self.axes or "T" in self.axes
-        else:
-            return "Z" in self.axes
+        return _is_3D(self.axes, SupportedData(self.data_type))
 
     # TODO: if switching from a state in which in_memory=True to an incompatible state
     # an error will be raised. Should that automatically be set to False instead?
-    # TODO `channels=None` is ambigouous: all channels or same channels as in training?
     # TODO this method could be private and we could have public `to_validation_config`
     #   and `to_prediction_config` methods with appropriate parameters
-    # TODO any use for switching to training mode?
     def convert_mode(
         self,
         new_mode: Literal["validating", "predicting"],
@@ -781,24 +978,36 @@ class NGDataConfig(BaseModel):
             If conversion to training mode is requested, or if incompatible changes
             are requested.
         """
-        if new_mode == Mode.TRAINING:
-            raise ValueError(
-                "Converting to 'training' mode is not supported. Create a new "
-                "NGDataConfig instead, for instance using "
-                "`create_ng_data_configuration`."
-            )
         if self.mode != Mode.TRAINING:
             raise ValueError(
-                f"Converting from mode '{self.mode}' to '{new_mode}' is not supported. "
+                f"Conversion from mode '{self.mode}' to '{new_mode}' is not supported. "
                 f"Only conversion from 'training' mode is supported."
+            )
+        if new_mode == Mode.TRAINING:
+            raise ValueError(
+                "Conversion to 'training' mode is not supported. Create a new "
+                "NGDataConfig instead, for instance using "
+                "`create_ng_data_configuration`."
             )
 
         # sanity checks
         # switching spatial axes
-        if new_axes is not None and ("Z" in new_axes) != (
-            "Z" in self.axes
+        if not _are_spatial_dims_maintained(
+            SupportedData(self.data_type),
+            self.axes,
+            SupportedData(new_data_type or self.data_type),
+            new_axes or self.axes,
         ):  # switching 2D/3D
-            raise ValueError("Cannot switch between 2D and 3D axes.")
+            additional_msg = ""
+            if self.data_type == "czi" or new_data_type == "czi":
+                additional_msg = " Note that for CZI data, Z and T are both depth axes."
+
+            raise ValueError(
+                "Conversion between different spatial dimensions is not allowed. Got "
+                f"new axes {new_axes} with new data type {new_data_type}, and current "
+                f"axes {self.axes} with current data type {self.data_type}."
+                f"{additional_msg}"
+            )
 
         # normalize new_channels parameter to lift ambiguity around `None`
         #   - If None, keep previous parameter
@@ -809,62 +1018,12 @@ class NGDataConfig(BaseModel):
             new_channels = None  # all channels
 
         # switching channels
-        # if switching C axis:
-        # - removing C: original channels can be `None`, singleton or multiple. New
-        #   channels can be `None` if original were `None` or singleton, but not
-        #   multiple.
-        # - adding C: original channels can only be `None`. New channels can be `None`
-        #   (but we warn users that they need to have a singleton C axis in the data),
-        #   or singleton, but not multiple.
-        adding_C_axis = (
-            new_axes is not None and ("C" in new_axes) and ("C" not in self.axes)
+        _validate_channel_conversion(
+            self.axes,
+            self.channels,
+            new_axes or self.axes,  # if new_axes is None, we keep the same axes
+            new_channels,  # new_channel has already been updated to the correct value
         )
-        removing_C_axis = (
-            new_axes is not None and ("C" not in new_axes) and ("C" in self.axes)
-        )
-        prev_channels_not_singleton = self.channels is not None and (
-            len(self.channels) != 1
-        )
-
-        if adding_C_axis:
-            if new_channels is None:
-                warn(
-                    f"When switching to axes with 'C' (got {new_axes}) from axes "
-                    f"{self.axes}, errors may be raised or degraded performances may be"
-                    f" observed if the channel dimension in the data is not a singleton"
-                    f" dimension. To select a specific channel, use the `new_channels` "
-                    f"parameter (e.g. `new_channels=[1]`).",
-                    stacklevel=1,
-                )
-            elif len(new_channels) != 1:
-                raise ValueError(
-                    f"When switching to axes with 'C' (got {new_axes}) from axes "
-                    f"{self.axes}, a single channel only must be selected using the "
-                    f"`new_channels` parameter (got {new_channels})."
-                )
-        elif removing_C_axis and prev_channels_not_singleton:
-            raise ValueError(
-                f"Cannot switch to axes without 'C' (got {new_axes}) from axes "
-                f"{self.axes} when multiple channels were originally specified "
-                f"({self.channels})."
-            )
-
-        # different number of channels
-        if new_channels is not None and self.channels is not None:
-            if len(new_channels) != len(self.channels):
-                raise ValueError(
-                    f"New channels length ({len(new_channels)}) does not match "
-                    f"current channels length ({len(self.channels)})."
-                )
-
-        if self.channels is None and new_channels is not None:
-            warn(
-                f"Switching from all channels (`channels=None`) to specifying channels "
-                f"{new_channels} may lead to errors or degraded performances if "
-                f"{new_channels} are not all channels.",
-                stacklevel=1,
-            )  # Note that in the opposite case, self.channels is kept because
-            # new_channels is None
 
         # apply default values
         patching_strategy: PatchingConfig
@@ -874,14 +1033,15 @@ class NGDataConfig(BaseModel):
             else:
                 if overlap_size is None:
                     raise ValueError(
-                        "When switching to 'predicting' mode with 'tiled' patching, "
-                        "the `overlap_size` parameter must be specified."
+                        "`overlap_size` parameter must be specified when switching to "
+                        "'predicting' mode with a `new_patch_size`."
                     )
                 patching_strategy = TiledPatchingConfig(
                     patch_size=list(new_patch_size), overlaps=list(overlap_size)
                 )
         else:  # validating
-            assert isinstance(self.patching, RandomPatchingConfig)  # for mypy
+            # to satisfy mypy, since self.mode=="training", patching has patch_size
+            assert not isinstance(self.patching, WholePatchingConfig)
 
             patching_strategy = FixedRandomPatchingConfig(
                 patch_size=(
@@ -900,7 +1060,7 @@ class NGDataConfig(BaseModel):
                 "batch_size": new_batch_size or self.batch_size,
                 "data_type": new_data_type or self.data_type,
                 "axes": new_axes or self.axes,
-                "channels": new_channels if new_channels is not None else self.channels,
+                "channels": new_channels,
                 "in_memory": (
                     new_in_memory if new_in_memory is not None else self.in_memory
                 ),
@@ -914,24 +1074,13 @@ class NGDataConfig(BaseModel):
                     if new_mode == Mode.PREDICTING and new_dataloader_params is not None
                     else self.pred_dataloader_params
                 ),
+                "patch_filter": None,
+                "mask_filter": None,
             }
         )
 
-        # remove patch and coord filters when switching to validation or prediction
+        # remove patch filter when switching to validation or prediction
         del model_dict["patch_filter"]
-        del model_dict["coord_filter"]
+        del model_dict["mask_filter"]
 
         return NGDataConfig(**model_dict)
-
-    # def set_3D(self, axes: str, patch_size: list[int]) -> None:
-    #     """
-    #     Set 3D parameters.
-
-    #     Parameters
-    #     ----------
-    #     axes : str
-    #         Axes.
-    #     patch_size : list of int
-    #         Patch size.
-    #     """
-    #     self._update(axes=axes, patch_size=patch_size)

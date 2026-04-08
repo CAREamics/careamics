@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from pprint import pformat
-from typing import Any, Literal, Self, Union
+from typing import Annotated, Any, Generic, Literal, Self, TypeVar
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -16,12 +16,17 @@ from careamics.config.algorithms import (
     SegAlgorithm,
 )
 from careamics.config.data import NGDataConfig
-from careamics.config.lightning.training_config import TrainingConfig
+from careamics.config.ng_configs.ng_training_configuration import (
+    NGTrainingConfig,
+    default_training_factory,
+)
 
-ALGORITHMS = Union[CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm]
+AlgorithmConfig = TypeVar(
+    "AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
+)
 
 
-class NGConfiguration(BaseModel):
+class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
     """
     CAREamics configuration.
 
@@ -76,7 +81,7 @@ class NGConfiguration(BaseModel):
     )
 
     # version
-    version: Literal["0.1.0"] = "0.1.0"
+    version: Literal["0.2.0"] = "0.2.0"
     """CAREamics configuration version."""
 
     # required parameters
@@ -84,7 +89,7 @@ class NGConfiguration(BaseModel):
     """Name of the experiment, used to name logs and checkpoints."""
 
     # Sub-configurations
-    algorithm_config: ALGORITHMS = Field(discriminator="algorithm")
+    algorithm_config: Annotated[AlgorithmConfig, Field(discriminator="algorithm")]
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
@@ -92,7 +97,7 @@ class NGConfiguration(BaseModel):
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
-    training_config: TrainingConfig
+    training_config: NGTrainingConfig = Field(default_factory=default_training_factory)
     """Training configuration, holding all parameters required to configure the
     training process."""
 
@@ -102,7 +107,7 @@ class NGConfiguration(BaseModel):
         """
         Validate experiment name.
 
-        A valid experiment name is a non-empty string with only contains letters,
+        A valid experiment name is a non-empty string that only contains letters,
         numbers, underscores, dashes and spaces.
 
         Parameters
@@ -153,6 +158,28 @@ class NGConfiguration(BaseModel):
                 f"is 'czi', which uses 3D when 'T' axis is specified)."
             )
 
+        return self
+
+    @model_validator(mode="after")
+    def validate_norm_against_channels(self: Self) -> Self:
+        """Validate that normalization is compatible with the model in/out channels.
+
+        Raises
+        ------
+        ValueError
+            If any of the normalization parameters is incompatible with model input or
+            output channels.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        # delegate validation to the specific norm
+        self.data_config.normalization.validate_size(
+            self.algorithm_config.model.get_num_input_channels(),
+            self.algorithm_config.model.get_num_output_channels(),
+        )
         return self
 
     def __str__(self) -> str:
@@ -226,6 +253,34 @@ class NGConfiguration(BaseModel):
             List of keywords.
         """
         return self.algorithm_config.get_algorithm_keywords()
+
+    def get_safe_experiment_name(self) -> str:
+        """
+        Return the experiment name safe for use in paths and filenames.
+
+        Spaces are replaced with underscores to avoid issues with folder
+        creation and checkpoint naming.
+
+        Returns
+        -------
+        str
+            Experiment name with spaces replaced with underscores.
+        """
+        return self.experiment_name.replace(" ", "_")
+
+    def is_supervised(self) -> bool:
+        """
+        Return whether the algorithm is supervised.
+
+        This is true for CARE and N2N, and false for N2V. This is used to determine
+        whether a target is required for training.
+
+        Returns
+        -------
+        bool
+            True if the algorithm is supervised, False otherwise.
+        """
+        return self.algorithm_config.is_supervised()
 
     def model_dump(
         self,

@@ -97,3 +97,15 @@ class SegAlgorithm(UNetBasedAlgorithm):
             Description of the algorithm.
         """
         return "UNet semantic segmentation."
+
+    @classmethod
+    def is_supervised(cls) -> bool:
+        """
+        Whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return True

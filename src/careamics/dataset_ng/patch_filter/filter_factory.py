@@ -4,92 +4,53 @@ from typing import Union
 
 from careamics.config.data.patch_filter import (
     FilterConfig,
-    MaskFilterConfig,
     MaxFilterConfig,
     MeanSTDFilterConfig,
     ShannonFilterConfig,
 )
 from careamics.config.support.supported_filters import (
-    SupportedCoordinateFilters,
     SupportedPatchFilters,
 )
-from careamics.dataset_ng.image_stack import GenericImageStack
-from careamics.dataset_ng.patch_extractor import PatchExtractor
 
-from .mask_filter import MaskCoordFilter
+from .mask_filter import MaskFilter
 from .max_filter import MaxPatchFilter
 from .mean_std_filter import MeanStdPatchFilter
 from .shannon_filter import ShannonPatchFilter
 
 PatchFilter = Union[
+    MaskFilter,
     MaxPatchFilter,
     MeanStdPatchFilter,
     ShannonPatchFilter,
 ]
 
 
-CoordFilter = Union[MaskCoordFilter]
-
-
-def create_coord_filter(
-    filter_model: FilterConfig, mask: PatchExtractor[GenericImageStack]
-) -> CoordFilter:
-    """Factory function to create coordinate filter instances based on the filter name.
-
-    Parameters
-    ----------
-    filter_model : FilterModel
-        Pydantic model of the filter to be created.
-    mask : PatchExtractor[GenericImageStack]
-        Mask extractor to be used for the mask filter.
-
-    Returns
-    -------
-    CoordFilter
-        Instance of the mask patch filter.
-    """
-    if filter_model.name == SupportedCoordinateFilters.MASK:
-        assert isinstance(filter_model, MaskFilterConfig)
-        return MaskCoordFilter(
-            mask_extractor=mask,
-            coverage=filter_model.coverage,
-            p=filter_model.p,
-            seed=filter_model.seed,
-        )
-    else:
-        raise ValueError(f"Unknown filter name: {filter_model}")
-
-
-def create_patch_filter(filter_model: FilterConfig) -> PatchFilter:
+def create_patch_filter(filter_config: FilterConfig) -> PatchFilter:
     """Factory function to create patch filter instances based on the filter name.
 
     Parameters
     ----------
-    filter_model : FilterModel
-        Pydantic model of the filter to be created.
+    filter_config : FilterConfig
+        Pydantic config of the filter to be created.
 
     Returns
     -------
     PatchFilter
         Instance of the requested patch filter.
     """
-    if filter_model.name == SupportedPatchFilters.MAX:
-        assert isinstance(filter_model, MaxFilterConfig)
+    if filter_config.name == SupportedPatchFilters.MAX:
+        assert isinstance(filter_config, MaxFilterConfig)
         return MaxPatchFilter(
-            threshold=filter_model.threshold, p=filter_model.p, seed=filter_model.seed
+            threshold=filter_config.threshold, coverage=filter_config.coverage
         )
-    elif filter_model.name == SupportedPatchFilters.MEANSTD:
-        assert isinstance(filter_model, MeanSTDFilterConfig)
+    elif filter_config.name == SupportedPatchFilters.MEANSTD:
+        assert isinstance(filter_config, MeanSTDFilterConfig)
         return MeanStdPatchFilter(
-            mean_threshold=filter_model.mean_threshold,
-            std_threshold=filter_model.std_threshold,
-            p=filter_model.p,
-            seed=filter_model.seed,
+            mean_threshold=filter_config.mean_threshold,
+            std_threshold=filter_config.std_threshold,
         )
-    elif filter_model.name == SupportedPatchFilters.SHANNON:
-        assert isinstance(filter_model, ShannonFilterConfig)
-        return ShannonPatchFilter(
-            threshold=filter_model.threshold, p=filter_model.p, seed=filter_model.seed
-        )
+    elif filter_config.name == SupportedPatchFilters.SHANNON:
+        assert isinstance(filter_config, ShannonFilterConfig)
+        return ShannonPatchFilter(threshold=filter_config.threshold)
     else:
-        raise ValueError(f"Unknown filter name: {filter_model}")
+        raise ValueError(f"Unknown filter name: {filter_config}")
