@@ -20,7 +20,7 @@ GET_MODEL_CONSTRAINTS_PATH = (
 )
 
 # path to the default training factory, used for mocking
-DEFAULT_TRAINING_FACTORY_PATH = (
+DEFAULT_TRAINING_DICT_PATH = (
     "careamics.config.ng_configs.ng_training_configuration.default_training_dict"
 )
 
@@ -39,9 +39,9 @@ def test_get_model_constraints_path():
         mock_get_constraints.assert_called_once_with("dummy_model_config")
 
 
-def test_get_default_training_factory_path():
-    """Test that the path to the default training factory is correct."""
-    with patch(DEFAULT_TRAINING_FACTORY_PATH) as mock_factory:
+def test_get_default_training_dict_path():
+    """Test that the path to the default training dict is correct."""
+    with patch(DEFAULT_TRAINING_DICT_PATH) as mock_factory:
         from careamics.config.ng_configs.ng_training_configuration import (
             default_training_dict,
         )
@@ -73,7 +73,7 @@ def test_unet_configs(algorithm, config_class):
 
 @pytest.mark.parametrize("algorithm", ALGORITHMS)
 def test_training_config_default(algorithm):
-    """Test that the default training factory is called with the correct algorithm.
+    """Test that the default training dict is called with the correct algorithm.
 
     Actual `default_training_dict` is unit tested separately in its own module
     test file. This test checks that during NGConfiguration instantiation,
@@ -85,7 +85,7 @@ def test_training_config_default(algorithm):
 
     unet_config_dict = unet_ng_config_dict_testing(algorithm=algorithm)
 
-    with patch(DEFAULT_TRAINING_FACTORY_PATH, wraps=default_training_dict) as mock:
+    with patch(DEFAULT_TRAINING_DICT_PATH, wraps=default_training_dict) as mock:
         instantiate_config(unet_config_dict)
 
         mock.assert_called_once()
