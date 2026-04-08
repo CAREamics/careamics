@@ -44,7 +44,7 @@ def patching_config_dict_testing(
             return {
                 "name": patching,
                 "patch_size": patch_size,
-                "overlaps": tuple(ps // 2 for ps in patch_size),
+                "overlaps": tuple(2 for _ in patch_size),
             }
         case _:
             return {
