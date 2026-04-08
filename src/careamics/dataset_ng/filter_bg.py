@@ -11,7 +11,7 @@ from .patch_extractor import PatchExtractor
 from .patch_filter import MaskFilter, create_patch_filter
 from .patching_strategies import StratifiedPatchingStrategy
 
-logger = get_logger("Patch filtering")
+logger = get_logger(__name__)
 
 
 def filter_background(

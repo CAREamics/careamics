@@ -71,6 +71,12 @@ class N2VModule(L.LightningModule):
             }
         )
 
+        n_params = sum(p.numel() for p in self.model.parameters())
+        logger.info(
+            f"N2VModule: algorithm={config.algorithm}, " f"model_params={n_params:,}"
+        )
+        logger.debug(f"  Model config: {config.model.model_dump()}")
+
     def on_fit_start(self) -> None:
         """On fit start hook for N2V module."""
         assert self._trainer is not None

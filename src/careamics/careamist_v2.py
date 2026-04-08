@@ -30,6 +30,7 @@ from .lightning.dataset_ng.load_checkpoint import (
 from .lightning.dataset_ng.prediction import convert_prediction
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
+from .utils.logging import disable_debug_logging, enable_debug_logging
 
 logger = get_logger(__name__)
 
@@ -1044,6 +1045,25 @@ class CAREamistV2:
         return read_csv_logger(
             self.config.get_safe_experiment_name(), self.work_dir / "csv_logs"
         )
+
+    def debug_logging(self, enable: bool = True) -> None:
+        """Enable or disable debug logging.
+
+        When enabled, detailed information about each stage (data loading, patching,
+        filtering, normalization, validation split, etc.) is printed to stdout and
+        written to a log file in the working directory.
+
+        Parameters
+        ----------
+        enable : bool, default=True
+            Whether to enable or disable debug logging.
+        """
+        if enable:
+            log_path = self.work_dir / "careamics_debug.log"
+            enable_debug_logging(log_path=log_path)
+            logger.info(f"Debug logging enabled. Log file: {log_path}")
+        else:
+            disable_debug_logging()
 
     def stop_training(self) -> None:
         """Stop the training loop."""

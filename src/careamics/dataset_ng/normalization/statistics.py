@@ -18,6 +18,9 @@ from careamics.dataset_ng.normalization.running_quantile import QuantileEstimato
 from careamics.dataset_ng.normalization.utils import broadcast_stats
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patching_strategies import PatchingStrategy
+from careamics.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _compute_mean_std(
@@ -269,10 +272,16 @@ def resolve_normalization_config(
         A resolved configuration with all statistics populated.
     """
     if isinstance(norm_config, NoNormConfig):
+        logger.info("Normalization: none (pass-through)")
         return norm_config
 
     if isinstance(norm_config, MeanStdConfig):
         if norm_config.needs_computation():
+            logger.info(
+                f"Computing mean/std normalization statistics from "
+                f"{patching_strategy.n_patches} patches "
+                f"(per_channel={norm_config.per_channel})"
+            )
             input_means, input_stds = _compute_mean_std(
                 input_extractor,
                 patching_strategy,
@@ -280,8 +289,10 @@ def resolve_normalization_config(
                 per_channel=norm_config.per_channel,
             )
             norm_config.set_input_stats(input_means, input_stds)
+            logger.info(f"  Input stats: means={input_means}, stds={input_stds}")
 
         if target_extractor is not None and norm_config.target_means is None:
+            logger.info("Computing mean/std statistics for target data")
             target_means, target_stds = _compute_mean_std(
                 target_extractor,
                 patching_strategy,
@@ -289,11 +300,17 @@ def resolve_normalization_config(
                 per_channel=norm_config.per_channel,
             )
             norm_config.set_target_stats(target_means, target_stds)
+            logger.info(f"  Target stats: means={target_means}, stds={target_stds}")
 
         return norm_config
 
     if isinstance(norm_config, MinMaxConfig):
         if norm_config.needs_computation():
+            logger.info(
+                f"Computing min/max normalization statistics from "
+                f"{patching_strategy.n_patches} patches "
+                f"(per_channel={norm_config.per_channel})"
+            )
             input_mins, input_maxes = _compute_min_max(
                 input_extractor,
                 patching_strategy,
@@ -301,6 +318,7 @@ def resolve_normalization_config(
                 per_channel=norm_config.per_channel,
             )
             norm_config.set_input_range(input_mins, input_maxes)
+            logger.info(f"  Input range: mins={input_mins}, maxes={input_maxes}")
 
         if target_extractor is not None and norm_config.target_mins is None:
             target_mins, target_maxes = _compute_min_max(
@@ -315,6 +333,11 @@ def resolve_normalization_config(
 
     if isinstance(norm_config, QuantileConfig):
         if norm_config.needs_computation():
+            logger.info(
+                f"Computing quantile normalization statistics from "
+                f"{patching_strategy.n_patches} patches "
+                f"(per_channel={norm_config.per_channel})"
+            )
             lower_levels, upper_levels = _resolve_quantile_levels(
                 norm_config, input_extractor, patching_strategy, channels
             )

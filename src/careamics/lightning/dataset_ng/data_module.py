@@ -263,6 +263,12 @@ class CareamicsDataModule(L.LightningDataModule):
             if (self.train_dataset is not None) and (self.val_dataset is not None):
                 return
 
+            data_scenario = type(self._data).__name__
+            logger.info(
+                f"DataModule setup (stage={stage}): data_type={self.data_type}, "
+                f"batch_size={self.batch_size}, scenario={data_scenario}"
+            )
+
             if isinstance(self._data, TrainValSplitData):
                 self.train_dataset, self.val_dataset = create_val_split_datasets(
                     self.config, self._data, self.loading, self.rng
@@ -274,6 +280,11 @@ class CareamicsDataModule(L.LightningDataModule):
             else:
                 raise ValueError("Training and validation data has not been provided.")
 
+            logger.info(
+                f"  Train dataset: {len(self.train_dataset)} patches, "
+                f"Val dataset: {len(self.val_dataset)} patches"
+            )
+
             # statistics may have been calculated now, save config to hparams
             if stage == "fit":
                 self._save_hparams()
@@ -282,9 +293,14 @@ class CareamicsDataModule(L.LightningDataModule):
             if not isinstance(self._data, PredData):
                 raise ValueError("No data has been provided for prediction.")
 
+            logger.info(
+                f"DataModule setup (stage=predict): data_type={self.data_type}, "
+                f"batch_size={self.batch_size}"
+            )
             self.predict_dataset = create_pred_dataset(
                 self.config, self._data, self.loading
             )
+            logger.info(f"  Predict dataset: {len(self.predict_dataset)} patches/tiles")
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 

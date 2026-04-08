@@ -10,6 +10,7 @@ from zarr.storage import StorePath
 
 from careamics.config.validators import check_czi_axes_validity
 from careamics.file_io import ReadFunc
+from careamics.utils.logging import get_logger
 
 from ..image_stack import (
     FileImageStack,
@@ -21,6 +22,8 @@ from .zarr_utils import collect_arrays, decipher_zarr_uri, is_ome_zarr, is_valid
 
 if TYPE_CHECKING:
     from careamics.file_io.read import ReadFunc
+
+logger = get_logger(__name__)
 
 
 def load_arrays(source: Sequence[NDArray[Any]], axes: str) -> list[InMemoryImageStack]:
@@ -39,7 +42,11 @@ def load_arrays(source: Sequence[NDArray[Any]], axes: str) -> list[InMemoryImage
     list[InMemoryImageStack]
         ImageStacks created from the input arrays.
     """
-    return [InMemoryImageStack.from_array(data=array, axes=axes) for array in source]
+    stacks = [InMemoryImageStack.from_array(data=array, axes=axes) for array in source]
+    logger.info(f"Loaded {len(stacks)} array(s) into memory (axes={axes})")
+    for i, s in enumerate(stacks):
+        logger.debug(f"  Array {i}: shape={s.data_shape}, dtype={s.data_dtype}")
+    return stacks
 
 
 # TIFF case
@@ -59,7 +66,13 @@ def load_tiffs(source: Sequence[Path], axes: str) -> list[InMemoryImageStack]:
     list[InMemoryImageStack]
         ImageStacks created from the source files.
     """
-    return [InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source]
+    stacks = [InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source]
+    logger.info(f"Loaded {len(stacks)} TIFF file(s) into memory (axes={axes})")
+    for i, s in enumerate(stacks):
+        logger.debug(
+            f"  TIFF {i}: {s.source}, shape={s.data_shape}, dtype={s.data_dtype}"
+        )
+    return stacks
 
 
 # TODO: better name
@@ -81,7 +94,11 @@ def load_iter_tiff(source: Sequence[Path], axes: str) -> list[FileImageStack]:
     list[FileImageStack]
         Lazily loaded ImageStacks backed by the source files.
     """
-    return [FileImageStack.from_tiff(path=path, axes=axes) for path in source]
+    stacks = [FileImageStack.from_tiff(path=path, axes=axes) for path in source]
+    logger.info(f"Prepared lazy loading for {len(stacks)} TIFF file(s) (axes={axes})")
+    for i, s in enumerate(stacks):
+        logger.debug(f"  TIFF {i}: {s.source}, shape={s.data_shape}")
+    return stacks
 
 
 # Custom file type case (loaded into memory)
@@ -112,7 +129,7 @@ def load_custom_file(
         ImageStacks created from the custom files.
     """
     # TODO: lazy loading custom files
-    return [
+    stacks = [
         InMemoryImageStack.from_custom_file_type(
             path=path,
             axes=axes,
@@ -121,6 +138,12 @@ def load_custom_file(
         )
         for path in source
     ]
+    logger.info(f"Loaded {len(stacks)} custom file(s) into memory (axes={axes})")
+    for i, s in enumerate(stacks):
+        logger.debug(
+            f"  Custom {i}: {s.source}, shape={s.data_shape}, dtype={s.data_dtype}"
+        )
+    return stacks
 
 
 def load_zarrs(
@@ -220,6 +243,14 @@ def load_zarrs(
                 f"Source '{data_source}' is neither a zarr file nor a file URI."
             )
 
+    logger.info(
+        f"Loaded {len(image_stacks)} Zarr array(s) from {len(source)} source(s) "
+        f"(axes={axes})"
+    )
+    for i, s in enumerate(image_stacks):
+        logger.debug(
+            f"  Zarr {i}: {s.source}, shape={s.data_shape}, dtype={s.data_dtype}"
+        )
     return image_stacks
 
 
@@ -274,5 +305,14 @@ def load_czis(
         image_stacks.extend(
             CziImageStack(path, scene=scene, depth_axis=depth_axis)
             for scene in scene_rectangles.keys()
+        )
+    logger.info(
+        f"Loaded {len(image_stacks)} CZI scene(s) from {len(source)} file(s) "
+        f"(axes={axes})"
+    )
+    for i, s in enumerate(image_stacks):
+        logger.debug(
+            f"  CZI {i}: {getattr(s, 'data_path', '?')}, "
+            f"shape={getattr(s, 'data_shape', '?')}"
         )
     return image_stacks

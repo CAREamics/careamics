@@ -10,6 +10,7 @@ from typing_extensions import ParamSpec
 from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
+from careamics.utils.logging import get_logger
 
 from .dataset import CareamicsDataset
 from .filter_bg import filter_background, filter_background_with_mask
@@ -32,6 +33,8 @@ from .val_split import create_val_split
 
 P = ParamSpec("P")
 T = TypeVar("T")
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -174,6 +177,10 @@ def init_patch_extractor(
         The constructed patch extractor instance.
     """
     image_stacks = image_stack_loader(source, axes)
+    logger.debug(
+        f"Initialized {patch_extractor.__name__} with {len(image_stacks)} "
+        f"image stack(s) (axes={axes})"
+    )
     return patch_extractor(image_stacks)
 
 
@@ -199,8 +206,16 @@ def select_patch_extractor_type(
         The selected PatchExtractor type.
     """
     if not in_memory and data_type in (SupportedData.TIFF, SupportedData.CUSTOM):
+        logger.debug(
+            f"Selected LimitFilesPatchExtractor (data_type={data_type}, "
+            f"in_memory={in_memory})"
+        )
         return LimitFilesPatchExtractor
     else:
+        logger.debug(
+            f"Selected PatchExtractor (data_type={data_type}, "
+            f"in_memory={in_memory})"
+        )
         return PatchExtractor
 
 
@@ -292,6 +307,12 @@ def create_train_dataset(
     inputs = data.train_data
     targets = data.train_data_target
     masks = data.train_data_mask
+
+    logger.info(
+        f"Creating training dataset (data_type={config.data_type}, "
+        f"in_memory={config.in_memory}, has_targets={targets is not None}, "
+        f"has_masks={masks is not None})"
+    )
 
     # init dataset components
     image_stack_loader = select_image_stack_loader(

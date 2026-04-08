@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 
 from careamics.config.data.ng_data_config import Mode, NGDataConfig, WholePatchingConfig
 from careamics.transforms import Compose
+from careamics.utils.logging import get_logger
 
 from .image_stack import GenericImageStack, ZarrImageStack
 from .normalization import create_normalization
@@ -20,6 +21,8 @@ from .patching_strategies import (
     PatchSpecs,
     RegionSpecs,
 )
+
+logger = get_logger(__name__)
 
 
 class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
@@ -203,6 +206,18 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self.normalization = create_normalization(self.config.normalization)
 
         self.transforms = self._initialize_augmentations()
+
+        logger.info(
+            f"CareamicsDataset: mode={self.config.mode}, "
+            f"{len(self)} patches, "
+            f"normalization={type(self.normalization).__name__}, "
+            f"{len(input_extractor.image_stacks)} input stack(s)"
+        )
+        if self.config.mode == Mode.TRAINING and self.transforms is not None:
+            logger.debug(f"  Augmentations: {self.transforms}")
+        logger.debug(
+            f"  Data shapes: " f"{[s.data_shape for s in input_extractor.image_stacks]}"
+        )
 
     def _initialize_augmentations(self) -> Compose | None:
         """Build the composition of augmentations.

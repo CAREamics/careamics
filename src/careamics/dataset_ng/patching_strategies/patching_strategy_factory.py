@@ -6,12 +6,15 @@ from careamics.config.data.ng_data_config import PatchingConfig
 from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
+from careamics.utils.logging import get_logger
 
 from .patching_strategy_protocol import PatchingStrategy
 from .random_patching import FixedRandomPatchingStrategy, RandomPatchingStrategy
 from .stratified_patching import StratifiedPatchingStrategy
 from .tiling_strategy import TilingStrategy
 from .whole_sample import WholeSamplePatchingStrategy
+
+logger = get_logger(__name__)
 
 
 def create_patching_strategy(
@@ -48,6 +51,11 @@ def create_patching_strategy(
 
     # remove `name` to match the class signatures
     # tiling requires `tile_size` instead of `patch_size`, hence the aliasing
-    return patch_class(
+    strategy = patch_class(
         data_shapes=data_shapes, **patching_config.model_dump(exclude={"name"})
     )
+    logger.info(
+        f"Patching strategy: {patching_config.name} -> " f"{strategy.n_patches} patches"
+    )
+    logger.debug(f"  Strategy config: {patching_config.model_dump()}")
+    return strategy

@@ -85,6 +85,14 @@ class CAREModule(L.LightningModule):
 
         self._best_checkpoint_loaded: bool = False
 
+        n_params = sum(p.numel() for p in self.model.parameters())
+        logger.info(
+            f"CAREModule: algorithm={config.algorithm}, "
+            f"loss={config.loss}, "
+            f"model_params={n_params:,}"
+        )
+        logger.debug(f"  Model config: {config.model.model_dump()}")
+
     def on_fit_start(self) -> None:
         """On fit start hook for CARE module.
 

@@ -5,8 +5,12 @@ from typing import Any, Generic
 
 from numpy.typing import NDArray
 
+from careamics.utils.logging import get_logger
+
 from ..image_stack import GenericImageStack
 from .patch_construction import PatchConstructor, default_patch_constr
+
+logger = get_logger(__name__)
 
 
 class PatchExtractor(Generic[GenericImageStack]):
@@ -56,6 +60,14 @@ class PatchExtractor(Generic[GenericImageStack]):
                     f"number of channels. The first image stack has {self.n_channels} "
                     f"but found an image stack with {n_channels} at index {i}."
                 )
+
+        logger.info(f"Patch constructor: {type(self.patch_constructor)}")
+        logger.info(
+            f"PatchExtractor: {len(self.image_stacks)} image stack(s), "
+            f"{self.n_spatial_dims}D, {self.n_channels} channel(s)"
+        )
+        for i, s in enumerate(self.image_stacks):
+            logger.debug(f"  Stack {i}: shape={s.data_shape}, source={s.source}")
 
     def extract_patch(
         self,

@@ -13,6 +13,9 @@ from typing import Any, Union
 
 LOGGERS: dict = {}
 
+# sentinel attribute name used to tag handlers added by enable_debug_logging
+_DEBUG_HANDLER_TAG = "_careamics_debug"
+
 
 def get_logger(
     name: str,
@@ -69,6 +72,75 @@ def get_logger(
     logger.propagate = False
 
     return logger
+
+
+def enable_debug_logging(
+    log_path: Union[str, Path, None] = None,
+    level: int = logging.DEBUG,
+) -> None:
+    """Enable debug logging for all CAREamics modules.
+
+    Configures the root `careamics` logger so that every child logger (created via
+    `get_logger(__name__)`) emits messages at `level` or above to stdout and,
+    optionally, to a log file.
+
+    Parameters
+    ----------
+    log_path : str or Path or None, optional
+        If provided, log messages are also written to this file.
+    level : int, optional
+        Logging level, by default ``logging.DEBUG``.
+    """
+    root = logging.getLogger("careamics")
+    root.setLevel(level)
+
+    # check whether we already attached debug handlers
+    existing_tags = {getattr(h, _DEBUG_HANDLER_TAG, None) for h in root.handlers}
+    formatter = logging.Formatter(
+        "%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    if "stream" not in existing_tags:
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setLevel(level)
+        stream_handler.setFormatter(formatter)
+        setattr(stream_handler, _DEBUG_HANDLER_TAG, "stream")
+        root.addHandler(stream_handler)
+
+    if log_path is not None and "file" not in existing_tags:
+        file_handler = logging.FileHandler(str(log_path))
+        file_handler.setLevel(level)
+        file_handler.setFormatter(formatter)
+        setattr(file_handler, _DEBUG_HANDLER_TAG, "file")
+        root.addHandler(file_handler)
+
+    # ensure all already-registered child loggers propagate to the root
+    for name in list(LOGGERS):
+        child = logging.getLogger(name)
+        child.setLevel(level)
+        child.propagate = True
+
+
+def disable_debug_logging() -> None:
+    """Disable debug logging previously enabled via `enable_debug_logging`.
+
+    Removes the handlers that were added by `enable_debug_logging` and restores the root
+    careamics logger level to `WARNING`.
+    """
+    root = logging.getLogger("careamics")
+
+    for handler in list(root.handlers):
+        if hasattr(handler, _DEBUG_HANDLER_TAG):
+            root.removeHandler(handler)
+            handler.close()
+
+    root.setLevel(logging.WARNING)
+
+    # restore child loggers to their original state
+    for name in list(LOGGERS):
+        child = logging.getLogger(name)
+        child.propagate = False
 
 
 class ProgressBar:

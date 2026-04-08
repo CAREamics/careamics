@@ -2,11 +2,15 @@
 
 import numpy as np
 
+from careamics.utils.logging import get_logger
+
 from .patching_strategies import (
     FixedPatchingStrategy,
     PatchSpecs,
     StratifiedPatchingStrategy,
 )
+
+logger = get_logger(__name__)
 
 
 def create_val_split(
@@ -100,4 +104,15 @@ def create_val_split(
         val_patch_specs.extend(patch_specs)
 
     val_patching_strategy = FixedPatchingStrategy(val_patch_specs)
+
+    remaining_train = stratified_patching.n_patches
+    logger.info(
+        f"Validation split: {n_val_patches} val patches extracted, "
+        f"{remaining_train} training patches remaining"
+    )
+    logger.debug(
+        f"  Val patches per image: "
+        f"{dict(zip(sample_ids, n_selected_image_patches.tolist(), strict=True))}"
+    )
+
     return stratified_patching, val_patching_strategy
