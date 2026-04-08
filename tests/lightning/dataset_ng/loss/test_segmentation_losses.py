@@ -293,7 +293,7 @@ class TestGetLoss:
 
     def test_get_dicece_loss(self):
         """Test getting DiceCELoss."""
-        loss_fn = get_seg_loss("dicece")
+        loss_fn = get_seg_loss("dice_ce")
         assert isinstance(loss_fn, DiceCELoss)
 
     def test_invalid_loss_name(self):
