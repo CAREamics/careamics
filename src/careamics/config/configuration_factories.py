@@ -41,17 +41,10 @@ from careamics.lvae_training.dataset.config import MicroSplitDataConfig
 from .configuration import Configuration
 from .utils.random import generate_random_seed
 
-ALGORITHMS = Union[
-    N2VAlgorithm,
-    N2NAlgorithm,
-    CAREAlgorithm,
-    PN2VAlgorithm,
-]
-
 
 def algorithm_factory(
     algorithm: dict[str, Any],
-) -> ALGORITHMS:
+) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, PN2VAlgorithm]:
     """
     Create an algorithm model for training CAREamics.
 
@@ -67,7 +60,7 @@ def algorithm_factory(
     """
     adapter: TypeAdapter = TypeAdapter(
         Annotated[
-            ALGORITHMS,
+            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, PN2VAlgorithm],
             Field(discriminator="algorithm"),
         ]
     )
