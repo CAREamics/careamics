@@ -12,7 +12,7 @@ from tests.unit.config.data.test_normalization_config import (
     NORMS_WO_NONE,
     create_norm_dict,
 )
-from tests.unit.lightning.dataset_ng.lightning_modules.constraints.test_unet_constraints import (
+from tests.unit.lightning.dataset_ng.lightning_modules.constraints import (
     _compatible_shapes,
     _incompatible_shapes,
 )
@@ -22,24 +22,8 @@ from tests.utils import unet_ng_config_dict_testing
 ALGORITHMS = ["care", "n2n", "n2v"]
 ALGORITHMS_CONFIGS = [NGConfiguration, NGConfiguration, N2VConfiguration]
 
-# path to the model constraints, used for mocking
-GET_MODEL_CONSTRAINTS_PATH = (
-    "careamics.config.ng_configs.ng_configuration.get_model_constraints"
-)
-
 
 # ------------------------ Test utilities --------------------------
-
-
-def test_get_model_constraints_path():
-    """Test that the path to get model constraints is correct."""
-    with patch(GET_MODEL_CONSTRAINTS_PATH) as mock_get_constraints:
-        from careamics.config.ng_configs.ng_configuration import get_model_constraints
-
-        # call the function to ensure the path is correct
-        get_model_constraints("dummy_model_config")
-
-        mock_get_constraints.assert_called_once_with("dummy_model_config")
 
 
 def test_default_unet_config():
