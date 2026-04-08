@@ -22,6 +22,7 @@ from .lightning.dataset_ng.data_module import CareamicsDataModule, InputVar
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
     create_module,
+    get_model_constraints,
 )
 from .lightning.dataset_ng.load_checkpoint import (
     load_config_from_checkpoint,
@@ -529,6 +530,7 @@ class CAREamistV2:
             train_data_target=train_data_target,
             val_data_target=val_data_target,
             train_data_mask=filtering_mask,
+            model_constraints=get_model_constraints(self.config.algorithm_config.model),
             loading=loading, # type: ignore
         )
 
@@ -610,10 +612,19 @@ class CAREamistV2:
             new_channels=channels,
             new_in_memory=in_memory,
         )
+
+        # validate new data config against the rest of the configuration by triggering
+        # the model level validation
+        self.config.model_copy().data_config = pred_data_config
+
+
         return CareamicsDataModule(
             data_config=pred_data_config,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
+            model_constraints=get_model_constraints(
+                self.config.algorithm_config.model
+            ),
             loading=loading,
         )
 

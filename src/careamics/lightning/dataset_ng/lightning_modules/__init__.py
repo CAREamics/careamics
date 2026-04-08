@@ -1,6 +1,7 @@
 """CAREamics PyTorch Lightning modules."""
 
 from .care_module import CAREModule
+from .constraints import get_model_constraints
 from .get_module import (
     CAREamicsModule,
     create_module,
@@ -13,5 +14,6 @@ __all__ = [
     "CAREamicsModule",
     "N2VModule",
     "create_module",
+    "get_model_constraints",
     "get_module_cls",
 ]

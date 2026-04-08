@@ -147,7 +147,11 @@ def default_training_factory(validated_dict: dict[str, Any]) -> NGTrainingConfig
 
     if key not in validated_dict:
         raise ValueError(
-            "Algorithm configuration is required to set default training parameters."
+            "Algorithm configuration is required to set default training parameters, "
+            "but the algorithm configuration was not found during validation. The most "
+            "likely cause is that the validation of the algorithm configuration failed."
+            " Try validating it seprately, for instance with "
+            "`instantiate_algorithm_config`."
         )
     algorithm = validated_dict[key].algorithm
 
