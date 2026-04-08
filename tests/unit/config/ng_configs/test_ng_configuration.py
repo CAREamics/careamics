@@ -19,11 +19,6 @@ GET_MODEL_CONSTRAINTS_PATH = (
     "careamics.config.ng_configs.ng_configuration.get_model_constraints"
 )
 
-# path to the default training factory, used for mocking
-DEFAULT_TRAINING_DICT_PATH = (
-    "careamics.config.ng_configs.ng_training_configuration.default_training_dict"
-)
-
 
 # ------------------------ Test utilities --------------------------
 
@@ -37,19 +32,6 @@ def test_get_model_constraints_path():
         get_model_constraints("dummy_model_config")
 
         mock_get_constraints.assert_called_once_with("dummy_model_config")
-
-
-def test_get_default_training_dict_path():
-    """Test that the path to the default training dict is correct."""
-    with patch(DEFAULT_TRAINING_DICT_PATH) as mock_factory:
-        from careamics.config.ng_configs.ng_training_configuration import (
-            default_training_dict,
-        )
-
-        # call the function to ensure the path is correct
-        default_training_dict(algorithm="care")
-
-        mock_factory.assert_called_once_with(algorithm="care")
 
 
 def test_default_unet_config():
@@ -69,27 +51,6 @@ def test_unet_configs(algorithm, config_class):
 
 
 # -------------------------- Unit tests ----------------------------
-
-
-@pytest.mark.parametrize("algorithm", ALGORITHMS)
-def test_training_config_default(algorithm):
-    """Test that the default training dict is called with the correct algorithm.
-
-    Actual `default_training_dict` is unit tested separately in its own module
-    test file. This test checks that during NGConfiguration instantiation,
-    `default_training_dict` is called once with the correct algorithm name.
-    """
-    from careamics.config.ng_configs.ng_training_configuration import (
-        default_training_dict,
-    )
-
-    unet_config_dict = unet_ng_config_dict_testing(algorithm=algorithm)
-
-    with patch(DEFAULT_TRAINING_DICT_PATH, wraps=default_training_dict) as mock:
-        instantiate_config(unet_config_dict)
-
-        mock.assert_called_once()
-        assert mock.call_args.kwargs["algorithm"] == algorithm
 
 
 @pytest.mark.parametrize(
