@@ -8,7 +8,14 @@ import numpy as np
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
-from careamics.config.data.ng_data_config import Mode, NGDataConfig, WholePatchingConfig
+from careamics.config.data.ng_data_config import (
+    Mode,
+    NGDataConfig,
+    WholePatchingConfig,
+)
+from careamics.lightning.dataset_ng.lightning_modules.constraints import (
+    ModelConstraints,
+)
 from careamics.transforms import Compose
 
 from .image_stack import GenericImageStack, ZarrImageStack
@@ -149,6 +156,9 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         Extractor for input patches.
     target_extractor : PatchExtractor or None, optional
         Extractor for target patches.
+    model_constraints : ModelConstraints, optional
+        If provided, the dataset will validate that the input patch size is compatible
+        with the model constraints. Only used for prediction datasets.
     """
 
     def __init__(
@@ -157,8 +167,9 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         patching_strategy: PatchingStrategy,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
+        model_constraints: ModelConstraints | None = None,
     ) -> None:
-        """Contructor.
+        """Constructor.
 
         Parameters
         ----------
@@ -170,12 +181,16 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             Extractor for input patches.
         target_extractor : PatchExtractor or None, optional
             Extractor for target patches.
+        model_constraints : ModelConstraints, optional
+            If provided, the dataset will validate that the input spatial shape is
+            compatible with the model constraints. Only used for prediction datasets.
         """
-        # Make sure all the image sizes are greater than the patch size for training
+        # sanity checks on the input and output data
         data_shapes = [
             image_stack.data_shape for image_stack in input_extractor.image_stacks
         ]
         if data_config.mode != Mode.PREDICTING:
+            # make sure all the image sizes are greater than the patch size for training
             if not isinstance(
                 data_config.patching, WholePatchingConfig
             ) and not _patch_size_within_data_shapes(
@@ -185,6 +200,29 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                     "Not all images sizes are greater or equal than the patch size for "
                     "training and validation."
                 )
+
+        if model_constraints is not None:
+            # model constraints not applied if there is a patch size (tiling, patching),
+            # since it is validated in the configuration
+            if isinstance(data_config.patching, WholePatchingConfig):
+                for shape in data_shapes:
+                    # raise errors if spatial shape is not compatible with model
+                    # constraints
+                    model_constraints.validate_spatial_shape(shape[2:])
+
+            # validate channels if not using a subset of channels, note that `channels`
+            # is already validated agaisnt the model in the configuration
+            if data_config.channels is None:
+                # validate input channels
+                for shape in data_shapes:
+                    model_constraints.validate_input_channels(shape[1])
+
+                # validate target channels
+                if target_extractor is not None:
+                    for image_stack in target_extractor.image_stacks:
+                        model_constraints.validate_target_channels(
+                            image_stack.data_shape[1]
+                        )
 
         self.config = data_config
 
