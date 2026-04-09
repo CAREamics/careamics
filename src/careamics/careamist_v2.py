@@ -68,12 +68,12 @@ class CAREamistV2:
 
     Parameters
     ----------
-    config : NGConfiguration | Path, default=None
+    config : NGConfiguration | Path | str, default=None
         CAREamics configuration, or a path to a configuration file. See
         `careamics.config.ng_factories` for method to build configurations.
-    checkpoint_path : Path, default=None
+    checkpoint_path : Path | str, default=None
         Path to a checkpoint file from which to load the model and configuration.
-    bmz_path : Path, default=None
+    bmz_path : Path | str, default=None
         Path to a BioImage Model Zoo archive from which to load the model and
         configuration.
     work_dir : Path | str, default=None
@@ -90,10 +90,10 @@ class CAREamistV2:
 
     def __init__(
         self,
-        config: ConfigurationType | Path | None = None,
+        config: ConfigurationType | Path | str | None = None,
         *,
-        checkpoint_path: Path | None = None,
-        bmz_path: Path | None = None,
+        checkpoint_path: Path | str | None = None,
+        bmz_path: Path | str | None = None,
         work_dir: Path | str | None = None,
         callbacks: list[Callback] | None = None,
         enable_progress_bar: bool = True,
@@ -104,14 +104,14 @@ class CAREamistV2:
 
         Parameters
         ----------
-        config : NGConfiguration | Path, default=None
+        config : NGConfiguration | Path | str, default=None
             CAREamics configuration, or a path to a configuration file. See
             `careamics.config.ng_factories` for method to build configurations. `config`
             is mutually exclusive with `checkpoint_path` and `bmz_path`.
-        checkpoint_path : Path, default=None
+        checkpoint_path : Path | str, default=None
             Path to a checkpoint file from which to load the model and configuration.
             `checkpoint_path` is mutually exclusive with `config` and `bmz_path`.
-        bmz_path : Path, default=None
+        bmz_path : Path | str, default=None
             Path to a BioImage Model Zoo archive from which to load the model and
             configuration. `bmz_path` is mutually exclusive with `config` and
             `checkpoint_path`.
@@ -160,9 +160,9 @@ class CAREamistV2:
 
     def _load_model(
         self,
-        config: ConfigurationType | Path | None,
-        checkpoint_path: Path | None,
-        bmz_path: Path | None,
+        config: ConfigurationType | Path | str | None,
+        checkpoint_path: Path | str | None,
+        bmz_path: Path | str | None,
     ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load model.
 
@@ -207,13 +207,13 @@ class CAREamistV2:
 
     @staticmethod
     def _from_config(
-        config: ConfigurationType | Path,
+        config: ConfigurationType | Path | str,
     ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Create model from configuration.
 
         Parameters
         ----------
-        config : NGConfiguration | Path
+        config : NGConfiguration | Path | str
             CAREamics configuration, or a path to a configuration file.
 
         Returns
@@ -224,22 +224,22 @@ class CAREamistV2:
         CAREamicsModule
             The created model.
         """
-        if isinstance(config, Path):
-            config = load_configuration_ng(config)
-        assert not isinstance(config, Path)
+        if isinstance(config, (Path, str)):
+            config = load_configuration_ng(Path(config))
+        assert not isinstance(config, (Path, str))
 
         model = create_module(config.algorithm_config)
         return config, model
 
     @staticmethod
     def _from_checkpoint(
-        checkpoint_path: Path,
+        checkpoint_path: Path | str,
     ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load checkpoint and configuration from checkpoint file.
 
         Parameters
         ----------
-        checkpoint_path : Path
+        checkpoint_path : Path | str
             Path to a checkpoint file from which to load the model and configuration.
 
         Returns
@@ -249,6 +249,7 @@ class CAREamistV2:
         CAREamicsModule
             The loaded model.
         """
+        checkpoint_path = Path(checkpoint_path)
         config = load_config_from_checkpoint(checkpoint_path)
         module = load_module_from_checkpoint(checkpoint_path)
 
@@ -256,13 +257,13 @@ class CAREamistV2:
 
     @staticmethod
     def _from_bmz(
-        bmz_path: Path,
+        bmz_path: Path | str,
     ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load checkpoint and configuration from a BioImage Model Zoo archive.
 
         Parameters
         ----------
-        bmz_path : Path
+        bmz_path : Path | str
             Path to a BioImage Model Zoo archive from which to load the model and
             configuration.
 
