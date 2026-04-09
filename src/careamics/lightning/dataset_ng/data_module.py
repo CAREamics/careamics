@@ -292,8 +292,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 raise ValueError("Training and validation data has not been provided.")
 
             # statistics may have been calculated now, save config to hparams
-            if stage == "fit":
-                self._save_hparams()
+            self._save_hparams()
 
         elif stage == "predict":
             if not isinstance(self._data, PredData):
@@ -341,19 +340,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def _save_hparams(self) -> None:
         """Save configuration in hyperparameters."""
-        self.save_hyperparameters(
-            {"data_config": self.config.model_dump(mode="json")},
-            ignore=[
-                "train_data",
-                "train_data_target",
-                "train_data_mask",
-                "val_data",
-                "val_data_target",
-                "pred_data",
-                "pred_data_target",
-                "loading",
-            ],
-        )
+        self.hparams.update(data_config=self.config.model_dump(mode="json"))
 
     def train_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
         """
