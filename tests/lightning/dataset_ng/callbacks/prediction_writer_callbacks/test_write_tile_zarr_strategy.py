@@ -8,11 +8,11 @@ from numpy.typing import NDArray
 
 import careamics.lightning.dataset_ng.callbacks.prediction_writer as pd_writer
 from careamics.config.data import DataConfig
-from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.factory import create_dataset
-from careamics.dataset_ng.image_stack_loader import load_arrays, load_tiffs
-from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patching_strategies import (
+from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.factory import create_dataset
+from careamics.dataset.image_stack_loader import load_arrays, load_tiffs
+from careamics.dataset.patch_extractor import PatchExtractor
+from careamics.dataset.patching_strategies import (
     PatchSpecs,
     TileSpecs,
     TilingStrategy,

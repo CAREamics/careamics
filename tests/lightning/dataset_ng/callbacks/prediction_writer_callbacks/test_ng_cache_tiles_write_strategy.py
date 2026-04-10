@@ -6,10 +6,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.image_stack_loader import load_arrays
-from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patching_strategies import (
+from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.image_stack_loader import load_arrays
+from careamics.dataset.patch_extractor import PatchExtractor
+from careamics.dataset.patching_strategies import (
     TileSpecs,
     TilingStrategy,
 )

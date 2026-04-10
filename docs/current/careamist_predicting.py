@@ -2,7 +2,7 @@
 from pathlib import Path
 import numpy as np
 from careamics.config.factories import create_n2v_config, create_care_config
-from careamics.dataset_ng.factory import ReadFuncLoading
+from careamics.dataset.factory import ReadFuncLoading
 from careamics.careamist_v2 import CAREamistV2
 import tifffile
 import shutil

@@ -9,8 +9,8 @@ from numpy.typing import NDArray
 from careamics.compat.config.data.tile_information import TileInformation
 from careamics.utils.deprecation import deprecated
 
-from ...dataset_ng.dataset import ImageRegionData
-from ...dataset_ng.patching_strategies import TileSpecs
+from ...dataset.dataset import ImageRegionData
+from ...dataset.patching_strategies import TileSpecs
 
 
 @deprecated(

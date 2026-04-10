@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import numpy as np
 from careamics.config.factories import create_n2v_config, create_care_config
-from careamics.dataset_ng.factory import ReadFuncLoading
+from careamics.dataset.factory import ReadFuncLoading
 
 # create a configuration
 config_n2v = create_n2v_config(

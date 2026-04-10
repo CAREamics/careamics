@@ -13,8 +13,8 @@ from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
 from .config.support import SupportedLogger
 from .config.utils.configuration_io import load_configuration
-from .dataset_ng.dataset import ImageRegionData
-from .dataset_ng.factory import ImageStackLoading, Loading, ReadFuncLoading
+from .dataset.dataset import ImageRegionData
+from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .file_io import WriteFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback

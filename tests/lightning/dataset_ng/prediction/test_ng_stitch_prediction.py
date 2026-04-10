@@ -7,9 +7,9 @@ from numpy.typing import NDArray
 from tifffile import imwrite
 
 from careamics.config.data import DataConfig
-from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.factory import create_dataset
-from careamics.dataset_ng.patching_strategies import TilingStrategy
+from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.factory import create_dataset
+from careamics.dataset.patching_strategies import TilingStrategy
 from careamics.lightning.dataset_ng.prediction.stitch_prediction import (
     group_tiles_by_key,
     stitch_prediction,

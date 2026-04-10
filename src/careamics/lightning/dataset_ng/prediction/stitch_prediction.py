@@ -7,8 +7,8 @@ from typing import Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.patching_strategies import TileSpecs
+from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.patching_strategies import TileSpecs
 from careamics.utils.reshape_array import restore_array
 
 

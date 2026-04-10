@@ -9,7 +9,7 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_array_extractor,
 )
 
-from careamics.dataset_ng.patching_strategies import RandomPatchingStrategy
+from careamics.dataset.patching_strategies import RandomPatchingStrategy
 
 # %%
 array = np.arange(36).reshape(6, 6)

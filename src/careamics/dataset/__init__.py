@@ -1,1 +1,1 @@
-"""Dataset utilities."""
+"""Next-generation dataset components."""

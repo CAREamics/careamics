@@ -4,7 +4,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.dataset.dataset import ImageRegionData
 from careamics.file_io import WriteFunc
 from careamics.lightning.dataset_ng.prediction import (
     stitch_single_prediction,

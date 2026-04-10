@@ -7,12 +7,12 @@ from pathlib import Path
 import zarr
 from numpy import float32
 
-from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.dataset_ng.image_stack_loader.zarr_utils import (
+from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.image_stack_loader.zarr_utils import (
     decipher_zarr_uri,
     is_valid_uri,
 )
-from careamics.dataset_ng.patching_strategies import TileSpecs, is_tile_specs
+from careamics.dataset.patching_strategies import TileSpecs, is_tile_specs
 from careamics.utils.reshape_array import (
     get_original_stitch_slices,
     restore_tile,
