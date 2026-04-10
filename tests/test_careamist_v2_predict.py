@@ -3,9 +3,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 import tifffile
+from careamics.careamist import CAREamist
 from numpy.typing import NDArray
 
-from careamics.careamist import CAREamist
 from careamics.config.factories import create_advanced_n2v_config
 
 
