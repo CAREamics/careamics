@@ -17,7 +17,7 @@ Lightning API.
 
 <div class="grid cards" markdown>
 
--   :octicons-code-24:{ .lg .middle } __CAREamist API__
+-   :octicons-code-24:{ .lg .middle } __CAREamist API (v0.1)__
 
     ---
 
@@ -26,7 +26,7 @@ Lightning API.
 
     [:octicons-arrow-right-24: CAREamist API](careamist_api/)
 
--   :octicons-zap-24:{ .lg .middle } __Lightning API__
+-   :octicons-zap-24:{ .lg .middle } __Lightning API (v0.1)__
 
     ---
 
@@ -34,17 +34,9 @@ Lightning API.
     more customization potential available.
 
     [:octicons-arrow-right-24: Lightning API](lightning_api/)
+    
 
--   :octicons-device-desktop-24:{ .lg .middle } __napari plugin__
-
-    ---
-
-    A UI interface for CAREamics in the popular napari image viewer, allowing
-    training, predicting and saving models on your own data.
-
-    [:octicons-arrow-right-24: napari plugin](https://careamics.github.io/0.1/content/guides/napari_plugin/)
-
--   :octicons-law-24:{ .lg .middle } __Developer resources__
+-   :octicons-law-24:{ .lg .middle } __Developer resources (v0.1)__
 
     ---
 
