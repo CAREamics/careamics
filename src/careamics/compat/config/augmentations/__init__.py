@@ -1,4 +1,4 @@
-"""CAREamics transformation Pydantic models."""
+"""Deprecated."""
 
 __all__ = [
     "NORM_AND_SPATIAL_UNION",
