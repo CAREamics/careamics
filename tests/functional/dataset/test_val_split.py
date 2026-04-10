@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import pytest
-from tests.functional.dataset_ng.utils import track_patching
+from tests.functional.dataset.utils import track_patching
 
 from careamics.dataset.patching_strategies import (
     StratifiedPatchingStrategy,

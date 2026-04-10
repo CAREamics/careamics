@@ -33,7 +33,7 @@ class ImageStackLoader(Protocol[P, GenericImageStack]):
 
     >>> from typing import TypedDict
     >>> from zarr.storage import FsspecStore
-    >>> from careamics.dataset_ng.image_stack import ZarrImageStack
+    >>> from careamics.dataset.image_stack import ZarrImageStack
 
     >>> # Define a zarr source
     >>> # It encompasses multiple arguments that determine what data will be loaded

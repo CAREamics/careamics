@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import pytest
-from tests.functional.dataset_ng.utils import assert_expected_pixel_probability
+from tests.functional.dataset.utils import assert_expected_pixel_probability
 from tests.utils import (
     ng_data_config_dict_testing,
     patch_filter_dict_testing,

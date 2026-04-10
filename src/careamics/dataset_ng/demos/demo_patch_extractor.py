@@ -2,10 +2,10 @@
 """Demo script for the patch extractor (run as notebook or script)."""
 
 import numpy as np
-from careamics.dataset_ng.patch_extractor.image_stack import InMemoryImageStack
+from careamics.dataset.patch_extractor.image_stack import InMemoryImageStack
 
 # %%
-from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
+from careamics.dataset.patch_extractor.patch_extractor_factory import (
     create_array_extractor,
 )
 

@@ -18,8 +18,8 @@ API using the core Lightning components directly.
 CAREamics is built around a modular architecture with the following key components:
 - Pydantic models for configuration (`careamics/config`)
 - `CAREamist` class as main entry point for users (`careamics/careamist_v2.py`)
-- A flexible and modular dataset (`careamics/dataset_ng`)
-- A set of algorithm-specific Lightning modules (`careamics/lightning/dataset_ng/lightning_modules`)
+- A flexible and modular dataset (`careamics/dataset`)
+- A set of algorithm-specific Lightning modules (`careamics/lightning/dataset/lightning_modules`)
 
 **Configuration (`careamics/config`)**
 
@@ -32,7 +32,7 @@ CAREamics is built around a modular architecture with the following key componen
 Main class that orchestrates the training and inference workflows, its API is not
 expected to change.
 
-**Datasets (`careamics/dataset_ng`)**
+**Datasets (`careamics/dataset`)**
 
 Modular dataset implementation supporting various data formats and features including
 various sampling strategies, normalizations, and filtering.
@@ -45,27 +45,27 @@ dependency inversion and single-responsibility.
 
 Modules are swappables and implemented following Python protocols:
 
-- `careamics.dataset_ng.dataset.CareamicsDataset`: NG Dataset Lightning Datamodule.
-- `careamics.dataset_ng.dataset.ImageRegionData`: Class representing the data within
+- `careamics.dataset.dataset.CareamicsDataset`: NG Dataset Lightning Datamodule.
+- `careamics.dataset.dataset.ImageRegionData`: Class representing the data within
 the pipeline.
-- `careamics.dataset_ng.image_stack.image_stack_protocol`: Interface for extracting
+- `careamics.dataset.image_stack.image_stack_protocol`: Interface for extracting
 patches from an image stack. Implementation are responsible for data loading and 
 conversion between native axes order and the expected axes order (SC(Z)YX).
-- `careamics.dataset_ng.image_stack_loader.image_stack_loader_protocol`: Interface for
+- `careamics.dataset.image_stack_loader.image_stack_loader_protocol`: Interface for
 loading image stacks from a source.
-- `careamics.dataset_ng.patch_extractor.patch_extractor`: Module responsible for 
+- `careamics.dataset.patch_extractor.patch_extractor`: Module responsible for 
 extracting patches from a list of image stacks.
-- `careamics.dataset_ng.patching_strategies.patching_strategy_protocol`: Interface for
+- `careamics.dataset.patching_strategies.patching_strategy_protocol`: Interface for
 patching strategies, defining how patches are sampled from image stacks.
 
 Similarly, normalizations and filtering are implemented as protocols.
 
-**Models (`careamics/lightning/dataset_ng/lightning_modules`)**
+**Models (`careamics/lightning/dataset/lightning_modules`)**
 
 All algorithm-specific Lightning modules are implemented here and share reusable code
 via composition.
 
-**Lightning utilities (`careamics/lightning/dataset_ng`)**
+**Lightning utilities (`careamics/lightning/dataset`)**
 
 Other useful Lightning components such as callbacks, losses etc. are implemented here.
 
