@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.transforms import ImageRestorationTTA, XYFlip, XYRandomRotate90
+from careamics.compat.transforms.tta import ImageRestorationTTA
+from careamics.transforms import XYFlip, XYRandomRotate90
 
 
 @pytest.mark.parametrize(

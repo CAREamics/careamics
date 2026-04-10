@@ -2,12 +2,8 @@ import numpy as np
 import pytest
 import yaml
 
+from careamics.compat.config.augmentations import NormalizeConfig
 from careamics.compat.config.data import DataConfig
-from careamics.config.augmentations import NormalizeConfig
-from careamics.config.support import (
-    SupportedTransform,
-)
-from careamics.transforms import get_all_transforms
 
 
 @pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr", "npy"])
@@ -142,16 +138,6 @@ def test_passing_empty_transforms(minimum_data: dict):
     """Test that empty list of transforms can be passed."""
     minimum_data["transforms"] = []
     DataConfig(**minimum_data)
-
-
-def test_passing_incorrect_element(minimum_data: dict):
-    """Test that incorrect element in the list of transforms raises an error (
-    e.g. passing un object rather than a string)."""
-    minimum_data["transforms"] = [
-        {"name": get_all_transforms()[SupportedTransform.XY_FLIP.value]()},
-    ]
-    with pytest.raises(ValueError):
-        DataConfig(**minimum_data)
 
 
 def test_no_shuffle_in_train_dataloader_params(minimum_data: dict):

@@ -10,6 +10,7 @@ from typing import Any, Union
 import numpy as np
 from torch.utils.data import Dataset
 
+from careamics.compat.config.augmentations import NormalizeConfig
 from careamics.compat.config.data import DataConfig
 from careamics.compat.dataset.patching.patching import (
     PatchedOutput,
@@ -19,9 +20,8 @@ from careamics.compat.dataset.patching.patching import (
     prepare_patches_unsupervised,
     prepare_patches_unsupervised_array,
 )
-from careamics.config.augmentations import NormalizeConfig
+from careamics.compat.transforms.compose import Compose
 from careamics.file_io.read import read_tiff
-from careamics.transforms import Compose
 from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)

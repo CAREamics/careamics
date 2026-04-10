@@ -5,7 +5,7 @@ import pytest
 import tifffile
 from numpy.typing import NDArray
 
-from careamics.careamist_v2 import CAREamistV2
+from careamics.careamist import CAREamist
 from careamics.config.factories import create_advanced_n2v_config
 
 
@@ -34,7 +34,7 @@ def test_predict_arrays_no_tiling(tmp_path: Path, batch_size: int, samples: int)
         masked_pixel_percentage=5,
     )
 
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
 
     predicted, _ = careamist.predict(train_array, batch_size=batch_size)
@@ -61,7 +61,7 @@ def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
         masked_pixel_percentage=5,
     )
 
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
 
     predicted, _ = careamist.predict(
@@ -95,7 +95,7 @@ def test_predict_path(tmp_path: Path, tiled: bool):
         masked_pixel_percentage=5,
     )
 
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_file, val_data=val_file)
 
     if tiled:
@@ -140,7 +140,7 @@ def test_predict_tiled_channel(
         masked_pixel_percentage=5,
     )
 
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
 
     predicted, _ = careamist.predict(
@@ -170,7 +170,7 @@ def test_predict_channel_subset(tmp_path: Path):
         masked_pixel_percentage=5,
     )
 
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
 
     predicted, _ = careamist.predict(
@@ -207,7 +207,7 @@ def test_predict_to_disk_path_tiff(tmp_path: Path):
         masked_pixel_percentage=5,
     )
 
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=image_dir, val_data=val_file)
 
     careamist.predict_to_disk(pred_data=image_dir)
@@ -246,7 +246,7 @@ def test_predict_to_disk_custom(tmp_path: Path):
         masked_pixel_percentage=5,
     )
 
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=image_dir, val_data=val_file)
 
     careamist.predict_to_disk(
@@ -282,7 +282,7 @@ def test_predict_to_disk_custom_raises(tmp_path: Path):
     image_dir.mkdir()
     tifffile.imwrite(image_dir / "image.tiff", random_array((32, 32)))
 
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist = CAREamist(config=config, work_dir=tmp_path)
 
     with pytest.raises(ValueError, match="write_extension"):
         careamist.predict_to_disk(
@@ -313,7 +313,7 @@ def test_predict_invalid_spatial_dims_no_tiling_raises(tmp_path: Path):
         masked_pixel_percentage=5,
     )
 
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist = CAREamist(config=config, work_dir=tmp_path)
 
     pred_array = random_array((15, 30))
 

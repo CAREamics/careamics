@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
+from careamics.config.algorithms import N2VAlgorithm
 from careamics.config.augmentations import (
     N2VManipulateConfig,
     XYFlipConfig,
@@ -13,9 +14,8 @@ from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedTransform,
 )
+from careamics.config.utils.random import generate_random_seed
 
-from ..algorithms import N2VAlgorithm
-from ..utils.random import generate_random_seed
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import create_ng_data_configuration, list_spatial_augmentations
 from .training_factory import create_training_configuration, update_trainer_params

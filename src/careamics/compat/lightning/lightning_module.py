@@ -8,6 +8,8 @@ import torch
 
 from careamics.compat.config.configuration_factories import algorithm_factory
 from careamics.compat.config.data.tile_information import TileInformation
+from careamics.compat.transforms.normalize import Denormalize, TrainDenormalize
+from careamics.compat.transforms.tta import ImageRestorationTTA
 from careamics.config import (
     N2VAlgorithm,
     PN2VAlgorithm,
@@ -27,12 +29,7 @@ from careamics.models.lvae.noise_models import (
     noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
-from careamics.transforms import (
-    Denormalize,
-    ImageRestorationTTA,
-    N2VManipulateTorch,
-    TrainDenormalize,
-)
+from careamics.transforms import N2VManipulate
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
@@ -84,7 +81,7 @@ class FCNModule(L.LightningModule):
         # create preprocessing, model and loss function
         if isinstance(self.algorithm_config, N2VAlgorithm | PN2VAlgorithm):
             self.use_n2v = True
-            self.n2v_preprocess: N2VManipulateTorch | None = N2VManipulateTorch(
+            self.n2v_preprocess: N2VManipulate | None = N2VManipulate(
                 self.algorithm_config.n2v_config
             )
         else:

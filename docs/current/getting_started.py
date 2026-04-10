@@ -11,7 +11,7 @@ pred_data = train_data
 
 # %%
 # --8<-- [start:quick_start_n2v]
-from careamics.careamist_v2 import CAREamistV2
+from careamics.careamist import CAREamist
 from careamics.config.factories import create_n2v_config
 
 # create a configuration
@@ -25,7 +25,7 @@ config = create_n2v_config(
 )
 
 # instantiate a careamist
-careamist = CAREamistV2(config)
+careamist = CAREamist(config)
 
 # train the model
 careamist.train(train_data=train_data)  # (2)!
@@ -35,7 +35,7 @@ prediction = careamist.predict(pred_data=pred_data)
 # --8<-- [end:quick_start_n2v]
 
 # --8<-- [start:quick_start_care]
-from careamics.careamist_v2 import CAREamistV2
+from careamics.careamist import CAREamist
 from careamics.config.factories import create_care_config
 
 # create a configuration
@@ -49,7 +49,7 @@ config = create_care_config(
 )
 
 # instantiate a careamist
-careamist = CAREamistV2(config)
+careamist = CAREamist(config)
 
 # train the model
 careamist.train(

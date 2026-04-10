@@ -1,18 +1,15 @@
 """Pydantic model for the N2VManipulate transform."""
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..utils.random import generate_random_seed
-from .transform_config import TransformConfig
+from careamics.config.utils.random import generate_random_seed
 
 
-# TODO should probably not be a TransformConfig anymore, no reason for it
-# `name` is used as a discriminator field in the transforms
-class N2VManipulateConfig(TransformConfig):
+class N2VManipulateConfig(BaseModel):
     """
-    Pydantic model used to represent N2V manipulation.
+    Configuration of the N2V manipulation transform.
 
     Attributes
     ----------
@@ -34,6 +31,7 @@ class N2VManipulateConfig(TransformConfig):
 
     model_config = ConfigDict(
         validate_assignment=True,
+        extra="forbid",
     )
 
     name: Literal["N2VManipulate"] = "N2VManipulate"
@@ -48,7 +46,7 @@ class N2VManipulateConfig(TransformConfig):
     """Strategy for pixel value replacement."""
 
     struct_mask_axis: Literal["horizontal", "vertical", "none"] = Field(default="none")
-    """Orientation of the structN2V mask. Set to `\"non\"` to not apply StructN2V."""
+    """Orientation of the structN2V mask. Set to `\"none\"` to not apply StructN2V."""
 
     struct_mask_span: int = Field(default=5, ge=3, le=15)
     """Size of the structN2V mask."""
@@ -80,3 +78,24 @@ class N2VManipulateConfig(TransformConfig):
         if v % 2 == 0:
             raise ValueError("Size must be an odd number.")
         return v
+
+    def model_dump(self, **kwargs) -> dict[str, Any]:
+        """
+        Return the model as a dictionary.
+
+        Parameters
+        ----------
+        **kwargs
+            Pydantic BaseMode model_dump method keyword arguments.
+
+        Returns
+        -------
+        {str: Any}
+            Dictionary representation of the model.
+        """
+        model_dict = super().model_dump(**kwargs)
+
+        # remove the name field as it is not accepted by the augmentation class
+        model_dict.pop("name")
+
+        return model_dict

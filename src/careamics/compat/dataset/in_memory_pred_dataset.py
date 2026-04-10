@@ -5,9 +5,9 @@ from __future__ import annotations
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
+from careamics.compat.config.augmentations import NormalizeConfig
 from careamics.compat.config.data import InferenceConfig
-from careamics.config.augmentations import NormalizeConfig
-from careamics.transforms import Compose
+from careamics.compat.transforms.compose import Compose
 from careamics.utils.reshape_array import reshape_array
 
 

@@ -9,11 +9,11 @@ from typing import Any
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
+from careamics.compat.config.augmentations import NormalizeConfig
 from careamics.compat.config.data import InferenceConfig
 from careamics.compat.config.data.tile_information import TileInformation
-from careamics.config.augmentations import NormalizeConfig
+from careamics.compat.transforms.compose import Compose
 from careamics.file_io.read import read_tiff
-from careamics.transforms import Compose
 
 from .dataset_utils import iterate_over_files
 from .tiling import extract_tiles

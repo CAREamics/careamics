@@ -382,7 +382,7 @@ def pre_trained(tmp_path, minimum_n2v_configuration):
 @pytest.fixture
 def pre_trained_v2(tmp_path):
     """Fixture to create a pre-trained CAREamistV2 model."""
-    from careamics.careamist_v2 import CAREamistV2
+    from careamics.careamist import CAREamist
     from careamics.config.factories import create_advanced_n2v_config
 
     # training data
@@ -401,7 +401,7 @@ def pre_trained_v2(tmp_path):
     )
 
     # instantiate CAREamistV2
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist = CAREamist(config=config, work_dir=tmp_path)
 
     # train CAREamist
     careamist.train(train_data=train_array)

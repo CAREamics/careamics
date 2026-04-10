@@ -44,7 +44,8 @@ ConfigurationType = (
     | Configuration[N2VAlgorithm]
 )
 
-class CAREamistV2:
+
+class CAREamist:
     """Main interface for training and predicting with CAREamics.
 
     Attributes
@@ -130,9 +131,7 @@ class CAREamistV2:
         self.work_dir = self._resolve_work_dir(work_dir)
 
         self.config: ConfigurationType
-        self.config, self.model = self._load_model(
-            config, checkpoint_path, bmz_path
-        )
+        self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
 
         self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
@@ -369,7 +368,7 @@ class CAREamistV2:
             CareamicsCheckpointInfo(
                 config.version,
                 config.get_safe_experiment_name(),
-                config.training_config
+                config.training_config,
             ),
         ]
 
@@ -381,9 +380,7 @@ class CAREamistV2:
 
         if config.training_config.early_stopping_params:
             internal_callbacks.append(
-                EarlyStopping(
-                    **config.training_config.early_stopping_params
-                )
+                EarlyStopping(**config.training_config.early_stopping_params)
             )
 
         return internal_callbacks + callback_lst
@@ -437,7 +434,7 @@ class CAREamistV2:
     #   The first overload will be displaced first by most code editors, this is what
     #   most users will see.
     @overload
-    def train( # numpydoc ignore=GL08
+    def train(  # numpydoc ignore=GL08
         self,
         *,
         # BASIC PARAMS
@@ -451,7 +448,7 @@ class CAREamistV2:
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
-    def train( # numpydoc ignore=GL08
+    def train(  # numpydoc ignore=GL08
         self,
         *,
         # BASIC PARAMS
@@ -524,7 +521,7 @@ class CAREamistV2:
                 f"`val_data_target`."
             )
 
-        datamodule = CareamicsDataModule( # type: ignore
+        datamodule = CareamicsDataModule(  # type: ignore
             data_config=self.config.data_config,
             train_data=train_data,
             val_data=val_data,
@@ -532,7 +529,7 @@ class CAREamistV2:
             val_data_target=val_data_target,
             train_data_mask=filtering_mask,
             model_constraints=get_model_constraints(self.config.algorithm_config.model),
-            loading=loading, # type: ignore
+            loading=loading,  # type: ignore
         )
 
         self.train_datamodule = datamodule
@@ -540,7 +537,7 @@ class CAREamistV2:
         # set parameters back to defaults, this is a guard against `stop_training`
         # which changes them in order to interrupt training gracefully
         self.trainer.should_stop = False
-        self.trainer.limit_val_batches = 1.0 # equivalent to all validation batches
+        self.trainer.limit_val_batches = 1.0  # equivalent to all validation batches
 
         self.trainer.fit(
             self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
@@ -618,20 +615,17 @@ class CAREamistV2:
         # the model level validation
         self.config.model_copy().data_config = pred_data_config
 
-
         return CareamicsDataModule(
             data_config=pred_data_config,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
-            model_constraints=get_model_constraints(
-                self.config.algorithm_config.model
-            ),
+            model_constraints=get_model_constraints(self.config.algorithm_config.model),
             loading=loading,
         )
 
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
-    def predict( # numpydoc ignore=GL08
+    def predict(  # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
         pred_data: InputVar,
@@ -646,11 +640,10 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
-    ) -> tuple[list[NDArray], list[str]]:
-        ...
+    ) -> tuple[list[NDArray], list[str]]: ...
 
     @overload  # any data input is allowed for ImageStackLoading
-    def predict( # numpydoc ignore=GL08
+    def predict(  # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
         pred_data: Any,
@@ -665,8 +658,7 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
-    ) -> tuple[list[NDArray], list[str]]:
-        ...
+    ) -> tuple[list[NDArray], list[str]]: ...
 
     def predict(
         self,
@@ -764,7 +756,7 @@ class CAREamistV2:
 
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
-    def predict_to_disk( # numpydoc ignore=GL08
+    def predict_to_disk(  # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
         pred_data: InputVar,
@@ -789,7 +781,7 @@ class CAREamistV2:
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
-    def predict_to_disk( # numpydoc ignore=GL08
+    def predict_to_disk(  # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
         pred_data: Any,

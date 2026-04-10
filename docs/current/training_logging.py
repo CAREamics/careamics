@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import numpy as np
 from careamics.config.factories import create_n2v_config
-from careamics.careamist_v2 import CAREamistV2
+from careamics.careamist import CAREamist
 
 train_data = np.random.randint(0, 255, (512, 512)).astype(np.float32)
 
@@ -13,7 +13,7 @@ config_n2v = create_n2v_config(
     batch_size=8,
     num_epochs=2,
 )
-careamist = CAREamistV2(config_n2v)
+careamist = CAREamist(config_n2v)
 
 careamist.train(train_data=train_data)
 

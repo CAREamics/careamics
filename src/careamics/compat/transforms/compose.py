@@ -4,12 +4,14 @@ from typing import Union, cast
 
 from numpy.typing import NDArray
 
-from careamics.config.augmentations import SPATIAL_TRANSFORMS_UNION
+from careamics.compat.config.augmentations import NORM_AND_SPATIAL_UNION
+from careamics.compat.transforms.normalize import Normalize
 from careamics.transforms import Transform, XYFlip, XYRandomRotate90
 
 ALL_TRANSFORMS = {
     "XYFlip": XYFlip,
     "XYRandomRotate90": XYRandomRotate90,
+    "Normalize": Normalize,
 }
 
 
@@ -28,12 +30,12 @@ class Compose:
         A callable that applies the transforms to the input data.
     """
 
-    def __init__(self, transform_list: list[SPATIAL_TRANSFORMS_UNION]) -> None:
+    def __init__(self, transform_list: list[NORM_AND_SPATIAL_UNION]) -> None:
         """Instantiate a Compose object.
 
         Parameters
         ----------
-        transform_list : list[SPATIAL_TRANSFORMS_UNION]
+        transform_list : list[NORM_AND_SPATIAL_UNION]
             A list of dictionaries where each dictionary contains the name of a
             transform and its parameters.
         """

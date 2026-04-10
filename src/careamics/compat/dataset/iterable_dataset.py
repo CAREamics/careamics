@@ -9,11 +9,11 @@ from pathlib import Path
 import numpy as np
 from torch.utils.data import IterableDataset
 
+from careamics.compat.config.augmentations import NormalizeConfig
 from careamics.compat.config.data import DataConfig
-from careamics.config.augmentations import NormalizeConfig
+from careamics.compat.transforms.compose import Compose
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.file_io.read import read_tiff
-from careamics.transforms import Compose
 from careamics.utils.logging import get_logger
 
 from .dataset_utils import iterate_over_files
