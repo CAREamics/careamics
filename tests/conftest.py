@@ -381,7 +381,7 @@ def pre_trained(tmp_path, minimum_n2v_configuration):
 
 @pytest.fixture
 def pre_trained_v2(tmp_path):
-    """Fixture to create a pre-trained CAREamistV2 model."""
+    """Fixture to create a pre-trained CAREamist model."""
     from careamics.careamist import CAREamist
     from careamics.config.factories import create_advanced_n2v_config
 
@@ -400,7 +400,7 @@ def pre_trained_v2(tmp_path):
         masked_pixel_percentage=masked_pixel_percentage,
     )
 
-    # instantiate CAREamistV2
+    # instantiate CAREamist
     careamist = CAREamist(config=config, work_dir=tmp_path)
 
     # train CAREamist

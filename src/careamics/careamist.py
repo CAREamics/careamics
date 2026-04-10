@@ -99,7 +99,7 @@ class CAREamist:
         callbacks: list[Callback] | None = None,
         enable_progress_bar: bool = True,
     ) -> None:
-        """Constructor for CAREamistV2.
+        """Constructor.
 
         Exactly one of `config`, `checkpoint_path`, or `bmz_path` must be provided.
 

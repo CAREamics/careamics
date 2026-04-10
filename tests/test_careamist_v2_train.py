@@ -1,4 +1,4 @@
-"""Tests for CAREamistV2."""
+"""Tests for CAREamist."""
 
 from pathlib import Path
 
@@ -90,7 +90,7 @@ def test_target_unsupported_warning_n2v(tmp_path: Path):
 
 @pytest.mark.mps_gh_fail
 def test_v2_train_array(tmp_path: Path):
-    """Test that CAREamistV2 can be trained on arrays."""
+    """Test that CAREamist can be trained on arrays."""
     train_array = random_array((32, 32), seed=42)
     val_array = random_array((32, 32), seed=43)
 
@@ -139,7 +139,7 @@ def test_v2_train_array_auto_val_split_small_data(tmp_path: Path):
 @pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("independent_channels", [False, True])
 def test_v2_train_array_channel(tmp_path: Path, independent_channels: bool):
-    """Test that CAREamistV2 can be trained on arrays with channels."""
+    """Test that CAREamist can be trained on arrays with channels."""
     train_array = random_array((32, 32, 3), seed=42)
     val_array = random_array((32, 32, 3), seed=43)
 
@@ -166,7 +166,7 @@ def test_v2_train_array_channel(tmp_path: Path, independent_channels: bool):
 
 @pytest.mark.mps_gh_fail
 def test_v2_train_array_3d(tmp_path: Path):
-    """Test that CAREamistV2 can be trained on 3D arrays."""
+    """Test that CAREamist can be trained on 3D arrays."""
     train_array = random_array((8, 32, 32), seed=42)
     val_array = random_array((8, 32, 32), seed=43)
 
@@ -189,7 +189,7 @@ def test_v2_train_array_3d(tmp_path: Path):
 
 @pytest.mark.mps_gh_fail
 def test_v2_train_tiff_in_memory(tmp_path: Path):
-    """Test that CAREamistV2 can be trained with tiff files in memory."""
+    """Test that CAREamist can be trained with tiff files in memory."""
     train_array = random_array((32, 32), seed=42)
     val_array = random_array((32, 32), seed=43)
 

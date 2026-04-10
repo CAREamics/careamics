@@ -19,7 +19,7 @@ def random_array(shape: tuple[int, ...], seed: int = 42) -> NDArray:
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_arrays_no_tiling(tmp_path: Path, batch_size: int, samples: int):
-    """Test that CAREamistV2 can predict on arrays without tiling."""
+    """Test that CAREamist can predict on arrays without tiling."""
     train_array = random_array((samples, 32, 32), seed=42)
     val_array = random_array((samples, 32, 32), seed=43)
 
@@ -46,7 +46,7 @@ def test_predict_arrays_no_tiling(tmp_path: Path, batch_size: int, samples: int)
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
-    """Test that CAREamistV2 can predict on arrays with tiling."""
+    """Test that CAREamist can predict on arrays with tiling."""
     train_array = random_array((samples, 32, 32), seed=42)
     val_array = random_array((samples, 32, 32), seed=43)
 
@@ -74,7 +74,7 @@ def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
 @pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("tiled", [True, False])
 def test_predict_path(tmp_path: Path, tiled: bool):
-    """Test that CAREamistV2 can predict with tiff files."""
+    """Test that CAREamist can predict with tiff files."""
     train_array = random_array((32, 32), seed=42)
     val_array = random_array((32, 32), seed=43)
 
@@ -123,7 +123,7 @@ def test_predict_tiled_channel(
     independent_channels: bool,
     batch_size: int,
 ):
-    """Test that CAREamistV2 can predict on arrays with channels and tiling."""
+    """Test that CAREamist can predict on arrays with channels and tiling."""
     train_array = random_array((3, 32, 32))
     val_array = random_array((3, 32, 32))
 
@@ -154,7 +154,7 @@ def test_predict_tiled_channel(
 @pytest.mark.skip(reason="TODO revisit after fixing stats in convert mode")
 @pytest.mark.mps_gh_fail
 def test_predict_channel_subset(tmp_path: Path):
-    """Test that CAREamistV2 can predict on a subset of channels."""
+    """Test that CAREamist can predict on a subset of channels."""
     train_array = random_array((3, 32, 32), seed=42)
     val_array = random_array((3, 32, 32), seed=43)
 
