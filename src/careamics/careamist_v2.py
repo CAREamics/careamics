@@ -9,8 +9,8 @@ from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from .config import Configuration
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from .config.configuration import Configuration
 from .config.support import SupportedLogger
 from .config.utils.configuration_io import load_configuration_ng
 from .dataset_ng.dataset import ImageRegionData

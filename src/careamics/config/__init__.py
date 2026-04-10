@@ -2,7 +2,6 @@
 
 __all__ = [
     "CAREAlgorithm",
-    "Configuration",
     "DataConfig",
     "GaussianMixtureNMConfig",
     "HDNAlgorithm",
@@ -30,7 +29,6 @@ from .algorithms import (
     VAEBasedAlgorithm,
 )
 from .architectures import LVAEConfig, UNetConfig
-from .configuration import Configuration
 from .data import DataConfig
 from .losses.loss_config import LVAELossConfig
 from .ng_factories.data_factory import create_ng_data_configuration
