@@ -1,5 +1,5 @@
 ---
-icon: lucide-graduation-cap
+icon: lucide/graduation-cap
 description: In-depth tutorials.
 ---
 
