@@ -8,7 +8,7 @@ from careamics.config.augmentations import (
     XYFlipConfig,
     XYRandomRotate90Config,
 )
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 
 from ..utils.random import generate_random_seed
 
@@ -81,7 +81,7 @@ def create_ng_data_configuration(
     val_dataloader_params: dict[str, Any] | None = None,
     pred_dataloader_params: dict[str, Any] | None = None,
     seed: int | None = None,
-) -> NGDataConfig:
+) -> DataConfig:
     """
     Create a training NGDatasetConfig.
 
@@ -131,7 +131,7 @@ def create_ng_data_configuration(
 
     Returns
     -------
-    NGDataConfig
+    DataConfig
         Next-Generation Data model with the specified parameters.
     """
     if seed is None:
@@ -180,4 +180,4 @@ def create_ng_data_configuration(
         "patch_size": patch_size,
     }
 
-    return NGDataConfig(**data)
+    return DataConfig(**data)

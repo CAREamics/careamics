@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader, Sampler
 from torch.utils.data._utils.collate import default_collate
 
-from careamics.config.data.ng_data_config import NGDataConfig
+from careamics.config.data.data_config import DataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset_ng.dataset import CareamicsDataset, ImageRegionData
 from careamics.dataset_ng.factory import (
@@ -60,7 +60,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     Parameters
     ----------
-    data_config : NGDataConfig
+    data_config : DataConfig
         Pydantic model for CAREamics data configuration.
     train_data : Any, default=None
         Training data. If custom `loading` is provided it can be any type, otherwise
@@ -125,7 +125,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(  # numpydoc ignore=GL08
         self,
-        data_config: NGDataConfig | dict[str, Any],
+        data_config: DataConfig | dict[str, Any],
         *,
         train_data: InputVar | None = None,
         train_data_target: InputVar | None = None,
@@ -142,7 +142,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(  # numpydoc ignore=GL08
         self,
-        data_config: NGDataConfig | dict[str, Any],
+        data_config: DataConfig | dict[str, Any],
         *,
         train_data: Any | None = None,
         train_data_target: Any | None = None,
@@ -157,7 +157,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: NGDataConfig | dict[str, Any],
+        data_config: DataConfig | dict[str, Any],
         *,
         train_data: Any | None = None,
         train_data_target: Any | None = None,
@@ -177,7 +177,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
         Parameters
         ----------
-        data_config : NGDataConfig
+        data_config : DataConfig
             Pydantic model for CAREamics data configuration.
         train_data : Any, default=None
             Training data. If custom `loading` is provided it can be any type, otherwise
@@ -224,10 +224,10 @@ class CareamicsDataModule(L.LightningDataModule):
         """
         super().__init__()
 
-        if isinstance(data_config, NGDataConfig):
+        if isinstance(data_config, DataConfig):
             self.config = data_config
         else:
-            self.config = NGDataConfig.model_validate(data_config)
+            self.config = DataConfig.model_validate(data_config)
 
         self.rng = np.random.default_rng(seed=self.config.seed)
 

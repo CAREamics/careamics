@@ -14,7 +14,7 @@ from careamics.config.algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
 )
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.config.ng_configs.ng_training_configuration import (
     NGTrainingConfig,
     default_training_factory,
@@ -83,7 +83,7 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: NGDataConfig
+    data_config: DataConfig
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 

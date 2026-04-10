@@ -5,7 +5,7 @@ import pytest
 import tifffile
 
 from careamics.config import create_ng_data_configuration
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.config.ng_factories.data_factory import (
     list_spatial_augmentations,
 )
@@ -197,7 +197,7 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
     rng = np.random.default_rng(42)
     example_data = rng.random(data_shape)
 
-    prediction_config = NGDataConfig(
+    prediction_config = DataConfig(
         mode="predicting",
         data_type="array",
         patching={

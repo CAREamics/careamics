@@ -87,7 +87,7 @@ def ng_data_config_dict_testing(
     patch_size: tuple[int, ...] | None = None,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Return a NGDataConfig dictionary."""
+    """Return a DataConfig dictionary."""
     if patching is None:
         match mode:
             case "training":

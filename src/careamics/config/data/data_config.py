@@ -45,7 +45,7 @@ from .patching_strategies import (
 # TODO: Validate the specific sizes of tiles and overlaps given UNet constraints
 #   - needs to be done in the Configuration
 #   - patches and overlaps sizes must also be checked against dimensionality
-#   - Should we have a UNet and a LVAE NGDataConfig subclass with specific validations?
+#   - Should we have a UNet and a LVAE DataConfig subclass with specific validations?
 
 # TODO: is 3D updated anywhere in the code in CAREamist/downstream?
 #       - this will be important when swapping the data config in Configuration
@@ -322,10 +322,10 @@ def _create_mask_filter(validated_params: dict[str, Any]) -> MaskFilterConfig | 
     return MaskFilterConfig(coverage=coverage)
 
 
-class NGDataConfig(BaseModel):
+class DataConfig(BaseModel):
     """Next-Generation Dataset configuration.
 
-    NGDataConfig are used for both training and prediction, with the patching strategy
+    DataConfig are used for both training and prediction, with the patching strategy
     determining how the data is processed. Note that `random` is the only patching
     strategy compatible with training, while `tiled` and `whole` are only used for
     prediction.
@@ -674,7 +674,7 @@ class NGDataConfig(BaseModel):
         if "batch_size" in dataloader_params:
             raise ValueError(
                 "`batch_size` should not be set in the dataloader parameters. "
-                "Use the `batch_size` field of `NGDataConfig` instead."
+                "Use the `batch_size` field of `DataConfig` instead."
             )
         return dataloader_params
 
@@ -915,7 +915,7 @@ class NGDataConfig(BaseModel):
         new_channels: Sequence[int] | Literal["all"] | None = None,
         new_in_memory: bool | None = None,
         new_dataloader_params: dict[str, Any] | None = None,
-    ) -> NGDataConfig:
+    ) -> DataConfig:
         """
         Convert a training dataset configuration to a different mode.
 
@@ -968,8 +968,8 @@ class NGDataConfig(BaseModel):
 
         Returns
         -------
-        NGDataConfig
-            New NGDataConfig with the updated mode and parameters.
+        DataConfig
+            New DataConfig with the updated mode and parameters.
 
         Raises
         ------
@@ -985,7 +985,7 @@ class NGDataConfig(BaseModel):
         if new_mode == Mode.TRAINING:
             raise ValueError(
                 "Conversion to 'training' mode is not supported. Create a new "
-                "NGDataConfig instead, for instance using "
+                "DataConfig instead, for instance using "
                 "`create_ng_data_configuration`."
             )
 
@@ -1082,4 +1082,4 @@ class NGDataConfig(BaseModel):
         del model_dict["patch_filter"]
         del model_dict["mask_filter"]
 
-        return NGDataConfig(**model_dict)
+        return DataConfig(**model_dict)

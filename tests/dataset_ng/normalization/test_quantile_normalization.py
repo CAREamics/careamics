@@ -1,6 +1,6 @@
 import numpy as np
 
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.dataset_ng.factory import create_dataset
 
 
@@ -10,7 +10,7 @@ def test_clips_outliers():
     data[0, 0] = 0.0
     data[0, 1] = 255.0
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="YX",
@@ -37,7 +37,7 @@ def test_per_channel_auto_computes_quantiles_multiple():
     ch1 = rng.normal(loc=200, scale=40, size=(128, 128)).astype(np.float32)
     data = np.stack([ch0, ch1], axis=0)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="CYX",
@@ -69,7 +69,7 @@ def test_per_channel_auto_computes_quantiles():
     ch1 = rng.normal(loc=200, scale=40, size=(128, 128)).astype(np.float32)
     data = np.stack([ch0, ch1], axis=0)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="CYX",
@@ -101,7 +101,7 @@ def test_global_auto_computes_quantiles():
     ch1 = rng.normal(loc=200, scale=40, size=(128, 128)).astype(np.float32)
     data = np.stack([ch0, ch1], axis=0)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="CYX",
@@ -126,7 +126,7 @@ def test_scalar_config_values():
     rng = np.random.default_rng(42)
     data = rng.normal(loc=100.0, scale=20.0, size=(128, 128)).astype(np.float32)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="YX",
@@ -152,7 +152,7 @@ def test_global_stats_pools_across_channels():
     ch1 = rng.normal(loc=1000, scale=1, size=(128, 128)).astype(np.float32)
     data = np.stack([ch0, ch1], axis=0)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="CYX",
@@ -183,7 +183,7 @@ def test_per_channel_quantile_levels():
     ch1 = rng.normal(loc=100, scale=20, size=(128, 128)).astype(np.float32)
     data = np.stack([ch0, ch1], axis=0)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="CYX",

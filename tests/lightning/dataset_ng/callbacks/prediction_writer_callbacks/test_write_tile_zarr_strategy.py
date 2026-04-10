@@ -7,7 +7,7 @@ import zarr
 from numpy.typing import NDArray
 
 import careamics.lightning.dataset_ng.callbacks.prediction_writer as pd_writer
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.image_stack_loader import load_arrays, load_tiffs
@@ -73,7 +73,7 @@ def gen_image_regions(
 
 
 @pytest.fixture
-def data_config(axes, shape, channels) -> NGDataConfig:
+def data_config(axes, shape, channels) -> DataConfig:
     # create tiling strategy
     if "Z" in axes:
         tile_size = (8, 16, 16)
@@ -90,7 +90,7 @@ def data_config(axes, shape, channels) -> NGDataConfig:
     else:
         n_channels = 1
 
-    return NGDataConfig(
+    return DataConfig(
         mode="predicting",
         data_type="zarr",
         patching={
@@ -111,7 +111,7 @@ def data_config(axes, shape, channels) -> NGDataConfig:
 # TODO this is very similar to the fixture in test_ng_stitch_prediction.py, refactor
 @pytest.fixture
 def tiles(
-    tmp_path, data_config: NGDataConfig, n_data, shape, shards, chunks
+    tmp_path, data_config: DataConfig, n_data, shape, shards, chunks
 ) -> tuple[NDArray, list[ImageRegionData]]:
     """Create tiles.
 

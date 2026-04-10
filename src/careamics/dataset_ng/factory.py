@@ -7,7 +7,7 @@ from typing import Any, Generic, TypeVar
 import numpy as np
 from typing_extensions import ParamSpec
 
-from careamics.config.data.ng_data_config import NGDataConfig
+from careamics.config.data.data_config import DataConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
 from careamics.lightning.dataset_ng.lightning_modules.constraints import (
@@ -97,7 +97,7 @@ class PredData(Generic[T]):
 # For lazy loading custom batch sampler also needs to be set.
 # TODO: remove this function? Or is it good for tests
 def create_dataset(
-    config: NGDataConfig,
+    config: DataConfig,
     inputs: Any,
     targets: Any,
     loading: ReadFuncLoading | ImageStackLoading | None = None,
@@ -107,7 +107,7 @@ def create_dataset(
 
     Parameters
     ----------
-    config : NGDataConfig
+    config : DataConfig
         The data configuration (data type, axes, patching, etc.).
     inputs : Any
         The input data sources (paths, arrays, or custom).
@@ -271,7 +271,7 @@ def select_image_stack_loader(
 
 
 def create_train_dataset(
-    config: NGDataConfig,
+    config: DataConfig,
     data: TrainValData[Any] | TrainValSplitData,
     loading: Loading,
     model_constraints: ModelConstraints | None = None,
@@ -280,7 +280,7 @@ def create_train_dataset(
 
     Parameters
     ----------
-    config : NGDataConfig
+    config : DataConfig
         Data configuration (must have mode='training').
     data : TrainValData | TrainValSplitData
         Train and validation data sources (and optional targets/masks).
@@ -371,7 +371,7 @@ def create_train_dataset(
 
 
 def create_train_val_datasets(
-    config: NGDataConfig,
+    config: DataConfig,
     data: TrainValData[Any],
     loading: Loading,
     model_constraints: ModelConstraints | None = None,
@@ -380,7 +380,7 @@ def create_train_val_datasets(
 
     Parameters
     ----------
-    config : NGDataConfig
+    config : DataConfig
         Data configuration (must have mode='training').
     data : TrainValData
         Train and validation data sources (and optional targets/masks).
@@ -423,7 +423,7 @@ def create_train_val_datasets(
 
 
 def create_val_split_datasets(
-    config: NGDataConfig,
+    config: DataConfig,
     data: TrainValSplitData[Any],
     loading: Loading,
     rng: np.random.Generator,
@@ -435,7 +435,7 @@ def create_val_split_datasets(
 
     Parameters
     ----------
-    config : NGDataConfig
+    config : DataConfig
         Data configuration (must have mode='training', patching.name='stratified').
     data : TrainValSplitData
         Training data sources and number of validation patches.
@@ -486,7 +486,7 @@ def create_val_split_datasets(
 
 
 def create_pred_dataset(
-    config: NGDataConfig,
+    config: DataConfig,
     data: PredData[Any],
     loading: Loading,
     model_constraints: ModelConstraints | None = None,
@@ -495,7 +495,7 @@ def create_pred_dataset(
 
     Parameters
     ----------
-    config : NGDataConfig
+    config : DataConfig
         Data configuration.
     data : PredData
         Prediction data sources.

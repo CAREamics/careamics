@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset_ng.dataset import CareamicsDataset
 from careamics.dataset_ng.grouped_index_sampler import GroupedIndexSampler
@@ -54,7 +54,7 @@ def test_not_in_mem_tiff(tmp_path: Path):
         tifffile.imwrite(path, data, metadata={"axes": "YX"})
 
     # basic config
-    config = NGDataConfig(
+    config = DataConfig(
         mode="training",
         data_type="tiff",
         axes="YX",
@@ -116,7 +116,7 @@ def test_sampler(tmp_path: Path, in_memory, correct_sampler):
         tifffile.imwrite(path, data, metadata={"axes": "YX"})
 
     # basic config
-    config = NGDataConfig(
+    config = DataConfig(
         mode="training",
         data_type="tiff",
         axes="YX",

@@ -8,7 +8,7 @@ from tests.utils import (
     patch_filter_dict_testing,
 )
 
-from careamics.config.data.ng_data_config import NGDataConfig
+from careamics.config.data.data_config import DataConfig
 from careamics.dataset_ng.factory import TrainValSplitData, create_train_dataset
 
 
@@ -39,7 +39,7 @@ def test_filter_background(
     patch_filter["threshold"] = threshold
     patch_filter["threshold_ratio"] = 0.75
     config_dict["patch_filter"] = patch_filter
-    config = NGDataConfig(**config_dict)
+    config = DataConfig(**config_dict)
 
     # data set-up
     rng = np.random.default_rng(42)
@@ -78,7 +78,7 @@ def test_filter_background_w_mask(
         patch_size=patch_size,
     )
     # mask filter should always be in the training config by default
-    config = NGDataConfig(**config_dict)
+    config = DataConfig(**config_dict)
     assert config.mask_filter is not None
     config.mask_filter.filtered_patch_prob = background_prob
 

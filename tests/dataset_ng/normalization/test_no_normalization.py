@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.dataset_ng.factory import create_dataset
 
 
@@ -9,7 +9,7 @@ def test_preserves_values():
     rng = np.random.default_rng(42)
     data = rng.integers(0, 255, size=(64, 64), dtype=np.uint8).astype(np.float32)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="YX",

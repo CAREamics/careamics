@@ -5,7 +5,7 @@ from careamics.config.augmentations import (
     XYFlipConfig,
     XYRandomRotate90Config,
 )
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.ng_factories.data_factory import (
     create_ng_data_configuration,
@@ -48,11 +48,11 @@ class TestSpatialAugmentations:
             )
 
 
-class TestNGDataConfiguration:
+class TestDataConfiguration:
 
     def test_default_aug(self):
         """Test that the default augmentations are present in the configuration."""
-        config: NGDataConfig = create_ng_data_configuration(
+        config: DataConfig = create_ng_data_configuration(
             data_type="array",
             axes="YX",
             patch_size=(16, 16),
@@ -65,7 +65,7 @@ class TestNGDataConfiguration:
 
     def test_train_dataloader_params(self):
         """Test that shuffle is added silently to the train_dataloader_params."""
-        config: NGDataConfig = create_ng_data_configuration(
+        config: DataConfig = create_ng_data_configuration(
             data_type="array",
             axes="YX",
             patch_size=(16, 16),
@@ -78,7 +78,7 @@ class TestNGDataConfiguration:
 
     def test_default_patching(self):
         """Test that the default patching strategy is random."""
-        config: NGDataConfig = create_ng_data_configuration(
+        config: DataConfig = create_ng_data_configuration(
             data_type="array",
             axes="YX",
             patch_size=(32, 32),
@@ -89,7 +89,7 @@ class TestNGDataConfiguration:
 
     def test_num_workers_explicit(self):
         """Test that an explicit num_workers value is passed through unchanged."""
-        config: NGDataConfig = create_ng_data_configuration(
+        config: DataConfig = create_ng_data_configuration(
             data_type="array",
             axes="YX",
             patch_size=(16, 16),

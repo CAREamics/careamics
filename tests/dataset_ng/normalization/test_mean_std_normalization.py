@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.dataset_ng.factory import create_dataset
 
 
@@ -9,7 +9,7 @@ def test_with_known_stats():
     rng = np.random.default_rng(42)
     data = rng.normal(loc=100.0, scale=25.0, size=(64, 64)).astype(np.float32)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="YX",
@@ -35,7 +35,7 @@ def test_auto_computes_stats():
     rng = np.random.default_rng(42)
     data = rng.integers(0, 255, size=(64, 64), dtype=np.uint8).astype(np.float32)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="YX",
@@ -59,7 +59,7 @@ def test_input_and_target_have_independent_stats():
     input_data = rng.normal(loc=50, scale=10, size=(64, 64)).astype(np.float32)
     target_data = rng.normal(loc=150, scale=30, size=(64, 64)).astype(np.float32)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="training",
         data_type="array",
         axes="YX",
@@ -89,7 +89,7 @@ def test_per_channel_auto_computes_stats():
     ch1 = rng.normal(loc=200, scale=40, size=(64, 64)).astype(np.float32)
     data = np.stack([ch0, ch1], axis=0)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="CYX",
@@ -115,7 +115,7 @@ def test_global_auto_computes_stats():
     ch1 = rng.normal(loc=200, scale=40, size=(64, 64)).astype(np.float32)
     data = np.stack([ch0, ch1], axis=0)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="CYX",
@@ -138,7 +138,7 @@ def test_scalar_config_values():
     rng = np.random.default_rng(42)
     data = rng.normal(loc=100.0, scale=25.0, size=(64, 64)).astype(np.float32)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="YX",
@@ -166,7 +166,7 @@ def test_single_value_broadcast_to_multichannel():
     ch2 = rng.normal(loc=100, scale=25, size=(64, 64)).astype(np.float32)
     data = np.stack([ch0, ch1, ch2], axis=0)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="CYX",
@@ -191,7 +191,7 @@ def test_global_stats_denormalization_round_trip():
     ch1 = rng.normal(loc=100, scale=25, size=(64, 64)).astype(np.float32)
     data = np.stack([ch0, ch1], axis=0)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="CYX",
@@ -211,7 +211,7 @@ def test_global_stats_pools_across_channels():
     ch1 = np.full((64, 64), 1000.0, dtype=np.float32)
     data = np.stack([ch0, ch1], axis=0)
 
-    config = NGDataConfig(
+    config = DataConfig(
         mode="predicting",
         data_type="array",
         axes="CYX",

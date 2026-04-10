@@ -1,7 +1,7 @@
 import zarr
 from numpy import array_equal
 
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 
 
@@ -19,7 +19,7 @@ def test_zarr_data_module(zarr_with_target_and_mask):
     val_target_uris = str(g["val_target"].store_path)
 
     # basic config
-    config = NGDataConfig(
+    config = DataConfig(
         mode="training",
         data_type="zarr",
         axes="YX",

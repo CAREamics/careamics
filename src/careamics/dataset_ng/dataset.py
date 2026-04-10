@@ -8,9 +8,9 @@ import numpy as np
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
-from careamics.config.data.ng_data_config import (
+from careamics.config.data.data_config import (
+    DataConfig,
     Mode,
-    NGDataConfig,
     WholePatchingConfig,
 )
 from careamics.lightning.dataset_ng.lightning_modules.constraints import (
@@ -148,7 +148,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     Parameters
     ----------
-    data_config : NGDataConfig
+    data_config : DataConfig
         Dataset configuration.
     patching_strategy : PatchingStrategy
         Strategy for sampling patches.
@@ -163,7 +163,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     def __init__(
         self,
-        data_config: NGDataConfig,
+        data_config: DataConfig,
         patching_strategy: PatchingStrategy,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
@@ -173,7 +173,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         Parameters
         ----------
-        data_config : NGDataConfig
+        data_config : DataConfig
             Dataset configuration.
         patching_strategy : PatchingStrategy
             Strategy for sampling patches.

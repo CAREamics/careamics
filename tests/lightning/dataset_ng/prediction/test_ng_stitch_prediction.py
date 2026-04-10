@@ -6,7 +6,7 @@ import pytest
 from numpy.typing import NDArray
 from tifffile import imwrite
 
-from careamics.config.data import NGDataConfig
+from careamics.config.data import DataConfig
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.factory import create_dataset
 from careamics.dataset_ng.patching_strategies import TilingStrategy
@@ -20,7 +20,7 @@ from careamics.utils.reshape_array import reshape_array
 
 
 @pytest.fixture
-def data_config(data_type, axes, shape, channels) -> NGDataConfig:
+def data_config(data_type, axes, shape, channels) -> DataConfig:
     # create tiling strategy
     if "Z" in axes:
         tile_size = (8, 16, 16)
@@ -37,7 +37,7 @@ def data_config(data_type, axes, shape, channels) -> NGDataConfig:
     else:
         n_channels = 1
 
-    return NGDataConfig(
+    return DataConfig(
         mode="predicting",
         data_type=data_type,
         patching={
@@ -57,7 +57,7 @@ def data_config(data_type, axes, shape, channels) -> NGDataConfig:
 
 @pytest.fixture
 def tiles(
-    tmp_path, data_config: NGDataConfig, n_data, shape
+    tmp_path, data_config: DataConfig, n_data, shape
 ) -> tuple[NDArray, list[ImageRegionData]]:
     """Create tiles.
 

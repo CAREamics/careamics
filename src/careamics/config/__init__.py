@@ -2,6 +2,7 @@
 
 __all__ = [
     "CAREAlgorithm",
+    "DataConfig",
     "GaussianMixtureNMConfig",
     "HDNAlgorithm",
     "LVAEConfig",
@@ -10,7 +11,6 @@ __all__ = [
     "MultiChannelNMConfig",
     "N2NAlgorithm",
     "N2VAlgorithm",
-    "NGDataConfig",
     "PN2VAlgorithm",
     "UNetBasedAlgorithm",
     "UNetConfig",
@@ -29,7 +29,7 @@ from .algorithms import (
     VAEBasedAlgorithm,
 )
 from .architectures import LVAEConfig, UNetConfig
-from .data import NGDataConfig
+from .data import DataConfig
 from .losses.loss_config import LVAELossConfig
 from .ng_factories.data_factory import create_ng_data_configuration
 from .noise_model import (

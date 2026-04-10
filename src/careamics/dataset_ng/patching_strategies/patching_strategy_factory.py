@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from careamics.config.data.ng_data_config import PatchingConfig
+from careamics.config.data.data_config import PatchingConfig
 from careamics.config.support.supported_patching_strategies import (
     SupportedPatchingStrategy,
 )
