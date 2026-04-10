@@ -18,7 +18,7 @@ By default, CAREamics only uses the `csv` logger, which outputs a CSV file with 
 training metrics. It can be inspected using the `CAREamist`.
 
 ```python
---8<-- "training_logging.py:csv_logger"
+--8<-- "current/training_logging.py:csv_logger"
 ```
 
 ## WandB
