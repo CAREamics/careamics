@@ -930,7 +930,7 @@ class TestGetDefaultNumWorkers:
     ):
         """Test that each platform returns the correct number of workers."""
         monkeypatch.setattr(
-            "careamics.config.data.ng_data_config.platform.system", lambda: platform
+            "careamics.config.data.data_config.platform.system", lambda: platform
         )
         monkeypatch.delitem(sys.modules, "pytest")
         assert get_default_num_workers() == expected
