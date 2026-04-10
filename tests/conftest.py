@@ -383,6 +383,7 @@ def pre_trained(tmp_path, minimum_n2v_configuration):
 def pre_trained_v2(tmp_path):
     """Fixture to create a pre-trained CAREamist model."""
     from careamics.careamist import CAREamist
+
     from careamics.config.factories import create_advanced_n2v_config
 
     # training data

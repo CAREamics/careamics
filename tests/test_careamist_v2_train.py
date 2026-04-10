@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 import tifffile
-
 from careamics.careamist import CAREamist
+
 from careamics.config.factories.care_n2n_factory import create_advanced_care_config
 from careamics.config.factories.n2v_factory import create_advanced_n2v_config
 
