@@ -10,7 +10,7 @@ description: Quick start
 The simplest form of prediction is to call `predict`, which returns the predictions.
 
 ```python title="Prediction"
---8<-- "careamist_predicting.py:pred"
+--8<-- "current/careamist_predicting.py:pred"
 ```
 
 ### Tiling
@@ -19,7 +19,7 @@ For odd-sized or large images, tiling should be used. Tiling is enabled by passi
 a `tile_size` to the prediction method.
 
 ```python title="Prediction"
---8<-- "careamist_predicting.py:pred_tiled"
+--8<-- "current/careamist_predicting.py:pred_tiled"
 ```
 
 1. The `tile_size` need not be equal to the training patch size.
@@ -55,7 +55,7 @@ During prediction, you can change the dataloading parameters by passing them to 
 `predict` method. The parameters `batch_size` and `num_workers` can be set through the `predict` function arguments, while any other parameters have to be changed through the configuration.
 
 ```python title="Prediction"
---8<-- "careamist_predicting.py:pred_dataloader"
+--8<-- "current/careamist_predicting.py:pred_dataloader"
 ```
 
 ### Data parameters
@@ -70,7 +70,7 @@ time-points. We need to set `new_axes` to `SYX` to specify the new axes order. W
 need to specify the new axes and `data_type`. Finally, we do not want to train in-memory.
 
 ```python title="Prediction"
---8<-- "careamist_predicting.py:pred_data_params"
+--8<-- "current/careamist_predicting.py:pred_data_params"
 ```
 
 1. Now, data is a path.

@@ -1,5 +1,11 @@
 # Build the configuration
 
+!!! warning "Legacy documentation"
+    This documentation is for the legacy version of CAREamics (v0.1), which is
+    accessible through the `careamics.compat` module. It is kept here for reference, but
+    we recommend using the latest version of CAREamics (v0.2) for new projects. Head to the [v0.2 guides](../v0.2/index.md).
+
+
 !!! info "Beginner vs Advanced"
 
     This is an advanced level way to create CAREamics configuration. Do check the
@@ -47,7 +53,7 @@ allows you to explore the parameters via your IDE, but also to get the validatio
 closer to the source of the error.
 
 ```python title="Building the configuration using Pydantic models"
---8<-- "build_configuration.py:pydantic"
+--8<-- "v0.1/careamist_api/configuration/build_configuration.py:pydantic"
 ```
 
 1. The Pydantic models are imported from the `careamics.config` 
@@ -85,7 +91,7 @@ errors in one go.
 Here, we reproduce the same configuration as previously, but as a dictionary this time:
 
 ```python title="Building the configuration with a dictionary"
---8<-- "build_configuration.py:as_dict"
+--8<-- "v0.1/careamist_api/configuration/build_configuration.py:as_dict"
 ```
 
 1. In order to correctly instantiate the N2V configuration via a dictionary, we have

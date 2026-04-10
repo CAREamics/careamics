@@ -1,5 +1,5 @@
 ---
-icon: lucide/house
+icon: lucide/chart-scatter
 description: Logging
 ---
 
