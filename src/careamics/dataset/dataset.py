@@ -13,7 +13,7 @@ from careamics.config.data.data_config import (
     Mode,
     WholePatchingConfig,
 )
-from careamics.lightning.dataset_ng.lightning_modules.constraints import (
+from careamics.lightning.lightning_modules.constraints import (
     ModelConstraints,
 )
 from careamics.transforms import Compose

@@ -6,9 +6,9 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from careamics_portfolio import PortfolioManager
 
 from careamics.config.factories import create_advanced_n2v_config
-from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
-from careamics.lightning.dataset_ng.lightning_modules import N2VModule
-from careamics.lightning.dataset_ng.prediction import convert_prediction
+from careamics.lightning.data_module import CareamicsDataModule
+from careamics.lightning.lightning_modules import N2VModule
+from careamics.lightning.prediction import convert_prediction
 from careamics.lightning.callbacks import CareamicsCheckpointInfo
 
 # download example data
@@ -80,7 +80,7 @@ stitched_predictions, sources = convert_prediction(  # (12)!
 # --8<-- [end:lightning_api]
 
 # --8<-- [start:predict_to_disk]
-from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
+from careamics.lightning.callbacks.prediction_writer import (
     PredictionWriterCallback,
 )
 

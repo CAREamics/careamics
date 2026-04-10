@@ -1,4 +1,4 @@
-"""Image stack protocol and type variable for dataset_ng."""
+"""Image stack protocol and type variables."""
 
 from collections.abc import Sequence
 from pathlib import Path

@@ -1,4 +1,4 @@
-"""Zarr path and URI utilities for dataset_ng loaders."""
+"""Zarr path and URI utilities for image stack loaders."""
 
 import warnings
 from pathlib import Path

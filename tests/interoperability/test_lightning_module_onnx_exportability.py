@@ -3,7 +3,7 @@ import torch
 from onnx import checker
 
 from careamics.config.factories.algorithm_factory import algorithm_factory
-from careamics.lightning.dataset_ng.lightning_modules import get_module_cls
+from careamics.lightning.lightning_modules import get_module_cls
 
 
 @pytest.mark.parametrize(

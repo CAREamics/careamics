@@ -13,7 +13,7 @@ from tests.unit.config.data.test_normalization_config import (
     NORMS_WO_NONE,
     create_norm_dict,
 )
-from tests.unit.lightning.dataset.lightning_modules.constraints import (
+from tests.unit.lightning.lightning_modules.constraints import (
     _compatible_shapes,
     _incompatible_shapes,
 )

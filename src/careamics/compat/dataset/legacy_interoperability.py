@@ -14,7 +14,7 @@ from ...dataset.patching_strategies import TileSpecs
 
 
 @deprecated(
-    "Use careamics.lightning.dataset_ng.prediction functions instead for stitching and"
+    "Use careamics.lightning.prediction functions instead for stitching and"
     " combining predictions."
 )
 def imageregions_to_tileinfos(
