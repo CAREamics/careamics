@@ -30,7 +30,6 @@ from .lightning.dataset_ng.load_checkpoint import (
 from .lightning.dataset_ng.prediction import convert_prediction
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
-from .utils.checkpoint_utils import get_checkpoint_info
 
 logger = get_logger(__name__)
 
@@ -427,19 +426,20 @@ class CAREamistV2:
             case _:
                 return [csv_logger]
 
-    def _resolve_ckpt_path(self, checkpoint: str | None) -> Path | None:
+    def _resolve_ckpt_path(self, checkpoint: str | Path | None) -> Path | None:
         """Resolve a checkpoint filename to its full path.
 
         Parameters
         ----------
-        checkpoint : str or None
-            Checkpoint filename as returned by `get_checkpoints()`.
+        checkpoint : str, Path or None
+            Checkpoint filename as returned by `get_checkpoints()` or
+            an absolute path to a checkpoint file.
 
         Returns
         -------
         Path or None
             Full path to the checkpoint file, or None if no checkpoint
-            is specified.
+                is specified.
         """
         if checkpoint is None:
             return None
@@ -656,13 +656,8 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
-<<<<<<< HEAD
-    ) -> tuple[list[NDArray], list[str]]:
-        ...
-=======
-        checkpoint: str | None = None,
+        checkpoint: str | Path | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
->>>>>>> a15bbd51 (fix careamist_v2.py and add checkpoint utils)
 
     @overload  # any data input is allowed for ImageStackLoading
     def predict( # numpydoc ignore=GL08
@@ -680,13 +675,8 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
-<<<<<<< HEAD
-    ) -> tuple[list[NDArray], list[str]]:
-        ...
-=======
-        checkpoint: str | None = None,
+        checkpoint: str | Path | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
->>>>>>> a15bbd51 (fix careamist_v2.py and add checkpoint utils)
 
     def predict(
         self,
@@ -703,7 +693,7 @@ class CAREamistV2:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: Loading = None,
-        checkpoint: str | None = None,
+        checkpoint: str | Path | None = None,
     ) -> tuple[list[NDArray], list[str]]:
         """
         Predict on data and return the predictions.
@@ -745,22 +735,13 @@ class CAREamistV2:
         in_memory : bool, optional
             Whether to load all data into memory. If None, uses the training
             configuration setting.
-<<<<<<< HEAD
         loading : Loading, default=None
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
-=======
-        read_source_func : ReadFunc, optional
-            Function to read the source data.
-        read_kwargs : dict of {str: Any}, optional
-            Additional keyword arguments to be passed to the read function.
-        extension_filter : str, default=""
-            Filter for the file extension.
         checkpoint : str, optional
             Checkpoint filename as returned by `get_checkpoints()`. If None,
             uses the current model weights.
->>>>>>> a15bbd51 (fix careamist_v2.py and add checkpoint utils)
 
         Returns
         -------
@@ -786,7 +767,7 @@ class CAREamistV2:
         )
 
         predictions: list[ImageRegionData] = self.trainer.predict(
-            model=self.model, 
+            model=self.model,
             datamodule=datamodule,
             ckpt_path=self._resolve_ckpt_path(checkpoint),
         )  # type: ignore[assignment]
@@ -821,7 +802,7 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
-        checkpoint: str | None = None,
+        checkpoint: str | Path | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -847,7 +828,7 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
-        checkpoint: str | None = None,
+        checkpoint: str | Path | None = None,
     ) -> None: ...
 
     def predict_to_disk(
@@ -872,7 +853,7 @@ class CAREamistV2:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
-        checkpoint: str | None = None,
+        checkpoint: str | Path | None = None,
     ) -> None:
         """
         Make predictions on the provided data and save outputs to files.
@@ -1005,7 +986,10 @@ class CAREamistV2:
             )
 
             self.trainer.predict(
-                model=self.model, datamodule=datamodule, return_predictions=False, ckpt_path=self._resolve_ckpt_path(checkpoint)
+                model=self.model,
+                datamodule=datamodule,
+                return_predictions=False,
+                ckpt_path=self._resolve_ckpt_path(checkpoint),
             )
 
         finally:
@@ -1104,31 +1088,27 @@ class CAREamistV2:
         self.trainer.limit_val_batches = 0  # skip validation
 
     def get_checkpoints(self) -> list[str]:
-        """Return the names of available checkpoints.
+        """Return the filenames of available checkpoints.
 
-        Scans the checkpoint directory for saved checkpoints and prints
-        a summary table showing epoch number and validation loss for each.
+        Scans the checkpoint directory and returns checkpoint filenames sorted
+        by epoch number.
 
         Returns
         -------
         list of str
-            Checkpoint filenames, sorted by epoch number.
+            Checkpoint filenames sorted by epoch number. The last checkpoint
+            (if present) is appended at the end.
         """
         checkpoint_dir = (
             self.work_dir / "checkpoints" / self.config.get_safe_experiment_name()
         )
-        info = get_checkpoint_info(
-            self.config.get_safe_experiment_name(),
-            checkpoint_dir,
-            self.work_dir / "csv_logs",
+        epoch_checkpoints = sorted(
+            p.name
+            for p in checkpoint_dir.glob("*.ckpt")
+            if not p.stem.endswith("_last")
         )
-
-        header = f"{'Epoch':>8}  {'Monitored Val':>14}  Name"
-        print(header)
-        print("-" * len(header))
-        for ckpt in info:
-            epoch_str = str(ckpt["epoch"]) if ckpt["epoch"] is not None else "last"
-            val_str = f"{ckpt['monitored_val']:.6f}" if ckpt["monitored_val"] is not None else "N/A"
-            print(f"{epoch_str:>8}  {val_str:>12}  {ckpt['name']}")
-
-        return [ckpt["name"] for ckpt in info]
+        last = [
+            p.name for p in checkpoint_dir.glob("*.ckpt")
+            if p.stem.endswith("_last")
+        ]
+        return epoch_checkpoints + last

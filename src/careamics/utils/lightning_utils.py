@@ -22,7 +22,6 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
     """
     path = Path(log_folder) / experiment_name
 
-    # find the most recent of version_* folders
     versions = [int(v.name.split("_")[-1]) for v in path.iterdir() if v.is_dir()]
     version = max(versions)
 
@@ -36,11 +35,9 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
 
         for single_line in lines[1:]:
             values = single_line.strip().split(",")
-
             for k, v in zip(header, values, strict=False):
                 metrics[k].append(v)
 
-    # train and val are not logged on the same row and can have different lengths
     train_epoch = [
         int(metrics["epoch"][i])
         for i in range(len(metrics["epoch"]))
@@ -68,23 +65,3 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
         "train_loss": train_losses,
         "val_loss": val_losses,
     }
-
-
-def _epoch_to_val_loss(losses: dict) -> dict[int, float]:
-    """Return a mapping of epoch number to monitored validation value.
-
-    Parameters
-    ----------
-    losses : dict
-        Dictionary as returned by `read_csv_logger`, containing keys
-        "val_epoch" and "val_loss".
-
-    Returns
-    -------
-    dict of int: float
-        Mapping from epoch number to monitored value. Returns an empty
-        dict if "val_loss" is not present in the losses dictionary.
-    """
-    if "val_loss" not in losses or "val_epoch" not in losses:
-        return {}
-    return dict(zip(losses["val_epoch"], losses["val_loss"], strict=False))
