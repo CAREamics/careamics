@@ -4,7 +4,7 @@
 
 def test_smoke():
     """Import CAREamist."""
-    from careamics import CAREamistV2
+    from careamics import CAREamist
     from careamics.config.factories import create_n2v_config
 
     # create configuration
@@ -15,7 +15,7 @@ def test_smoke():
         patch_size=(64, 64),
         batch_size=8,
     )
-    CAREamistV2(config=config)
+    CAREamist(config=config)
 
 
 if __name__ == "__main__":
