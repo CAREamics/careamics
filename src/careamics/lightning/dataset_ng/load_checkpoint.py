@@ -5,8 +5,7 @@ from typing import Any
 
 import torch
 
-from careamics.config.ng_configs import NGConfiguration
-from careamics.config.ng_configs.ng_configuration import AlgorithmConfig
+from careamics.config.configuration import AlgorithmConfig, Configuration
 from careamics.config.ng_factories.ng_config_discriminator import instantiate_config
 from careamics.config.support import SupportedAlgorithm
 
@@ -55,7 +54,7 @@ def load_module_from_checkpoint(checkpoint_path: Path) -> CAREamicsModule:
 
 def load_config_from_checkpoint(
     checkpoint_path: Path,
-) -> NGConfiguration[AlgorithmConfig]:
+) -> Configuration[AlgorithmConfig]:
     """
     Load a CAREamics config from a checkpoint.
 

@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config.ng_configs import N2VConfiguration
+from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.ng_factories import (
     create_advanced_n2v_config,
     create_n2v_config,

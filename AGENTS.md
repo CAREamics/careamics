@@ -23,7 +23,7 @@ CAREamics is built around a modular architecture with the following key componen
 
 **Configuration (`careamics/config`)**
 
-- `careamics.config.ng_configs.ng_configuration.py`: Parent configuration performing parameter validation
+- `careamics.config.ng_configs.configuration.py`: Parent configuration performing parameter validation
 - `careamics.config.ng_configs`: Module with all algorithm-specific configurations
 - `careamics.config.ng_factories`: Convenience functions to create configurations
 

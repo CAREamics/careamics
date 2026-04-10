@@ -15,8 +15,8 @@ from careamics.config.algorithms import (
     N2VAlgorithm,
 )
 from careamics.config.data import DataConfig
-from careamics.config.ng_configs.ng_training_configuration import (
-    NGTrainingConfig,
+from careamics.config.lightning.training_configuration import (
+    TrainingConfig,
     default_training_factory,
 )
 from careamics.lightning.dataset_ng.lightning_modules.constraints import (
@@ -26,7 +26,7 @@ from careamics.lightning.dataset_ng.lightning_modules.constraints import (
 AlgorithmConfig = TypeVar("AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm)
 
 
-class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
+class Configuration(BaseModel, Generic[AlgorithmConfig]):
     """CAREamics configuration.
 
     The configuration defines all parameters used to build and train a CAREamics model.
@@ -87,7 +87,7 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
-    training_config: NGTrainingConfig = Field(default_factory=default_training_factory)
+    training_config: TrainingConfig = Field(default_factory=default_training_factory)
     """Training configuration, holding all parameters required to configure the
     training process."""
 

@@ -6,11 +6,11 @@ import pytest
 from pytorch_lightning import Callback, Trainer
 
 from careamics.compat.careamist import CAREamist
-from careamics.compat.config import Configuration
+from careamics.compat.config import Configuration as ConfigurationV1
 from careamics.compat.model_io import export_to_bmz
-from careamics.config.ng_configs import NGConfiguration
-from careamics.config.ng_configs.ng_training_configuration import (
-    NGTrainingConfig,
+from careamics.config.configuration import Configuration
+from careamics.config.lightning.training_configuration import (
+    TrainingConfig,
     default_training_dict,
 )
 from careamics.config.ng_factories import (
@@ -358,7 +358,7 @@ def pre_trained(tmp_path, minimum_n2v_configuration):
     train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)
 
     # create configuration
-    config = Configuration(**minimum_n2v_configuration)
+    config = ConfigurationV1(**minimum_n2v_configuration)
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
     config.data_config.data_type = SupportedData.ARRAY.value
@@ -493,7 +493,7 @@ def _checkpoint_trainer(request):
             info_callback = CareamicsCheckpointInfo(
                 careamics_version="0.2.0",
                 experiment_name="testing",
-                training_config=NGTrainingConfig(
+                training_config=TrainingConfig(
                     **default_training_dict(algorithm=algorithm)
                 ),
             )
@@ -511,7 +511,7 @@ def checkpoint(
     request,
     _checkpoint_trainer: tuple[Trainer, CareamicsCheckpointInfo | None],
     tmp_path: Path,
-) -> tuple[Path, type[N2VModule] | type[CAREModule], NGConfiguration]:
+) -> tuple[Path, type[N2VModule] | type[CAREModule], Configuration]:
     """
     Fixture producing a checkpoint with the expected module type and expected config.
 
@@ -521,7 +521,7 @@ def checkpoint(
         The path to the checkpoint
     expected_module_cls : type[N2VModule] | type[CAREModule]
         The expected module class type saved in the checkpoint.
-    expected_config : NGConfiguration
+    expected_config : Configuration
         The expected config saved in the checkpoint.
     """
 
@@ -584,8 +584,6 @@ def checkpoint(
         config.training_config = info_callback.training_config
     else:
         config.experiment_name = _create_loaded_exp_name(ckpt_path)
-        config.training_config = NGTrainingConfig(
-            **default_training_dict(request.param)
-        )
+        config.training_config = TrainingConfig(**default_training_dict(request.param))
 
     return ckpt_path, module_cls, config

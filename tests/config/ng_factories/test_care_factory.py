@@ -1,7 +1,7 @@
 import pytest
 
 from careamics.config.algorithms import CAREAlgorithm
-from careamics.config.ng_configs import NGConfiguration
+from careamics.config.configuration import Configuration
 from careamics.config.ng_factories import (
     create_advanced_care_config,
     create_care_config,
@@ -20,7 +20,7 @@ class TestStandardConfig:
             patch_size=[64, 64],
             batch_size=8,
         )
-        assert isinstance(config, NGConfiguration)
+        assert isinstance(config, Configuration)
         assert isinstance(config.algorithm_config, CAREAlgorithm)
 
     def test_no_aug(self):
@@ -132,7 +132,7 @@ class TestAdvancedCAREConfig:
         """Test that num_workers can be set and overrriden by train dataloader."""
         num_workers = 4
 
-        config: NGConfiguration = create_advanced_care_config(
+        config: Configuration = create_advanced_care_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -146,7 +146,7 @@ class TestAdvancedCAREConfig:
 
         # test overrride
         alt_num_workers = 2
-        config: NGConfiguration = create_advanced_care_config(
+        config: Configuration = create_advanced_care_config(
             experiment_name="test",
             data_type="tiff",
             axes="YX",

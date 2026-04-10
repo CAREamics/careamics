@@ -4,10 +4,10 @@ from types import SimpleNamespace
 import pytest
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from careamics.config.ng_configs.ng_training_configuration import (
-    NGTrainingConfig,
+from careamics.config.lightning.training_configuration import (
     SelfSupervisedCheckpointing,
     SupervisedCheckpointing,
+    TrainingConfig,
     default_training_dict,
     default_training_factory,
 )
@@ -35,7 +35,7 @@ def test_default_training_dict(algo, checkpoint_params):
         algorithm=algo,
         checkpoint_params=checkpoint_params,
     )
-    NGTrainingConfig(**config)
+    TrainingConfig(**config)
 
 
 @pytest.mark.parametrize("algo", ["care", "n2n", "n2v"])
@@ -49,7 +49,7 @@ def test_default_training_factory(algo):
     }
 
     config = default_training_factory(validated_dict)
-    assert isinstance(config, NGTrainingConfig)
+    assert isinstance(config, TrainingConfig)
 
     # check the algorithm defaults
     if algo == "care":

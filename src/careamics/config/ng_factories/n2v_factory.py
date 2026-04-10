@@ -8,7 +8,7 @@ from careamics.config.augmentations import (
     XYFlipConfig,
     XYRandomRotate90Config,
 )
-from careamics.config.ng_configs import N2VConfiguration
+from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedTransform,

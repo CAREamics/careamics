@@ -8,10 +8,10 @@ from pydantic import model_validator
 from careamics.config.algorithms import N2VAlgorithm
 from careamics.config.data.patching_strategies import WholePatchingConfig
 
-from .ng_configuration import NGConfiguration
+from .configuration import Configuration
 
 
-class N2VConfiguration(NGConfiguration):
+class N2VConfiguration(Configuration):
     """N2V-specific configuration."""
 
     algorithm_config: N2VAlgorithm

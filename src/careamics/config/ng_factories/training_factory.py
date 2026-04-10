@@ -2,8 +2,8 @@
 
 from typing import Any, Literal
 
-from careamics.config.ng_configs.ng_training_configuration import (
-    NGTrainingConfig,
+from careamics.config.lightning.training_configuration import (
+    TrainingConfig,
     default_training_dict,
 )
 
@@ -15,7 +15,7 @@ def create_training_configuration(
     checkpoint_params: dict[str, Any] | None = None,
     early_stopping_params: dict[str, Any] | None = None,
     monitor_metric: str = "val_loss",
-) -> NGTrainingConfig:
+) -> TrainingConfig:
     """
     Create a dictionary with the parameters of the training model.
 
@@ -40,10 +40,10 @@ def create_training_configuration(
 
     Returns
     -------
-    NGTrainingConfig
+    TrainingConfig
         Training configuration with the specified parameters.
     """
-    return NGTrainingConfig(
+    return TrainingConfig(
         **default_training_dict(
             algorithm=algorithm,
             trainer_params=trainer_params,

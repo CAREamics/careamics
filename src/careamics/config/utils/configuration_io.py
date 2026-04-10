@@ -5,7 +5,7 @@ from typing import Union
 
 import yaml
 
-from careamics.config.ng_configs import NGConfiguration
+from careamics.config.configuration import Configuration
 from careamics.config.ng_factories.ng_config_discriminator import (
     NGConfigs,
     instantiate_config,
@@ -42,13 +42,13 @@ def load_configuration_ng(path: Union[str, Path]) -> NGConfigs:
     return instantiate_config(dictionary)
 
 
-def save_configuration(config: NGConfiguration, path: Union[str, Path]) -> Path:
+def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     """
     Save configuration to path.
 
     Parameters
     ----------
-    config : NGConfiguration
+    config : Configuration
         Configuration to save.
     path : str or Path
         Path to a existing folder in which to save the configuration, or to a valid

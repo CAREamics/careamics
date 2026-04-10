@@ -8,7 +8,7 @@ from careamics.config.augmentations import (
     XYFlipConfig,
     XYRandomRotate90Config,
 )
-from careamics.config.ng_configs import NGConfiguration
+from careamics.config.configuration import Configuration
 
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import create_ng_data_configuration, list_spatial_augmentations
@@ -30,7 +30,7 @@ def create_care_config(
     n_val_patches: int = 8,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
-) -> NGConfiguration[CAREAlgorithm]:
+) -> Configuration[CAREAlgorithm]:
     """
     Create a configuration for training CARE.
 
@@ -79,7 +79,7 @@ def create_care_config(
 
     Returns
     -------
-    NGConfiguration
+    Configuration
         Configuration for training CARE.
     """
     return create_advanced_care_config(**locals())
@@ -100,7 +100,7 @@ def create_n2n_config(
     n_val_patches: int = 8,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
-) -> NGConfiguration[N2NAlgorithm]:
+) -> Configuration[N2NAlgorithm]:
     """
     Create a configuration for training Noise2Noise.
 
@@ -149,7 +149,7 @@ def create_n2n_config(
 
     Returns
     -------
-    NGConfiguration
+    Configuration
         Configuration for training Noise2Noise.
     """
     return create_advanced_n2n_config(**locals())
@@ -190,7 +190,7 @@ def create_advanced_care_config(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     # - reproducibility
     seed: int | None = None,
-) -> NGConfiguration[CAREAlgorithm]:
+) -> Configuration[CAREAlgorithm]:
     """
     Create a configuration for training CARE.
 
@@ -298,12 +298,12 @@ def create_advanced_care_config(
 
     Returns
     -------
-    NGConfiguration
+    Configuration
         Configuration for training CARE.
     """
     config_dict = _create_advanced_supervised_config(algorithm="care", **locals())
 
-    return NGConfiguration(**config_dict)
+    return Configuration(**config_dict)
 
 
 def create_advanced_n2n_config(
@@ -339,7 +339,7 @@ def create_advanced_n2n_config(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     # - reproducibility
     seed: int | None = None,
-) -> NGConfiguration[N2NAlgorithm]:
+) -> Configuration[N2NAlgorithm]:
     """
     Create a configuration for training Noise2Noise.
 
@@ -444,12 +444,12 @@ def create_advanced_n2n_config(
 
     Returns
     -------
-    NGConfiguration
+    Configuration
         Configuration for training Noise2Noise.
     """
     config_dict = _create_advanced_supervised_config(algorithm="n2n", **locals())
 
-    return NGConfiguration(**config_dict)
+    return Configuration(**config_dict)
 
 
 def _create_advanced_supervised_config(

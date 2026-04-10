@@ -1,11 +1,12 @@
-"""Unit tests for the NGConfiguration Pydantic model."""
+"""Unit tests for the Configuration Pydantic model."""
 
 import itertools
 from contextlib import nullcontext
 
 import pytest
 
-from careamics.config.ng_configs import N2VConfiguration, NGConfiguration
+from careamics.config.configuration import Configuration
+from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.ng_factories.ng_config_discriminator import instantiate_config
 from tests.unit.config.data.test_normalization_config import (
     NORMS_W_NONE,
@@ -20,14 +21,14 @@ from tests.utils import unet_ng_config_dict_testing
 
 # algorithms and their expected config classes for testing
 ALGORITHMS = ["care", "n2n", "n2v"]
-ALGORITHMS_CONFIGS = [NGConfiguration, NGConfiguration, N2VConfiguration]
+ALGORITHMS_CONFIGS = [Configuration, Configuration, N2VConfiguration]
 
 
 # ------------------------ Test utilities --------------------------
 
 
 def test_default_unet_config():
-    """Test that the default NGConfiguration can be created."""
+    """Test that the default Configuration can be created."""
     unet_config_dict = unet_ng_config_dict_testing()
     instantiate_config(unet_config_dict)
 
@@ -36,7 +37,7 @@ def test_default_unet_config():
     "algorithm, config_class", list(zip(ALGORITHMS, ALGORITHMS_CONFIGS, strict=True))
 )
 def test_unet_configs(algorithm, config_class):
-    """Test that an NGConfiguration can be created for each UNet-based algorithm."""
+    """Test that an Configuration can be created for each UNet-based algorithm."""
     unet_config_dict = unet_ng_config_dict_testing(algorithm=algorithm)
     cfg = instantiate_config(unet_config_dict)
     assert isinstance(cfg, config_class)

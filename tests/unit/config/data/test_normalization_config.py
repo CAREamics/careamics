@@ -230,7 +230,7 @@ def test_optional_parameters_creation(norm, n_channels, per_channel):
         create_norm_dict(norm, length=n_channels, per_channel=per_channel)
     )
     # validate the size, this validation method is not run by the normalization config
-    # itself, but by the NGConfiguration validation
+    # itself, but by the Configuration validation
     cfg.validate_size(n_channels, n_channels)
 
 

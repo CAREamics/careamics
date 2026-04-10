@@ -9,8 +9,8 @@ from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
+from .config import Configuration
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
-from .config.ng_configs import NGConfiguration
 from .config.support import SupportedLogger
 from .config.utils.configuration_io import load_configuration_ng
 from .dataset_ng.dataset import ImageRegionData
@@ -39,9 +39,9 @@ PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
 
 ConfigurationType = (
-    NGConfiguration[CAREAlgorithm]
-    | NGConfiguration[N2NAlgorithm]
-    | NGConfiguration[N2VAlgorithm]
+    Configuration[CAREAlgorithm]
+    | Configuration[N2NAlgorithm]
+    | Configuration[N2VAlgorithm]
 )
 
 class CAREamistV2:
@@ -51,7 +51,7 @@ class CAREamistV2:
     ----------
     workdir : Path
         Working directory in which to save training outputs.
-    config : NGConfiguration[AlgorithmConfig]
+    config : Configuration[AlgorithmConfig]
         CAREamics configuration.
     model : CAREamicsModule
         The PyTorch Lightning module to be trained and used for prediction.
@@ -68,7 +68,7 @@ class CAREamistV2:
 
     Parameters
     ----------
-    config : NGConfiguration | Path | str, default=None
+    config : Configuration | Path | str, default=None
         CAREamics configuration, or a path to a configuration file. See
         `careamics.config.ng_factories` for method to build configurations.
     checkpoint_path : Path | str, default=None
@@ -83,7 +83,7 @@ class CAREamistV2:
         List of callbacks to use during training. If None, no additional callbacks
         will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
         already defined in CAREamics and should only be modified through the
-        training configuration (see NGConfiguration and TrainingConfig).
+        training configuration (see Configuration and TrainingConfig).
     enable_progress_bar : bool, default=True
         Whether to show the progress bar during training.
     """
@@ -104,7 +104,7 @@ class CAREamistV2:
 
         Parameters
         ----------
-        config : NGConfiguration | Path | str, default=None
+        config : Configuration | Path | str, default=None
             CAREamics configuration, or a path to a configuration file. See
             `careamics.config.ng_factories` for method to build configurations. `config`
             is mutually exclusive with `checkpoint_path` and `bmz_path`.
@@ -122,7 +122,7 @@ class CAREamistV2:
             List of callbacks to use during training. If None, no additional callbacks
             will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
             already defined in CAREamics and should only be modified through the
-            training configuration (see NGConfiguration and TrainingConfig).
+            training configuration (see Configuration and TrainingConfig).
         enable_progress_bar : bool, default=True
             Whether to show the progress bar during training.
         """
@@ -168,7 +168,7 @@ class CAREamistV2:
 
         Parameters
         ----------
-        config : NGConfiguration | Path | None
+        config : Configuration | Path | None
             CAREamics configuration, or a path to a configuration file.
         checkpoint_path : Path | None
             Path to a checkpoint file from which to load the model and configuration.
@@ -178,7 +178,7 @@ class CAREamistV2:
 
         Returns
         -------
-        NGConfiguration
+        Configuration
             The loaded configuration.
         CAREamicsModule
             The loaded model.
@@ -213,12 +213,12 @@ class CAREamistV2:
 
         Parameters
         ----------
-        config : NGConfiguration | Path | str
+        config : Configuration | Path | str
             CAREamics configuration, or a path to a configuration file.
 
         Returns
         -------
-        NGConfiguration
+        Configuration
             The loaded configuration if a path was provided, otherwise the original
             configuration.
         CAREamicsModule
@@ -244,7 +244,7 @@ class CAREamistV2:
 
         Returns
         -------
-        NGConfiguration
+        Configuration
             The loaded configuration.
         CAREamicsModule
             The loaded model.
@@ -269,7 +269,7 @@ class CAREamistV2:
 
         Returns
         -------
-        NGConfiguration
+        Configuration
             The loaded configuration.
         CAREamicsModule
             The loaded model.
@@ -320,7 +320,7 @@ class CAREamistV2:
             List of callbacks to use during training. If None, no additional callbacks
             will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
             already defined in CAREamics and instantiated in this method.
-        config : NGConfiguration
+        config : Configuration
             The CAREamics configuration, used to instantiate the callbacks.
         work_dir : Path
             The working directory, used as a parameter to the checkpointing callback.
@@ -336,7 +336,7 @@ class CAREamistV2:
             If `ModelCheckpoint` or `EarlyStopping` callbacks are included in the
             provided `callbacks` list, as these are already defined in CAREamics and
             should only be modified through the training configuration (see
-            NGConfiguration and TrainingConfig).
+            Configuration and TrainingConfig).
         """
         callback_lst: list[Callback] = [] if callbacks is None else callbacks
         for c in callback_lst:

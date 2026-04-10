@@ -5,9 +5,9 @@ from typing import Annotated, Any, Union
 from pydantic import Discriminator, Tag, TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from careamics.config.configuration import Configuration
 from careamics.config.data.normalization_config import NormalizationConfig
-from careamics.config.ng_configs import N2VConfiguration
-from careamics.config.ng_configs.ng_configuration import NGConfiguration
+from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import SupportedAlgorithm
 
 
@@ -57,8 +57,8 @@ def _algo_disciminator(algo: Any) -> SupportedAlgorithm | None:
 NGConfigs = Annotated[
     Union[
         Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],
-        Annotated[NGConfiguration, Tag(SupportedAlgorithm.CARE)],
-        Annotated[NGConfiguration, Tag(SupportedAlgorithm.N2N)],
+        Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
+        Annotated[Configuration, Tag(SupportedAlgorithm.N2N)],
     ],
     Discriminator(_config_disciminator),
 ]
