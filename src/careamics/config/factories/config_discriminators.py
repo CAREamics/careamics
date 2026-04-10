@@ -11,7 +11,7 @@ from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import SupportedAlgorithm
 
 
-def _config_disciminator(v: Any) -> SupportedAlgorithm | None:
+def _config_discriminator(v: Any) -> SupportedAlgorithm | None:
     """
     Extract algorithm type from configuration dict for Pydantic discriminator.
 
@@ -33,7 +33,7 @@ def _config_disciminator(v: Any) -> SupportedAlgorithm | None:
     return alg_config.get("algorithm", None)
 
 
-def _algo_disciminator(algo: Any) -> SupportedAlgorithm | None:
+def _algo_discriminator(algo: Any) -> SupportedAlgorithm | None:
     """
     Extract algorithm type from dict for Pydantic discriminator.
 
@@ -54,28 +54,28 @@ def _algo_disciminator(algo: Any) -> SupportedAlgorithm | None:
 
 # ------------------------ Unions --------------------------
 
-NGConfigs = Annotated[
+NGConfig = Annotated[
     Union[
         Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
         Annotated[Configuration, Tag(SupportedAlgorithm.N2N)],
     ],
-    Discriminator(_config_disciminator),
+    Discriminator(_config_discriminator),
 ]
 
-NGAlgos = Annotated[
+NGAlgo = Annotated[
     Union[
         Annotated[N2VAlgorithm, Tag(SupportedAlgorithm.N2V)],
         Annotated[CAREAlgorithm, Tag(SupportedAlgorithm.CARE)],
         Annotated[N2NAlgorithm, Tag(SupportedAlgorithm.N2N)],
     ],
-    Discriminator(_algo_disciminator),
+    Discriminator(_algo_discriminator),
 ]
 
 # ------------------------ Validators --------------------------
 
 
-def instantiate_config(config: dict[str, Any]) -> NGConfigs:
+def instantiate_config(config: dict[str, Any]) -> NGConfig:
     """
     Instantiate a NG configuration from a configuration dictionary.
 
@@ -89,7 +89,7 @@ def instantiate_config(config: dict[str, Any]) -> NGConfigs:
 
     Returns
     -------
-    NGConfigs
+    NGConfig
         Validated configuration as an NGConfig.
 
     Raises
@@ -97,11 +97,11 @@ def instantiate_config(config: dict[str, Any]) -> NGConfigs:
     ValueError
         If the configuration is not valid.
     """
-    adapter: TypeAdapter[NGConfigs] = TypeAdapter(NGConfigs)
+    adapter: TypeAdapter[NGConfig] = TypeAdapter(NGConfig)
     return adapter.validate_python(config)
 
 
-def instantiate_algorithm_config(config: dict[str, Any]) -> NGAlgos:
+def instantiate_algorithm_config(config: dict[str, Any]) -> NGAlgo:
     """
     Instantiate an algorithm configuration from a configuration dictionary.
 
@@ -116,7 +116,7 @@ def instantiate_algorithm_config(config: dict[str, Any]) -> NGAlgos:
 
     Returns
     -------
-    NGAlgos
+    NGAlgo
         Validated configuration as one of the UNetBasedAlgorithm configurations.
 
     Raises
@@ -124,7 +124,7 @@ def instantiate_algorithm_config(config: dict[str, Any]) -> NGAlgos:
     ValueError
         If the configuration is not valid.
     """
-    adapter: TypeAdapter[NGAlgos] = TypeAdapter(NGAlgos)
+    adapter: TypeAdapter[NGAlgo] = TypeAdapter(NGAlgo)
     return adapter.validate_python(config)
 
 

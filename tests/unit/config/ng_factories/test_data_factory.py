@@ -7,7 +7,7 @@ from careamics.config.augmentations import (
 )
 from careamics.config.data import DataConfig
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
-from careamics.config.ng_factories.data_factory import (
+from careamics.config.factories.data_factory import (
     create_ng_data_configuration,
     list_spatial_augmentations,
 )

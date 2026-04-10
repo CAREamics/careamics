@@ -12,7 +12,7 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
 from .config.support import SupportedLogger
-from .config.utils.configuration_io import load_configuration_ng
+from .config.utils.configuration_io import load_configuration
 from .dataset_ng.dataset import ImageRegionData
 from .dataset_ng.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .file_io import WriteFunc
@@ -225,7 +225,7 @@ class CAREamistV2:
             The created model.
         """
         if isinstance(config, (Path, str)):
-            config = load_configuration_ng(Path(config))
+            config = load_configuration(Path(config))
         assert not isinstance(config, (Path, str))
 
         model = create_module(config.algorithm_config)

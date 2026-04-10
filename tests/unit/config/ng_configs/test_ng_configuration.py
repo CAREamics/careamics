@@ -6,8 +6,8 @@ from contextlib import nullcontext
 import pytest
 
 from careamics.config.configuration import Configuration
+from careamics.config.factories.config_discriminators import instantiate_config
 from careamics.config.n2v_configuration import N2VConfiguration
-from careamics.config.ng_factories.ng_config_discriminator import instantiate_config
 from tests.unit.config.data.test_normalization_config import (
     NORMS_W_NONE,
     NORMS_WO_NONE,

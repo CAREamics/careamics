@@ -1,4 +1,4 @@
-from careamics.config.ng_factories.algorithm_factory import (
+from careamics.config.factories.algorithm_factory import (
     create_algorithm_configuration,
 )
 

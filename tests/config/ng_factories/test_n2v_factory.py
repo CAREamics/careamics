@@ -1,11 +1,11 @@
 import pytest
 
-from careamics.config.n2v_configuration import N2VConfiguration
-from careamics.config.ng_factories import (
+from careamics.config.factories import (
     create_advanced_n2v_config,
     create_n2v_config,
     create_structn2v_config,
 )
+from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedStructAxis,

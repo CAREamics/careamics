@@ -9,7 +9,7 @@ from careamics.config.data.normalization_config import (
     NoNormConfig,
     QuantileConfig,
 )
-from careamics.config.ng_factories.ng_config_discriminator import (
+from careamics.config.factories.config_discriminators import (
     instantiate_norm_config,
 )
 

@@ -7,8 +7,8 @@ import pytest
 import tifffile
 
 from careamics.careamist_v2 import CAREamistV2
-from careamics.config.ng_factories.care_n2n_factory import create_advanced_care_config
-from careamics.config.ng_factories.n2v_factory import create_advanced_n2v_config
+from careamics.config.factories.care_n2n_factory import create_advanced_care_config
+from careamics.config.factories.n2v_factory import create_advanced_n2v_config
 
 
 def random_array(shape: tuple[int, ...], seed: int = 42):

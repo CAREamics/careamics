@@ -6,7 +6,7 @@ from typing import Any
 import torch
 
 from careamics.config.configuration import AlgorithmConfig, Configuration
-from careamics.config.ng_factories.ng_config_discriminator import instantiate_config
+from careamics.config.factories.config_discriminators import instantiate_config
 from careamics.config.support import SupportedAlgorithm
 
 from .lightning_modules import CAREModule, N2VModule

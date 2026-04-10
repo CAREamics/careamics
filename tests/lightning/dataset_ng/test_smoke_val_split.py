@@ -5,7 +5,7 @@ import pytest
 from pytorch_lightning import Callback, Trainer
 
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 from careamics.lightning.dataset_ng.lightning_modules import N2VModule
 

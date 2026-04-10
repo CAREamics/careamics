@@ -1,7 +1,7 @@
 import pytest
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
-from careamics.config.ng_factories.ng_config_discriminator import (
+from careamics.config.factories.config_discriminators import (
     instantiate_algorithm_config,
 )
 from tests.utils import unet_ng_algo_dict_testing

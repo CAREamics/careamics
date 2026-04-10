@@ -2,7 +2,7 @@ import pytest
 
 from careamics.config.algorithms import CAREAlgorithm
 from careamics.config.configuration import Configuration
-from careamics.config.ng_factories import (
+from careamics.config.factories import (
     create_advanced_care_config,
     create_care_config,
 )

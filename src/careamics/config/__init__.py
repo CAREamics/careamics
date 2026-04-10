@@ -30,8 +30,8 @@ from .algorithms import (
 )
 from .architectures import LVAEConfig, UNetConfig
 from .data import DataConfig
+from .factories.data_factory import create_ng_data_configuration
 from .losses.loss_config import LVAELossConfig
-from .ng_factories.data_factory import create_ng_data_configuration
 from .noise_model import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,

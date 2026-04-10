@@ -6,13 +6,13 @@ from typing import Union
 import yaml
 
 from careamics.config.configuration import Configuration
-from careamics.config.ng_factories.ng_config_discriminator import (
-    NGConfigs,
+from careamics.config.factories.config_discriminators import (
+    NGConfig,
     instantiate_config,
 )
 
 
-def load_configuration_ng(path: Union[str, Path]) -> NGConfigs:
+def load_configuration(path: Union[str, Path]) -> NGConfig:
     """
     Load configuration from a yaml file.
 
@@ -23,7 +23,7 @@ def load_configuration_ng(path: Union[str, Path]) -> NGConfigs:
 
     Returns
     -------
-    Configuration
+    NGConfigs
         Configuration.
 
     Raises
@@ -48,7 +48,7 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
 
     Parameters
     ----------
-    config : Configuration
+    config : NGConfigs
         Configuration to save.
     path : str or Path
         Path to a existing folder in which to save the configuration, or to a valid

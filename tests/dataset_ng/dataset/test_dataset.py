@@ -6,7 +6,7 @@ import tifffile
 
 from careamics.config import create_ng_data_configuration
 from careamics.config.data import DataConfig
-from careamics.config.ng_factories.data_factory import (
+from careamics.config.factories.data_factory import (
     list_spatial_augmentations,
 )
 from careamics.dataset_ng.dataset import _adjust_shape_for_channels

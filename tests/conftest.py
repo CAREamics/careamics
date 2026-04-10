@@ -9,13 +9,13 @@ from careamics.compat.careamist import CAREamist
 from careamics.compat.config import Configuration as ConfigurationV1
 from careamics.compat.model_io import export_to_bmz
 from careamics.config.configuration import Configuration
+from careamics.config.factories import (
+    create_advanced_care_config,
+    create_advanced_n2v_config,
+)
 from careamics.config.lightning.training_configuration import (
     TrainingConfig,
     default_training_dict,
-)
-from careamics.config.ng_factories import (
-    create_advanced_care_config,
-    create_advanced_n2v_config,
 )
 from careamics.config.support import SupportedData
 from careamics.lightning.callbacks.careamics_checkpoint_info_callback import (
@@ -383,7 +383,7 @@ def pre_trained(tmp_path, minimum_n2v_configuration):
 def pre_trained_v2(tmp_path):
     """Fixture to create a pre-trained CAREamistV2 model."""
     from careamics.careamist_v2 import CAREamistV2
-    from careamics.config.ng_factories import create_advanced_n2v_config
+    from careamics.config.factories import create_advanced_n2v_config
 
     # training data
     train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)

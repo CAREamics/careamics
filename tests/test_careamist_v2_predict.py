@@ -6,7 +6,7 @@ import tifffile
 from numpy.typing import NDArray
 
 from careamics.careamist_v2 import CAREamistV2
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 
 def random_array(shape: tuple[int, ...], seed: int = 42) -> NDArray:

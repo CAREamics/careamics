@@ -5,7 +5,7 @@
 
 # %%
 # --8<-- [start:adv_config_n2v_in_memory]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -20,7 +20,7 @@ config = create_advanced_n2v_config(
 # --8<-- [end:adv_config_n2v_in_memory]
 # %%
 # --8<-- [start:adv_config_n2v_subchannels]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -35,7 +35,7 @@ config = create_advanced_n2v_config(
 # --8<-- [end:adv_config_n2v_subchannels]
 # %%
 # --8<-- [start:adv_config_n2v_ind_channels]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -51,7 +51,7 @@ config = create_advanced_n2v_config(
 # --8<-- [end:adv_config_n2v_ind_channels]
 # %%
 # --8<-- [start:adv_config_n2v_norm]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -68,7 +68,7 @@ config = create_advanced_n2v_config(
 
 # %%
 # --8<-- [start:adv_config_n2v_norm_params]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -84,7 +84,7 @@ config = create_advanced_n2v_config(
 # --8<-- [end:adv_config_n2v_norm_params]
 # %%
 # --8<-- [start:adv_config_n2v_norm_ch]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -105,7 +105,7 @@ config = create_advanced_n2v_config(
 # --8<-- [end:adv_config_n2v_norm_ch]
 # %%
 # --8<-- [start:adv_config_n2v_logger]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -120,7 +120,7 @@ config = create_advanced_n2v_config(
 # --8<-- [end:adv_config_n2v_logger]
 # %%
 # --8<-- [start:adv_config_n2v_num_workers]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -136,7 +136,7 @@ config = create_advanced_n2v_config(
 
 # %%
 # --8<-- [start:adv_config_n2v_seed]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -154,7 +154,7 @@ config = create_advanced_n2v_config(
 ################# CARE/N2N #################
 # %%
 # --8<-- [start:adv_config_care_in_memory]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -169,7 +169,7 @@ config = create_advanced_care_config(
 # --8<-- [end:adv_config_care_in_memory]
 # %%
 # --8<-- [start:adv_config_care_subchannels]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -184,7 +184,7 @@ config = create_advanced_care_config(
 # --8<-- [end:adv_config_care_subchannels]
 # %%
 # --8<-- [start:adv_config_care_ind_channels]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -200,7 +200,7 @@ config = create_advanced_care_config(
 # --8<-- [end:adv_config_care_ind_channels]
 # %%
 # --8<-- [start:adv_config_care_norm]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -217,7 +217,7 @@ config = create_advanced_care_config(
 
 # %%
 # --8<-- [start:adv_config_care_norm_params]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -238,7 +238,7 @@ config = create_advanced_care_config(
 # --8<-- [end:adv_config_care_norm_params]
 # %%
 # --8<-- [start:adv_config_care_norm_ch]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -260,7 +260,7 @@ config = create_advanced_care_config(
 
 # %%
 # --8<-- [start:adv_config_care_logger]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -275,7 +275,7 @@ config = create_advanced_care_config(
 # --8<-- [end:adv_config_care_logger]
 # %%
 # --8<-- [start:adv_config_care_num_workers]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -291,7 +291,7 @@ config = create_advanced_care_config(
 
 # %%
 # --8<-- [start:adv_config_care_seed]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import numpy as np
-from careamics.config.ng_factories import create_n2v_config, create_care_config
+from careamics.config.factories import create_n2v_config, create_care_config
 from careamics.dataset_ng.factory import ReadFuncLoading
 
 # create a configuration
@@ -67,7 +67,7 @@ class CustomCallback(Callback):
 
 # %%
 # --8<-- [start:callbacks]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 config = create_advanced_care_config(
     experiment_name="care",

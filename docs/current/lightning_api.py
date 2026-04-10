@@ -5,7 +5,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from careamics_portfolio import PortfolioManager
 
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
 from careamics.lightning.dataset_ng.lightning_modules import N2VModule
 from careamics.lightning.dataset_ng.prediction import convert_prediction
