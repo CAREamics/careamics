@@ -19,13 +19,15 @@ from careamics.config.ng_configs.ng_training_configuration import (
     NGTrainingConfig,
     default_training_factory,
 )
+from careamics.lightning.dataset_ng.lightning_modules.constraints import (
+    get_model_constraints,
+)
 
 AlgorithmConfig = TypeVar("AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm)
 
 
 class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
-    """
-    CAREamics configuration.
+    """CAREamics configuration.
 
     The configuration defines all parameters used to build and train a CAREamics model.
     These parameters are validated to ensure that they are compatible with each other.
@@ -49,15 +51,6 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
         Data configuration.
     training : TrainingModel
         Training configuration.
-
-    Methods
-    -------
-    set_3D(is_3D: bool, axes: str, patch_size: List[int]) -> None
-        Switch configuration between 2D and 3D.
-    model_dump(
-        exclude_defaults: bool = False, exclude_none: bool = True, **kwargs: Dict
-        ) -> Dict
-        Export configuration to a dictionary.
 
     Raises
     ------
@@ -155,6 +148,60 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
                 f"is 'czi', which uses 3D when 'T' axis is specified)."
             )
 
+        return self
+
+    @model_validator(mode="after")
+    def validate_patch_against_model(self: Self) -> Self:
+        """
+        Validate that the patch size is compatible with the model constraints.
+
+        This is done by checking that the patch size is compatible with the model
+        constraints.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        # no patching, so no need to validate against model constraints
+        if not hasattr(self.data_config.patching, "patch_size"):
+            return self
+
+        model_constraints = get_model_constraints(self.algorithm_config.model)
+        model_constraints.validate_spatial_shape(self.data_config.patching.patch_size)
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_channels_against_inputs(self: Self) -> Self:
+        """
+        Validate that the number of channels in the data is compatible with the model.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        if self.data_config.channels is not None:
+            model_constraints = get_model_constraints(self.algorithm_config.model)
+            model_constraints.validate_input_channels(len(self.data_config.channels))
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_norm_against_channels(self: Self) -> Self:
+        """Validate that normalization is compatible with the model in/out channels.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        # delegate validation to the specific norm
+        self.data_config.normalization.validate_size(
+            self.algorithm_config.model.get_num_input_channels(),
+            self.algorithm_config.model.get_num_output_channels(),
+        )
         return self
 
     def __str__(self) -> str:

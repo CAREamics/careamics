@@ -113,7 +113,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         if not dirpath.is_absolute():
             dirpath = Path.cwd() / dirpath
             logger.warning(
-                "Prediction output directory is not absolute, absolute path assumed to"
+                "Prediction output directory is not absolute, absolute path assumed to "
                 f"be '{dirpath}'"
             )
         self.dirpath = dirpath
@@ -137,7 +137,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         if stage == "predict":
             if self.dirpath is not None:
                 # make prediction output directory
-                logger.info("Making prediction output directory.")
+                logger.info(f"Creating prediction output directory: '{self.dirpath}'")
                 self.dirpath.mkdir(parents=True, exist_ok=True)
 
     def set_writing_strategy(

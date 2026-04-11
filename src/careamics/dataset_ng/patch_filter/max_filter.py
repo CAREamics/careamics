@@ -22,29 +22,19 @@ class MaxPatchFilter(PatchFilterProtocol):
     ----------
     threshold : float
         Maximum-filter threshold; patches below are filtered out.
-    p : float, default=1
-        Probability of applying the filter (0-1).
-    threshold_ratio : float, default=0.25
+    coverage : float, default=0.25
         Ratio of pixels below threshold to filter out (0-1).
-    seed : int or None, default=None
-        Random seed for reproducibility.
 
     Attributes
     ----------
     threshold : float
         Threshold for the maximum filter of the patch.
-    p : float
-        Probability of applying the filter to a patch.
-    rng : np.random.Generator
-        Random number generator for stochastic filtering.
     """
 
     def __init__(
         self,
         threshold: float,
-        p: float = 1.0,
-        threshold_ratio: float = 0.25,
-        seed: int | None = None,
+        coverage: float = 0.25,
     ) -> None:
         """Create a MaxPatchFilter. Removes patches below max-filter threshold.
 
@@ -52,17 +42,11 @@ class MaxPatchFilter(PatchFilterProtocol):
         ----------
         threshold : float
             Maximum-filter threshold.
-        p : float, default=1
-            Probability of applying the filter (0-1).
-        threshold_ratio : float, default=0.25
+        coverage : float, default=0.25
             Ratio of pixels below threshold to filter out (0-1).
-        seed : int or None, default=None
-            Random seed for reproducibility.
         """
         self.threshold = threshold
-        self.threshold_ratio = threshold_ratio
-        self.p = p
-        self.rng = np.random.default_rng(seed)
+        self.coverage = coverage
 
     def filter_out(self, patch: np.ndarray) -> bool:
         """Return True if patch should be filtered out by max-filter criteria.
@@ -77,16 +61,12 @@ class MaxPatchFilter(PatchFilterProtocol):
         bool
             True if patch should be filtered out, False otherwise.
         """
-        if self.rng.uniform(0, 1) < self.p:
+        if np.max(patch) < self.threshold:
+            return True
 
-            if np.max(patch) < self.threshold:
-                return True
-
-            patch_shape = [(p // 2 if p > 1 else 1) for p in patch.shape]
-            filtered = maximum_filter(patch, patch_shape, mode="constant")
-            return np.mean(filtered < self.threshold) > self.threshold_ratio
-
-        return False
+        patch_shape = [(p // 2 if p > 1 else 1) for p in patch.shape]
+        filtered = maximum_filter(patch, patch_shape, mode="constant")
+        return (np.mean(filtered > self.threshold) < self.coverage).item()
 
     @staticmethod
     def filter_map(

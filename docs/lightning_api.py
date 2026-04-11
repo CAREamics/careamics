@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 # %%
 # --8<-- [start:lightning_api]
 from pytorch_lightning import Trainer
@@ -130,7 +129,3 @@ tiled_predictions = trainer.predict(
     model, datamodule=inf_data_module, return_predictions=False  # (5)!
 )
 # --8<-- [end:predict_to_disk]
-from pathlib import Path
-
-assert (Path("predictions") / "train.tiff").exists()
-# assert (Path("predictions") / train )

@@ -334,11 +334,12 @@ def test_predict_invalid_spatial_dims_no_tiling_raises(tmp_path: Path):
         data_type="array",
         axes="YX",
         patch_size=(8, 8),
-        batch_size=2,
-        num_epochs=2,
+        batch_size=1,
+        num_epochs=1,
         roi_size=5,
         masked_pixel_percentage=5,
     )
+
     careamist = CAREamistV2(config=config, work_dir=tmp_path)
 
     pred_array = random_array((15, 30))

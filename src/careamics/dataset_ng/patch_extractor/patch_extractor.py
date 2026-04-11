@@ -1,7 +1,7 @@
 """Default patch extractor."""
 
 from collections.abc import Sequence
-from typing import Generic
+from typing import Any, Generic
 
 from numpy.typing import NDArray
 
@@ -63,7 +63,7 @@ class PatchExtractor(Generic[GenericImageStack]):
         sample_idx: int,
         coords: Sequence[int],
         patch_size: Sequence[int],
-    ) -> NDArray:
+    ) -> NDArray[Any]:
         """Extract a patch from the specified image stack across all channels.
 
         Eqauivalent to calling `extract_channel_patch` with `channels=None`.
@@ -100,7 +100,7 @@ class PatchExtractor(Generic[GenericImageStack]):
         channels: Sequence[int] | None,
         coords: Sequence[int],
         patch_size: Sequence[int],
-    ) -> NDArray:
+    ) -> NDArray[Any]:
         """Extract a patch from the specified image stack.
 
         Parameters
