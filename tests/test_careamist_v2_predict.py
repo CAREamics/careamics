@@ -298,3 +298,27 @@ def test_predict_to_disk_custom_raises(tmp_path: Path):
             write_extension=".npy",
             write_func=None,
         )
+
+
+def test_predict_invalid_spatial_dims_no_tiling_raises(tmp_path: Path):
+    """Test that predict raises ValueError for invalid spatial dims without tiling."""
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=1,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+
+    pred_array = random_array((15, 30))
+
+    with pytest.raises(ValueError, match="tiling"):
+        careamist.predict(pred_data=pred_array)
+
+    with pytest.raises(ValueError, match="tiling"):
+        careamist.predict_to_disk(pred_data=pred_array)

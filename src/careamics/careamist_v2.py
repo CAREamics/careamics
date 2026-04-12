@@ -11,17 +11,18 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.ng_configs import NGConfiguration
-from .config.support import SupportedData, SupportedLogger
+from .config.support import SupportedLogger
 from .config.utils.configuration_io import load_configuration_ng
 from .dataset_ng.dataset import ImageRegionData
 from .dataset_ng.factory import ImageStackLoading, Loading, ReadFuncLoading
-from .file_io import WriteFunc, get_write_func
+from .file_io import WriteFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.dataset_ng.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.dataset_ng.data_module import CareamicsDataModule, InputVar
 from .lightning.dataset_ng.lightning_modules import (
     CAREamicsModule,
     create_module,
+    get_model_constraints,
 )
 from .lightning.dataset_ng.load_checkpoint import (
     load_config_from_checkpoint,
@@ -67,12 +68,12 @@ class CAREamistV2:
 
     Parameters
     ----------
-    config : NGConfiguration | Path, default=None
+    config : NGConfiguration | Path | str, default=None
         CAREamics configuration, or a path to a configuration file. See
         `careamics.config.ng_factories` for method to build configurations.
-    checkpoint_path : Path, default=None
+    checkpoint_path : Path | str, default=None
         Path to a checkpoint file from which to load the model and configuration.
-    bmz_path : Path, default=None
+    bmz_path : Path | str, default=None
         Path to a BioImage Model Zoo archive from which to load the model and
         configuration.
     work_dir : Path | str, default=None
@@ -89,10 +90,10 @@ class CAREamistV2:
 
     def __init__(
         self,
-        config: ConfigurationType | Path | None = None,
+        config: ConfigurationType | Path | str | None = None,
         *,
-        checkpoint_path: Path | None = None,
-        bmz_path: Path | None = None,
+        checkpoint_path: Path | str | None = None,
+        bmz_path: Path | str | None = None,
         work_dir: Path | str | None = None,
         callbacks: list[Callback] | None = None,
         enable_progress_bar: bool = True,
@@ -103,14 +104,14 @@ class CAREamistV2:
 
         Parameters
         ----------
-        config : NGConfiguration | Path, default=None
+        config : NGConfiguration | Path | str, default=None
             CAREamics configuration, or a path to a configuration file. See
             `careamics.config.ng_factories` for method to build configurations. `config`
             is mutually exclusive with `checkpoint_path` and `bmz_path`.
-        checkpoint_path : Path, default=None
+        checkpoint_path : Path | str, default=None
             Path to a checkpoint file from which to load the model and configuration.
             `checkpoint_path` is mutually exclusive with `config` and `bmz_path`.
-        bmz_path : Path, default=None
+        bmz_path : Path | str, default=None
             Path to a BioImage Model Zoo archive from which to load the model and
             configuration. `bmz_path` is mutually exclusive with `config` and
             `checkpoint_path`.
@@ -159,9 +160,9 @@ class CAREamistV2:
 
     def _load_model(
         self,
-        config: ConfigurationType | Path | None,
-        checkpoint_path: Path | None,
-        bmz_path: Path | None,
+        config: ConfigurationType | Path | str | None,
+        checkpoint_path: Path | str | None,
+        bmz_path: Path | str | None,
     ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load model.
 
@@ -206,13 +207,13 @@ class CAREamistV2:
 
     @staticmethod
     def _from_config(
-        config: ConfigurationType | Path,
+        config: ConfigurationType | Path | str,
     ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Create model from configuration.
 
         Parameters
         ----------
-        config : NGConfiguration | Path
+        config : NGConfiguration | Path | str
             CAREamics configuration, or a path to a configuration file.
 
         Returns
@@ -223,22 +224,22 @@ class CAREamistV2:
         CAREamicsModule
             The created model.
         """
-        if isinstance(config, Path):
-            config = load_configuration_ng(config)
-        assert not isinstance(config, Path)
+        if isinstance(config, (Path, str)):
+            config = load_configuration_ng(Path(config))
+        assert not isinstance(config, (Path, str))
 
         model = create_module(config.algorithm_config)
         return config, model
 
     @staticmethod
     def _from_checkpoint(
-        checkpoint_path: Path,
+        checkpoint_path: Path | str,
     ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load checkpoint and configuration from checkpoint file.
 
         Parameters
         ----------
-        checkpoint_path : Path
+        checkpoint_path : Path | str
             Path to a checkpoint file from which to load the model and configuration.
 
         Returns
@@ -248,6 +249,7 @@ class CAREamistV2:
         CAREamicsModule
             The loaded model.
         """
+        checkpoint_path = Path(checkpoint_path)
         config = load_config_from_checkpoint(checkpoint_path)
         module = load_module_from_checkpoint(checkpoint_path)
 
@@ -255,13 +257,13 @@ class CAREamistV2:
 
     @staticmethod
     def _from_bmz(
-        bmz_path: Path,
+        bmz_path: Path | str,
     ) -> tuple[ConfigurationType, CAREamicsModule]:
         """Load checkpoint and configuration from a BioImage Model Zoo archive.
 
         Parameters
         ----------
-        bmz_path : Path
+        bmz_path : Path | str
             Path to a BioImage Model Zoo archive from which to load the model and
             configuration.
 
@@ -529,6 +531,7 @@ class CAREamistV2:
             train_data_target=train_data_target,
             val_data_target=val_data_target,
             train_data_mask=filtering_mask,
+            model_constraints=get_model_constraints(self.config.algorithm_config.model),
             loading=loading, # type: ignore
         )
 
@@ -610,10 +613,19 @@ class CAREamistV2:
             new_channels=channels,
             new_in_memory=in_memory,
         )
+
+        # validate new data config against the rest of the configuration by triggering
+        # the model level validation
+        self.config.model_copy().data_config = pred_data_config
+
+
         return CareamicsDataModule(
             data_config=pred_data_config,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
+            model_constraints=get_model_constraints(
+                self.config.algorithm_config.model
+            ),
             loading=loading,
         )
 
@@ -916,14 +928,11 @@ class CAREamistV2:
                 raise ValueError(
                     "A `write_func` must be provided for custom write types."
                 )
-        elif write_type == "zarr" and tile_size is None:
+        if write_type == "zarr" and tile_size is None:
             raise ValueError(
                 "Writing prediction to Zarr is only supported with tiling. Please "
                 "provide a value for `tile_size`, and optionally `tile_overlap`."
             )
-        else:
-            write_func = get_write_func(write_type)
-            write_extension = SupportedData.get_extension(write_type)
 
         tiled = tile_size is not None
         self.prediction_writer.set_writing_strategy(

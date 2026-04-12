@@ -78,7 +78,17 @@ class UNetBasedAlgorithm(BaseModel):
         """
         return pformat(self.model_dump())
 
-    # TODO NG CAREamics: remove this method and use SupportedAlgorithm directly
+    def get_num_input_channels(self) -> int:
+        """Get the number of input channels.
+
+        Returns
+        -------
+        int
+            Number of input channels.
+        """
+        return self.model.get_num_input_channels()
+
+    # TODO: remove, used in v0.1.0 only
     @classmethod
     def get_compatible_algorithms(cls) -> list[str]:
         """Get the list of compatible algorithms.

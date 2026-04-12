@@ -31,6 +31,9 @@ from careamics.dataset_ng.patching_strategies import (
     PatchSpecs,
     TileSpecs,
 )
+from careamics.lightning.dataset_ng.lightning_modules.constraints import (
+    ModelConstraints,
+)
 from careamics.utils import get_logger
 
 from .data_module_utils import initialize_data_pair
@@ -91,6 +94,9 @@ class CareamicsDataModule(L.LightningDataModule):
         Prediction data target, this may be used for calculating metrics. If custom
         `loading` is provided it can be any type, otherwise it must be a
         `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these, or None.
+    model_constraints : ModelConstraints | None, default=None
+        If provided, the data module will validate that the prediction data shape is
+        compatible with the model constraints.
     loading : ReadFuncLoading | ImageStackLoading | None, default=None
         The type of loading used for custom data. `ReadFuncLoading` is the use of
         a simple function that will load full images into memory.
@@ -128,6 +134,7 @@ class CareamicsDataModule(L.LightningDataModule):
         val_data_target: InputVar | None = None,
         pred_data: InputVar | None = None,
         pred_data_target: InputVar | None = None,
+        model_constraints: ModelConstraints | None = None,
         loading: ReadFuncLoading | None = None,
     ) -> None: ...
 
@@ -144,6 +151,7 @@ class CareamicsDataModule(L.LightningDataModule):
         val_data_target: Any | None = None,
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
+        model_constraints: ModelConstraints | None = None,
         loading: ImageStackLoading = ...,
     ) -> None: ...
 
@@ -158,6 +166,7 @@ class CareamicsDataModule(L.LightningDataModule):
         val_data_target: Any | None = None,
         pred_data: Any | None = None,
         pred_data_target: Any | None = None,
+        model_constraints: ModelConstraints | None = None,
         loading: Loading = None,
     ) -> None:
         """
@@ -203,6 +212,9 @@ class CareamicsDataModule(L.LightningDataModule):
             Prediction data target, this may be used for calculating metrics. If custom
             `loading` is provided it can be any type, otherwise it must be a
             `pathlib.Path`, `str`, `numpy.ndarray` or a sequence of these, or None.
+        model_constraints : ModelConstraints, optional
+            If provided, the data module will validate input and target channels and
+            spatial shapes against the model constraints.
         loading : ReadFuncLoading | ImageStackLoading | None, default=None
             The type of loading used for custom data. `ReadFuncLoading` is the use of
             a simple function that will load full images into memory.
@@ -219,6 +231,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
         self.rng = np.random.default_rng(seed=self.config.seed)
 
+        self.model_constraints = model_constraints
         self.data_type: SupportedData = SupportedData(self.config.data_type)
         self.batch_size: int = self.config.batch_size
 
@@ -265,25 +278,28 @@ class CareamicsDataModule(L.LightningDataModule):
 
             if isinstance(self._data, TrainValSplitData):
                 self.train_dataset, self.val_dataset = create_val_split_datasets(
-                    self.config, self._data, self.loading, self.rng
+                    self.config,
+                    self._data,
+                    self.loading,
+                    self.rng,
+                    self.model_constraints,
                 )
             elif isinstance(self._data, TrainValData):
                 self.train_dataset, self.val_dataset = create_train_val_datasets(
-                    self.config, self._data, self.loading
+                    self.config, self._data, self.loading, self.model_constraints
                 )
             else:
                 raise ValueError("Training and validation data has not been provided.")
 
             # statistics may have been calculated now, save config to hparams
-            if stage == "fit":
-                self._save_hparams()
+            self._save_hparams()
 
         elif stage == "predict":
             if not isinstance(self._data, PredData):
                 raise ValueError("No data has been provided for prediction.")
 
             self.predict_dataset = create_pred_dataset(
-                self.config, self._data, self.loading
+                self.config, self._data, self.loading, self.model_constraints
             )
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
@@ -324,19 +340,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def _save_hparams(self) -> None:
         """Save configuration in hyperparameters."""
-        self.save_hyperparameters(
-            {"data_config": self.config.model_dump(mode="json")},
-            ignore=[
-                "train_data",
-                "train_data_target",
-                "train_data_mask",
-                "val_data",
-                "val_data_target",
-                "pred_data",
-                "pred_data_target",
-                "loading",
-            ],
-        )
+        self.hparams.update(data_config=self.config.model_dump(mode="json"))
 
     def train_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
         """
