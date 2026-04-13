@@ -304,6 +304,25 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
         """
         return self.algorithm_config.is_supervised()
 
+    def set_3D(self, is_3D: bool, axes: str, patch_size: list[int]) -> None:
+        """
+        Set 3D flag and axes.
+
+        Parameters
+        ----------
+        is_3D : bool
+            Whether the algorithm is 3D or not.
+        axes : str
+            Axes of the data.
+        patch_size : list[int]
+            Patch size.
+        """
+        # set the flag and axes (will this trigger the validation?)
+        self.algorithm_config.model.set_3D(is_3D)
+        self.data_config.set_3D(axes, patch_size)
+        # validate the ng-config instance
+        NGConfiguration.model_validate(self)
+
     def model_dump(
         self,
         **kwargs: Any,
