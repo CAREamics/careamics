@@ -1,13 +1,12 @@
 """Filter map utilities."""
 
 import itertools
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.dataset_ng.factory import init_patch_extractor
 from careamics.dataset_ng.image_stack_loader import load_arrays
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patching_strategies import StratifiedPatchingStrategy
@@ -19,7 +18,7 @@ FilterValueFunc = Callable[[NDArray[Any]], float]
 def create_filter_map(
     image: np.ndarray,
     filter_value_func: FilterValueFunc,
-    patch_size: tuple[int, ...],
+    patch_size: Sequence[int],
     direction: Literal["greater", "less"] = "greater",
 ):
     """
@@ -50,12 +49,10 @@ def create_filter_map(
     patching_strategy = StratifiedPatchingStrategy(
         [(1, 1, *image.shape)], patch_size=patch_size
     )
-    input_extractor = init_patch_extractor(
-        PatchExtractor, load_arrays, [image], axes="YX"
-    )
+    input_extractor = PatchExtractor(load_arrays([image], axes="YX"))
 
     # the stratified sampling regions regions overlap
-    # 4 overlaping regions for 2D 8 overlapping regions for 3D
+    # 4 overlaping regions for 2D, 8 overlapping regions for 3D
     filtermaps = np.zeros((2**n_dims, *image.shape))
     all_grid_coords = patching_strategy.get_all_grid_coords().items()
 

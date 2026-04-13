@@ -4,13 +4,11 @@ from collections.abc import Sequence
 
 import numpy as np
 from scipy.ndimage import maximum_filter
-from tqdm import tqdm
 
-from careamics.dataset_ng.image_stack_loader import load_arrays
-from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterProtocol
-from careamics.dataset_ng.patching_strategies import TilingStrategy
 from careamics.utils import get_logger
+
+from .filtermap_utils import FilterValueFunc, create_filter_map
 
 logger = get_logger(__name__)
 
@@ -43,7 +41,8 @@ class MaxPatchFilter(PatchFilterProtocol):
         threshold : float
             Maximum-filter threshold.
         coverage : float, default=0.25
-            Ratio of pixels below threshold to filter out (0-1).
+            If the ratio of pixels above the threshold is below this value, the patch
+            will be filtered out.
         """
         self.threshold = threshold
         self.coverage = coverage
@@ -72,109 +71,76 @@ class MaxPatchFilter(PatchFilterProtocol):
     def filter_map(
         image: np.ndarray,
         patch_size: Sequence[int],
+        coverage: float | None = None,
     ) -> np.ndarray:
         """
-        Compute the maximum map of an image.
+        Compute a filter map for the entire image based on the patch filtering criteria.
 
-        The map is computed over non-overlapping patches. This method can be used
-        to assess a useful threshold for the MaxPatchFilter filter.
+        The filter map will show the threshold that, above which, will result in regions
+        of the image being excluded from training.
 
         Parameters
         ----------
-        image : numpy.NDArray
-            The image for which to compute the map, must be 2D or 3D.
-        patch_size : Sequence[int]
-            The size of the patches to compute the map over. Must be a sequence
-            of two integers.
+        image : numpy.ndarray
+            A 2D or 3D image.
+        patch_size : sequence of int
+            The patch size intended to be used for training.
+        coverage : float | None, default=None
+            If the ratio of pixels above the threshold is below this value, the patch
+            will be filtered out. If `None`, for 2D it will be 0.25 and for 3D it will
+            be 0.125.
 
         Returns
         -------
-        numpy.NDArray
-            The max map of the patch.
-
-        Raises
-        ------
-        ValueError
-            If the image is not 2D or 3D.
-
-        Examples
-        --------
-        Assess a useful threshold by computing and visualizing the max map:
-        >>> import numpy as np
-        >>> from matplotlib import pyplot as plt
-        >>> from careamics.dataset_ng.patch_filter import MaxPatchFilter
-        >>> rng = np.random.default_rng(42)
-        >>> image = rng.binomial(20, 0.1, (256, 256)).astype(np.float32)
-        >>> image[64:192, 64:192] += rng.normal(50, 5, (128, 128))
-        >>> image[96:160, 96:160] = rng.poisson(image[96:160, 96:160])
-        >>> patch_size = (16, 16)
-        >>> max_filtered = MaxPatchFilter.filter_map(image, patch_size)
-        >>> fig, ax = plt.subplots(1, 5, figsize=(20, 5)) # doctest: +SKIP
-        >>> for i, thresh in enumerate([50 + i*5 for i in range(5)]):
-        ...     ax[i].imshow(max_filtered >= thresh, cmap="gray") # doctest: +SKIP
-        ...     ax[i].set_title(f"Threshold: {thresh}") # doctest: +SKIP
-        >>> plt.show() # doctest: +SKIP
+        numpy.ndarray
+            The filter map, which has the same shape as the input image.
         """
-        if len(image.shape) < 2 or len(image.shape) > 3:
-            raise ValueError("Image must be 2D or 3D.")
-
-        axes = "YX" if len(patch_size) == 2 else "ZYX"
-
-        max_filtered = np.zeros_like(image, dtype=float)
-
-        image_stacks = load_arrays(source=[image], axes=axes)
-        extractor = PatchExtractor(image_stacks)
-        tiling = TilingStrategy(
-            data_shapes=[(1, 1, *image.shape)],
-            patch_size=patch_size,
-            overlaps=(0,) * len(patch_size),  # no overlap
+        filter_value_func = MaxPatchFilter._get_filter_value_func(patch_size, coverage)
+        filtermap = create_filter_map(
+            image, filter_value_func, patch_size, direction="greater"
         )
-        max_patch_size = [p // 2 for p in patch_size]
-
-        for idx in tqdm(range(tiling.n_patches), desc="Computing max map"):
-            patch_spec = tiling.get_patch_spec(idx)
-            patch = extractor.extract_patch(
-                data_idx=0,
-                sample_idx=0,
-                coords=patch_spec["coords"],
-                patch_size=patch_size,
-            )
-
-            coordinates = tuple(
-                slice(patch_spec["coords"][i], patch_spec["coords"][i] + p)
-                for i, p in enumerate(patch_size)
-            )
-            max_filtered[coordinates] = maximum_filter(
-                patch.squeeze(), max_patch_size, mode="constant"
-            )
-
-        return max_filtered
+        return filtermap
 
     @staticmethod
-    def apply_filter(
-        filter_map: np.ndarray,
-        threshold: float,
-    ) -> np.ndarray:
+    def _get_filter_value_func(
+        patch_size: Sequence[int],
+        coverage: float | None = None,
+    ) -> FilterValueFunc:
         """
-        Apply the max filter to a filter map.
-
-        The filter map is the output of the `filter_map` method.
+        Get a function that returns the filter value of a patch.
 
         Parameters
         ----------
-        filter_map : numpy.NDArray
-            The max filter map of the image.
-        threshold : float
-            The threshold to apply to the filter map.
+        patch_size : sequence of int
+            The patch size intended to be used for training.
+        coverage : float | None, default=None
+            If the ratio of pixels above the threshold is below this value, the patch
+            will be filtered out. If `None`, for 2D it will be 0.25 and for 3D it will
+            be 0.125.
 
         Returns
         -------
-        numpy.NDArray
-            A boolean array where True indicates that the patch should be kept
-            (not filtered out) and False indicates that the patch should be filtered
-            out.
+        FilterValueFunc
+            A function that outputs a value to determine whether a patch should be
+            filtered.
         """
-        threshold_map = filter_map >= threshold
-        coverage = np.sum(threshold_map) * 100 / threshold_map.size
-        logger.info(f"Image coverage: {coverage:.2f}%")
-        return threshold_map
+        if coverage is None:
+            n_dims = len(patch_size)
+            coverage = 0.5**n_dims
+
+        def filter_value_func(patch: np.ndarray) -> float:  # numpydoc ignore=GL08
+            patch_filt = maximum_filter(patch.squeeze(0), patch_size)
+            total_pixels = patch.size
+            # we want to the maximum value that meets the coverage requirements
+            unique_values, counts = np.unique(
+                patch_filt, return_counts=True, sorted=True
+            )
+            # reverse order of counts (now ordered by largest to smallest filter value)
+            valid = np.where(np.cumsum(counts[::-1]) / total_pixels >= coverage)[0]
+            # now we find the first value which has more counts than the coverage ratio
+            v_idx = valid[::-1][0]
+            # use the index of the counts to extract the value
+            value = unique_values[v_idx]
+            return float(value)
+
+        return filter_value_func

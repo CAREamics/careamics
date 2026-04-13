@@ -29,6 +29,8 @@ class PatchFilterProtocol(Protocol):
     def filter_map(
         image: np.ndarray,
         patch_size: Sequence[int],
+        *args,
+        **kwargs,
     ) -> np.ndarray:
         """
         Compute a filter map for the entire image based on the patch filtering criteria.
@@ -39,6 +41,10 @@ class PatchFilterProtocol(Protocol):
             The full image to evaluate.
         patch_size : Sequence[int]
             The size of the patches to consider.
+        *args : Any
+            Concrete implementations may have additional positional arguments.
+        **kwargs : Any
+            Concrete implementations may have additional key-word arguments.
 
         Returns
         -------
