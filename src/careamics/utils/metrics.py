@@ -12,9 +12,9 @@ import torch
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 
+
+# TODO some are still used with microsplit, assess relevance
 # TODO: does this add additional dependency?
-
-
 # TODO revisit metric for notebook
 def avg_range_invariant_psnr(
     pred: np.ndarray,
