@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 from scipy.ndimage import maximum_filter
 
 from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterProtocol
@@ -101,6 +102,28 @@ class MaxPatchFilter(PatchFilterProtocol):
             image, filter_value_func, patch_size, direction="greater"
         )
         return filter_map
+
+    @staticmethod
+    def apply_filter(filter_map: np.ndarray, threshold: float) -> NDArray[np.bool_]:
+        """
+        Apply the max filter to a filter map.
+
+        The filter map is the output of the `filter_map` method.
+
+        Parameters
+        ----------
+        filter_map : numpy.ndarray
+            The max filter map of the image.
+        threshold : float
+            The threshold to apply to the filter map.
+
+        Returns
+        -------
+        numpy.typing.NDArray[np.bool_]
+           A binary map where True indicates patches that pass the filter, i.e. they
+           should be kept for training.
+        """
+        return filter_map > threshold
 
     @staticmethod
     def plot_filter_map(

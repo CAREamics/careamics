@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 
 from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterProtocol
 
@@ -121,6 +122,39 @@ class MeanStdPatchFilter(PatchFilterProtocol):
             direction="greater",
         )
         return np.stack([filtermap_mean, filtermap_std])
+
+    @staticmethod
+    def apply_filter(
+        filter_map: np.ndarray,
+        mean_threshold: float,
+        std_threshold: float | None = None,
+    ) -> NDArray[np.bool_]:
+        """
+        Apply mean and std thresholds to a filter map.
+
+        The filter map is the output of the `filter_map` method.
+
+        Parameters
+        ----------
+        filter_map : np.ndarray
+            Stacked mean and std maps of the image.
+        mean_threshold : float
+            Threshold for the mean of the patch.
+        std_threshold : float | None, default=None
+            Threshold for the standard deviation of the patch. If None, then no
+            standard deviation filtering is applied.
+
+        Returns
+        -------
+        numpy.typing.NDArray[np.bool_]
+           A binary map where True indicates patches that pass the filter, i.e. they
+           should be kept for training.
+        """
+        if std_threshold is not None:
+            return (filter_map[0, ...] > mean_threshold) & (
+                filter_map[1, ...] > std_threshold
+            )
+        return filter_map[0, ...] > mean_threshold
 
     @staticmethod
     def plot_filter_map(

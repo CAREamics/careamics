@@ -96,6 +96,28 @@ class ShannonPatchFilter(PatchFilterProtocol):
         return filtermap
 
     @staticmethod
+    def apply_filter(filter_map: np.ndarray, threshold: float) -> NDArray[np.bool_]:
+        """
+        Apply the Shannon entropy filter to a precomputed filter map.
+
+        The filter map is the output of the `filter_map` method.
+
+        Parameters
+        ----------
+        filter_map : numpy.NDArray
+            The precomputed Shannon entropy map of the image.
+        threshold : float
+            The Shannon entropy threshold for filtering.
+
+        Returns
+        -------
+        numpy.typing.NDArray[np.bool_]
+           A binary map where True indicates patches that pass the filter, i.e. they
+           should be kept for training.
+        """
+        return filter_map > threshold
+
+    @staticmethod
     def plot_filter_map(
         image: np.ndarray, filter_map: np.ndarray, z_idx: int | None = None
     ) -> plt.Figure:

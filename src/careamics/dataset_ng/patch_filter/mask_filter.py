@@ -99,6 +99,28 @@ class MaskFilter(PatchFilterProtocol):
         )
 
     @staticmethod
+    def apply_filter(filter_map: np.ndarray, threshold: float) -> NDArray[np.bool_]:
+        """
+        Apply the max filter to a filter map.
+
+        The filter map is the output of the `filter_map` method.
+
+        Parameters
+        ----------
+        filter_map : numpy.ndarray
+            The max filter map of the image.
+        threshold : float
+            The threshold to apply to the filter map.
+
+        Returns
+        -------
+        numpy.typing.NDArray[np.bool_]
+           A binary map where True indicates patches that pass the filter, i.e. they
+           should be kept for training.
+        """
+        return filter_map > threshold
+
+    @staticmethod
     def plot_filter_map(
         image: np.ndarray, filter_map: np.ndarray, z_idx: int | None = None
     ) -> plt.Figure:
