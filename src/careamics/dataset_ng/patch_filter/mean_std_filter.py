@@ -149,7 +149,7 @@ class MeanStdPatchFilter(PatchFilterProtocol):
             z_idx == image.shape[0] // 2 if z_idx is None else z_idx
             image = image[:, z_idx]
 
-        fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+        fig, axes = plt.subplots(1, 2, figsize=(16, 8), constrained_layout=True)
         for i, ax in enumerate(axes):
             ax.imshow(image, "gray")
             m = ax.imshow(filter_map[i], "magma", alpha=0.5)
