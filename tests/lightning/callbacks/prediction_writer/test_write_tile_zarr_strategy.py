@@ -6,7 +6,7 @@ import tifffile
 import zarr
 from numpy.typing import NDArray
 
-import careamics.lightning.callbacks.prediction_writer as pd_writer
+import careamics.lightning.callbacks.prediction as pd_writer
 from careamics.config.data import DataConfig
 from careamics.dataset.dataset import ImageRegionData
 from careamics.dataset.factory import create_dataset
@@ -20,8 +20,8 @@ from careamics.dataset.patching_strategies import (
 from careamics.utils.reshape_array import AxesTransform, reshape_array, restore_array
 
 # to comply with ruff line length
-WriteTilesZarr = pd_writer.write_tiles_zarr_strategy.WriteTilesZarr
-_auto_chunks = pd_writer.write_tiles_zarr_strategy._auto_chunks
+WriteTilesZarr = pd_writer.zarr_tiled_write_strategy.ZarrTileWriteStrategy
+_auto_chunks = pd_writer.zarr_tiled_write_strategy._auto_chunks
 
 # TODO test chunking and sharding errors and handling (e.g. when missing)
 

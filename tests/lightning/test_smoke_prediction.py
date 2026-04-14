@@ -8,8 +8,8 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from careamics.config import N2VAlgorithm, create_ng_data_configuration
-from careamics.lightning.callbacks.prediction_writer import (
-    PredictionWriterCallback,
+from careamics.lightning.callbacks.prediction import (
+    PredictionWriter,
 )
 from careamics.lightning.data_module import (
     CareamicsDataModule,
@@ -99,7 +99,7 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
 
     # create prediction writer callback params
     dirpath = tmp_path / "predictions"
-    predict_writer = PredictionWriterCallback(dirpath=dirpath)
+    predict_writer = PredictionWriter(dirpath=dirpath)
 
     # create trainer
     trainer = Trainer(
@@ -220,7 +220,7 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
 
     # create prediction writer callback params
     dirpath = tmp_path / "predictions"
-    predict_writer = PredictionWriterCallback(dirpath=dirpath)
+    predict_writer = PredictionWriter(dirpath=dirpath)
 
     # create trainer
     trainer = Trainer(

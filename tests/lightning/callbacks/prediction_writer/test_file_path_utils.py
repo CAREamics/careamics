@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from careamics.lightning.callbacks.prediction_writer import (
+from careamics.lightning.callbacks.prediction import (
     create_write_file_path,
 )
 

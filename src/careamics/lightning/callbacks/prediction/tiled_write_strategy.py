@@ -14,7 +14,7 @@ from .file_path_utils import create_write_file_path
 from .write_strategy import WriteStrategy
 
 
-class CachedTiles(WriteStrategy):
+class TileWriteStrategy(WriteStrategy):
     """
     A write strategy that will cache tiles.
 
@@ -38,7 +38,7 @@ class CachedTiles(WriteStrategy):
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
         Extra kwargs to pass to `write_func`.
-    tile_cache : list of numpy.ndarray
+    tile_cache : dict of {int: list of ImageRegionData}
         Tiles cached for stitching prediction.
     tile_info_cache : list of TileInformation
         Cached tile information for stitching prediction.

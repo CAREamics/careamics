@@ -7,9 +7,9 @@ import pytest
 from numpy.typing import NDArray
 
 from careamics.file_io.write import write_tiff
-from careamics.lightning.callbacks.prediction_writer import (
-    CachedTiles,
-    WriteImage,
+from careamics.lightning.callbacks.prediction import (
+    ImageWriteStrategy,
+    TileWriteStrategy,
     create_write_strategy,
     select_write_extension,
     select_write_func,
@@ -25,7 +25,7 @@ def test_create_write_strategy_tiff_tiled():
     """Test write strategy creation for tiled tiff."""
     write_strategy = create_write_strategy(write_type="tiff", tiled=True)
 
-    assert isinstance(write_strategy, CachedTiles)
+    assert isinstance(write_strategy, TileWriteStrategy)
     assert write_strategy.write_func is write_tiff
     assert write_strategy.write_extension == ".tiff"
     assert write_strategy.write_func_kwargs == {}
@@ -35,7 +35,7 @@ def test_create_write_strategy_tiff_untiled():
     """Test write strategy creation for untiled tiff."""
     write_strategy = create_write_strategy(write_type="tiff", tiled=False)
 
-    assert isinstance(write_strategy, WriteImage)
+    assert isinstance(write_strategy, ImageWriteStrategy)
     assert write_strategy.write_func is write_tiff
     assert write_strategy.write_extension == ".tiff"
     assert write_strategy.write_func_kwargs == {}
@@ -46,7 +46,7 @@ def test_create_write_strategy_custom_tiled():
     write_strategy = create_write_strategy(
         write_type="custom", tiled=True, write_func=save_numpy, write_extension=".npy"
     )
-    assert isinstance(write_strategy, CachedTiles)
+    assert isinstance(write_strategy, TileWriteStrategy)
     assert write_strategy.write_func is save_numpy
     assert write_strategy.write_extension == ".npy"
     assert write_strategy.write_func_kwargs == {}
@@ -57,7 +57,7 @@ def test_create_write_strategy_custom_untiled():
     write_strategy = create_write_strategy(
         write_type="custom", tiled=False, write_func=save_numpy, write_extension=".npy"
     )
-    assert isinstance(write_strategy, WriteImage)
+    assert isinstance(write_strategy, ImageWriteStrategy)
     assert write_strategy.write_func is save_numpy
     assert write_strategy.write_extension == ".npy"
     assert write_strategy.write_func_kwargs == {}

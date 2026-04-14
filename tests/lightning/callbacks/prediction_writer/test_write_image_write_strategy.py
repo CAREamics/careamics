@@ -7,8 +7,8 @@ import pytest
 from numpy.typing import NDArray
 
 from careamics.dataset.dataset import ImageRegionData
-from careamics.lightning.callbacks.prediction_writer import (
-    WriteImage,
+from careamics.lightning.callbacks.prediction import (
+    ImageWriteStrategy,
     create_write_file_path,
 )
 
@@ -25,7 +25,7 @@ def write_func():
 
 
 @pytest.fixture
-def write_image_strategy(write_func) -> WriteImage:
+def write_image_strategy(write_func) -> ImageWriteStrategy:
     """
     Initialized `WriteImage` class.
 
@@ -41,7 +41,7 @@ def write_image_strategy(write_func) -> WriteImage:
     """
     write_extension = ".ext"
     write_func_kwargs = {}
-    return WriteImage(
+    return ImageWriteStrategy(
         write_func=write_func,
         write_extension=write_extension,
         write_func_kwargs=write_func_kwargs,

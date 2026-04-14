@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import Callback
 from careamics.config.lightning.training_configuration import TrainingConfig
 
 
-class CareamicsCheckpointInfo(Callback):
+class ConfigSaver(Callback):
     """
     Callback to save CAREamics configuration in Lightning checkpoints.
 

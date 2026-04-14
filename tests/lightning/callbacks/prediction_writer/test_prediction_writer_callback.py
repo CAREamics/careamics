@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from pytorch_lightning import LightningModule, Trainer
 
-from careamics.lightning.callbacks.prediction_writer import (
-    PredictionWriterCallback,
+from careamics.lightning.callbacks.prediction import (
+    PredictionWriter,
     WriteStrategy,
 )
 
@@ -26,7 +26,7 @@ def dirpath(tmp_path: Path):
 @pytest.fixture
 def prediction_writer_callback(write_strategy: WriteStrategy, dirpath: Path | str):
     """Initialized `PredictionWriterCallback`."""
-    return PredictionWriterCallback(write_strategy=write_strategy, dirpath=dirpath)
+    return PredictionWriter(write_strategy=write_strategy, dirpath=dirpath)
 
 
 def test_initialization(prediction_writer_callback, write_strategy, dirpath):

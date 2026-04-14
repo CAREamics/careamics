@@ -5,10 +5,10 @@ from typing import Any
 from careamics.config.support import SupportedData
 from careamics.file_io import SupportedWriteType, WriteFunc, get_write_func
 
-from .cached_tiles_strategy import CachedTiles
-from .write_image_strategy import WriteImage
+from .image_write_strategy import ImageWriteStrategy
+from .tiled_write_strategy import TileWriteStrategy
 from .write_strategy import WriteStrategy
-from .write_tiles_zarr_strategy import WriteTilesZarr
+from .zarr_tiled_write_strategy import ZarrTileWriteStrategy
 
 
 def create_write_strategy(
@@ -62,7 +62,7 @@ def create_write_strategy(
         write_extension = select_write_extension(
             write_type=write_type, write_extension=write_extension
         )
-        write_strategy = WriteImage(
+        write_strategy = ImageWriteStrategy(
             write_func=write_func,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
@@ -115,13 +115,13 @@ def _create_tiled_write_strategy(
         if `write_type="zarr" is chosen.
     """
     if write_type == "zarr":
-        return WriteTilesZarr()
+        return ZarrTileWriteStrategy()
     else:
         write_func = select_write_func(write_type=write_type, write_func=write_func)
         write_extension = select_write_extension(
             write_type=write_type, write_extension=write_extension
         )
-        return CachedTiles(
+        return TileWriteStrategy(
             write_func=write_func,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,

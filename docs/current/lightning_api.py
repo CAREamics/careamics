@@ -9,7 +9,7 @@ from careamics.config.factories import create_advanced_n2v_config
 from careamics.lightning.data_module import CareamicsDataModule
 from careamics.lightning.lightning_modules import N2VModule
 from careamics.lightning.prediction import convert_prediction
-from careamics.lightning.callbacks import CareamicsCheckpointInfo
+from careamics.lightning.callbacks import ConfigSaver
 
 # download example data
 portfolio_manager = PortfolioManager()
@@ -43,9 +43,7 @@ callbacks = [
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
         **config.training_config.checkpoint_params,
     ),
-    CareamicsCheckpointInfo(  # (6)!
-        config.version, config.experiment_name, config.training_config
-    ),
+    ConfigSaver(config.version, config.experiment_name, config.training_config),  # (6)!
 ]
 
 trainer = Trainer(
@@ -80,13 +78,11 @@ stitched_predictions, sources = convert_prediction(  # (12)!
 # --8<-- [end:lightning_api]
 
 # --8<-- [start:predict_to_disk]
-from careamics.lightning.callbacks.prediction_writer import (
-    PredictionWriterCallback,
+from careamics.lightning.callbacks.prediction import (
+    PredictionWriter,
 )
 
-pred_writer = PredictionWriterCallback(  # (1)!
-    dirpath="predictions", enable_writing=False
-)
+pred_writer = PredictionWriter(dirpath="predictions", enable_writing=False)  # (1)!
 
 callbacks = [
     ModelCheckpoint(
@@ -94,9 +90,7 @@ callbacks = [
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
         **config.training_config.checkpoint_params,
     ),
-    CareamicsCheckpointInfo(
-        config.version, config.experiment_name, config.training_config
-    ),
+    ConfigSaver(config.version, config.experiment_name, config.training_config),
     pred_writer,  # (2)!
 ]
 

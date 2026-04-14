@@ -1,11 +1,11 @@
 """A package for the `PredictionWriterCallback` class and utilities."""
 
 __all__ = [
-    "CachedTiles",
-    "PredictionWriterCallback",
-    "WriteImage",
+    "ImageWriteStrategy",
+    "PredictionWriter",
+    "TileWriteStrategy",
     "WriteStrategy",
-    "WriteTilesZarr",
+    "ZarrTileWriteStrategy",
     "create_write_file_path",
     "create_write_strategy",
     "decollate_image_region_data",
@@ -13,17 +13,17 @@ __all__ = [
     "select_write_func",
 ]
 
-from .cached_tiles_strategy import CachedTiles
 from .file_path_utils import create_write_file_path
+from .image_write_strategy import ImageWriteStrategy
 from .prediction_writer_callback import (
-    PredictionWriterCallback,
+    PredictionWriter,
     decollate_image_region_data,
 )
-from .write_image_strategy import WriteImage
+from .tiled_write_strategy import TileWriteStrategy
 from .write_strategy import WriteStrategy
 from .write_strategy_factory import (
     create_write_strategy,
     select_write_extension,
     select_write_func,
 )
-from .write_tiles_zarr_strategy import WriteTilesZarr
+from .zarr_tiled_write_strategy import ZarrTileWriteStrategy

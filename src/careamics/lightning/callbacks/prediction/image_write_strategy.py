@@ -14,9 +14,9 @@ from .file_path_utils import create_write_file_path
 from .write_strategy import WriteStrategy
 
 
-class WriteImage(WriteStrategy):
+class ImageWriteStrategy(WriteStrategy):
     """
-    A strategy for writing image predictions (i.e. un-tiled predictions).
+    A strategy for writing whole image predictions (i.e. un-tiled predictions).
 
     Predictions are cached until all samples for a given data_idx are collected,
     then combined and written. This prevents overwrites when S_dim > batch_size.

@@ -20,13 +20,13 @@ from .write_strategy_factory import create_write_strategy
 logger = get_logger(__name__)
 
 
-class PredictionWriterCallback(BasePredictionWriter):
+class PredictionWriter(BasePredictionWriter):
     """
     PyTorch Lightning callback to save predictions.
 
     A `WriteStrategy` must be provided at instantiation or later via
     `set_writing_strategy`. This allows passing the callback to the Lightning `Trainer`
-    before knowing what writing strategy (e.g. tiling or file tyope) will be used.
+    before knowing what writing strategy (e.g. tiling or file type) will be used.
 
     By default the prediction writer is enabled, but it can be disabled by passing
     `enable_writing=False` at instantiation or by calling `enable_writing(False)`.

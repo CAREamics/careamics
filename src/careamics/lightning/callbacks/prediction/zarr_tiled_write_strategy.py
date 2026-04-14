@@ -18,6 +18,8 @@ from careamics.utils.reshape_array import (
     restore_tile,
 )
 
+from .write_strategy import WriteStrategy
+
 OUTPUT_KEY = "_output"
 
 
@@ -74,7 +76,7 @@ def _add_output_key(dirpath: Path, path: str | Path) -> Path:
     return dirpath / new_name
 
 
-class WriteTilesZarr:
+class ZarrTileWriteStrategy(WriteStrategy):
     """Zarr tile writer strategy.
 
     This writer creates zarr files, groups and arrays as needed and writes tiles
