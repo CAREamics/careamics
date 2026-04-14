@@ -1,5 +1,5 @@
 from careamics.config.augmentations import XYFlipConfig
-from careamics.transforms import XYFlip
+from careamics.dataset.transforms import XYFlip
 
 
 def test_comptatibility_with_transform():

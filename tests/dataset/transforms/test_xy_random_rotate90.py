@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.transforms import XYRandomRotate90
+from careamics.dataset.transforms import XYRandomRotate90
 
 
 @pytest.mark.parametrize(

@@ -7,7 +7,9 @@ masked pixels.
 
 import numpy as np
 
-from careamics.transforms.struct_mask_parameters import StructMaskParameters
+from careamics.lightning.lightning_modules.n2v_utils.struct_mask_parameters import (
+    StructMaskParameters,
+)
 
 
 def _apply_struct_mask(

@@ -5,7 +5,7 @@ import torch
 from numpy.typing import NDArray
 from torch import Tensor
 
-from careamics.transforms.transform import Transform
+from careamics.dataset.transforms.transform import Transform
 
 
 def _reshape_stats(stats: list[float], ndim: int) -> NDArray:

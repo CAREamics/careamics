@@ -1,18 +1,22 @@
-"""Patch transform applying XY random 90 degrees rotations."""
+"""XY flip transform."""
 
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.transforms.transform import Transform
+from careamics.dataset.transforms.transform import Transform
 
 
-class XYRandomRotate90(Transform):
-    """Applies random 90 degree rotations to the YX axis.
+class XYFlip(Transform):
+    """Flip image along X and Y axis, one at a time.
+
+    This transform randomly flips one of the last two axes.
 
     This transform expects C(Z)YX dimensions.
 
     Attributes
     ----------
+    axis_indices : List[int]
+        Indices of the axes that can be flipped.
     rng : np.random.Generator
         Random number generator.
     p : float
@@ -22,27 +26,52 @@ class XYRandomRotate90(Transform):
 
     Parameters
     ----------
-    p : float
+    flip_x : bool, optional
+        Whether to flip along the X axis, by default True.
+    flip_y : bool, optional
+        Whether to flip along the Y axis, by default True.
+    p : float, optional
         Probability of applying the transform, by default 0.5.
-    seed : Optional[int]
+    seed : Optional[int], optional
         Random seed, by default None.
     """
 
-    def __init__(self, p: float = 0.5, seed: int | None = None):
+    def __init__(
+        self,
+        flip_x: bool = True,
+        flip_y: bool = True,
+        p: float = 0.5,
+        seed: int | None = None,
+    ) -> None:
         """Constructor.
 
         Parameters
         ----------
+        flip_x : bool, optional
+            Whether to flip along the X axis, by default True.
+        flip_y : bool, optional
+            Whether to flip along the Y axis, by default True.
         p : float
             Probability of applying the transform, by default 0.5.
-        seed : Optional[int]
+        seed : Optional[int], optional
             Random seed, by default None.
         """
         if p < 0 or p > 1:
             raise ValueError("Probability must be in [0, 1].")
 
+        if not flip_x and not flip_y:
+            raise ValueError("At least one axis must be flippable.")
+
         # probability to apply the transform
         self.p = p
+
+        # "flippable" axes
+        self.axis_indices = []
+
+        if flip_y:
+            self.axis_indices.append(-2)
+        if flip_x:
+            self.axis_indices.append(-1)
 
         # numpy random generator
         self.rng = np.random.default_rng(seed=seed)
@@ -67,42 +96,36 @@ class XYRandomRotate90(Transform):
 
         Returns
         -------
-        tuple[np.ndarray, Optional[np.ndarray]]
+        Tuple[np.ndarray, Optional[np.ndarray]]
             Transformed patch and target.
         """
         if self.rng.random() > self.p:
             return patch, target, additional_arrays
 
-        # number of rotations
-        n_rot = int(self.rng.integers(1, 4))
+        # choose an axis to flip
+        axis = self.rng.choice(self.axis_indices)
 
-        axes = (-2, -1)
-        patch_transformed = self._apply(patch, n_rot, axes)
-        target_transformed = (
-            self._apply(target, n_rot, axes) if target is not None else None
-        )
+        patch_transformed = self._apply(patch, axis)
+        target_transformed = self._apply(target, axis) if target is not None else None
         additional_transformed = {
-            key: self._apply(array, n_rot, axes)
-            for key, array in additional_arrays.items()
+            key: self._apply(array, axis) for key, array in additional_arrays.items()
         }
 
         return patch_transformed, target_transformed, additional_transformed
 
-    def _apply(self, patch: NDArray, n_rot: int, axes: tuple[int, int]) -> NDArray:
+    def _apply(self, patch: NDArray, axis: int) -> NDArray:
         """Apply the transform to the image.
 
         Parameters
         ----------
         patch : np.ndarray
-            Image or image patch, 2D or 3D, shape C(Z)YX.
-        n_rot : int
-            Number of 90 degree rotations.
-        axes : tuple[int, int]
-            Axes along which to rotate the patch.
+            Image patch, 2D or 3D, shape C(Z)YX.
+        axis : int
+            Axis to flip.
 
         Returns
         -------
         np.ndarray
-            Transformed patch.
+            Flipped image patch.
         """
-        return np.ascontiguousarray(np.rot90(patch, k=n_rot, axes=axes))
+        return np.ascontiguousarray(np.flip(patch, axis=axis))
