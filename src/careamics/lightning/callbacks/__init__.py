@@ -1,7 +1,7 @@
 """Callbacks module."""
 
 __all__ = [
-    "ConfigSaver",
+    "ConfigSaverCallback",
     "DataStatsCallback",
     "PredictionStoppedException",
     "PredictionWriter",
@@ -10,7 +10,7 @@ __all__ = [
 ]
 
 
-from .config_saver_callback import ConfigSaver
+from .config_saver_callback import ConfigSaverCallback
 from .data_stats_callback import DataStatsCallback
 from .prediction import PredictionWriter
 from .progress_bar_callback import ProgressBarCallback

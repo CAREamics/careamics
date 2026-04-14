@@ -20,8 +20,8 @@ from careamics.dataset.patching_strategies import (
 from careamics.utils.reshape_array import AxesTransform, reshape_array, restore_array
 
 # to comply with ruff line length
-WriteTilesZarr = pd_writer.zarr_tiled_write_strategy.ZarrTileWriteStrategy
-_auto_chunks = pd_writer.zarr_tiled_write_strategy._auto_chunks
+WriteTilesZarr = pd_writer.zarr_tile_write_strategy.ZarrTileWriteStrategy
+_auto_chunks = pd_writer.zarr_tile_write_strategy._auto_chunks
 
 # TODO test chunking and sharding errors and handling (e.g. when missing)
 

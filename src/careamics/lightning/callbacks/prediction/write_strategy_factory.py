@@ -6,9 +6,9 @@ from careamics.config.support import SupportedData
 from careamics.file_io import SupportedWriteType, WriteFunc, get_write_func
 
 from .image_write_strategy import ImageWriteStrategy
-from .tiled_write_strategy import TileWriteStrategy
+from .tile_write_strategy import TileWriteStrategy
 from .write_strategy import WriteStrategy
-from .zarr_tiled_write_strategy import ZarrTileWriteStrategy
+from .zarr_tile_write_strategy import ZarrTileWriteStrategy
 
 
 def create_write_strategy(

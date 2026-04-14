@@ -19,11 +19,11 @@ from .prediction_writer_callback import (
     PredictionWriter,
     decollate_image_region_data,
 )
-from .tiled_write_strategy import TileWriteStrategy
+from .tile_write_strategy import TileWriteStrategy
 from .write_strategy import WriteStrategy
 from .write_strategy_factory import (
     create_write_strategy,
     select_write_extension,
     select_write_func,
 )
-from .zarr_tiled_write_strategy import ZarrTileWriteStrategy
+from .zarr_tile_write_strategy import ZarrTileWriteStrategy

@@ -9,7 +9,7 @@ from careamics.config.factories import create_advanced_n2v_config
 from careamics.lightning.data_module import CareamicsDataModule
 from careamics.lightning.lightning_modules import N2VModule
 from careamics.lightning.prediction import convert_prediction
-from careamics.lightning.callbacks import ConfigSaver
+from careamics.lightning.callbacks import ConfigSaverCallback
 
 # download example data
 portfolio_manager = PortfolioManager()
@@ -43,7 +43,9 @@ callbacks = [
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
         **config.training_config.checkpoint_params,
     ),
-    ConfigSaver(config.version, config.experiment_name, config.training_config),  # (6)!
+    ConfigSaverCallback(
+        config.version, config.experiment_name, config.training_config
+    ),  # (6)!
 ]
 
 trainer = Trainer(
@@ -90,7 +92,7 @@ callbacks = [
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
         **config.training_config.checkpoint_params,
     ),
-    ConfigSaver(config.version, config.experiment_name, config.training_config),
+    ConfigSaverCallback(config.version, config.experiment_name, config.training_config),
     pred_writer,  # (2)!
 ]
 

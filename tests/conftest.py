@@ -19,7 +19,7 @@ from careamics.config.lightning.training_configuration import (
 )
 from careamics.config.support import SupportedData
 from careamics.lightning.callbacks.config_saver_callback import (
-    ConfigSaver,
+    ConfigSaverCallback,
 )
 from careamics.lightning.data_module import CareamicsDataModule
 from careamics.lightning.lightning_modules import CAREModule, N2VModule
@@ -488,9 +488,9 @@ def _checkpoint_trainer(request):
 
     def _get_trainer_and_info(
         algorithm: str,
-    ) -> tuple[Trainer, ConfigSaver | None]:
+    ) -> tuple[Trainer, ConfigSaverCallback | None]:
         if request.param:
-            info_callback = ConfigSaver(
+            info_callback = ConfigSaverCallback(
                 careamics_version="0.2.0",
                 experiment_name="testing",
                 training_config=TrainingConfig(
@@ -509,7 +509,7 @@ def _checkpoint_trainer(request):
 @pytest.fixture(params=["n2v", "care"])
 def checkpoint(
     request,
-    _checkpoint_trainer: tuple[Trainer, ConfigSaver | None],
+    _checkpoint_trainer: tuple[Trainer, ConfigSaverCallback | None],
     tmp_path: Path,
 ) -> tuple[Path, type[N2VModule] | type[CAREModule], Configuration]:
     """
