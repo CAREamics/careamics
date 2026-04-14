@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Protocol
 
-from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.image_region_data import ImageRegionData
 
 
 class WriteStrategy(Protocol):

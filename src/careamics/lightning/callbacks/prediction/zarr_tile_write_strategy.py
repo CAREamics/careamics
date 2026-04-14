@@ -7,7 +7,7 @@ from pathlib import Path
 import zarr
 from numpy import float32
 
-from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack_loader.zarr_utils import (
     decipher_zarr_uri,
     is_valid_uri,
