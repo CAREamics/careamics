@@ -89,7 +89,9 @@ STR_N2V2_DESCRIPTION = (
 class N2VAlgorithm(UNetBasedAlgorithm):
     """N2V Algorithm configuration."""
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
 
     algorithm: Literal["n2v"] = "n2v"
     """N2V Algorithm name."""

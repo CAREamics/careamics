@@ -15,7 +15,7 @@ from careamics.lightning.data_module import TrainValData, TrainValSplitData
 from careamics.lightning.metrics import SIPSNR
 from careamics.losses import n2v_loss
 from careamics.models.unet import UNet
-from careamics.transforms import N2VManipulateTorch
+from careamics.transforms import N2VManipulate
 from careamics.utils.logging import get_logger
 
 from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
@@ -58,7 +58,7 @@ class N2VModule(L.LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
-        self.n2v_manipulate = N2VManipulateTorch(self.config.n2v_config)
+        self.n2v_manipulate = N2VManipulate(self.config.n2v_config)
         self.loss_func = n2v_loss
 
         self.metrics: MetricCollection = MetricCollection(

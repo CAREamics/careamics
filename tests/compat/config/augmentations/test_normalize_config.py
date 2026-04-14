@@ -1,7 +1,7 @@
 import pytest
 
-from careamics.config.augmentations import NormalizeConfig
-from careamics.transforms import Normalize
+from careamics.compat.config.augmentations import NormalizeConfig
+from careamics.compat.transforms.normalize import Normalize
 
 
 def test_setting_image_means_std():

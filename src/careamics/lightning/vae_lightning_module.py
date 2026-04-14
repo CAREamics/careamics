@@ -7,6 +7,8 @@ import numpy as np
 import pytorch_lightning as L
 import torch
 
+from careamics.compat.transforms.normalize import Denormalize
+from careamics.compat.transforms.tta import ImageRestorationTTA
 from careamics.config import (
     VAEBasedAlgorithm,
 )
@@ -22,16 +24,14 @@ from careamics.models.lvae.noise_models import (
     multichannel_noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
-from careamics.transforms import (
-    Denormalize,
-    ImageRestorationTTA,
-)
 from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
-# Imported here for use by create_careamics_module; canonical location is compat
+# TODO TTA and Denormalize are now in careamics.compat, need to investigate
+# reimplementating them
+# TODO Imported here for use by create_careamics_module
 
 
 # TODO rename module

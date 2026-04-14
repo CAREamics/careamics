@@ -9,8 +9,7 @@ from careamics.config.augmentations import (
     XYRandomRotate90Config,
 )
 from careamics.config.data import DataConfig
-
-from ..utils.random import generate_random_seed
+from careamics.config.utils.random import generate_random_seed
 
 
 def list_spatial_augmentations(
