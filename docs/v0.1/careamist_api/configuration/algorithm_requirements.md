@@ -1,8 +1,13 @@
 # Algorithm requirements
 
+!!! warning "Legacy documentation"
+    This documentation is for the legacy version of CAREamics (v0.1), which is
+    accessible through the `careamics.compat` module. It is kept here for reference, but
+    we recommend using the latest version of CAREamics (v0.2) for new projects. Head to the [v0.2 guides](../v0.2/index.md).
+
+
 In this section we detail the constraints of each algorithm on the configuration and
 their differences. 
-
 
 ### Parent configuration
 
