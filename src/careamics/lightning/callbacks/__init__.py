@@ -4,6 +4,7 @@ __all__ = [
     "ConfigSaver",
     "DataStatsCallback",
     "PredictionStoppedException",
+    "PredictionWriter",
     "ProgressBarCallback",
     "StopPredictionCallback",
 ]
@@ -11,6 +12,7 @@ __all__ = [
 
 from .config_saver_callback import ConfigSaver
 from .data_stats_callback import DataStatsCallback
+from .prediction import PredictionWriter
 from .progress_bar_callback import ProgressBarCallback
 from .stop_prediction_callback import (
     PredictionStoppedException,
