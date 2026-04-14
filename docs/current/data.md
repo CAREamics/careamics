@@ -1,9 +1,9 @@
 ---
 icon: lucide/database
-description: Data handling
+description: Data preparation
 ---
 
-# Handling data
+# Data preparation
 
 CAREamics supports by default data stored in memory as numpy arrays, but also data
 stored on disk in the form of TIFF, CZI and Zarr files. Each format comes with
@@ -37,7 +37,7 @@ as depth axis (as `Z`).
 - `T` and `Z` are mutually exclusive.
 
 ```python title="Using CZI""
---8<-- "data.py:czi"
+--8<-- "current/data.py:czi"
 ```
 
 1. We set the data type to `czi`.
@@ -80,7 +80,7 @@ In the following example, we construct a Zarr file with arrays in different hier
 levels, and showcase various ways to specify which array should be used for training.
 
 ```python title="Using Zarr""
---8<-- "data.py:zarr"
+--8<-- "current/data.py:zarr"
 ```
 
 1. Only `array_1` and `array_2` will be loaded.
