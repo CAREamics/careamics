@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import maximum_filter
 
@@ -96,10 +97,44 @@ class MaxPatchFilter(PatchFilterProtocol):
             The filter map, which has the same shape as the input image.
         """
         filter_value_func = MaxPatchFilter._get_filter_value_func(patch_size, coverage)
-        filtermap = create_filter_map(
+        filter_map = create_filter_map(
             image, filter_value_func, patch_size, direction="greater"
         )
-        return filtermap
+        return filter_map
+
+    @staticmethod
+    def plot_filter_map(
+        image: np.ndarray, filter_map: np.ndarray, z_idx: int | None = None
+    ) -> plt.Figure:
+        """
+        Plot the filter map over an image.
+
+        Parameters
+        ----------
+        image : numpy.ndarray
+            The image that has been evaluated.
+        filter_map : numpy.ndarray
+            The filter map that has been evaluated using the method `filter_map`.
+        z_idx : int | None, default=None
+            If the image is 3D, `z_idx` selects the slice to display. If `None` the
+            central slice will be selected.
+
+        Returns
+        -------
+        matplotlib.pyplot.Figure
+            The figure object displaying the filter map.
+        """
+        if image.ndim == 3:
+            # take the middle z slice if not specified
+            z_idx == image.shape[0] // 2 if z_idx is None else z_idx
+            image = image[z_idx]
+
+        fig, ax = plt.subplots(figsize=(8, 8))
+        ax.imshow(image, "gray")
+        m = ax.imshow(filter_map, "magma", alpha=0.5)
+        plt.colorbar(m, ax=ax)
+        fig.suptitle("Maximum Filter Map")
+        return fig
 
     @staticmethod
     def _get_filter_value_func(
