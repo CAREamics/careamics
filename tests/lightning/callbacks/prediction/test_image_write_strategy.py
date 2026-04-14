@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.image_region_data import ImageRegionData
 from careamics.lightning.callbacks.prediction import (
     ImageWriteStrategy,
     create_write_file_path,

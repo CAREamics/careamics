@@ -4,7 +4,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.image_region_data import ImageRegionData
 from careamics.file_io import WriteFunc
 from careamics.lightning.prediction import (
     combine_samples,

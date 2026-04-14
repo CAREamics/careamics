@@ -9,7 +9,7 @@ from typing import Any
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import BasePredictionWriter
 
-from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.image_region_data import ImageRegionData
 from careamics.file_io.write.get_func import SupportedWriteType, WriteFunc
 from careamics.lightning.prediction import decollate_image_region_data
 from careamics.utils import get_logger

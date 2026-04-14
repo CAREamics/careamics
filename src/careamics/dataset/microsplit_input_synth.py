@@ -9,7 +9,8 @@ from typing import Any, Literal, NamedTuple
 import numpy as np
 from numpy.typing import NDArray
 
-from .dataset import ImageRegionData
+from careamics.dataset.image_region_data import ImageRegionData
+
 from .image_stack import ImageStack
 from .patch_extractor import PatchExtractor
 from .patch_filter import PatchFilterProtocol

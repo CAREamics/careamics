@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack_loader import load_arrays
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching_strategies import (

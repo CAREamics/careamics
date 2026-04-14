@@ -7,9 +7,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 from careamics.compat.config.data.tile_information import TileInformation
+from careamics.dataset.image_region_data import ImageRegionData
 from careamics.utils.deprecation import deprecated
 
-from ...dataset.dataset import ImageRegionData
 from ...dataset.patching_strategies import TileSpecs
 
 
