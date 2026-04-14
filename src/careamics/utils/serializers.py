@@ -8,6 +8,7 @@ import numpy as np
 import torch
 
 
+# TODO move to a lvae specific utils?
 def _array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
     """Convert an array to a list and then to a JSON string.
 

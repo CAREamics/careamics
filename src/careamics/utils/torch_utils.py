@@ -11,11 +11,10 @@ import torch
 
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
 
-from ..utils.logging import get_logger
-
-logger = get_logger(__name__)  # TODO are logger still needed?
+# TODO move these functions elsewhere
 
 
+# TODO: this should be used, but it isn't anymore?
 def get_device() -> str:
     """
     Get the device on which operations take place.
@@ -38,6 +37,7 @@ def get_device() -> str:
     return device
 
 
+# TODO misplaced?
 def filter_parameters(
     func: type,
     user_params: dict,
@@ -86,6 +86,7 @@ def get_optimizer(name: str) -> type[torch.optim.Optimizer]:
     return getattr(torch.optim, name)
 
 
+# TODO unused but in tests
 def get_optimizers() -> dict[str, str]:
     """
     Return the list of all optimizers available in torch.optim.
@@ -125,6 +126,7 @@ def get_scheduler(
     return getattr(torch.optim.lr_scheduler, name)
 
 
+# TODO unused but in tests
 def get_schedulers() -> dict[str, str]:
     """
     Return the list of all schedulers available in torch.optim.lr_scheduler.

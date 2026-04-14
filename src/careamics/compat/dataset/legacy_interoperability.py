@@ -9,12 +9,12 @@ from numpy.typing import NDArray
 from careamics.compat.config.data.tile_information import TileInformation
 from careamics.utils.deprecation import deprecated
 
-from ...dataset_ng.dataset import ImageRegionData
-from ...dataset_ng.patching_strategies import TileSpecs
+from ...dataset.dataset import ImageRegionData
+from ...dataset.patching_strategies import TileSpecs
 
 
 @deprecated(
-    "Use careamics.lightning.dataset_ng.prediction functions instead for stitching and"
+    "Use careamics.lightning.prediction functions instead for stitching and"
     " combining predictions."
 )
 def imageregions_to_tileinfos(

@@ -26,6 +26,7 @@ from careamics.compat.lightning import (
 from careamics.compat.lightning.callbacks import HyperParametersCallback
 from careamics.compat.model_io import export_to_bmz, load_pretrained
 from careamics.compat.prediction_utils import convert_outputs
+from careamics.compat.utils import check_path_exists
 from careamics.config import UNetBasedAlgorithm
 from careamics.config.support import (
     SupportedAlgorithm,
@@ -35,7 +36,7 @@ from careamics.config.support import (
 )
 from careamics.dataset.dataset_utils.file_utils import list_files
 from careamics.file_io import WriteFunc, get_write_func
-from careamics.utils import check_path_exists, get_logger
+from careamics.utils import get_logger
 from careamics.utils.lightning_utils import read_csv_logger
 from careamics.utils.reshape_array import reshape_array
 

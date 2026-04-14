@@ -9,6 +9,7 @@ import pytorch_lightning as L
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, IterableDataset
 
+from careamics.compat.config.augmentations import TransformConfig
 from careamics.compat.config.data import DataConfig
 from careamics.compat.dataset.in_memory_dataset import (
     InMemoryDataset,
@@ -16,7 +17,6 @@ from careamics.compat.dataset.in_memory_dataset import (
 from careamics.compat.dataset.iterable_dataset import (
     PathIterableDataset,
 )
-from careamics.config.augmentations import TransformConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import (
     get_files_size,

@@ -71,6 +71,7 @@ def get_logger(
     return logger
 
 
+# TODO remove
 class ProgressBar:
     """
     Keras style progress bar.

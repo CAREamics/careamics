@@ -1,5 +1,10 @@
 # Export to BMZ
 
+!!! warning "Legacy documentation"
+    This documentation is for the legacy version of CAREamics (v0.1), which is
+    accessible through the `careamics.compat` module. It is kept here for reference, but
+    we recommend using the latest version of CAREamics (v0.2) for new projects. Head to the [v0.2 guides](../v0.2/index.md).
+
 The [BioImage Model Zoo](https://bioimage.io/#/) is a zoo of models that can be run in 
 a variety of software thanks to the 
 [BMZ format](https://github.com/bioimage-io/spec-bioimage-io). CAREamics is compatible 
@@ -8,7 +13,7 @@ with the BMZ format and can export and load (CAREamics) models in this format.
 To export a trained model, you can simply call `careamist.export_to_bmz`:
 
 ```python title="Export to BMZ format"
---8<-- "bmz.py:export"
+--8<-- "v0.1/careamist_api/usage/bmz.py:export"
 ```
 
 1. The model export should be a `.zip` file, if not CAREamics will add the extension.
@@ -36,7 +41,7 @@ dimensions (physical, number of pixels) and the content (type of structures).
 The `export_to_bmz` function has an optional parameter:
 
 ``` python
---8<-- "bmz.py:optional"
+--8<-- "v0.1/careamist_api/usage/bmz.py:optional"
 ```
 
 1. If your data has channels, then you should add their name!

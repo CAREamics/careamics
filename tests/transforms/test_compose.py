@@ -2,11 +2,11 @@ import numpy as np
 import pytest
 
 from careamics.config.augmentations import (
-    NormalizeConfig,
     XYFlipConfig,
     XYRandomRotate90Config,
 )
-from careamics.transforms import Compose, XYFlip, XYRandomRotate90
+from careamics.transforms import XYFlip, XYRandomRotate90
+from careamics.transforms.compose import Compose
 
 
 def test_empty_compose(ordered_array):
@@ -80,14 +80,8 @@ def test_random_composition(ordered_array, shape):
         flip_x = rng.choice([True, False])
 
         transforms = [
-            NormalizeConfig(
-                image_means=[0.5 for _ in range(array.shape[0])],
-                image_stds=[0.5 for _ in range(array.shape[0])],
-                target_means=[0.5 for _ in range(array.shape[0])],
-                target_stds=[0.5 for _ in range(array.shape[0])],
-            ),
-            XYFlipConfig(flip_x=flip_x, seed=42),
-            XYRandomRotate90Config(seed=42),
+            XYFlipConfig(flip_x=flip_x, p=1, seed=42),
+            XYRandomRotate90Config(p=1, seed=42),
         ]
 
         # randomly sort the transforms

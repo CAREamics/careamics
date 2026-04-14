@@ -5,7 +5,6 @@ from careamics.config.support import (
     SupportedStructAxis,
     SupportedTransform,
 )
-from careamics.transforms import get_all_transforms
 
 # TODO name is confusing, and the tests are probably not in the right place. They should
 # probably be in the N2VManipulate or N2VAlgorithm test file.
@@ -26,16 +25,6 @@ def test_correct_transform_parameters(minimum_algorithm_n2v: dict):
     assert "strategy" in params
     assert "struct_mask_axis" in params
     assert "struct_mask_span" in params
-
-
-def test_passing_incorrect_element(minimum_algorithm_n2v: dict):
-    """Test that incorrect element in the list of transforms raises an error (
-    e.g. passing un object rather than a string)."""
-    minimum_algorithm_n2v["n2v_config"] = {
-        "name": get_all_transforms()[SupportedTransform.XY_FLIP.value]()
-    }
-    with pytest.raises(ValueError):
-        N2VAlgorithm(**minimum_algorithm_n2v)
 
 
 def test_set_struct_mask(minimum_algorithm_n2v: dict):

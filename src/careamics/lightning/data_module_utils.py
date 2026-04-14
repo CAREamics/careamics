@@ -1,0 +1,509 @@
+"""Utility functions for file and paths solver."""
+
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any, Literal
+
+from numpy import ndarray
+from numpy.typing import NDArray
+from typing_extensions import TypeIs
+
+from careamics.config.support import SupportedData as SD
+from careamics.dataset.dataset_utils.file_utils import (
+    list_files,
+    validate_source_target_files,
+)
+from careamics.dataset.factory import ImageStackLoading, ReadFuncLoading
+from careamics.dataset.image_stack_loader.zarr_utils import is_valid_uri
+
+ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
+PathInput = str | Path | Sequence[str | Path]
+InputType = ArrayInput | PathInput
+"""Type of input data passed to the dataset."""
+
+
+def _compatible_input_types(data_type: SD) -> str:
+    """String representation of the compatible input types for a given data type.
+
+    Parameters
+    ----------
+    data_type : SupportedData
+        The data type for which to get the compatible input types.
+
+    Returns
+    -------
+    str
+        A string representation of the compatible input types.
+
+    Raises
+    ------
+    ValueError
+        If the data type is not recognized.
+    """
+    match data_type:
+        case SD.ARRAY:
+            return (
+                "the expected input is a numpy.ndarray or a sequence of numpy.ndarray"
+            )
+        case SD.TIFF | SD.CZI | SD.ZARR:
+            return (
+                "the expected input is a str, a pathlib.Path, or a sequence of either"
+            )
+        case SD.CUSTOM:
+            return (
+                "a ReadFuncLoading or an ImageStackLoading is expected to be passed "
+                "alongside the data (which influences the expected input type)"
+            )
+        case _:
+            raise ValueError(f"Unrecognized data type: {data_type}.")
+
+
+def _is_array_input(x: Any) -> TypeIs[ArrayInput]:
+    """
+    Narrow the type of `x` to `ArrayInput`.
+
+    If `x` is an empty sequence it will assume true.
+
+    Parameters
+    ----------
+    x : Any
+        The input to check the type of.
+
+    Returns
+    -------
+    bool
+        Whether `x` is of the type `ArrayType`.
+    """
+    if isinstance(x, Sequence):
+        return len(x) == 0 or all(isinstance(e, ndarray) for e in x)
+    else:
+        return isinstance(x, ndarray)
+
+
+def _is_array_data(
+    data: tuple[Any, Any | None],
+) -> TypeIs[tuple[ArrayInput, ArrayInput | None]]:
+    """
+    Narrow the type of `data` to a tuple of `ArrayInput`.
+
+    Parameters
+    ----------
+    data : tuple[Any, Any | None]
+        A pair of inputs assumed to be an input and target, the target can be `None`.
+
+    Returns
+    -------
+    bool
+        Whether `data` is is a pair of the type `ArrayType`.
+    """
+    input_is_valid = _is_array_input(data[0])
+    target_is_valid = data[1] is None or _is_array_input(data[1])
+    return input_is_valid and target_is_valid
+
+
+def _is_path_input(x: Any) -> TypeIs[PathInput]:
+    """
+    Narrow the type of `x` to `PathInput`.
+
+    If `x` is an empty sequence it will assume true.
+
+    Parameters
+    ----------
+    x : Any
+        The input to check the type of.
+
+    Returns
+    -------
+    bool
+        Whether `x` is of the type `PathType`.
+    """
+    if isinstance(x, Sequence) and not isinstance(x, str):
+        return len(x) == 0 or all(isinstance(e, str | Path) for e in x)
+    else:
+        return isinstance(x, str | Path)
+
+
+def _is_path_data(
+    data: tuple[Any, Any | None],
+) -> TypeIs[tuple[PathInput, PathInput | None]]:
+    """
+    Narrow the type of `data` to a tuple of `PathInput`.
+
+    Parameters
+    ----------
+    data : tuple[Any, Any | None]
+        A pair of inputs assumed to be an input and target, the target can be `None`.
+
+    Returns
+    -------
+    bool
+        Whether `data` is is a pair of the type `PathType`.
+    """
+    input_is_valid = _is_path_input(data[0])
+    target_is_valid = data[1] is None or _is_path_input(data[1])
+    return input_is_valid and target_is_valid
+
+
+def list_files_in_directory(
+    data_type: Literal["tiff", "zarr", "czi", "custom"] | SD,
+    input_data: str | Path,
+    target_data: str | Path | None = None,
+    extension_filter: str = "",
+) -> tuple[list[Path], list[Path] | None]:
+    """List files from input and target directories.
+
+    Parameters
+    ----------
+    data_type : Literal["tiff", "zarr", "czi", "custom"]
+        The type of data to validate.
+    input_data : str | Path
+        Input data, can be a path to a folder, a list of paths, or a numpy array.
+    target_data : str | Path | None, default=None
+        Target data, can be None, a path to a folder, a list of paths, or a numpy
+        array.
+    extension_filter : str, default=""
+        File extension filter to apply when listing files.
+
+    Returns
+    -------
+    list[Path]
+        A list of file paths for input data.
+    list[Path] | None
+        A list of file paths for target data, or None if target_data is None.
+    """
+    input_data = Path(input_data)
+
+    # list_files will return a list with a single element if the path is a file with
+    # the correct extension
+    input_files = list_files(input_data, data_type, extension_filter)
+    if target_data is None:
+        return input_files, None
+    else:
+        target_data = Path(target_data)
+        target_files = list_files(target_data, data_type, extension_filter)
+        validate_source_target_files(input_files, target_files)
+        return input_files, target_files
+
+
+def convert_paths_to_pathlib(
+    input_data: Sequence[str | Path],
+    target_data: Sequence[str | Path] | None = None,
+) -> tuple[list[Path], list[Path] | None]:
+    """Create a list of file paths from the input and target data.
+
+    Parameters
+    ----------
+    input_data : Sequence[str | Path]
+        Input data, can be a path to a folder, or a list of paths.
+    target_data : Sequence[str | Path] | None, default=None
+        Target data, can be None, a path to a folder, or a list of paths.
+
+    Returns
+    -------
+    list[Path]
+        A list of file paths for input data.
+    list[Path] | None
+        A list of file paths for target data, or None if target_data is None.
+    """
+    input_files = [Path(item) if isinstance(item, str) else item for item in input_data]
+    if target_data is None:
+        return input_files, None
+    else:
+        target_files = [
+            Path(item) if isinstance(item, str) else item for item in target_data
+        ]
+        validate_source_target_files(input_files, target_files)
+        return input_files, target_files
+
+
+def validate_input_target_type_consistency(
+    input_data: InputType,
+    target_data: InputType | None,
+) -> None:
+    """Validate if the input and target data types are consistent.
+
+    Parameters
+    ----------
+    input_data : InputType
+        Input data, can be a path to a folder, a list of paths, or a numpy array.
+    target_data : InputType | None
+        Target data, can be None, a path to a folder, a list of paths, or a numpy
+        array.
+
+    Raises
+    ------
+    ValueError
+        If the input and target data types are not consistent.
+    """
+    if target_data is not None and not isinstance(input_data, type(target_data)):
+        raise ValueError(
+            f"Inputs for input and target must be of the same type or None. "
+            f"Got {type(input_data)} and {type(target_data)}."
+        )
+    if (
+        isinstance(input_data, Sequence)
+        and not isinstance(input_data, str)
+        and isinstance(target_data, Sequence)
+        and not isinstance(target_data, str)
+    ):
+        if len(input_data) != len(target_data):
+            raise ValueError(
+                f"Inputs and targets must have the same length. "
+                f"Got {len(input_data)} and {len(target_data)}."
+            )
+        if not isinstance(input_data[0], type(target_data[0])):
+            raise ValueError(
+                f"Inputs and targets must have the same type. "
+                f"Got {type(input_data[0])} and {type(target_data[0])}."
+            )
+
+
+def validate_array_input(
+    input_data: ArrayInput,
+    target_data: ArrayInput | None,
+) -> tuple[list[NDArray[Any]], list[NDArray[Any]] | None]:
+    """Validate if the input data is a numpy array.
+
+    Parameters
+    ----------
+    input_data : ArrayInput
+        Input data, can be a list of or a single numpy array.
+    target_data : ArrayInput | None
+        Target data, can be a list of or a single numpy array, or None.
+        array.
+
+    Returns
+    -------
+    list[numpy.ndarray]
+        Validated input data.
+    list[numpy.ndarray] | None
+        Validated target data, None if the target data is None.
+
+    Raises
+    ------
+    ValueError
+        If the input data is not a numpy array or a list of numpy arrays.
+    """
+    if isinstance(input_data, ndarray):
+        input_list = [input_data]
+
+        if target_data is not None and not isinstance(target_data, ndarray):
+            raise ValueError(
+                f"Wrong target type. Expected numpy.ndarray, got {type(target_data)}. "
+                f"Check the data_type parameter or your inputs."
+            )
+        target_list = [target_data] if target_data is not None else None
+        return input_list, target_list
+    else:  # is sequence
+        input_list = list(input_data)
+
+        if target_data is not None and not isinstance(target_data, Sequence):
+            raise ValueError(
+                "Wrong target type. Expected a sequence of numpy,ndarray, got "
+                f"{type(target_data)}. Check the data_type "
+                "parameter or your inputs."
+            )
+        target_list = list(target_data) if target_data is not None else None
+
+        return input_list, target_list
+
+
+def validate_path_input(
+    data_type: Literal["tiff", "zarr", "czi", "custom"] | SD,
+    input_data: PathInput,
+    target_data: PathInput | None,
+    extension_filter: str = "",
+) -> tuple[list[Path], list[Path] | None]:
+    """Validate if the input data is a path or a list of paths.
+
+    Parameters
+    ----------
+    data_type : Literal["tiff", "zarr", "czi", "custom"]
+        The type of data to validate.
+    input_data : PathInput
+        Input data, can be a path to a folder, a list of paths.
+    target_data : PathInput | None
+        Target data, can be None, a path to a folder, a list of paths.
+    extension_filter : str, default=""
+        File extension filter to apply when listing files.
+
+    Returns
+    -------
+    list[Path]
+        A list of file paths for input data.
+    list[Path] | None
+        A list of file paths for target data, or None if target_data is None.
+
+    Raises
+    ------
+    ValueError
+        If the input data is not a path or a list of paths.
+    """
+    if isinstance(input_data, (str, Path)) and (
+        target_data is None or isinstance(target_data, (str, Path))
+    ):
+        input_list, target_list = list_files_in_directory(
+            data_type, input_data, target_data, extension_filter
+        )
+        return input_list, target_list
+    elif isinstance(input_data, list):
+        # TODO warn if paths do not exist
+        input_list = [Path(item) for item in input_data if Path(item).exists()]
+
+        target_list = None
+        if target_data is not None:
+            assert isinstance(target_data, list)
+            # consistency with input is enforced by convert_paths_to_pathlib
+            target_list = [Path(item) for item in target_data if Path(item).exists()]
+
+        return convert_paths_to_pathlib(input_list, target_list)
+    else:
+        raise ValueError(
+            f"Wrong input type, expected str or Path or list[str | Path], got "
+            f"{type(input_data)}. Check the `data_type` parameter or your inputs."
+        )
+
+
+def validate_zarr_input(
+    input_data: PathInput,
+    target_data: PathInput | None,
+) -> tuple[list[str] | list[Path], list[str] | list[Path] | None]:
+    """Validate if the input data corresponds a zarr input.
+
+    Parameters
+    ----------
+    input_data : PathInput
+        Input data, can be a path to a folder, to zarr file, a URI pointing to a zarr
+        dataset, or a list.
+    target_data : PathInput | None
+        Target data, can be None.
+
+    Returns
+    -------
+    list[str] or list[Path]
+        A list of zarr URIs or path for input data.
+    list[str] or list[Path] | None
+        A list of zarr URIs or paths for target data, or None if target_data is None.
+
+    Raises
+    ------
+    ValueError
+        If the input and target data types are not consistent.
+    ValueError
+        If the input data is not a zarr URI or path, or a list of zarr URIs or paths.
+    """
+    # validate_input_target_type_consistency is called beforehand, ensuring the types
+    # of input and target are the same
+    if isinstance(input_data, (str, Path)):
+        if Path(input_data).exists():
+            # either a path to a folder or a zarr file
+            # path to a folder will trigger collection of all zarr files in that folder
+            assert target_data is None or isinstance(target_data, (str, Path))
+            if target_data is not None and not Path(target_data).exists():
+                raise ValueError(
+                    f"Target provided as path, but does not exist: {target_data}."
+                )
+
+            return validate_path_input("zarr", input_data, target_data)
+        elif isinstance(input_data, str) and is_valid_uri(input_data):
+            input_list = [input_data]
+
+            assert target_data is None or isinstance(target_data, str)
+            if target_data is not None and not is_valid_uri(target_data):
+                raise ValueError(
+                    f"Wrong target type for zarr data. Expected a zarr URI, got "
+                    f"{type(target_data)}."
+                )
+            target_list = [target_data] if target_data is not None else None
+            return input_list, target_list
+        else:
+            raise ValueError(
+                f"Wrong input type for zarr data. Expected a file URI or a path to a "
+                f" file, got {input_data}. Path may not exist."
+            )
+    else:  # input is sequence of Path | str
+        if Path(input_data[0]).exists():
+            return validate_path_input("zarr", input_data, target_data)
+        else:
+            final_input_list = [str(item) for item in input_data if is_valid_uri(item)]
+            if target_data is not None:
+                assert isinstance(target_data, list)
+                final_target_list = [
+                    str(item) for item in target_data if is_valid_uri(item)
+                ]
+            else:
+                final_target_list = None
+            return final_input_list, final_target_list
+
+
+def initialize_data_pair(
+    data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | SD,
+    input_data: Any,
+    target_data: Any | None = None,
+    loading: ReadFuncLoading | ImageStackLoading | None = None,
+) -> tuple[Any, Any | None]:
+    """
+    Initialize a pair of input and target data.
+
+    Parameters
+    ----------
+    data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
+        The type of data to initialize.
+    input_data : InputType
+        Input data, can be None, a path to a folder, a list of paths, or a numpy
+        array.
+    target_data : InputType | None
+        Target data, can be None, a path to a folder, a list of paths, or a numpy
+        array.
+    loading : ReadFuncLoading | ImageStackLoading | None, default=None
+        The type of loading used for custom data. `ReadFuncLoading` is the use of
+        a simple function that will load full images into memory.
+        `ImageStackLoading` is for custom chunked or memory-mapped next-generation
+        file formats enabling  single patches to be read from disk at a time.
+        If the data type is not custom `loading` should be `None`.
+
+    Returns
+    -------
+    list[numpy.ndarray] | list[pathlib.Path]
+        Initialized input data. For file paths, returns a list of Path objects. For
+        numpy arrays, returns the arrays directly.
+    list[numpy.ndarray] | list[pathlib.Path] | None
+        Initialized target data. For file paths, returns a list of Path objects. For
+        numpy arrays, returns the arrays directly. Returns None if target_data is None.
+    """
+    data_type = SD(data_type)
+    data = (input_data, target_data)
+    match (data_type, loading):
+        case (SD.ARRAY, None) if _is_array_data(data):
+            input_data, target_data = validate_array_input(data[0], data[1])
+        case (SD.TIFF | SD.CZI, None) if _is_path_data(data):
+            input_data, target_data = validate_path_input(data_type, data[0], data[1])
+        case (SD.ZARR, None) if _is_path_data(data):
+            input_data, target_data = validate_zarr_input(data[0], data[1])
+        case (SD.CUSTOM, ReadFuncLoading(extension_filter=ext)) if _is_path_data(data):
+            input_data, target_data = validate_path_input(
+                data_type, data[0], data[1], extension_filter=ext
+            )
+        case (SD.CUSTOM, ImageStackLoading()):
+            input_data, target_data = input_data, target_data
+        case _:
+            # check if the input type is a Sequence
+            if isinstance(input_data, Sequence) and not isinstance(input_data, str):
+                type_input = (
+                    f"input type `{type(input_data[0])}`"
+                    if len(input_data) > 0
+                    else "empty list"
+                )
+            else:
+                type_input = f"input type `{type(input_data)}`"
+
+            raise ValueError(
+                f"Invalid argument combination for data initialization. The data type "
+                f"is set to `{data_type.value}`, but received non-compatible "
+                f"{type_input}. For `{data_type.value}` data type, "
+                f"{_compatible_input_types(data_type)}. Refer to the documentation for "
+                "more details."
+            )
+
+    validate_input_target_type_consistency(input_data, target_data)
+    return input_data, target_data

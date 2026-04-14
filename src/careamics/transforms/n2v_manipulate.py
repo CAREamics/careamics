@@ -1,18 +1,21 @@
-"""N2V manipulation transform."""
+"""N2V manipulation transform for PyTorch."""
 
-from typing import Any, Literal
+import platform
+from typing import Any
 
-import numpy as np
-from numpy.typing import NDArray
+import torch
 
+from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
-from careamics.transforms.transform import Transform
 
-from .pixel_manipulation import median_manipulate, uniform_manipulate
+from .pixel_manipulation import (
+    median_manipulate,
+    uniform_manipulate,
+)
 from .struct_mask_parameters import StructMaskParameters
 
 
-class N2VManipulate(Transform):
+class N2VManipulate:
     """
     Default augmentation for the N2V model.
 
@@ -20,20 +23,10 @@ class N2VManipulate(Transform):
 
     Parameters
     ----------
-    roi_size : int, optional
-        Size of the replacement area, by default 11.
-    masked_pixel_percentage : float, optional
-        Percentage of pixels to mask, by default 0.2.
-    strategy : Literal[ "uniform", "median" ], optional
-        Replaccement strategy, uniform or median, by default uniform.
-    remove_center : bool, optional
-        Whether to remove central pixel from patch, by default True.
-    struct_mask_axis : Literal["horizontal", "vertical", "none"], optional
-        StructN2V mask axis, by default "none".
-    struct_mask_span : int, optional
-        StructN2V mask span, by default 5.
-    seed : Optional[int], optional
-        Random seed, by default None.
+    n2v_manipulate_config : N2VManipulateConfig
+        N2V manipulation configuration.
+    device : str
+        The device on which operations take place, e.g. "cuda", "cpu" or "mps".
 
     Attributes
     ----------
@@ -42,7 +35,7 @@ class N2VManipulate(Transform):
     roi_size : int
         Size of the replacement area.
     strategy : Literal[ "uniform", "median" ]
-        Replaccement strategy, uniform or median.
+        Replacement strategy, uniform or median.
     remove_center : bool
         Whether to remove central pixel from patch.
     struct_mask : Optional[StructMaskParameters]
@@ -53,60 +46,61 @@ class N2VManipulate(Transform):
 
     def __init__(
         self,
-        roi_size: int = 11,
-        masked_pixel_percentage: float = 0.2,
-        strategy: Literal[
-            "uniform", "median"
-        ] = SupportedPixelManipulation.UNIFORM.value,
-        remove_center: bool = True,
-        struct_mask_axis: Literal["horizontal", "vertical", "none"] = "none",
-        struct_mask_span: int = 5,
-        seed: int | None = None,
+        n2v_manipulate_config: N2VManipulateConfig,
+        device: str | None = None,
     ):
         """Constructor.
 
         Parameters
         ----------
-        roi_size : int, optional
-            Size of the replacement area, by default 11.
-        masked_pixel_percentage : float, optional
-            Percentage of pixels to mask, by default 0.2.
-        strategy : Literal[ "uniform", "median" ], optional
-            Replaccement strategy, uniform or median, by default uniform.
-        remove_center : bool, optional
-            Whether to remove central pixel from patch, by default True.
-        struct_mask_axis : Literal["horizontal", "vertical", "none"], optional
-            StructN2V mask axis, by default "none".
-        struct_mask_span : int, optional
-            StructN2V mask span, by default 5.
-        seed : Optional[int], optional
-            Random seed, by default None.
+        n2v_manipulate_config : N2VManipulateConfig
+            N2V manipulation configuration.
+        device : str
+            The device on which operations take place, e.g. "cuda", "cpu" or "mps".
         """
-        self.masked_pixel_percentage = masked_pixel_percentage
-        self.roi_size = roi_size
-        self.strategy = strategy
-        self.remove_center = remove_center  # TODO is this ever used?
+        self.masked_pixel_percentage = n2v_manipulate_config.masked_pixel_percentage
+        self.roi_size = n2v_manipulate_config.roi_size
+        self.strategy = n2v_manipulate_config.strategy
 
-        if struct_mask_axis == SupportedStructAxis.NONE:
+        if n2v_manipulate_config.struct_mask_axis == SupportedStructAxis.NONE:
             self.struct_mask: StructMaskParameters | None = None
         else:
             self.struct_mask = StructMaskParameters(
-                axis=0 if struct_mask_axis == SupportedStructAxis.HORIZONTAL else 1,
-                span=struct_mask_span,
+                axis=(
+                    0
+                    if n2v_manipulate_config.struct_mask_axis
+                    == SupportedStructAxis.HORIZONTAL
+                    else 1
+                ),
+                span=n2v_manipulate_config.struct_mask_span,
             )
 
-        # numpy random generator
-        self.rng = np.random.default_rng(seed=seed)
+        # PyTorch random generator
+        # TODO refactor into careamics.utils.torch_utils.get_device
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            elif torch.backends.mps.is_available() and platform.processor() in (
+                "arm",
+                "arm64",
+            ):
+                device = "mps"
+            else:
+                device = "cpu"
+
+        self.rng = torch.Generator(device=device).manual_seed(
+            n2v_manipulate_config.seed
+        )
 
     def __call__(
-        self, patch: NDArray, *args: Any, **kwargs: Any
-    ) -> tuple[NDArray, NDArray, NDArray]:
+        self, batch: torch.Tensor, *args: Any, **kwargs: Any
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Apply the transform to the image.
 
         Parameters
         ----------
-        patch : np.ndarray
-            Image patch, 2D or 3D, shape C(Z)YX.
+        batch : torch.Tensor
+            Batch if image patches, 2D or 3D, shape BC(Z)YX.
         *args : Any
             Additional arguments, unused.
         **kwargs : Any
@@ -114,27 +108,27 @@ class N2VManipulate(Transform):
 
         Returns
         -------
-        tuple[np.ndarray, np.ndarray, np.ndarray]
+        tuple[torch.Tensor, torch.Tensor, torch.Tensor]
             Masked patch, original patch, and mask.
         """
-        masked = np.zeros_like(patch)
-        mask = np.zeros_like(patch)
+        masked = torch.zeros_like(batch)
+        mask = torch.zeros_like(batch, dtype=torch.uint8)
+
         if self.strategy == SupportedPixelManipulation.UNIFORM:
             # Iterate over the channels to apply manipulation separately
-            for c in range(patch.shape[0]):
-                masked[c, ...], mask[c, ...] = uniform_manipulate(
-                    patch=patch[c, ...],
+            for c in range(batch.shape[1]):
+                masked[:, c, ...], mask[:, c, ...] = uniform_manipulate(
+                    patch=batch[:, c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
-                    remove_center=self.remove_center,
                     struct_params=self.struct_mask,
                     rng=self.rng,
                 )
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
             # Iterate over the channels to apply manipulation separately
-            for c in range(patch.shape[0]):
-                masked[c, ...], mask[c, ...] = median_manipulate(
-                    patch=patch[c, ...],
+            for c in range(batch.shape[1]):
+                masked[:, c, ...], mask[:, c, ...] = median_manipulate(
+                    batch=batch[:, c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
                     struct_params=self.struct_mask,
@@ -143,8 +137,4 @@ class N2VManipulate(Transform):
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
 
-        # TODO: Output does not match other transforms, how to resolve?
-        #     - Don't include in Compose and apply after if algorithm is N2V?
-        #     - or just don't return patch? but then mask is in the target position
-        # TODO why return patch?
-        return masked, patch, mask
+        return masked, batch, mask

@@ -8,7 +8,7 @@ except PackageNotFoundError:
     __version__ = "uninstalled"
 
 __all__ = [
-    "CAREamistV2",
+    "CAREamist",
 ]
 
-from .careamist_v2 import CAREamistV2
+from .careamist import CAREamist

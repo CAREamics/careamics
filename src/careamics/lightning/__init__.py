@@ -17,9 +17,9 @@ from .callbacks import (
     ProgressBarCallback,
     StopPredictionCallback,
 )
-from .lightning_module import VAEModule
 from .microsplit_data_module import (
     MicroSplitDataModule,
     create_microsplit_predict_datamodule,
     create_microsplit_train_datamodule,
 )
+from .vae_lightning_module import VAEModule

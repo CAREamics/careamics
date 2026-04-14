@@ -7,6 +7,7 @@ from careamics import __version__
 logger = logging.getLogger(__name__)
 
 
+# TODO only used in BMZ, but could be useful as a convenience function for users
 def get_careamics_version() -> str:
     """Get clean CAREamics version.
 

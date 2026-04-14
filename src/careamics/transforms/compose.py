@@ -4,30 +4,13 @@ from typing import Union, cast
 
 from numpy.typing import NDArray
 
-from careamics.config.augmentations import NORM_AND_SPATIAL_UNION
-
-from .normalize import Normalize
-from .transform import Transform
-from .xy_flip import XYFlip
-from .xy_random_rotate90 import XYRandomRotate90
+from careamics.config.augmentations import SPATIAL_TRANSFORMS_UNION
+from careamics.transforms import Transform, XYFlip, XYRandomRotate90
 
 ALL_TRANSFORMS = {
-    "Normalize": Normalize,
     "XYFlip": XYFlip,
     "XYRandomRotate90": XYRandomRotate90,
 }
-
-
-def get_all_transforms() -> dict[str, type]:
-    """Return all the transforms accepted by CAREamics.
-
-    Returns
-    -------
-    dict
-        A dictionary with all the transforms accepted by CAREamics, where the keys are
-        the transform names and the values are the transform classes.
-    """
-    return ALL_TRANSFORMS
 
 
 class Compose:
@@ -35,7 +18,7 @@ class Compose:
 
     Parameters
     ----------
-    transform_list : list[TransformConfig]
+    transform_list : list[SPATIAL_TRANSFORMS_UNION]
         A list of dictionaries where each dictionary contains the name of a
         transform and its parameters.
 
@@ -45,18 +28,18 @@ class Compose:
         A callable that applies the transforms to the input data.
     """
 
-    def __init__(self, transform_list: list[NORM_AND_SPATIAL_UNION]) -> None:
+    def __init__(self, transform_list: list[SPATIAL_TRANSFORMS_UNION]) -> None:
         """Instantiate a Compose object.
 
         Parameters
         ----------
-        transform_list : list[NORM_AND_SPATIAL_UNION]
+        transform_list : list[SPATIAL_TRANSFORMS_UNION]
             A list of dictionaries where each dictionary contains the name of a
             transform and its parameters.
         """
         # retrieve all available transforms
         # TODO: correctly type hint get_all_transforms function output
-        all_transforms: dict[str, type[Transform]] = get_all_transforms()
+        all_transforms: dict[str, type[Transform]] = ALL_TRANSFORMS
 
         # instantiate all transforms
         self.transforms: list[Transform] = [

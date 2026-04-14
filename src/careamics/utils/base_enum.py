@@ -4,6 +4,7 @@ from enum import Enum, EnumMeta
 from typing import Any
 
 
+# TODO assess if we are really using this mechanism and if py311 StrEnum is not enough
 class _ContainerEnum(EnumMeta):
     """Metaclass for Enum with __contains__ method."""
 
