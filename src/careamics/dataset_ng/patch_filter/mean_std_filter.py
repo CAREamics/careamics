@@ -105,7 +105,7 @@ class MeanStdPatchFilter(PatchFilterProtocol):
         Returns
         -------
         numpy.ndarray
-            The filter map, which has the same shape as the input image.
+            Stacked mean and std filter maps of the image.
         """
         filtermap_mean = create_filter_map(
             image,
