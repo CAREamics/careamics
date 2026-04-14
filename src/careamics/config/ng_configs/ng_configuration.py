@@ -317,7 +317,7 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
         patch_size : list[int]
             Patch size.
         """
-        # set the flag and axes (will this trigger the validation?)
+        # set the flag, axes, and patch size
         self.algorithm_config.model.set_3D(is_3D)
         self.data_config.set_3D(axes, patch_size)
         # validate the ng-config instance
