@@ -173,9 +173,9 @@ class MaxPatchFilter(PatchFilterProtocol):
             # reverse order of counts (now ordered by largest to smallest filter value)
             valid = np.where(np.cumsum(counts[::-1]) / total_pixels >= coverage)[0]
             # now we find the first value which has more counts than the coverage ratio
-            v_idx = valid[::-1][0]
+            v_idx = valid[0]
             # use the index of the counts to extract the value
-            value = unique_values[v_idx]
+            value = unique_values[::-1][v_idx]
             return float(value)
 
         return filter_value_func
