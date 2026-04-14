@@ -5,9 +5,8 @@ from collections.abc import Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.dataset_ng.patch_filter.patch_filter_protocol import (
-    PatchFilterProtocol,
-)
+from .filtermap_utils import create_filter_map
+from .patch_filter_protocol import PatchFilterProtocol
 
 
 # TODO is it more intuitive to have a negative mask? (mask of what to avoid)
@@ -54,7 +53,7 @@ class MaskFilter(PatchFilterProtocol):
 
         self.coverage = coverage
 
-    def filter_out(self, patch: NDArray[np.bool_]) -> bool:
+    def filter_out(self, patch: NDArray[np.bool_ | np.int_]) -> bool:
         """
         Determine whether to filter out a patch based on mask coverage.
 
@@ -69,12 +68,12 @@ class MaskFilter(PatchFilterProtocol):
         bool
             True if the patch should be filtered out, False otherwise.
         """
-        masked_fraction = np.sum(patch) / patch.size
+        masked_fraction = np.count_nonzero(patch) / patch.size
         return bool(masked_fraction < self.coverage)
 
     @staticmethod
     def filter_map(
-        image: NDArray[np.bool_],
+        image: NDArray[np.bool_ | np.int_],
         patch_size: Sequence[int],
     ) -> NDArray[np.bool_]:
         """
@@ -92,4 +91,25 @@ class MaskFilter(PatchFilterProtocol):
         NDArray[np.bool_]
             The mask image itself.
         """
-        return image
+        return create_filter_map(
+            image, MaskFilter._filter_value, patch_size, direction="greater"
+        )
+
+    @staticmethod
+    def _filter_value(patch: NDArray[np.bool_]) -> float:
+        """
+        Get the filter value of the MaskFilter.
+
+        This is the coverage of the mask in a patch.
+
+        Parameters
+        ----------
+        patch : numpy.ndarray
+            A patch of the mask to evaluate.
+
+        Returns
+        -------
+        float
+            The coverage of the mask in the patch.
+        """
+        return np.count_nonzero(patch) / patch.size
