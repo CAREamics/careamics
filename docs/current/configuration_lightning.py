@@ -158,7 +158,7 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    model_params={  # (1)!
+    model_params={
         "depth": 4,
     },
 )
@@ -213,7 +213,7 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    train_dataloader_params={  # (1)!
+    train_dataloader_params={
         "shuffle": True,
         "drop_last": True,
     },
@@ -231,7 +231,7 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    checkpoint_params={  # (1)!
+    checkpoint_params={
         "monitor": "val_loss",
         "mode": "min",
         "save_top_k": 3,
@@ -251,7 +251,7 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    early_stopping_params={  # (1)!
+    early_stopping_params={
         "monitor": "val_loss",
         "mode": "min",
         "patience": 5,

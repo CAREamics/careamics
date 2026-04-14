@@ -172,7 +172,7 @@ config = create_care_config(
     batch_size=8,
     num_epochs=30,
     n_channels_in=3,  # (2)!
-    n_channels_out=2,  # (3)!
+    n_channels_out=2,
 )
 # --8<-- [end:config_care_channels]
 
