@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 
 from careamics.compat.config.augmentations import NORM_AND_SPATIAL_UNION
 from careamics.compat.transforms.normalize import Normalize
-from careamics.dataset.transforms import Transform, XYFlip, XYRandomRotate90
+from careamics.dataset.augmentation import Transform, XYFlip, XYRandomRotate90
 
 ALL_TRANSFORMS = {
     "XYFlip": XYFlip,

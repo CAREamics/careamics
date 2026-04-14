@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.transforms import XYFlip
+from careamics.dataset.augmentation import XYFlip
 
 
 def test_p_wrong_values():
