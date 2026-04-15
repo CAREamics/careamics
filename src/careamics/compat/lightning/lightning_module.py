@@ -24,7 +24,6 @@ from careamics.config.support import (
     SupportedScheduler,
 )
 from careamics.lightning.lightning_modules.n2v_utils import N2VManipulate
-
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
