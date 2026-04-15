@@ -7,6 +7,7 @@ __all__ = [
     "lvae_loss_factory",
     "musplit_loss",
     "n2v_loss",
+    "pn2v_loss",
 ]
 
 from .lvae import (
@@ -16,4 +17,4 @@ from .lvae import (
     lvae_loss_factory,
     musplit_loss,
 )
-from .n2v_losses import n2v_loss
+from .n2v_losses import n2v_loss, pn2v_loss

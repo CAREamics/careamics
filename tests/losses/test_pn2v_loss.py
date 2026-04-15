@@ -4,12 +4,13 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from careamics.losses.fcn.losses import pn2v_loss
 
 from careamics.config.noise_model import GaussianMixtureNMConfig
+from careamics.losses import pn2v_loss
 from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
 
 
+# TODO rewrite
 def test_pn2v_loss_basic(tmp_path: Path, create_dummy_noise_model):
     """Test that PN2V loss function works with basic inputs."""
     np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
