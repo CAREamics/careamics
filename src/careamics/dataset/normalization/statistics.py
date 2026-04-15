@@ -13,11 +13,12 @@ from careamics.config.data.normalization_config import (
     NormalizationConfig,
     QuantileConfig,
 )
-from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
-from careamics.dataset.normalization.running_quantile import QuantileEstimator
-from careamics.dataset.normalization.utils import broadcast_stats
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching_strategies import PatchingStrategy
+
+from .running_mean_std import WelfordStatistics
+from .running_quantile import QuantileEstimator
+from .utils import broadcast_stats
 
 
 def _compute_mean_std(
