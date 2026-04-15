@@ -1,5 +1,10 @@
 # (Intermediate) Datasets
 
+!!! warning "Legacy documentation"
+    This documentation is for the legacy version of CAREamics (v0.1), which is
+    accessible through the `careamics.compat` module. It is kept here for reference, but
+    we recommend using the latest version of CAREamics (v0.2) for new projects. Head to the [v0.2 guides](../v0.2/index.md).
+
 Datasets are the internal classes providing the individual patches for training, 
 validation and prediction. In CAREamics, we provide a `TrainDataModule` class that 
 creates the datasets for training and validation (there is a class for prediction
@@ -19,7 +24,7 @@ The `TrainDataModule` receives both data configuration and data itself. The data
 can be passed a path to a folder, to a file or as `numpy` array. 
 
 ```python title="Simplest way to instantiate TrainDataModule"
---8<-- "datasets.py:train_data"
+--8<-- "v0.1/careamist_api/usage/datasets.py:train_data"
 ```
 
 It has the following parameters:
@@ -152,7 +157,7 @@ You should also provide a `fnmatch` and `Path.rglob` compatible expression (e.g.
 
 
 ```python title="Read custom data types"
---8<-- "datasets.py:custom"
+--8<-- "v0.1/careamist_api/usage/datasets.py:custom"
 ```
 
 1. We define a function that reads the custom data type.
@@ -182,7 +187,7 @@ In practice, you should not access the dataloader directly (except for testing).
 custom types for training should be done as follows:
 
 ```python
---8<-- "datasets.py:train_custom"
+--8<-- "v0.1/careamist_api/usage/datasets.py:train_custom"
 ```
 
 ## Prediction datasets
