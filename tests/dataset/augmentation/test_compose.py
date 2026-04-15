@@ -5,8 +5,8 @@ from careamics.config.augmentations import (
     XYFlipConfig,
     XYRandomRotate90Config,
 )
-from careamics.transforms import XYFlip, XYRandomRotate90
-from careamics.transforms.compose import Compose
+from careamics.dataset.augmentation import XYFlip, XYRandomRotate90
+from careamics.dataset.augmentation.compose import Compose
 
 
 def test_empty_compose(ordered_array):
