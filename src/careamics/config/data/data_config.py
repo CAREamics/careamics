@@ -902,6 +902,21 @@ class DataConfig(BaseModel):
         """
         return _is_3D(self.axes, SupportedData(self.data_type))
 
+    def set_3D(self, axes: str, patch_size: list[int]) -> None:
+        """
+        Set 3D parameters.
+
+        Parameters
+        ----------
+        axes : str
+            Axes.
+        patch_size : list of int
+            Patch size.
+        """
+        if not isinstance(self.patching, WholePatchingConfig):
+            self.patching.patch_size = patch_size
+        self.axes = axes
+
     # TODO: if switching from a state in which in_memory=True to an incompatible state
     # an error will be raised. Should that automatically be set to False instead?
     # TODO this method could be private and we could have public `to_validation_config`
