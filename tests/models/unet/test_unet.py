@@ -1,8 +1,8 @@
 import pytest
 import torch
 
-from careamics.models.layers import MaxBlurPool
 from careamics.models.unet import UNet
+from careamics.models.unet.layers import MaxBlurPool
 
 
 @pytest.mark.parametrize("depth", [1, 3, 5])

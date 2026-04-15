@@ -9,8 +9,9 @@ from typing import Any, Union
 import torch
 import torch.nn as nn
 
-from ..config.support import SupportedActivation
-from .activation import get_activation
+from careamics.config.support import SupportedActivation
+from careamics.models.model_utils import get_activation
+
 from .layers import Conv_Block, MaxBlurPool
 
 

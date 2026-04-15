@@ -5,7 +5,7 @@ from typing import Union
 
 import torch.nn as nn
 
-from ..config.support import SupportedActivation
+from careamics.config.support import SupportedActivation
 
 
 def get_activation(activation: Union[SupportedActivation, str]) -> Callable:
@@ -14,7 +14,7 @@ def get_activation(activation: Union[SupportedActivation, str]) -> Callable:
 
     Parameters
     ----------
-    activation : str
+    activation : Union[SupportedActivation, str]
         Activation function name.
 
     Returns
