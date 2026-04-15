@@ -19,15 +19,15 @@ from .file_io import WriteFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.callbacks.prediction_writer import PredictionWriterCallback
 from .lightning.data import CareamicsDataModule, InputVar
-from .lightning.load_checkpoint import (
-    load_config_from_checkpoint,
-    load_module_from_checkpoint,
-)
 from .lightning.modules import (
     CAREamicsModule,
     create_module,
 )
 from .lightning.prediction import convert_prediction
+from .lightning.utils import (
+    load_config_from_checkpoint,
+    load_module_from_checkpoint,
+)
 from .models import get_model_constraints
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger

@@ -8,9 +8,7 @@ import torch
 from careamics.config.configuration import AlgorithmConfig, Configuration
 from careamics.config.factories.config_discriminators import instantiate_config
 from careamics.config.support import SupportedAlgorithm
-
-from .modules import CAREModule, N2VModule
-from .modules.get_module import get_module_cls
+from careamics.lightning.modules import CAREModule, N2VModule, get_module_cls
 
 CAREamicsModuleCls = type[N2VModule] | type[CAREModule]
 CAREamicsModule = N2VModule | CAREModule
