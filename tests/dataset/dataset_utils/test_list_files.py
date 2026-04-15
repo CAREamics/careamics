@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config.support import SupportedData
-from careamics.dataset.dataset_utils.file_utils import (
+from careamics.compat.dataset.dataset_utils.file_utils import (
     create_write_file_path,
     get_files_size,
     list_files,
     validate_source_target_files,
 )
+from careamics.config.support import SupportedData
 
 
 def test_create_write_file_path():
