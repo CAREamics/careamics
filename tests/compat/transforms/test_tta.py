@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from careamics.compat.transforms.tta import ImageRestorationTTA
-from careamics.transforms import XYFlip, XYRandomRotate90
+from careamics.dataset.augmentation import XYFlip, XYRandomRotate90
 
 
 @pytest.mark.parametrize(

@@ -15,10 +15,10 @@ from careamics.lightning.data_module import TrainValData, TrainValSplitData
 from careamics.lightning.metrics import SIPSNR
 from careamics.losses import n2v_loss
 from careamics.models.unet import UNet
-from careamics.transforms import N2VManipulate
 from careamics.utils.logging import get_logger
 
 from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
+from .n2v_utils import N2VManipulate
 
 logger = get_logger(__name__)
 
