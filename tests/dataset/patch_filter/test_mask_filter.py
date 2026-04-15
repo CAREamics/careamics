@@ -1,6 +1,6 @@
 import numpy as np
 
-from careamics.dataset.patch_filter import MaskFilter
+from careamics.dataset.patch_filter import MaskPatchFilter
 
 
 def test_filter():
@@ -9,7 +9,7 @@ def test_filter():
     mask = np.zeros((size, size))
     mask[size // 4 : -size // 4, size // 4 : -size // 4] = 1
 
-    mask_filter = MaskFilter(coverage=0.50)
+    mask_filter = MaskPatchFilter(coverage=0.50)
 
     # Create mask patches to test
     assert mask_filter.filter_out(mask[0:4, 0:4])  # corner, no overlap with mask

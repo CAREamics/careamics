@@ -2,8 +2,8 @@
 
 __all__ = [
     "CAREModule",
-    "CareamicsCheckpointInfo",
     "CareamicsDataModule",
+    "ConfigSaverCallback",
     "DataStatsCallback",
     "MicroSplitDataModule",
     "N2VModule",
@@ -19,7 +19,7 @@ __all__ = [
 ]
 
 from .callbacks import (
-    CareamicsCheckpointInfo,
+    ConfigSaverCallback,
     DataStatsCallback,
     PredictionStoppedException,
     ProgressBarCallback,

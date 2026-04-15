@@ -13,11 +13,14 @@ from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
 from .config.support import SupportedLogger
 from .config.utils.configuration_io import load_configuration
-from .dataset.dataset import ImageRegionData
 from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
+from .dataset.image_region_data import ImageRegionData
 from .file_io import WriteFunc
-from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
-from .lightning.callbacks.prediction_writer import PredictionWriterCallback
+from .lightning.callbacks import (
+    ConfigSaverCallback,
+    PredictionWriterCallback,
+    ProgressBarCallback,
+)
 from .lightning.data import CareamicsDataModule, InputVar
 from .lightning.modules import (
     CAREamicsModule,
@@ -346,7 +349,7 @@ class CAREamist:
                     "training configuration (see TrainingConfig)."
                 )
 
-            if isinstance(c, (CareamicsCheckpointInfo, ProgressBarCallback)):
+            if isinstance(c, (ConfigSaverCallback, ProgressBarCallback)):
                 raise ValueError(
                     "`CareamicsCheckpointInfo` and `ProgressBar` callbacks are defined "
                     "internally and should not be passed as callbacks."
@@ -365,7 +368,7 @@ class CAREamist:
         )
         internal_callbacks: list[Callback] = [
             checkpoint_callback,
-            CareamicsCheckpointInfo(
+            ConfigSaverCallback(
                 config.version,
                 config.get_safe_experiment_name(),
                 config.training_config,

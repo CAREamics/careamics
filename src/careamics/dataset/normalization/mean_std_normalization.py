@@ -4,11 +4,11 @@ import numpy as np
 import torch
 from numpy.typing import NDArray
 
-from .normalization_protocol import NormalizationProtocol
+from .normalization import Normalization
 from .utils import broadcast_stats, reshape_stats
 
 
-class MeanStdNormalization(NormalizationProtocol):
+class MeanStdNormalization(Normalization):
     """Zero-mean and unit-variance normalization.
 
     The normalization expects arrays of dimensions `C(Z)YX`.

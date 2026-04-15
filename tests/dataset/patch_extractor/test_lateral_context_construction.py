@@ -10,7 +10,7 @@ from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patch_extractor.patch_construction import (
     lateral_context_patch_constr,
 )
-from careamics.dataset.patching_strategies import RandomPatchingStrategy
+from careamics.dataset.patching import RandomPatching
 
 
 def _assert_lc_centralized(lc_patch: NDArray[Any]):
@@ -101,7 +101,7 @@ def test_patch_extractor_lc_injection():
 
     # use random patching strategy to generate patch specs and extract lc patches
     patch_size = (64, 64)
-    patching_strat = RandomPatchingStrategy(patch_extractor.shapes, patch_size, seed=42)
+    patching_strat = RandomPatching(patch_extractor.shapes, patch_size, seed=42)
     for idx in range(patching_strat.n_patches):
         patch_spec = patching_strat.get_patch_spec(idx)
         lc_patch = patch_extractor.extract_patch(**patch_spec)
