@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import inspect
 from typing import Literal, Self
 
 from pydantic import (
@@ -17,33 +16,7 @@ from torch import optim
 
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
 
-
-def _get_unknown_parameters(
-    func: type,
-    user_params: dict,
-) -> dict:
-    """
-    Return unknown parameters.
-
-    Parameters
-    ----------
-    func : type
-        Class object.
-    user_params : dict
-        User provided parameters.
-
-    Returns
-    -------
-    dict
-        Unknown parameters.
-    """
-    # Get the list of all default parameters
-    default_params = list(inspect.signature(func).parameters.keys())
-
-    # Check for unknown parameters
-    unknown_params = set(user_params.keys()) - set(default_params)
-
-    return {param: user_params[param] for param in unknown_params}
+from .parameters_filter import get_unknown_parameters
 
 
 class OptimizerConfig(BaseModel):
@@ -88,8 +61,6 @@ class OptimizerConfig(BaseModel):
         """
         Validate optimizer parameters.
 
-        This method filters out unknown parameters, given the optimizer name.
-
         Parameters
         ----------
         user_params : dict
@@ -100,12 +71,12 @@ class OptimizerConfig(BaseModel):
         Returns
         -------
         dict
-            Filtered optimizer parameters.
+            Valid optimizer parameters.
 
         Raises
         ------
         ValueError
-            If the optimizer name is not specified.
+            If there are unknown parameters for the specified optimizer.
         """
         optimizer_name = values.data["name"]
 
@@ -113,7 +84,7 @@ class OptimizerConfig(BaseModel):
         optimizer_class = getattr(optim, optimizer_name)
 
         # filter the user parameters according to the optimizer's signature
-        unknown_params = _get_unknown_parameters(optimizer_class, user_params)
+        unknown_params = get_unknown_parameters(optimizer_class, user_params)
         if unknown_params:
             raise ValueError(
                 f"Unknown parameters for optimizer {optimizer_name}: "
@@ -198,18 +169,18 @@ class LrSchedulerConfig(BaseModel):
         Returns
         -------
         dict
-            Filtered scheduler parameters.
+            Validated scheduler parameters.
 
         Raises
         ------
         ValueError
-            If the scheduler is StepLR and the step_size parameter is not specified.
+            If there are unknown parameters for the specified scheduler.
         """
         # retrieve the corresponding scheduler class
         scheduler_class = getattr(optim.lr_scheduler, values.data["name"])
 
         # filter the user parameters according to the scheduler's signature
-        unknown_params = _get_unknown_parameters(scheduler_class, user_params)
+        unknown_params = get_unknown_parameters(scheduler_class, user_params)
         if unknown_params:
             raise ValueError(
                 f"Unknown parameters for scheduler {values.data['name']}: "

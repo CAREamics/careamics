@@ -6,7 +6,7 @@ import pytest
 from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
-    _get_unknown_parameters,
+    get_unknown_parameters,
 )
 from careamics.config.support.supported_optimizers import (
     SupportedOptimizer,
@@ -41,7 +41,7 @@ def test_get_unknown_parameters():
         "param_3": 0.2,
         "param_4": "unknown",
     }
-    unknown_params = _get_unknown_parameters(a_test_func, user_params)
+    unknown_params = get_unknown_parameters(a_test_func, user_params)
     assert unknown_params == {"param_4": "unknown"}
 
 
