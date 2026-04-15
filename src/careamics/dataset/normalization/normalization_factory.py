@@ -25,11 +25,17 @@ def create_normalization(norm_model: NormalizationConfig) -> NormalizationProtoc
     """
     match norm_model.name:
         case SupportedNormalization.MEAN_STD:
-            return MeanStdNormalization(**norm_model.model_dump(exclude={"name"}))
+            return MeanStdNormalization(
+                **norm_model.model_dump(exclude={"name", "per_channel"}),
+            )
         case SupportedNormalization.QUANTILE:
-            return RangeNormalization(**norm_model.model_dump(exclude={"name"}))
+            return RangeNormalization(
+                **norm_model.model_dump(exclude={"name", "per_channel"}),
+            )
         case SupportedNormalization.MINMAX:
-            return RangeNormalization(**norm_model.model_dump(exclude={"name"}))
+            return RangeNormalization(
+                **norm_model.model_dump(exclude={"name", "per_channel"}),
+            )
         case SupportedNormalization.NONE:
             return NoNormalization()
         case _:
