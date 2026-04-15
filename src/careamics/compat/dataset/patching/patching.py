@@ -8,7 +8,7 @@ from typing import Union
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.dataset.dataset_utils.running_stats import compute_normalization_stats
+from careamics.dataset.normalization.running_mean_std import compute_normalization_stats
 from careamics.utils.logging import get_logger
 from careamics.utils.reshape_array import reshape_array
 
