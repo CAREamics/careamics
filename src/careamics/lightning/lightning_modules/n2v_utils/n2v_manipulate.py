@@ -6,7 +6,7 @@ import torch
 
 from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
-from careamics.utils.torch_utils import get_device
+from careamics.utils.get_device import get_device
 
 from .pixel_manipulation import (
     median_manipulate,
