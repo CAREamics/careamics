@@ -1,12 +1,12 @@
 """N2V manipulation transform for PyTorch."""
 
-import platform
 from typing import Any
 
 import torch
 
 from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
+from careamics.utils.torch_utils import get_device
 
 from .pixel_manipulation import (
     median_manipulate,
@@ -76,17 +76,8 @@ class N2VManipulate:
             )
 
         # PyTorch random generator
-        # TODO refactor into careamics.utils.torch_utils.get_device
         if device is None:
-            if torch.cuda.is_available():
-                device = "cuda"
-            elif torch.backends.mps.is_available() and platform.processor() in (
-                "arm",
-                "arm64",
-            ):
-                device = "mps"
-            else:
-                device = "cpu"
+            device = get_device()
 
         self.rng = torch.Generator(device=device).manual_seed(
             n2v_manipulate_config.seed

@@ -5,7 +5,7 @@ from typing import Union, cast
 from numpy.typing import NDArray
 
 from careamics.config.augmentations import SPATIAL_TRANSFORMS_UNION
-from careamics.transforms import Transform, XYFlip, XYRandomRotate90
+from careamics.dataset.augmentation import Transform, XYFlip, XYRandomRotate90
 
 ALL_TRANSFORMS = {
     "XYFlip": XYFlip,
