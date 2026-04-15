@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Union
 
 
-# TODO could move to a lightning utils specific submodule
 def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
     """Return the loss curves from the csv logs.
 

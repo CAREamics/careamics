@@ -27,10 +27,10 @@ from .lightning.prediction import convert_prediction
 from .lightning.utils import (
     load_config_from_checkpoint,
     load_module_from_checkpoint,
+    read_csv_logger,
 )
 from .models import get_model_constraints
 from .utils import get_logger
-from .utils.lightning_utils import read_csv_logger
 
 logger = get_logger(__name__)
 
