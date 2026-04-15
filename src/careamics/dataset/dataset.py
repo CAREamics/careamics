@@ -14,9 +14,7 @@ from careamics.config.data.data_config import (
     WholePatchingConfig,
 )
 from careamics.dataset.augmentation.compose import Compose
-from careamics.lightning.lightning_modules.constraints import (
-    ModelConstraints,
-)
+from careamics.models.constraints import ModelConstraints
 
 from .image_stack import GenericImageStack, ZarrImageStack
 from .normalization import create_normalization
