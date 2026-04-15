@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Union
 
-from careamics.utils import BaseEnum
 
-
-class SupportedData(str, BaseEnum):
+class SupportedData(StrEnum):
     """Supported data types.
 
     Attributes

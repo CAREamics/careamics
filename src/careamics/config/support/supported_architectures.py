@@ -1,9 +1,9 @@
 """Architectures supported by CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedArchitecture(str, BaseEnum):
+class SupportedArchitecture(StrEnum):
     """Supported architectures."""
 
     UNET = "UNet"

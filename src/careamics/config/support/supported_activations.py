@@ -1,9 +1,9 @@
 """Activations supported by CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedActivation(str, BaseEnum):
+class SupportedActivation(StrEnum):
     """Supported activation functions.
 
     - None, no activation will be used.

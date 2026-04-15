@@ -6,6 +6,7 @@ import os
 import platform
 import sys
 from collections.abc import Sequence
+from enum import StrEnum
 from pprint import pformat
 from typing import Annotated, Any, Literal, Self, Union
 from warnings import warn
@@ -25,7 +26,6 @@ from careamics.config.augmentations import XYFlipConfig, XYRandomRotate90Config
 from careamics.config.support import SupportedData
 from careamics.config.utils.random import generate_random_seed
 from careamics.config.validators import check_axes_validity, check_czi_axes_validity
-from careamics.utils import BaseEnum
 
 from .normalization_config import NormalizationConfig
 from .patch_filter import (
@@ -264,7 +264,7 @@ PatchFilterConfig = Union[
 """Patch filter type."""
 
 
-class Mode(str, BaseEnum):
+class Mode(StrEnum):
     """Dataset mode."""
 
     TRAINING = "training"
@@ -314,6 +314,7 @@ def _create_mask_filter(validated_params: dict[str, Any]) -> MaskFilterConfig | 
         return None
 
     # determine if data is 3D
+    assert data_type is not None and isinstance(data_type, str)
     is_3d = _is_3D(axes, SupportedData(data_type))
 
     ndims = 3 if is_3d else 2

@@ -1,9 +1,9 @@
 """StructN2V axes supported by CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedStructAxis(str, BaseEnum):
+class SupportedStructAxis(StrEnum):
     """Supported structN2V mask axes.
 
     Attributes
