@@ -147,6 +147,7 @@ class ShannonPatchFilter(PatchFilterProtocol):
         fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
         ax.imshow(image, "gray")
         m = ax.imshow(filter_map, "magma", alpha=0.5)
-        plt.colorbar(m, ax=ax)
+        cbar = plt.colorbar(m, ax=ax)
+        cbar.ax.set_ylabel("threshold")
         fig.suptitle("Shannon Entropy Filter Map")
         return fig

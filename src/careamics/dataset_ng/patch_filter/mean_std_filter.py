@@ -184,11 +184,15 @@ class MeanStdPatchFilter(PatchFilterProtocol):
             image = image[:, z_idx]
 
         fig, axes = plt.subplots(1, 2, figsize=(16, 8), constrained_layout=True)
+        cbars: list[plt.Colorbar] = []
         for i, ax in enumerate(axes):
             ax.imshow(image, "gray")
             m = ax.imshow(filter_map[i], "magma", alpha=0.5)
-            plt.colorbar(m, ax=ax)
+            cbar = plt.colorbar(m, ax=ax)
+            cbars.append(cbar)
         axes[0].set_title("Mean Filter Map")
         axes[1].set_title("Standard-Deviation Filter Map")
+        cbars[0].ax.set_ylabel("mean_threshold")
+        cbars[1].ax.set_ylabel("std_threshold")
         fig.suptitle("Mean-Std Filter Map")
         return fig
