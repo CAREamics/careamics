@@ -14,6 +14,7 @@ from careamics.config.support import SupportedLoss
 from .lvae_losses import (
     denoisplit_loss,
     denoisplit_musplit_loss,
+    hdn_loss,
     musplit_loss,
 )
 
@@ -44,6 +45,9 @@ def lvae_loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
 
     elif loss == SupportedLoss.DENOISPLIT_MUSPLIT:
         return denoisplit_musplit_loss
+
+    elif loss == SupportedLoss.HDN:
+        return hdn_loss
 
     else:
         raise NotImplementedError(f"Loss {loss} is not supported for LVAE models.")
