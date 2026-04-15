@@ -16,7 +16,6 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from careamics.compat.config import Configuration
 from careamics.compat.config.utils.configuration_io import load_configuration
-from careamics.compat.dataset.dataset_utils.file_utils import list_files
 from careamics.compat.lightning import (
     FCNModule,
     PredictDataModule,
@@ -36,6 +35,7 @@ from careamics.config.support import (
     SupportedLogger,
 )
 from careamics.file_io import WriteFunc, get_write_func
+from careamics.lightning.data_module_utils import list_files
 from careamics.utils import get_logger
 from careamics.utils.lightning_utils import read_csv_logger
 from careamics.utils.reshape_array import reshape_array

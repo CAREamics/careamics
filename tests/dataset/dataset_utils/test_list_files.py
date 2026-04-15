@@ -7,10 +7,12 @@ import tifffile
 from careamics.compat.dataset.dataset_utils.file_utils import (
     create_write_file_path,
     get_files_size,
+)
+from careamics.config.support import SupportedData
+from careamics.lightning.data_module_utils import (
     list_files,
     validate_source_target_files,
 )
-from careamics.config.support import SupportedData
 
 
 def test_create_write_file_path():

@@ -16,10 +16,10 @@ from careamics.compat.dataset import (
     IterablePredDataset,
     IterableTiledPredDataset,
 )
-from careamics.compat.dataset.dataset_utils import list_files
 from careamics.compat.dataset.tiling.collate_tiles import collate_tiles
 from careamics.config.support import SupportedData
 from careamics.file_io.read import get_read_func
+from careamics.lightning.data_module_utils import list_files
 from careamics.utils import get_logger
 
 PredictDatasetType = Union[
