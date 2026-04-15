@@ -1,4 +1,5 @@
 ---
+icon: lucide/zap
 description: Lightning API
 ---
 
@@ -15,7 +16,7 @@ Here is an example of training Noise2Void using the Lightning API. For the confi
 parameters, refer to the [CAREamist API documentation]().
 
 ```python
---8<-- "lightning_api.py:lightning_api"
+--8<-- "current/lightning_api.py:lightning_api"
 ```
 
 1. Creating a CAREamics configuration ensures that the parameters passed
@@ -47,7 +48,7 @@ A useful feature of CAREamics that can be leveraged in the Lightning API is writ
 predictions directly to disk. This is achieved by adding a `PredictionWriterCallback`.
 
 ```python
---8<-- "lightning_api.py:lightning_api"
+--8<-- "current/lightning_api.py:lightning_api"
 ```
 
 1. We keep the prediction writer in memory and disable writing, in case we want to
