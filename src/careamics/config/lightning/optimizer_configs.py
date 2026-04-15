@@ -117,7 +117,7 @@ class OptimizerConfig(BaseModel):
         if unknown_params:
             raise ValueError(
                 f"Unknown parameters for optimizer {optimizer_name}: "
-                f"{', '.join(unknown_params.keys())}. Please check the "
+                f"`{', '.join(unknown_params.keys())}`. Please check the "
                 f"parameters supported by this optimizer in the PyTorch "
                 f"documentation: https://pytorch.org/docs/stable/optim.html#algorithms"
             )
@@ -213,7 +213,7 @@ class LrSchedulerConfig(BaseModel):
         if unknown_params:
             raise ValueError(
                 f"Unknown parameters for scheduler {values.data['name']}: "
-                f"{', '.join(unknown_params.keys())}. Please check the "
+                f"`{', '.join(unknown_params.keys())}`. Please check the "
                 f"parameters supported by this scheduler in the PyTorch "
                 f"documentation: https://pytorch.org/docs/stable/optim.html#how-to-"
                 f"adjust-learning-rate"
