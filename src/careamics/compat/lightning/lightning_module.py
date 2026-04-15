@@ -22,7 +22,7 @@ from careamics.config.support import (
     SupportedOptimizer,
     SupportedScheduler,
 )
-from careamics.lightning.lightning_modules.n2v_utils import N2VManipulate
+from careamics.lightning.modules.n2v_utils import N2VManipulate
 from careamics.losses import loss_factory
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,

@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
 from careamics.dataset.augmentation.transform import Transform
-from careamics.lightning.lightning_modules.n2v_utils.struct_mask_parameters import (
+from careamics.lightning.modules.n2v_utils.struct_mask_parameters import (
     StructMaskParameters,
 )
 
