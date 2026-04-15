@@ -20,7 +20,7 @@ from .write_strategy_factory import create_write_strategy
 logger = get_logger(__name__)
 
 
-class PredictionWriter(BasePredictionWriter):
+class PredictionWriterCallback(BasePredictionWriter):
     """
     PyTorch Lightning callback to save predictions.
 

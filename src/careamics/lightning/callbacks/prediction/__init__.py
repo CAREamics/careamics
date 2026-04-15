@@ -2,7 +2,7 @@
 
 __all__ = [
     "ImageWriteStrategy",
-    "PredictionWriter",
+    "PredictionWriterCallback",
     "TileWriteStrategy",
     "WriteStrategy",
     "ZarrTileWriteStrategy",
@@ -16,7 +16,7 @@ __all__ = [
 from .file_path_utils import create_write_file_path
 from .image_write_strategy import ImageWriteStrategy
 from .prediction_writer_callback import (
-    PredictionWriter,
+    PredictionWriterCallback,
     decollate_image_region_data,
 )
 from .tile_write_strategy import TileWriteStrategy

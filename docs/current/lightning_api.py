@@ -81,10 +81,12 @@ stitched_predictions, sources = convert_prediction(  # (12)!
 
 # --8<-- [start:predict_to_disk]
 from careamics.lightning.callbacks.prediction import (
-    PredictionWriter,
+    PredictionWriterCallback,
 )
 
-pred_writer = PredictionWriter(dirpath="predictions", enable_writing=False)  # (1)!
+pred_writer = PredictionWriterCallback(
+    dirpath="predictions", enable_writing=False
+)  # (1)!
 
 callbacks = [
     ModelCheckpoint(

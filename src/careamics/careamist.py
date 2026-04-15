@@ -17,7 +17,7 @@ from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .dataset.image_region_data import ImageRegionData
 from .file_io import WriteFunc
 from .lightning.callbacks import ConfigSaverCallback, ProgressBarCallback
-from .lightning.callbacks.prediction import PredictionWriter
+from .lightning.callbacks.prediction import PredictionWriterCallback
 from .lightning.data_module import CareamicsDataModule, InputVar
 from .lightning.lightning_modules import (
     CAREamicsModule,
@@ -138,7 +138,9 @@ class CAREamist:
         )
         self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
 
-        self.prediction_writer = PredictionWriter(self.work_dir, enable_writing=False)
+        self.prediction_writer = PredictionWriterCallback(
+            self.work_dir, enable_writing=False
+        )
 
         experiment_loggers = self._create_loggers(
             self.config.training_config.logger,
