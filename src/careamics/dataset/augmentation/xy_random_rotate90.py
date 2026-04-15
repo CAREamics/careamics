@@ -3,7 +3,7 @@
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.transforms.transform import Transform
+from careamics.dataset.augmentation.transform import Transform
 
 
 class XYRandomRotate90(Transform):

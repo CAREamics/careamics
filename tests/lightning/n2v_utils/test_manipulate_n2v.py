@@ -3,7 +3,7 @@ import torch
 
 from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation
-from careamics.transforms import N2VManipulate
+from careamics.lightning.lightning_modules.n2v_utils import N2VManipulate
 
 
 @pytest.mark.parametrize(
