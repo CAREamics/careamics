@@ -175,6 +175,7 @@ markers = [
     "lvae: marks tests as testing lvae",
     "mps_gh_fail: marks tests as failing on Github macos-latest runner",
     "czi: marks tests using czi files",
+    "interoperability: tests with external loggers wandb and tensorboard",
 ]
 
 # https://coverage.readthedocs.io/en/6.4/config.html

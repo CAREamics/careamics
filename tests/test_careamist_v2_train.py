@@ -1,10 +1,12 @@
 """Tests for CAREamistV2."""
 
+import os
 from pathlib import Path
 
 import numpy as np
 import pytest
 import tifffile
+from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from careamics.careamist_v2 import CAREamistV2
 from careamics.config.ng_factories.care_n2n_factory import create_advanced_care_config
@@ -257,3 +259,127 @@ def test_init_from_checkpoint(tmp_path: Path, checkpoint):
     # careamist by default enables progress bar during initialization
     expected_config.training_config.trainer_params["enable_progress_bar"] = True
     assert careamist.config == expected_config
+
+
+@pytest.mark.mps_gh_fail
+def test_tensorboard_logger_in_trainer(tmp_path: Path):
+    """Test that TensorBoardLogger is active and log directory is created."""
+
+    train_array = random_array((32, 32))
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+    config.training_config.logger = "tensorboard"
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array)
+
+    assert any(isinstance(lg, TensorBoardLogger) for lg in careamist.trainer.loggers)
+    assert (tmp_path / "tb_logs").exists()
+
+
+@pytest.mark.mps_gh_fail
+def test_wandb_logger_in_trainer(tmp_path: Path, monkeypatch):
+    """Test that WandbLogger is active when logger='wandb'.
+
+    WANDB_MODE is set to 'disabled' so the test runs without credentials
+    and without making any network calls.
+    """
+
+    monkeypatch.setenv("WANDB_MODE", "disabled")
+
+    train_array = random_array((32, 32))
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+    config.training_config.logger = "wandb"
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array)
+
+    assert any(isinstance(lg, WandbLogger) for lg in careamist.trainer.loggers)
+
+
+@pytest.mark.mps_gh_fail
+def test_no_extra_logger_uses_only_csv(tmp_path: Path):
+    """Test that only the CSV logger is present when no logger is configured."""
+
+    train_array = random_array((32, 32))
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array)
+
+    assert all(isinstance(lg, CSVLogger) for lg in careamist.trainer.loggers)
+    assert not any(
+        isinstance(lg, (TensorBoardLogger, WandbLogger))
+        for lg in careamist.trainer.loggers
+    )
+
+
+@pytest.mark.interoperability
+@pytest.mark.skipif(
+    os.environ.get("WANDB_API_KEY") is None,
+    reason="WANDB_API_KEY not set; skipping live WandB integration test",
+)
+@pytest.mark.mps_gh_fail
+def test_wandb_training_creates_live_run(tmp_path: Path, monkeypatch):
+    """Test that a WandB run is created and receives logged metrics.
+
+    This test requires a valid WANDB_API_KEY in the environment.  It verifies
+    that wandb.init is called, that Lightning metrics are forwarded
+    to the run, and that the run is finalized.
+    """
+    import wandb
+
+    monkeypatch.setenv("WANDB_PROJECT", "careamics-ci-tests")
+
+    train_array = random_array((32, 32))
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+    config.training_config.logger = "wandb"
+
+    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array)
+
+    assert wandb.run is not None, "Expected a live WandB run to be initialised"
+    assert (
+        len(wandb.run.summary.keys()) > 0
+    ), "Expected metrics to be logged to WandB run"
+
+    wandb.finish()
