@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 import pytorch_lightning as L
 import torch
 from torch import nn
+from torch.nn import L1Loss, MSELoss
 from torchmetrics import MetricCollection
 
 from careamics.config import CAREAlgorithm, N2NAlgorithm
@@ -14,7 +15,6 @@ from careamics.config.support import SupportedLoss
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.lightning.data_module import TrainValData, TrainValSplitData
 from careamics.lightning.metrics import SIPSNR
-from careamics.losses import mae_loss, mse_loss
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
 
@@ -65,13 +65,9 @@ class CAREModule(L.LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
-        loss = self.config.loss
-        if loss == SupportedLoss.MAE:
-            self.loss_func: Callable = mae_loss
-        elif loss == SupportedLoss.MSE:
-            self.loss_func = mse_loss
-        else:
-            raise ValueError(f"Unsupported loss for Care: {loss}")
+        self.loss_func: Callable = (
+            MSELoss() if self.config.loss == SupportedLoss.MSE else L1Loss()
+        )
 
         self.metrics: MetricCollection = MetricCollection(
             {

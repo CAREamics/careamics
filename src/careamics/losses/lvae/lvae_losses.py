@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
 Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
+# TODO this module does not pass mypy checks
+
 
 def get_reconstruction_loss(
     reconstruction: torch.Tensor,
@@ -96,13 +98,11 @@ def _reconstruction_loss_musplit_denoisplit(
     recons_loss_nm = get_reconstruction_loss(
         reconstruction=pred_mean, target=targets, likelihood_obj=nm_likelihood
     )
-
     recons_loss_gm = get_reconstruction_loss(
         reconstruction=predictions,
         target=targets,
         likelihood_obj=gaussian_likelihood,
     )
-
     recons_loss = nm_weight * recons_loss_nm + gaussian_weight * recons_loss_gm
     return recons_loss
 
