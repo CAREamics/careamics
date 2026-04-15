@@ -2,7 +2,7 @@
 
 from careamics.config.architectures import UNetConfig
 
-from .model_constraints_protocol import ModelConstraints
+from .model_constraints import ModelConstraints
 from .unet_constraints import UNetConstraints
 
 
