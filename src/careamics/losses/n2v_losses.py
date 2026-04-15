@@ -1,35 +1,8 @@
-"""
-Loss submodule.
-
-This submodule contains the various losses used in CAREamics.
-"""
+"""Noise2Void and related losses."""
 
 import torch
-from torch.nn import L1Loss, MSELoss
 
 from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
-
-
-def mse_loss(source: torch.Tensor, target: torch.Tensor, *args) -> torch.Tensor:
-    """
-    Mean squared error loss.
-
-    Parameters
-    ----------
-    source : torch.Tensor
-        Source patches.
-    target : torch.Tensor
-        Target patches.
-    *args : Any
-        Additional arguments.
-
-    Returns
-    -------
-    torch.Tensor
-        Loss value.
-    """
-    loss = MSELoss()
-    return loss(source, target)
 
 
 def n2v_loss(
@@ -94,32 +67,3 @@ def pn2v_loss(
     # Average over pixels and batch
     loss = -torch.sum(likelihoods_avg * masks) / torch.sum(masks)
     return loss
-
-
-def mae_loss(samples: torch.Tensor, labels: torch.Tensor, *args) -> torch.Tensor:
-    """
-    N2N Loss function described in to J Lehtinen et al 2018.
-
-    Parameters
-    ----------
-    samples : torch.Tensor
-        Raw patches.
-    labels : torch.Tensor
-        Different subset of noisy patches.
-    *args : Any
-        Additional arguments.
-
-    Returns
-    -------
-    torch.Tensor
-        Loss value.
-    """
-    loss = L1Loss()
-    return loss(samples, labels)
-
-
-# def dice_loss(
-#     samples: torch.Tensor, labels: torch.Tensor, mode: str = "multiclass"
-# ) -> torch.Tensor:
-#     """Dice loss function."""
-#     return DiceLoss(mode=mode)(samples, labels.long())
