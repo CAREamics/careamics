@@ -12,7 +12,7 @@ from careamics.compat.transforms.tta import ImageRestorationTTA
 from careamics.config import (
     VAEBasedAlgorithm,
 )
-from careamics.losses import loss_factory
+from careamics.losses.lvae import lvae_loss_factory
 from careamics.models.lvae.likelihoods import (
     GaussianLikelihood,
     NoiseModelLikelihood,
@@ -105,7 +105,7 @@ class VAEModule(L.LightningModule):
         )
 
         self.loss_parameters = self.algorithm_config.loss
-        self.loss_func = loss_factory(self.algorithm_config.loss.loss_type)
+        self.loss_func = lvae_loss_factory(self.algorithm_config.loss.loss_type)
 
         # save optimizer and lr_scheduler names and parameters
         self.optimizer_name = self.algorithm_config.optimizer.name

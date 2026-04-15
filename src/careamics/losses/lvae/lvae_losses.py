@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
 Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
+# TODO this module does not pass mypy checks
+
 
 def get_reconstruction_loss(
     reconstruction: torch.Tensor,
