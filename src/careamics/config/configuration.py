@@ -19,7 +19,7 @@ from careamics.config.lightning.training_configuration import (
     TrainingConfig,
     default_training_factory,
 )
-from careamics.lightning.lightning_modules.constraints import (
+from careamics.models import (
     get_model_constraints,
 )
 
