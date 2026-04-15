@@ -157,119 +157,6 @@ def create_dataset(
     )
 
 
-def init_patch_extractor(
-    patch_extractor: type[PatchExtractor],
-    image_stack_loader: ImageStackLoader[..., GenericImageStack],
-    source: Any,
-    axes: str,
-) -> PatchExtractor[GenericImageStack]:
-    """Build a patch extractor by loading image stacks from the source.
-
-    Parameters
-    ----------
-    patch_extractor : type[PatchExtractor]
-        The PatchExtractor class to instantiate (e.g. PatchExtractor).
-    image_stack_loader : ImageStackLoader
-        Callable that takes (source, axes) and returns a list of image stacks.
-    source : Any
-        Data source (paths, arrays, etc.) passed to the loader.
-    axes : str
-        Axis order string passed to the loader.
-
-    Returns
-    -------
-    PatchExtractor[GenericImageStack]
-        The constructed patch extractor instance.
-    """
-    image_stacks = image_stack_loader(source, axes)
-    return patch_extractor(image_stacks)
-
-
-def select_patch_extractor_type(
-    data_type: SupportedData,
-    in_memory: bool,
-) -> type[PatchExtractor]:
-    """Select the appropriate PatchExtractor type based on data type and memory mode.
-
-    If `in_memory` is True, or `data_type` is ZARR or CZI, the standard
-    `PatchExtractor` is selected, otherwise the `LimitFilesPatchExtractor` will be used.
-
-    Parameters
-    ----------
-    data_type : SupportedData
-        The type of data being handled.
-    in_memory : bool
-        Indicates whether data is to be loaded into memory.
-
-    Returns
-    -------
-    type[PatchExtractor]
-        The selected PatchExtractor type.
-    """
-    if not in_memory and data_type in (SupportedData.TIFF, SupportedData.CUSTOM):
-        return LimitFilesPatchExtractor
-    else:
-        return PatchExtractor
-
-
-def select_image_stack_loader(
-    data_type: SupportedData,
-    in_memory: bool,
-    loading: ReadFuncLoading | ImageStackLoading | None = None,
-) -> ImageStackLoader[..., ImageStack]:
-    """Select image stack loader function for the given data type and loading options.
-
-    Parameters
-    ----------
-    data_type : SupportedData
-        The type of data (array, tiff, zarr, czi, custom).
-    in_memory : bool
-        Whether to load full data into memory (True) or use lazy loading.
-    loading : ReadFuncLoading or ImageStackLoading or None, optional
-        Custom loading spec, required when data_type is custom.
-
-    Returns
-    -------
-    ImageStackLoader
-        A callable that takes (source, axes) and returns a list of image stacks.
-    """
-    match data_type:
-        case SupportedData.ARRAY:
-            return load_arrays
-        case SupportedData.TIFF:
-            if in_memory:
-                return load_tiffs
-            else:
-                return load_iter_tiff
-        case SupportedData.CUSTOM:
-            match loading:
-                case ReadFuncLoading(read_func, read_kwargs):
-                    read_kwargs = {} if read_kwargs is None else read_kwargs
-                    return partial(
-                        load_custom_file, read_func=read_func, read_kwargs=read_kwargs
-                    )
-                case ImageStackLoading(image_stack_loader, image_stack_loader_kwargs):
-                    if image_stack_loader_kwargs is None:
-                        image_stack_loader_kwargs = {}
-                    return partial(image_stack_loader, **image_stack_loader_kwargs)
-                case None:
-                    raise ValueError(
-                        "Found `data_type='custom'`, a custom read function or a "
-                        "custom image stack loader must be provided."
-                    )
-        case SupportedData.ZARR:
-            # TODO: in_memory or not
-            return load_zarrs
-        case SupportedData.CZI:
-            # TODO: in_memory or not
-            return load_czis
-        case _:
-            raise NotImplementedError(
-                f"Selecting an image stack for data type '{data_type}' has not been "
-                "implemented yet."
-            )
-
-
 def create_train_dataset(
     config: DataConfig,
     data: TrainValData[Any] | TrainValSplitData,
@@ -525,3 +412,116 @@ def create_pred_dataset(
         loading=loading,
         model_constraints=model_constraints,
     )
+
+
+def init_patch_extractor(
+    patch_extractor: type[PatchExtractor],
+    image_stack_loader: ImageStackLoader[..., GenericImageStack],
+    source: Any,
+    axes: str,
+) -> PatchExtractor[GenericImageStack]:
+    """Build a patch extractor by loading image stacks from the source.
+
+    Parameters
+    ----------
+    patch_extractor : type[PatchExtractor]
+        The PatchExtractor class to instantiate (e.g. PatchExtractor).
+    image_stack_loader : ImageStackLoader
+        Callable that takes (source, axes) and returns a list of image stacks.
+    source : Any
+        Data source (paths, arrays, etc.) passed to the loader.
+    axes : str
+        Axis order string passed to the loader.
+
+    Returns
+    -------
+    PatchExtractor[GenericImageStack]
+        The constructed patch extractor instance.
+    """
+    image_stacks = image_stack_loader(source, axes)
+    return patch_extractor(image_stacks)
+
+
+def select_patch_extractor_type(
+    data_type: SupportedData,
+    in_memory: bool,
+) -> type[PatchExtractor]:
+    """Select the appropriate PatchExtractor type based on data type and memory mode.
+
+    If `in_memory` is True, or `data_type` is ZARR or CZI, the standard
+    `PatchExtractor` is selected, otherwise the `LimitFilesPatchExtractor` will be used.
+
+    Parameters
+    ----------
+    data_type : SupportedData
+        The type of data being handled.
+    in_memory : bool
+        Indicates whether data is to be loaded into memory.
+
+    Returns
+    -------
+    type[PatchExtractor]
+        The selected PatchExtractor type.
+    """
+    if not in_memory and data_type in (SupportedData.TIFF, SupportedData.CUSTOM):
+        return LimitFilesPatchExtractor
+    else:
+        return PatchExtractor
+
+
+def select_image_stack_loader(
+    data_type: SupportedData,
+    in_memory: bool,
+    loading: ReadFuncLoading | ImageStackLoading | None = None,
+) -> ImageStackLoader[..., ImageStack]:
+    """Select image stack loader function for the given data type and loading options.
+
+    Parameters
+    ----------
+    data_type : SupportedData
+        The type of data (array, tiff, zarr, czi, custom).
+    in_memory : bool
+        Whether to load full data into memory (True) or use lazy loading.
+    loading : ReadFuncLoading or ImageStackLoading or None, optional
+        Custom loading spec, required when data_type is custom.
+
+    Returns
+    -------
+    ImageStackLoader
+        A callable that takes (source, axes) and returns a list of image stacks.
+    """
+    match data_type:
+        case SupportedData.ARRAY:
+            return load_arrays
+        case SupportedData.TIFF:
+            if in_memory:
+                return load_tiffs
+            else:
+                return load_iter_tiff
+        case SupportedData.CUSTOM:
+            match loading:
+                case ReadFuncLoading(read_func, read_kwargs):
+                    read_kwargs = {} if read_kwargs is None else read_kwargs
+                    return partial(
+                        load_custom_file, read_func=read_func, read_kwargs=read_kwargs
+                    )
+                case ImageStackLoading(image_stack_loader, image_stack_loader_kwargs):
+                    if image_stack_loader_kwargs is None:
+                        image_stack_loader_kwargs = {}
+                    return partial(image_stack_loader, **image_stack_loader_kwargs)
+                case None:
+                    raise ValueError(
+                        "Found `data_type='custom'`, a custom read function or a "
+                        "custom image stack loader must be provided."
+                    )
+        case SupportedData.ZARR:
+            # TODO: in_memory or not
+            return load_zarrs
+        case SupportedData.CZI:
+            # TODO: in_memory or not
+            return load_czis
+        case _:
+            raise NotImplementedError(
+                f"Selecting an image stack for data type '{data_type}' has not been "
+                "implemented yet."
+            )
