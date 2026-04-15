@@ -22,6 +22,7 @@ from careamics.config.support import (
     SupportedOptimizer,
     SupportedScheduler,
 )
+from careamics.lightning.lightning_modules.n2v_utils import N2VManipulate
 from careamics.losses import loss_factory
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
@@ -29,7 +30,6 @@ from careamics.models.lvae.noise_models import (
     noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
-from careamics.transforms import N2VManipulate
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]

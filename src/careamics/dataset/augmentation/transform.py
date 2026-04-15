@@ -3,6 +3,7 @@
 from typing import Any
 
 
+# TODO protocol rather than inheritace
 class Transform:
     """A general parent class for transforms."""
 

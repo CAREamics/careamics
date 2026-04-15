@@ -13,10 +13,10 @@ from careamics.config.data.data_config import (
     Mode,
     WholePatchingConfig,
 )
+from careamics.dataset.augmentation.compose import Compose
 from careamics.lightning.lightning_modules.constraints import (
     ModelConstraints,
 )
-from careamics.transforms.compose import Compose
 
 from .image_region_data import ImageRegionData
 from .image_stack import GenericImageStack, ZarrImageStack
