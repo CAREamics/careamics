@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Literal, Self
 
 from pydantic import (
@@ -14,9 +15,35 @@ from pydantic import (
 )
 from torch import optim
 
-from careamics.utils.torch_utils import filter_parameters
+from careamics.config.support import SupportedOptimizer, SupportedScheduler
 
-from ..support import SupportedOptimizer
+
+def _get_unknown_parameters(
+    func: type,
+    user_params: dict,
+) -> dict:
+    """
+    Return unknown parameters.
+
+    Parameters
+    ----------
+    func : type
+        Class object.
+    user_params : dict
+        User provided parameters.
+
+    Returns
+    -------
+    dict
+        Unknown parameters.
+    """
+    # Get the list of all default parameters
+    default_params = list(inspect.signature(func).parameters.keys())
+
+    # Check for unknown parameters
+    unknown_params = set(user_params.keys()) - set(default_params)
+
+    return {param: user_params[param] for param in unknown_params}
 
 
 class OptimizerConfig(BaseModel):
@@ -57,7 +84,7 @@ class OptimizerConfig(BaseModel):
 
     @field_validator("parameters")
     @classmethod
-    def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> dict:
+    def valid_parameters(cls, user_params: dict, values: ValidationInfo) -> dict:
         """
         Validate optimizer parameters.
 
@@ -86,9 +113,16 @@ class OptimizerConfig(BaseModel):
         optimizer_class = getattr(optim, optimizer_name)
 
         # filter the user parameters according to the optimizer's signature
-        parameters = filter_parameters(optimizer_class, user_params)
+        unknown_params = _get_unknown_parameters(optimizer_class, user_params)
+        if unknown_params:
+            raise ValueError(
+                f"Unknown parameters for optimizer {optimizer_name}: "
+                f"{', '.join(unknown_params.keys())}. Please check the "
+                f"parameters supported by this optimizer in the PyTorch "
+                f"documentation: https://pytorch.org/docs/stable/optim.html#algorithms"
+            )
 
-        return parameters
+        return user_params
 
     @model_validator(mode="after")
     def sgd_lr_parameter(self) -> Self:
@@ -151,8 +185,8 @@ class LrSchedulerConfig(BaseModel):
 
     @field_validator("parameters")
     @classmethod
-    def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> dict:
-        """Filter parameters based on the learning rate scheduler's signature.
+    def valid_parameters(cls, user_params: dict, values: ValidationInfo) -> dict:
+        """Validate parameters based on the learning rate scheduler's signature.
 
         Parameters
         ----------
@@ -175,12 +209,39 @@ class LrSchedulerConfig(BaseModel):
         scheduler_class = getattr(optim.lr_scheduler, values.data["name"])
 
         # filter the user parameters according to the scheduler's signature
-        parameters = filter_parameters(scheduler_class, user_params)
+        unknown_params = _get_unknown_parameters(scheduler_class, user_params)
+        if unknown_params:
+            raise ValueError(
+                f"Unknown parameters for scheduler {values.data['name']}: "
+                f"{', '.join(unknown_params.keys())}. Please check the "
+                f"parameters supported by this scheduler in the PyTorch "
+                f"documentation: https://pytorch.org/docs/stable/optim.html#how-to-"
+                f"adjust-learning-rate"
+            )
+        return user_params
 
-        if values.data["name"] == "StepLR" and "step_size" not in parameters:
+    @model_validator(mode="after")
+    def step_lr_parameter(self) -> Self:
+        """
+        Check that StepLR scheduler has the mandatory `step_size` parameter specified.
+
+        Returns
+        -------
+        Self
+            Validated scheduler.
+
+        Raises
+        ------
+        ValueError
+            If the scheduler is StepLR and the step_size parameter is not specified.
+        """
+        if (
+            self.name == SupportedScheduler.STEP_LR
+            and "step_size" not in self.parameters
+        ):
             raise ValueError(
                 "StepLR scheduler requires `step_size` parameter, check that it has "
                 "correctly been specified in `parameters`."
             )
 
-        return parameters
+        return self
