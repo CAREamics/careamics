@@ -2,7 +2,7 @@ import numpy as np
 
 from careamics.config import create_ng_data_configuration
 from careamics.dataset.factory import create_dataset
-from careamics.dataset.grouped_index_sampler import GroupedIndexSampler
+from careamics.lightning.grouped_index_sampler import GroupedIndexSampler
 
 
 def _assert_indices_grouped(sampler: GroupedIndexSampler):

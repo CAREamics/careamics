@@ -25,7 +25,6 @@ from careamics.dataset.factory import (
     create_train_val_datasets,
     create_val_split_datasets,
 )
-from careamics.dataset.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset.image_stack import ImageStack
 from careamics.dataset.patching_strategies import (
     PatchSpecs,
@@ -37,6 +36,7 @@ from careamics.lightning.lightning_modules.constraints import (
 from careamics.utils import get_logger
 
 from .data_module_utils import initialize_data_pair
+from .grouped_index_sampler import GroupedIndexSampler
 
 logger = get_logger(__name__)
 
@@ -304,7 +304,9 @@ class CareamicsDataModule(L.LightningDataModule):
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
-    def _sampler(self, dataset: Literal["train", "val", "predict"]) -> Sampler | None:
+    def _sampler(
+        self, dataset: Literal["train", "val", "predict"]
+    ) -> Sampler[int] | None:
         """Return a sampler for the given dataset (train/val/predict), or None.
 
         Parameters

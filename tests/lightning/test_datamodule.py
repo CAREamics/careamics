@@ -9,7 +9,6 @@ import tifffile
 from careamics.config.data import DataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset import CareamicsDataset
-from careamics.dataset.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset.image_stack import FileImageStack
 from careamics.dataset.patch_extractor.limit_file_extractor import (
     LimitFilesPatchExtractor,
@@ -21,6 +20,7 @@ from careamics.lightning.data_module import (
     TrainValSplitData,
     _validate_data,
 )
+from careamics.lightning.grouped_index_sampler import GroupedIndexSampler
 
 # TODO add tests for the various types, for mismatching input/target/mask lengths, etc.
 # TODO add tests for validation and prediction modes. can we use a single
