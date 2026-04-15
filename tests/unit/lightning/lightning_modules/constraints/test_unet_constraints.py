@@ -4,7 +4,7 @@ from contextlib import nullcontext
 import pytest
 
 from careamics.config.architectures import UNetConfig
-from careamics.lightning.lightning_modules.constraints import (
+from careamics.models.constraints import (
     UNetConstraints,
 )
 

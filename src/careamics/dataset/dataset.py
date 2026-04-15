@@ -13,7 +13,7 @@ from careamics.config.data.data_config import (
     Mode,
     WholePatchingConfig,
 )
-from careamics.lightning.lightning_modules.constraints import (
+from careamics.models.constraints import (
     ModelConstraints,
 )
 from careamics.transforms.compose import Compose

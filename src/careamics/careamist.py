@@ -22,13 +22,13 @@ from .lightning.data_module import CareamicsDataModule, InputVar
 from .lightning.lightning_modules import (
     CAREamicsModule,
     create_module,
-    get_model_constraints,
 )
 from .lightning.load_checkpoint import (
     load_config_from_checkpoint,
     load_module_from_checkpoint,
 )
 from .lightning.prediction import convert_prediction
+from .models import get_model_constraints
 from .utils import get_logger
 from .utils.lightning_utils import read_csv_logger
 

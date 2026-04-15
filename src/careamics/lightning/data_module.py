@@ -31,7 +31,7 @@ from careamics.dataset.patching_strategies import (
     PatchSpecs,
     TileSpecs,
 )
-from careamics.lightning.lightning_modules.constraints import (
+from careamics.models.constraints import (
     ModelConstraints,
 )
 from careamics.utils import get_logger
