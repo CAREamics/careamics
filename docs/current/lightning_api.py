@@ -6,10 +6,12 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from careamics_portfolio import PortfolioManager
 
 from careamics.config.factories import create_advanced_n2v_config
-from careamics.lightning.data_module import CareamicsDataModule
-from careamics.lightning.lightning_modules import N2VModule
-from careamics.lightning.prediction import convert_prediction
-from careamics.lightning.callbacks import ConfigSaverCallback
+from careamics.lightning import (
+    CareamicsDataModule,
+    ConfigSaverCallback,
+    N2VModule,
+    convert_prediction,
+)
 
 # download example data
 portfolio_manager = PortfolioManager()
