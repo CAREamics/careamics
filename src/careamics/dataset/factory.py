@@ -10,7 +10,7 @@ from typing_extensions import ParamSpec
 from careamics.config.data.data_config import DataConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
-from careamics.lightning.lightning_modules.constraints import (
+from careamics.models.constraints import (
     ModelConstraints,
 )
 

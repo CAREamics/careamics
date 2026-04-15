@@ -8,6 +8,7 @@ import torch
 
 from careamics.compat.config.configuration_factories import algorithm_factory
 from careamics.compat.config.data.tile_information import TileInformation
+from careamics.compat.losses import loss_factory
 from careamics.compat.transforms.normalize import Denormalize, TrainDenormalize
 from careamics.compat.transforms.tta import ImageRestorationTTA
 from careamics.config import (
@@ -22,15 +23,17 @@ from careamics.config.support import (
     SupportedOptimizer,
     SupportedScheduler,
 )
-from careamics.lightning.lightning_modules.n2v_utils import N2VManipulate
-from careamics.losses import loss_factory
+from careamics.lightning.modules.module_utils import (
+    get_optimizer,
+    get_scheduler,
+)
+from careamics.lightning.modules.n2v_utils import N2VManipulate
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
     noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
-from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
