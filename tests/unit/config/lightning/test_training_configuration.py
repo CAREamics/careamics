@@ -1,3 +1,4 @@
+import itertools
 from dataclasses import asdict
 from types import SimpleNamespace
 
@@ -58,3 +59,25 @@ def test_default_training_factory(algo):
     else:
         assert config.checkpoint_params == asdict(SelfSupervisedCheckpointing())
         assert config.early_stopping_params is None
+
+
+@pytest.mark.parametrize(
+    "param_name, exp_error",
+    list(
+        itertools.product(
+            ["trainer_params", "checkpoint_params", "early_stopping_params"],
+            [pytest.raises(ValueError, match="Unknown parameters")],
+        )
+    ),
+)
+def test_validation_params(param_name, exp_error):
+    """Tests that invalid parameters raise a ValueError.
+
+    This test covers Trainer, ModelCheckpoint and EarlyStopping parameters.
+    """
+    config = default_training_dict(
+        algorithm="care",
+        **{param_name: {"unknown_param": 42}},
+    )
+    with exp_error:
+        TrainingConfig(**config)

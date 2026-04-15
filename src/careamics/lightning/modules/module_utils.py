@@ -7,8 +7,8 @@ import torch
 from torch import nn
 from torchmetrics import MetricCollection
 
+from careamics.config.support import SupportedOptimizer, SupportedScheduler
 from careamics.utils.logging import get_logger
-from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 logger = get_logger(__name__)
 
@@ -110,6 +110,54 @@ def load_best_checkpoint(module: L.LightningModule) -> bool:
     else:
         logger.warning("No best checkpoint found.")
         return False
+
+
+def get_optimizer(name: str) -> type[torch.optim.Optimizer]:
+    """
+    Return the optimizer class given its name.
+
+    Parameters
+    ----------
+    name : str
+        Optimizer name.
+
+    Returns
+    -------
+    torch.nn.Optimizer
+        Optimizer class.
+    """
+    if name not in SupportedOptimizer:
+        raise NotImplementedError(
+            f"Optimizer {name} is not supported. Please open an issue on GitHub to "
+            f"request support for this optimizer."
+        )
+
+    return getattr(torch.optim, name)
+
+
+def get_scheduler(
+    name: str,
+) -> type[torch.optim.lr_scheduler.ReduceLROnPlateau]:
+    """
+    Return the scheduler class given its name.
+
+    Parameters
+    ----------
+    name : str
+        Scheduler name.
+
+    Returns
+    -------
+    Union
+        Scheduler class.
+    """
+    if name not in SupportedScheduler:
+        raise NotImplementedError(
+            f"Scheduler {name} is not supported. Please open an issue on GitHub to "
+            f"request support for this scheduler."
+        )
+
+    return getattr(torch.optim.lr_scheduler, name)
 
 
 def configure_optimizers(

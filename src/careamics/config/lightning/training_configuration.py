@@ -6,7 +6,11 @@ from dataclasses import asdict, dataclass
 from pprint import pformat
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+
+from .parameters_filter import get_unknown_parameters
 
 
 @dataclass
@@ -211,8 +215,90 @@ class TrainingConfig(BaseModel):
     callback."""
 
     early_stopping_params: dict[str, Any] | None = Field(default_factory=dict)
-    """Early stopping callback parameters, following PyTorch Lightning Checkpoint
+    """Early stopping callback parameters, following PyTorch Lightning EarlyStopping
     callback."""
+
+    @field_validator("checkpoint_params")
+    @classmethod
+    def valid_ckpt_parameters(cls, user_params: dict) -> dict:
+        """Validate parameters based on the checkpoint callback signature.
+
+        Parameters
+        ----------
+        user_params : dict
+            User parameters.
+
+        Returns
+        -------
+        dict
+            Validated checkpoint parameters.
+
+        Raises
+        ------
+        ValueError
+            If there are unknown parameters for the checkpoint callback.
+        """
+        unknown_params = get_unknown_parameters(ModelCheckpoint, user_params)
+        if unknown_params:
+            raise ValueError(
+                f"Unknown parameters for ModelCheckpoint callback: {unknown_params}."
+            )
+        return user_params
+
+    @field_validator("early_stopping_params")
+    @classmethod
+    def valid_early_stopping_parameters(cls, user_params: dict) -> dict:
+        """Validate parameters based on the early stopping callback signature.
+
+        Parameters
+        ----------
+        user_params : dict
+            User parameters.
+
+        Returns
+        -------
+        dict
+            Validated early stopping parameters.
+
+        Raises
+        ------
+        ValueError
+            If there are unknown parameters for the early stopping callback.
+        """
+        if user_params is not None:
+            unknown_params = get_unknown_parameters(EarlyStopping, user_params)
+            if unknown_params:
+                raise ValueError(
+                    f"Unknown parameters for EarlyStopping callback: {unknown_params}."
+                )
+        return user_params
+
+    @field_validator("trainer_params")
+    @classmethod
+    def valid_trainer_parameters(cls, user_params: dict) -> dict:
+        """Validate parameters based on the PyTorch Lightning Trainer signature.
+
+        Parameters
+        ----------
+        user_params : dict
+            User parameters.
+
+        Returns
+        -------
+        dict
+            Validated trainer parameters.
+
+        Raises
+        ------
+        ValueError
+            If there are unknown parameters for the PyTorch Lightning Trainer.
+        """
+        unknown_params = get_unknown_parameters(Trainer, user_params)
+        if unknown_params:
+            raise ValueError(
+                f"Unknown parameters for PyTorch Lightning Trainer: {unknown_params}."
+            )
+        return user_params
 
     def __str__(self) -> str:
         """Pretty string reprensenting the configuration.
