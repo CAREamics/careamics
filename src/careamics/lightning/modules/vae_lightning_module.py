@@ -13,6 +13,7 @@ from careamics.config import (
     VAEBasedAlgorithm,
 )
 from careamics.losses import loss_factory
+from careamics.metrics.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.models.lvae.likelihoods import (
     GaussianLikelihood,
     NoiseModelLikelihood,
@@ -24,7 +25,6 @@ from careamics.models.lvae.noise_models import (
     multichannel_noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
-from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]

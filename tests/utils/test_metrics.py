@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.utils.metrics import (
+from careamics.metrics.metrics import (
     _zero_mean,
     multiscale_ssim,
     psnr,

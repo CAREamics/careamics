@@ -28,11 +28,11 @@ from careamics.losses import (
     hdn_loss,
     musplit_loss,
 )
+from careamics.metrics.metrics import RunningPSNR
 from careamics.models.lvae.likelihoods import GaussianLikelihood, NoiseModelLikelihood
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
 )
-from careamics.utils.metrics import RunningPSNR
 
 pytestmark = pytest.mark.lvae
 

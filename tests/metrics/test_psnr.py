@@ -9,8 +9,8 @@ from careamics.metrics import (
     SIPSNR,
     SampleSIPSNR,
 )
+from careamics.metrics.metrics import scale_invariant_psnr
 from careamics.metrics.psnr import _normalise_range
-from careamics.utils.metrics import scale_invariant_psnr
 
 
 def create_toy_data(shape):
