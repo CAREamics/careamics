@@ -9,11 +9,11 @@ from typing import Any, Literal, NamedTuple
 import numpy as np
 from numpy.typing import NDArray
 
-from .dataset import ImageRegionData
-from .image_stack import ImageStack
-from .patch_extractor import PatchExtractor
-from .patch_filter import PatchFilterProtocol
-from .patching_strategies import PatchingStrategy, PatchSpecs
+from ..dataset.dataset import ImageRegionData
+from ..dataset.image_stack import ImageStack
+from ..dataset.patch_extractor import PatchExtractor
+from ..dataset.patch_filter import PatchFilterProtocol
+from ..dataset.patching_strategies import PatchingStrategy, PatchSpecs
 
 
 # TODO: better name
