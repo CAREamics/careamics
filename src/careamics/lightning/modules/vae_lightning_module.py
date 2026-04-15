@@ -12,6 +12,10 @@ from careamics.compat.transforms.tta import ImageRestorationTTA
 from careamics.config import (
     VAEBasedAlgorithm,
 )
+from careamics.lightning.modules.module_utils import (
+    get_optimizer,
+    get_scheduler,
+)
 from careamics.losses.lvae import lvae_loss_factory
 from careamics.metrics.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.models.lvae.likelihoods import (
@@ -25,7 +29,6 @@ from careamics.models.lvae.noise_models import (
     multichannel_noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
-from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
@@ -371,6 +374,7 @@ class VAEModule(L.LightningModule):
             else:
                 return denormalized_output, std
 
+    # TODO use lightning.modules.model_utils configure_optimizers
     def configure_optimizers(self) -> Any:
         """Configure optimizers and learning rate schedulers.
 
