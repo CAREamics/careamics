@@ -30,7 +30,10 @@ def create_normalization(norm_model: NormalizationConfig) -> NormalizationProtoc
             )
         case SupportedNormalization.QUANTILE:
             return RangeNormalization(
-                **norm_model.model_dump(exclude={"name", "per_channel"}),
+                input_mins=norm_model.input_lower_quantile_values,
+                input_maxes=norm_model.input_upper_quantile_values,
+                target_mins=norm_model.target_lower_quantile_values,
+                target_maxes=norm_model.target_upper_quantile_values,
             )
         case SupportedNormalization.MINMAX:
             return RangeNormalization(
