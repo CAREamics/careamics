@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from careamics.dataset.dataset_utils.running_stats import (
     compute_normalization_stats,
 )

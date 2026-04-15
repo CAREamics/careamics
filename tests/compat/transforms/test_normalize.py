@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
-
-from careamics.compat.dataset.patching.patching import Stats
-from careamics.compat.transforms.normalize import Denormalize, Normalize, _reshape_stats
 from careamics.dataset.dataset_utils.running_stats import (
     compute_normalization_stats,
 )
+
+from careamics.compat.dataset.patching.patching import Stats
+from careamics.compat.transforms.normalize import Denormalize, Normalize, _reshape_stats
 
 
 @pytest.mark.parametrize("ndim", [3, 4])
