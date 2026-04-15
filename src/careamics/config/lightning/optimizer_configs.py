@@ -84,7 +84,7 @@ class OptimizerConfig(BaseModel):
 
     @field_validator("parameters")
     @classmethod
-    def valid_parameters(cls, user_params: dict, values: ValidationInfo) -> dict:
+    def valid_torch_parameters(cls, user_params: dict, values: ValidationInfo) -> dict:
         """
         Validate optimizer parameters.
 
@@ -185,7 +185,7 @@ class LrSchedulerConfig(BaseModel):
 
     @field_validator("parameters")
     @classmethod
-    def valid_parameters(cls, user_params: dict, values: ValidationInfo) -> dict:
+    def valid_torch_parameters(cls, user_params: dict, values: ValidationInfo) -> dict:
         """Validate parameters based on the learning rate scheduler's signature.
 
         Parameters
