@@ -80,8 +80,10 @@ def get_optimizer(name: str) -> type[torch.optim.Optimizer]:
     torch.nn.Optimizer
         Optimizer class.
     """
-    if name not in SupportedOptimizer:
-        raise NotImplementedError(f"Optimizer {name} is not yet supported.")
+    try:
+        SupportedOptimizer(name)
+    except ValueError as e:
+        raise NotImplementedError(f"Optimizer {name} is not yet supported.") from e
 
     return getattr(torch.optim, name)
 
@@ -120,8 +122,10 @@ def get_scheduler(
     Union
         Scheduler class.
     """
-    if name not in SupportedScheduler:
-        raise NotImplementedError(f"Scheduler {name} is not yet supported.")
+    try:
+        SupportedScheduler(name)
+    except ValueError as e:
+        raise NotImplementedError(f"Scheduler {name} is not yet supported.") from e
 
     return getattr(torch.optim.lr_scheduler, name)
 
