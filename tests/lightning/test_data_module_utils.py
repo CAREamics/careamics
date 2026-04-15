@@ -5,7 +5,7 @@ import pytest
 import zarr
 
 from careamics.dataset.image_stack_loader.zarr_utils import is_valid_uri
-from careamics.lightning.data_module_utils import initialize_data_pair
+from careamics.lightning.data.data_module_utils import initialize_data_pair
 
 
 @pytest.fixture

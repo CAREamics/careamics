@@ -11,10 +11,10 @@ from careamics.config import N2VAlgorithm, create_ng_data_configuration
 from careamics.lightning.callbacks.prediction_writer import (
     PredictionWriterCallback,
 )
-from careamics.lightning.data_module import (
+from careamics.lightning.data import (
     CareamicsDataModule,
 )
-from careamics.lightning.lightning_modules import N2VModule
+from careamics.lightning.modules import N2VModule
 from careamics.lightning.prediction import convert_prediction
 
 # TODO add zarr writing from tiff and arrays when it will be available

@@ -3,7 +3,7 @@
 import numpy as np
 import tifffile
 
-from careamics.lightning.microsplit_data_module import (
+from careamics.lightning.data.microsplit_data_module import (
     MicroSplitDataModule,
     get_train_val_data,
 )

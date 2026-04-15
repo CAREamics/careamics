@@ -11,9 +11,9 @@ from torchmetrics import MetricCollection
 from careamics.config import N2VAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.dataset.dataset import ImageRegionData
-from careamics.lightning.data_module import TrainValData, TrainValSplitData
-from careamics.lightning.metrics import SIPSNR
+from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.losses import n2v_loss
+from careamics.metrics import SIPSNR
 from careamics.models.unet import UNet
 from careamics.transforms import N2VManipulate
 from careamics.utils.logging import get_logger
@@ -23,7 +23,7 @@ from .module_utils import configure_optimizers, log_training_stats, log_validati
 logger = get_logger(__name__)
 
 if TYPE_CHECKING:
-    from careamics.lightning.data_module import CareamicsDataModule
+    from careamics.lightning.data.data_module import CareamicsDataModule
 
 
 class N2VModule(L.LightningModule):

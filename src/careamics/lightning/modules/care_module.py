@@ -12,9 +12,9 @@ from careamics.config import CAREAlgorithm, N2NAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.config.support import SupportedLoss
 from careamics.dataset.dataset import ImageRegionData
-from careamics.lightning.data_module import TrainValData, TrainValSplitData
-from careamics.lightning.metrics import SIPSNR
+from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.losses import mae_loss, mse_loss
+from careamics.metrics import SIPSNR
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
 
@@ -26,7 +26,7 @@ from .module_utils import (
 )
 
 if TYPE_CHECKING:
-    from careamics.lightning.data_module import CareamicsDataModule
+    from careamics.lightning.data.data_module import CareamicsDataModule
 
 logger = get_logger(__name__)
 

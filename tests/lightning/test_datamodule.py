@@ -9,16 +9,14 @@ import tifffile
 from careamics.config.data import DataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset import CareamicsDataset
+from careamics.dataset.factory import PredData, TrainValData, TrainValSplitData
 from careamics.dataset.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset.image_stack import FileImageStack
 from careamics.dataset.patch_extractor.limit_file_extractor import (
     LimitFilesPatchExtractor,
 )
-from careamics.lightning.data_module import (
+from careamics.lightning.data.data_module import (
     CareamicsDataModule,
-    PredData,
-    TrainValData,
-    TrainValSplitData,
     _validate_data,
 )
 

@@ -18,14 +18,14 @@ from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .file_io import WriteFunc
 from .lightning.callbacks import CareamicsCheckpointInfo, ProgressBarCallback
 from .lightning.callbacks.prediction_writer import PredictionWriterCallback
-from .lightning.data_module import CareamicsDataModule, InputVar
-from .lightning.lightning_modules import (
-    CAREamicsModule,
-    create_module,
-)
+from .lightning.data import CareamicsDataModule, InputVar
 from .lightning.load_checkpoint import (
     load_config_from_checkpoint,
     load_module_from_checkpoint,
+)
+from .lightning.modules import (
+    CAREamicsModule,
+    create_module,
 )
 from .lightning.prediction import convert_prediction
 from .models import get_model_constraints

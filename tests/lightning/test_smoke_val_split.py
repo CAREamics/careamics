@@ -6,8 +6,8 @@ from pytorch_lightning import Callback, Trainer
 
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.factories import create_advanced_n2v_config
-from careamics.lightning.data_module import CareamicsDataModule
-from careamics.lightning.lightning_modules import N2VModule
+from careamics.lightning.data import CareamicsDataModule
+from careamics.lightning.modules import N2VModule
 
 
 class _PatchTrackerCallback(Callback):

@@ -5,11 +5,11 @@ from skimage.metrics import peak_signal_noise_ratio
 from torchmetrics import MetricCollection
 from torchmetrics.image import PeakSignalNoiseRatio
 
-from careamics.lightning.metrics import (
+from careamics.metrics import (
     SIPSNR,
     SampleSIPSNR,
 )
-from careamics.lightning.metrics.psnr import _normalise_range
+from careamics.metrics.psnr import _normalise_range
 from careamics.utils.metrics import scale_invariant_psnr
 
 

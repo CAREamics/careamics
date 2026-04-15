@@ -21,9 +21,9 @@ from careamics.config.support import SupportedData
 from careamics.lightning.callbacks.careamics_checkpoint_info_callback import (
     CareamicsCheckpointInfo,
 )
-from careamics.lightning.data_module import CareamicsDataModule
-from careamics.lightning.lightning_modules import CAREModule, N2VModule
+from careamics.lightning.data.data_module import CareamicsDataModule
 from careamics.lightning.load_checkpoint import _create_loaded_exp_name
+from careamics.lightning.modules import CAREModule, N2VModule
 
 pytest.register_assert_rewrite("functional.dataset.utils")
 

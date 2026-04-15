@@ -9,7 +9,7 @@ from careamics.compat.config import Configuration
 from careamics.compat.lightning.lightning_module import FCNModule
 from careamics.compat.model_io.bmz_io import load_from_bmz
 from careamics.compat.utils import check_path_exists
-from careamics.lightning.vae_lightning_module import VAEModule
+from careamics.lightning.modules.vae_lightning_module import VAEModule
 
 
 def load_pretrained(

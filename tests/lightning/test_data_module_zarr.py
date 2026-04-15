@@ -2,7 +2,7 @@ import zarr
 from numpy import array_equal
 
 from careamics.config.data import DataConfig
-from careamics.lightning.data_module import CareamicsDataModule
+from careamics.lightning.data import CareamicsDataModule
 
 
 def test_zarr_data_module(zarr_with_target_and_mask):
