@@ -6,10 +6,10 @@ from careamics.config.data.patch_filter.filter_config import FilterConfig
 from careamics.config.data.patch_filter.mask_filter_config import MaskFilterConfig
 from careamics.utils import get_logger
 
-from .image_stack import ImageStack
-from .patch_extractor import PatchExtractor
-from .patch_filter import MaskFilter, create_patch_filter
-from .patching_strategies import StratifiedPatchingStrategy
+from ..image_stack import ImageStack
+from ..patch_extractor import PatchExtractor
+from ..patch_filter import MaskFilter, create_patch_filter
+from ..patching_strategies import StratifiedPatchingStrategy
 
 logger = get_logger("Patch filtering")
 

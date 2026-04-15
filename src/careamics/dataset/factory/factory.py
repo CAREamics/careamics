@@ -1,4 +1,4 @@
-"""Factory functions and data types for building CAREamics datasets and loaders."""
+"""Factory functions and data types for building CAREamics datasets."""
 
 from dataclasses import dataclass
 from functools import partial
@@ -14,13 +14,12 @@ from careamics.lightning.lightning_modules.constraints import (
     ModelConstraints,
 )
 
-from .dataset import CareamicsDataset
-from .filter_bg import filter_background, filter_background_with_mask
-from .image_stack import (
+from ..dataset import CareamicsDataset
+from ..image_stack import (
     GenericImageStack,
     ImageStack,
 )
-from .image_stack_loader import (
+from ..image_stack_loader import (
     ImageStackLoader,
     load_arrays,
     load_custom_file,
@@ -29,8 +28,9 @@ from .image_stack_loader import (
     load_tiffs,
     load_zarrs,
 )
-from .patch_extractor import LimitFilesPatchExtractor, PatchExtractor
-from .patching_strategies import StratifiedPatchingStrategy, create_patching_strategy
+from ..patch_extractor import LimitFilesPatchExtractor, PatchExtractor
+from ..patching_strategies import StratifiedPatchingStrategy, create_patching_strategy
+from .filter_bg import filter_background, filter_background_with_mask
 from .val_split import create_val_split
 
 P = ParamSpec("P")

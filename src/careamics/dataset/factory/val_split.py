@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from .patching_strategies import (
+from ..patching_strategies import (
     FixedPatchingStrategy,
     PatchSpecs,
     StratifiedPatchingStrategy,
