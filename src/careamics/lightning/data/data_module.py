@@ -25,7 +25,6 @@ from careamics.dataset.factory import (
     create_train_val_datasets,
     create_val_split_datasets,
 )
-from careamics.dataset.grouped_index_sampler import GroupedIndexSampler
 from careamics.dataset.image_stack import ImageStack
 from careamics.dataset.patching_strategies import (
     PatchSpecs,
@@ -37,6 +36,7 @@ from careamics.models.constraints import (
 from careamics.utils import get_logger
 
 from .data_module_utils import initialize_data_pair
+from .grouped_index_sampler import GroupedIndexSampler
 
 logger = get_logger(__name__)
 
