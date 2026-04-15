@@ -3,49 +3,47 @@ from collections.abc import Callable, Sequence
 import numpy as np
 import pytest
 
-from careamics.dataset.patching_strategies import (
-    FixedPatchingStrategy,
-    FixedRandomPatchingStrategy,
-    PatchingStrategy,
+from careamics.dataset.patching import (
+    FixedPatching,
+    FixedRandomPatching,
+    Patching,
     PatchSpecs,
-    RandomPatchingStrategy,
-    SequentialPatchingStrategy,
-    StratifiedPatchingStrategy,
-    TilingStrategy,
-    WholeSamplePatchingStrategy,
+    RandomPatching,
+    SequentialPatching,
+    StratifiedPatching,
+    TiledPatching,
+    WholeSamplePatching,
 )
 
 
 def _create_random_patching_strategy(
     data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
-) -> RandomPatchingStrategy:
+) -> RandomPatching:
     seed = 42
-    return RandomPatchingStrategy(
-        data_shapes=data_shapes, patch_size=patch_size, seed=seed
-    )
+    return RandomPatching(data_shapes=data_shapes, patch_size=patch_size, seed=seed)
 
 
 def _create_fixed_random_patching_strategy(
     data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
-) -> FixedRandomPatchingStrategy:
+) -> FixedRandomPatching:
     seed = 42
-    return FixedRandomPatchingStrategy(
+    return FixedRandomPatching(
         data_shapes=data_shapes, patch_size=patch_size, seed=seed
     )
 
 
 def _create_sequential_patching_strategy(
     data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
-) -> SequentialPatchingStrategy:
+) -> SequentialPatching:
     overlap = tuple(2 for _ in patch_size)
-    return SequentialPatchingStrategy(data_shapes, patch_size, overlap)
+    return SequentialPatching(data_shapes, patch_size, overlap)
 
 
 def _create_stratified_patching_strategy(
     data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
-) -> StratifiedPatchingStrategy:
+) -> StratifiedPatching:
     seed = 42
-    return StratifiedPatchingStrategy(data_shapes, patch_size, seed=seed)
+    return StratifiedPatching(data_shapes, patch_size, seed=seed)
 
 
 def _create_fixed_patching_strategy(
@@ -85,33 +83,31 @@ def _create_fixed_patching_strategy(
                     for coord in coords
                 ]
             )
-    return FixedPatchingStrategy(fixed_specs)
+    return FixedPatching(fixed_specs)
 
 
 def _create_tiling_strategy(
     data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
-) -> TilingStrategy:
+) -> TiledPatching:
     if len(patch_size) == 2:
         overlaps = (2, 2)
     elif len(patch_size) == 3:
         overlaps = (2, 2, 2)
     else:
         raise ValueError
-    return TilingStrategy(
+    return TiledPatching(
         data_shapes=data_shapes, patch_size=patch_size, overlaps=overlaps
     )
 
 
 def _create_whole_sample_patching_strategy(
     data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
-) -> WholeSamplePatchingStrategy:
+) -> WholeSamplePatching:
     # patch_size unused
-    return WholeSamplePatchingStrategy(data_shapes=data_shapes)
+    return WholeSamplePatching(data_shapes=data_shapes)
 
 
-PatchingStrategyConstr = Callable[
-    [Sequence[Sequence[int]], Sequence[int]], PatchingStrategy
-]
+PatchingStrategyConstr = Callable[[Sequence[Sequence[int]], Sequence[int]], Patching]
 
 # !!! if new strategies are added they should be tested here !!!
 PATCHING_STRATEGY_CONSTR: tuple[PatchingStrategyConstr, ...] = (

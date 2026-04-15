@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.patching_strategies.random_patching import (
-    RandomPatchingStrategy,
+from careamics.dataset.patching.random_patching import (
+    RandomPatching,
     _calc_n_patches,
     _generate_random_coords,
 )
@@ -21,8 +21,8 @@ from careamics.dataset.patching_strategies.random_patching import (
 )
 def test_calc_patch_bins(data_shapes, patch_size, expected_patches):
     """Test bins are created as expected"""
-    image_stack_index_bins, sample_index_bins, sample_bins = (
-        RandomPatchingStrategy._calc_bins(data_shapes, patch_size)
+    image_stack_index_bins, sample_index_bins, sample_bins = RandomPatching._calc_bins(
+        data_shapes, patch_size
     )
     assert image_stack_index_bins[-1] == sample_index_bins[-1] == expected_patches
 

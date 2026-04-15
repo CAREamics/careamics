@@ -6,7 +6,7 @@ import torch
 from numpy.typing import NDArray
 
 
-class NormalizationProtocol(Protocol):
+class Normalization(Protocol):
     """Protocol for normalization strategies."""
 
     def __call__(

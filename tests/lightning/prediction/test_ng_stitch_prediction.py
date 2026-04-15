@@ -9,7 +9,7 @@ from tifffile import imwrite
 from careamics.config.data import DataConfig
 from careamics.dataset.factory import create_dataset
 from careamics.dataset.image_region_data import ImageRegionData
-from careamics.dataset.patching_strategies import TilingStrategy
+from careamics.dataset.patching import TiledPatching
 from careamics.lightning.prediction.stitch_prediction import (
     group_tiles_by_key,
     stitch_prediction,
@@ -104,7 +104,7 @@ def tiles(
         else:
             shape_with_sc = (1, 1, *shape)
 
-    tiling_strategy = TilingStrategy(
+    tiling_strategy = TiledPatching(
         data_shapes=[shape_with_sc] * n_data,
         patch_size=data_config.patching.patch_size,
         overlaps=data_config.patching.overlaps,

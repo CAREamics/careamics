@@ -3,8 +3,8 @@ import itertools
 import numpy as np
 import pytest
 
-from careamics.dataset.patching_strategies import StratifiedPatchingStrategy
-from careamics.dataset.patching_strategies.stratified_patching import (
+from careamics.dataset.patching import StratifiedPatching
+from careamics.dataset.patching.stratified_patching import (
     _boxes_overlap,
     _ImageStratifiedPatching,
     _region_bin_packing,
@@ -20,16 +20,16 @@ class TestStratifiedPatching:
             [(1, 1, 512, 512, 512), (2, 1, 531, 591, 554)],
         ]
     )
-    def stratified_patching(self, request) -> StratifiedPatchingStrategy:
+    def stratified_patching(self, request) -> StratifiedPatching:
         data_shapes: list[tuple[int, ...]] = request.param
         ndims = len(data_shapes[0]) - 2
         patch_size = (64,) * ndims
-        stratified_patching = StratifiedPatchingStrategy(data_shapes, patch_size, 42)
+        stratified_patching = StratifiedPatching(data_shapes, patch_size, 42)
         return stratified_patching
 
     @pytest.mark.parametrize("rand_seed", [42, 666, 1])
     def test_set_region_probs(
-        self, stratified_patching: StratifiedPatchingStrategy, rand_seed: int
+        self, stratified_patching: StratifiedPatching, rand_seed: int
     ):
         n_patches = stratified_patching.n_patches
         grid_coords = stratified_patching.get_all_grid_coords()

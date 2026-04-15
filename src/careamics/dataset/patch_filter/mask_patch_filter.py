@@ -5,13 +5,13 @@ from collections.abc import Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.dataset.patch_filter.patch_filter_protocol import (
-    PatchFilterProtocol,
+from careamics.dataset.patch_filter.patch_filter import (
+    PatchFilter,
 )
 
 
 # TODO is it more intuitive to have a negative mask? (mask of what to avoid)
-class MaskFilter(PatchFilterProtocol):
+class MaskPatchFilter(PatchFilter):
     """
     Filter patches based on a boolean image mask.
 

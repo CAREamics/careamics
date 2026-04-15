@@ -2,10 +2,10 @@
 
 from collections.abc import Sequence
 
-from .patching_strategy_protocol import PatchSpecs
+from .patching import PatchSpecs
 
 
-class FixedPatchingStrategy:
+class FixedPatching:
     """Patching strategy that returns patches from a fixed sequence.
 
     Implements the `PatchingStrategy` protocol.
@@ -52,7 +52,7 @@ class FixedPatchingStrategy:
         """
         if index >= self.n_patches:
             raise IndexError(
-                f"Index {index} out of bounds for FixedRandomPatchingStrategy with "
+                f"Index {index} out of bounds for FixedPatching with "
                 f"number of patches {self.n_patches}"
             )
         # simply index the pre-generated patches to get the correct patch

@@ -7,11 +7,11 @@ from tqdm import tqdm
 
 from careamics.dataset.image_stack_loader import load_arrays
 from careamics.dataset.patch_extractor import PatchExtractor
-from careamics.dataset.patch_filter.patch_filter_protocol import PatchFilterProtocol
-from careamics.dataset.patching_strategies import TilingStrategy
+from careamics.dataset.patch_filter.patch_filter import PatchFilter
+from careamics.dataset.patching import TiledPatching
 
 
-class MeanStdPatchFilter(PatchFilterProtocol):
+class MeanStdPatchFilter(PatchFilter):
     """
     Filter patches based on mean and standard deviation thresholds.
 
@@ -148,7 +148,7 @@ class MeanStdPatchFilter(PatchFilterProtocol):
 
         image_stacks = load_arrays(source=[image], axes=axes)
         extractor = PatchExtractor(image_stacks)
-        tiling = TilingStrategy(
+        tiling = TiledPatching(
             data_shapes=[(1, 1, *image.shape)],
             patch_size=patch_size,
             overlaps=(0,) * len(patch_size),  # no overlap

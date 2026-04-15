@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from careamics.dataset.image_region_data import ImageRegionData
-from careamics.dataset.patching_strategies import TileSpecs
+from careamics.dataset.patching import TileSpecs
 from careamics.utils.reshape_array import restore_array
 
 

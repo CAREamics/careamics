@@ -3,7 +3,7 @@
 from careamics.utils import BaseEnum
 
 
-class SupportedPatchingStrategy(str, BaseEnum):
+class SupportedPatching(str, BaseEnum):
     """Patching strategies supported by Careamics."""
 
     FIXED_RANDOM = "fixed_random"

@@ -4,10 +4,10 @@ import itertools
 from collections.abc import Sequence
 from math import prod
 
-from .patching_strategy_protocol import TileSpecs
+from .patching import TileSpecs
 
 
-class TilingStrategy:
+class TiledPatching:
     """Patching strategy used to extract overlapping tiles from an image.
 
     The tiling strategy should be used for prediction. The `get_patch_specs`

@@ -3,8 +3,8 @@ from collections.abc import Sequence
 import numpy as np
 import pytest
 
-from careamics.dataset.patching_strategies import (
-    SequentialPatchingStrategy,
+from careamics.dataset.patching import (
+    SequentialPatching,
 )
 
 
@@ -36,7 +36,7 @@ def test_whole_image_covered(
     patch_size: Sequence[int],
     overlap: Sequence[int],
 ):
-    patching_strategy = SequentialPatchingStrategy(data_shapes, patch_size, overlap)
+    patching_strategy = SequentialPatching(data_shapes, patch_size, overlap)
     patch_specs = patching_strategy.patch_specs
 
     # track where patches have been sampled from

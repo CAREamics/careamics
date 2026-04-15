@@ -9,9 +9,9 @@ import pytest
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack_loader import load_arrays
 from careamics.dataset.patch_extractor import PatchExtractor
-from careamics.dataset.patching_strategies import (
+from careamics.dataset.patching import (
+    TiledPatching,
     TileSpecs,
-    TilingStrategy,
 )
 from careamics.file_io.write import write_tiff
 from careamics.lightning.callbacks.prediction import (
@@ -47,7 +47,7 @@ def tiles(n_data, shape, axes) -> list[ImageRegionData]:
         else:
             shape_with_sc = (1, 1, *shape)
 
-    tiling_strategy = TilingStrategy(
+    tiling_strategy = TiledPatching(
         data_shapes=[shape_with_sc] * n_data, patch_size=tile_size, overlaps=overlaps
     )
     n_tiles = tiling_strategy.n_patches

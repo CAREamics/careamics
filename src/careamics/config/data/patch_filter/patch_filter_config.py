@@ -3,7 +3,7 @@
 from pydantic import BaseModel, Field
 
 
-class FilterConfig(BaseModel):
+class PatchFilterConfig(BaseModel):
     """Base class for patch and coordinate filtering models."""
 
     name: str

@@ -3,11 +3,11 @@ from collections.abc import Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.dataset.patching_strategies import PatchingStrategy
+from careamics.dataset.patching import Patching
 
 
 def assert_expected_pixel_probability(
-    patching: PatchingStrategy,
+    patching: Patching,
     data_shapes: Sequence[Sequence[int]],
     patch_size: Sequence[int],
     mean_expected_prob: dict[tuple[int, int], float],
@@ -34,7 +34,7 @@ def assert_expected_pixel_probability(
 
 
 def track_patching(
-    patching: PatchingStrategy,
+    patching: Patching,
     data_shapes: Sequence[Sequence[int]],
     patch_size: Sequence[int],
     epochs: int,

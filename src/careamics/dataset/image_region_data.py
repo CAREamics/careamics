@@ -5,7 +5,7 @@ from typing import Any, Generic, Literal, NamedTuple, Union
 
 from numpy.typing import NDArray
 
-from .patching_strategies import (
+from .patching import (
     RegionSpecs,
 )
 

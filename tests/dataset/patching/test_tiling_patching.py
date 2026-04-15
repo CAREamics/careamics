@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.patching_strategies import TilingStrategy
+from careamics.dataset.patching import TiledPatching
 
 
 @pytest.mark.parametrize("overlaps", [(2, 2), (3, 4), (6, 3)])
@@ -17,7 +17,7 @@ def test_whole_image_covered_2d(
     patch_size: tuple[int, int],
     overlaps: tuple[int, int],
 ):
-    patching_strategy = TilingStrategy(data_shapes, patch_size, overlaps)
+    patching_strategy = TiledPatching(data_shapes, patch_size, overlaps)
     patch_specs = patching_strategy.tile_specs
 
     # track where patches have been sampled from
@@ -51,7 +51,7 @@ def test_whole_image_covered_3d(
     patch_size: tuple[int, int],
     overlaps: tuple[int, int],
 ):
-    patching_strategy = TilingStrategy(data_shapes, patch_size, overlaps)
+    patching_strategy = TiledPatching(data_shapes, patch_size, overlaps)
     patch_specs = patching_strategy.tile_specs
 
     # track where patches have been sampled from

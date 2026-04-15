@@ -12,7 +12,7 @@ from careamics.dataset.image_stack_loader.zarr_utils import (
     decipher_zarr_uri,
     is_valid_uri,
 )
-from careamics.dataset.patching_strategies import TileSpecs, is_tile_specs
+from careamics.dataset.patching import TileSpecs, is_tile_specs
 from careamics.utils.reshape_array import (
     get_original_stitch_slices,
     restore_tile,

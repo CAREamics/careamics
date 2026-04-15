@@ -6,7 +6,7 @@ from typing import Protocol
 import numpy as np
 
 
-class PatchFilterProtocol(Protocol):
+class PatchFilter(Protocol):
     """Interface for implementing patch filtering strategies."""
 
     def filter_out(self, patch: np.ndarray) -> bool:

@@ -4,10 +4,10 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from .patching_strategy_protocol import PatchSpecs
+from .patching import PatchSpecs
 
 
-class RandomPatchingStrategy:
+class RandomPatching:
     """Random patching strategy.
 
     Parameters
@@ -210,7 +210,7 @@ class RandomPatchingStrategy:
         )
 
 
-class FixedRandomPatchingStrategy:
+class FixedRandomPatching:
     """
     Deterministic random patching strategy for validation.
 

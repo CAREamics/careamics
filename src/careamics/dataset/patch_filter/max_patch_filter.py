@@ -8,14 +8,14 @@ from tqdm import tqdm
 
 from careamics.dataset.image_stack_loader import load_arrays
 from careamics.dataset.patch_extractor import PatchExtractor
-from careamics.dataset.patch_filter.patch_filter_protocol import PatchFilterProtocol
-from careamics.dataset.patching_strategies import TilingStrategy
+from careamics.dataset.patch_filter.patch_filter import PatchFilter
+from careamics.dataset.patching import TiledPatching
 from careamics.utils import get_logger
 
 logger = get_logger(__name__)
 
 
-class MaxPatchFilter(PatchFilterProtocol):
+class MaxPatchFilter(PatchFilter):
     """Patch filter based on thresholding the maximum filter (CSBDeep-inspired).
 
     Parameters
@@ -124,7 +124,7 @@ class MaxPatchFilter(PatchFilterProtocol):
 
         image_stacks = load_arrays(source=[image], axes=axes)
         extractor = PatchExtractor(image_stacks)
-        tiling = TilingStrategy(
+        tiling = TiledPatching(
             data_shapes=[(1, 1, *image.shape)],
             patch_size=patch_size,
             overlaps=(0,) * len(patch_size),  # no overlap

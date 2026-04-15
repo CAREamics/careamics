@@ -27,7 +27,7 @@ from careamics.dataset.factory import (
 )
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack import ImageStack
-from careamics.dataset.patching_strategies import (
+from careamics.dataset.patching import (
     PatchSpecs,
     TileSpecs,
 )

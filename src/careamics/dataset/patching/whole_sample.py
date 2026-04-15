@@ -2,10 +2,10 @@
 
 from collections.abc import Sequence
 
-from .patching_strategy_protocol import PatchSpecs
+from .patching import PatchSpecs
 
 
-class WholeSamplePatchingStrategy:
+class WholeSamplePatching:
     """Patching strategy that returns one patch per sample (whole image).
 
     Parameters

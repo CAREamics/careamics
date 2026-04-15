@@ -12,10 +12,10 @@ from careamics.dataset.factory import create_dataset
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack_loader import load_arrays, load_tiffs
 from careamics.dataset.patch_extractor import PatchExtractor
-from careamics.dataset.patching_strategies import (
+from careamics.dataset.patching import (
     PatchSpecs,
+    TiledPatching,
     TileSpecs,
-    TilingStrategy,
 )
 from careamics.utils.reshape_array import AxesTransform, reshape_array, restore_array
 
@@ -57,7 +57,7 @@ def create_image_region(
 
 
 def gen_image_regions(
-    axes: str, my_patch_extractor: PatchExtractor, my_strategy: TilingStrategy
+    axes: str, my_patch_extractor: PatchExtractor, my_strategy: TiledPatching
 ):
     for i in range(my_strategy.n_patches):
         patch_spec: TileSpecs = my_strategy.get_patch_spec(i)
@@ -161,7 +161,7 @@ def tiles(
 
     shape_with_sc = AxesTransform(data_config.axes, shape).transformed_shape
 
-    tiling_strategy = TilingStrategy(
+    tiling_strategy = TiledPatching(
         data_shapes=[shape_with_sc] * n_data,
         patch_size=data_config.patching.patch_size,
         overlaps=data_config.patching.overlaps,
@@ -353,7 +353,7 @@ def test_write_from_array(tmp_path):
     )
     patch_extractor = PatchExtractor(image_stacks)
 
-    strategy = TilingStrategy(
+    strategy = TiledPatching(
         data_shapes=[image_stacks[0].data_shape] * 2,
         patch_size=(8, 8),
         overlaps=(4, 4),
@@ -388,7 +388,7 @@ def test_write_from_tiff(tmp_path):
     )
     patch_extractor = PatchExtractor(image_stacks)
 
-    strategy = TilingStrategy(
+    strategy = TiledPatching(
         data_shapes=[image_stacks[0].data_shape] * 2,
         patch_size=(8, 8),
         overlaps=(4, 4),

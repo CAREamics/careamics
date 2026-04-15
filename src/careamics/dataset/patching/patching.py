@@ -86,7 +86,7 @@ def is_tile_specs(specs: PatchSpecs) -> TypeGuard[TileSpecs]:
     )
 
 
-class PatchingStrategy(Protocol):
+class Patching(Protocol):
     """
     An interface for patching strategies.
 

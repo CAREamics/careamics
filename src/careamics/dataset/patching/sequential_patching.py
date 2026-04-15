@@ -6,14 +6,14 @@ from collections.abc import Sequence
 import numpy as np
 from typing_extensions import ParamSpec
 
-from .patching_strategy_protocol import PatchSpecs
+from .patching import PatchSpecs
 
 P = ParamSpec("P")
 
 
 # TODO: this is an unfinished prototype based on current tiling implementation
 #  not guaranteed to work!
-class SequentialPatchingStrategy:
+class SequentialPatching:
     """Grid patching strategy with optional overlap; prototype.
 
     Parameters

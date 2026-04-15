@@ -4,20 +4,20 @@ from careamics.config.data.patching_strategies import (
     TiledPatchingConfig,
     WholePatchingConfig,
 )
-from careamics.dataset.patching_strategies import (
-    FixedRandomPatchingStrategy,
-    RandomPatchingStrategy,
-    TilingStrategy,
-    WholeSamplePatchingStrategy,
-    create_patching_strategy,
+from careamics.dataset.patching import (
+    FixedRandomPatching,
+    RandomPatching,
+    TiledPatching,
+    WholeSamplePatching,
+    create_patching,
 )
 
 
 def test_create_random_patching_strategy():
     data_shapes = [(1, 1, 32, 32, 32)]
     config = RandomPatchingConfig(name="random", patch_size=[16, 16, 16], seed=100)
-    strategy = create_patching_strategy(data_shapes, config)
-    assert isinstance(strategy, RandomPatchingStrategy)
+    strategy = create_patching(data_shapes, config)
+    assert isinstance(strategy, RandomPatching)
 
 
 def test_create_fixed_random_patching_strategy():
@@ -25,8 +25,8 @@ def test_create_fixed_random_patching_strategy():
     config = FixedRandomPatchingConfig(
         name="fixed_random", patch_size=[16, 16, 16], seed=100
     )
-    strategy = create_patching_strategy(data_shapes, config)
-    assert isinstance(strategy, FixedRandomPatchingStrategy)
+    strategy = create_patching(data_shapes, config)
+    assert isinstance(strategy, FixedRandomPatching)
 
 
 def test_create_tiling_strategy():
@@ -34,12 +34,12 @@ def test_create_tiling_strategy():
     config = TiledPatchingConfig(
         name="tiled", patch_size=[32, 32, 32], overlaps=[8, 8, 8]
     )
-    strategy = create_patching_strategy(data_shapes, config)
-    assert isinstance(strategy, TilingStrategy)
+    strategy = create_patching(data_shapes, config)
+    assert isinstance(strategy, TiledPatching)
 
 
 def test_create_whole_sample_patching_strategy():
     data_shapes = [(1, 1, 32, 32, 32)]
     config = WholePatchingConfig(name="whole")
-    strategy = create_patching_strategy(data_shapes, config)
-    assert isinstance(strategy, WholeSamplePatchingStrategy)
+    strategy = create_patching(data_shapes, config)
+    assert isinstance(strategy, WholeSamplePatching)

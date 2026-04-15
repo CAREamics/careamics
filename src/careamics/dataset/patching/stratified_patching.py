@@ -8,7 +8,7 @@ from typing import Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from .patching_strategy_protocol import PatchSpecs
+from .patching import PatchSpecs
 
 # --- Structure overview
 # Sampling regions which have an area of double the patch size are created so that they
@@ -46,7 +46,7 @@ class _RegionBins:
     """
 
 
-class StratifiedPatchingStrategy:
+class StratifiedPatching:
     """Stratified patching strategy allowing patches on a grid to be excluded.
 
     Patches will be sampled from sampling regions that are two times the patch size in

@@ -8,8 +8,8 @@ from tests.functional.dataset.utils import (
     track_patching,
 )
 
-from careamics.dataset.patching_strategies import (
-    StratifiedPatchingStrategy,
+from careamics.dataset.patching import (
+    StratifiedPatching,
 )
 
 
@@ -24,7 +24,7 @@ def test_reduced_probability(
     data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
 ):
     """Ensure patches are selected with a reduced probability when set."""
-    patching_strategy = StratifiedPatchingStrategy(data_shapes, patch_size, 42)
+    patching_strategy = StratifiedPatching(data_shapes, patch_size, 42)
 
     # grid_coords for the first sample
     data_idx, sample_idx = 0, 0
@@ -54,7 +54,7 @@ def test_excluded_patches_never_selected(
 ):
     """Ensure excluded patches are never sampled from."""
     rng = np.random.default_rng(42)
-    patching_strategy = StratifiedPatchingStrategy(data_shapes, patch_size, 42)
+    patching_strategy = StratifiedPatching(data_shapes, patch_size, 42)
 
     # arrays to keep track of which patches are excluded
     excluded_masks = [np.zeros(shape, dtype=bool) for shape in data_shapes]

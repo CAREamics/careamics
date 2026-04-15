@@ -21,8 +21,8 @@ from .image_stack import GenericImageStack, ZarrImageStack
 from .normalization import create_normalization
 from .normalization.statistics import resolve_normalization_config
 from .patch_extractor import PatchExtractor
-from .patching_strategies import (
-    PatchingStrategy,
+from .patching import (
+    Patching,
     PatchSpecs,
 )
 
@@ -105,7 +105,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
         data_config: DataConfig,
-        patching_strategy: PatchingStrategy,
+        patching_strategy: Patching,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: PatchExtractor[GenericImageStack] | None = None,
         model_constraints: ModelConstraints | None = None,

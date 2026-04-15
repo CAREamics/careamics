@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import pytest
 
-from .test_all_strategies import _create_fixed_patching_strategy
+from .test_all_patching import _create_fixed_patching_strategy
 
 
 @pytest.mark.parametrize(
