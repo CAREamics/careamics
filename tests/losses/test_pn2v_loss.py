@@ -4,9 +4,9 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from careamics.losses.fcn.losses import pn2v_loss
 
 from careamics.config.noise_model import GaussianMixtureNMConfig
-from careamics.losses.fcn.losses import pn2v_loss
 from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
 
 
