@@ -35,7 +35,6 @@ from careamics.models.lvae.noise_models import (
 )
 from careamics.models.model_factory import model_factory
 
-
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
