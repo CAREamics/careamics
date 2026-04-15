@@ -10,7 +10,7 @@ from torchmetrics import MetricCollection
 
 from careamics.config import N2VAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
-from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.losses import n2v_loss
 from careamics.metrics import SIPSNR

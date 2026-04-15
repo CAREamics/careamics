@@ -6,7 +6,10 @@ from tests.functional.dataset.utils import (
     assert_expected_pixel_probability,
 )
 
-from careamics.config.data.patch_filter import MaskFilterConfig, MaxFilterConfig
+from careamics.config.data.patch_filter import (
+    MaskPatchFilterConfig,
+    MaxPatchFilterConfig,
+)
 from careamics.dataset.factory import init_patch_extractor
 from careamics.dataset.filter_bg import (
     filter_background,
@@ -14,7 +17,7 @@ from careamics.dataset.filter_bg import (
 )
 from careamics.dataset.image_stack_loader import load_arrays
 from careamics.dataset.patch_extractor import PatchExtractor
-from careamics.dataset.patching_strategies import StratifiedPatchingStrategy
+from careamics.dataset.patching import StratifiedPatching
 
 
 @pytest.mark.parametrize(
@@ -38,7 +41,7 @@ def test_filter_background(
 
     # set up components
     background_prob = 0.1
-    patch_filter_config = MaxFilterConfig(
+    patch_filter_config = MaxPatchFilterConfig(
         filtered_patch_prob=background_prob,
         ref_channel=0,
         threshold=0.8,
@@ -46,7 +49,7 @@ def test_filter_background(
     )
 
     patch_extractor = init_patch_extractor(PatchExtractor, load_arrays, data, axes)
-    patching = StratifiedPatchingStrategy(
+    patching = StratifiedPatching(
         patch_extractor.shapes, patch_size=patch_size, seed=42
     )
     filter_background(
@@ -82,12 +85,10 @@ def test_filter_background_w_mask(
     # set up components
     background_prob = 0.1
     mask_extractor = init_patch_extractor(PatchExtractor, load_arrays, masks, axes)
-    mask_filter_config = MaskFilterConfig(
+    mask_filter_config = MaskPatchFilterConfig(
         coverage=(1 / 2**ndims), filtered_patch_prob=background_prob
     )
-    patching = StratifiedPatchingStrategy(
-        mask_extractor.shapes, patch_size=patch_size, seed=42
-    )
+    patching = StratifiedPatching(mask_extractor.shapes, patch_size=patch_size, seed=42)
     filter_background_with_mask(
         mask_filter_config,
         patching,

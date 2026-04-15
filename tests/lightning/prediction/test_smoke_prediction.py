@@ -8,7 +8,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from careamics.config import N2VAlgorithm, create_ng_data_configuration
-from careamics.lightning.callbacks.prediction_writer import (
+from careamics.lightning.callbacks.prediction import (
     PredictionWriterCallback,
 )
 from careamics.lightning.data import (
