@@ -13,11 +13,59 @@ if TYPE_CHECKING:
     from .config_builder import ConfigBuilder
 
 
-class DataConfigMixin:
+class UnetParamMixin:
     def __init__(self: "ConfigBuilder", *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-        minimum_default_data_config = {
+        model_config: dict[str, Any] = {
+            "conv_dims": 3 if self.is_3D else 2,
+            "in_classes": self.n_channels_in,
+            "num_classes": self.n_channels_out,
+        }
+        self.config_dict["data_config"].setdefault("model", {"name": "UNet"})
+        # TODO: validate name is UNet?
+        assert isinstance(self.config_dict["data_config"]["model"], dict)
+        for key, value in model_config.items():
+            self.config_dict["data_config"]["model"].setdefault(key, value)
+
+    def set_model_params(
+        self: "ConfigBuilder",
+        independent_channels: bool | None = None,
+        depth: int | None = None,
+        num_channels_init: int | None = None,
+        residual: bool | None = None,
+        final_activation: (
+            Literal["None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU"] | None
+        ) = None,
+        use_batch_norm: bool | None = None,
+    ) -> "ConfigBuilder":
+        assert isinstance(self.config_dict["data_config"]["model"], dict)
+        if independent_channels is not None:
+            self.config_dict["data_config"]["model"][
+                "independent_channels"
+            ] = independent_channels
+        if depth is not None:
+            self.config_dict["data_config"]["model"]["depth"] = depth
+        if num_channels_init is not None:
+            self.config_dict["data_config"]["model"][
+                "num_channels_init"
+            ] = num_channels_init
+        if residual is not None:
+            self.config_dict["data_config"]["model"]["residual"] = residual
+        if final_activation is not None:
+            self.config_dict["data_config"]["model"][
+                "final_activation"
+            ] = final_activation
+        if use_batch_norm is not None:
+            self.config_dict["data_config"]["model"]["use_batch_norm"] = use_batch_norm
+        return self
+
+
+class DataParamMixin:
+    def __init__(self: "ConfigBuilder", *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+        minimum_default_data_config: dict[str, Any] = {
             "mode": "training",
             "data_type": self.data_type,
             "patching": {
@@ -27,7 +75,9 @@ class DataConfigMixin:
             },
             "batch_size": self.batch_size,
         }
-        self.config_dict["data_config"] = minimum_default_data_config
+        for key, value in minimum_default_data_config.items():
+            # just in case other mixins add things that we do not want to overwrite
+            self.config_dict["data_config"].setdefault(key, value)
 
     def set_advanced_data_params(
         self: "ConfigBuilder",
