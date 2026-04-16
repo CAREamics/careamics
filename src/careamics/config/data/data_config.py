@@ -27,7 +27,7 @@ from careamics.config.utils.random import generate_random_seed
 from careamics.config.validators import check_axes_validity, check_czi_axes_validity
 from careamics.utils import BaseEnum
 
-from .normalization_config import NormalizationConfig
+from .normalization_config import MeanStdConfig, NormalizationConfig
 from .patch_filter import (
     MaskFilterConfig,
     MaxFilterConfig,
@@ -55,6 +55,7 @@ from .patching_strategies import (
 #       leverage Pydantic to add validation directly to the declaration of each field?
 
 
+# TODO: move to a utils module
 def _is_3D(axes: str, data_type: SupportedData) -> bool:
     """Determine whether the `axes` and `data_type` combination specifies 3D data.
 
@@ -353,7 +354,7 @@ class DataConfig(BaseModel):
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
 
-    normalization: NormalizationConfig = Field(...)
+    normalization: NormalizationConfig = Field(default=MeanStdConfig())
     """Normalization configuration to use."""
 
     # Optional fields
