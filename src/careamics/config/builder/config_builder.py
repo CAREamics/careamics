@@ -7,6 +7,13 @@ from careamics.config.support import SupportedData
 from ..configuration import Configuration
 from ..factories.config_discriminators import instantiate_config
 from ..n2v_configuration import N2VConfiguration
+from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+
+ConfigurationType = (
+    Configuration[CAREAlgorithm]
+    | Configuration[N2NAlgorithm]
+    | Configuration[N2VAlgorithm]
+)
 
 
 class ConfigDict(TypedDict):
@@ -78,6 +85,6 @@ class BaseConfigBuilder(ConfigBuilder):
         """Hook for mixins"""
         pass
 
-    def build(self) -> Configuration | N2VConfiguration:
+    def build(self) -> ConfigurationType:
         self._resolve()
         return instantiate_config(self.config_dict)

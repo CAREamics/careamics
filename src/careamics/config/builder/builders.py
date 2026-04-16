@@ -80,7 +80,8 @@ class N2VConfigBuilder(
         if struct_n2v_span is not None:
             n2v_manipulate_config["struct_n2v_span"] = struct_n2v_span
 
-        n2v_manipulate_config["seed"] = self.seed
+        if self.seed is not None:
+            n2v_manipulate_config["seed"] = self.seed
 
         if use_n2v2 is not None:
             # already added by UnetParamMixin
@@ -89,5 +90,5 @@ class N2VConfigBuilder(
 
             n2v_manipulate_config["strategy"] = "median" if use_n2v2 else "uniform"
 
-        self.config_dict["algorithm_config"] = n2v_manipulate_config
+        self.config_dict["algorithm_config"]["n2v_config"] = n2v_manipulate_config
         return self

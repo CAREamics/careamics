@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import Any, Literal, TypeVar, overload
 
 from careamics.config.augmentations import (
     XYFlipConfig,
@@ -10,39 +10,40 @@ from careamics.config.factories.data_factory import (
 )
 from careamics.config.factories.training_factory import update_trainer_params
 
-if TYPE_CHECKING:
-    from .config_builder import ConfigBuilder
+from .config_builder import ConfigBuilder
+
+ConfigBuilderT = TypeVar("ConfigBuilderT", bound=ConfigBuilder)
 
 
 class TrainingParamMixin:
-    def __init__(self: "ConfigBuilder", *args: Any, **kwargs: Any):
+    def __init__(self: ConfigBuilder, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
         self.config_dict["training_config"].setdefault(
             "trainer_params", update_trainer_params({}, self.num_epochs, self.num_steps)
         )
 
-    def set_trainer_params(self: "ConfigBuilder", **kwargs: Any) -> "ConfigBuilder":
+    def set_trainer_params(self: ConfigBuilderT, **kwargs: Any) -> ConfigBuilderT:
         self.config_dict["training_config"].update(kwargs)
         return self
 
-    def set_checkpoint_params(self: "ConfigBuilder", **kwargs: Any) -> "ConfigBuilder":
+    def set_checkpoint_params(self: ConfigBuilderT, **kwargs: Any) -> ConfigBuilderT:
         self.config_dict["training_config"]["checkpoint_params"] = kwargs
         return self
 
-    def early_stopping_params(self: "ConfigBuilder", **kwargs: Any) -> "ConfigBuilder":
+    def early_stopping_params(self: ConfigBuilderT, **kwargs: Any) -> ConfigBuilderT:
         self.config_dict["training_config"]["early_stopping_params"] = kwargs
         return self
 
     def set_logger(
-        self: "ConfigBuilder", name: Literal["wandb", "tensorboard"] | None = None
-    ) -> "ConfigBuilder":
+        self: ConfigBuilderT, name: Literal["wandb", "tensorboard"] | None = None
+    ) -> ConfigBuilderT:
         self.config_dict["training_config"]["logger"] = name
         return self
 
 
 class DataParamMixin:
-    def __init__(self: "ConfigBuilder", *args: Any, **kwargs: Any):
+    def __init__(self: ConfigBuilder, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
         minimum_default_data_config: dict[str, Any] = {
@@ -61,13 +62,13 @@ class DataParamMixin:
             self.config_dict["data_config"].setdefault(key, value)
 
     def set_advanced_data_params(
-        self: "ConfigBuilder",
-        augmentations: Literal["x_flip", "y_flip", "rotate_90"] | None,
+        self: ConfigBuilderT,
+        augmentations: Literal["x_flip", "y_flip", "rotate_90"] | None = None,
         in_memory: bool | None = None,
         channels: Sequence[int] | None = None,
         patching_strategy: Literal["random", "stratified"] | None = None,
         n_val_patches: int | None = None,
-    ) -> "ConfigBuilder":
+    ) -> ConfigBuilderT:
         augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
         if augmentations is not None:
             augs = []
@@ -106,12 +107,12 @@ class DataParamMixin:
         return self
 
     def set_data_loader_params(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         num_workers: int | None = None,
         train_dataloader_params: dict[str, Any] | None = None,
         val_dataloader_params: dict[str, Any] | None = None,
         pred_dataloader_params: dict[str, Any] | None = None,
-    ) -> "ConfigBuilder":
+    ) -> ConfigBuilderT:
         if num_workers is not None:
             self.config_dict["data_config"]["num_workers"] = num_workers
         if train_dataloader_params is not None:
@@ -130,7 +131,7 @@ class DataParamMixin:
 
     @overload
     def set_normalization(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         name: Literal["mean_std"],
         *,
         per_channel: bool | None = None,
@@ -138,11 +139,11 @@ class DataParamMixin:
         input_stds: Sequence[float] | None = None,
         target_means: Sequence[float] | None = None,
         target_stds: Sequence[float] | None = None,
-    ) -> "ConfigBuilder": ...
+    ) -> ConfigBuilderT: ...
 
     @overload
     def set_normalization(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         name: Literal["min_max"],
         *,
         per_channel: bool | None = None,
@@ -150,11 +151,11 @@ class DataParamMixin:
         input_maxes: Sequence[float] | None = None,
         target_mins: Sequence[float] | None = None,
         target_maxes: Sequence[float] | None = None,
-    ) -> "ConfigBuilder": ...
+    ) -> ConfigBuilderT: ...
 
     @overload
     def set_normalization(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         name: Literal["quantile"],
         *,
         per_channel: bool = True,
@@ -164,46 +165,46 @@ class DataParamMixin:
         input_upper_quantile_values: Sequence[float] | None = None,
         target_lower_quantile_values: Sequence[float] | None = None,
         target_upper_quantile_values: Sequence[float] | None = None,
-    ) -> "ConfigBuilder": ...
+    ) -> ConfigBuilderT: ...
 
     @overload
     def set_normalization(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         name: Literal["none"],
-    ) -> "ConfigBuilder": ...
+    ) -> ConfigBuilderT: ...
 
     def set_normalization(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         name: Literal["mean_std", "min_max", "quantile", "none"],
         **kwargs: Any,
-    ) -> "ConfigBuilder":
+    ) -> ConfigBuilderT:
         self.config_dict["data_config"]["normalization"] = {name: name, **kwargs}
         return self
 
     @overload
     def set_patch_filter(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         name: Literal["shannon"],
         ref_channel: int | None = None,
         filtered_patch_prob: float | None = None,
         *,
         mean_threshold: float,
         std_threshold: float | None = None,
-    ) -> "ConfigBuilder": ...
+    ) -> ConfigBuilderT: ...
 
     @overload
     def set_patch_filter(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         name: Literal["shannon"],
         ref_channel: int | None = None,
         filtered_patch_prob: float | None = None,
         *,
         threshold: float,
-    ) -> "ConfigBuilder": ...
+    ) -> ConfigBuilderT: ...
 
     @overload
     def set_patch_filter(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         name: Literal["max"],
         ref_channel: int | None = None,
         filtered_patch_prob: float | None = None,
@@ -211,15 +212,15 @@ class DataParamMixin:
         threshold: float,
         # TODO: Could calculate coverage default here (depends on is_3D)
         coverage: float | None = None,
-    ) -> "ConfigBuilder": ...
+    ) -> ConfigBuilderT: ...
 
     def set_patch_filter(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         name: Literal["max", "shannon", "mean_std"],
         ref_channel: int | None = None,
         filtered_patch_prob: float | None = None,
         **kwargs: Any,
-    ) -> "ConfigBuilder":
+    ) -> ConfigBuilderT:
         filter_config_dict: dict[str, Any] = {"name": name}
         if ref_channel is not None:
             filter_config_dict["ref_channel"] = ref_channel
@@ -234,12 +235,12 @@ class DataParamMixin:
 
 
 class OptimizerParamMixin:
-    def __init__(self: "ConfigBuilder", *args: Any, **kwargs: Any):
+    def __init__(self: ConfigBuilder, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
     def set_optimizer(
-        self: "ConfigBuilder", name: Literal["Adam", "Adamax", "SGD"], **kwargs: Any
-    ) -> "ConfigBuilder":
+        self: ConfigBuilderT, name: Literal["Adam", "Adamax", "SGD"], **kwargs: Any
+    ) -> ConfigBuilderT:
         self.config_dict["algorithm_config"]["optimizer"] = {
             "name": name,
             "parameters": kwargs,
@@ -247,10 +248,10 @@ class OptimizerParamMixin:
         return self
 
     def set_lr_scheduler(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         name: Literal["ReduceLROnPlateau", "StepLR"],
         **kwargs: Any,
-    ) -> "ConfigBuilder":
+    ) -> ConfigBuilderT:
         self.config_dict["algorithm_config"]["lr_scheduler"] = {
             "name": name,
             "parameters": kwargs,
@@ -259,7 +260,7 @@ class OptimizerParamMixin:
 
 
 class UnetParamMixin:
-    def __init__(self: "ConfigBuilder", *args: Any, **kwargs: Any):
+    def __init__(self: ConfigBuilder, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
         model_config: dict[str, Any] = {
@@ -279,7 +280,7 @@ class UnetParamMixin:
             self.config_dict["algorithm_config"]["model"].setdefault(key, value)
 
     def set_model_params(
-        self: "ConfigBuilder",
+        self: ConfigBuilderT,
         independent_channels: bool | None = None,
         depth: int | None = None,
         num_channels_init: int | None = None,
@@ -288,7 +289,7 @@ class UnetParamMixin:
             Literal["None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU"] | None
         ) = None,
         use_batch_norm: bool | None = None,
-    ) -> "ConfigBuilder":
+    ) -> ConfigBuilderT:
         assert isinstance(self.config_dict["algorithm_config"]["model"], dict)
 
         if independent_channels is not None:
