@@ -1,5 +1,5 @@
 """Discriminator for NG configurations."""
-
+from collections.abc import Mapping
 from typing import Annotated, Any, Union
 
 from pydantic import Discriminator, Tag, TypeAdapter
@@ -75,7 +75,7 @@ NGAlgo = Annotated[
 # ------------------------ Validators --------------------------
 
 
-def instantiate_config(config: dict[str, Any]) -> NGConfig:
+def instantiate_config(config: Mapping[str, Any]) -> NGConfig:
     """
     Instantiate a NG configuration from a configuration dictionary.
 
