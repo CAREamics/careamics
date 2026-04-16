@@ -8,9 +8,37 @@ from careamics.config.augmentations import (
 from careamics.config.factories.data_factory import (
     list_spatial_augmentations,
 )
+from careamics.config.factories.training_factory import update_trainer_params
 
 if TYPE_CHECKING:
     from .config_builder import ConfigBuilder
+
+
+class TrainingParamMixin:
+    def __init__(self: "ConfigBuilder", *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+        self.config_dict["training_config"].setdefault(
+            "trainer_params", update_trainer_params({}, self.num_epochs, self.num_steps)
+        )
+
+    def set_trainer_params(self: "ConfigBuilder", **kwargs: Any) -> "ConfigBuilder":
+        self.config_dict["training_config"].update(kwargs)
+        return self
+
+    def set_checkpoint_params(self: "ConfigBuilder", **kwargs: Any) -> "ConfigBuilder":
+        self.config_dict["training_config"]["checkpoint_params"] = kwargs
+        return self
+
+    def early_stopping_params(self: "ConfigBuilder", **kwargs: Any) -> "ConfigBuilder":
+        self.config_dict["training_config"]["early_stopping_params"] = kwargs
+        return self
+
+    def set_logger(
+        self: "ConfigBuilder", name: Literal["wandb", "tensorboard"] | None = None
+    ) -> "ConfigBuilder":
+        self.config_dict["training_config"]["logger"] = name
+        return self
 
 
 class DataParamMixin:
