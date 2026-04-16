@@ -18,9 +18,6 @@ class ConfigDict(TypedDict):
 
 
 class ConfigBuilder(Protocol):
-    # used by some mixins
-    algorithm: Literal["n2v", "care", "n2n"]  # TODO: add algorithms
-
     # mutable ref of config dict
     config_dict: ConfigDict
 
