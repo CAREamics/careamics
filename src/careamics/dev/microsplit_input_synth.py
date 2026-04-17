@@ -9,11 +9,11 @@ from typing import Any, Literal, NamedTuple
 import numpy as np
 from numpy.typing import NDArray
 
-from ..dataset.dataset import ImageRegionData
-from ..dataset.image_stack import ImageStack
-from ..dataset.patch_extractor import PatchExtractor
-from ..dataset.patch_filter import PatchFilterProtocol
-from ..dataset.patching_strategies import PatchingStrategy, PatchSpecs
+from careamics.dataset.image_region_data import ImageRegionData
+from careamics.dataset.image_stack import ImageStack
+from careamics.dataset.patch_extractor import PatchExtractor
+from careamics.dataset.patch_filter import PatchFilter
+from careamics.dataset.patching import Patching, PatchSpecs
 
 
 # TODO: better name
@@ -30,7 +30,7 @@ class UncorrelatedRegionData(NamedTuple):
 
 
 # --- for finding empty / signal channel patches in loop
-def is_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
+def is_empty(filter: PatchFilter) -> Callable[[NDArray[Any]], bool]:
     """Return a callable that returns True if the patch is empty (filtered out).
 
     Parameters
@@ -62,7 +62,7 @@ def is_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
     return is_empty_check
 
 
-def is_not_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
+def is_not_empty(filter: PatchFilter) -> Callable[[NDArray[Any]], bool]:
     """Return a callable that returns True if the patch is not empty (not filtered).
 
     Parameters
@@ -100,7 +100,7 @@ def is_not_empty(filter: PatchFilterProtocol) -> Callable[[NDArray[Any]], bool]:
 def create_default_input_target(
     idx: int,
     patch_extractor: PatchExtractor[ImageStack],
-    patching_strategy: PatchingStrategy,
+    patching_strategy: Patching,
     alphas: list[float],
     axes: str,  # annoyingly have to supply this to image region
 ) -> tuple[ImageRegionData, ImageRegionData]:
@@ -229,7 +229,7 @@ def create_uncorrelated_input_target(
 def get_random_channel_patches(
     idx: int,  # TODO: is this needed it makes it work the same as original dataset
     patch_extractor: PatchExtractor[ImageStack],
-    patching_strategy: PatchingStrategy,
+    patching_strategy: Patching,
     rng: np.random.Generator | None,
 ) -> tuple[NDArray[Any], list[PatchSpecs]]:
     """
@@ -274,9 +274,9 @@ def get_random_channel_patches(
 def get_empty_channel_patches(
     idx: int,
     patch_extractor: PatchExtractor,
-    patching_strategy: PatchingStrategy,
-    signal_channels: dict[int, PatchFilterProtocol],
-    empty_channels: dict[int, PatchFilterProtocol],
+    patching_strategy: Patching,
+    signal_channels: dict[int, PatchFilter],
+    empty_channels: dict[int, PatchFilter],
     patience: int,
     rng: np.random.Generator | None,
 ) -> tuple[NDArray[Any], list[PatchSpecs]]:
@@ -332,7 +332,7 @@ def get_empty_channel_patches(
 
         # criterion for the while loop
         criterion: Callable[[NDArray[Any]], bool]
-        filter_: PatchFilterProtocol
+        filter_: PatchFilter
         if c in empty_channels:
             filter_ = empty_channels[c]
             criterion = is_not_empty(filter_)

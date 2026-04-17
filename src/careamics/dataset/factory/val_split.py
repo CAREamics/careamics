@@ -2,18 +2,18 @@
 
 import numpy as np
 
-from ..patching_strategies import (
-    FixedPatchingStrategy,
+from ..patching import (
+    FixedPatching,
     PatchSpecs,
-    StratifiedPatchingStrategy,
+    StratifiedPatching,
 )
 
 
 def create_val_split(
-    stratified_patching: StratifiedPatchingStrategy,
+    stratified_patching: StratifiedPatching,
     n_val_patches: int,
     rng: np.random.Generator,
-) -> tuple[StratifiedPatchingStrategy, FixedPatchingStrategy]:
+) -> tuple[StratifiedPatching, FixedPatching]:
     """
     Create patching strategies for training and validation.
 
@@ -99,5 +99,5 @@ def create_val_split(
         ]
         val_patch_specs.extend(patch_specs)
 
-    val_patching_strategy = FixedPatchingStrategy(val_patch_specs)
+    val_patching_strategy = FixedPatching(val_patch_specs)
     return stratified_patching, val_patching_strategy

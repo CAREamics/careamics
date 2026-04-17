@@ -10,7 +10,7 @@ from typing_extensions import ParamSpec
 from careamics.config.data.data_config import DataConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
-from careamics.lightning.lightning_modules.constraints import (
+from careamics.models.constraints import (
     ModelConstraints,
 )
 
@@ -29,7 +29,7 @@ from ..image_stack_loader import (
     load_zarrs,
 )
 from ..patch_extractor import LimitFilesPatchExtractor, PatchExtractor
-from ..patching_strategies import StratifiedPatchingStrategy, create_patching_strategy
+from ..patching import StratifiedPatching, create_patching
 from .filter_bg import filter_background, filter_background_with_mask
 from .val_split import create_val_split
 
@@ -144,9 +144,7 @@ def create_dataset(
     else:
         target_extractor = None
 
-    patching_strategy = create_patching_strategy(
-        input_extractor.shapes, config.patching
-    )
+    patching_strategy = create_patching(input_extractor.shapes, config.patching)
 
     return CareamicsDataset(
         data_config=config,
@@ -217,13 +215,11 @@ def create_train_dataset(
     else:
         mask_extractor = None
 
-    patching_strategy = create_patching_strategy(
-        input_extractor.shapes, config.patching
-    )
+    patching_strategy = create_patching(input_extractor.shapes, config.patching)
 
     # patch filtering
     if config.patch_filter is not None:
-        if not isinstance(patching_strategy, StratifiedPatchingStrategy):
+        if not isinstance(patching_strategy, StratifiedPatching):
             raise TypeError(
                 "Background patch filtering is only compatible with stratified "
                 f"patching. Found {config.patching.name} patching in the configuration."
@@ -237,7 +233,7 @@ def create_train_dataset(
     if mask_extractor is not None:
         if config.mask_filter is None:
             raise ValueError("No `MaskFilterConfig` found for mask filtering.")
-        if not isinstance(patching_strategy, StratifiedPatchingStrategy):
+        if not isinstance(patching_strategy, StratifiedPatching):
             raise TypeError(
                 "Mask filtering is only compatible with stratified "
                 f"patching. Found {config.patching.name} patching in the configuration."
@@ -354,7 +350,7 @@ def create_val_split_datasets(
     train_dataset = create_train_dataset(config, data, loading, model_constraints)
     train_patching = train_dataset.patching_strategy
     # ensured by guard on config at the start of function
-    assert isinstance(train_patching, StratifiedPatchingStrategy)
+    assert isinstance(train_patching, StratifiedPatching)
 
     # TODO: select val patches according to filtered background distribution
     # val split applied to patching strat

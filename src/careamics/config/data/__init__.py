@@ -3,16 +3,16 @@
 __all__ = [
     "DataConfig",
     "DataConfig",
-    "MaskFilterConfig",
-    "MaxFilterConfig",
-    "MeanSTDFilterConfig",
+    "MaskPatchFilterConfig",
+    "MaxPatchFilterConfig",
+    "MeanSTDPatchFilterConfig",
     "MeanStdConfig",
     "MinMaxConfig",
     "NoNormConfig",
     "NormalizationConfig",
     "QuantileConfig",
     "RandomPatchingConfig",
-    "ShannonFilterConfig",
+    "ShannonPatchFilterConfig",
     "TiledPatchingConfig",
     "WholePatchingConfig",
 ]
@@ -26,10 +26,10 @@ from .normalization_config import (
     QuantileConfig,
 )
 from .patch_filter import (
-    MaskFilterConfig,
-    MaxFilterConfig,
-    MeanSTDFilterConfig,
-    ShannonFilterConfig,
+    MaskPatchFilterConfig,
+    MaxPatchFilterConfig,
+    MeanSTDPatchFilterConfig,
+    ShannonPatchFilterConfig,
 )
 from .patching_strategies import (
     RandomPatchingConfig,

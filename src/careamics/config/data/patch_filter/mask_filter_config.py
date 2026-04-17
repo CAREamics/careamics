@@ -4,10 +4,10 @@ from typing import Literal
 
 from pydantic import Field
 
-from .filter_config import FilterConfig
+from .patch_filter_config import PatchFilterConfig
 
 
-class MaskFilterConfig(FilterConfig):
+class MaskPatchFilterConfig(PatchFilterConfig):
     """Pydantic model for the mask patch filter."""
 
     name: Literal["mask"] = "mask"

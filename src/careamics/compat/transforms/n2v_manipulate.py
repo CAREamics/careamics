@@ -6,8 +6,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
-from careamics.transforms.struct_mask_parameters import StructMaskParameters
-from careamics.transforms.transform import Transform
+from careamics.dataset.augmentation.transform import Transform
+from careamics.lightning.modules.n2v_utils.struct_mask_parameters import (
+    StructMaskParameters,
+)
 
 from .pixel_manipulation import median_manipulate, uniform_manipulate
 

@@ -17,12 +17,12 @@ from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.normalization.running_quantile import QuantileEstimator
 from careamics.dataset.normalization.utils import broadcast_stats
 from careamics.dataset.patch_extractor import PatchExtractor
-from careamics.dataset.patching_strategies import PatchingStrategy
+from careamics.dataset.patching import Patching
 
 
 def _compute_mean_std(
     data_extractor: PatchExtractor,
-    patching_strategy: PatchingStrategy,
+    patching_strategy: Patching,
     channels: Sequence[int] | None = None,
     per_channel: bool = True,
 ) -> tuple[list[float], list[float]]:
@@ -69,7 +69,7 @@ def _compute_mean_std(
 
 def _compute_min_max(
     data_extractor: PatchExtractor,
-    patching_strategy: PatchingStrategy,
+    patching_strategy: Patching,
     channels: Sequence[int] | None = None,
     per_channel: bool = True,
 ) -> tuple[list[float], list[float]]:
@@ -133,7 +133,7 @@ def _compute_min_max(
 
 def _compute_quantiles(
     data_extractor: PatchExtractor,
-    patching_strategy: PatchingStrategy,
+    patching_strategy: Patching,
     lower_quantiles: list[float],
     upper_quantiles: list[float],
     channels: Sequence[int] | None = None,
@@ -192,7 +192,7 @@ def _compute_quantiles(
 def _resolve_quantile_levels(
     norm_config: QuantileConfig,
     extractor: PatchExtractor,
-    patching_strategy: PatchingStrategy,
+    patching_strategy: Patching,
     channels: Sequence[int] | None,
 ) -> tuple[list[float], list[float]]:
     """Get quantile levels, broadcasting to n_channels if `per_channel` is True.
@@ -239,7 +239,7 @@ def _resolve_quantile_levels(
 
 def resolve_normalization_config(
     norm_config: NormalizationConfig,
-    patching_strategy: PatchingStrategy,
+    patching_strategy: Patching,
     input_extractor: PatchExtractor,
     target_extractor: PatchExtractor | None = None,
     channels: Sequence[int] | None = None,

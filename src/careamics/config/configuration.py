@@ -19,7 +19,7 @@ from careamics.config.lightning.training_configuration import (
     TrainingConfig,
     default_training_factory,
 )
-from careamics.lightning.lightning_modules.constraints import (
+from careamics.models import (
     get_model_constraints,
 )
 
@@ -303,6 +303,25 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
             True if the algorithm is supervised, False otherwise.
         """
         return self.algorithm_config.is_supervised()
+
+    def set_3D(self, is_3D: bool, axes: str, patch_size: list[int]) -> None:
+        """
+        Set 3D flag and axes.
+
+        Parameters
+        ----------
+        is_3D : bool
+            Whether the algorithm is 3D or not.
+        axes : str
+            Axes of the data.
+        patch_size : list[int]
+            Patch size.
+        """
+        # set the flag, axes, and patch size
+        self.algorithm_config.model.set_3D(is_3D)
+        self.data_config.set_3D(axes, patch_size)
+        # validate the ng-config instance
+        Configuration.model_validate(self)
 
     def model_dump(
         self,

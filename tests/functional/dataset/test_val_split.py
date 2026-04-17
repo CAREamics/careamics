@@ -5,8 +5,8 @@ import pytest
 from tests.functional.dataset.utils import track_patching
 
 from careamics.dataset.factory.val_split import create_val_split
-from careamics.dataset.patching_strategies import (
-    StratifiedPatchingStrategy,
+from careamics.dataset.patching import (
+    StratifiedPatching,
 )
 
 
@@ -28,7 +28,7 @@ def test_train_val_complementary(
     i.e. patches from each do not ever overlap.
     """
     rng = np.random.default_rng(42)
-    patching_strategy = StratifiedPatchingStrategy(data_shapes, patch_size, 42)
+    patching_strategy = StratifiedPatching(data_shapes, patch_size, 42)
 
     n_val_patches = int(np.ceil(patching_strategy.n_patches * 0.1))  # 10% of patches
     train_strat, val_strat = create_val_split(patching_strategy, n_val_patches, rng)
