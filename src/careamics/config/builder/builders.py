@@ -226,6 +226,6 @@ class N2VConfigBuilder(
             assert isinstance(early_stopping_params, dict)
             early_stopping_params["monitor"] = self.monitor_metric
 
-    def before_build(self) -> None:
+    def _before_build(self) -> None:
+        super()._before_build()
         self._propagate_monitor_to_callbacks()
-        return super().before_build()

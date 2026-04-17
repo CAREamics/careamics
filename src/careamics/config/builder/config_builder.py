@@ -80,10 +80,10 @@ class BaseConfigBuilder(ConfigBuilder):
     def is_3D(self) -> bool:
         return _is_3D(self.axes, SupportedData(self.data_type))
 
-    def before_build(self) -> None:
+    def _before_build(self) -> None:
         """Hook"""
         pass
 
     def build(self) -> ConfigurationType:
-        self.before_build()
+        self._before_build()
         return instantiate_config(self.config_dict)
