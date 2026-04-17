@@ -3,7 +3,7 @@
 from pprint import pformat
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from careamics.config.architectures import UNetConfig
 from careamics.config.lightning.optimizer_configs import (
@@ -59,7 +59,7 @@ class UNetBasedAlgorithm(BaseModel):
     loss: Literal["n2v", "mae", "mse", "pn2v"]
     """Loss function to use, as defined in SupportedLoss."""
 
-    model: UNetConfig = Field(default_factory=UNetConfig)
+    model: UNetConfig
     """UNet model configuration."""
 
     # Optional fields

@@ -1,9 +1,9 @@
 """N2N Algorithm configuration."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import field_validator
+from pydantic import AfterValidator
 
 from careamics.config.architectures import UNetConfig
 from careamics.config.validators import (
@@ -42,29 +42,14 @@ class N2NAlgorithm(UNetBasedAlgorithm):
     loss: Literal["mae", "mse"] = "mae"
     """N2N-compatible loss function."""
 
-    @field_validator("model", mode="after")
-    @classmethod
-    def validate_model_config(cls, value: UNetConfig) -> UNetConfig:
-        """
-        Validate UNet for N2N algorithm.
-
-        UNet without a final activation function, without the `n2v2` modifications, and
-        without independent channels for mismatching input/output channel numbers.
-
-        Parameters
-        ----------
-        value : UNetConfig
-            UNet configuration to validate.
-
-        Returns
-        -------
-        UNetConfig
-            Validated UNetConfig.
-        """
-        model_without_n2v2(value)
-        model_without_final_activation(value)
-        model_no_c_ind_for_mismatching_channels(value)
-        return value
+    model: Annotated[
+        UNetConfig,
+        AfterValidator(model_without_n2v2),
+        AfterValidator(model_without_final_activation),
+        AfterValidator(model_no_c_ind_for_mismatching_channels),
+    ]
+    """UNet without a final activation function, without the `n2v2` modifications, and
+    without independent channels for mismatching input/output channel numbers."""
 
     def get_algorithm_friendly_name(self) -> str:
         """
