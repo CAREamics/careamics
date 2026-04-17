@@ -188,10 +188,10 @@ class N2VConfigBuilder(
             n2v_manipulate_config["masked_pixel_percentage"] = masked_pixel_percentage
 
         if struct_n2v_axis is not None:
-            n2v_manipulate_config["struct_n2v_axis"] = struct_n2v_axis
+            n2v_manipulate_config["struct_mask_axis"] = struct_n2v_axis
 
         if struct_n2v_span is not None:
-            n2v_manipulate_config["struct_n2v_span"] = struct_n2v_span
+            n2v_manipulate_config["struct_mask_span"] = struct_n2v_span
 
         if use_n2v2 is not None:
             # already added by UnetParamMixin
