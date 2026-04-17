@@ -35,7 +35,7 @@ class DataParamsMixin:
 
     def set_advanced_data_params(
         self: ConfigBuilderT,
-        augmentations: Literal["x_flip", "y_flip", "rotate_90"] | None = None,
+        augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
         in_memory: bool | None = None,
         channels: Sequence[int] | None = None,
         patching_strategy: Literal["random", "stratified"] | None = None,
