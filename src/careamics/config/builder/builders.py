@@ -38,12 +38,11 @@ class CAREConfigBuilder(
         seed: int | None = None,
     ):
         super().__init__(
-            algorithm="care",
-            experiment_name=experiment_name,
-            data_type=data_type,
-            axes=axes,
-            patch_size=patch_size,
-            batch_size=batch_size,
+            experiment_name,
+            data_type,
+            axes,
+            patch_size,
+            batch_size,
             num_epochs=num_epochs,
             num_steps=num_steps,
             n_channels_in=n_channels_in,
@@ -89,12 +88,11 @@ class N2NConfigBuilder(
         seed: int | None = None,
     ):
         super().__init__(
-            algorithm="n2n",
-            experiment_name=experiment_name,
-            data_type=data_type,
-            axes=axes,
-            patch_size=patch_size,
-            batch_size=batch_size,
+            experiment_name,
+            data_type,
+            axes,
+            patch_size,
+            batch_size,
             num_epochs=num_epochs,
             num_steps=num_steps,
             n_channels_in=n_channels_in,
@@ -137,18 +135,18 @@ class N2VConfigBuilder(
         seed: int | None = None,
     ):
         super().__init__(
-            algorithm="n2v",
-            experiment_name=experiment_name,
-            data_type=data_type,
-            axes=axes,
-            patch_size=patch_size,
-            batch_size=batch_size,
+            experiment_name,
+            data_type,
+            axes,
+            patch_size,
+            batch_size,
             num_epochs=num_epochs,
             num_steps=num_steps,
             n_channels_in=n_channels,
             n_channels_out=n_channels,
             seed=seed,
         )
+        self.config_dict["algorithm_config"]["algorithm"] = "n2v"
 
         # this will be used to propagate the monitor metric before building the config
         # we have to wait for after set_checkpoint_params and set_early_stopping_params

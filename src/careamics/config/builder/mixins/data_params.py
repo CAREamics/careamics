@@ -9,10 +9,29 @@ from careamics.config.factories.data_factory import (
     list_spatial_augmentations,
 )
 
-from ..config_builder import ConfigBuilderT
+from ..config_builder import ConfigBuilder, ConfigBuilderT
 
 
 class DataParamsMixin:
+    def __init__(self: ConfigBuilder, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+        minimum_default_data_config: dict[str, Any] = {
+            "mode": "training",
+            "data_type": self.data_type,
+            "axes": self.axes,
+            "patching": {
+                "name": "stratified",
+                "patch_size": self.patch_size,
+                "seed": self.seed,
+            },
+            "batch_size": self.batch_size,
+        }
+        if self.seed is not None:
+            minimum_default_data_config["seed"] = self.seed
+        for key, value in minimum_default_data_config.items():
+            # just in case other mixins add things that we do not want to overwrite
+            self.config_dict["data_config"].setdefault(key, value)
 
     def set_advanced_data_params(
         self: ConfigBuilderT,
