@@ -58,6 +58,11 @@ class N2VConfigBuilder(
         # no early stopping by default
         self.config_dict["training_config"]["early_stopping_params"] = None
 
+        # propagate seed
+        self.config_dict["algorithm_config"]["n2v_config"] = {}
+        if self.seed is not None:
+            self.config_dict["algorithm_config"]["n2v_config"]["seed"] = self.seed
+
     def set_n2v_params(
         self,
         use_n2v2: bool | None = None,
@@ -80,9 +85,6 @@ class N2VConfigBuilder(
         if struct_n2v_span is not None:
             n2v_manipulate_config["struct_n2v_span"] = struct_n2v_span
 
-        if self.seed is not None:
-            n2v_manipulate_config["seed"] = self.seed
-
         if use_n2v2 is not None:
             # already added by UnetParamMixin
             assert isinstance(self.config_dict["algorithm_config"]["model"], dict)
@@ -90,5 +92,6 @@ class N2VConfigBuilder(
 
             n2v_manipulate_config["strategy"] = "median" if use_n2v2 else "uniform"
 
-        self.config_dict["algorithm_config"]["n2v_config"] = n2v_manipulate_config
+        assert isinstance(self.config_dict["algorithm_config"]["n2v_config"], dict)
+        self.config_dict["algorithm_config"]["n2v_config"].update(n2v_manipulate_config)
         return self

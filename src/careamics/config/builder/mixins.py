@@ -24,14 +24,17 @@ class TrainingParamMixin:
         )
 
     def set_trainer_params(self: ConfigBuilderT, **kwargs: Any) -> ConfigBuilderT:
-        self.config_dict["training_config"].update(kwargs)
+        assert isinstance(self.config_dict["training_config"]["trainer_params"], dict)
+        self.config_dict["training_config"]["trainer_params"].update(kwargs)
         return self
 
     def set_checkpoint_params(self: ConfigBuilderT, **kwargs: Any) -> ConfigBuilderT:
         self.config_dict["training_config"]["checkpoint_params"] = kwargs
         return self
 
-    def early_stopping_params(self: ConfigBuilderT, **kwargs: Any) -> ConfigBuilderT:
+    def set_early_stopping_params(
+        self: ConfigBuilderT, **kwargs: Any
+    ) -> ConfigBuilderT:
         self.config_dict["training_config"]["early_stopping_params"] = kwargs
         return self
 
@@ -57,6 +60,8 @@ class DataParamMixin:
             },
             "batch_size": self.batch_size,
         }
+        if self.seed is not None:
+            minimum_default_data_config["seed"] = self.seed
         for key, value in minimum_default_data_config.items():
             # just in case other mixins add things that we do not want to overwrite
             self.config_dict["data_config"].setdefault(key, value)
@@ -178,7 +183,7 @@ class DataParamMixin:
         name: Literal["mean_std", "min_max", "quantile", "none"],
         **kwargs: Any,
     ) -> ConfigBuilderT:
-        self.config_dict["data_config"]["normalization"] = {name: name, **kwargs}
+        self.config_dict["data_config"]["normalization"] = {"name": name, **kwargs}
         return self
 
     @overload
