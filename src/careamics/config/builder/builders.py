@@ -49,6 +49,7 @@ class CAREConfigBuilder(
             n_channels_out=n_channels_out,
             seed=seed,
         )
+        self.config_dict["algorithm_config"]["algorithm"] = "care"
 
         # set default checkpointing params
         # (can be overwritten with set_checkpoint_params from TrainingParamMixin)
@@ -99,6 +100,7 @@ class N2NConfigBuilder(
             n_channels_out=n_channels_out,
             seed=seed,
         )
+        self.config_dict["algorithm_config"]["algorithm"] = "n2n"
 
         # set default checkpointing params (n2n self supervised)
         # (can be overwritten with set_checkpoint_params from TrainingParamMixin)
