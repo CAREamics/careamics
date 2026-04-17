@@ -1,13 +1,13 @@
 from collections.abc import Sequence
 from typing import Any, Literal, Protocol, TypedDict
 
+from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.data.data_config import _is_3D
 from careamics.config.support import SupportedData
 
 from ..configuration import Configuration
 from ..factories.config_discriminators import instantiate_config
 from ..n2v_configuration import N2VConfiguration
-from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 
 ConfigurationType = (
     Configuration[CAREAlgorithm]
@@ -17,7 +17,6 @@ ConfigurationType = (
 
 
 class ConfigDict(TypedDict):
-
     experiment_name: str
     algorithm_config: dict[str, Any]
     data_config: dict[str, Any]
@@ -81,10 +80,10 @@ class BaseConfigBuilder(ConfigBuilder):
     def is_3D(self) -> bool:
         return _is_3D(self.axes, SupportedData(self.data_type))
 
-    def _resolve(self) -> None:
-        """Hook for mixins"""
+    def before_build(self) -> None:
+        """Hook"""
         pass
 
     def build(self) -> ConfigurationType:
-        self._resolve()
+        self.before_build()
         return instantiate_config(self.config_dict)
