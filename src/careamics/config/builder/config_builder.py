@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Any, Literal, Protocol, TypedDict
+from typing import Any, Literal, Protocol, TypedDict, TypeVar
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.data.data_config import _is_3D
@@ -14,6 +14,8 @@ ConfigurationType = (
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
 )
+
+ConfigBuilderT = TypeVar("ConfigBuilderT", bound="ConfigBuilder")
 
 
 class ConfigDict(TypedDict):

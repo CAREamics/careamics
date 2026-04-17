@@ -9,18 +9,18 @@ from careamics.config.lightning.training_configuration import (
 
 from .config_builder import BaseConfigBuilder
 from .mixins import (
-    DataParamMixin,
-    OptimizerParamMixin,
-    TrainingParamMixin,
-    UnetParamMixin,
+    DataParamsMixin,
+    OptimizerParamsMixin,
+    TrainingParamsMixin,
+    UnetParamsMixin,
 )
 
 
 class CAREConfigBuilder(
-    TrainingParamMixin,
-    DataParamMixin,
-    UnetParamMixin,
-    OptimizerParamMixin,
+    TrainingParamsMixin,
+    DataParamsMixin,
+    UnetParamsMixin,
+    OptimizerParamsMixin,
     BaseConfigBuilder,
 ):
     def __init__(
@@ -67,10 +67,10 @@ class CAREConfigBuilder(
 
 
 class N2NConfigBuilder(
-    TrainingParamMixin,
-    DataParamMixin,
-    UnetParamMixin,
-    OptimizerParamMixin,
+    TrainingParamsMixin,
+    DataParamsMixin,
+    UnetParamsMixin,
+    OptimizerParamsMixin,
     BaseConfigBuilder,
 ):
     def __init__(
@@ -115,10 +115,10 @@ class N2NConfigBuilder(
 
 
 class N2VConfigBuilder(
-    TrainingParamMixin,
-    DataParamMixin,
-    UnetParamMixin,
-    OptimizerParamMixin,
+    TrainingParamsMixin,
+    DataParamsMixin,
+    UnetParamsMixin,
+    OptimizerParamsMixin,
     BaseConfigBuilder,
 ):
     def __init__(
