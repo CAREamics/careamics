@@ -13,7 +13,7 @@ from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.data_config import DataConfig
 from careamics.config.support import SupportedData
-from careamics.dataset.dataset import CareamicsDataset, ImageRegionData
+from careamics.dataset.dataset import CareamicsDataset
 from careamics.dataset.factory import (
     ImageStackLoading,
     Loading,
@@ -25,8 +25,9 @@ from careamics.dataset.factory import (
     create_train_val_datasets,
     create_val_split_datasets,
 )
+from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack import ImageStack
-from careamics.dataset.patching_strategies import (
+from careamics.dataset.patching import (
     PatchSpecs,
     TileSpecs,
 )
