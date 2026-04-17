@@ -28,7 +28,7 @@ class UNetConfig(ArchitectureConfig):
     model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
     # discriminator used for choosing the pydantic model in Model
-    architecture: Literal["UNet"]
+    architecture: Literal["UNet"] = "UNet"
     """Name of the architecture."""
 
     # parameters

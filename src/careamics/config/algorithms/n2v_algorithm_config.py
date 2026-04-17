@@ -1,9 +1,9 @@
 """N2V Algorithm configuration."""
 
-from typing import Annotated, Literal, Self
+from typing import Literal, Self
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import AfterValidator, ConfigDict, model_validator
+from pydantic import ConfigDict, field_validator, model_validator
 
 from careamics.config.architectures import UNetConfig
 from careamics.config.augmentations import N2VManipulateConfig
@@ -106,12 +106,28 @@ class N2VAlgorithm(UNetBasedAlgorithm):
     n2v_config: N2VManipulateConfig = N2VManipulateConfig()
     """Noise2Void pixel manipulation configuration."""
 
-    model: Annotated[
-        UNetConfig,
-        AfterValidator(model_matching_in_out_channels),
-        AfterValidator(model_without_final_activation),
-    ]
-    """Model parameters."""
+    @field_validator("model", mode="after")
+    @classmethod
+    def validate_model_config(cls, value: UNetConfig) -> UNetConfig:
+        """
+        Validate UNet for N2V algorithm.
+
+        UNet with matching input and output channels, and without a final activation
+        function.
+
+        Parameters
+        ----------
+        value : UNetConfig
+            UNet configuration to validate.
+
+        Returns
+        -------
+        UNetConfig
+            Validated UNetConfig.
+        """
+        model_matching_in_out_channels(value)
+        model_without_final_activation(value)
+        return value
 
     @model_validator(mode="after")
     def validate_n2v2(self) -> Self:
