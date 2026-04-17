@@ -3,7 +3,7 @@ from typing import Any, Literal, Protocol, TypedDict, TypeVar
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.data.data_config import _is_3D
-from careamics.config.support import SupportedData
+from careamics.config.support import SupportedAlgorithm, SupportedData
 
 from ..configuration import Configuration
 from ..factories.config_discriminators import instantiate_config
@@ -49,6 +49,7 @@ class ConfigBuilder(Protocol):
 class BaseConfigBuilder(ConfigBuilder):
     def __init__(
         self,
+        algorithm: SupportedAlgorithm,
         experiment_name: str,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
         axes: str,
@@ -63,7 +64,7 @@ class BaseConfigBuilder(ConfigBuilder):
     ):
         self.config_dict = {
             "experiment_name": experiment_name,
-            "algorithm_config": {},
+            "algorithm_config": {"algorithm": algorithm},
             "data_config": {},
             "training_config": {},
         }
@@ -76,7 +77,26 @@ class BaseConfigBuilder(ConfigBuilder):
         self.n_channels_in = n_channels_in
         self.n_channels_out = n_channels_out
         self.seed = seed
-        super().__init__()
+
+        self._set_data_defaults()
+
+    def _set_data_defaults(self):
+        minimum_default_data_config: dict[str, Any] = {
+            "mode": "training",
+            "data_type": self.data_type,
+            "axes": self.axes,
+            "patching": {
+                "name": "stratified",
+                "patch_size": self.patch_size,
+                "seed": self.seed,
+            },
+            "batch_size": self.batch_size,
+        }
+        if self.seed is not None:
+            minimum_default_data_config["seed"] = self.seed
+        for key, value in minimum_default_data_config.items():
+            # just in case other mixins add things that we do not want to overwrite
+            self.config_dict["data_config"].setdefault(key, value)
 
     @property
     def is_3D(self) -> bool:
