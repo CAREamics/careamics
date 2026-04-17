@@ -3,8 +3,8 @@ import pytest
 
 from careamics.compat.careamist import CAREamist
 from careamics.compat.config import Configuration
+from careamics.lightning.utils.csv_logger import read_csv_logger
 from careamics.utils import cwd
-from careamics.utils.lightning_utils import read_csv_logger
 
 
 @pytest.mark.mps_gh_fail

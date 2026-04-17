@@ -6,10 +6,12 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from careamics_portfolio import PortfolioManager
 
 from careamics.config.factories import create_advanced_n2v_config
-from careamics.lightning.data_module import CareamicsDataModule
-from careamics.lightning.lightning_modules import N2VModule
-from careamics.lightning.prediction import convert_prediction
-from careamics.lightning.callbacks import CareamicsCheckpointInfo
+from careamics.lightning import (
+    CareamicsDataModule,
+    ConfigSaverCallback,
+    N2VModule,
+    convert_prediction,
+)
 
 # download example data
 portfolio_manager = PortfolioManager()
@@ -43,9 +45,9 @@ callbacks = [
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
         **config.training_config.checkpoint_params,
     ),
-    CareamicsCheckpointInfo(  # (6)!
+    ConfigSaverCallback(
         config.version, config.experiment_name, config.training_config
-    ),
+    ),  # (6)!
 ]
 
 trainer = Trainer(
@@ -80,13 +82,13 @@ stitched_predictions, sources = convert_prediction(  # (12)!
 # --8<-- [end:lightning_api]
 
 # --8<-- [start:predict_to_disk]
-from careamics.lightning.callbacks.prediction_writer import (
+from careamics.lightning.callbacks.prediction import (
     PredictionWriterCallback,
 )
 
-pred_writer = PredictionWriterCallback(  # (1)!
+pred_writer = PredictionWriterCallback(
     dirpath="predictions", enable_writing=False
-)
+)  # (1)!
 
 callbacks = [
     ModelCheckpoint(
@@ -94,9 +96,7 @@ callbacks = [
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
         **config.training_config.checkpoint_params,
     ),
-    CareamicsCheckpointInfo(
-        config.version, config.experiment_name, config.training_config
-    ),
+    ConfigSaverCallback(config.version, config.experiment_name, config.training_config),
     pred_writer,  # (2)!
 ]
 

@@ -2,10 +2,10 @@
 
 from typing import Literal
 
-from .filter_config import FilterConfig
+from .patch_filter_config import PatchFilterConfig
 
 
-class MeanSTDFilterConfig(FilterConfig):
+class MeanSTDPatchFilterConfig(PatchFilterConfig):
     """Pydantic model for the mean std patch filter."""
 
     name: Literal["mean_std"] = "mean_std"

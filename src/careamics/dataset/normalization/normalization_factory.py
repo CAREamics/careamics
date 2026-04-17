@@ -5,11 +5,11 @@ from careamics.config.support import SupportedNormalization
 
 from .mean_std_normalization import MeanStdNormalization
 from .no_normalization import NoNormalization
-from .normalization_protocol import NormalizationProtocol
+from .normalization import Normalization
 from .range_normalization import RangeNormalization
 
 
-def create_normalization(norm_model: NormalizationConfig) -> NormalizationProtocol:
+def create_normalization(norm_model: NormalizationConfig) -> Normalization:
     """
     Build a normalization transform from a normalization model.
 

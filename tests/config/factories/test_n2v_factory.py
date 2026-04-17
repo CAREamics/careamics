@@ -188,3 +188,18 @@ class TestAdvancedConfig:
         )
         assert config.data_config.val_dataloader_params["num_workers"] == num_workers
         assert config.data_config.pred_dataloader_params["num_workers"] == num_workers
+
+    def test_set_3D(self):
+        """Test set_3D will set the correct conv dims for model and patch size."""
+        config = create_advanced_n2v_config(
+            experiment_name="test",
+            data_type="tiff",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+        )
+        assert not config.algorithm_config.model.is_3D()
+
+        config.set_3D(True, "ZYX", [16, 64, 64])
+        assert config.algorithm_config.model.is_3D()
+        assert config.algorithm_config.model.conv_dims == 3

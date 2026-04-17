@@ -9,7 +9,7 @@ from careamics.dataset.patch_extractor.patch_extractor_factory import (
     create_array_extractor,
 )
 
-from careamics.dataset.patching_strategies import RandomPatchingStrategy
+from careamics.dataset.patching import RandomPatching
 
 # %%
 array = np.arange(36).reshape(6, 6)
@@ -42,7 +42,7 @@ target_patch_extractor = create_array_extractor([target1, target2], axes="SYX")
 data_shapes = [
     image_stack.data_shape for image_stack in input_patch_extractor.image_stacks
 ]
-patch_specs_generator = RandomPatchingStrategy(data_shapes, patch_size=(2, 2))
+patch_specs_generator = RandomPatching(data_shapes, patch_size=(2, 2))
 patch_specs = patch_specs_generator.get_patch_spec(18)
 
 # %%

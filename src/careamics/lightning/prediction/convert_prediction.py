@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.image_region_data import ImageRegionData
 from careamics.utils.reshape_array import restore_array
 
 from .stitch_prediction import group_tiles_by_key, stitch_prediction

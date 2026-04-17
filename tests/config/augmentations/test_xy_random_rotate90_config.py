@@ -1,5 +1,5 @@
 from careamics.config.augmentations import XYRandomRotate90Config
-from careamics.transforms import XYRandomRotate90
+from careamics.dataset.augmentation import XYRandomRotate90
 
 
 def test_comptatibility_with_transform():

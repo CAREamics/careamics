@@ -4,10 +4,10 @@ from typing import Literal
 
 from pydantic import Field
 
-from .filter_config import FilterConfig
+from .patch_filter_config import PatchFilterConfig
 
 
-class MaxFilterConfig(FilterConfig):
+class MaxPatchFilterConfig(PatchFilterConfig):
     """Pydantic model for the max patch filter."""
 
     name: Literal["max"] = "max"

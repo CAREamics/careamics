@@ -15,7 +15,7 @@ from careamics.compat.transforms.pixel_manipulation import (
 from careamics.compat.transforms.pixel_manipulation import (
     uniform_manipulate as uniform_manipulate_npy,
 )
-from careamics.transforms.pixel_manipulation import (
+from careamics.lightning.modules.n2v_utils.pixel_manipulation import (
     _apply_struct_mask_torch,
     _create_center_pixel_mask,
     _create_struct_mask,
@@ -24,7 +24,9 @@ from careamics.transforms.pixel_manipulation import (
     median_manipulate,
     uniform_manipulate,
 )
-from careamics.transforms.struct_mask_parameters import StructMaskParameters
+from careamics.lightning.modules.n2v_utils.struct_mask_parameters import (
+    StructMaskParameters,
+)
 
 
 @pytest.mark.parametrize(

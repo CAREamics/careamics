@@ -29,10 +29,10 @@ from careamics.utils import BaseEnum
 
 from .normalization_config import NormalizationConfig
 from .patch_filter import (
-    MaskFilterConfig,
-    MaxFilterConfig,
-    MeanSTDFilterConfig,
-    ShannonFilterConfig,
+    MaskPatchFilterConfig,
+    MaxPatchFilterConfig,
+    MeanSTDPatchFilterConfig,
+    ShannonPatchFilterConfig,
 )
 from .patching_strategies import (
     FixedRandomPatchingConfig,
@@ -257,9 +257,9 @@ PatchingConfig = Union[
 """Patching strategy type."""
 
 PatchFilterConfig = Union[
-    MaxFilterConfig,
-    MeanSTDFilterConfig,
-    ShannonFilterConfig,
+    MaxPatchFilterConfig,
+    MeanSTDPatchFilterConfig,
+    ShannonPatchFilterConfig,
 ]
 """Patch filter type."""
 
@@ -292,7 +292,9 @@ def default_in_memory(validated_params: dict[str, Any]) -> bool:
     return validated_params.get("data_type") not in ("zarr", "czi")
 
 
-def _create_mask_filter(validated_params: dict[str, Any]) -> MaskFilterConfig | None:
+def _create_mask_filter(
+    validated_params: dict[str, Any],
+) -> MaskPatchFilterConfig | None:
     """Create a mask filter with auto-calculated coverage based on dimensionality.
 
     Parameters
@@ -319,7 +321,7 @@ def _create_mask_filter(validated_params: dict[str, Any]) -> MaskFilterConfig | 
     ndims = 3 if is_3d else 2
     coverage = 1 / (2**ndims)
 
-    return MaskFilterConfig(coverage=coverage)
+    return MaskPatchFilterConfig(coverage=coverage)
 
 
 class DataConfig(BaseModel):
@@ -378,7 +380,7 @@ class DataConfig(BaseModel):
     """Patch filter to apply when using random patching. Only available if
     mode is `training`."""
 
-    mask_filter: MaskFilterConfig | None = Field(
+    mask_filter: MaskPatchFilterConfig | None = Field(
         default_factory=lambda data: _create_mask_filter(data)
     )
     """Mask filter configuration to apply when using a mask during training.
@@ -609,9 +611,9 @@ class DataConfig(BaseModel):
     @classmethod
     def validate_filters_against_mode(
         cls,
-        filter_obj: PatchFilterConfig | MaskFilterConfig | None,
+        filter_obj: PatchFilterConfig | MaskPatchFilterConfig | None,
         info: ValidationInfo,
-    ) -> PatchFilterConfig | MaskFilterConfig | None:
+    ) -> PatchFilterConfig | MaskPatchFilterConfig | None:
         """
         Validate that the filters are only used during training.
 
@@ -899,6 +901,21 @@ class DataConfig(BaseModel):
             True if the data is 3D, False otherwise.
         """
         return _is_3D(self.axes, SupportedData(self.data_type))
+
+    def set_3D(self, axes: str, patch_size: list[int]) -> None:
+        """
+        Set 3D parameters.
+
+        Parameters
+        ----------
+        axes : str
+            Axes.
+        patch_size : list of int
+            Patch size.
+        """
+        if not isinstance(self.patching, WholePatchingConfig):
+            self.patching.patch_size = patch_size
+        self.axes = axes
 
     # TODO: if switching from a state in which in_memory=True to an incompatible state
     # an error will be raised. Should that automatically be set to False instead?

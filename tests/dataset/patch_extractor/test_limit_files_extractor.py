@@ -7,7 +7,7 @@ from careamics.dataset.image_stack import FileImageStack
 from careamics.dataset.patch_extractor.limit_file_extractor import (
     LimitFilesPatchExtractor,
 )
-from careamics.dataset.patching_strategies import RandomPatchingStrategy
+from careamics.dataset.patching import RandomPatching
 
 
 def test_files_limited(tmp_path: Path):
@@ -27,7 +27,7 @@ def test_files_limited(tmp_path: Path):
     patch_extractor = LimitFilesPatchExtractor(image_stacks)
 
     # using random patching
-    patching = RandomPatchingStrategy(
+    patching = RandomPatching(
         [image_stack.data_shape for image_stack in image_stacks],
         patch_size=(16, 16),
         seed=42,

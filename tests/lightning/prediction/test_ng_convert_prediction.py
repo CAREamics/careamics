@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from torch.utils.data.dataloader import default_collate
 
-from careamics.dataset.dataset import ImageRegionData
+from careamics.dataset.image_region_data import ImageRegionData
 from careamics.lightning.prediction import (
     combine_samples,
     convert_prediction,

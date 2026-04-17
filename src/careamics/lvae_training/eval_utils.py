@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 from careamics.lightning import VAEModule
 from careamics.lvae_training.dataset import MultiChDloaderRef
-from careamics.utils.metrics import scale_invariant_psnr
+from careamics.metrics.metrics import scale_invariant_psnr
 
 
 class TilingMode:

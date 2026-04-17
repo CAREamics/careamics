@@ -6,10 +6,10 @@ import numpy as np
 import torch
 from numpy.typing import NDArray
 
-from .normalization_protocol import NormalizationProtocol
+from .normalization import Normalization
 
 
-class NoNormalization(NormalizationProtocol):
+class NoNormalization(Normalization):
     """No-op normalization transform returning patches unchanged.
 
     Parameters

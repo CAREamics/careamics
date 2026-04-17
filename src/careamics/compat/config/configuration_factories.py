@@ -2053,7 +2053,6 @@ def create_microsplit_configuration(
             "mode": "min",
             "factor": 0.5,
             "patience": lr_scheduler_patience,
-            "verbose": True,
             "min_lr": 1e-12,
         },
     )

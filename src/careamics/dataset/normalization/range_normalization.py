@@ -4,11 +4,11 @@ import numpy as np
 import torch
 from numpy.typing import NDArray
 
-from .normalization_protocol import NormalizationProtocol
+from .normalization import Normalization
 from .utils import broadcast_stats, reshape_stats
 
 
-class RangeNormalization(NormalizationProtocol):
+class RangeNormalization(Normalization):
     """Normalize an image or image patch to [0, 1] range.
 
     This transform expects C(Z)YX dimensions for normalization and BC(Z)YX

@@ -1,16 +1,18 @@
 """Callbacks module."""
 
 __all__ = [
-    "CareamicsCheckpointInfo",
+    "ConfigSaverCallback",
     "DataStatsCallback",
     "PredictionStoppedException",
+    "PredictionWriterCallback",
     "ProgressBarCallback",
     "StopPredictionCallback",
 ]
 
 
-from .careamics_checkpoint_info_callback import CareamicsCheckpointInfo
+from .config_saver_callback import ConfigSaverCallback
 from .data_stats_callback import DataStatsCallback
+from .prediction import PredictionWriterCallback
 from .progress_bar_callback import ProgressBarCallback
 from .stop_prediction_callback import (
     PredictionStoppedException,
