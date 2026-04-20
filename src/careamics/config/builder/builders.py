@@ -39,7 +39,7 @@ def minimum_unet_config_dict(
             "mode": "training",
             "axes": axes,
             "data_type": SupportedData(data_type),
-            "patching": {"name": "random", "patch_size": patch_size},
+            "patching": {"name": "stratified", "patch_size": patch_size},
             "batch_size": batch_size,
         },
         "algorithm_config": {
