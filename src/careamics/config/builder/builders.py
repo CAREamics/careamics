@@ -2,18 +2,72 @@ from collections.abc import Sequence
 from dataclasses import asdict
 from typing import Any, Literal, Self
 
+from careamics.config.data.data_config import _is_3D
+from careamics.config.factories.training_factory import update_trainer_params
 from careamics.config.lightning.training_configuration import (
     SelfSupervisedCheckpointing,
     SupervisedCheckpointing,
 )
+from careamics.config.support import SupportedData
 
-from .config_builder import BaseConfigBuilder
+from .config_builder import BaseConfigBuilder, ConfigDict
 from .mixins import (
     DataParamsMixin,
     OptimizerParamsMixin,
     TrainingParamsMixin,
     UnetParamsMixin,
 )
+
+
+def minimum_unet_config_dict(
+    algorithm: Literal["n2v", "care", "n2n"],
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    axes: str,
+    patch_size: Sequence[int],
+    batch_size: int,
+    # optional
+    num_epochs: int = 30,
+    num_steps: int | None = None,
+    n_channels_in: int = 1,
+    n_channels_out: int = 1,
+    seed: int | None = None,
+) -> ConfigDict:
+    config_dict: ConfigDict = {
+        "experiment_name": experiment_name,
+        "data_config": {
+            "mode": "training",
+            "axes": axes,
+            "data_type": SupportedData(data_type),
+            "patching": {"name": "random", "patch_size": patch_size},
+            "batch_size": batch_size,
+        },
+        "algorithm_config": {
+            "algorithm": algorithm,
+            "model": default_unet_config(
+                _is_3D(axes, SupportedData(data_type)), n_channels_in, n_channels_out
+            ),
+        },
+        "training_config": {
+            "trainer_params": update_trainer_params({}, num_epochs, num_steps)
+        },
+    }
+    if seed is not None:
+        config_dict["data_config"]["seed"] = seed
+    return config_dict
+
+
+def default_unet_config(
+    is_3D: bool,
+    n_channels_in: int,
+    n_channels_out: int,
+) -> dict[str, Any]:
+    return {
+        "architecture": "UNet",
+        "conv_dims": 3 if is_3D else 2,
+        "in_channels": n_channels_in,
+        "num_classes": n_channels_out,
+    }
 
 
 class CAREConfigBuilder(
@@ -33,23 +87,23 @@ class CAREConfigBuilder(
         # optional
         num_epochs: int = 30,
         num_steps: int | None = None,
-        n_channels_in: int | None = None,
-        n_channels_out: int | None = None,
+        n_channels_in: int = 1,
+        n_channels_out: int = 1,
         seed: int | None = None,
     ):
-        super().__init__(
-            experiment_name,
-            data_type,
-            axes,
-            patch_size,
-            batch_size,
+        self.seed = seed
+        self.config_dict = minimum_unet_config_dict(
+            algorithm="care",
+            experiment_name=experiment_name,
+            data_type=data_type,
+            axes=axes,
+            patch_size=patch_size,
+            batch_size=batch_size,
             num_epochs=num_epochs,
             num_steps=num_steps,
             n_channels_in=n_channels_in,
             n_channels_out=n_channels_out,
-            seed=seed,
         )
-        self.config_dict["algorithm_config"]["algorithm"] = "care"
 
         # set default checkpointing params
         # (can be overwritten with set_checkpoint_params from TrainingParamMixin)
@@ -84,23 +138,23 @@ class N2NConfigBuilder(
         # optional
         num_epochs: int = 30,
         num_steps: int | None = None,
-        n_channels_in: int | None = None,
-        n_channels_out: int | None = None,
+        n_channels_in: int = 1,
+        n_channels_out: int = 1,
         seed: int | None = None,
     ):
-        super().__init__(
-            experiment_name,
-            data_type,
-            axes,
-            patch_size,
-            batch_size,
+        self.seed = seed
+        self.config_dict = minimum_unet_config_dict(
+            algorithm="n2n",
+            experiment_name=experiment_name,
+            data_type=data_type,
+            axes=axes,
+            patch_size=patch_size,
+            batch_size=batch_size,
             num_epochs=num_epochs,
             num_steps=num_steps,
             n_channels_in=n_channels_in,
             n_channels_out=n_channels_out,
-            seed=seed,
         )
-        self.config_dict["algorithm_config"]["algorithm"] = "n2n"
 
         # set default checkpointing params (n2n self supervised)
         # (can be overwritten with set_checkpoint_params from TrainingParamMixin)
@@ -133,22 +187,22 @@ class N2VConfigBuilder(
         # optional
         num_epochs: int = 30,
         num_steps: int | None = None,
-        n_channels: int | None = None,
+        n_channels: int = 1,
         seed: int | None = None,
     ):
-        super().__init__(
-            experiment_name,
-            data_type,
-            axes,
-            patch_size,
-            batch_size,
+        self.seed = seed
+        self.config_dict = minimum_unet_config_dict(
+            algorithm="n2v",
+            experiment_name=experiment_name,
+            data_type=data_type,
+            axes=axes,
+            patch_size=patch_size,
+            batch_size=batch_size,
             num_epochs=num_epochs,
             num_steps=num_steps,
             n_channels_in=n_channels,
             n_channels_out=n_channels,
-            seed=seed,
         )
-        self.config_dict["algorithm_config"]["algorithm"] = "n2v"
 
         # this will be used to propagate the monitor metric before building the config
         # we have to wait for after set_checkpoint_params and set_early_stopping_params
@@ -213,13 +267,16 @@ class N2VConfigBuilder(
 
     def _propagate_monitor_to_callbacks(self):
         # only overwrite monitor if it not explicitly set
-        assert isinstance(
-            self.config_dict["training_config"]["checkpoint_params"], dict
-        )
+        if "checkpoint_params" not in self.config_dict["training_config"]:
+            self.config_dict["training_config"]["checkpoint_params"] = {}
         checkpoint_params = self.config_dict["training_config"]["checkpoint_params"]
         if "monitor" not in checkpoint_params:
             checkpoint_params["monitor"] = self.monitor_metric
 
+        # TODO: default value in the config is dict so we need to propagate in that case
+        # probably we want a mechanism to propagate monitor metric to default
+        if "early_stopping_params" not in self.config_dict["training_config"]:
+            self.config_dict["training_config"]["early_stopping_params"] = {}
         early_stopping_params = self.config_dict["training_config"][
             "early_stopping_params"
         ]

@@ -16,6 +16,7 @@ ConfigurationType = (
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
 )
+Algorithm = CAREAlgorithm | N2NAlgorithm | N2VAlgorithm
 
 
 def _config_discriminator(v: Any) -> SupportedAlgorithm | None:
@@ -35,9 +36,12 @@ def _config_discriminator(v: Any) -> SupportedAlgorithm | None:
     if not isinstance(v, dict):
         return None
     alg_config = v.get("algorithm_config", None)
-    if not isinstance(alg_config, dict):
+    if isinstance(alg_config, Algorithm):
+        return SupportedAlgorithm(alg_config.algorithm)
+    elif isinstance(alg_config, dict):
+        return alg_config.get("algorithm", None)
+    else:
         return None
-    return alg_config.get("algorithm", None)
 
 
 def _algo_discriminator(algo: Any) -> SupportedAlgorithm | None:

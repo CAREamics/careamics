@@ -1,27 +1,9 @@
-from typing import Any, Literal
+from typing import Literal
 
-from ..config_builder import ConfigBuilder, ConfigBuilderT
+from ..config_builder import ConfigBuilderT
 
 
 class UnetParamsMixin:
-    def __init__(self: ConfigBuilder, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
-
-        model_config: dict[str, Any] = {
-            "conv_dims": 3 if self.is_3D else 2,
-        }
-        if self.n_channels_in is not None:
-            model_config["in_channels"] = self.n_channels_in
-        if self.n_channels_out is not None:
-            model_config["num_classes"] = self.n_channels_out
-
-        self.config_dict["algorithm_config"].setdefault("model", {})
-        assert isinstance(self.config_dict["algorithm_config"]["model"], dict)
-
-        # TODO: error if architecture already exists in data_config?
-        self.config_dict["algorithm_config"]["model"]["architecture"] = "UNet"
-        for key, value in model_config.items():
-            self.config_dict["algorithm_config"]["model"].setdefault(key, value)
 
     def set_model_params(
         self: ConfigBuilderT,
@@ -34,7 +16,6 @@ class UnetParamsMixin:
         ) = None,
         use_batch_norm: bool | None = None,
     ) -> ConfigBuilderT:
-        assert isinstance(self.config_dict["algorithm_config"]["model"], dict)
 
         if independent_channels is not None:
             self.config_dict["algorithm_config"]["model"][

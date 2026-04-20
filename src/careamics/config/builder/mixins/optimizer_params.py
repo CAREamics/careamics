@@ -1,11 +1,9 @@
 from typing import Any, Literal
 
-from ..config_builder import ConfigBuilder, ConfigBuilderT
+from ..config_builder import ConfigBuilderT
 
 
 class OptimizerParamsMixin:
-    def __init__(self: ConfigBuilder, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
 
     def set_optimizer(
         self: ConfigBuilderT, name: Literal["Adam", "Adamax", "SGD"], **kwargs: Any
