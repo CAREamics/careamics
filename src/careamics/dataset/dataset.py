@@ -84,6 +84,65 @@ def _patch_size_within_data_shapes(
     return all(smaller_than_shapes)
 
 
+def _shapes_all_equal(data_shapes: Sequence[Sequence[int]]) -> bool:
+    """Determine whether all the data shapes are equal.
+
+    Parameters
+    ----------
+    data_shapes : Sequence[Sequence[int]]
+        A sequence of data shapes. They must be in the format SC(Z)YX.
+
+    Returns
+    -------
+    bool
+        If all the data shapes are equal.
+    """
+    return all(shape == data_shapes[0] for shape in data_shapes)
+
+
+def _validate_shapes_against_model(
+    data_config: DataConfig,
+    model_constraints: ModelConstraints,
+    data_shapes: Sequence[Sequence[int]],
+    target_data_shapes: Sequence[Sequence[int]] | None = None,
+) -> None:
+    """Validate that the data shapes are compatible with the model constraints.
+
+    Parameters
+    ----------
+    data_config : DataConfig
+        Dataset configuration.
+    model_constraints : ModelConstraints
+        The model constraints to validate against.
+    data_shapes : Sequence[Sequence[int]]
+        A sequence of data shapes. They must be in the format SC(Z)YX.
+    target_data_shapes : Sequence[Sequence[int]] | None, default=None
+        A sequence of target data shapes. They must be in the format SC(Z)YX.
+
+    Raises
+    ------
+    ValueError
+        If any of the data shapes is not compatible with the model constraints.
+    """
+    # model constraints not applied if there is a patch size (tiling, patching),
+    # since it is validated in the configuration
+    if isinstance(data_config.patching, WholePatchingConfig):
+        for shape in data_shapes:
+            model_constraints.validate_spatial_shape(shape[2:])
+
+    # validate channels if not using a subset of channels, note that `channels`
+    # is already validated against the model in the configuration
+    if data_config.channels is None:
+        # validate input channels
+        for shape in data_shapes:
+            model_constraints.validate_input_channels(shape[1])
+
+        # validate target channels
+        if target_data_shapes:
+            for shape in target_data_shapes:
+                model_constraints.validate_target_channels(shape[1])
+
+
 def _validate_shapes(
     data_config: DataConfig,
     input_extractor: PatchExtractor,
@@ -112,6 +171,8 @@ def _validate_shapes(
     data_shapes = [
         image_stack.data_shape for image_stack in input_extractor.image_stacks
     ]
+
+    # validate shapes according to the mode and patching strategy
     if data_config.mode != Mode.PREDICTING:
         # make sure all the image sizes are greater than the patch size for training
         if not isinstance(
@@ -123,29 +184,28 @@ def _validate_shapes(
                 "Not all images sizes are greater or equal than the patch size for "
                 "training and validation."
             )
-
-    if model_constraints is not None:
-        # model constraints not applied if there is a patch size (tiling, patching),
-        # since it is validated in the configuration
+    else:
         if isinstance(data_config.patching, WholePatchingConfig):
-            for shape in data_shapes:
-                # raise errors if spatial shape is not compatible with model
-                # constraints
-                model_constraints.validate_spatial_shape(shape[2:])
+            if data_config.batch_size > 1 and not _shapes_all_equal(data_shapes):
+                raise ValueError(
+                    "For prediction without tiling, all images must have the same "
+                    "size when batch size is greater than 1. Consider using a batch "
+                    "size of 1 or use tiling."
+                )
 
-        # validate channels if not using a subset of channels, note that `channels`
-        # is already validated against the model in the configuration
-        if data_config.channels is None:
-            # validate input channels
-            for shape in data_shapes:
-                model_constraints.validate_input_channels(shape[1])
-
-            # validate target channels
-            if target_extractor is not None:
-                for image_stack in target_extractor.image_stacks:
-                    model_constraints.validate_target_channels(
-                        image_stack.data_shape[1]
-                    )
+    # validate shapes against model constraints
+    if model_constraints is not None:
+        target_data_shapes = (
+            [image_stack.data_shape for image_stack in target_extractor.image_stacks]
+            if target_extractor is not None
+            else None
+        )
+        _validate_shapes_against_model(
+            data_config=data_config,
+            model_constraints=model_constraints,
+            data_shapes=data_shapes,
+            target_data_shapes=target_data_shapes,
+        )
 
 
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
