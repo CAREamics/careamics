@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any, Literal, overload
 
 from ..config_builder import ConfigBuilderT
 
@@ -16,18 +16,32 @@ class TrainingParamsMixin:
         self.config_dict["training_config"]["checkpoint_params"].update(kwargs)
         return self
 
-    def set_early_stopping_params(
-        self: ConfigBuilderT, **kwargs: Any
+    @overload
+    def set_early_stopping(
+        self: ConfigBuilderT, on: Literal[True], **kwargs: Any
+    ) -> ConfigBuilderT: ...
+
+    @overload
+    def set_early_stopping(
+        self: ConfigBuilderT, on: Literal[False]
+    ) -> ConfigBuilderT: ...
+
+    def set_early_stopping(
+        self: ConfigBuilderT, on: bool, **kwargs: Any
     ) -> ConfigBuilderT:
-        if (
-            "early_stopping_params" not in self.config_dict["training_config"]
-            or self.config_dict["training_config"]["early_stopping_params"] is None
-        ):
-            self.config_dict["training_config"]["early_stopping_params"] = {}
-        assert isinstance(  # mypy cannot resolve above
-            self.config_dict["training_config"]["early_stopping_params"], dict
-        )
-        self.config_dict["training_config"]["early_stopping_params"].update(kwargs)
+        if on:
+            if (
+                "early_stopping_params" not in self.config_dict["training_config"]
+                or self.config_dict["training_config"]["early_stopping_params"] is None
+            ):
+                self.config_dict["training_config"]["early_stopping_params"] = {}
+            assert isinstance(  # mypy cannot resolve above
+                self.config_dict["training_config"]["early_stopping_params"], dict
+            )
+            self.config_dict["training_config"]["early_stopping_params"].update(kwargs)
+        else:
+            self.config_dict["training_config"]["early_stopping_params"] = None
+
         return self
 
     def set_logger(
