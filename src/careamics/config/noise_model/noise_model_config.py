@@ -13,7 +13,7 @@ from pydantic import (
     PlainValidator,
 )
 
-from careamics.utils.serializers import _array_to_json, _to_numpy
+from careamics.utils.serializers import _array_to_json, _to_numpy, _to_torch
 
 # TODO: this is a temporary solution to serialize and deserialize array fields
 # in pydantic models. Specifically, the aim is to enable saving and loading configs
@@ -25,6 +25,14 @@ Array = Annotated[
 ]
 """Annotated array type, used to serialize arrays or tensors to JSON strings
 and deserialize them back to arrays."""
+
+Tensor = Annotated[
+    torch.Tensor,
+    PlainSerializer(_array_to_json, return_type=str),
+    PlainValidator(_to_torch),
+]
+"""Annotated tensor type, used to serialize tensors to JSON strings
+and deserialize them back to tensors."""
 
 
 # TODO: add histogram-based noise model
