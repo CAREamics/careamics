@@ -657,8 +657,8 @@ class VAEModule(L.LightningModule):
                 image_means=means_list,
                 image_stds=stds_list,
             )
-            tile_prediction = denorm(patch=mmse_imgs.cpu().numpy())
-            tile_std = std_imgs.cpu().numpy()
+            tile_prediction = denorm(patch=mmse_imgs.float().cpu().numpy())
+            tile_std = std_imgs.float().cpu().numpy()
 
             return tile_prediction, tile_std
 
@@ -708,7 +708,7 @@ class VAEModule(L.LightningModule):
                 image_stds=self._trainer.datamodule.predict_dataset.image_stds,
             )
 
-            denormalized_output = denorm(patch=mmse.cpu().numpy())
+            denormalized_output = denorm(patch=mmse.float().cpu().numpy())
 
             if len(aux) > 0:  # aux can be tiling information
                 return denormalized_output, std, *aux
@@ -801,8 +801,8 @@ class VAEModule(L.LightningModule):
         # and hence can be moved to a separate module
         return [
             psnr_func(
-                gt=target[:, i].clone().detach().cpu().numpy(),
-                pred=recons_img[:, i].clone().detach().cpu().numpy(),
+                gt=target[:, i].clone().detach().float().cpu().numpy(),
+                pred=recons_img[:, i].clone().detach().float().cpu().numpy(),
             )
             for i in range(out_channels)
         ]

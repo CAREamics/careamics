@@ -210,6 +210,7 @@ class NormalStochasticBlock(nn.Module):
                 tmp = kl_elementwise[..., pad:-pad, pad:-pad]
                 kl_samplewise_restricted = tmp.sum(all_dims[1:])
             else:
+                print("pad is 0")
                 kl_samplewise_restricted = kl_samplewise
 
             # Compute spatial KL analytically (but conditioned on samples from

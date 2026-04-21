@@ -424,6 +424,7 @@ def microsplit_loss(
     if isinstance(recons_loss, torch.Tensor) and torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
+    # TODO simplify
     # Annealing is disabled, so kl_weight is just config.kl_weight
     if nm_weight > 0 and gaussian_weight > 0:
         # Combined mode: denoisplit uses kl_restricted, musplit uses kl

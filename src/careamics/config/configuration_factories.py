@@ -1768,7 +1768,6 @@ def create_microsplit_configuration(
     analytical_kl: bool = False,
     predict_logvar: bool = True,
     logvar_lowerbound: float | None = -5.0,
-    kl_type: Literal["kl", "kl_restricted"] = "kl_restricted",
     reconstruction_weight: float = 1.0,
     kl_weight: float = 1.0,
     musplit_weight: float = 0.1,

@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Union
+from typing import Literal, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -152,7 +152,17 @@ def get_train_val_data(
         Split data array.
     """
     data = load_data(datadir)
-    return data
+    train_idx, val_idx, test_idx = get_datasplit_tuples(
+        val_fraction, test_fraction, data.shape[0]
+    )
+    if datasplit_type == DataSplitType.Train:
+        return data[train_idx]
+    elif datasplit_type == DataSplitType.Val:
+        return data[val_idx]
+    elif datasplit_type == DataSplitType.Test:
+        return data[test_idx]
+    else:
+        raise ValueError(f"Invalid datasplit type: {datasplit_type}")
 
 
 class MicroSplitDataModule(L.LightningDataModule):
@@ -224,11 +234,16 @@ class MicroSplitDataModule(L.LightningDataModule):
             Whether to use in-memory dataset, by default True.
         """
         super().__init__()
-        # Dataset selection logic (adapted from create_train_val_datasets)
-        self.train_config = data_config  # SHould configs be separated?
-        self.val_config = data_config
-        self.test_config = data_config
-
+        # TODO this is here because whole pipeline needs refactoring
+        self.train_config = data_config.model_copy(
+            update={"datasplit_type": DataSplitType.Train}
+        )
+        self.val_config = data_config.model_copy(
+            update={"datasplit_type": DataSplitType.Val}
+        )
+        self.test_config = data_config.model_copy(
+            update={"datasplit_type": DataSplitType.Test}
+        )
         datapath = train_data
         load_data_func = read_source_func
 
@@ -244,9 +259,6 @@ class MicroSplitDataModule(L.LightningDataModule):
         )
         max_val = self.train_dataset.get_max_val()
         self.val_config.max_val = max_val
-        if self.train_config.datasplit_type == DataSplitType.All:
-            self.val_config.datasplit_type = DataSplitType.All
-            self.test_config.datasplit_type = DataSplitType.All
         self.val_dataset = dataset_class(
             self.val_config,
             datapath,
