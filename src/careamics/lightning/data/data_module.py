@@ -305,7 +305,9 @@ class CareamicsDataModule(L.LightningDataModule):
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
-    def _sampler(self, dataset: Literal["train", "val", "predict"]) -> Sampler | None:
+    def _sampler(
+        self, dataset: Literal["train", "val", "predict"]
+    ) -> Sampler[int] | None:
         """Return a sampler for the given dataset (train/val/predict), or None.
 
         Parameters

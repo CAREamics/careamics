@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from .patching import (
+from ..patching import (
     FixedPatching,
     PatchSpecs,
     StratifiedPatching,

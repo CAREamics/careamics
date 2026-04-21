@@ -10,11 +10,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 from careamics.dataset.image_region_data import ImageRegionData
-
-from .image_stack import ImageStack
-from .patch_extractor import PatchExtractor
-from .patch_filter import PatchFilter
-from .patching import Patching, PatchSpecs
+from careamics.dataset.image_stack import ImageStack
+from careamics.dataset.patch_extractor import PatchExtractor
+from careamics.dataset.patch_filter import PatchFilter
+from careamics.dataset.patching import Patching, PatchSpecs
 
 
 # TODO: better name

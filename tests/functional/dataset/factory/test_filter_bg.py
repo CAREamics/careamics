@@ -11,7 +11,7 @@ from careamics.config.data.patch_filter import (
     MaxPatchFilterConfig,
 )
 from careamics.dataset.factory import init_patch_extractor
-from careamics.dataset.filter_bg import (
+from careamics.dataset.factory.filter_bg import (
     filter_background,
     filter_background_with_mask,
 )
