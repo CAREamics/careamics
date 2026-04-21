@@ -1,7 +1,7 @@
 import pytest
 
+from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.augmentations import (
-    N2VManipulateConfig,
     XYFlipConfig,
     XYRandomRotate90Config,
 )
