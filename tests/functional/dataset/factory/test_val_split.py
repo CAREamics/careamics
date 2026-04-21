@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 from tests.functional.dataset.utils import track_patching
 
+from careamics.dataset.factory.val_split import create_val_split
 from careamics.dataset.patching import (
     StratifiedPatching,
 )
-from careamics.dataset.val_split import create_val_split
 
 
 @pytest.mark.parametrize(
