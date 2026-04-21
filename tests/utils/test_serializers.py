@@ -5,7 +5,7 @@ from typing import Union
 import numpy as np
 import pytest
 import torch
-from careamics.config.noise_model.likelihood_config import Tensor
+from careamics.config.noise_model.noise_model_config import Tensor
 from pydantic import BaseModel, ConfigDict
 
 from careamics.config.noise_model.noise_model_config import Array

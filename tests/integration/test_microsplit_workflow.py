@@ -5,10 +5,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
-from careamics.config.noise_model.likelihood_config import (
-    GaussianLikelihoodConfig,
-    NMLikelihoodConfig,
-)
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader, Dataset
 
@@ -100,25 +96,32 @@ def test_noise_model_trainer_to_vae_module_integration(tmp_path: Path) -> None:
     assert multichannel_nm._nm_cnt == 2
 
     # Step 3: Create VAEModule with noise model
+    # Save trained noise models to get configs
+    saved_paths = trainer.save(tmp_path, prefix="nm_test1")
+    gmm_configs = [GaussianMixtureNMConfig.from_npz(p) for p in saved_paths]
+    noise_model_config = MultiChannelNMConfig(noise_models=gmm_configs)
+
     lvae_config = LVAEConfig(
         architecture="LVAE",
         input_shape=(64, 64),
         multiscale_count=1,
         z_dims=[128, 128, 128, 128],
         output_channels=2,
-        predict_logvar=None,
+        predict_logvar=False,
     )
 
-    loss_config = LVAELossConfig(loss_type="denoisplit")
-
-    nm_lik_config = NMLikelihoodConfig()
+    loss_config = LVAELossConfig(
+        loss_type="microsplit",
+        musplit_weight=0.0,
+        denoisplit_weight=1.0,
+        predict_logvar=False,
+    )
 
     vae_config = VAEBasedAlgorithm(
         algorithm="microsplit",
         loss=loss_config,
         model=lvae_config,
-        gaussian_likelihood=None,
-        noise_model_likelihood=nm_lik_config,
+        noise_model=noise_model_config,
         is_supervised=True,
     )
 
@@ -185,18 +188,21 @@ def test_noise_model_save_load_integration(tmp_path: Path) -> None:
         multiscale_count=1,
         z_dims=[128, 128, 128, 128],
         output_channels=1,
-        predict_logvar=None,
+        predict_logvar=False,
     )
 
-    loss_config = LVAELossConfig(loss_type="denoisplit")
-    nm_lik_config = NMLikelihoodConfig()
+    loss_config = LVAELossConfig(
+        loss_type="microsplit",
+        musplit_weight=0.0,
+        denoisplit_weight=1.0,
+        predict_logvar=False,
+    )
 
     vae_config = VAEBasedAlgorithm(
         algorithm="microsplit",
         loss=loss_config,
         model=lvae_config,
-        gaussian_likelihood=None,
-        noise_model_likelihood=nm_lik_config,
+        noise_model=noise_model_config,
         is_supervised=True,
     )
 
@@ -232,24 +238,31 @@ def test_full_training_loop_with_noise_model_trainer(tmp_path: Path) -> None:
     trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=50)
 
     # Step 2: Create VAEModule
+    saved_paths = trainer.save(tmp_path, prefix="nm_loop")
+    gmm_configs = [GaussianMixtureNMConfig.from_npz(p) for p in saved_paths]
+    noise_model_config = MultiChannelNMConfig(noise_models=gmm_configs)
+
     lvae_config = LVAEConfig(
         architecture="LVAE",
         input_shape=(64, 64),
         multiscale_count=1,
         z_dims=[128, 128, 128, 128],
         output_channels=1,
-        predict_logvar=None,
+        predict_logvar=False,
     )
 
-    loss_config = LVAELossConfig(loss_type="denoisplit")
-    nm_lik_config = NMLikelihoodConfig()
+    loss_config = LVAELossConfig(
+        loss_type="microsplit",
+        musplit_weight=0.0,
+        denoisplit_weight=1.0,
+        predict_logvar=False,
+    )
 
     vae_config = VAEBasedAlgorithm(
         algorithm="microsplit",
         loss=loss_config,
         model=lvae_config,
-        gaussian_likelihood=None,
-        noise_model_likelihood=nm_lik_config,
+        noise_model=noise_model_config,
         is_supervised=True,
     )
 
@@ -312,24 +325,31 @@ def test_multichannel_noise_model_integration(tmp_path: Path) -> None:
     assert multichannel_nm._nm_cnt == n_channels
 
     # Step 3: Create VAEModule with multi-channel noise model
+    saved_paths = trainer.save(tmp_path, prefix="nm_multichannel")
+    gmm_configs = [GaussianMixtureNMConfig.from_npz(p) for p in saved_paths]
+    noise_model_config = MultiChannelNMConfig(noise_models=gmm_configs)
+
     lvae_config = LVAEConfig(
         architecture="LVAE",
         input_shape=(64, 64),
         multiscale_count=1,
         z_dims=[128, 128, 128, 128],
         output_channels=n_channels,
-        predict_logvar=None,
+        predict_logvar=False,
     )
 
-    loss_config = LVAELossConfig(loss_type="denoisplit")
-    nm_lik_config = NMLikelihoodConfig()
+    loss_config = LVAELossConfig(
+        loss_type="microsplit",
+        musplit_weight=0.0,
+        denoisplit_weight=1.0,
+        predict_logvar=False,
+    )
 
     vae_config = VAEBasedAlgorithm(
         algorithm="microsplit",
         loss=loss_config,
         model=lvae_config,
-        gaussian_likelihood=None,
-        noise_model_likelihood=nm_lik_config,
+        noise_model=noise_model_config,
         is_supervised=True,
     )
 
@@ -404,45 +424,46 @@ def test_musplit_denoisplit_weights_integration(tmp_path: Path) -> None:
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2, min_sigma=100.0)
     trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=50)
 
+    # Save noise model once to get config for denoisplit cases
+    saved_paths = trainer.save(tmp_path, prefix="nm_weights")
+    nm_config_for_denoisplit = MultiChannelNMConfig(
+        noise_models=[GaussianMixtureNMConfig.from_npz(p) for p in saved_paths]
+    )
+
     # Test different weight configurations
     weight_configs = [
-        (1.0, 0.0),  # Pure muSplit
+        (1.0, 0.0),  # Pure muSplit (predict_logvar=True required)
         (0.0, 1.0),  # Pure denoiSplit
-        (0.5, 0.5),  # Mixed
-        (0.3, 0.7),  # Weighted towards denoiSplit
+        (0.5, 0.5),  # Mixed (predict_logvar=True required)
+        (0.3, 0.7),  # Weighted towards denoiSplit (predict_logvar=True required)
     ]
 
     for musplit_weight, denoisplit_weight in weight_configs:
-        # Create VAEModule with specific weights
+        predict_logvar_bool = musplit_weight > 0
+
         lvae_config = LVAEConfig(
             architecture="LVAE",
             input_shape=(64, 64),
             multiscale_count=1,
             z_dims=[128, 128, 128, 128],
             output_channels=1,
-            predict_logvar="pixelwise" if musplit_weight > 0 else None,
+            predict_logvar=predict_logvar_bool,
         )
 
         loss_config = LVAELossConfig(
-            loss_type="denoisplit_musplit",
+            loss_type="microsplit",
             musplit_weight=musplit_weight,
             denoisplit_weight=denoisplit_weight,
+            predict_logvar=predict_logvar_bool,
         )
 
-        # Set up likelihoods based on weights
-        gaussian_lik_config = (
-            GaussianLikelihoodConfig(predict_logvar="pixelwise")
-            if musplit_weight > 0
-            else None
-        )
-        nm_lik_config = NMLikelihoodConfig() if denoisplit_weight > 0 else None
+        noise_model_config = nm_config_for_denoisplit if denoisplit_weight > 0 else None
 
         vae_config = VAEBasedAlgorithm(
             algorithm="microsplit",
             loss=loss_config,
             model=lvae_config,
-            gaussian_likelihood=gaussian_lik_config,
-            noise_model_likelihood=nm_lik_config,
+            noise_model=noise_model_config,
             is_supervised=True,
         )
 

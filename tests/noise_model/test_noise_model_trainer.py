@@ -162,8 +162,8 @@ def test_train_from_pairs_shape_mismatch_raises() -> None:
 
 def test_train_with_clean_data_single_channel() -> None:
     gen = np.random.default_rng(42)
-    noisy_data = gen.uniform(0, 255, (5, 64, 64))
-    clean_data = noisy_data - gen.normal(0, 10, noisy_data.shape)
+    clean_data = gen.uniform(0, 255, (5, 2, 64, 64))
+    noisy_data = clean_data + gen.normal(0, 10, clean_data.shape)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
     noise_models = trainer.train(
@@ -181,8 +181,8 @@ def test_train_with_clean_data_single_channel() -> None:
 
 def test_train_with_clean_data_multi_channel() -> None:
     gen = np.random.default_rng(42)
-    noisy_data = gen.uniform(0, 255, (5, 2, 64, 64))
-    clean_data = noisy_data - gen.normal(0, 10, noisy_data.shape)
+    clean_data = gen.uniform(0, 255, (5, 2, 64, 64))
+    noisy_data = clean_data + gen.normal(0, 10, clean_data.shape)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
     noise_models = trainer.train(
