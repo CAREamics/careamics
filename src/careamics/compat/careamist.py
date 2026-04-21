@@ -34,8 +34,8 @@ from careamics.config.support import (
     SupportedData,
     SupportedLogger,
 )
-from careamics.dataset.dataset_utils.file_utils import list_files
 from careamics.file_io import WriteFunc, get_write_func
+from careamics.lightning.data.data_module_utils import list_files
 from careamics.lightning.utils.csv_logger import read_csv_logger
 from careamics.utils import get_logger
 from careamics.utils.reshape_array import reshape_array
