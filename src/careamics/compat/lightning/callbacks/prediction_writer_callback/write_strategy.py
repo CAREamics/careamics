@@ -11,8 +11,8 @@ from torch.utils.data import DataLoader
 
 from careamics.compat.config.data.tile_information import TileInformation
 from careamics.compat.dataset import IterablePredDataset, IterableTiledPredDataset
+from careamics.compat.dataset.dataset_utils.file_utils import create_write_file_path
 from careamics.compat.prediction_utils.stitch_prediction import stitch_prediction_single
-from careamics.dataset.dataset_utils.file_utils import create_write_file_path
 from careamics.file_io import WriteFunc
 from careamics.utils import get_logger
 
