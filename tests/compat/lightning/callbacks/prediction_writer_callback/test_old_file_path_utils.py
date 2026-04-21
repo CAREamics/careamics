@@ -3,10 +3,10 @@ from unittest.mock import Mock
 
 from careamics.compat.config.data import InferenceConfig
 from careamics.compat.dataset import IterablePredDataset, IterableTiledPredDataset
+from careamics.compat.dataset.dataset_utils.file_utils import create_write_file_path
 from careamics.compat.lightning.callbacks.prediction_writer_callback import (
     get_sample_file_path,
 )
-from careamics.dataset.dataset_utils.file_utils import create_write_file_path
 
 
 def test_get_sample_file_path_tiled_ds():
