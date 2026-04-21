@@ -1,0 +1,45 @@
+# Navigation entries injected into zensical.toml by pull_from_repos.sh.
+# Each top-level entry's key must match a section placeholder in zensical.toml
+# that currently has an empty list.
+nav = [
+{"Using CAREamics" = [
+    "content/guides/current/index.md",
+    {"Configuration" = "content/guides/current/configuration.md"},
+    {"Data preparation" = "content/guides/current/data.md"},
+    {"Training" = "content/guides/current/careamist_training.md"},
+    {"Logging" = "content/guides/current/careamist_train_logging.md"},
+    {"Predicting" = "content/guides/current/careamist_predicting.md"},
+    {"Lightning API" = "content/guides/current/lightning_api.md"},
+]},
+{"Tutorials" = ["content/guides/tutorials/index.md"]},
+{"Legacy (v0.1)" = [
+    "content/guides/v0.1/index.md",
+    {"CAREamist API (v0.1)" = [
+        "content/guides/v0.1/careamist_api/index.md",
+        {"Configuration" = [
+            "content/guides/v0.1/careamist_api/configuration/index.md",
+            "content/guides/v0.1/careamist_api/configuration/convenience_functions.md",
+            "content/guides/v0.1/careamist_api/configuration/save_load.md",
+            "content/guides/v0.1/careamist_api/configuration/custom_types.md",
+            "content/guides/v0.1/careamist_api/configuration/configuration_errors.md",
+            "content/guides/v0.1/careamist_api/configuration/build_configuration.md",
+            "content/guides/v0.1/careamist_api/configuration/algorithm_requirements.md",
+        ]},
+        {"Using CAREamics (v0.1)" = [
+            "content/guides/v0.1/careamist_api/usage/index.md",
+            "content/guides/v0.1/careamist_api/usage/careamist.md",
+            "content/guides/v0.1/careamist_api/usage/training.md",
+            "content/guides/v0.1/careamist_api/usage/datasets.md",
+            "content/guides/v0.1/careamist_api/usage/prediction.md",
+            "content/guides/v0.1/careamist_api/usage/model_export.md",
+        ]},
+        {"FAQ" = "content/guides/v0.1/faq.md"},
+    ]},
+    {"Lightning API (v0.1)" = ["content/guides/v0.1/lightning_api/index.md"]},
+    {"Dev resources (v0.1)" = [
+        "content/guides/v0.1/dev_resources/contribute.md",
+        "content/guides/v0.1/dev_resources/docstring.md",
+        "content/guides/v0.1/dev_resources/conda-forge.md",
+    ]},
+]},
+]

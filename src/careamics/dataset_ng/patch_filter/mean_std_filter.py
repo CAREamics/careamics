@@ -2,13 +2,13 @@
 
 from collections.abc import Sequence
 
+import matplotlib.pyplot as plt
 import numpy as np
-from tqdm import tqdm
+from numpy.typing import NDArray
 
-from careamics.dataset_ng.image_stack_loader import load_arrays
-from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterProtocol
-from careamics.dataset_ng.patching_strategies import TilingStrategy
+
+from .filtermap_utils import create_filter_map
 
 
 class MeanStdPatchFilter(PatchFilterProtocol):
@@ -90,94 +90,45 @@ class MeanStdPatchFilter(PatchFilterProtocol):
     @staticmethod
     def filter_map(image: np.ndarray, patch_size: Sequence[int]) -> np.ndarray:
         """
-        Compute the mean and std map of an image.
+        Compute a filter map for the entire image based on the patch filtering criteria.
 
-        The mean and std are computed over non-overlapping patches. This method can be
-        used to assess a useful threshold for the MeanStd filter.
+        The filter map will show the threshold that, above which, will result in regions
+        of the image being excluded from training.
 
         Parameters
         ----------
-        image : numpy.NDArray
-            The full image to evaluate.
-        patch_size : Sequence[int]
-            The size of the patches to consider.
+        image : numpy.ndarray
+            A 2D or 3D image.
+        patch_size : sequence of int
+            The patch size intended to be used for training.
 
         Returns
         -------
-        np.ndarray
-            Stacked mean and std maps of the image.
-
-        Raises
-        ------
-        ValueError
-            If the image is not 2D or 3D.
-
-        Examples
-        --------
-        The `filter_map` method can be used to assess useful thresholds for the
-        MeanStd filter.
-        >>> import numpy as np
-        >>> import matplotlib.pyplot as plt
-        >>> from careamics.dataset_ng.patch_filter import MeanStdPatchFilter
-        >>> rng = np.random.default_rng(42)
-        >>> image = rng.binomial(20, 0.1, (256, 256)).astype(np.float32)
-        >>> image[64:192, 64:192] = rng.normal(50, 3, (128, 128))
-        >>> image[96:160, 96:160] = rng.poisson(image[96:160, 96:160])
-        >>> patch_size = (16, 16)
-        >>> meanstd_map = MeanStdPatchFilter.filter_map(image, patch_size)
-        >>> fig, ax = plt.subplots(3, 3, figsize=(10, 10)) # doctest: +SKIP
-        >>> for i, mean_thresh in enumerate([48 + i for i in range(3)]):
-        ...     for j, std_thresh in enumerate([5 + i for i in range(3)]):
-        ...         ax[i, j].imshow(
-        ...             (meanstd_map[0, ...] > mean_thresh)
-        ...             & (meanstd_map[1, ...] > std_thresh),
-        ...             cmap="gray", vmin=0, vmax=1
-        ...         ) # doctest: +SKIP
-        ...         ax[i, j].set_title(
-        ...             f"Mean: {mean_thresh}, Std: {std_thresh}"
-        ...         ) # doctest: +SKIP
-        >>> plt.show() # doctest: +SKIP
+        numpy.ndarray
+            Stacked mean and std filter maps of the image.
         """
-        if len(image.shape) < 2 or len(image.shape) > 3:
-            raise ValueError("Image must be 2D or 3D.")
-
-        axes = "YX" if len(patch_size) == 2 else "ZYX"
-
-        mean = np.zeros_like(image, dtype=float)
-        std = np.zeros_like(image, dtype=float)
-
-        image_stacks = load_arrays(source=[image], axes=axes)
-        extractor = PatchExtractor(image_stacks)
-        tiling = TilingStrategy(
-            data_shapes=[(1, 1, *image.shape)],
-            patch_size=patch_size,
-            overlaps=(0,) * len(patch_size),  # no overlap
+        filtermap_mean = create_filter_map(
+            image,
+            # using lambda just for converting to float for mypy
+            lambda patch: float(np.mean(patch)),
+            patch_size,
+            direction="greater",
         )
-
-        for idx in tqdm(range(tiling.n_patches), desc="Computing Mean/STD map"):
-            patch_spec = tiling.get_patch_spec(idx)
-            patch = extractor.extract_patch(
-                data_idx=0,
-                sample_idx=0,
-                coords=patch_spec["coords"],
-                patch_size=patch_size,
-            )
-
-            coordinates = tuple(
-                slice(patch_spec["coords"][i], patch_spec["coords"][i] + p)
-                for i, p in enumerate(patch_size)
-            )
-            mean[coordinates] = np.mean(patch)
-            std[coordinates] = np.std(patch)
-
-        return np.stack([mean, std], axis=0)
+        filtermap_std = create_filter_map(
+            image,
+            # using lambda just for converting to float for mypy
+            lambda patch: float(np.std(patch)),
+            patch_size,
+            direction="greater",
+        )
+        return np.stack([filtermap_mean, filtermap_std])
 
     @staticmethod
     def apply_filter(
         filter_map: np.ndarray,
         mean_threshold: float,
         std_threshold: float | None = None,
-    ) -> np.ndarray:
+    ) -> NDArray[np.bool_]:
         """
         Apply mean and std thresholds to a filter map.
 
@@ -195,11 +146,53 @@ class MeanStdPatchFilter(PatchFilterProtocol):
 
         Returns
         -------
-        np.ndarray
-            A binary map where True indicates patches that pass the filter.
+        numpy.typing.NDArray[np.bool_]
+           A binary map where True indicates patches that pass the filter, i.e. they
+           should be kept for training.
         """
         if std_threshold is not None:
             return (filter_map[0, ...] > mean_threshold) & (
                 filter_map[1, ...] > std_threshold
             )
         return filter_map[0, ...] > mean_threshold
+
+    @staticmethod
+    def plot_filter_map(
+        image: np.ndarray, filter_map: np.ndarray, z_idx: int | None = None
+    ) -> plt.Figure:
+        """
+        Plot both the mean and standard-deviation filter over an image.
+
+        Parameters
+        ----------
+        image : numpy.ndarray
+            The image that has been evaluated.
+        filter_map : numpy.ndarray
+            The filter map that has been evaluated using the method `filter_map`.
+        z_idx : int | None, default=None
+            If the image is 3D, `z_idx` selects the slice to display. If `None` the
+            central slice will be selected.
+
+        Returns
+        -------
+        matplotlib.pyplot.Figure
+            The figure object displaying the filter maps.
+        """
+        if image.ndim == 4:
+            # take the middle z slice if not specified
+            z_idx == image.shape[0] // 2 if z_idx is None else z_idx
+            image = image[:, z_idx]
+
+        fig, axes = plt.subplots(1, 2, figsize=(16, 8), constrained_layout=True)
+        cbars: list[plt.Colorbar] = []
+        for i, ax in enumerate(axes):
+            ax.imshow(image, "gray")
+            m = ax.imshow(filter_map[i], "magma", alpha=0.5)
+            cbar = plt.colorbar(m, ax=ax)
+            cbars.append(cbar)
+        axes[0].set_title("Mean Filter Map")
+        axes[1].set_title("Standard-Deviation Filter Map")
+        cbars[0].ax.set_ylabel("mean_threshold")
+        cbars[1].ax.set_ylabel("std_threshold")
+        fig.suptitle("Mean-Std Filter Map")
+        return fig

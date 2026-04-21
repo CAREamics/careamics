@@ -4,6 +4,11 @@ description: CAREamics training
 
 # Training
 
+!!! warning "Legacy documentation"
+    This documentation is for the legacy version of CAREamics (v0.1), which is
+    accessible through the `careamics.compat` module. It is kept here for reference, but
+    we recommend using the latest version of CAREamics (v0.2) for new projects. Head to the [v0.2 guides](../v0.2/index.md).
+
 You can provide data in various way to train your model: as a `numpy` array, using a
 path to a folder or files, or by using CAREamics data module class for more control
 (advanced).
@@ -22,7 +27,7 @@ The details of how CAREamics deals with the loading and patching is detailed in 
 CAREamics can be trained by simply passing numpy arrays.
 
 ```python title="Training by passing an array"
---8<-- "training.py:array"
+--8<-- "v0.1/careamist_api/usage/training.py:array"
 ```
 
 1. All parameters to the `train` method must be specified by keyword.
@@ -34,7 +39,7 @@ CAREamics can be trained by simply passing numpy arrays.
     If you are training a supervised model, you must provide the target data as well.
 
     ```python
-    --8<-- "training.py:supervised"
+    --8<-- "v0.1/careamist_api/usage/training.py:supervised"
     ```
 
 ## Training by passing a path
@@ -42,7 +47,7 @@ CAREamics can be trained by simply passing numpy arrays.
 The same thing can be done by passing a path to a folder or files.
 
 ```python title="Training by passing a path"
---8<-- "training.py:path"
+--8<-- "v0.1/careamist_api/usage/training.py:path"
 ```
 
 1. The path can point to a single file, or contain multiple files.
@@ -64,7 +69,7 @@ and `val_minimum_split`.
 number of patches smaller than `val_minimum_split`, CAREamics will use `val_minimum_split`.
 
 ```python title="Splitting validation from training data"
---8<-- "training.py:split"
+--8<-- "v0.1/careamist_api/usage/training.py:split"
 ```
 
 1. 10% of the training data will be used for validation.
@@ -85,7 +90,7 @@ in more details in the next section into what this class can be used for. Here i
 brief overview of how it is passed to the `train` method.
 
 ```python title="Training by passing a TrainDataModule object"
---8<-- "training.py:datamodule"
+--8<-- "v0.1/careamist_api/usage/training.py:datamodule"
 ```
 
 1. Here this does the same thing as passing the `train_source` directly into the `train` method.
@@ -111,5 +116,5 @@ To decide on the logger, check out the [Configuration section](../configuration/
 To plot the loss curves, you can use the `CAREamist.get_losses` function:
 
 ```python title="Plotting losses"
---8<-- "training.py:losses"
+--8<-- "v0.1/careamist_api/usage/training.py:losses"
 ```

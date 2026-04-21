@@ -7,10 +7,10 @@ description: Quick start
 
 After having [created a configuration](./configuration.md) and 
 [assembled the training data](./data.md), you are ready to train CAREamics. The preferred
-way to train with CAREamics is to create `CAREamist` object.
+way to train with CAREamics is to create a `CAREamist`.
 
 ```python
---8<-- "careamist_training.py:careamist_from_cfg"
+--8<-- "current/careamist_training.py:careamist_from_cfg"
 ```
 
 1. Here the configuration can either be passed as we have seen in the
@@ -24,8 +24,10 @@ root directory from which it is called. However, you can pass `work_dir` to the
 `CAREamist` to specify a different directory.
 
 ```python
---8<-- "careamist_training.py:careamist_workdir"
+--8<-- "current/careamist_training.py:careamist_workdir"
 ```
+
+1. Pass a relative or absolute path.
 
 ### Disabling progress bar
 
@@ -33,12 +35,12 @@ The PyTorch Lightning progress bar is be verbose, and can be disabled by passing
 `enable_progress_bar=False` to the `CAREamist`.
 
 ```python
---8<-- "careamist_training.py:careamist_pb"
+--8<-- "current/careamist_training.py:careamist_pb"
 ```
 
 ## Training basics
 
-### Without validation
+### Split train and validation data
 
 Once you have a `CAREamist` object, you can train CAREamics with the `train` method. Data 
 is expected to be coherent with the [choice in the configuration](./configuration.md#simple-configuration)
@@ -50,7 +52,7 @@ The amount of validation data can be set [in the configuration](./configuration.
 === "Noise2Void"
     
     ```python title="Training Noise2Void"
-    --8<-- "careamist_training.py:train_n2v_no_val"
+    --8<-- "current/careamist_training.py:train_n2v_no_val"
     ```
  
     1. `train_data` should be an array, a path to a file, a path to a folder, or a list
@@ -59,7 +61,7 @@ The amount of validation data can be set [in the configuration](./configuration.
 === "CARE/N2N"
 
     ```python title="Training CARE"
-    --8<-- "careamist_training.py:train_care_no_val"
+    --8<-- "current/careamist_training.py:train_care_no_val"
     ```
 
     1. `train_data` should be an array, a path to a file, a path to a folder, or a list
@@ -76,7 +78,7 @@ The amount of validation data can be set [in the configuration](./configuration.
     
     Passing a dictionary is not compatible with CZI or Zarr data.
 
-### With validation
+### With validation data
 
 When passing validation, the only constraint is that the validation data is of the same
 type as the training data. The amount of validation data is determined by the size of
@@ -86,7 +88,7 @@ the validation data.
 === "Noise2Void"
     
     ```python title="Training Noise2Void with validation"
-    --8<-- "careamist_training.py:train_n2v_val"
+    --8<-- "current/careamist_training.py:train_n2v_val"
     ```
  
     1. Validation is passed to `val_data`.
@@ -94,7 +96,7 @@ the validation data.
 === "CARE/N2N"
 
     ```python title="Training CARE with validation"
-    --8<-- "careamist_training.py:train_care_val"
+    --8<-- "current/careamist_training.py:train_care_val"
     ```
     
     1. Validation is passed to `val_data`.
@@ -110,7 +112,7 @@ defined and instantiated, they can be passed to the `CAREamist` to train on cust
 === "Noise2Void"
     
     ```python title="Training on custom data"
-    --8<-- "careamist_training.py:train_n2v_custom"
+    --8<-- "current/careamist_training.py:train_n2v_custom"
     ```
  
     1. Both `ReadFuncLoading` and `ImageStackLoading` can be passed to `loading`.
@@ -118,7 +120,7 @@ defined and instantiated, they can be passed to the `CAREamist` to train on cust
 === "CARE/N2N"
 
     ```python title="Training on custom data"
-    --8<-- "careamist_training.py:train_care_custom"
+    --8<-- "current/careamist_training.py:train_care_custom"
     ```
     
     1. Both `ReadFuncLoading` and `ImageStackLoading` can be passed to `loading`.
@@ -135,7 +137,7 @@ from training, for example areas with no signal or with zero values.
 === "Noise2Void"
     
     ```python title="Specifying a mask for Noise2Void training"
-    --8<-- "careamist_training.py:train_n2v_mask"
+    --8<-- "current/careamist_training.py:train_n2v_mask"
     ```
  
     1. The mask is passed alongside the data.
@@ -143,7 +145,7 @@ from training, for example areas with no signal or with zero values.
 === "CARE/N2N"
 
     ```python title="Specifying a mask for CARE training"
-    --8<-- "careamist_training.py:train_care_mask"
+    --8<-- "current/careamist_training.py:train_care_mask"
     ```
     
     1. The mask is passed alongside the data.
@@ -165,7 +167,7 @@ and [EarlyStopping](https://lightning.ai/docs/pytorch/stable/api/lightning.pytor
 but you can also pass additional callbacks.
 
 ```python title="Passiong callbacks"
---8<-- "careamist_training.py:callbacks"
+--8<-- "current/careamist_training.py:callbacks"
 ```
 
 1. Early stopping callback is currently not defined via the convenience functions, but

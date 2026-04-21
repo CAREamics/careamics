@@ -10,18 +10,18 @@ useful parameters. The configuration ensures cross-validation and coherence of t
 parameters, in particular avoiding sets of parameters that could trigger errors 
 deep in the library.
 
-Configuration can be created using any of the algorithm-specific convenience functions
+A configuration can be created using any of the algorithm-specific convenience functions
 below. We provide a simple function with a minimum set of parameters, and an advanced 
 function giving access to many more.
 
 ```python
---8<-- "configuration_simple.py:all_configs"
+--8<-- "current/configuration_simple.py:all_configs"
 ```
 
 !!! note "CARE and Noise2Noise"
 
     CARE and Noise2Noise configurations have the exact same set of parameters, contrary
-    to Noise2Void. In this section, we only show the CARE configuration, but the same
+    to Noise2Void. In this section and the following, we only show the CARE configuration, but the same
     applies to Noise2Noise by simply swapping `create_care_config` with
     `create_n2n_config`.
 
@@ -34,7 +34,7 @@ commonly used. This is a good starting point for most experiments.
 === "Noise2Void"
     
     ```python title="Configure Noise2Void"
-    --8<-- "configuration_simple.py:config_n2v"
+    --8<-- "current/configuration_simple.py:config_n2v"
     ```
  
     1. The length of the patch size is conditioned on the presence of the `Z` axis.
@@ -42,7 +42,7 @@ commonly used. This is a good starting point for most experiments.
 === "CARE/N2N"
 
     ```python title="Configure CARE"
-    --8<-- "configuration_simple.py:config_care"
+    --8<-- "current/configuration_simple.py:config_care"
     ```
 
     1. The length of the patch size is conditioned on the presence of the `Z` axis.
@@ -51,15 +51,14 @@ commonly used. This is a good starting point for most experiments.
 saving. It should only contain letters, numbers, underscores, dashes and spaces.
 - `data_type`: The data type impacts other parameters and which features may be available.
 CAREamics supports `array` (when passing `numpy` arrays directly), `tiff`, `zarr`, `czi`
-and `custom`. Refer to the [data section](./data.md) for more details.
+and `custom`.
 - `axes`: The axes of the data, in the order they have on disk (or in memory). This is
 important to identify correctly the spatial and channel dimensions. Refer to the
 [data section](./data.md) for tips on how to identify axes.
 - `patch_size`: The size of the patches to extract from the data during training. Note
-that the patch size only refers to spatial axes (`X`, `Y` and optionally `Z`). Patch sizes
-are power of 2 and are greater than 8. They are also usually the same for `X` and `Y` axes.
+that the patch size only refers to spatial axes (`X`, `Y` and optionally `Z`). They are even and usually the same for `X` and `Y` axes.
 `patch_size` should be 2D for axes without `Z`, and 3D for axes with `Z`.
-- `batch_size`: The number of patches to use in each training batch.
+- `batch_size`: The number of patches to use in each training step.
 - `num_epochs`: The number of epochs to train for. Note that in the case of large
 datasets, you might want to also set the [number of steps parameter](#reducing-the-number-of-steps).
 
@@ -67,21 +66,22 @@ datasets, you might want to also set the [number of steps parameter](#reducing-t
 
 !!! note "Training with `T` as depth axis"
 
-    If you want to use your `T` axis as the depth axis, simply relabel it as `Z`. Note
-    that this is not compatible with `data_type="czi"`, see [data section](./data.md).
+    If you want to use your `T` axis as the depth axis, simply relabel it as `Z`. If you are using `data_type="czi"`, then you can also use
+    `T` as a depth axis (`axes="SCTYX"`), see [data section](./data.md)
+    for more details.
 
 
 ### Reducing the number of steps
 
 
 Each training epoch cycles through all patches. Therefore, for large datasets, an epoch
-can be lengthy and validation happening rarely. In this case, it is useful to set the
+can be quite long, resulting in low sampling of the performances (train loss, validation loss). In this case, it is useful to set the
 number of steps `num_steps`.
 
 === "Noise2Void"
     
     ```python title="Setting the number of steps"
-    --8<-- "configuration_simple.py:config_n2v_steps"
+    --8<-- "current/configuration_simple.py:config_n2v_steps"
     ```
 
     1. Use a number smaller than the total number of steps (given the batch size), see
@@ -90,7 +90,7 @@ number of steps `num_steps`.
 === "CARE/N2N"
 
     ```python title="Setting the number of steps"
-    --8<-- "configuration_simple.py:config_care_steps"
+    --8<-- "current/configuration_simple.py:config_care_steps"
     ```
 
     1. Use a number smaller than the total number of steps (given the batch size), see
@@ -100,7 +100,7 @@ number of steps `num_steps`.
 !!! note "How many steps per epoch?"
 
     Each epoch consists of `n_patchs / batch_size` steps. The total number of steps is
-    shown in the console during training:
+    shown in the console during training (here `300` steps):
 
     ```sh
     Epoch 1: 12%|█████████████                                     | 36/300
@@ -126,24 +126,24 @@ CAREamics applies augmentations to the training patches, by default random flips
 Y, and random rotations by 90 degrees. In certain cases, these augmentations may not be
 desirable, for example when the result of the augmentation is not a possible occurence
 in the data. In microscopy, this can happen when there are structures that have always
-the same orientation, or noise with a spatial correlation. To set them,
+the same orientation, or noise with a spatial correlation. To control the augmentations, you can
 use the `augmentations` parameter.
 
 === "Noise2Void"
     
     ```python title="Setting augmentations"
-    --8<-- "configuration_simple.py:config_n2v_augmentations"
+    --8<-- "current/configuration_simple.py:config_n2v_augs"
     ```
 
-    1. These are all the possible occurences.
+    1. These are all the possible choices.
 
 === "CARE/N2N"
 
     ```python title="Setting augmentations"
-    --8<-- "configuration_simple.py:config_care_augmentations"
+    --8<-- "current/configuration_simple.py:config_care_augs"
     ```
 
-    1. These are all the possible occurences.
+    1. These are all the possible choices.
 
 
 To disable augmentations, set `augmentations=[]`.
@@ -151,23 +151,23 @@ To disable augmentations, set `augmentations=[]`.
 
 !!! note "How are augmentations applied?"
 
-    Each augmentation has a 0.5 of being applied to each patch. The random 90 degree
+    Each augmentation has a 0.5 probability of being applied to each patch. The XY flip applies flipping in either X or Y direction. The random 90 degree
     rotations applies either a 90, 180 or 270 rotations (if applied). The augmentations
-    are applied sequentially, such that a patch can be flipped in X, not flipped in Y,
+    are applied sequentially, such that a patch can be flipped in X
     and then rotated by 180 degrees.
 
 
 ### Channels
 
 Channels are a particular type of axes, and they influence the way the deep-learning
-model is build. As a result, when `C` is present in the `axes`, additional parameters
-need to be set depending on the algorithm.
+model is built. As a result, when `C` is present in the `axes`, additional parameters
+need to be set. These parameters vary from algorithm to algorithm.
 
 
 === "Noise2Void"
     
     ```python title="Setting channels parameters"
-    --8<-- "configuration_simple.py:config_n2v_channels"
+    --8<-- "current/configuration_simple.py:config_n2v_channels"
     ```
 
     1. Channels are considered to be present as soon as `C` is in `axes`.
@@ -177,7 +177,7 @@ need to be set depending on the algorithm.
 === "CARE/N2N"
 
     ```python title="Setting channels parameters"
-    --8<-- "configuration_simple.py:config_care_channels"
+    --8<-- "current/configuration_simple.py:config_care_channels"
     ```
 
     1. Channels are considered to be present as soon as `C` is in `axes`.
@@ -194,16 +194,16 @@ need to be set depending on the algorithm.
     [advanced configuration](#advanced-configuration) section for more details.
 
 
-### Validation
+### Number of validation patches
 
 When no validation data is provided, CAREamics will automatically split some patches
 from the training data to use as validation. The number of validation patches is set 
-then governed by the `num_val_patches` parameter. By default, it is set to `8`.
+then governed by the `n_val_patches` parameter. By default, it is set to `8`.
 
 === "Noise2Void"
     
     ```python title="Setting the number of validation patches"
-    --8<-- "configuration_simple.py:config_n2v_val"
+    --8<-- "current/configuration_simple.py:config_n2v_val"
     ```
 
     1. Choose an appropriate number of validation patches, depending on the size of the
@@ -212,7 +212,7 @@ then governed by the `num_val_patches` parameter. By default, it is set to `8`.
 === "CARE/N2N"
 
     ```python title="Setting the number of validation patches"
-    --8<-- "configuration_simple.py:config_care_val"
+    --8<-- "current/configuration_simple.py:config_care_val"
     ```
 
     1. Choose an appropriate number of validation patches, depending on the size of the
@@ -222,7 +222,7 @@ then governed by the `num_val_patches` parameter. By default, it is set to `8`.
 
 !!! note "What happens when validation data is passed?"
 
-    In the presence of validation data, the `num_val_patches` parameter is ignored and
+    In the presence of validation data, the `n_val_patches` parameter is ignored and
     the effective number of validation patches is determined by the size of the
     validation data.
 
@@ -247,7 +247,7 @@ configuration.
 === "Noise2Void"
     
     ```python title="Setting in-memory training"
-    --8<-- "configuration_advanced.py:adv_config_n2v_in_memory"
+    --8<-- "current/configuration_advanced.py:adv_config_n2v_in_memory"
     ```
 
     1. Only `array`, `tiff` and `custom` are compatible with in-memory training.
@@ -255,7 +255,7 @@ configuration.
 === "CARE/N2N"
 
     ```python title="Setting in-memory training"
-    --8<-- "configuration_advanced.py:adv_config_care_in_memory"
+    --8<-- "current/configuration_advanced.py:adv_config_care_in_memory"
     ```
 
     1. Only `array`, `tiff` and `custom` are compatible with in-memory training.
@@ -280,7 +280,7 @@ passing list of channel indices to the `channels` parameter.
 === "Noise2Void"
     
     ```python title="Selecting a subset of channels"
-    --8<-- "configuration_advanced.py:adv_config_n2v_subchannels"
+    --8<-- "current/configuration_advanced.py:adv_config_n2v_subchannels"
     ```
 
     1. For channels to be considered present, `C` needs to be in `axes`.
@@ -290,7 +290,7 @@ passing list of channel indices to the `channels` parameter.
 === "CARE/N2N"
 
     ```python title="Selecting a subset of channels"
-    --8<-- "configuration_advanced.py:adv_config_care_subchannels"
+    --8<-- "current/configuration_advanced.py:adv_config_care_subchannels"
     ```
 
     1. For channels to be considered present, `C` needs to be in `axes`.
@@ -315,7 +315,7 @@ By default, channels are trained independently. This means that the channels do 
 === "Noise2Void"
     
     ```python title="Training non-independent channels"
-    --8<-- "configuration_advanced.py:adv_config_n2v_ind_channels"
+    --8<-- "current/configuration_advanced.py:adv_config_n2v_ind_channels"
     ```
 
     1. `C` must be in `axes`.
@@ -325,7 +325,7 @@ By default, channels are trained independently. This means that the channels do 
 === "CARE/N2N"
 
     ```python title="Training non-independent channels"
-    --8<-- "configuration_advanced.py:adv_config_care_ind_channels"
+    --8<-- "current/configuration_advanced.py:adv_config_care_ind_channels"
     ```
 
 
@@ -350,10 +350,10 @@ The various normalizations are the following:
 
 | Method | Optional parameters|
 |----------|----------|
-| `"mean_std"` | `input_means`, `input_stds`,`target_means`, `target_stds`, `per_channel=True`|
-| `"quantile"` | `lower_quantile=[0.01]`, `upper_quantile=[0.99]` , `per_channel=True`, `input_lower_quantile_values`, `input_upper_quantile_values`, `target_lower_quantile_values`, `target_upper_quantile_values`|
-| `"minmax"`    | `input_mins`, `input_maxes` , `target_mins`, `target_maxes`, `per_channel=True`|
-| `"none"` | No parameters |
+| `mean_std` | `per_channel=True`, `input_means`, `input_stds`,`target_means`, `target_stds`|
+| `quantile` | `per_channel=True`, `lower_quantile=[0.01]`, `upper_quantile=[0.99]` , `input_lower_quantile_values`, `input_upper_quantile_values`, `target_lower_quantile_values`, `target_upper_quantile_values`|
+| `minmax`    | `per_channel=True`, `input_mins`, `input_maxes` , `target_mins`, `target_maxes`|
+| `none` | No parameters |
 
 !!! note "Noise2Void and targets"
 
@@ -365,7 +365,7 @@ The `quantile` normalization has two parameters, `lower_quantile` and `upper_qua
 === "Noise2Void"
     
     ```python title="Specifying the normalization method"
-    --8<-- "configuration_advanced.py:adv_config_n2v_norm"
+    --8<-- "current/configuration_advanced.py:adv_config_n2v_norm"
     ```
 
     1. The normalization method is choosen by passing `normalization`.
@@ -374,7 +374,7 @@ The `quantile` normalization has two parameters, `lower_quantile` and `upper_qua
 === "CARE/N2N"
 
     ```python title="Specifying the normalization method"
-    --8<-- "configuration_advanced.py:adv_config_care_norm"
+    --8<-- "current/configuration_advanced.py:adv_config_care_norm"
     ```
 
     1. The normalization method is choosen by passing `normalization`.
@@ -391,7 +391,7 @@ The `quantile` normalization has two parameters, `lower_quantile` and `upper_qua
 === "Noise2Void"
     
     ```python title="Passing pre-computed parameters"
-    --8<-- "configuration_advanced.py:adv_config_n2v_norm_params"
+    --8<-- "current/configuration_advanced.py:adv_config_n2v_norm_params"
     ```
 
     1. Here we are selecting the zero-mean unit-variance normalization, which is the default.
@@ -400,7 +400,7 @@ The `quantile` normalization has two parameters, `lower_quantile` and `upper_qua
 === "CARE/N2N"
 
     ```python title="Passing pre-computed parameters"
-    --8<-- "configuration_advanced.py:adv_config_care_norm_params"
+    --8<-- "current/configuration_advanced.py:adv_config_care_norm_params"
     ```
 
     1. Here we are selecting the zero-mean unit-variance normalization, which is the default.
@@ -414,7 +414,7 @@ In the presence of channels, all parameters that are passed to `normalization_pa
 === "Noise2Void"
     
     ```python title="Setting normalization in the presence of channels"
-    --8<-- "configuration_advanced.py:adv_config_n2v_norm_ch"
+    --8<-- "current/configuration_advanced.py:adv_config_n2v_norm_ch"
     ```
 
     1. We have channels.
@@ -426,7 +426,7 @@ In the presence of channels, all parameters that are passed to `normalization_pa
 === "CARE/N2N"
 
     ```python title="Setting normalization in the presence of channels"
-    --8<-- "configuration_advanced.py:adv_config_care_norm_ch"
+    --8<-- "current/configuration_advanced.py:adv_config_care_norm_ch"
     ```
 
     1. We have channels.
@@ -443,7 +443,7 @@ By default, CAREamics uses the CSV logger from PyTorch Lightning, saving all the
 === "Noise2Void"
     
     ```python title="Choosing a logger"
-    --8<-- "configuration_advanced.py:adv_config_n2v_logger"
+    --8<-- "current/configuration_advanced.py:adv_config_n2v_logger"
     ```
 
     1. We choose WandB in addition to the CSV logger.
@@ -451,7 +451,7 @@ By default, CAREamics uses the CSV logger from PyTorch Lightning, saving all the
 === "CARE/N2N"
 
     ```python title="Choosing a logger"
-    --8<-- "configuration_advanced.py:adv_config_care_logger"
+    --8<-- "current/configuration_advanced.py:adv_config_care_logger"
     ```
 
     1. We choose WandB in addition to the CSV logger.
@@ -465,7 +465,7 @@ The `num_workers` parameter controls the number of workers used to load the data
 === "Noise2Void"
     
     ```python title="Setting the number of workers"
-    --8<-- "configuration_advanced.py:adv_config_n2v_num_workers"
+    --8<-- "current/configuration_advanced.py:adv_config_n2v_num_workers"
     ```
 
     1. We set the number of workers for data loading.
@@ -473,7 +473,7 @@ The `num_workers` parameter controls the number of workers used to load the data
 === "CARE/N2N"
 
     ```python title="Setting the number of workers"
-    --8<-- "configuration_advanced.py:adv_config_care_num_workers"
+    --8<-- "current/configuration_advanced.py:adv_config_care_num_workers"
     ```
 
     1. We set the number of workers for data loading.
@@ -492,13 +492,13 @@ Setting a seed allows fixing the series of random choices happening during train
 === "Noise2Void"
     
     ```python title="Setting the seed"
-    --8<-- "configuration_advanced.py:adv_config_n2v_seed"
+    --8<-- "current/configuration_advanced.py:adv_config_n2v_seed"
     ```
 
 === "CARE/N2N"
 
     ```python title="Setting the seed"
-    --8<-- "configuration_advanced.py:adv_config_care_seed"
+    --8<-- "current/configuration_advanced.py:adv_config_care_seed"
     ```
 
 
@@ -512,7 +512,7 @@ Noise2Void have additional parameters that in some cases can make a difference. 
 N2V2 is a variant of Noise2Void that mitigates checkerboard artefacts that arise in Noise2Void (e.g. in the presence of salt and pepper noise, or hot pixels). N2V2 can be enabled by simply setting `n2v2=True` in the configuration.
 
 ```python title="Using N2V2"
---8<-- "configuration_n2v.py:config_n2v2"
+--8<-- "current/configuration_n2v.py:config_n2v2"
 ```
 
 
@@ -521,7 +521,7 @@ N2V2 is a variant of Noise2Void that mitigates checkerboard artefacts that arise
 structN2V is a variant of Noise2Void that is designed to better handle structured noise, such as line artefacts. It does so by masking out a line of pixels instead of a single pixel during training. To use structN2V, set the `struct_n2v_axis` and `struct_n2v_span` parameters.
 
 ```python title="Using structN2V"
---8<-- "configuration_n2v.py:adv_config_structn2v"
+--8<-- "current/configuration_n2v.py:adv_config_structn2v"
 ```
 
 1. Choices are `horizontal` or `vertical`.
@@ -533,7 +533,7 @@ structN2V is a variant of Noise2Void that is designed to better handle structure
 Noise2Void has two parameters that can be set in the configuration: `roi_size` and `masked_pixel_percentage`. A good understanding of the Noise2Void algorithm is necessary to understand the effect of these parameters. Refer to the [Noise2Void algorithm]() section for more details.
 
 ```python title="Using Noise2Void parameters"
---8<-- "configuration_n2v.py:adv_config_n2v_params"
+--8<-- "current/configuration_n2v.py:adv_config_n2v_params"
 ```
 
 1. The roi size is the region around the masked pixels from which replacement values are pulled.
@@ -551,14 +551,14 @@ While not directly Lighning parameters, the parameters of the UNet model used by
 
 === "Noise2Void"
     
-    ```python title="Passing `Trainer` parameters"
-    --8<-- "configuration_lightning.py:adv_config_n2v_trainer"
+    ```python title="Passing model parameters"
+    --8<-- "current/configuration_lightning.py:adv_config_n2v_model"
     ```
 
 === "CARE/N2N"
 
-    ```python title="Passing `Trainer` parameters"
-    --8<-- "configuration_lightning.py:adv_config_care_trainer"
+    ```python title="Passing model parameters"
+    --8<-- "current/configuration_lightning.py:adv_config_care_model"
     ```
 
 Some parameters of the model are set automatically based on the parameters given to the configuration. Here is a list of parameters that can only be set via `model_params`:
@@ -575,7 +575,7 @@ The trainer parameters allow setting complex behaviours during training, from wh
 === "Noise2Void"
     
     ```python title="Passing `Trainer` parameters"
-    --8<-- "configuration_lightning.py:adv_config_n2v_trainer"
+    --8<-- "current/configuration_lightning.py:adv_config_n2v_trainer"
     ```
 
     1. Pass parameters as a dictionary to `trainer_params`.
@@ -583,7 +583,7 @@ The trainer parameters allow setting complex behaviours during training, from wh
 === "CARE/N2N"
 
     ```python title="Passing `Trainer` parameters"
-    --8<-- "configuration_lightning.py:adv_config_care_trainer"
+    --8<-- "current/configuration_lightning.py:adv_config_care_trainer"
     ```
 
     1. Pass parameters as a dictionary to `trainer_params`.
@@ -601,7 +601,7 @@ The optimizer governs how the model parameters are updated during training. By d
 === "Noise2Void"
     
     ```python title="Passing `Optimizer` parameters"
-    --8<-- "configuration_lightning.py:adv_config_n2v_opt"
+    --8<-- "current/configuration_lightning.py:adv_config_n2v_opt"
     ```
 
     1. Choose the optimizer.
@@ -610,7 +610,7 @@ The optimizer governs how the model parameters are updated during training. By d
 === "CARE/N2N"
 
     ```python title="Passing `Optimizer` parameters"
-    --8<-- "configuration_lightning.py:adv_config_care_opt"
+    --8<-- "current/configuration_lightning.py:adv_config_care_opt"
     ```
 
     1. Choose the optimizer.
@@ -629,7 +629,7 @@ Learning rate schedulers allow changing the learning rate during training, which
 === "Noise2Void"
     
     ```python title="Passing `LRScheduler` parameters"
-    --8<-- "configuration_lightning.py:adv_config_n2v_lr"
+    --8<-- "current/configuration_lightning.py:adv_config_n2v_lr"
     ```
 
     1. Choose the learning rate scheduler.
@@ -638,7 +638,7 @@ Learning rate schedulers allow changing the learning rate during training, which
 === "CARE/N2N"
 
     ```python title="Passing `LRScheduler` parameters"
-    --8<-- "configuration_lightning.py:adv_config_care_lr"
+    --8<-- "current/configuration_lightning.py:adv_config_care_lr"
     ```
 
     1. Choose the learning rate scheduler.
@@ -657,13 +657,13 @@ PyTorch dataloaders have various parameters that can be set to optimize data loa
 === "Noise2Void"
     
     ```python title="Passing `Dataloader` parameters"
-    --8<-- "configuration_lightning.py:adv_config_n2v_train_dm"
+    --8<-- "current/configuration_lightning.py:adv_config_n2v_train_dm"
     ```
 
 === "CARE/N2N"
 
     ```python title="Passing `Dataloader` parameters"
-    --8<-- "configuration_lightning.py:adv_config_care_train_dm"
+    --8<-- "current/configuration_lightning.py:adv_config_care_train_dm"
     ```
 
 !!! note "`shuffle` in `train_dataloader_params`"
@@ -680,13 +680,13 @@ If you want to override the CAREamics defaults, set `checkpoint_params`.
 === "Noise2Void"
     
     ```python title="Passing `Checkpoint` parameters"
-    --8<-- "configuration_lightning.py:adv_config_n2v_checkpoint"
+    --8<-- "current/configuration_lightning.py:adv_config_n2v_checkpoint"
     ```
 
 === "CARE/N2N"
 
     ```python title="Passing `Checkpoint` parameters"
-    --8<-- "configuration_lightning.py:adv_config_care_checkpoint"
+    --8<-- "current/configuration_lightning.py:adv_config_care_checkpoint"
     ```
 
 !!! note "Default checkpointing behavior"
@@ -703,8 +703,9 @@ If you want to override the CAREamics defaults, set `checkpoint_params`.
 
 The early stopping callback allows stopping the training when a certain metric has not improved for a certain number of epochs. To set the early stopping parameters, use the `early_stopping_params` parameter in the configuration. Refer to the [Lightning early stopping callback](https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.EarlyStopping.html) page for a list of parameters and their meaning.
 
+
 ```python title="Passing `EarlyStopping` parameters"
---8<-- "configuration_lightning.py:adv_config_care_early_stop"
+--8<-- "current/configuration_lightning.py:adv_config_care_early_stop"
 ```
 
 !!! note "Early stopping and Noise2Void"
@@ -719,7 +720,7 @@ making the overall training faster. To do so, a few parameters need to be set in
 configuration.
 
 ```python title="Training Noise2Void without validation"
---8<-- "configuration_lightning.py:adv_config_n2v_no_val"
+--8<-- "current/configuration_lightning.py:adv_config_n2v_no_val"
 ```
 
 1. We tell the trian/val splitting module to split `0` validation patches.
@@ -739,5 +740,5 @@ manually save and load them.
 
 
 ```python title="Save and load configurations"
---8<-- "configuration_io.py:save_load"
+--8<-- "current/configuration_io.py:save_load"
 ```
