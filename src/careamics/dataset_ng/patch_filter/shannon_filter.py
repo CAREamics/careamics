@@ -2,14 +2,14 @@
 
 from collections.abc import Sequence
 
+import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 from skimage.measure import shannon_entropy
-from tqdm import tqdm
 
-from careamics.dataset_ng.image_stack_loader import load_arrays
-from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_filter.patch_filter_protocol import PatchFilterProtocol
-from careamics.dataset_ng.patching_strategies import TilingStrategy
+
+from .filtermap_utils import create_filter_map
 
 
 class ShannonPatchFilter(PatchFilterProtocol):
@@ -61,92 +61,42 @@ class ShannonPatchFilter(PatchFilterProtocol):
         bool
             True if the patch should be filtered out, False otherwise.
         """
-        return shannon_entropy(patch) < self.threshold
+        return bool(shannon_entropy(patch) < self.threshold)
 
     @staticmethod
     def filter_map(
-        image: np.ndarray,
+        image: NDArray[np.int_ | np.floating],
         patch_size: Sequence[int],
     ) -> np.ndarray:
         """
-        Compute the Shannon entropy map of an image.
+        Compute a filter map for the entire image based on the patch filtering criteria.
 
-        The entropy is computed over non-overlapping patches. This method can be used
-        to assess a useful threshold for the Shannon entropy filter.
+        The filter map will show the threshold that, above which, will result in regions
+        of the image being excluded from training.
 
         Parameters
         ----------
-        image : numpy.NDArray
-            The image for which to compute the entropy map, must be 2D or 3D.
-        patch_size : Sequence[int]
-            The size of the patches to compute the entropy over. Must be a sequence
-            of two integers.
+        image : numpy.ndarray
+            A 2D or 3D image.
+        patch_size : sequence of int
+            The patch size intended to be used for training.
 
         Returns
         -------
-        numpy.NDArray
-            The Shannon entropy map of the patch.
-
-        Raises
-        ------
-        ValueError
-            If the image is not 2D or 3D.
-
-        Examples
-        --------
-        Assess a useful threshold by computing and visualizing the entropy map:
-        >>> import numpy as np
-        >>> from matplotlib import pyplot as plt
-        >>> from careamics.dataset_ng.patch_filter import ShannonPatchFilter
-        >>> rng = np.random.default_rng(42)
-        >>> image = rng.binomial(20, 0.1, (256, 256)).astype(np.float32)
-        >>> image[64:192, 64:192] += rng.normal(50, 5, (128, 128))
-        >>> image[96:160, 96:160] = rng.poisson(image[96:160, 96:160])
-        >>> patch_size = (16, 16)
-        >>> entropy_map = ShannonPatchFilter.filter_map(image, patch_size)
-        >>> fig, ax = plt.subplots(1, 5, figsize=(20, 5)) # doctest: +SKIP
-        >>> for i, thresh in enumerate([2 + 1.5 * i for i in range(5)]):
-        ...     ax[i].imshow(entropy_map >= thresh, cmap="gray") #doctest: +SKIP
-        ...     ax[i].set_title(f"Threshold: {thresh}") #doctest: +SKIP
-        >>> plt.show() # doctest: +SKIP
+        numpy.ndarray
+            The filter map, which has the same shape as the input image.
         """
-        if len(image.shape) < 2 or len(image.shape) > 3:
-            raise ValueError("Image must be 2D or 3D.")
-
-        axes = "YX" if len(patch_size) == 2 else "ZYX"
-
-        shannon_img = np.zeros_like(image, dtype=float)
-
-        image_stacks = load_arrays(source=[image], axes=axes)
-        extractor = PatchExtractor(image_stacks)
-        tiling = TilingStrategy(
-            data_shapes=[(1, 1, *image.shape)],
-            patch_size=patch_size,
-            overlaps=(0,) * len(patch_size),  # no overlap
+        filtermap = create_filter_map(
+            image,
+            # using lambda just for converting to float for mypy
+            lambda patch: float(shannon_entropy(patch)),
+            patch_size,
+            direction="greater",
         )
-
-        for idx in tqdm(range(tiling.n_patches), desc="Computing Shannon Entropy map"):
-            patch_spec = tiling.get_patch_spec(idx)
-            patch = extractor.extract_patch(
-                data_idx=0,
-                sample_idx=0,
-                coords=patch_spec["coords"],
-                patch_size=patch_size,
-            )
-
-            coordinates = tuple(
-                slice(patch_spec["coords"][i], patch_spec["coords"][i] + p)
-                for i, p in enumerate(patch_size)
-            )
-            shannon_img[coordinates] = shannon_entropy(patch)
-
-        return shannon_img
+        return filtermap
 
     @staticmethod
-    def apply_filter(
-        filter_map: np.ndarray,
-        threshold: float,
-    ) -> np.ndarray:
+    def apply_filter(filter_map: np.ndarray, threshold: float) -> NDArray[np.bool_]:
         """
         Apply the Shannon entropy filter to a precomputed filter map.
 
@@ -161,9 +111,43 @@ class ShannonPatchFilter(PatchFilterProtocol):
 
         Returns
         -------
-        numpy.NDArray
-            A boolean array where True indicates that the patch should be kept
-            (not filtered out) and False indicates that the patch should be filtered
-            out.
+        numpy.typing.NDArray[np.bool_]
+           A binary map where True indicates patches that pass the filter, i.e. they
+           should be kept for training.
         """
-        return filter_map >= threshold
+        return filter_map > threshold
+
+    @staticmethod
+    def plot_filter_map(
+        image: np.ndarray, filter_map: np.ndarray, z_idx: int | None = None
+    ) -> plt.Figure:
+        """
+        Plot the filter map over an image.
+
+        Parameters
+        ----------
+        image : numpy.ndarray
+            The image that has been evaluated.
+        filter_map : numpy.ndarray
+            The filter map that has been evaluated using the method `filter_map`.
+        z_idx : int | None, default=None
+            If the image is 3D, `z_idx` selects the slice to display. If `None` the
+            central slice will be selected.
+
+        Returns
+        -------
+        matplotlib.pyplot.Figure
+            The figure object displaying the filter map.
+        """
+        if image.ndim == 3:
+            # take the middle z slice if not specified
+            z_idx == image.shape[0] // 2 if z_idx is None else z_idx
+            image = image[z_idx]
+
+        fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+        ax.imshow(image, "gray")
+        m = ax.imshow(filter_map, "magma", alpha=0.5)
+        cbar = plt.colorbar(m, ax=ax)
+        cbar.ax.set_ylabel("threshold")
+        fig.suptitle("Shannon Entropy Filter Map")
+        return fig
