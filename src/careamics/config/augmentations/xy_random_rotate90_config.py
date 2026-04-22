@@ -25,7 +25,7 @@ class XYRandomRotate90Config(BaseModel):
 
     name: Literal["XYRandomRotate90"] = "XYRandomRotate90"
     p: float = Field(
-        0.5,
+        default=0.5,
         description="Probability of applying the transform.",
         ge=0,
         le=1,

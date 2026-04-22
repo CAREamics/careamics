@@ -5,8 +5,10 @@ from typing import Any
 
 import torch
 
-from careamics.config.configuration import AlgorithmConfig, Configuration
-from careamics.config.factories.config_discriminators import instantiate_config
+from careamics.config.factories.config_discriminators import (
+    ConfigurationType,
+    instantiate_config,
+)
 from careamics.config.support import SupportedAlgorithm
 from careamics.lightning.modules import CAREModule, N2VModule, get_module_cls
 
@@ -52,7 +54,7 @@ def load_module_from_checkpoint(checkpoint_path: Path) -> CAREamicsModule:
 
 def load_config_from_checkpoint(
     checkpoint_path: Path,
-) -> Configuration[AlgorithmConfig]:
+) -> ConfigurationType:
     """
     Load a CAREamics config from a checkpoint.
 

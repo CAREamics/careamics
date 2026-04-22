@@ -1,5 +1,6 @@
 """Discriminator for NG configurations."""
 
+from collections.abc import Mapping
 from typing import Annotated, Any, Union
 
 from pydantic import Discriminator, Tag, TypeAdapter
@@ -9,6 +10,13 @@ from careamics.config.configuration import Configuration
 from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import SupportedAlgorithm
+
+ConfigurationType = (
+    Configuration[CAREAlgorithm]
+    | Configuration[N2NAlgorithm]
+    | Configuration[N2VAlgorithm]
+)
+Algorithm = CAREAlgorithm | N2NAlgorithm | N2VAlgorithm
 
 
 def _config_discriminator(v: Any) -> SupportedAlgorithm | None:
@@ -28,9 +36,12 @@ def _config_discriminator(v: Any) -> SupportedAlgorithm | None:
     if not isinstance(v, dict):
         return None
     alg_config = v.get("algorithm_config", None)
-    if not isinstance(alg_config, dict):
+    if isinstance(alg_config, Algorithm):
+        return SupportedAlgorithm(alg_config.algorithm)
+    elif isinstance(alg_config, dict):
+        return alg_config.get("algorithm", None)
+    else:
         return None
-    return alg_config.get("algorithm", None)
 
 
 def _algo_discriminator(algo: Any) -> SupportedAlgorithm | None:
@@ -75,7 +86,7 @@ NGAlgo = Annotated[
 # ------------------------ Validators --------------------------
 
 
-def instantiate_config(config: dict[str, Any]) -> NGConfig:
+def instantiate_config(config: Mapping[str, Any]) -> ConfigurationType:
     """
     Instantiate a NG configuration from a configuration dictionary.
 
