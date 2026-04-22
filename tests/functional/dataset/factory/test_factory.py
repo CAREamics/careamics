@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from tests.functional.dataset.utils import assert_expected_pixel_probability
 from tests.utils import (
-    ng_data_config_dict_testing,
+    data_config_dict_testing,
     patch_filter_dict_testing,
 )
 
@@ -27,7 +27,7 @@ def test_filter_background(
 ):
     threshold = 0.5
     axes = "SCYX" if len(patch_size) == 2 else "SCZYX"
-    config_dict = ng_data_config_dict_testing(
+    config_dict = data_config_dict_testing(
         mode="training",
         axes=axes,
         patch_size=patch_size,
@@ -72,7 +72,7 @@ def test_filter_background_w_mask(
     background_prob: float,
 ):
     axes = "SCYX" if len(patch_size) == 2 else "SCZYX"
-    config_dict = ng_data_config_dict_testing(
+    config_dict = data_config_dict_testing(
         mode="training",
         axes=axes,
         patch_size=patch_size,

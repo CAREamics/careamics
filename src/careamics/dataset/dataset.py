@@ -76,12 +76,10 @@ def _patch_size_within_data_shapes(
     bool
         If all the data shapes are greater or equal than the patch size.
     """
-    smaller_than_shapes = [
-        # skip sample and channel dimension in data_shape
-        (np.array(patch_size) <= np.array(data_shape[2:])).all()
-        for data_shape in data_shapes
-    ]
-    return all(smaller_than_shapes)
+    patch_arr = np.array(patch_size)
+    return all(
+        (patch_arr <= np.array(data_shape[2:])).all() for data_shape in data_shapes
+    )
 
 
 def _shapes_all_equal(data_shapes: Sequence[Sequence[int]]) -> bool:
@@ -97,7 +95,9 @@ def _shapes_all_equal(data_shapes: Sequence[Sequence[int]]) -> bool:
     bool
         If all the data shapes are equal.
     """
-    return all(shape == data_shapes[0] for shape in data_shapes)
+    if not data_shapes:
+        return True
+    return all(shape == data_shapes[0] for shape in data_shapes[1:])
 
 
 def _validate_shapes_against_model(
@@ -107,6 +107,12 @@ def _validate_shapes_against_model(
     target_data_shapes: Sequence[Sequence[int]] | None = None,
 ) -> None:
     """Validate that the data shapes are compatible with the model constraints.
+
+    Since patch and tile sizes are already validated in the configuration, this function
+    validates that for whole patching all the data shapes are compatible with the model
+    constraints.
+
+    Finally, it validates the channels if no channel subset is specified.
 
     Parameters
     ----------
@@ -143,35 +149,24 @@ def _validate_shapes_against_model(
                 model_constraints.validate_target_channels(shape[1])
 
 
-def _validate_shapes(
+def _validate_shapes_against_mode(
     data_config: DataConfig,
-    input_extractor: PatchExtractor,
-    target_extractor: PatchExtractor | None = None,
-    model_constraints: ModelConstraints | None = None,
+    data_shapes: Sequence[Sequence[int]],
 ) -> None:
-    """Validate the input and target shapes.
+    """Validate the input shapes against the mode and patching.
 
     Parameters
     ----------
     data_config : DataConfig
         Dataset configuration.
-    input_extractor : PatchExtractor
-        Extractor for input patches.
-    target_extractor : PatchExtractor or None, default=None
-        Extractor for target patches.
-    model_constraints : ModelConstraints, default=None
-        If provided, the dataset will validate that the input spatial shape is
-        compatible with the model constraints.
+    data_shapes : Sequence[Sequence[int]]
+        A sequence of data shapes. They must be in the format SC(Z)YX.
 
     Raises
     ------
     ValueError
-        If the input shapes are not compatible with the model constraints.
+        If the input shapes are not compatible with the mode and patching strategy.
     """
-    data_shapes = [
-        image_stack.data_shape for image_stack in input_extractor.image_stacks
-    ]
-
     # validate shapes according to the mode and patching strategy
     if data_config.mode != Mode.PREDICTING:
         # make sure all the image sizes are greater than the patch size for training
@@ -192,20 +187,6 @@ def _validate_shapes(
                     "size when batch size is greater than 1. Consider using a batch "
                     "size of 1 or use tiling."
                 )
-
-    # validate shapes against model constraints
-    if model_constraints is not None:
-        target_data_shapes = (
-            [image_stack.data_shape for image_stack in target_extractor.image_stacks]
-            if target_extractor is not None
-            else None
-        )
-        _validate_shapes_against_model(
-            data_config=data_config,
-            model_constraints=model_constraints,
-            data_shapes=data_shapes,
-            target_data_shapes=target_data_shapes,
-        )
 
 
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
@@ -251,9 +232,26 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             compatible with the model constraints.
         """
         # sanity checks on the input and output data
-        _validate_shapes(
-            data_config, input_extractor, target_extractor, model_constraints
-        )
+        data_shapes = [
+            image_stack.data_shape for image_stack in input_extractor.image_stacks
+        ]
+        _validate_shapes_against_mode(data_config, data_shapes)
+
+        if model_constraints is not None:
+            target_data_shapes = (
+                [
+                    image_stack.data_shape
+                    for image_stack in target_extractor.image_stacks
+                ]
+                if target_extractor is not None
+                else None
+            )
+            _validate_shapes_against_model(
+                data_config=data_config,
+                model_constraints=model_constraints,
+                data_shapes=data_shapes,
+                target_data_shapes=target_data_shapes,
+            )
 
         self.config = data_config
         self.input_extractor = input_extractor
