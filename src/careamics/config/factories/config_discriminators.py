@@ -54,7 +54,7 @@ def _algo_discriminator(algo: Any) -> SupportedAlgorithm | None:
 
 # ------------------------ Unions --------------------------
 
-NGConfig = Annotated[
+Config = Annotated[
     Union[
         Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
@@ -63,7 +63,7 @@ NGConfig = Annotated[
     Discriminator(_config_discriminator),
 ]
 
-NGAlgo = Annotated[
+AlgorithmConfig = Annotated[
     Union[
         Annotated[N2VAlgorithm, Tag(SupportedAlgorithm.N2V)],
         Annotated[CAREAlgorithm, Tag(SupportedAlgorithm.CARE)],
@@ -75,12 +75,12 @@ NGAlgo = Annotated[
 # ------------------------ Validators --------------------------
 
 
-def instantiate_config(config: dict[str, Any]) -> NGConfig:
+def instantiate_config(config: dict[str, Any]) -> Config:
     """
-    Instantiate a NG configuration from a configuration dictionary.
+    Instantiate a configuration from a configuration dictionary.
 
     This method uses a `TypeAdapter` to validate the configuration and instantiate the
-    correct NG configuration.
+    correct configuration.
 
     Parameters
     ----------
@@ -89,19 +89,19 @@ def instantiate_config(config: dict[str, Any]) -> NGConfig:
 
     Returns
     -------
-    NGConfig
-        Validated configuration as an NGConfig.
+    Config
+        Validated configuration as a Config.
 
     Raises
     ------
     ValueError
         If the configuration is not valid.
     """
-    adapter: TypeAdapter[NGConfig] = TypeAdapter(NGConfig)
+    adapter: TypeAdapter[Config] = TypeAdapter(Config)
     return adapter.validate_python(config)
 
 
-def instantiate_algorithm_config(config: dict[str, Any]) -> NGAlgo:
+def instantiate_algorithm_config(config: dict[str, Any]) -> AlgorithmConfig:
     """
     Instantiate an algorithm configuration from a configuration dictionary.
 
@@ -116,7 +116,7 @@ def instantiate_algorithm_config(config: dict[str, Any]) -> NGAlgo:
 
     Returns
     -------
-    NGAlgo
+    AlgorithmConfig
         Validated configuration as one of the UNetBasedAlgorithm configurations.
 
     Raises
@@ -124,7 +124,7 @@ def instantiate_algorithm_config(config: dict[str, Any]) -> NGAlgo:
     ValueError
         If the configuration is not valid.
     """
-    adapter: TypeAdapter[NGAlgo] = TypeAdapter(NGAlgo)
+    adapter: TypeAdapter[AlgorithmConfig] = TypeAdapter(AlgorithmConfig)
     return adapter.validate_python(config)
 
 
