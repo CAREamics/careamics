@@ -8,7 +8,6 @@ __all__ = [
 ]
 
 
-from .n2v_manipulate_config import N2VManipulateConfig
 from .transform_unions import (
     SPATIAL_TRANSFORMS_UNION,
 )

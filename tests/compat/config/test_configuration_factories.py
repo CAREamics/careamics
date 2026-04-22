@@ -25,8 +25,8 @@ from careamics.config import (
     N2VAlgorithm,
     PN2VAlgorithm,
 )
+from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.augmentations import (
-    N2VManipulateConfig,
     XYFlipConfig,
     XYRandomRotate90Config,
 )
