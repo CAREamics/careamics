@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from careamics.compat.transforms.n2v_manipulate import N2VManipulate as N2VManipulateNpy
-from careamics.config.augmentations import N2VManipulateConfig
+from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation
 from careamics.lightning.modules.n2v_utils import N2VManipulate
 

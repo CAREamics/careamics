@@ -5,8 +5,8 @@ from typing import Annotated, Literal, Self
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import AfterValidator, ConfigDict, model_validator
 
+from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.architectures import UNetConfig
-from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
 from careamics.config.validators import (

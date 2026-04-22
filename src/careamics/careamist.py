@@ -563,6 +563,7 @@ class CAREamist:
                 wandb.run.config.update(
                     {"normalization": norm_stats}, allow_val_change=True
                 )
+                wandb.finish()
                 break
 
     def _build_predict_datamodule(
