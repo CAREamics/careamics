@@ -645,25 +645,43 @@ class CAREamist:
             loading=loading,
         )
 
-    def _get_default_ckpt(self) -> Literal["best", "last"]:
+    def _get_default_ckpt(self, checkpoint: str | Path | None) -> str | Path:
         """Get default checkpoint to use for prediction based on the algorithm.
 
         Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
         based on validation loss, therefore this method returns "last" for these
         algorithms and "best" for others.
 
+        Parameters
+        ----------
+        checkpoint : str | Path | None
+            The checkpoint specified for prediction. If not None, this method will
+            return the specified checkpoint instead of the default.
+
         Returns
         -------
-        {"best", "last"}
-            The default checkpoint to use for prediction, either "best" or "last".
+        str | Path
+            The checkpoint to use for prediction, either the specified checkpoint or the
+            default based on the algorithm.
         """
         if self.config.algorithm_config.algorithm in [
             SupportedAlgorithm.N2V,
             SupportedAlgorithm.N2N,
         ]:
-            return "last"
-        else:
-            return "best"
+            if checkpoint == "best":
+                raise ValueError(
+                    f"{self.config.algorithm_config.get_algorithm_friendly_name()} does"
+                    f" not have a well-defined best checkpoint based on validation "
+                    f"loss. Please specify an explicit checkpoint path."
+                )
+            elif checkpoint is None:
+                return "last"
+
+        if checkpoint is not None:
+            return checkpoint
+
+        # for all other algorithms, if checkpoint is None, choose "best"
+        return "best"
 
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
@@ -793,8 +811,7 @@ class CAREamist:
             loading=loading,
         )
 
-        if checkpoint is None:
-            checkpoint = self._get_default_ckpt()
+        checkpoint = self._get_default_ckpt(checkpoint)
 
         predictions: list[ImageRegionData] = self.trainer.predict(
             model=self.model, datamodule=datamodule, ckpt_path=checkpoint
@@ -998,8 +1015,7 @@ class CAREamist:
 
         self.prediction_writer.enable_writing(True)
 
-        if checkpoint is None:
-            checkpoint = self._get_default_ckpt()
+        checkpoint = self._get_default_ckpt(checkpoint)
 
         try:
             datamodule = self._build_predict_datamodule(
