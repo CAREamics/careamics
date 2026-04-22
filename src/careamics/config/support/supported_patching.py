@@ -1,9 +1,9 @@
 """Patching strategies supported by Careamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedPatching(str, BaseEnum):
+class SupportedPatching(StrEnum):
     """Patching strategies supported by Careamics."""
 
     FIXED_RANDOM = "fixed_random"

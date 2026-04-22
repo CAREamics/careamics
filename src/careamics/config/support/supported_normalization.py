@@ -1,9 +1,9 @@
 """Supported normalization strategies for CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedNormalization(str, BaseEnum):
+class SupportedNormalization(StrEnum):
     """Normalization strategies supported by Careamics."""
 
     MEAN_STD = "mean_std"
