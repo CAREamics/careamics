@@ -1,7 +1,7 @@
 import pytest
 
 from careamics.compat.transforms.n2v_manipulate import N2VManipulate
-from careamics.config.augmentations import N2VManipulateConfig
+from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 
 
 def test_odd_roi_and_mask():
@@ -20,7 +20,7 @@ def test_odd_roi_and_mask():
 
 
 def test_comptatibility_with_transform():
-    """Test that the model allows instantiating a transform."""
+    """Test that the model allows instantiating the N2V manipulate class."""
     model = N2VManipulateConfig(roi_size=3, struct_mask_span=7, strategy="median")
 
     # instantiate transform
