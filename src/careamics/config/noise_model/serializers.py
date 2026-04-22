@@ -8,8 +8,7 @@ import numpy as np
 import torch
 
 
-# TODO move to a lvae specific utils?
-def _array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
+def array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
     """Convert an array to a list and then to a JSON string.
 
     Parameters
@@ -27,7 +26,7 @@ def _array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
     return json.dumps(arr.tolist())
 
 
-def _to_numpy(lst: Union[str, list]) -> np.ndarray:
+def to_numpy(lst: Union[str, list]) -> np.ndarray:
     """Deserialize a list or string representing a list into `np.ndarray`.
 
     Parameters
@@ -45,7 +44,7 @@ def _to_numpy(lst: Union[str, list]) -> np.ndarray:
     return np.asarray(lst)
 
 
-def _to_torch(lst: Union[str, list]) -> torch.Tensor:
+def to_torch(lst: Union[str, list]) -> torch.Tensor:
     """Deserialize list or string representing a list into `torch.Tensor`.
 
     Parameters

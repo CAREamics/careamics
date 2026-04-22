@@ -229,17 +229,17 @@ class TrainDataModule(L.LightningDataModule):
             Path(train_data) if isinstance(train_data, str) else train_data
         )
 
-        self.val_data: Union[Path, NDArray] = (
+        self.val_data: Union[Path, NDArray, None] = (
             Path(val_data) if isinstance(val_data, str) else val_data
         )
 
-        self.train_data_target: Union[Path, NDArray] = (
+        self.train_data_target: Union[Path, NDArray, None] = (
             Path(train_data_target)
             if isinstance(train_data_target, str)
             else train_data_target
         )
 
-        self.val_data_target: Union[Path, NDArray] = (
+        self.val_data_target: Union[Path, NDArray, None] = (
             Path(val_data_target)
             if isinstance(val_data_target, str)
             else val_data_target
