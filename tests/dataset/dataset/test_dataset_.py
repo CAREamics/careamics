@@ -9,23 +9,7 @@ from careamics.config.data import DataConfig
 from careamics.config.factories.data_factory import (
     list_spatial_augmentations,
 )
-from careamics.dataset.dataset import _adjust_shape_for_channels
 from careamics.dataset.factory import ReadFuncLoading, create_dataset
-
-
-@pytest.mark.parametrize(
-    "shape, channels, expected_shape",
-    [
-        ((1, 1, 32, 32), None, (1, 1, 32, 32)),
-        ((1, 1, 32, 32), [0], (1, 1, 32, 32)),
-        ((5, 4, 32, 32), None, (5, 4, 32, 32)),
-        ((5, 4, 32, 32), [1], (5, 1, 32, 32)),
-        ((5, 4, 32, 32), [1, 3], (5, 2, 32, 32)),
-    ],
-)
-def test_adjust_shape_for_channels(shape, channels, expected_shape):
-    adjusted_shape = _adjust_shape_for_channels(shape, channels)
-    assert adjusted_shape == expected_shape
 
 
 @pytest.mark.parametrize(

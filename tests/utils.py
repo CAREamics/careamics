@@ -79,7 +79,7 @@ def patch_filter_dict_testing(
             raise ValueError(f"Invalid patch filter name: {name}")
 
 
-def ng_data_config_dict_testing(
+def data_config_dict_testing(
     mode: str = DEFAULT_MODE,
     data_type: str = DEFAULT_DATA_TYPE,
     axes: str = DEFAULT_AXES,
@@ -115,7 +115,7 @@ def ng_data_config_dict_testing(
     }
 
 
-def unet_ng_algo_dict_testing(
+def unet_algo_dict_testing(
     # algorithm
     algorithm: str = DEFAULT_ALGORITHM,
     dims: int = DEFAULT_DIMS,
@@ -146,7 +146,7 @@ def unet_ng_algo_dict_testing(
 
 
 # TODO not compatible with n2v2, structn2v, needs extension to N2VManipulateConfig
-def unet_ng_config_dict_testing(
+def unet_config_dict_testing(
     experiment_name: str = "test_experiment",
     # algorithm
     algorithm: str = DEFAULT_ALGORITHM,
@@ -169,10 +169,10 @@ def unet_ng_config_dict_testing(
 
     return {
         "experiment_name": experiment_name,
-        "algorithm_config": unet_ng_algo_dict_testing(
+        "algorithm_config": unet_algo_dict_testing(
             algorithm, dims, n_channels_in, n_channels_out, **(model_kwargs or {})
         ),
-        "data_config": ng_data_config_dict_testing(
+        "data_config": data_config_dict_testing(
             mode, data_type, axes, patching, patch_size, **(data_kwargs or {})
         ),
     }

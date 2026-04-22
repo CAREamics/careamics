@@ -17,7 +17,7 @@ from tests.unit.models.constraints import (
     _compatible_shapes,
     _incompatible_shapes,
 )
-from tests.utils import unet_ng_config_dict_testing
+from tests.utils import unet_config_dict_testing
 
 # algorithms and their expected config classes for testing
 ALGORITHMS = ["care", "n2n", "n2v"]
@@ -29,7 +29,7 @@ ALGORITHMS_CONFIGS = [Configuration, Configuration, N2VConfiguration]
 
 def test_default_unet_config():
     """Test that the default Configuration can be created."""
-    unet_config_dict = unet_ng_config_dict_testing()
+    unet_config_dict = unet_config_dict_testing()
     instantiate_config(unet_config_dict)
 
 
@@ -38,7 +38,7 @@ def test_default_unet_config():
 )
 def test_unet_configs(algorithm, config_class):
     """Test that an Configuration can be created for each UNet-based algorithm."""
-    unet_config_dict = unet_ng_config_dict_testing(algorithm=algorithm)
+    unet_config_dict = unet_config_dict_testing(algorithm=algorithm)
     cfg = instantiate_config(unet_config_dict)
     assert isinstance(cfg, config_class)
 
@@ -69,7 +69,7 @@ def test_unet_configs(algorithm, config_class):
 def test_experiment_name(name, exp_error):
     """Test the validation of the experiment name."""
     with exp_error:
-        unet_config_dict = unet_ng_config_dict_testing(experiment_name=name)
+        unet_config_dict = unet_config_dict_testing(experiment_name=name)
         instantiate_config(unet_config_dict)
 
 
@@ -87,7 +87,7 @@ def test_experiment_name(name, exp_error):
 def test_validate_3D(axes, conv_dims, exp_error):
     """Test that validate_3D raises an error when data and model dimensionality
     mismatch."""
-    unet_config_dict = unet_ng_config_dict_testing(
+    unet_config_dict = unet_config_dict_testing(
         axes=axes,
         model_kwargs={"conv_dims": conv_dims},
     )
@@ -148,7 +148,7 @@ def test_validate_patch_against_model(mode, patching, patch_size, exp_error):
     not compatible with the model constraints, and does not raise an error when it is
     compatible or when patching is whole sample (no patch size).
     """
-    unet_config_dict = unet_ng_config_dict_testing(
+    unet_config_dict = unet_config_dict_testing(
         algorithm="care",  # avoid pixel manipulation validation error in N2V
         mode=mode,
         patching=patching,
@@ -182,7 +182,7 @@ def test_validate_channels_against_inputs(channels, n_input, exp_error):
     channels in the data does not match the model input channels, and does not raise an
     error when they match or when there are no channels specified in the data.
     """
-    unet_config_dict = unet_ng_config_dict_testing(
+    unet_config_dict = unet_config_dict_testing(
         algorithm="care",  # avoid validation error from mismathcing channels in N2V
         axes="CYX",
         data_kwargs={"channels": channels} if channels is not None else {},
@@ -216,7 +216,7 @@ def test_validate_norm_against_channels(norm, length, n_input, exp_error):
     specific unit tests relative to the normalization validation themselves. Same for
     `per_channel=False`.
     """
-    unet_config_dict = unet_ng_config_dict_testing(
+    unet_config_dict = unet_config_dict_testing(
         axes="CYX",
         n_channels_in=n_input,
         n_channels_out=n_input,
