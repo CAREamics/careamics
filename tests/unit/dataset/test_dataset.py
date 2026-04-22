@@ -1,7 +1,6 @@
 import itertools
 from contextlib import nullcontext
 
-import numpy as np
 import pytest
 
 from careamics.config.data.data_config import DataConfig
@@ -12,19 +11,9 @@ from careamics.dataset.dataset import (
     _validate_shapes_against_mode,
     _validate_shapes_against_model,
 )
-from careamics.dataset.image_stack import InMemoryImageStack
-from careamics.dataset.patch_extractor import PatchExtractor
 from tests.utils import data_config_dict_testing
 
 # ------------------------ Test utilities --------------------------
-
-
-def _make_extractor(*shapes: tuple[int, ...]) -> PatchExtractor:
-    """Build a PatchExtractor from SC(Z)YX shapes."""
-    stacks = [
-        InMemoryImageStack(source="array", data=np.zeros(shape)) for shape in shapes
-    ]
-    return PatchExtractor(stacks)
 
 
 class _AlwaysValid:
