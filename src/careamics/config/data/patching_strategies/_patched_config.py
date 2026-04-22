@@ -6,8 +6,8 @@ from typing import Annotated
 from pydantic import AfterValidator, BaseModel, Field
 
 
-def is_squared_in_yx(patch_size: Sequence[int]) -> bool:
-    """Check if the patch size is squared in YX.
+def is_squared_in_yx(patch_size: Sequence[int]) -> Sequence[int]:
+    """Validate that the patch size is squared in YX.
 
     Parameters
     ----------
@@ -16,10 +16,16 @@ def is_squared_in_yx(patch_size: Sequence[int]) -> bool:
 
     Returns
     -------
-    bool
-        True if the patch size is squared in YX, False otherwise.
+    Sequence[int]
+        The input patch size if it is squared in YX.
     """
-    return patch_size[-1] == patch_size[-2]
+    if patch_size[-1] != patch_size[-2]:
+        raise ValueError(
+            f"Patch size must be squared in YX, but got sizes {patch_size[-1]} and "
+            f"{patch_size[-2]}."
+        )
+
+    return patch_size
 
 
 class _PatchedConfig(BaseModel):
