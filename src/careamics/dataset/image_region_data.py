@@ -43,7 +43,7 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     """Source of the data, e.g. file path, zarr URI, or "array" for in-memory arrays."""
 
     data_shape: Sequence[int]
-    """Shape of the original image in SC(Z)YX format and order. If channels are
+    """Shape of the image in SC(Z)YX format and order. If channels are
     subsetted, the channel dimension corresponds to the number of requested channels."""
 
     dtype: str  # dtype should be str for collate
