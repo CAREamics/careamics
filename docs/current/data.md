@@ -67,6 +67,7 @@ organization, we defined a flexible way to specify which data should be used.
 
 There are three ways to specify which array(s) should be used for training or
 prediction:
+
 - Pointing to a Zarr file (`path/to/file.zarr`)
 - Pointing to a single Zarr group using a URI (`file://path/to/file.zarr/group_name`)
 - Pointing to a single Zarr array using a URI (`file://path/to/file.zarr/group_name/array_name`)
@@ -115,20 +116,20 @@ CAREamics allows reading formats not natively supported using two mechanisms:
 - Simple loading using a python function. All files with the expected file extension will be loaded in memory.
 - Advanced loading using a custom `ImageStack` implementation, useful for more complex formats such as chunked or memory-mapped ones.
 
-### Read Function
+### Custom Read Function
 
 Any function that loads image data from a path and outputs a numpy array can be used.
 
 This example will show how data saved in the `.npy` format can be loaded for training and prediction. 
 
-First, we will save some toy data and then we will create CAREamics configuration object.
+First, we will save some toy data and create a CAREamics configuration object.
 
 ```python title="Custom data configuration"
 --8<-- "current/data_custom_read_func.py:data-config"
 ```
 
 1. The `data_type` must be set to `"custom"`.
-2. The axes is that of each file.
+2. The axes of each file.
 
 To train and predict on the data we need to define a function to read the data that matches the protocol described by [`ReadFunc`][careamics.file_io.ReadFunc]. That is, the first argument MUST be named `file_path` and the return type must be a numpy array. Here we just make a simple wrapper around `numpy.load` to have the correct function signature.
 
@@ -159,4 +160,46 @@ Prediction works very similarly to training. [`CAREamist.predict`][careamics.CAR
  'data/image_4.npy']
 ```
 
-### `ImageStack` Loader
+### Custom Image Stack & Loader
+
+Training on custom file format that is memory-mapped or chunked, enabling not all of the data to be loaded into memory at one time, is more complex. It involves defining a class  that follows the [ImageStack][careamics.dataset.image_stack.ImageStack] protocol to represent the image data and a function that follows the [ImageStackLoader][careamics.dataset.image_stack_loader] protocol to load those image stacks.
+
+This example will demonstrated how data from a HDF5 file can be loaded for training and prediction.
+
+First, we will save some toy data and create a CAREamics configuration object.
+
+```python title="Custom data configuration"
+--8<-- "current/data_custom_image_stack.py:data-config"
+```
+
+1. The `data_type` must be set to `"custom"`.
+2. The axes of each HDF5 dataset.
+
+Now we will define our custom `HDF5ImageStack` and a `load_hd5fs` function. See the tutorials section for a more in depth explanation of how to create an image stack class.
+
+To adhere to the [ImageStackLoader][careamics.dataset.image_stack_loader] protocol the `load_hdf5s` function MUST have a `source` argument and an `axes` argument. The `source` argument can have any type, and the `axes` argument Must be a string - a subset of `"SCTZYX"`. The return type MUST be a sequence of `ImageStack` objects. Additional arguments are allowed.
+
+```python title="Creating a Custom Image Stack & Loader"
+--8<-- "current/data_custom_image_stack.py:image-stack-loader"
+```
+
+1. The source property is used track the data, and will be returned alongside the predictions. It should be unique for each image stack.
+2. Adheres [ImageStackLoader][careamics.dataset.image_stack_loader] protocol call signature.
+
+Now training and prediction is relatively simple, we simply pass our loading function to [`CAREamist.train`][careamics.CAREamist.train] and [`CAREamist.predict`][careamics.CAREamist.predict]. The loading function needs to be wrapped in the [ImageStackLoading][careamics.ImageStackLoading] dataclass, where additional arguments to the function can also be included, if required.
+
+```python title="Training and Prediction"
+--8<-- "current/data_custom_image_stack.py:train-pred"
+```
+
+1. The input type corresponds to the `source` type in our loading function, a `h5py.File` object.
+2. Our loading function wrapped in the [ImageStackLoading][careamics.ImageStackLoading] dataclass.
+3. These will match the format we that defined in `HDF5ImageStack.source`.
+
+```python title="Output"
+['data/dataset.h5#/image_0',
+ 'data/dataset.h5#/image_1',
+ 'data/dataset.h5#/image_2',
+ 'data/dataset.h5#/image_3',
+ 'data/dataset.h5#/image_4']
+```
