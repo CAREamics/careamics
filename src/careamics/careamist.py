@@ -11,7 +11,7 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
-from .config.support import SupportedLogger
+from .config.support import SupportedAlgorithm, SupportedLogger
 from .config.utils.configuration_io import load_configuration
 from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .dataset.image_region_data import ImageRegionData
@@ -645,6 +645,26 @@ class CAREamist:
             loading=loading,
         )
 
+    def _get_default_ckpt(self) -> Literal["best", "last"]:
+        """Get default checkpoint to use for prediction based on the algorithm.
+
+        Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
+        based on validation loss, therefore this method returns "last" for these
+        algorithms and "best" for others.
+
+        Returns
+        -------
+        {"best", "last"}
+            The default checkpoint to use for prediction, either "best" or "last".
+        """
+        if self.config.algorithm_config.algorithm in [
+            SupportedAlgorithm.N2V,
+            SupportedAlgorithm.N2N,
+        ]:
+            return "last"
+        else:
+            return "best"
+
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
     def predict(  # numpydoc ignore=GL08
@@ -662,6 +682,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
+        checkpoint: str | Path | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -680,6 +701,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
+        checkpoint: str | Path | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
 
     def predict(
@@ -697,6 +719,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: Loading = None,
+        checkpoint: str | Path | None = None,
     ) -> tuple[list[NDArray], list[str]]:
         """
         Predict on data and return the predictions.
@@ -742,6 +765,10 @@ class CAREamist:
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
+        checkpoint : str or Path, optional
+            Checkpoint to load before making predictions. Can be "best", "last", or a
+            path to a specific checkpoint. If None, uses the last checkpoint from
+            training Noise2Void or Noise2Noise models, otherwise the last checkpoint.
 
         Returns
         -------
@@ -766,12 +793,17 @@ class CAREamist:
             loading=loading,
         )
 
+        if checkpoint is None:
+            checkpoint = self._get_default_ckpt()
+
         predictions: list[ImageRegionData] = self.trainer.predict(
-            model=self.model, datamodule=datamodule
+            model=self.model, datamodule=datamodule, ckpt_path=checkpoint
         )  # type: ignore[assignment]
         tiled = tile_size is not None
         predictions_output, sources = convert_prediction(
-            predictions, tiled=tiled, restore_shape=True
+            predictions,
+            tiled=tiled,
+            restore_shape=True,
         )
 
         return predictions_output, sources
@@ -795,6 +827,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
+        checkpoint: str | Path | None = None,
         # WRITE OPTIONS
         write_type: Literal["tiff", "zarr", "custom"] = "tiff",
         write_extension: str | None = None,
@@ -820,6 +853,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
+        checkpoint: str | Path | None = None,
         # WRITE OPTIONS
         write_type: Literal["tiff", "zarr", "custom"] = "tiff",
         write_extension: str | None = None,
@@ -844,6 +878,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: Loading = None,
+        checkpoint: str | Path | None = None,
         # WRITE OPTIONS
         write_type: Literal["tiff", "zarr", "custom"] = "tiff",
         write_extension: str | None = None,
@@ -906,6 +941,10 @@ class CAREamist:
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
+        checkpoint : str or Path, default=None
+            Checkpoint to load before making predictions. Can be "best", "last", or a
+            path to a specific checkpoint. If None, uses the last checkpoint from
+            training Noise2Void or Noise2Noise models, otherwise the last checkpoint.
         write_type : {"tiff", "zarr", "custom"}, default="tiff"
             The data type to save as, includes custom.
         write_extension : str, optional
@@ -959,6 +998,9 @@ class CAREamist:
 
         self.prediction_writer.enable_writing(True)
 
+        if checkpoint is None:
+            checkpoint = self._get_default_ckpt()
+
         try:
             datamodule = self._build_predict_datamodule(
                 pred_data,
@@ -975,7 +1017,10 @@ class CAREamist:
             )
 
             self.trainer.predict(
-                model=self.model, datamodule=datamodule, return_predictions=False
+                model=self.model,
+                datamodule=datamodule,
+                return_predictions=False,
+                ckpt_path=checkpoint,
             )
 
         finally:

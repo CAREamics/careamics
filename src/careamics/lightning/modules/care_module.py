@@ -174,7 +174,7 @@ class CAREModule(L.LightningModule):
         self,
         batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
         batch_idx: int,
-        load_best_ckpt: bool = False,
+        load_best_ckpt: bool = True,
     ) -> ImageRegionData:
         """Prediction step for CARE module.
 
@@ -184,7 +184,7 @@ class CAREModule(L.LightningModule):
             A tuple containing the input data and optionally the target data.
         batch_idx : int
             The index of the current batch in the prediction loop.
-        load_best_ckpt : bool, default=False
+        load_best_ckpt : bool, default=True
             Whether to load the best checkpoint before making predictions.
 
         Returns
