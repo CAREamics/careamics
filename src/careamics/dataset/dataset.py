@@ -232,19 +232,12 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             compatible with the model constraints.
         """
         # sanity checks on the input and output data
-        data_shapes = [
-            image_stack.data_shape for image_stack in input_extractor.image_stacks
-        ]
+        data_shapes = input_extractor.shapes
         _validate_shapes_against_mode(data_config, data_shapes)
 
         if model_constraints is not None:
             target_data_shapes = (
-                [
-                    image_stack.data_shape
-                    for image_stack in target_extractor.image_stacks
-                ]
-                if target_extractor is not None
-                else None
+                target_extractor.shapes if target_extractor is not None else None
             )
             _validate_shapes_against_model(
                 data_config=data_config,
