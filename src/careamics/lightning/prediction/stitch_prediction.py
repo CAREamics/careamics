@@ -106,24 +106,20 @@ def stitch_single_prediction(
     data_shape = tiles[0].data_shape
     predicted_image = np.zeros(data_shape, dtype=np.float32)
 
-    if "S" in tiles[0].axes:
-        tiles_by_sample = group_tiles_by_key(tiles, key="sample_idx")
-        for sample_idx in tiles_by_sample.keys():
-            sample_tiles = tiles_by_sample[sample_idx]
-            stitched_sample = stitch_single_sample(sample_tiles)
+    # stitch each sample separately
+    tiles_by_sample = group_tiles_by_key(tiles, key="sample_idx")
+    for sample_idx in tiles_by_sample.keys():
+        sample_tiles = tiles_by_sample[sample_idx]
+        stitched_sample = stitch_single_sample(sample_tiles)
 
-            # compute sample slice
-            sample_slice = slice(
-                sample_idx,
-                sample_idx + 1,
-            )
+        # compute sample slice
+        sample_slice = slice(
+            sample_idx,
+            sample_idx + 1,
+        )
 
-            # insert stitched sample into predicted image
-            predicted_image[sample_slice] = stitched_sample.astype(np.float32)
-    else:
-        # stitch as a single sample
-        # predicted_image has singleton sample dimension
-        predicted_image[0] = stitch_single_sample(tiles)
+        # insert stitched sample into predicted image
+        predicted_image[sample_slice] = stitched_sample.astype(np.float32)
 
     if restore_shape:
         predicted_image = restore_array(
