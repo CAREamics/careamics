@@ -9,7 +9,6 @@ except PackageNotFoundError:
 
 __all__ = [
     "CAREamist",
-    # TODO:
     "ImageStackLoading",
     "ReadFuncLoading",
 ]

@@ -22,7 +22,7 @@ data is too large to fit in memory, CAREamics will train by loading files from d
 one at a time and cycle through them to extract patches. While slower, this ensure that
 training is performed over the entire set of files.
 
-To train on TIFF files, you can either passa single path to a TIFF, a list of paths to
+To train on TIFF files, you can either pass a single path to a TIFF, a list of paths to
 TIFF files, or a path to a directory containing TIFF files. In the latter case, all
 TIFF files in the directory will be used for training.
 
@@ -112,12 +112,51 @@ levels, and showcase various ways to specify which array should be used for trai
 
 CAREamics allows reading formats not natively supported using two mechanisms:
 
-- Simple loading using a python function. If passing a dictionary, all files with the
-expectected file extension will be loaded in memory.
-- Advanced loading using a custom `ImageStack` implementation, useful for more complex
-formats such as chunked or memory-mapped ones.
+- Simple loading using a python function. All files with the expected file extension will be loaded in memory.
+- Advanced loading using a custom `ImageStack` implementation, useful for more complex formats such as chunked or memory-mapped ones.
 
-(soon)
+### Read Function
 
-### Read functions
-### `ImageStack` loader
+Any function that loads image data from a path and outputs a numpy array can be used.
+
+This example will show how data saved in the `.npy` format can be loaded for training and prediction. 
+
+First, we will save some toy data and then we will create CAREamics configuration object.
+
+```python title="Custom data configuration"
+--8<-- "current/data_custom_read_func.py:data-config"
+```
+
+1. The `data_type` must be set to `"custom"`.
+2. The axes is that of each file.
+
+To train and predict on the data we need to define a function to read the data that matches the protocol described by [`ReadFunc`][careamics.file_io.ReadFunc]. That is, the first argument MUST be named `file_path` and the return type must be a numpy array. Here we just make a simple wrapper around `numpy.load` to have the correct function signature.
+
+For training with [`CAREamist`][careamics.careamist.CAREamist] we pass our custom loading function to the `loading` argument of [`CAREamist.train`][careamics.CAREamist.train], it needs to be contained in the [`ReadFuncLoading`][careamics.ReadFuncLoading] dataclass.
+
+```python title="Custom data training"
+--8<-- "current/data_custom_read_func.py:training"
+```
+
+1. The input works the same as for tiff, it can be a single file, a list of files or a directory. Here we demonstrate passing a directory.
+2. The arguments for custom loading are wrapped in a data class [`ReadFuncLoading`][careamics.ReadFuncLoading].
+3. Our custom read function.
+4. An extension filter, it uses glob-style pattern matching. This allows us to pass a directory as input.
+
+Prediction works very similarly to training. [`CAREamist.predict`][careamics.CAREamist.predict] outputs the source of the predictions which we can verify are the paths of our data.
+
+```python title="Custom data prediction"
+--8<-- "current/data_custom_read_func.py:prediction"
+```
+
+1. The same arguments can also be passed to [`CAREamist.predict_to_disk`][careamics.CAREamist.predict_to_disk].
+
+```python title="Output"
+['data/image_0.npy',
+ 'data/image_1.npy',
+ 'data/image_2.npy',
+ 'data/image_3.npy',
+ 'data/image_4.npy']
+```
+
+### `ImageStack` Loader
