@@ -1,9 +1,9 @@
 """Pixel manipulation methods supported by CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedPixelManipulation(str, BaseEnum):
+class SupportedPixelManipulation(StrEnum):
     """Supported Noise2Void pixel manipulations.
 
     - Uniform: Replace masked pixel value by a (uniformly) randomly selected neighbor

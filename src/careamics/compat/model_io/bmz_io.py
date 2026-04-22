@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import Union
+from typing import Union, cast
 
 import numpy as np
 from bioimageio.core import load_model_description, test_model
@@ -18,6 +18,7 @@ from careamics.compat.config.utils.configuration_io import (
     save_configuration,
 )
 from careamics.compat.lightning.lightning_module import FCNModule
+from careamics.config import UNetBasedAlgorithm, VAEBasedAlgorithm
 from careamics.config.support import SupportedArchitecture
 from careamics.lightning.modules.vae_lightning_module import VAEModule
 from careamics.utils.version import get_careamics_version
@@ -242,9 +243,13 @@ def load_from_bmz(
 
     # create careamics lightning module
     if config.algorithm_config.model.architecture == SupportedArchitecture.UNET:
-        model = FCNModule(algorithm_config=config.algorithm_config)
+        model = FCNModule(
+            algorithm_config=cast(UNetBasedAlgorithm, config.algorithm_config)
+        )
     elif config.algorithm_config.model.architecture == SupportedArchitecture.LVAE:
-        model = VAEModule(algorithm_config=config.algorithm_config)
+        model = VAEModule(
+            algorithm_config=cast(VAEBasedAlgorithm, config.algorithm_config)
+        )
     else:
         raise ValueError(
             f"Unsupported architecture {config.algorithm_config.model.architecture}"
