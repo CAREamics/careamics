@@ -1,38 +1,12 @@
 """Utilities for channel slicing and patch padding."""
 
 from collections.abc import Sequence
-from types import EllipsisType
 from typing import TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
 
 T = TypeVar("T", bound=np.generic)
-
-
-def channel_slice(
-    channels: Sequence[int] | None,
-) -> EllipsisType | Sequence[int]:
-    """Create a slice or sequence for indexing channels while preserving dimensions.
-
-    Parameters
-    ----------
-    channels : Sequence[int] | None
-        The channel indices to select, or None to select all channels.
-
-    Returns
-    -------
-    EllipsisType | Sequence[int]
-        An indexing object that can be used to index the channel dimension while
-        preserving it.
-    """
-    if channels is None:
-        return ...
-
-    if len(channels) == 0:
-        raise ValueError("Channel index sequence cannot be empty.")
-
-    return channels
 
 
 def pad_patch(

@@ -7,8 +7,7 @@ import zarr
 from numpy.typing import NDArray
 
 from careamics.dataset.image_stack import ZarrImageStack
-from careamics.dataset.image_stack.image_utils import channel_slice
-from careamics.utils.reshape_array import reshape_array
+from careamics.utils.reshape_array import channel_slice, reshape_array
 
 # TODO test _reshaped_data_shape
 
@@ -137,7 +136,7 @@ def test_extract_channel_error(
     tmp_path: Path,
     shape: tuple[int, ...],
     axes: str,
-    channels: int,
+    channels: Sequence[int],
 ):
     # reference data to compare against, it is reshaped using careamics reshape_array
     data = np.arange(np.prod(shape)).reshape(shape)

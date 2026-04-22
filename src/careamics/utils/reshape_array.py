@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from types import EllipsisType
 
 import numpy as np
 from numpy.typing import NDArray
@@ -167,6 +168,59 @@ class AxesTransform:
             self.original_axes.index(a) for a in _REF_ORDER if a in self.original_axes
         ]
 
+    def calc_original_T_idx(self, sample_idx: int) -> int:
+        """Calculate the original index for the `T` dimension given `sample_idx`.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Transformed sample index.
+
+        Returns
+        -------
+        int
+            Index along the T axis.
+        """
+        if "T" not in self.original_axes:
+            raise ValueError("No 'T' axis specified in original data axes.")
+        axis_idx = self.original_axes.index("T")
+        dim = self.original_shape[axis_idx]
+
+        # new S' = S*T
+        # T_idx = S_idx' // T_size
+        # S_idx = S_idx' % T_size
+        # - floor divide finds the row
+        # - modulus finds how far along the row i.e. the column
+        return sample_idx % dim
+
+    def calc_original_S_idx(self, sample_idx: int) -> int:
+        """Calculate the original index for the `S` dimension given `sample_idx`.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Transformed sample index.
+
+        Returns
+        -------
+        int
+            Index along the S axis.
+        """
+        if "S" not in self.original_axes:
+            raise ValueError("No 'S' axis specified in original data axes.")
+        if "T" in self.original_axes:
+            T_axis_idx = self.original_axes.index("T")
+            T_dim = self.original_shape[T_axis_idx]
+
+            # new S' = S*T
+            # T_idx = S_idx' // T_size
+            # S_idx = S_idx' % T_size
+            # - floor divide finds the row
+            # - modulus finds how far along the row i.e. the column
+            return sample_idx // T_dim
+        else:
+            return sample_idx
+
 
 def reshape_array(
     array: NDArray,
@@ -204,6 +258,31 @@ def reshape_array(
         array = np.expand_dims(array, 1)
 
     return array
+
+
+def reshape_patch(
+    patch: NDArray,
+    original_axes: str,
+) -> NDArray:
+    """Reshape patch from arbitrary axes order to `C(Z)YX`.
+
+    Parameters
+    ----------
+    patch : numpy.ndarray
+        Input patch, patches do not include the `"S"` or `"T"` dimension.
+    original_axes : str
+        Axes string that describes the original dimensions of the data the patch was
+        sampled from, (e.g. SYXC).
+
+    Returns
+    -------
+    numpy.ndarray
+        Patch reshaped to `C(Z)YX`.
+    """
+    # remove S and T from axes to get patch axes
+    patch_axes = original_axes.replace("S", "").replace("T", "")
+    patch_data = reshape_array(patch, patch_axes)[0]  # remove first sample dim
+    return patch_data
 
 
 def restore_array(
@@ -382,3 +461,114 @@ def get_original_stitch_slices(
     ]
 
     return tuple(stitch_slices)
+
+
+# TODO: unify with get_original_stitch_slices
+def get_patch_slices(
+    original_axes: str,
+    original_shape: Sequence[int],
+    sample_idx: int,
+    channels: Sequence[int] | None,
+    coords: Sequence[int],
+    patch_size: Sequence[int],
+) -> tuple[slice | int | Sequence[int] | EllipsisType, ...]:
+    """Get slices to extract patch from an array.
+
+    The argument `original_axes` describes the dimension order of the array.
+
+    `sample_idx is expressed with respect to the transformed space where the `"S"` and
+    `"T"` dimensions are flattened together, if both or either are present.
+
+    Parameters
+    ----------
+    original_axes : str
+        Original axes string of the full data.
+    original_shape : Sequence[int]
+        Original shape of the full data.
+    sample_idx : int
+        Index of the sample in transformed space (S axis) to stitch back.
+    channels : sequence of int or None
+        Channel indices to extract. If `None`, all channels will be extracted.
+    coords : Sequence[int]
+        Starting coordinates of the patch in the original spatial axes (Y, X and Z if
+        present).
+    patch_size : Sequence[int]
+        Size of the patch in the spatial axes (Y, X and Z if present).
+
+    Returns
+    -------
+    tuple[slice | int | Sequence[int] | EllipsisType, ...]
+        Slices to index into the original array to extract the patch.
+    """
+    transform = AxesTransform(original_axes, tuple(original_shape))
+    transformed_shape = transform.transformed_shape
+    # original axes assumed to be any subset of STCZYX (containing YX), in any order
+    # arguments must be transformed to index data in original axes order
+    # to do this: loop through original axes and append correct index/slice
+    #   for each case: STCZYX
+    #   Note: if any axis is not present in original_axes it is skipped.
+
+    # guard for no S and T in original axes
+    if ("S" not in original_axes) and ("T" not in original_axes):
+        if sample_idx not in [0, -1]:
+            raise IndexError(
+                f"Sample index {sample_idx} out of bounds for S axes with size 1."
+            )
+
+    # check that channels are within bounds
+    if channels is not None:
+        max_channel = transformed_shape[1] - 1  # channel is second dimension
+        for ch in channels:
+            if ch > max_channel:
+                raise ValueError(
+                    f"Channel index {ch} is out of bounds for data with "
+                    f"{transformed_shape[1]} channels. Check the provided `channels` "
+                    f"parameter in the configuration for erroneous channel "
+                    f"indices."
+                )
+
+    patch_slice: list[slice | int | Sequence[int] | EllipsisType] = []
+    for d in original_axes:
+        if d == "S":
+            patch_slice.append(transform.calc_original_S_idx(sample_idx))
+        elif d == "T":
+            patch_slice.append(transform.calc_original_T_idx(sample_idx))
+        elif d == "C":
+            patch_slice.append(channel_slice(channels))
+        elif d == "Z":
+            patch_slice.append(slice(coords[0], coords[0] + patch_size[0]))
+        elif d == "Y":
+            y_idx = 0 if "Z" not in original_axes else 1
+            patch_slice.append(slice(coords[y_idx], coords[y_idx] + patch_size[y_idx]))
+        elif d == "X":
+            x_idx = 1 if "Z" not in original_axes else 2
+            patch_slice.append(slice(coords[x_idx], coords[x_idx] + patch_size[x_idx]))
+        else:
+            raise ValueError(f"Unrecognized axis '{d}', axes should be in STCZYX.")
+
+    return tuple(patch_slice)
+
+
+def channel_slice(
+    channels: Sequence[int] | None,
+) -> EllipsisType | Sequence[int]:
+    """Create a slice or sequence for indexing channels while preserving dimensions.
+
+    Parameters
+    ----------
+    channels : Sequence[int] | None
+        The channel indices to select, or None to select all channels.
+
+    Returns
+    -------
+    EllipsisType | Sequence[int]
+        An indexing object that can be used to index the channel dimension while
+        preserving it.
+    """
+    if channels is None:
+        return ...
+
+    if len(channels) == 0:
+        raise ValueError("Channel index sequence cannot be empty.")
+
+    return channels

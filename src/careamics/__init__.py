@@ -9,6 +9,10 @@ except PackageNotFoundError:
 
 __all__ = [
     "CAREamist",
+    # TODO:
+    "ImageStackLoading",
+    "ReadFuncLoading",
 ]
 
 from .careamist import CAREamist
+from .dataset.factory import ImageStackLoading, ReadFuncLoading
