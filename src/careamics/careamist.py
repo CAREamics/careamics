@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, overload
+from uuid import uuid4
 
 from numpy.typing import NDArray
 from pytorch_lightning import Callback, Trainer
@@ -37,6 +38,7 @@ from .utils import get_logger
 
 logger = get_logger(__name__)
 
+
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
@@ -46,6 +48,22 @@ ConfigurationType = (
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
 )
+
+
+def _new_run_id() -> str:
+    """Generate a 4-character base-36 run id from a uuid4.
+
+    Returns
+    -------
+    str
+        A 4-character id.
+    """
+    n = int(uuid4()) & 0xFFFFFF
+    chars = []
+    for _ in range(4):
+        n, r = divmod(n, 36)
+        chars.append("0123456789abcdefghijklmnopqrstuvwxyz"[r])
+    return "".join(reversed(chars))
 
 
 class CAREamist:
@@ -130,6 +148,8 @@ class CAREamist:
         enable_progress_bar : bool, default=True
             Whether to show the progress bar during training.
         """
+        self.run_id: str = _new_run_id()  # placeholder
+
         self.checkpoint_path = checkpoint_path
         self.work_dir = self._resolve_work_dir(work_dir)
 
@@ -139,7 +159,9 @@ class CAREamist:
         self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
         )
-        self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
+        self.callbacks = self._define_callbacks(
+            callbacks, self.config, self._get_checkpoint_root()
+        )
 
         self.prediction_writer = PredictionWriterCallback(
             self.work_dir, enable_writing=False
@@ -313,7 +335,7 @@ class CAREamist:
     def _define_callbacks(
         callbacks: list[Callback] | None,
         config: ConfigurationType,
-        work_dir: Path,
+        ckpt_root: Path,
     ) -> list[Callback]:
         """Define callbacks for the training process.
 
@@ -325,8 +347,8 @@ class CAREamist:
             already defined in CAREamics and instantiated in this method.
         config : Configuration
             The CAREamics configuration, used to instantiate the callbacks.
-        work_dir : Path
-            The working directory, used as a parameter to the checkpointing callback.
+        ckpt_root : Path
+            The root directory of checkpoints.
 
         Returns
         -------
@@ -357,7 +379,7 @@ class CAREamist:
                 )
 
         checkpoint_callback = ModelCheckpoint(
-            dirpath=work_dir / "checkpoints" / config.get_safe_experiment_name(),
+            dirpath=ckpt_root,
             filename=(
                 f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_"
                 f"{{val_loss:.4f}}"
@@ -643,6 +665,20 @@ class CAREamist:
             pred_data_target=pred_data_target,
             model_constraints=get_model_constraints(self.config.algorithm_config.model),
             loading=loading,
+        )
+
+    def _get_checkpoint_root(self) -> Path:
+        """Get the root directory for checkpoints.
+
+        Returns
+        -------
+        Path
+            Full path to the checkpoint root directory.
+        """
+        return (
+            self.work_dir
+            / "checkpoints"
+            / (self.config.get_safe_experiment_name() + "_" + self.run_id)
         )
 
     def _get_default_ckpt(self, checkpoint: str | Path | None) -> str | Path:
@@ -1041,6 +1077,26 @@ class CAREamist:
 
         finally:
             self.prediction_writer.enable_writing(False)
+
+    def get_checkpoints(self) -> list[Path]:
+        """Return the filenames of available checkpoints.
+
+        Scans the checkpoint directory and returns checkpoint filenames sorted
+        by epoch number.
+
+        Returns
+        -------
+        list of Path
+            Checkpoint paths sorted by epoch number. The last checkpoint
+            (if present) is appended at the end.
+        """
+        checkpoint_dir = self._get_checkpoint_root()
+        epoch_checkpoints = sorted(
+            p for p in checkpoint_dir.glob("*.ckpt") if not p.stem.endswith("_last")
+        )
+        last = list(checkpoint_dir.glob("*_last.ckpt"))
+
+        return epoch_checkpoints + last
 
     def export_to_bmz(
         self,
