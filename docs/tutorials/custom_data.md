@@ -1,3 +1,8 @@
+As is mentioned in the [Data Preparation Guide](../current/data.md#custom-data-formats) CAREamics provides two mechanisms for training and predicting on custom data types. There is:
+
+1. what we call using a ["read function"](#custom-read-function), which can be used to read all the data to memory; and
+2. what we call using an ["image stack loader"](#custom-image-stack--loader), which is more advanced but can be used for chunked or memory-mapped file formats.
+
 ## Custom Read Function
 
 Any function that loads image data from a path and outputs a numpy array can be used.
@@ -57,7 +62,7 @@ First, we will save some toy data and create a CAREamics configuration object.
 1. The `data_type` must be set to `"custom"`.
 2. The axes of each HDF5 dataset.
 
-Now we will define our custom `HDF5ImageStack` and a `load_hd5fs` function. See the tutorials section for a more in depth explanation of how to create an image stack class.
+Now we will define our custom `HDF5ImageStack` and a `load_hd5fs` function. See the [Implementing an Image Stack Tutorial](implementing_an_image_stack.md) for a more in depth explanation of how to create an image stack class.
 
 To adhere to the [ImageStackLoader][careamics.dataset.image_stack_loader] protocol the `load_hdf5s` function MUST have a `source` argument and an `axes` argument. The `source` argument can have any type, and the `axes` argument Must be a string - a subset of `"SCTZYX"`. The return type MUST be a sequence of `ImageStack` objects. Additional arguments are allowed.
 
