@@ -176,7 +176,7 @@ def create_advanced_care_config(
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     # - Lightning parameters
-    num_workers: int = 0,
+    num_workers: int = -1,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -263,8 +263,9 @@ def create_advanced_care_config(
         For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
         For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         For "none": No parameters needed.
-    num_workers : int, default=0
-        Number of workers for data loading. Unless explicitly overridden in
+    num_workers : int, default=-1
+        Number of workers for data loading. Use `-1` to automatically choose based
+        on the number of available CPUs. Unless explicitly overridden in
         `train_dataloader_params` and `val_dataloader_params`, this will be applied to
         all dataloaders.
     trainer_params : dict | None, default=None
@@ -326,7 +327,7 @@ def create_advanced_n2n_config(
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     # - Lightning parameters
-    num_workers: int = 0,
+    num_workers: int = -1,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -412,8 +413,9 @@ def create_advanced_n2n_config(
         For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
         For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         For "none": No parameters needed.
-    num_workers : int, default=0
-        Number of workers for data loading. Unless explicitly overridden in
+    num_workers : int, default=-1
+        Number of workers for data loading. Use `-1` to automatically choose based
+        on the number of available CPUs. Unless explicitly overridden in
         `train_dataloader_params` and `val_dataloader_params`, this will be applied to
         all dataloaders.
     trainer_params : dict | None, default=None
@@ -474,7 +476,7 @@ def _create_advanced_supervised_config(
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     # - Lightning parameters
-    num_workers: int = 0,
+    num_workers: int = -1,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -563,8 +565,9 @@ def _create_advanced_supervised_config(
         For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
         For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         For "none": No parameters needed.
-    num_workers : int, default=0
-        Number of workers for data loading. Unless explicitly overridden in
+    num_workers : int, default=-1
+        Number of workers for data loading. Use `-1` to automatically choose based
+        on the number of available CPUs. Unless explicitly overridden in
         `train_dataloader_params` and `val_dataloader_params`, this will be applied to
         all dataloaders.
     trainer_params : dict | None, default=None
