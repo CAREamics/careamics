@@ -44,7 +44,7 @@ Prediction works very similarly to training. [`CAREamist.predict`][careamics.CAR
 
 ## Custom Image Stack & Loader
 
-Training and predicting on a custom memory-mapped or chunked file format is more complex, but it enables training without loading an entire image file into memory at once. In involves implementing an [ImageStack][careamics.dataset.image_stack.ImageStack] class and an [ImageStackLoader][careamics.dataset.image_stack_loader] function to load the image stacks.
+Training and predicting on a custom memory-mapped or chunked file format is more complex, but it enables training without loading an entire image file into memory at once. It involves implementing an [ImageStack][careamics.dataset.image_stack.ImageStack] class and an [ImageStackLoader][careamics.dataset.image_stack_loader] function to load the image stacks.
 
 This example will demonstrated how data from a HDF5 file can be loaded for training and prediction.
 
@@ -60,6 +60,10 @@ First, we will save some toy data and create a CAREamics configuration object.
 Now we will define our custom `HDF5ImageStack` and a `load_hd5fs` function. See the tutorials section for a more in depth explanation of how to create an image stack class.
 
 To adhere to the [ImageStackLoader][careamics.dataset.image_stack_loader] protocol the `load_hdf5s` function MUST have a `source` argument and an `axes` argument. The `source` argument can have any type, and the `axes` argument Must be a string - a subset of `"SCTZYX"`. The return type MUST be a sequence of `ImageStack` objects. Additional arguments are allowed.
+
+!!! note "Supervised Algorithms, e.g. CARE"
+
+    It is up to the loading function to always load images in a deterministic order so the inputs are matched to their corresponding targets. In our example, `h5py` will return the group keys in alpha-numeric order; so we know that if we provide a target `.h5` file which has the same structure as our input file, then the target images are returned in the same order as our input images.
 
 ```python title="Creating a Custom Image Stack & Loader"
 --8<-- "tutorials/data_custom_image_stack.py:image-stack-loader"
