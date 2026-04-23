@@ -20,6 +20,7 @@ from tqdm import tqdm
 from careamics.lightning import VAEModule
 from careamics.lvae_training.dataset import MultiChDloaderRef
 from careamics.metrics.metrics import scale_invariant_psnr
+from careamics.utils import get_device
 
 
 class TilingMode:
@@ -108,15 +109,6 @@ def get_first_index(bin_count, quantile):
         if normalized_cumsum[i] > quantile:
             return i
     return None
-
-
-def get_device():
-    if torch.cuda.is_available():
-        return "cuda"
-    elif torch.backends.mps.is_available():
-        return "mps"
-    else:
-        return "cpu"
 
 
 def show_for_one(
