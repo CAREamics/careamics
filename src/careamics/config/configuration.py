@@ -216,7 +216,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
         """
         if (
             self.algorithm_config.model.uses_batch_norm()
-            and self.data_config.batch_size < 32
+            and self.data_config.batch_size < 8
         ):
             warnings.warn(
                 f"Warning: Batch normalization is used with batch size "
