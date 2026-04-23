@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import warnings
 from pprint import pformat
 from typing import Annotated, Any, Generic, Literal, Self, TypeVar
 
@@ -202,6 +203,30 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
             self.algorithm_config.model.get_num_input_channels(),
             self.algorithm_config.model.get_num_output_channels(),
         )
+        return self
+
+    @model_validator(mode="after")
+    def warn_batch_norm(self: Self) -> Self:
+        """Warn if batch normalization is used with small batch size.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        if (
+            self.algorithm_config.model.uses_batch_norm()
+            and self.data_config.batch_size < 8
+        ):
+            warnings.warn(
+                f"Warning: Batch normalization is used with batch size "
+                f"{self.data_config.batch_size}. We advise using a batch size of at"
+                f" least 32 when using batch normalization, as smaller batch sizes "
+                f"may be unreliable. Consider increasing the batch size or disabling "
+                f"batch normalization in the algorithm `model` parameter.",
+                stacklevel=2,
+            )
+
         return self
 
     def __str__(self) -> str:
