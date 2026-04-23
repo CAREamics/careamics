@@ -11,7 +11,10 @@ nav = [
     {"Predicting" = "content/guides/current/careamist_predicting.md"},
     {"Lightning API" = "content/guides/current/lightning_api.md"},
 ]},
-{"Tutorials" = ["content/guides/tutorials/index.md"]},
+{"Tutorials" = [
+    "content/guides/tutorials/index.md",
+    {"Custom Data" = "content/guides/tutorials/custom_data.md"}
+]},
 {"Legacy (v0.1)" = [
     "content/guides/v0.1/index.md",
     {"CAREamist API (v0.1)" = [

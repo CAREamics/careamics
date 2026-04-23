@@ -396,6 +396,7 @@ wandb = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "h5py" },
     { name = "ml-dtypes" },
     { name = "onnxscript" },
     { name = "pre-commit" },
@@ -437,6 +438,7 @@ provides-extras = ["czi", "examples", "tensorboard", "wandb"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "h5py", specifier = ">=3.15.1" },
     { name = "ml-dtypes", specifier = ">=0.5.0" },
     { name = "onnxscript", specifier = "<=0.6.2" },
     { name = "pre-commit" },
