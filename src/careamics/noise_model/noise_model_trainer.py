@@ -50,7 +50,7 @@ class NoiseModelTrainer:
     Train noise models from noisy data (full workflow):
 
     >>> trainer = NoiseModelTrainer(n_gaussian=3, n_coeff=3)
-    >>> noise_models = trainer.train(
+    >>> noise_models = trainer.train( # doctest: +SKIP
     ...     noisy_data=my_noisy_images,
     ...     axes="SCYX",
     ...     patch_size=[64, 64],
@@ -61,7 +61,7 @@ class NoiseModelTrainer:
     Train noise models with explicitly provided clean data (skip N2V):
 
     >>> trainer = NoiseModelTrainer(n_gaussian=3, n_coeff=3)
-    >>> noise_models = trainer.train(
+    >>> noise_models = trainer.train( # doctest: +SKIP
     ...     noisy_data=my_noisy_images,
     ...     axes="SCYX",
     ...     patch_size=[64, 64],
@@ -71,7 +71,7 @@ class NoiseModelTrainer:
 
     Get a MultiChannelNoiseModel for use in training:
 
-    >>> multichannel_nm = trainer.get_multichannel_model()
+    >>> multichannel_nm = trainer.get_multichannel_model() # doctest: +SKIP
     """
 
     def __init__(
@@ -370,11 +370,11 @@ class NoiseModelTrainer:
 
         Examples
         --------
-        >>> trainer = NoiseModelTrainer()
-        >>> trainer.train_from_pairs(signal, observation)
-        >>> synthetic_noisy = trainer.sample_observation(clean_signal)
-        >>> real_residuals = observation - signal
-        >>> synth_residuals = synthetic_noisy - clean_signal
+        >>> trainer = NoiseModelTrainer() # doctest: +SKIP
+        >>> trainer.train_from_pairs(signal, observation) # doctest: +SKIP
+        >>> synthetic_noisy = trainer.sample_observation(clean_signal) # doctest: +SKIP
+        >>> real_residuals = observation - signal # doctest: +SKIP
+        >>> synth_residuals = synthetic_noisy - clean_signal # doctest: +SKIP
         """
         if self.noise_models is None:
             raise ValueError("No noise models available. Call train() first.")
