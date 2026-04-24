@@ -1289,8 +1289,7 @@ def test_microsplit_configuration(
 
     if "output_channels" in expected:
         assert (
-            config.algorithm_config.model.output_channels
-            == expected["output_channels"]
+            config.algorithm_config.model.output_channels == expected["output_channels"]
         )
     if "model_predict_logvar" in expected:
         assert (
