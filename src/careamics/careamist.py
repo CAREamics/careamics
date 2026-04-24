@@ -3,7 +3,6 @@
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, overload
-from uuid import uuid4
 
 from numpy.typing import NDArray
 from pytorch_lightning import Callback, Trainer
@@ -34,7 +33,7 @@ from .lightning.utils import (
     read_csv_logger,
 )
 from .models import get_model_constraints
-from .utils import get_logger
+from .utils import get_logger, get_run_version
 
 logger = get_logger(__name__)
 
@@ -48,22 +47,6 @@ ConfigurationType = (
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
 )
-
-
-def _new_run_id() -> str:
-    """Generate a 4-character base-36 run id from a uuid4.
-
-    Returns
-    -------
-    str
-        A 4-character id.
-    """
-    n = int(uuid4()) & 0xFFFFFF
-    chars = []
-    for _ in range(4):
-        n, r = divmod(n, 36)
-        chars.append("0123456789abcdefghijklmnopqrstuvwxyz"[r])
-    return "".join(reversed(chars))
 
 
 class CAREamist:
@@ -148,17 +131,24 @@ class CAREamist:
         enable_progress_bar : bool, default=True
             Whether to show the progress bar during training.
         """
-        self.run_id: str = _new_run_id()  # placeholder
-
         self.checkpoint_path = checkpoint_path
         self.work_dir = self._resolve_work_dir(work_dir)
 
         self.config: ConfigurationType
         self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
 
+        # set default run version and update it based on existing folders
+        self.run_version = 0  # default
+        self.run_version = get_run_version(
+            self._get_checkpoint_root().parent, self.config.get_safe_experiment_name()
+        )
+
+        # whether to enable the progress bar
         self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
         )
+
+        # set up trainer
         self.callbacks = self._define_callbacks(
             callbacks, self.config, self._get_checkpoint_root()
         )
@@ -172,6 +162,7 @@ class CAREamist:
             self.config.get_safe_experiment_name(),
             self.work_dir,
             self.config,
+            self.run_version,
         )
 
         self.trainer = Trainer(
@@ -417,6 +408,7 @@ class CAREamist:
         experiment_name: str,
         work_dir: Path,
         config: Configuration,
+        version: int = 0,
     ) -> list[TensorBoardLogger | WandbLogger | CSVLogger]:
         """Create loggers for the experiment.
 
@@ -431,13 +423,19 @@ class CAREamist:
             The working directory, used as a parameter to the loggers.
         config : NGConfiguration
             Full CAREamics config logged to Wandb at run initialization.
+        version : int, default=0
+            Version number for the experiment, used as a parameter to the loggers.
 
         Returns
         -------
         list[TensorBoardLogger | WandbLogger | CSVLogger]
             The list of loggers to use during training.
         """
-        csv_logger = CSVLogger(name=experiment_name, save_dir=work_dir / "csv_logs")
+        csv_logger = CSVLogger(
+            name=experiment_name,
+            save_dir=work_dir / "csv_logs",
+            version=version,
+        )
 
         if logger is not None:
             logger = SupportedLogger(logger)
@@ -449,16 +447,69 @@ class CAREamist:
                         name=experiment_name,
                         save_dir=work_dir / "wandb_logs",
                         config=config.model_dump(),
+                        version=version,
                     ),
                     csv_logger,
                 ]
             case SupportedLogger.TENSORBOARD:
                 return [
-                    TensorBoardLogger(save_dir=work_dir / "tb_logs"),
+                    TensorBoardLogger(save_dir=work_dir / "tb_logs", version=version),
                     csv_logger,
                 ]
             case _:
                 return [csv_logger]
+
+    def _get_checkpoint_root(self) -> Path:
+        """Get the root directory for checkpoints.
+
+        Returns
+        -------
+        Path
+            Full path to the checkpoint root directory.
+        """
+        return (
+            self.work_dir
+            / "checkpoints"
+            / (self.config.get_safe_experiment_name() + "_" + str(self.run_version))
+        )
+
+    def _get_default_ckpt(self, checkpoint: str | Path | None) -> str | Path:
+        """Get default checkpoint to use for prediction based on the algorithm.
+
+        Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
+        based on validation loss, therefore this method returns "last" for these
+        algorithms and "best" for others.
+
+        Parameters
+        ----------
+        checkpoint : str | Path | None
+            The checkpoint specified for prediction. If not None, this method will
+            return the specified checkpoint instead of the default.
+
+        Returns
+        -------
+        str | Path
+            The checkpoint to use for prediction, either the specified checkpoint or the
+            default based on the algorithm.
+        """
+        if self.config.algorithm_config.algorithm in [
+            SupportedAlgorithm.N2V,
+            SupportedAlgorithm.N2N,
+        ]:
+            if checkpoint == "best":
+                raise ValueError(
+                    f"{self.config.algorithm_config.get_algorithm_friendly_name()} does"
+                    f" not have a well-defined best checkpoint based on validation "
+                    f"loss. Please specify an explicit checkpoint path."
+                )
+            elif checkpoint is None:
+                return "last"
+
+        if checkpoint is not None:
+            return checkpoint
+
+        # for all other algorithms, if checkpoint is None, choose "best"
+        return "best"
 
     # Two overloads:
     # - 1st for supported data types & using ReadFuncLoading
@@ -667,58 +718,6 @@ class CAREamist:
             model_constraints=get_model_constraints(self.config.algorithm_config.model),
             loading=loading,
         )
-
-    def _get_checkpoint_root(self) -> Path:
-        """Get the root directory for checkpoints.
-
-        Returns
-        -------
-        Path
-            Full path to the checkpoint root directory.
-        """
-        return (
-            self.work_dir
-            / "checkpoints"
-            / (self.config.get_safe_experiment_name() + "_" + self.run_id)
-        )
-
-    def _get_default_ckpt(self, checkpoint: str | Path | None) -> str | Path:
-        """Get default checkpoint to use for prediction based on the algorithm.
-
-        Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
-        based on validation loss, therefore this method returns "last" for these
-        algorithms and "best" for others.
-
-        Parameters
-        ----------
-        checkpoint : str | Path | None
-            The checkpoint specified for prediction. If not None, this method will
-            return the specified checkpoint instead of the default.
-
-        Returns
-        -------
-        str | Path
-            The checkpoint to use for prediction, either the specified checkpoint or the
-            default based on the algorithm.
-        """
-        if self.config.algorithm_config.algorithm in [
-            SupportedAlgorithm.N2V,
-            SupportedAlgorithm.N2N,
-        ]:
-            if checkpoint == "best":
-                raise ValueError(
-                    f"{self.config.algorithm_config.get_algorithm_friendly_name()} does"
-                    f" not have a well-defined best checkpoint based on validation "
-                    f"loss. Please specify an explicit checkpoint path."
-                )
-            elif checkpoint is None:
-                return "last"
-
-        if checkpoint is not None:
-            return checkpoint
-
-        # for all other algorithms, if checkpoint is None, choose "best"
-        return "best"
 
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
