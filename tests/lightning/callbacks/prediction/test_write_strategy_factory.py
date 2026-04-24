@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from careamics.file_io.write import write_tiff
+from careamics.image_io.write import write_tiff
 from careamics.lightning.callbacks.prediction import (
     ImageWriteStrategy,
     TileWriteStrategy,

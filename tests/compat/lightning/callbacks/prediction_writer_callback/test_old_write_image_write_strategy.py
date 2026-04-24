@@ -12,7 +12,7 @@ from careamics.compat.dataset import IterablePredDataset
 from careamics.compat.lightning.callbacks.prediction_writer_callback import (
     WriteImage,
 )
-from careamics.file_io import WriteFunc
+from careamics.image_io import WriteFunc
 
 
 @pytest.fixture

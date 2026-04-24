@@ -7,7 +7,7 @@ from typing import Any, Literal, Self, Union
 import numpy as np
 from numpy.typing import DTypeLike, NDArray
 
-from careamics.file_io.read import ReadFunc, read_tiff
+from careamics.image_io.read import ReadFunc, read_tiff
 from careamics.utils.reshape_array import reshape_array
 
 from .image_utils.image_stack_utils import channel_slice, pad_patch

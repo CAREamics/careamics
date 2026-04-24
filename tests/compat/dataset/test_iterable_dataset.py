@@ -7,7 +7,7 @@ import tifffile
 from careamics.compat.config.data import DataConfig
 from careamics.compat.dataset import PathIterableDataset
 from careamics.config.support import SupportedData
-from careamics.file_io.read import read_tiff
+from careamics.image_io.read import read_tiff
 
 
 @pytest.mark.parametrize(

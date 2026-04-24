@@ -15,7 +15,7 @@ from .config.support import SupportedLogger
 from .config.utils.configuration_io import load_configuration
 from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .dataset.image_region_data import ImageRegionData
-from .file_io import WriteFunc
+from .image_io import WriteFunc
 from .lightning.callbacks import (
     ConfigSaverCallback,
     PredictionWriterCallback,
