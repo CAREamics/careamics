@@ -13,10 +13,6 @@ from careamics.config.lightning.optimizer_configs import (
     OptimizerConfig,
 )
 from careamics.config.losses.loss_config import LVAELossConfig
-from careamics.config.noise_model.likelihood_config import (
-    GaussianLikelihoodConfig,
-    NMLikelihoodConfig,
-)
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.config.support import SupportedAlgorithm, SupportedLoss
 
@@ -48,8 +44,6 @@ class VAEBasedAlgorithm(BaseModel):
     loss: LVAELossConfig
     model: LVAEConfig
     noise_model: MultiChannelNMConfig | None = None
-    noise_model_likelihood: NMLikelihoodConfig | None = None
-    gaussian_likelihood: GaussianLikelihoodConfig | None = None  # TODO change to str
 
     mmse_count: int = 1
     is_supervised: bool = False
@@ -78,30 +72,16 @@ class VAEBasedAlgorithm(BaseModel):
                 )
             if self.model.multiscale_count > 1:
                 raise ValueError("Algorithm `hdn` does not support multiscale models.")
-        # musplit
+        # microsplit
         if self.algorithm == SupportedAlgorithm.MICROSPLIT:
-            if self.loss.loss_type not in [
-                SupportedLoss.MUSPLIT,
-                SupportedLoss.DENOISPLIT,
-                SupportedLoss.DENOISPLIT_MUSPLIT,
-            ]:  # TODO Update losses configs, make loss just microsplit
+            if self.loss.loss_type != SupportedLoss.MICROSPLIT:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `microsplit`."
-                )  # TODO Update losses configs
-
-            if (
-                self.loss.loss_type == SupportedLoss.DENOISPLIT
-                and self.model.predict_logvar is not None
-            ):
-                raise ValueError(
-                    "Algorithm `denoisplit` with loss `denoisplit` only supports "
-                    "`predict_logvar` as `None`."
                 )
-            if (
-                self.loss.loss_type == SupportedLoss.DENOISPLIT
-                and self.noise_model is None
-            ):
-                raise ValueError("Algorithm `denoisplit` requires a noise model.")
+
+            # Validate noise model requirement based on denoisplit_weight
+            if self.loss.denoisplit_weight > 0 and self.noise_model is None:
+                raise ValueError("Noise model is required when denoisplit_weight > 0.")
         # TODO: what if algorithm is not musplit or denoisplit
         return self
 
@@ -136,24 +116,15 @@ class VAEBasedAlgorithm(BaseModel):
         Self
             The validated model.
         """
-        if self.gaussian_likelihood is not None:
-            assert (
-                self.model.predict_logvar == self.gaussian_likelihood.predict_logvar
-            ), (
-                f"Model `predict_logvar` ({self.model.predict_logvar}) must match "
-                "Gaussian likelihood model `predict_logvar` "
-                f"({self.gaussian_likelihood.predict_logvar}).",
-            )
-        # if self.algorithm == SupportedAlgorithm.HDN:
-        #     assert (
-        #         self.model.predict_logvar is None
-        #     ), "Model `predict_logvar` must be `None` for algorithm `hdn`."
-        #     if self.gaussian_likelihood is not None:
-        #         assert self.gaussian_likelihood.predict_logvar is None, (
-        #             "Gaussian likelihood model `predict_logvar` must be `None` "
-        #             "for algorithm `hdn`."
-        #         )
-        # TODO check this
+        # Check consistency between model.predict_logvar and loss.predict_logvar
+        model_predicts_logvar = self.model.predict_logvar
+        loss_predicts_logvar = self.loss.predict_logvar
+
+        assert model_predicts_logvar == loss_predicts_logvar, (
+            f"Model `predict_logvar` ({model_predicts_logvar}) "
+            f"must match loss `predict_logvar` ({loss_predicts_logvar})."
+        )
+
         return self
 
     def __str__(self) -> str:

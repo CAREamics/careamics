@@ -1146,23 +1146,181 @@ def test_checkpoint_model_save_top_k_cross_algorithm_consistency():
     assert n2n_config.training_config.checkpoint_callback.monitor == "val_loss"
 
 
-def test_microsplit_configuration(tmp_path: Path, create_dummy_noise_model):
-    """Test that MicroSplit configuration can be created."""
-    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+@pytest.mark.parametrize(
+    ("scenario", "factory_kwargs", "nm_count", "expected"),
+    [
+        (
+            "default",
+            {"predict_logvar": True},
+            1,
+            {"model_predict_logvar": True},
+        ),
+        (
+            "musplit_only_without_noise_model",
+            {"predict_logvar": True, "musplit_weight": 1.0, "denoisplit_weight": 0.0},
+            1,
+            {"musplit_weight": 1.0, "denoisplit_weight": 0.0},
+        ),
+        (
+            "multichannel",
+            {"predict_logvar": True, "output_channels": 3},
+            3,
+            {"output_channels": 3},
+        ),
+        (
+            "weights_pure_denoisplit",
+            {"predict_logvar": True, "musplit_weight": 0.0, "denoisplit_weight": 1.0},
+            1,
+            {"musplit_weight": 0.0, "denoisplit_weight": 1.0},
+        ),
+        (
+            "weights_default",
+            {"predict_logvar": True, "musplit_weight": 0.1, "denoisplit_weight": 0.9},
+            1,
+            {"musplit_weight": 0.1, "denoisplit_weight": 0.9},
+        ),
+        (
+            "weights_custom",
+            {"predict_logvar": True, "musplit_weight": 0.3, "denoisplit_weight": 0.7},
+            1,
+            {"musplit_weight": 0.3, "denoisplit_weight": 0.7},
+        ),
+        (
+            "predict_logvar_false",
+            {"predict_logvar": False},
+            1,
+            {"model_predict_logvar": False, "loss_predict_logvar": False},
+        ),
+        (
+            "3d_data",
+            {
+                "axes": "ZYX",
+                "patch_size": [16, 64, 64],
+                "batch_size": 4,
+                "predict_logvar": True,
+                "encoder_conv_strides": (2, 2, 2),
+                "decoder_conv_strides": (2, 2, 2),
+            },
+            1,
+            {"axes": "ZYX"},
+        ),
+        (
+            "trainer_params",
+            {
+                "predict_logvar": True,
+                "trainer_params": {
+                    "accelerator": "cpu",
+                    "devices": 1,
+                    "precision": "32-true",
+                    "gradient_clip_val": 0.5,
+                },
+            },
+            1,
+            {
+                "trainer_params": {
+                    "accelerator": "cpu",
+                    "devices": 1,
+                    "precision": "32-true",
+                    "gradient_clip_val": 0.5,
+                }
+            },
+        ),
+        (
+            "model_params",
+            {
+                "predict_logvar": True,
+                "z_dims": [64, 64, 64],
+                "multiscale_count": 2,
+                "encoder_n_filters": 32,
+                "decoder_n_filters": 32,
+            },
+            1,
+            {
+                "z_dims": [64, 64, 64],
+                "multiscale_count": 2,
+                "encoder_n_filters": 32,
+                "decoder_n_filters": 32,
+            },
+        ),
+        (
+            "num_steps",
+            {"predict_logvar": True, "num_steps": 500},
+            1,
+            {"num_steps": 500},
+        ),
+    ],
+    ids=lambda p: p if isinstance(p, str) else None,
+)
+def test_microsplit_configuration(
+    tmp_path: Path,
+    create_dummy_noise_model,
+    scenario: str,
+    factory_kwargs: dict,
+    nm_count: int,
+    expected: dict,
+):
+    """Test MicroSplit configuration variants in one parametrized test."""
+    nm_paths: list[str] | None = None
+    if nm_count > 0:
+        nm_paths = []
+        for i in range(nm_count):
+            nm_path = tmp_path / f"{scenario}_noise_model_{i}.npz"
+            np.savez(nm_path, **create_dummy_noise_model)
+            nm_paths.append(str(nm_path))
 
-    config = create_microsplit_configuration(
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-        predict_logvar="pixelwise",
-        nm_paths=[tmp_path / "dummy_noise_model.npz"],
-        data_stats=[0, 0],
-        train_dataloader_params={"num_workers": 0},
-    )
+    config_kwargs = {
+        "experiment_name": f"test_{scenario}",
+        "data_type": "tiff",
+        "axes": "YX",
+        "patch_size": [64, 64],
+        "batch_size": 8,
+        "num_epochs": 100,
+        "train_dataloader_params": {"num_workers": 0},
+        **factory_kwargs,
+    }
+    if nm_paths is not None:
+        config_kwargs["nm_paths"] = nm_paths
+
+    config = create_microsplit_configuration(**config_kwargs)
+
     assert config.algorithm_config.algorithm == "microsplit"
     assert isinstance(config.algorithm_config, MicroSplitAlgorithm)
     assert config.algorithm_config.model.architecture == "LVAE"
-    assert config.algorithm_config.noise_model_likelihood is not None
+
+    if "output_channels" in expected:
+        assert (
+            config.algorithm_config.model.output_channels == expected["output_channels"]
+        )
+    if "model_predict_logvar" in expected:
+        assert (
+            config.algorithm_config.model.predict_logvar
+            == expected["model_predict_logvar"]
+        )
+    if "loss_predict_logvar" in expected:
+        assert (
+            config.algorithm_config.loss.predict_logvar
+            == expected["loss_predict_logvar"]
+        )
+    if "musplit_weight" in expected:
+        assert config.algorithm_config.loss.musplit_weight == expected["musplit_weight"]
+    if "denoisplit_weight" in expected:
+        assert (
+            config.algorithm_config.loss.denoisplit_weight
+            == expected["denoisplit_weight"]
+        )
+    if "axes" in expected:
+        assert config.data_config.axes == expected["axes"]
+    if "trainer_params" in expected:
+        for key, value in expected["trainer_params"].items():
+            assert config.training_config.lightning_trainer_config[key] == value
+    if "z_dims" in expected:
+        model = config.algorithm_config.model
+        assert model.z_dims == expected["z_dims"]
+        assert model.multiscale_count == expected["multiscale_count"]
+        assert model.encoder_n_filters == expected["encoder_n_filters"]
+        assert model.decoder_n_filters == expected["decoder_n_filters"]
+    if "num_steps" in expected:
+        assert (
+            config.training_config.lightning_trainer_config["limit_train_batches"]
+            == expected["num_steps"]
+        )
