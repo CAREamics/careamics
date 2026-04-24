@@ -7,12 +7,14 @@ from pydantic import Discriminator
 from .normalize_config import NormalizeConfig
 from .xy_flip_config import XYFlipConfig
 from .xy_random_rotate90_config import XYRandomRotate90Config
+from .xy_scheduled_aug_config import XYScheduledAugConfig
 
 NORM_AND_SPATIAL_UNION = Annotated[
     Union[
         NormalizeConfig,
         XYFlipConfig,
         XYRandomRotate90Config,
+        XYScheduledAugConfig,
     ],
     Discriminator("name"),  # used to tell the different transform models apart
 ]
@@ -23,6 +25,7 @@ SPATIAL_TRANSFORMS_UNION = Annotated[
     Union[
         XYFlipConfig,
         XYRandomRotate90Config,
+        XYScheduledAugConfig,
     ],
     Discriminator("name"),  # used to tell the different transform models apart
 ]

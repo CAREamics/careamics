@@ -10,11 +10,13 @@ from .normalize import Normalize
 from .transform import Transform
 from .xy_flip import XYFlip
 from .xy_random_rotate90 import XYRandomRotate90
+from .xy_scheduled_aug import XYScheduledAugmentation
 
 ALL_TRANSFORMS = {
     "Normalize": Normalize,
     "XYFlip": XYFlip,
     "XYRandomRotate90": XYRandomRotate90,
+    "XYScheduledAugmentation": XYScheduledAugmentation,
 }
 
 

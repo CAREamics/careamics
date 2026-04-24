@@ -8,6 +8,7 @@ __all__ = [
     "TransformConfig",
     "XYFlipConfig",
     "XYRandomRotate90Config",
+    "XYScheduledAugConfig",
 ]
 
 
@@ -20,3 +21,4 @@ from .transform_unions import (
 )
 from .xy_flip_config import XYFlipConfig
 from .xy_random_rotate90_config import XYRandomRotate90Config
+from .xy_scheduled_aug_config import XYScheduledAugConfig
