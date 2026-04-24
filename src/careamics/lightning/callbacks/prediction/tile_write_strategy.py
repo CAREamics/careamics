@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from careamics.dataset.image_region_data import ImageRegionData
-from careamics.file_io import WriteFunc
+from careamics.image_io import WriteFunc
 from careamics.lightning.prediction import (
     stitch_single_prediction,
 )

@@ -9,7 +9,7 @@ from typing_extensions import ParamSpec
 
 from careamics.config.data.data_config import DataConfig
 from careamics.config.support import SupportedData
-from careamics.file_io.read import ReadFunc
+from careamics.image_io.read import ReadFunc
 from careamics.models.constraints import (
     ModelConstraints,
 )
