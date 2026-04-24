@@ -148,3 +148,14 @@ class UNetConfig(ArchitectureConfig):
             Number of output channels.
         """
         return self.num_classes
+
+    def uses_batch_norm(self) -> bool:
+        """
+        Return whether the model uses batch normalization.
+
+        Returns
+        -------
+        bool
+            Whether the model uses batch normalization.
+        """
+        return self.use_batch_norm
