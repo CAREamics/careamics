@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import platform
 import sys
+import warnings
 from collections.abc import Sequence
 from enum import StrEnum
 from pprint import pformat
@@ -157,12 +158,13 @@ def _validate_channel_conversion(
 
     if adding_C_axis:
         if new_channels is None:
-            logger.warning(
+            warnings.warn(
                 f"When switching to axes with 'C' (got {new_axes}) from axes "
                 f"{old_axes}, errors may be raised in the model if the channel "
                 f"dimension in the data is not a singleton dimension. To select a "
                 f"specific channel, use the `new_channels` parameter (e.g. "
                 f"`new_channels=[1]`).",
+                stacklevel=2,
             )
         elif len(new_channels) != 1:
             raise ValueError(
@@ -186,10 +188,11 @@ def _validate_channel_conversion(
                 f"current channels length ({len(old_channels)})."
             )
     elif old_channels is None and new_channels is not None:
-        logger.warning(
+        warnings.warn(
             f"Switching from all channels (`channels=None`) to specifying channels "
             f"{new_channels} may lead to errors if {new_channels} are not covering "
             f"all channels.",
+            stacklevel=2,
         )  # Note that in the opposite case, old_channels is kept because
         # new_channels is None
 
@@ -713,9 +716,11 @@ class DataConfig(BaseModel):
         elif ("shuffle" in train_dataloader_params) and (
             not train_dataloader_params["shuffle"]
         ):
-            logger.warning(
+            warnings.warn(
                 "`train_dataloader_params` includes `shuffle=False`, which may lead to "
-                "lower quality results.",
+                "lower quality results. Consider setting `shuffle=True` to ensure the "
+                "best training performance.",
+                stacklevel=2,
             )
         return train_dataloader_params
 
@@ -842,7 +847,7 @@ class DataConfig(BaseModel):
         ):
             if "num_workers" in params and params["num_workers"] != self.num_workers:
                 logger.warning(
-                    f"Warning: `num_workers={self.num_workers}` conflicts with "
+                    f"`num_workers={self.num_workers}` conflicts with "
                     f"`{name}['num_workers']={params['num_workers']}`. "
                     f"The per-dataloader value takes precedence."
                 )

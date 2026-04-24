@@ -1,6 +1,5 @@
 """Noise2Void Lightning Module."""
 
-import warnings
 from typing import TYPE_CHECKING, Any, cast
 
 import pytorch_lightning as L
@@ -78,11 +77,9 @@ class N2VModule(L.LightningModule):
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
         assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
         if datamodule._data.train_data_target is not None:
-            warnings.warn(
-                "N2V is a self-supervised algorithm — `train_data_target` will be "
-                "ignored.",
-                UserWarning,
-                stacklevel=2,
+            logger.warning(
+                "N2V is a self-supervised algorithm, arguments passed to "
+                "`train_data_target` will be ignored.",
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
