@@ -26,48 +26,6 @@ class MicroSplitDataConfig(NGDataConfig):
       background while another contains signal, mimicking the partially-labelled
       regime described in the MicroSplit paper.
 
-    Parameters
-    ----------
-    lateral_context : bool
-        If ``True``, the input extractor is built with
-        ``lateral_context_patch_constr`` so that each extracted patch has the
-        shape ``(C, L, (Z), Y, X)`` where ``L == multiscale_count``.
-    multiscale_count : int
-        Number of LC levels including the full-resolution level (level 0).
-        Only used when ``lateral_context=True``. Must satisfy
-        ``multiscale_count >= 1``.
-    padding_mode : {"reflect", "wrap"}
-        Padding mode passed to ``lateral_context_patch_constr`` for handling
-        patch boundaries. Corresponds to legacy ``padding_kwargs["mode"]``.
-    input_is_sum : bool
-        If ``True`` the alpha-weighted channel average is multiplied by the
-        number of channels to obtain the sum rather than the average.
-        Corresponds to the legacy ``input_is_sum`` flag.
-    alpha_range : tuple of (float, float) or None
-        Per-channel alpha sampling range ``(start, end)``.  At each
-        ``__getitem__`` call each channel's weight is drawn uniformly from this
-        range.  ``None`` means equal weights ``1 / num_channels``.
-    mix_uncorrelated_channels : bool
-        If ``True``, apply uncorrelated-channel augmentation during training.
-        Channels 1…C-1 are drawn from random spatial locations with probability
-        ``uncorrelated_channel_probab``.
-    uncorrelated_channel_probab : float
-        Probability of applying the uncorrelated-channel swap on any given
-        sample.  Only relevant when ``mix_uncorrelated_channels=True``.
-    empty_patch_mixing : bool
-        If ``True``, use ``get_empty_channel_patches`` to enforce that selected
-        channels either contain signal or background (controlled by
-        ``empty_signal_channels`` / ``empty_background_channels``).
-    empty_signal_channels : list of int or None
-        Channel indices that must contain signal patches (not filtered out).
-        Only used when ``empty_patch_mixing=True``.
-    empty_background_channels : list of int or None
-        Channel indices that must be background (empty) patches.
-        Only used when ``empty_patch_mixing=True``.
-    empty_patch_patience : int
-        Number of random patch candidates to try before giving up when looking
-        for a patch satisfying the empty/signal criterion.
-
     Notes
     -----
     Model-side cross-validation (e.g. confirming ``multiscale_count`` matches
@@ -117,7 +75,13 @@ class MicroSplitDataConfig(NGDataConfig):
 
     @model_validator(mode="after")
     def _validate_alpha_range(self) -> MicroSplitDataConfig:
-        """Validate alpha_range is ordered and within [0, 1]."""
+        """Validate alpha_range is ordered and within [0, 1].
+
+        Returns
+        -------
+        MicroSplitDataConfig
+            The validated configuration instance.
+        """
         if self.alpha_range is not None:
             start, end = self.alpha_range
             if start < 0.0 or end > 1.0:
@@ -130,7 +94,13 @@ class MicroSplitDataConfig(NGDataConfig):
 
     @model_validator(mode="after")
     def _validate_empty_patch_channels(self) -> MicroSplitDataConfig:
-        """Validate that signal and background channel sets do not overlap."""
+        """Validate that signal and background channel sets do not overlap.
+
+        Returns
+        -------
+        MicroSplitDataConfig
+            The validated configuration instance.
+        """
         if not self.empty_patch_mixing:
             return self
         signal = set(self.empty_signal_channels or [])
@@ -145,7 +115,13 @@ class MicroSplitDataConfig(NGDataConfig):
 
     @model_validator(mode="after")
     def _validate_lateral_context_needs_multiscale(self) -> MicroSplitDataConfig:
-        """Warn (or fail) if lateral_context is False but multiscale_count > 1."""
+        """Validate lateral-context consistency with multiscale_count.
+
+        Returns
+        -------
+        MicroSplitDataConfig
+            The validated configuration instance.
+        """
         if not self.lateral_context and self.multiscale_count > 1:
             raise ValueError(
                 f"lateral_context=False but multiscale_count={self.multiscale_count} "

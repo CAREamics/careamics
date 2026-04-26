@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,15 +11,16 @@ from torch.utils.data import Dataset
 from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.dataset_ng.dataset import ImageRegionData, _adjust_shape_for_channels
 from careamics.dataset_ng.image_stack import InMemoryImageStack
-from careamics.dataset_ng.normalization.mean_std_normalization import MeanStdNormalization
+from careamics.dataset_ng.normalization.mean_std_normalization import (
+    MeanStdNormalization,
+)
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_extractor.patch_construction import (
     lateral_context_patch_constr,
 )
 from careamics.dataset_ng.patching_strategies import (
-    FixedPatchingStrategy,
-    PatchSpecs,
     PatchingStrategy,
+    PatchSpecs,
     RandomPatchingStrategy,
 )
 from careamics.transforms import Compose
@@ -88,7 +88,32 @@ class MicroSplitDataset(Dataset):
         patching_strategy: PatchingStrategy | None = None,
         seed: int | None = None,
     ) -> None:
-        """Constructor — see class docstring for parameter descriptions."""
+        """Initialize the MicroSplit dataset.
+
+        Parameters
+        ----------
+        data_config : NGDataConfig
+            Base dataset configuration (mode, axes, patching, augmentations).
+        train_data : NDArray
+            Array of shape ``(S, C, Y, X)`` in SC(Z)YX order.
+        multiscale_count : int, default=1
+            Number of lateral-context scales, including the full-resolution level.
+        padding_mode : {"reflect", "wrap"}, default="reflect"
+            Boundary padding mode used by ``lateral_context_patch_constr``.
+        input_is_sum : bool, default=False
+            If ``True``, multiply alpha-averaged input by ``C``.
+        mix_uncorrelated_channels : bool, default=False
+            Whether to sample channels 1...C-1 from independent patch locations.
+        uncorrelated_channel_probab : float, default=0.5
+            Probability of applying uncorrelated channel sampling.
+        alpha_range : tuple[float, float] | None, default=None
+            Uniform sampling range for per-channel alphas. ``None`` gives equal
+            weights.
+        patching_strategy : PatchingStrategy | None, default=None
+            Optional strategy override. If ``None``, one is built from config.
+        seed : int | None, default=None
+            RNG seed used for patching (when built here) and runtime sampling.
+        """
         super().__init__()
 
         self.config = data_config
@@ -113,9 +138,14 @@ class MicroSplitDataset(Dataset):
         if patching_strategy is not None:
             self.patching_strategy: PatchingStrategy = patching_strategy
         else:
+            patch_size = getattr(data_config.patching, "patch_size", None)
+            if patch_size is None:
+                raise ValueError(
+                    "MicroSplitDataset requires a patching config with patch_size."
+                )
             self.patching_strategy = RandomPatchingStrategy(
                 data_shapes=[image_stack.data_shape],
-                patch_size=list(data_config.patching.patch_size),
+                patch_size=list(patch_size),
                 seed=seed if seed is not None else getattr(data_config, "seed", None),
             )
 
@@ -164,9 +194,7 @@ class MicroSplitDataset(Dataset):
         from careamics.config.data.ng_data_config import Mode
 
         if data_config.mode == Mode.TRAINING:
-            self.transforms: Compose | None = Compose(
-                list(data_config.augmentations)
-            )
+            self.transforms: Compose | None = Compose(list(data_config.augmentations))
         else:
             self.transforms = Compose([])
 
@@ -182,9 +210,7 @@ class MicroSplitDataset(Dataset):
         """
         return self.patching_strategy.n_patches
 
-    def __getitem__(
-        self, index: int
-    ) -> tuple[ImageRegionData, ImageRegionData]:
+    def __getitem__(self, index: int) -> tuple[ImageRegionData, ImageRegionData]:
         """Return a ``(input_region, target_region)`` pair.
 
         Parameters
@@ -215,9 +241,7 @@ class MicroSplitDataset(Dataset):
         # Alpha superposition along C → input (L, (Z), Y, X)
         alphas = self._sample_alphas()
         n_extra_dims = len(patches.shape) - 1  # all dims except C
-        alpha_bc = np.array(alphas)[
-            :, *(np.newaxis for _ in range(n_extra_dims))
-        ]
+        alpha_bc = np.array(alphas)[:, *(np.newaxis for _ in range(n_extra_dims))]
         input_patch = (alpha_bc * patches).sum(axis=0).astype(np.float32)
 
         if self.input_is_sum:
@@ -230,8 +254,8 @@ class MicroSplitDataset(Dataset):
         input_patch, _ = self._norm_input(input_patch)
         target_patch, _ = self._norm_target(target_patch)
 
-        # Augmentation (operates on C(Z)YX arrays; skip for input since it's L(Z)YX).
-        # TODO: apply augmentation to input/target jointly when transforms expect C(Z)YX.
+        # Augmentation operates on C(Z)YX arrays. Input is L(Z)YX.
+        # TODO: apply augmentation jointly when transforms expect C(Z)YX.
 
         # Wrap into ImageRegionData.
         input_region = self._make_image_region(input_patch, primary_spec)
@@ -289,7 +313,7 @@ class MicroSplitDataset(Dataset):
         for rand_idx in random_indices:
             specs.append(self.patching_strategy.get_patch_spec(int(rand_idx)))
 
-        channel_patches = []
+        channel_patches: list[NDArray] = []
         for spec in specs:
             ch_patch = self.input_extractor.extract_patch(
                 data_idx=spec["data_idx"],
@@ -298,7 +322,9 @@ class MicroSplitDataset(Dataset):
                 patch_size=spec["patch_size"],
             )
             # ch_patch: (C, L, (Z), Y, X) — take one channel
-            channel_patches.append(ch_patch[len(channel_patches) : len(channel_patches) + 1])
+            channel_patches.append(
+                ch_patch[len(channel_patches) : len(channel_patches) + 1]
+            )
 
         return np.concatenate(channel_patches, axis=0), specs
 

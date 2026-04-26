@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import NamedTuple
 
 import numpy as np
-import numpy.testing as npt
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -32,7 +31,13 @@ AXES = "SYX"  # new pipeline axes string
 
 
 def make_synthetic_nhwc() -> np.ndarray:
-    """Return deterministic float32 array shaped (N, H, W, C) for old dataset."""
+    """Return deterministic float32 array shaped (N, H, W, C) for old dataset.
+
+    Returns
+    -------
+    np.ndarray
+        Synthetic data in NHWC layout.
+    """
     rng = np.random.default_rng(SEED)
     # Use values well above 0 so the downsampled-ratio sanity check passes
     data = rng.uniform(10.0, 200.0, (N_FRAMES, HEIGHT, WIDTH, N_CHANNELS)).astype(
@@ -46,6 +51,11 @@ def make_synthetic_scyx() -> np.ndarray:
 
     This is the same data as make_synthetic_nhwc() but transposed to the
     SC(Z)YX axis order expected by InMemoryImageStack.
+
+    Returns
+    -------
+    np.ndarray
+        Synthetic data in SCYX layout.
     """
     nhwc = make_synthetic_nhwc()
     # (N, H, W, C) → (S, C, Y, X)
@@ -100,6 +110,24 @@ def make_legacy_dataset(
     synthetic_data = make_synthetic_nhwc()
 
     def _load_data_fn(data_config, datapath, datasplit_type, **kwargs):
+        """Return the in-memory synthetic array for legacy loader tests.
+
+        Parameters
+        ----------
+        data_config : object
+            Legacy data configuration (unused by this test loader).
+        datapath : pathlib.Path
+            Input path from the legacy loader API (unused).
+        datasplit_type : object
+            Requested data split value from the legacy loader API (unused).
+        **kwargs : object
+            Additional keyword arguments accepted for API compatibility.
+
+        Returns
+        -------
+        np.ndarray
+            Synthetic NHWC array used to build the legacy dataset.
+        """
         return synthetic_data
 
     config = MicroSplitDataConfig(
@@ -154,8 +182,9 @@ def compute_legacy_stats(
 
     Returns
     -------
-    mean_dict, std_dict : dict[str, np.ndarray]
-        Same structure as produced by ``compute_mean_std``.
+    tuple[dict[str, np.ndarray], dict[str, np.ndarray]]
+        ``(mean_dict, std_dict)`` in the same structure as
+        ``compute_mean_std``.
     """
     # One-mu-std input stats: single mean/std across the entire array, repeated C times
     input_mean = np.mean(data).reshape(1, 1, 1, 1)

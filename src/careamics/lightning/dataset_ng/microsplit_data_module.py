@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pytorch_lightning as L
@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 
+from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.data.ng_microsplit_config import MicroSplitDataConfig
 from careamics.dataset_ng.microsplit_dataset import MicroSplitDataset
 from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
@@ -34,6 +35,9 @@ class MicroSplitDataModule(CareamicsDataModule):
         Validation array in ``(S, C, Y, X)`` order.  If ``None``, a random
         split of ``n_val_patches`` patches from the training data is used
         (requires stratified patching in config).
+    **kwargs : Any
+        Additional keyword arguments accepted for compatibility with the
+        ``CareamicsDataModule`` constructor.
     """
 
     def __init__(
@@ -107,11 +111,25 @@ class MicroSplitDataModule(CareamicsDataModule):
 
     def _setup_train_val(self) -> None:
         """Build train and validation ``MicroSplitDataset`` instances."""
-        cfg = self.config
+        cfg = cast(MicroSplitDataConfig, self.config)
 
         def _build_dataset(data: NDArray, mode_str: str) -> MicroSplitDataset:
-            """Build a MicroSplitDataset from an array with the given mode."""
+            """Build a dataset for a specific mode.
+
+            Parameters
+            ----------
+            data : NDArray
+                Array in ``(S, C, Y, X)`` order used to build the dataset.
+            mode_str : str
+                Either ``"training"`` or ``"validating"``.
+
+            Returns
+            -------
+            MicroSplitDataset
+                Configured dataset instance for the requested mode.
+            """
             # Create a mode-specific version of the config.
+            dataset_config: NGDataConfig
             if mode_str == "training":
                 dataset_config = cfg
             else:

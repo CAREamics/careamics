@@ -34,35 +34,34 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-# ── Stage-gate import: will raise ImportError until Stage 4 is complete ───────
-from careamics.dataset_ng.microsplit_dataset import MicroSplitDataset  # noqa: E402
-
 # ── Legacy and fixture imports ────────────────────────────────────────────────
 from tests.dataset_ng.dataset.fixtures_microsplit import (
-    AXES,
     MULTISCALE_COUNT,
-    N_CHANNELS,
     PATCH_SIZE,
     SEED,
     make_legacy_dataset,
     make_synthetic_scyx,
 )
 
+from careamics.config.data.ng_data_config import NGDataConfig
+
 # ── Config imports (new pipeline) ─────────────────────────────────────────────
 from careamics.config.data.normalization_config import MeanStdConfig
-from careamics.config.data.ng_data_config import NGDataConfig
 from careamics.config.data.patching_strategies import RandomPatchingConfig
+
+# ── Stage-gate import: will raise ImportError until Stage 4 is complete ───────
+from careamics.dataset_ng.microsplit_dataset import MicroSplitDataset
 from careamics.dataset_ng.patching_strategies import FixedPatchingStrategy
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def legacy_bundle_det():
     """Legacy dataset with deterministic patch locations (no random crop).
 
     Index 0 with ShiftBoundary tiling and grid_size == patch_size == 64
-    on a 128×128 frame produces a patch at coords (h=0, w=0) of frame 0.
+    on a 128x128 frame produces a patch at coords (h=0, w=0) of frame 0.
     """
     return make_legacy_dataset(enable_random_cropping=False)
 
@@ -75,18 +74,18 @@ def new_dataset_det():
     deterministic location as the legacy dataset at index 0:
     sample_idx=0, coords=[0, 0], patch_size=[PATCH_SIZE, PATCH_SIZE].
     """
-    scyx = make_synthetic_scyx()   # shape (S, C, Y, X) — SCYX axis order
+    scyx = make_synthetic_scyx()  # shape (S, C, Y, X) — SCYX axis order
 
     # The array is already in SCYX order; pass axes="SCYX" so that
     # InMemoryImageStack stores it correctly without reshaping.
     data_config = NGDataConfig(
         mode="training",
         data_type="array",
-        axes="SCYX",   # explicit channel axis matches scyx array order
+        axes="SCYX",  # explicit channel axis matches scyx array order
         patching=RandomPatchingConfig(patch_size=[PATCH_SIZE, PATCH_SIZE], seed=SEED),
         normalization=MeanStdConfig(per_channel=True),
         batch_size=1,
-        augmentations=[],               # no augmentation for equivalence
+        augmentations=[],  # no augmentation for equivalence
         train_dataloader_params={"shuffle": False, "num_workers": 0},
     )
 
@@ -113,6 +112,7 @@ def new_dataset_det():
 
 # ── Equivalence assertions ────────────────────────────────────────────────────
 
+
 class TestSingleSampleEquivalence:
     """Compare a single sample from old and new dataset implementations."""
 
@@ -120,17 +120,17 @@ class TestSingleSampleEquivalence:
         """New input_region.data has the same shape as the legacy inp tensor."""
         inp_old, _ = legacy_bundle_det.dataset[0]
         input_region, _ = new_dataset_det[0]
-        assert input_region.data.shape == inp_old.shape, (
-            f"Shape mismatch: new={input_region.data.shape}, old={inp_old.shape}"
-        )
+        assert (
+            input_region.data.shape == inp_old.shape
+        ), f"Shape mismatch: new={input_region.data.shape}, old={inp_old.shape}"
 
     def test_target_data_shape_matches(self, legacy_bundle_det, new_dataset_det):
         """New target_region.data has the same shape as the legacy norm_target."""
         _, tgt_old = legacy_bundle_det.dataset[0]
         _, target_region = new_dataset_det[0]
-        assert target_region.data.shape == tgt_old.shape, (
-            f"Shape mismatch: new={target_region.data.shape}, old={tgt_old.shape}"
-        )
+        assert (
+            target_region.data.shape == tgt_old.shape
+        ), f"Shape mismatch: new={target_region.data.shape}, old={tgt_old.shape}"
 
     def test_input_scale0_values_close(self, legacy_bundle_det, new_dataset_det):
         """Scale-0 (full-resolution) input values agree within numerical tolerance.
@@ -153,7 +153,9 @@ class TestSingleSampleEquivalence:
             ),
         )
 
-    def test_input_lc_scales_exist_and_are_finite(self, legacy_bundle_det, new_dataset_det):
+    def test_input_lc_scales_exist_and_are_finite(
+        self, legacy_bundle_det, new_dataset_det
+    ):
         """LC scales 1+ exist, are non-zero, and are finite.
 
         The values differ from the legacy implementation by design (see module
@@ -163,7 +165,9 @@ class TestSingleSampleEquivalence:
         input_region, _ = new_dataset_det[0]
         assert input_region.data.shape[0] == inp_old.shape[0], "LC depth mismatch"
         for k in range(1, MULTISCALE_COUNT):
-            assert np.isfinite(input_region.data[k]).all(), f"Scale {k} contains non-finite values"
+            assert np.isfinite(
+                input_region.data[k]
+            ).all(), f"Scale {k} contains non-finite values"
             assert input_region.data[k].max() != 0.0, f"Scale {k} is all zeros"
 
     def test_target_data_values_close(self, legacy_bundle_det, new_dataset_det):
@@ -179,7 +183,9 @@ class TestSingleSampleEquivalence:
             tgt_old,
             rtol=1e-4,
             atol=1e-5,
-            err_msg="Normalized target tensors do not agree between old and new dataset",
+            err_msg=(
+                "Normalized target tensors do not agree between old and new dataset"
+            ),
         )
 
     def test_input_dtype_is_float32(self, new_dataset_det):
@@ -194,6 +200,7 @@ class TestSingleSampleEquivalence:
 
 
 # ── Metadata contract ─────────────────────────────────────────────────────────
+
 
 class TestMetadataContract:
     """Verify ImageRegionData metadata fields are correctly populated."""
@@ -249,6 +256,7 @@ class TestMetadataContract:
 
 # ── Return-type contract ──────────────────────────────────────────────────────
 
+
 class TestReturnTypeContract:
     """Verify that __getitem__ returns a 2-tuple of ImageRegionData."""
 
@@ -259,10 +267,12 @@ class TestReturnTypeContract:
 
     def test_first_element_is_image_region_data(self, new_dataset_det):
         from careamics.dataset_ng.dataset import ImageRegionData
+
         input_region, _ = new_dataset_det[0]
         assert isinstance(input_region, ImageRegionData)
 
     def test_second_element_is_image_region_data(self, new_dataset_det):
         from careamics.dataset_ng.dataset import ImageRegionData
+
         _, target_region = new_dataset_det[0]
         assert isinstance(target_region, ImageRegionData)
