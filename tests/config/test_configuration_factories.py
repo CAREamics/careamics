@@ -1260,13 +1260,19 @@ def test_microsplit_configuration(
     expected: dict,
 ):
     """Test MicroSplit configuration variants in one parametrized test."""
-    nm_paths: list[str] | None = None
+    import warnings
+
+    from careamics.config.noise_model import GaussianMixtureNMConfig
+    from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
+
+    noise_model_config = None
     if nm_count > 0:
-        nm_paths = []
+        gmm_list = []
         for i in range(nm_count):
             nm_path = tmp_path / f"{scenario}_noise_model_{i}.npz"
             np.savez(nm_path, **create_dummy_noise_model)
-            nm_paths.append(str(nm_path))
+            gmm_list.append(GaussianMixtureNMConfig.from_npz(nm_path))
+        noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
 
     config_kwargs = {
         "experiment_name": f"test_{scenario}",
@@ -1278,10 +1284,12 @@ def test_microsplit_configuration(
         "train_dataloader_params": {"num_workers": 0},
         **factory_kwargs,
     }
-    if nm_paths is not None:
-        config_kwargs["nm_paths"] = nm_paths
+    if noise_model_config is not None:
+        config_kwargs["noise_model_config"] = noise_model_config
 
-    config = create_microsplit_configuration(**config_kwargs)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        config = create_microsplit_configuration(**config_kwargs)
 
     assert config.algorithm_config.algorithm == "microsplit"
     assert isinstance(config.algorithm_config, MicroSplitAlgorithm)
