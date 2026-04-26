@@ -5,12 +5,15 @@ from typing import Annotated, Literal, Union
 
 import numpy as np
 import torch
+from typing import Self
+
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     PlainSerializer,
     PlainValidator,
+    model_validator,
 )
 
 from careamics.utils.serializers import _array_to_json, _to_numpy, _to_torch
@@ -87,6 +90,10 @@ class GaussianMixtureNMConfig(BaseModel):
     tol: float = Field(default=1e-10)
     """Tolerance used in the computation of the noise model likelihood."""
 
+    channel_index: int | None = Field(default=None, ge=0)
+    """The data channel index this noise model was trained on.
+    Used to validate channel ordering when attaching to a multi-channel model."""
+
     @classmethod
     def from_npz(cls, path: Union[str, Path]) -> "GaussianMixtureNMConfig":
         """Load a trained Gaussian mixture noise model from a `.npz` file.
@@ -100,6 +107,7 @@ class GaussianMixtureNMConfig(BaseModel):
         -------
         GaussianMixtureNMConfig
             Configuration populated with weights and signal range from the file.
+            `channel_index` is populated when present in the file.
 
         Raises
         ------
@@ -115,18 +123,28 @@ class GaussianMixtureNMConfig(BaseModel):
             raise ValueError(f"Path {path} must point to a file.")
         params = np.load(path)
         weight_key = "trained_weight" if "trained_weight" in params else "weight"
+        channel_index = (
+            int(params["channel_index"]) if "channel_index" in params else None
+        )
         return cls(
             weight=params[weight_key],
             min_signal=float(params["min_signal"]),
             max_signal=float(params["max_signal"]),
             min_sigma=float(params["min_sigma"]),
+            channel_index=channel_index,
         )
 
 
 # The noise model is given by a set of GMMs, one for each target
 # e.g., 2 target channels, 2 noise models
 class MultiChannelNMConfig(BaseModel):
-    """Noise Model config aggregating noise models for single output channels."""
+    """Noise Model config aggregating noise models for single output channels.
+
+    When `channel_indices` is provided it must agree with the `channel_index`
+    stored on each contained `GaussianMixtureNMConfig` (when that field is set),
+    and its length must equal the number of noise models.  This enables
+    detecting channel-order swaps before training.
+    """
 
     # TODO: check that this model config is OK
     model_config = ConfigDict(
@@ -134,3 +152,32 @@ class MultiChannelNMConfig(BaseModel):
     )
     noise_models: list[GaussianMixtureNMConfig]
     """List of noise models, one for each target channel."""
+
+    channel_indices: list[int] | None = None
+    """Ordered list of data channel indices, noise_models[i] was trained on
+    channel channel_indices[i].  When None the natural list order is assumed."""
+
+    @model_validator(mode="after")
+    def _validate_channel_order(self) -> Self:
+        if self.channel_indices is not None:
+            if len(self.channel_indices) != len(self.noise_models):
+                raise ValueError(
+                    f"channel_indices length ({len(self.channel_indices)}) must "
+                    f"match the number of noise models ({len(self.noise_models)})."
+                )
+            for pos, (ci, nm) in enumerate(
+                zip(self.channel_indices, self.noise_models, strict=True)
+            ):
+                if nm.channel_index is not None and nm.channel_index != ci:
+                    raise ValueError(
+                        f"Noise model at position {pos} has channel_index="
+                        f"{nm.channel_index} but channel_indices[{pos}]={ci}. "
+                        "Channel order mismatch detected."
+                    )
+            expected = list(range(len(self.noise_models)))
+            if sorted(self.channel_indices) != expected:
+                raise ValueError(
+                    f"channel_indices must be a permutation of {expected}, "
+                    f"got {self.channel_indices}."
+                )
+        return self

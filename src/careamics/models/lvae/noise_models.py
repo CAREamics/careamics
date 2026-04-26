@@ -731,7 +731,9 @@ class GaussianMixtureNoiseModel(nn.Module):
                 )
         return observation
 
-    def save(self, path: str, name: str) -> None:
+    def save(
+        self, path: str, name: str, channel_index: int | None = None
+    ) -> None:
         """Save the trained parameters on the noise model.
 
         Parameters
@@ -740,13 +742,19 @@ class GaussianMixtureNoiseModel(nn.Module):
             Path to save the trained parameters.
         name : str
             File name to save the trained parameters.
+        channel_index : int | None, optional
+            The data channel index this model was trained on.  When provided it
+            is stored in the `.npz` file so channel ordering can be validated on
+            load.
         """
         os.makedirs(path, exist_ok=True)
-        np.savez(
-            os.path.join(path, name),
+        save_kwargs: dict = dict(
             trained_weight=self.weight.numpy(),
             min_signal=self.min_signal.numpy(),
             max_signal=self.max_signal.numpy(),
             min_sigma=self.min_sigma,
         )
+        if channel_index is not None:
+            save_kwargs["channel_index"] = np.array(channel_index)
+        np.savez(os.path.join(path, name), **save_kwargs)
         print("The trained parameters (" + name + ") is saved at location: " + path)

@@ -1,6 +1,7 @@
 """CAREamics Lightning module."""
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, Literal, Union
 
 import numpy as np
@@ -23,6 +24,7 @@ from careamics.config.support import (
     SupportedScheduler,
 )
 from careamics.losses import loss_factory
+from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
@@ -467,15 +469,81 @@ class VAEModule(L.LightningModule):
         """
         return self.model(x)  # TODO Different model can have more than one output
 
-    def set_noise_model(self, noise_model: MultiChannelNoiseModel) -> None:
-        """Set the noise model.
+    def set_noise_model(
+        self,
+        noise_model: (
+            MultiChannelNoiseModel
+            | MultiChannelNMConfig
+            | list[str]
+            | list[Path]
+        ),
+    ) -> None:
+        """Set the noise model after construction.
+
+        Accepts a ready-to-use ``MultiChannelNoiseModel``, a
+        ``MultiChannelNMConfig`` Pydantic model, or an ordered list of paths
+        to ``.npz`` files (one per output channel, in channel order).
 
         Parameters
         ----------
-        noise_model : MultiChannelNoiseModel
-            The noise model to use.
+        noise_model : MultiChannelNoiseModel | MultiChannelNMConfig | list[str | Path]
+            The noise model to attach.  When a list of paths is provided the
+            files are loaded in the supplied order and must contain
+            ``channel_index`` metadata that matches the list position.
+
+        Raises
+        ------
+        ValueError
+            If the algorithm configuration does not use a noise model
+            (``denoisplit_weight <= 0``), or if the number of noise models
+            does not match ``algorithm_config.model.output_channels``, or if
+            channel-index metadata in loaded files is inconsistent.
         """
-        self.noise_model = noise_model
+        denoisplit_weight = self.algorithm_config.loss.denoisplit_weight
+        if denoisplit_weight <= 0:
+            raise ValueError(
+                "set_noise_model() called but the algorithm configuration does "
+                "not require a noise model (denoisplit_weight <= 0). "
+                "Only denoiSplit configurations with denoisplit_weight > 0 use "
+                "a noise model."
+            )
+
+        # --- normalise input to MultiChannelNoiseModel -----------------
+        if isinstance(noise_model, MultiChannelNoiseModel):
+            resolved: MultiChannelNoiseModel = noise_model
+        elif isinstance(noise_model, MultiChannelNMConfig):
+            resolved = multichannel_noise_model_factory(noise_model)
+        elif isinstance(noise_model, list):
+            from careamics.config.noise_model import GaussianMixtureNMConfig
+
+            gmm_configs = []
+            for pos, p in enumerate(noise_model):
+                cfg = GaussianMixtureNMConfig.from_npz(Path(p))
+                if cfg.channel_index is not None and cfg.channel_index != pos:
+                    raise ValueError(
+                        f"Noise model at position {pos} (path: {p}) has "
+                        f"channel_index={cfg.channel_index} but was supplied at "
+                        f"position {pos}. Re-order the paths to match channel order."
+                    )
+                gmm_configs.append(cfg)
+            mc_config = MultiChannelNMConfig(noise_models=gmm_configs)
+            resolved = multichannel_noise_model_factory(mc_config)
+        else:
+            raise TypeError(
+                f"Unsupported noise_model type: {type(noise_model)}. "
+                "Expected MultiChannelNoiseModel, MultiChannelNMConfig, "
+                "or a list of paths."
+            )
+
+        # --- validate channel count ------------------------------------
+        expected_channels = self.algorithm_config.model.output_channels
+        if resolved._nm_cnt != expected_channels:
+            raise ValueError(
+                f"Number of noise models ({resolved._nm_cnt}) does not match "
+                f"the number of output channels ({expected_channels})."
+            )
+
+        self.noise_model = resolved
 
     def set_data_stats(self, data_mean: float, data_std: float) -> None:
         """Set data mean and std for denormalization in loss computation.
@@ -526,11 +594,20 @@ class VAEModule(L.LightningModule):
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
 
         # Compute loss
+        denoisplit_weight = self.loss_parameters.denoisplit_weight
+        if denoisplit_weight > 0 and self.noise_model is None:
+            raise RuntimeError(
+                "A noise model is required for denoiSplit training "
+                "(denoisplit_weight > 0) but none has been set. "
+                "Call set_noise_model() before training, or pass "
+                "noise_model_config to create_microsplit_configuration()."
+            )
         if self.noise_model is not None and (
             self._data_mean is None or self._data_std is None
         ):
             raise RuntimeError(
-                "Data mean and std must be set before training with noise model."
+                "Data mean and std must be set before training with noise model. "
+                "Call set_data_stats() first."
             )
 
         loss = self.loss_func(
@@ -926,3 +1003,4 @@ def create_careamics_module(
         raise NotImplementedError(
             f"Algorithm {which_algo} is not implemented or unknown."
         )
+
