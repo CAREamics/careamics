@@ -1,3 +1,5 @@
+from typing import Any, Literal
+
 import pytest
 
 from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
@@ -9,9 +11,24 @@ from careamics.config.data import DataConfig
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.factories.data_factory import (
     create_ng_data_configuration,
+    create_patch_filter_configuration,
     list_spatial_augmentations,
 )
 from careamics.config.support import SupportedTransform
+
+PatchFilterName = Literal["mean_std", "shannon", "max"]
+PATCH_FILTER_PARAMS: tuple[tuple[PatchFilterName, dict[str, Any]], ...] = (
+    ("mean_std", {"mean_threshold": 0.5}),
+    ("shannon", {"threshold": 0.5}),
+    ("max", {"threshold": 0.5}),
+)
+PATCH_FILTER_MISSING_REQUIRED_PARAMS: tuple[
+    tuple[PatchFilterName, dict[str, Any]], ...
+] = (
+    ("mean_std", {}),
+    ("shannon", {}),
+    ("max", {}),
+)
 
 
 class TestSpatialAugmentations:
@@ -100,3 +117,59 @@ class TestDataConfiguration:
         assert config.train_dataloader_params["num_workers"] == 4
         assert config.val_dataloader_params["num_workers"] == 4
         assert config.pred_dataloader_params["num_workers"] == 4
+
+    @pytest.mark.parametrize("patch_filter, patch_filter_params", PATCH_FILTER_PARAMS)
+    def test_patch_filter(
+        self,
+        patch_filter: PatchFilterName,
+        patch_filter_params: dict[str, Any],
+    ):
+        """Test that patch filter configuration is passed through."""
+        config: DataConfig = create_ng_data_configuration(
+            data_type="array",
+            axes="YX",
+            patch_size=(16, 16),
+            batch_size=1,
+            patch_filter={"name": patch_filter, **patch_filter_params},
+        )
+
+        assert config.patch_filter is not None
+        assert config.patch_filter.name == patch_filter
+
+    @pytest.mark.parametrize("patch_filter, patch_filter_params", PATCH_FILTER_PARAMS)
+    def test_create_patch_filter_configuration(
+        self,
+        patch_filter: PatchFilterName,
+        patch_filter_params: dict[str, Any],
+    ):
+        """Test that patch filter factory arguments create a DataConfig dictionary."""
+        patch_filter_config = create_patch_filter_configuration(
+            patch_filter=patch_filter,
+            patch_filter_params=patch_filter_params,
+        )
+
+        assert patch_filter_config == {"name": patch_filter, **patch_filter_params}
+
+    @pytest.mark.parametrize(
+        "patch_filter, patch_filter_params",
+        PATCH_FILTER_MISSING_REQUIRED_PARAMS,
+    )
+    def test_error_missing_patch_filter_params(
+        self,
+        patch_filter: PatchFilterName,
+        patch_filter_params: dict[str, Any],
+    ):
+        """Test that missing required patch filter params raise an error."""
+        patch_filter_config = create_patch_filter_configuration(
+            patch_filter=patch_filter,
+            patch_filter_params=patch_filter_params,
+        )
+
+        with pytest.raises(ValueError):
+            create_ng_data_configuration(
+                data_type="array",
+                axes="YX",
+                patch_size=(16, 16),
+                batch_size=1,
+                patch_filter=patch_filter_config,
+            )
