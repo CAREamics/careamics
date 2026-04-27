@@ -1,4 +1,4 @@
-As is mentioned in the [Data Preparation Guide](../current/data.md#custom-data-formats) CAREamics provides two mechanisms for training and predicting on custom data types. There is:
+As mentioned in the [Data Preparation Guide](../current/data.md#custom-data-formats) CAREamics provides two mechanisms for training and predicting on custom data types. There is:
 
 1. what we call using a ["read function"](#custom-read-function), which can be used to read all the data to memory; and
 2. what we call using an ["image stack loader"](#custom-image-stack--loader), which is more advanced but can be used for chunked or memory-mapped file formats.

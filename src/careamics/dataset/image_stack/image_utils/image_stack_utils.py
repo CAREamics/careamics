@@ -36,7 +36,7 @@ def pad_patch(
     data_shape : Sequence[int]
         The shape of the image the patch originates from, must be in the format SC(Z)YX.
     patch_data : numpy.typing.NDArray[T]
-        The patch data to be padded, with the axes C(Z)YX.
+        The patch data to be padded, with axes C(Z)YX.
 
     Returns
     -------
