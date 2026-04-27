@@ -114,7 +114,7 @@ levels, and showcase various ways to specify which array should be used for trai
 CAREamics allows reading formats not natively supported using two mechanisms:
 
 - Simple loading using a python function. All files with the expected file extension will be loaded in memory. 
-- Advanced loading using a custom `ImageStack` implementation, useful for more chunked or memory-mapped file formats.
+- Advanced loading using a custom `ImageStack` implementation, useful for chunked or memory-mapped file formats.
 
 ### Custom Read Function
 
@@ -128,6 +128,6 @@ See the [Custom Read Function Tutorial](../tutorials/custom_data.md#custom-read-
 
 ### Custom Image Stack Loader
 
-Training and predicting on a custom memory-mapped or chunked file format is more complex, but it enables training without loading an entire image file into memory at once. In involves implementing an [ImageStack][careamics.dataset.image_stack.ImageStack] class and an [ImageStackLoader][careamics.dataset.image_stack_loader] function to load the image stacks. The custom loading function can be implemented to accept any input type which will allow the same input type to be passed to training and prediction.
+Training and predicting on a custom memory-mapped or chunked file format is more complex, but it enables training without loading an entire image file into memory at once. In involves implementing an [`ImageStack`][careamics.dataset.image_stack.ImageStack] class and an [`ImageStackLoader`][careamics.dataset.image_stack_loader] function to load the image stacks. The custom loading function can be implemented to accept any input type which will allow the same input type to be passed to training and prediction.
 
 See the [Custom Image Stack & Loader Tutorial](../tutorials/custom_data.md#custom-image-stack-loader) for an example on using a custom read function.
