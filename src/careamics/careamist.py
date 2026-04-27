@@ -149,6 +149,7 @@ class CAREamist:
             self.config.training_config.logger,
             self.config.get_safe_experiment_name(),
             self.work_dir,
+            self.config,
         )
 
         self.trainer = Trainer(
@@ -390,7 +391,10 @@ class CAREamist:
 
     @staticmethod
     def _create_loggers(
-        logger: str | None, experiment_name: str, work_dir: Path
+        logger: str | None,
+        experiment_name: str,
+        work_dir: Path,
+        config: Configuration,
     ) -> list[TensorBoardLogger | WandbLogger | CSVLogger]:
         """Create loggers for the experiment.
 
@@ -403,6 +407,8 @@ class CAREamist:
             Name of the experiment, used as a parameter to the loggers.
         work_dir : Path
             The working directory, used as a parameter to the loggers.
+        config : NGConfiguration
+            Full CAREamics config logged to Wandb at run initialization.
 
         Returns
         -------
@@ -417,7 +423,11 @@ class CAREamist:
         match logger:
             case SupportedLogger.WANDB:
                 return [
-                    WandbLogger(name=experiment_name, save_dir=work_dir / "wandb_logs"),
+                    WandbLogger(
+                        name=experiment_name,
+                        save_dir=work_dir / "wandb_logs",
+                        config=config.model_dump(),
+                    ),
                     csv_logger,
                 ]
             case SupportedLogger.TENSORBOARD:
@@ -545,6 +555,16 @@ class CAREamist:
         self.trainer.fit(
             self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
         )
+        for lgr in self.trainer.loggers:
+            if isinstance(lgr, WandbLogger):
+                import wandb
+
+                norm_stats = self.train_datamodule.config.normalization.model_dump()
+                wandb.run.config.update(
+                    {"normalization": norm_stats}, allow_val_change=True
+                )
+                wandb.finish()
+                break
 
     def _build_predict_datamodule(
         self,

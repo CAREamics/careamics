@@ -14,10 +14,10 @@ from careamics.config.algorithms import (
     N2VAlgorithm,
     PN2VAlgorithm,
 )
+from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.architectures import LVAEConfig, UNetConfig
 from careamics.config.augmentations import (
     SPATIAL_TRANSFORMS_UNION,
-    N2VManipulateConfig,
     XYFlipConfig,
     XYRandomRotate90Config,
 )

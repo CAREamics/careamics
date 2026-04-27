@@ -19,7 +19,7 @@ from careamics.config.data.data_config import (
 from tests.utils import (
     DEFAULT_MODE,
     DEFAULT_PATCHING,
-    ng_data_config_dict_testing,
+    data_config_dict_testing,
     patch_filter_dict_testing,
 )
 
@@ -119,7 +119,7 @@ AXES_CZI_DISALLOWED = (
 
 def test_default_data_config():
     """Test that the default DataConfig can be created."""
-    ng_data_config_dict = ng_data_config_dict_testing()
+    ng_data_config_dict = data_config_dict_testing()
     DataConfig(**ng_data_config_dict)
 
 
@@ -173,7 +173,7 @@ def test_default_data_config():
 )
 def test_axes(data_type, axes, expected_error):
     """Test that valid axes are accepted."""
-    cfg_dict = ng_data_config_dict_testing(
+    cfg_dict = data_config_dict_testing(
         data_type=data_type,
         axes=axes,
     )
@@ -202,20 +202,20 @@ class TestInMemoryValidation:
     """Tests for validation of `in_memory` parameter."""
 
     def test_array_must_be_in_memory(self):
-        cfg = ng_data_config_dict_testing(data_type="array", in_memory=False)
+        cfg = data_config_dict_testing(data_type="array", in_memory=False)
         with pytest.raises(ValueError, match="`in_memory` must be True"):
             DataConfig(**cfg)
 
     @pytest.mark.parametrize("data_type", ["zarr", "czi"])
     def test_zarr_czi_cannot_be_in_memory(self, data_type):
-        cfg = ng_data_config_dict_testing(data_type=data_type, in_memory=True)
+        cfg = data_config_dict_testing(data_type=data_type, in_memory=True)
         with pytest.raises(ValueError, match="`in_memory` not supported"):
             DataConfig(**cfg)
 
     @pytest.mark.parametrize("data_type", ["tiff", "custom"])
     @pytest.mark.parametrize("in_memory", [True, False])
     def test_tiff_custom_both_modes(self, data_type, in_memory):
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             data_type=data_type,
             in_memory=in_memory,
         )
@@ -237,7 +237,7 @@ class TestChannelsValidation:
         ],
     )
     def test_validation_errors(self, channels, axes):
-        cfg_dict = ng_data_config_dict_testing(axes=axes, channels=channels)
+        cfg_dict = data_config_dict_testing(axes=axes, channels=channels)
         with pytest.raises(ValueError, match="Channels must"):
             DataConfig(**cfg_dict)
 
@@ -250,7 +250,7 @@ class TestChannelsValidation:
         ],
     )
     def test_coercision(self, channels, coerced_channels):
-        cfg_dict = ng_data_config_dict_testing(axes="CYX", channels=channels)
+        cfg_dict = data_config_dict_testing(axes="CYX", channels=channels)
         cfg = DataConfig(**cfg_dict)
         assert cfg.channels == coerced_channels
 
@@ -264,7 +264,7 @@ class TestChannelsValidation:
         ],
     )
     def test_valid_channels(self, channels, axes):
-        cfg_dict = ng_data_config_dict_testing(axes=axes, channels=channels)
+        cfg_dict = data_config_dict_testing(axes=axes, channels=channels)
         cfg = DataConfig(**cfg_dict)
         assert cfg.channels == channels
 
@@ -299,7 +299,7 @@ class TestChannelsValidation:
     ),
 )
 def test_validate_patching_mode(mode: str, patching: str, expectation):
-    ng_data_config_dict = ng_data_config_dict_testing(mode=mode, patching=patching)
+    ng_data_config_dict = data_config_dict_testing(mode=mode, patching=patching)
     with expectation:
         cfg = DataConfig(**ng_data_config_dict)
         assert cfg.mode == ng_data_config_dict["mode"]
@@ -321,7 +321,7 @@ def test_validate_patching_mode(mode: str, patching: str, expectation):
 )
 def test_patch_filter_vs_mode(stage, filter_name, expected_error):
     """Test that patch filters are only allowed in training mode."""
-    cfg_dict = ng_data_config_dict_testing(
+    cfg_dict = data_config_dict_testing(
         mode=stage, patch_filter=patch_filter_dict_testing(filter_name)
     )
 
@@ -345,7 +345,7 @@ def test_patch_filter_vs_mode(stage, filter_name, expected_error):
 )
 def test_mask_filter_vs_mode(stage, expected_error):
     """Test that coordinate filters are only allowed in training mode."""
-    cfg_dict = ng_data_config_dict_testing(
+    cfg_dict = data_config_dict_testing(
         mode=stage, mask_filter={"name": "mask", "coverage": 0.25}
     )
 
@@ -377,22 +377,20 @@ class TestDataloaderParams:
     def test_valid_shuffle(self, shuffle):
         """Test valid `shuffle` values in `train_dataloader_params`."""
         DataConfig(
-            **ng_data_config_dict_testing(train_dataloader_params={"shuffle": shuffle})
+            **data_config_dict_testing(train_dataloader_params={"shuffle": shuffle})
         )
 
     def test_shuffle_validation_error(self):
         """Test that the absence of `shuffle` in `train_dataloader_params` raises a
         validation error."""
         with pytest.raises(ValueError, match="`train_dataloader_params` must include"):
-            DataConfig(**ng_data_config_dict_testing(train_dataloader_params={}))
+            DataConfig(**data_config_dict_testing(train_dataloader_params={}))
 
     def test_shuffle_warning(self):
         """Test that a warning is raised with `shuffle=False`."""
         with pytest.warns(match="`train_dataloader_params` includes `shuffle=False`"):
             DataConfig(
-                **ng_data_config_dict_testing(
-                    train_dataloader_params={"shuffle": False}
-                )
+                **data_config_dict_testing(train_dataloader_params={"shuffle": False})
             )
 
     @pytest.mark.parametrize(
@@ -405,7 +403,7 @@ class TestDataloaderParams:
         mock_cuda(cuda_available)
 
         # create config
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             **{dataloader: {"shuffle": True}}  # passes for both validation and train
         )
         cfg = DataConfig(**cfg_dict)
@@ -416,7 +414,7 @@ class TestDataloaderParams:
         params."""
         mock_cuda(False)
 
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             train_dataloader_params={"shuffle": True, "pin_memory": True},
             val_dataloader_params={"num_workers": 2, "pin_memory": True},
         )
@@ -427,7 +425,7 @@ class TestDataloaderParams:
     def test_val_dataloader_num_workers_set(self):
         """Test that `num_workers` from the `num_workers` field is applied to all
         dataloaders."""
-        cfg_dict = ng_data_config_dict_testing(num_workers=3)
+        cfg_dict = data_config_dict_testing(num_workers=3)
         cfg = DataConfig(**cfg_dict)
         assert cfg.train_dataloader_params["num_workers"] == 3
         assert cfg.val_dataloader_params["num_workers"] == 3
@@ -436,7 +434,7 @@ class TestDataloaderParams:
         """Test that `num_workers` in `val_dataloader_params` is not overwritten
         if explicitly set."""
         # set to train
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             train_dataloader_params={"shuffle": True, "num_workers": 3},
             val_dataloader_params={"num_workers": 5},
         )
@@ -501,7 +499,7 @@ class TestDataloaderParams:
 )
 def test_validate_dimensions(data_type, axes, patches, expected_error):
     """Test the `validate_dimensions` model validator comparing axes and patch sizes."""
-    cfg_dict = ng_data_config_dict_testing(
+    cfg_dict = data_config_dict_testing(
         data_type=data_type,
         axes=axes,
         patching=DEFAULT_PATCHING,
@@ -516,12 +514,12 @@ class TestSeed:
 
     def test_seed(self):
         """Test that the seed default factory generates different seeds."""
-        seeds = [DataConfig(**ng_data_config_dict_testing()).seed for _ in range(5)]
+        seeds = [DataConfig(**data_config_dict_testing()).seed for _ in range(5)]
         assert len(set(seeds)) == len(seeds)
 
     def test_seed_propagation(self):
         """Test seed propagation to filters, augmentations and patching."""
-        cfg = ng_data_config_dict_testing(
+        cfg = data_config_dict_testing(
             seed=42,
             patch_filter={"name": "shannon", "threshold": 0.5},
             coord_filter={"name": "mask"},
@@ -543,7 +541,7 @@ class TestSeed:
 )
 def test_is_3d(data_type, axes, is_3d):
     """Test the `is_3D` method."""
-    cfg_dict = ng_data_config_dict_testing(
+    cfg_dict = data_config_dict_testing(
         data_type=data_type,
         axes=axes,
         patching=DEFAULT_PATCHING,
@@ -668,7 +666,7 @@ class TestConvertMode:
     @pytest.mark.parametrize("new_mode", NON_TRAINING_STAGES)
     def test_convert_mode(self, new_mode):
         """Test that `convert_mode` correctly converts the mode."""
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             mode=TRAINING,
             patching=DEFAULT_PATCHING,
             data_type="tiff",
@@ -695,7 +693,7 @@ class TestConvertMode:
     @pytest.mark.parametrize("mode", NON_TRAINING_STAGES)
     def test_convert_mode_parameter_update(self, mode):
         """Test that `convert_mode` correctly updates parameters when specified."""
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             mode=TRAINING,
             batch_size=5,
             data_type="tiff",
@@ -743,7 +741,7 @@ class TestConvertMode:
 
     def test_normalization_conservation(self):
         """Test that normalization is conserved when converting mode."""
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             mode=TRAINING,
             normalization={
                 "name": "mean_std",
@@ -759,7 +757,7 @@ class TestConvertMode:
 
     def test_cannot_convert_to_training(self):
         """Test that converting to 'training' mode raises an error."""
-        cfg_dict = ng_data_config_dict_testing(mode=DEFAULT_MODE)
+        cfg_dict = data_config_dict_testing(mode=DEFAULT_MODE)
         cfg = DataConfig(**cfg_dict)
 
         with pytest.raises(
@@ -771,7 +769,7 @@ class TestConvertMode:
     def test_cannot_convert_from_val_and_pred(self, mode):
         """Test that converting from 'validating' or 'predicting' mode raises an
         error."""
-        cfg_dict = ng_data_config_dict_testing(mode=mode)
+        cfg_dict = data_config_dict_testing(mode=mode)
         cfg = DataConfig(**cfg_dict)
 
         with pytest.raises(
@@ -797,7 +795,7 @@ class TestConvertMode:
         by using `channels=None` has using the old `channels`, and `channels="all"` as
         signifying that we want to keep all channels (final value `None`).
         """
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             mode=TRAINING, axes="CYX", channels=old_channels
         )
         cfg = DataConfig(**cfg_dict)
@@ -807,7 +805,7 @@ class TestConvertMode:
 
     def test_patching_tiling_error(self):
         """Test error converting to prediction while passing `None` overlap."""
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             mode="training",
         )
         cfg = DataConfig(**cfg_dict)
@@ -842,7 +840,7 @@ class TestConvertMode:
     )
     def test_new_patch(self, mode, patch_size, overlap, expected_error):
         """Test converting to prediction while passing tiling parameters."""
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             mode=TRAINING,
         )
         cfg = DataConfig(**cfg_dict)
@@ -863,7 +861,7 @@ class TestConvertMode:
     @pytest.mark.parametrize("mode", NON_TRAINING_STAGES)
     def test_patch_filters_removal(self, mode):
         """Test that patch, coordinate, and mask filters are removed upon conversion."""
-        cfg_dict = ng_data_config_dict_testing(
+        cfg_dict = data_config_dict_testing(
             mode=TRAINING,
             patch_filter=patch_filter_dict_testing("shannon"),
         )
@@ -900,9 +898,7 @@ class TestConvertMode:
         self, mode: str, axes: str, data_type: str, expected_coverage: float | None
     ):
         """Test mask filter coverage based on mode and dimensionality."""
-        cfg_dict = ng_data_config_dict_testing(
-            mode=mode, axes=axes, data_type=data_type
-        )
+        cfg_dict = data_config_dict_testing(mode=mode, axes=axes, data_type=data_type)
         cfg = DataConfig(**cfg_dict)
 
         if mode != TRAINING:

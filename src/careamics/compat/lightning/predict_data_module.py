@@ -184,6 +184,8 @@ class PredictDataModule(L.LightningDataModule):
         """
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
+            # mypy check
+            assert isinstance(self.pred_data, np.ndarray)
             if self.tiled:
                 self.predict_dataset: PredictDatasetType = InMemoryTiledPredDataset(
                     prediction_config=self.prediction_config,

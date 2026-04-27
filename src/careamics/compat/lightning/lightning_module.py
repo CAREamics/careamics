@@ -445,7 +445,7 @@ def create_careamics_module(
     algorithm_dict["model"] = model_dict
 
     which_algo = algorithm_dict["algorithm"]
-    if which_algo in UNetBasedAlgorithm.get_compatible_algorithms():
+    if which_algo in ["n2v", "care", "n2n", "pn2v"]:
         algorithm_cfg = algorithm_factory(algorithm_dict)
 
         # if use N2V

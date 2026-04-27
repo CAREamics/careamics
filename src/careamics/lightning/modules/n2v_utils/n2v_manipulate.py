@@ -4,7 +4,7 @@ from typing import Any
 
 import torch
 
-from careamics.config.augmentations import N2VManipulateConfig
+from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
 from careamics.utils.get_device import get_device
 

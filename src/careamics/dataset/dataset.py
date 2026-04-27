@@ -76,12 +76,117 @@ def _patch_size_within_data_shapes(
     bool
         If all the data shapes are greater or equal than the patch size.
     """
-    smaller_than_shapes = [
-        # skip sample and channel dimension in data_shape
-        (np.array(patch_size) <= np.array(data_shape[2:])).all()
-        for data_shape in data_shapes
-    ]
-    return all(smaller_than_shapes)
+    patch_arr = np.array(patch_size)
+    return all(
+        (patch_arr <= np.array(data_shape[2:])).all() for data_shape in data_shapes
+    )
+
+
+def _shapes_all_equal(data_shapes: Sequence[Sequence[int]]) -> bool:
+    """Determine whether all the data shapes are equal.
+
+    Parameters
+    ----------
+    data_shapes : Sequence[Sequence[int]]
+        A sequence of data shapes. They must be in the format SC(Z)YX.
+
+    Returns
+    -------
+    bool
+        If all the data shapes are equal.
+    """
+    if not data_shapes:
+        return True
+    return all(shape == data_shapes[0] for shape in data_shapes[1:])
+
+
+def _validate_shapes_against_model(
+    data_config: DataConfig,
+    model_constraints: ModelConstraints,
+    data_shapes: Sequence[Sequence[int]],
+    target_data_shapes: Sequence[Sequence[int]] | None = None,
+) -> None:
+    """Validate that the data shapes are compatible with the model constraints.
+
+    Since patch and tile sizes are already validated in the configuration, this function
+    validates that for whole patching all the data shapes are compatible with the model
+    constraints.
+
+    Finally, it validates the channels if no channel subset is specified.
+
+    Parameters
+    ----------
+    data_config : DataConfig
+        Dataset configuration.
+    model_constraints : ModelConstraints
+        The model constraints to validate against.
+    data_shapes : Sequence[Sequence[int]]
+        A sequence of data shapes. They must be in the format SC(Z)YX.
+    target_data_shapes : Sequence[Sequence[int]] | None, default=None
+        A sequence of target data shapes. They must be in the format SC(Z)YX.
+
+    Raises
+    ------
+    ValueError
+        If any of the data shapes is not compatible with the model constraints.
+    """
+    # model constraints not applied if there is a patch size (tiling, patching),
+    # since it is validated in the configuration
+    if isinstance(data_config.patching, WholePatchingConfig):
+        for shape in data_shapes:
+            model_constraints.validate_spatial_shape(shape[2:])
+
+    # validate channels if not using a subset of channels, note that `channels`
+    # is already validated against the model in the configuration
+    if data_config.channels is None:
+        # validate input channels
+        for shape in data_shapes:
+            model_constraints.validate_input_channels(shape[1])
+
+        # validate target channels
+        if target_data_shapes:
+            for shape in target_data_shapes:
+                model_constraints.validate_target_channels(shape[1])
+
+
+def _validate_shapes_against_mode(
+    data_config: DataConfig,
+    data_shapes: Sequence[Sequence[int]],
+) -> None:
+    """Validate the input shapes against the mode and patching.
+
+    Parameters
+    ----------
+    data_config : DataConfig
+        Dataset configuration.
+    data_shapes : Sequence[Sequence[int]]
+        A sequence of data shapes. They must be in the format SC(Z)YX.
+
+    Raises
+    ------
+    ValueError
+        If the input shapes are not compatible with the mode and patching strategy.
+    """
+    # validate shapes according to the mode and patching strategy
+    if data_config.mode != Mode.PREDICTING:
+        # make sure all the image sizes are greater than the patch size for training
+        if not isinstance(
+            data_config.patching, WholePatchingConfig
+        ) and not _patch_size_within_data_shapes(
+            data_shapes, data_config.patching.patch_size
+        ):
+            raise ValueError(
+                "Not all images sizes are greater or equal than the patch size for "
+                "training and validation."
+            )
+    else:
+        if isinstance(data_config.patching, WholePatchingConfig):
+            if data_config.batch_size > 1 and not _shapes_all_equal(data_shapes):
+                raise ValueError(
+                    "For prediction without tiling, all images must have the same "
+                    "size when batch size is greater than 1. Consider using a batch "
+                    "size of 1 or use tiling."
+                )
 
 
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
@@ -95,9 +200,9 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         Strategy for sampling patches.
     input_extractor : PatchExtractor
         Extractor for input patches.
-    target_extractor : PatchExtractor or None, optional
+    target_extractor : PatchExtractor or None, default=None
         Extractor for target patches.
-    model_constraints : ModelConstraints, optional
+    model_constraints : ModelConstraints, default=None
         If provided, the dataset will validate that the input patch size is compatible
         with the model constraints. Only used for prediction datasets.
     """
@@ -120,56 +225,30 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             Strategy for sampling patches.
         input_extractor : PatchExtractor
             Extractor for input patches.
-        target_extractor : PatchExtractor or None, optional
+        target_extractor : PatchExtractor or None, default=None
             Extractor for target patches.
-        model_constraints : ModelConstraints, optional
+        model_constraints : ModelConstraints, default=None
             If provided, the dataset will validate that the input spatial shape is
-            compatible with the model constraints. Only used for prediction datasets.
+            compatible with the model constraints.
         """
         # sanity checks on the input and output data
-        data_shapes = [
-            image_stack.data_shape for image_stack in input_extractor.image_stacks
-        ]
-        if data_config.mode != Mode.PREDICTING:
-            # make sure all the image sizes are greater than the patch size for training
-            if not isinstance(
-                data_config.patching, WholePatchingConfig
-            ) and not _patch_size_within_data_shapes(
-                data_shapes, data_config.patching.patch_size
-            ):
-                raise ValueError(
-                    "Not all images sizes are greater or equal than the patch size for "
-                    "training and validation."
-                )
+        data_shapes = input_extractor.shapes
+        _validate_shapes_against_mode(data_config, data_shapes)
 
         if model_constraints is not None:
-            # model constraints not applied if there is a patch size (tiling, patching),
-            # since it is validated in the configuration
-            if isinstance(data_config.patching, WholePatchingConfig):
-                for shape in data_shapes:
-                    # raise errors if spatial shape is not compatible with model
-                    # constraints
-                    model_constraints.validate_spatial_shape(shape[2:])
-
-            # validate channels if not using a subset of channels, note that `channels`
-            # is already validated agaisnt the model in the configuration
-            if data_config.channels is None:
-                # validate input channels
-                for shape in data_shapes:
-                    model_constraints.validate_input_channels(shape[1])
-
-                # validate target channels
-                if target_extractor is not None:
-                    for image_stack in target_extractor.image_stacks:
-                        model_constraints.validate_target_channels(
-                            image_stack.data_shape[1]
-                        )
+            target_data_shapes = (
+                target_extractor.shapes if target_extractor is not None else None
+            )
+            _validate_shapes_against_model(
+                data_config=data_config,
+                model_constraints=model_constraints,
+                data_shapes=data_shapes,
+                target_data_shapes=target_data_shapes,
+            )
 
         self.config = data_config
-
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
-
         self.patching_strategy = patching_strategy
 
         resolve_normalization_config(
@@ -196,16 +275,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         # TODO: add TTA
         return Compose([])
-
-    def __len__(self):
-        """Return the number of patches (length of the dataset).
-
-        Returns
-        -------
-        int
-            Number of patches.
-        """
-        return self.patching_strategy.n_patches
 
     def _create_image_region(
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
@@ -303,6 +372,16 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             else None
         )
         return input_patch, target_patch
+
+    def __len__(self):
+        """Return the number of patches (length of the dataset).
+
+        Returns
+        -------
+        int
+            Number of patches.
+        """
+        return self.patching_strategy.n_patches
 
     def __getitem__(
         self, index: int
