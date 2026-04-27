@@ -84,9 +84,9 @@ class RangeNormalization(Normalization):
         input_mins = broadcast_stats(self.input_mins, n_channels, "input_mins")
         input_maxes = broadcast_stats(self.input_maxes, n_channels, "input_maxes")
 
-        patch = patch.astype(np.float32)
+        patch = patch.astype(np.float32, copy=False)
         if target is not None:
-            target = target.astype(np.float32)
+            target = target.astype(np.float32, copy=False)
 
         min_val = reshape_stats(input_mins, patch.ndim, channel_axis=0)
         max_val = reshape_stats(input_maxes, patch.ndim, channel_axis=0)

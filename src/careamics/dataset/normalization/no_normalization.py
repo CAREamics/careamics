@@ -45,9 +45,9 @@ class NoNormalization(Normalization):
         tuple of NDArray
             Transformed patch and target, the target can be returned as `None`.
         """
-        patch = patch.astype(np.float32)
+        patch = patch.astype(np.float32, copy=False)
         if target is not None:
-            target = target.astype(np.float32)
+            target = target.astype(np.float32, copy=False)
         return patch, target
 
     def denormalize(self, patch: torch.Tensor) -> torch.Tensor:

@@ -2,12 +2,9 @@
 
 from collections.abc import Sequence
 from types import EllipsisType
-from typing import TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
-
-T = TypeVar("T", bound=np.generic)
 
 
 def channel_slice(
@@ -39,8 +36,8 @@ def pad_patch(
     coords: Sequence[int],
     patch_size: Sequence[int],
     data_shape: Sequence[int],
-    patch_data: NDArray[T],
-) -> NDArray[T]:
+    patch_data: NDArray,
+) -> NDArray[np.float32]:
     """
     Pad patch data with zeros where it is outside the bounds of it's source image.
 
@@ -66,11 +63,11 @@ def pad_patch(
 
     Returns
     -------
-    NDArray[T]
+    NDArray[np.float32]
         The resulting padded patch.
     """
     coords_ = np.array(coords)
-    patch = np.zeros((patch_data.shape[0], *patch_size), dtype=patch_data.dtype)
+    patch = np.zeros((patch_data.shape[0], *patch_size), dtype=np.float32)
     # data start will be zero unless coords are negative
     data_start = np.clip(coords_, 0, None) - coords_
     data_end = data_start + np.array(patch_data.shape[1:])
