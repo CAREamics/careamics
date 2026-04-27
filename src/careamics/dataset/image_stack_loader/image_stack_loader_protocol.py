@@ -25,36 +25,6 @@ class ImageStackLoader(Protocol[P, GenericImageStack]):
     An `ImageStackLoader` must return a sequence of the `ImageStack` class. This could
     be a sequence of one of the existing concrete implementations, such as
     `ZarrImageStack`, or a custom user defined `ImageStack`.
-
-    Examples
-    --------
-    The following example demonstrates how an `ImageStackLoader` could be defined
-    for loading non-OME Zarr images. Returning a list of `ZarrImageStack` instances.
-
-    >>> from typing import TypedDict
-    >>> from zarr.storage import FsspecStore
-    >>> from careamics.dataset.image_stack import ZarrImageStack
-
-    >>> # Define a zarr source
-    >>> # It encompasses multiple arguments that determine what data will be loaded
-    >>> class ZarrSource(TypedDict):
-    ...     store: FsspecStore
-    ...     data_paths: Sequence[str]
-
-    >>> def custom_image_stack_loader(
-    ...     source: ZarrSource, axes: str, *args, **kwargs
-    ... ) -> list[ZarrImageStack]:
-    ...     image_stacks = [
-    ...         ZarrImageStack(store=source["store"], data_path=data_path, axes=axes)
-    ...         for data_path in source["data_paths"]
-    ...     ]
-    ...     return image_stacks
-
-    TODO: show example use in the `CAREamicsDataset`
-
-    The example above defines a `ZarrSource` dict because to determine _which_ ZARR
-    images will be loaded both a ZARR store and the internal data paths need to be
-    specified.
     """
 
     def __call__(

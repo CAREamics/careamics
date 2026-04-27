@@ -54,7 +54,7 @@ dependencies = [
     'scikit-image<=0.26.0',
     'zarr>=3.0.0,<4.0.0',
     'tifffile<=2026.3.3',
-    'matplotlib<=3.10.8',
+    'matplotlib<=3.10.9',
     'microssim==0.0.3', # TODO absorb as careamics.metrics
 
     # --- Used by LVAE code --- 
@@ -87,12 +87,13 @@ dev = [
     "pytest",
     "pytest-mock",
     "pytest-cov",
-    "sybil",  # doctesting
-
+    "sybil", # doctesting
     # libraries used in some tests
     "onnxscript<=0.7.0",
     # "ml_dtypes>=0.5.0",  # required by onnx, causes issues in gh runners with py313
     'pylibCZIrw>=4.1.2,<7.0.0',  # czi files testing
+    # example in docs
+    "h5py>=3.15.1",
 ]
 
 [project.urls]
