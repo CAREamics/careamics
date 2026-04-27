@@ -11,7 +11,11 @@ from careamics.config.augmentations import (
 from careamics.config.configuration import Configuration
 
 from .algorithm_factory import create_algorithm_configuration
-from .data_factory import create_ng_data_configuration, list_spatial_augmentations
+from .data_factory import (
+    create_ng_data_configuration,
+    create_patch_filter_configuration,
+    list_spatial_augmentations,
+)
 from .training_factory import create_training_configuration, update_trainer_params
 
 
@@ -175,6 +179,8 @@ def create_advanced_care_config(
     independent_channels: bool = False,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
+    patch_filter: Literal["shannon", "max", "mean_std"] | None = None,
+    patch_filter_params: dict[str, Any] | None = None,
     # - Lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -263,6 +269,16 @@ def create_advanced_care_config(
         For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
         For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         For "none": No parameters needed.
+    patch_filter : {"shannon", "max", "mean_std"} or None, default=None
+        Patch filtering strategy to use. If `None`, no patch filter is applied.
+    patch_filter_params : dict[str, Any] | None, default=None
+        Strategy-specific patch filter parameters. All filters accept
+        {"ref_channel": int, "filtered_patch_prob": float} (optional).
+        For "shannon": {"threshold": float}.
+        For "max": {"threshold": float, "coverage": float} ("coverage" optional,
+        defaults to 0.25 for 2D data and 0.125 for 3D data).
+        For "mean_std": {"mean_threshold": float, "std_threshold": float} with
+        "std_threshold" optional.
     num_workers : int, default=-1
         Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
@@ -326,6 +342,8 @@ def create_advanced_n2n_config(
     independent_channels: bool = True,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
+    patch_filter: Literal["shannon", "max", "mean_std"] | None = None,
+    patch_filter_params: dict[str, Any] | None = None,
     # - Lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -409,10 +427,20 @@ def create_advanced_n2n_config(
         Normalization strategy to use.
     normalization_params : dict[str, Any] | None, default=None
         Strategy-specific normalization parameters. If None, default values are used.
-        For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
-        For "none": No parameters needed.
+        - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
+        - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
+        - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
+        - For "none": No parameters needed.
+    patch_filter : {"shannon", "max", "mean_std"} or None, default=None
+        Patch filtering strategy to use. If `None`, no patch filter is applied.
+    patch_filter_params : dict[str, Any] | None, default=None
+        Strategy-specific patch filter parameters. All filters accept
+        {"ref_channel": int, "filtered_patch_prob": float} (optional).
+        - For "shannon": {"threshold": float}.
+        - For "max": {"threshold": float, "coverage": float} ("coverage" optional,
+        defaults to 0.25 for 2D data and 0.125 for 3D data).
+        - For "mean_std": {"mean_threshold": float, "std_threshold": float} with
+        "std_threshold" optional.
     num_workers : int, default=-1
         Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
@@ -475,6 +503,8 @@ def _create_advanced_supervised_config(
     independent_channels: bool = False,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
+    patch_filter: Literal["shannon", "max", "mean_std"] | None = None,
+    patch_filter_params: dict[str, Any] | None = None,
     # - Lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -561,10 +591,20 @@ def _create_advanced_supervised_config(
         Normalization strategy to use.
     normalization_params : dict[str, Any] | None, default=None
         Strategy-specific normalization parameters. If None, default values are used.
-        For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
-        For "none": No parameters needed.
+        - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
+        - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
+        - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
+        - For "none": No parameters needed.
+    patch_filter : {"shannon", "max", "mean_std"} or None, default=None
+        Patch filtering strategy to use. If `None`, no patch filter is applied.
+    patch_filter_params : dict[str, Any] | None, default=None
+        Strategy-specific patch filter parameters. All filters accept
+        {"ref_channel": int, "filtered_patch_prob": float} (optional).
+        - For "shannon": {"threshold": float}.
+        - For "max": {"threshold": float, "coverage": float} ("coverage" optional,
+        defaults to 0.25 for 2D data and 0.125 for 3D data).
+        - For "mean_std": {"mean_threshold": float, "std_threshold": float} with
+        "std_threshold" optional.
     num_workers : int, default=-1
         Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
@@ -641,6 +681,11 @@ def _create_advanced_supervised_config(
     if normalization_params is not None:
         norm_config.update(normalization_params)
 
+    patch_filter_config = create_patch_filter_configuration(
+        patch_filter=patch_filter,
+        patch_filter_params=patch_filter_params,
+    )
+
     # augmentations
     augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
     if augmentations is not None:
@@ -671,6 +716,7 @@ def _create_advanced_supervised_config(
         augmentations=spatial_transforms,
         n_val_patches=n_val_patches,
         normalization=norm_config,
+        patch_filter=patch_filter_config,
         channels=channels,
         in_memory=in_memory,
         num_workers=num_workers,
