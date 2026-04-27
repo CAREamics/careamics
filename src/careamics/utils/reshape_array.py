@@ -476,7 +476,7 @@ def get_patch_slices(
 
     The argument `original_axes` describes the dimension order of the array.
 
-    `sample_idx is expressed with respect to the transformed space where the `"S"` and
+    `sample_idx` is expressed with respect to the transformed space where the `"S"` and
     `"T"` dimensions are flattened together, if both or either are present.
 
     Parameters

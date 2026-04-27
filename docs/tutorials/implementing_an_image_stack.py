@@ -12,9 +12,9 @@ from careamics.dataset.image_stack.image_utils import pad_patch
 class HDF5ImageStack:
     def __init__(self, image_data: h5py.Dataset, axes: str):
         self._image_data = image_data
-        self.original_axes = axes
-        self.original_data_shape = image_data.shape
-        self.data_shape = AxesTransform(
+        self.original_axes = axes  # (1)!
+        self.original_data_shape = image_data.shape  # (2)!
+        self.data_shape = AxesTransform(  # (3)!
             axes, self.original_data_shape
         ).transformed_shape
 
@@ -23,7 +23,7 @@ class HDF5ImageStack:
         return self._image_data.dtype
 
     @property
-    def source(self) -> str:  # (1)!
+    def source(self) -> str:  # (4)!
         return "#".join([self._image_data.file.filename, str(self._image_data.name)])
 
     def extract_patch(
@@ -59,7 +59,7 @@ class HDF5ImageStack:
             coords,
             patch_size,
         )
-        patch_data = self._image_data[patch_slice]  # (2)!
+        patch_data = self._image_data[patch_slice]  # (5)!
         patch_data = reshape_patch(patch_data, self.original_axes)
         patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
         return patch

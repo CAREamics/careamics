@@ -130,4 +130,4 @@ See the [Custom Read Function Tutorial](../tutorials/custom_data.md#custom-read-
 
 Training and predicting on a custom memory-mapped or chunked file format is more complex, but it enables training without loading an entire image file into memory at once. In involves implementing an [ImageStack][careamics.dataset.image_stack.ImageStack] class and an [ImageStackLoader][careamics.dataset.image_stack_loader] function to load the image stacks. The custom loading function can be implemented to accept any input type which will allow the same input type to be passed to training and prediction.
 
-See the [Custom Image Stack & Loader Tutorial](../tutorials/custom_data.md#custom-image-stack--loader) for an example on using a custom read function.
+See the [Custom Image Stack & Loader Tutorial](../tutorials/custom_data.md#custom-image-stack-loader) for an example on using a custom read function.

@@ -35,12 +35,12 @@ def pad_patch(
         The size of the patch in the spatial dimensions.
     data_shape : Sequence[int]
         The shape of the image the patch originates from, must be in the format SC(Z)YX.
-    patch_data : NDArray[T]
-        The patch data to be padded.
+    patch_data : numpy.typing.NDArray[T]
+        The patch data to be padded, with the axes C(Z)YX.
 
     Returns
     -------
-    NDArray[T]
+    numpy.typing.NDArray[T]
         The resulting padded patch.
     """
     coords_ = np.array(coords)
