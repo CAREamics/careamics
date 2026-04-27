@@ -15,6 +15,8 @@ class N2VConfiguration(NGConfiguration):
     """N2V-specific configuration."""
 
     algorithm_config: N2VAlgorithm
+    """Algorithm configuration, holding all parameters required to configure the
+    model."""
 
     @model_validator(mode="after")
     def validate_n2v_mask_pixel_perc(self: Self) -> Self:

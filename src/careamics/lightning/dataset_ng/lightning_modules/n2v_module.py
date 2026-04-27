@@ -8,7 +8,8 @@ import torch
 from torch import nn
 from torchmetrics import MetricCollection
 
-from careamics.config import N2VAlgorithm, algorithm_factory
+from careamics.config import N2VAlgorithm
+from careamics.config.ng_factories import instantiate_algorithm_config
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.lightning.dataset_ng.data_module import TrainValData, TrainValSplitData
 from careamics.lightning.dataset_ng.metrics import SIPSNR
@@ -47,12 +48,16 @@ class N2VModule(L.LightningModule):
         super().__init__()
 
         if isinstance(algorithm_config, dict):
-            config = algorithm_factory(algorithm_config)
+            config = instantiate_algorithm_config(algorithm_config)
         else:
             config = algorithm_config
 
         if not isinstance(config, N2VAlgorithm):
-            raise TypeError("algorithm_config must be a N2VAlgorithm")
+            raise ValueError(
+                f"Parameter `algorithm_config` must be a N2VAlgorithm "
+                f"or a dict that represents a valid N2VAlgorithm Pydantic model "
+                f"(got {type(config).__name__})."
+            )
 
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config

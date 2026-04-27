@@ -5,22 +5,17 @@ from careamics.utils import BaseEnum
 
 # TODO register loss with custom_loss decorator?
 class SupportedLoss(str, BaseEnum):
-    """Supported losses.
+    """Supported losses."""
 
-    Attributes
-    ----------
-    MSE : str
-        Mean Squared Error loss.
-    MAE : str
-        Mean Absolute Error loss.
-    N2V : str
-        Noise2Void loss.
-    """
-
+    # denoising losses
     MSE = "mse"
     MAE = "mae"
+
+    # n2v family specific losses
     N2V = "n2v"
     PN2V = "pn2v"
+
+    # lvae losses
     HDN = "hdn"
     MUSPLIT = "musplit"
     MICROSPLIT = "microsplit"
@@ -28,5 +23,8 @@ class SupportedLoss(str, BaseEnum):
     DENOISPLIT_MUSPLIT = (
         "denoisplit_musplit"  # TODO refac losses, leave only microsplit
     )
-    # CE = "ce"
-    # DICE = "dice"
+
+    # segmentation losses
+    CE = "ce"
+    DICE = "dice"
+    DICE_CE = "dice_ce"

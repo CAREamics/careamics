@@ -9,7 +9,7 @@ from careamics.config.ng_configs.ng_training_configuration import (
 
 
 def create_training_configuration(
-    algorithm: Literal["care", "n2n", "n2v"],
+    algorithm: Literal["care", "n2n", "n2v", "seg"],
     trainer_params: dict,
     logger: Literal["wandb", "tensorboard", "none"],
     checkpoint_params: dict[str, Any] | None = None,
@@ -21,7 +21,7 @@ def create_training_configuration(
 
     Parameters
     ----------
-    algorithm : {"care", "n2n", "n2v"}
+    algorithm : {"care", "n2n", "n2v", "seg"}
         Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict
         Parameters for Lightning Trainer class, see PyTorch Lightning documentation.

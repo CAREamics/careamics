@@ -58,7 +58,7 @@ class SelfSupervisedCheckpointing:
 
 
 def default_training_dict(
-    algorithm: Literal["care", "n2n", "n2v"],
+    algorithm: Literal["care", "n2n", "n2v", "seg"],
     trainer_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     checkpoint_params: dict[str, Any] | None = None,
@@ -73,7 +73,7 @@ def default_training_dict(
 
     Parameters
     ----------
-    algorithm : {"care", "n2n", "n2v"}
+    algorithm : {"care", "n2n", "n2v", "seg"}
         Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict, optional
         Parameters for Lightning Trainer class, by default None.
@@ -100,7 +100,7 @@ def default_training_dict(
         # select default checkpointing preset based on algorithm
         default_ckpt_preset = (
             SupervisedCheckpointing
-            if algorithm == "care"
+            if algorithm == "care" or algorithm == "seg"
             # since Noise2Noise is comparing noisy pixels to other noisy pixels, it
             # cannot be monitored based on a metric, we use the self-supervised preset
             else SelfSupervisedCheckpointing

@@ -8,11 +8,13 @@ from .get_module import (
     get_module_cls,
 )
 from .n2v_module import N2VModule
+from .seg_unet_module import SegModule
 
 __all__ = [
     "CAREModule",
     "CAREamicsModule",
     "N2VModule",
+    "SegModule",
     "create_module",
     "get_model_constraints",
     "get_module_cls",

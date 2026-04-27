@@ -1,49 +1,15 @@
 """Convenience function to create algorithm configurations."""
 
-from typing import Annotated, Any, Literal, Union
+from typing import Any, Literal
 
-from pydantic import Field, TypeAdapter
-
-from careamics.config.algorithms import (
-    CAREAlgorithm,
-    N2NAlgorithm,
-    N2VAlgorithm,
-    # PN2VAlgorithm,  # TODO not yet compatible with NG Dataset
-)
 from careamics.config.architectures import UNetConfig
 from careamics.config.support.supported_architectures import SupportedArchitecture
 
 
-# TODO rename so that it does not bear the same name as the module?
-def algorithm_factory(
-    algorithm: dict[str, Any],
-) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]:
-    """
-    Create an algorithm model for training CAREamics.
-
-    Parameters
-    ----------
-    algorithm : dict
-        Algorithm dictionary.
-
-    Returns
-    -------
-    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm
-        Algorithm model for training CAREamics.
-    """
-    adapter: TypeAdapter = TypeAdapter(
-        Annotated[
-            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm],
-            Field(discriminator="algorithm"),
-        ]
-    )
-    return adapter.validate_python(algorithm)
-
-
 def create_algorithm_configuration(
     dimensions: Literal[2, 3],
-    algorithm: Literal["n2v", "care", "n2n"],
-    loss: Literal["n2v", "mae", "mse"],
+    algorithm: Literal["n2v", "care", "n2n", "seg"],
+    loss: Literal["n2v", "mae", "mse", "dice", "ce", "dice_ce"],
     independent_channels: bool,
     n_channels_in: int,
     n_channels_out: int,
@@ -61,10 +27,11 @@ def create_algorithm_configuration(
     ----------
     dimensions : {2, 3}
         Dimension of the model, either 2D or 3D.
-    algorithm : {"n2v", "care", "n2n"}
+    algorithm : {"n2v", "care", "n2n", "seg"}
         Algorithm to use.
-    loss : {"n2v", "mae", "mse"}
-        Loss function to use.
+    loss : {"n2v", "mae", "mse", "dice", "ce", "dice_ce"}
+        Loss function to use. Choose `n2v` for N2V, `mae` or `mse` for CARE and N2N,
+        and `dice`, `ce`, or `dice_ce` for segmentation.
     independent_channels : bool
         Whether to train all channels independently.
     n_channels_in : int

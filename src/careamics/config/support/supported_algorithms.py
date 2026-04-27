@@ -12,8 +12,13 @@ class SupportedAlgorithm(str, BaseEnum):
     configurations.
     """
 
+    # UNet-based algorithms
     N2V = "n2v"
     """Noise2Void algorithm, a self-supervised approach based on blind denoising."""
+
+    PN2V = "pn2v"
+    """Probabilistic Noise2Void. A extension of Noise2Void is not restricted to Gaussian
+    noise models or Gaussian intensity predictions."""
 
     CARE = "care"
     """Content-aware image restoration, a supervised algorithm used for a variety
@@ -23,18 +28,12 @@ class SupportedAlgorithm(str, BaseEnum):
     """Noise2Noise algorithm, a self-supervised denoising scheme based on comparing
     noisy images of the same sample."""
 
-    MUSPLIT = "musplit"  # TODO remove
-    """An image splitting approach based on ladder VAE architectures."""
+    SEG = "seg"
+    """Segmentation algorithm based on UNet architecture."""
+
+    # VAE-based algorithms
+    HDN = "hdn"
+    """Hierarchical DivNoising, an unsupervised denoising algorithm."""
 
     MICROSPLIT = "microsplit"
     """A micro-level image splitting approach based on ladder VAE architectures."""
-
-    DENOISPLIT = "denoisplit"
-    """An image splitting and denoising approach based on ladder VAE architectures."""
-
-    HDN = "hdn"
-    """Hierarchical Denoising Network, an unsupervised denoising algorithm"""
-
-    PN2V = "pn2v"
-    """Probabilistic Noise2Void. A extension of Noise2Void is not restricted to Gaussian
-    noise models or Gaussian intensity predictions."""
