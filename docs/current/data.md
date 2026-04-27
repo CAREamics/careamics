@@ -22,7 +22,7 @@ data is too large to fit in memory, CAREamics will train by loading files from d
 one at a time and cycle through them to extract patches. While slower, this ensure that
 training is performed over the entire set of files.
 
-To train on TIFF files, you can either passa single path to a TIFF, a list of paths to
+To train on TIFF files, you can either pass a single path to a TIFF, a list of paths to
 TIFF files, or a path to a directory containing TIFF files. In the latter case, all
 TIFF files in the directory will be used for training.
 
@@ -67,6 +67,7 @@ organization, we defined a flexible way to specify which data should be used.
 
 There are three ways to specify which array(s) should be used for training or
 prediction:
+
 - Pointing to a Zarr file (`path/to/file.zarr`)
 - Pointing to a single Zarr group using a URI (`file://path/to/file.zarr/group_name`)
 - Pointing to a single Zarr array using a URI (`file://path/to/file.zarr/group_name/array_name`)
@@ -112,12 +113,21 @@ levels, and showcase various ways to specify which array should be used for trai
 
 CAREamics allows reading formats not natively supported using two mechanisms:
 
-- Simple loading using a python function. If passing a dictionary, all files with the
-expectected file extension will be loaded in memory.
-- Advanced loading using a custom `ImageStack` implementation, useful for more complex
-formats such as chunked or memory-mapped ones.
+- Simple loading using a python function. All files with the expected file extension will be loaded in memory. 
+- Advanced loading using a custom `ImageStack` implementation, useful for chunked or memory-mapped file formats.
 
-(soon)
+### Custom Read Function
 
-### Read functions
-### `ImageStack` loader
+This uses the same mechanism as training on in-memory TIFF files. A simple function that reads a path and returns a NumPy array can be provided when training or predicting, then the inputs can be specified using:
+
+- a path to a file,
+- a list of paths, or
+- a path to a directory.
+
+See the [Custom Read Function Tutorial](../tutorials/custom_data.md#custom-read-function) for an example on using a custom read function.
+
+### Custom Image Stack Loader
+
+Training and predicting on a custom memory-mapped or chunked file format is more complex, but it enables training without loading an entire image file into memory at once. In involves implementing an [`ImageStack`][careamics.dataset.image_stack.ImageStack] class and an [`ImageStackLoader`][careamics.dataset.image_stack_loader] function to load the image stacks. The custom loading function can be implemented to accept any input type which will allow the same input type to be passed to training and prediction.
+
+See the [Custom Image Stack & Loader Tutorial](../tutorials/custom_data.md#custom-image-stack-loader) for an example on using a custom read function.
