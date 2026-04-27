@@ -66,6 +66,7 @@ dependencies = [
 
     # --- Others ---
     'psutil<=7.2.2', # used for virtual memory estimation
+    'typer', # TODO will be removed in #928
 ]
 
 [project.optional-dependencies]
