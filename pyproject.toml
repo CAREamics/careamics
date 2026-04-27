@@ -41,24 +41,32 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    # --- Core dependencies ---
     "numpy>=1.21",
-    "numpy>=2.1.0; python_version>='3.13'",  # prevents ml_dtypes conflict in py313, see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
-    'torch>=2.1.0,<2.10.0', # lightning currently does not support torch 2.10.0
-    'torchvision<=0.25.0',
-    'bioimageio.core>=0.9.0',
-    'tifffile<=2026.3.3',
-    'psutil<=7.2.2',
     'pydantic>=2.11,<=2.13.3',
     'pytorch_lightning>=2.2,<=2.6.1',
-    'pyyaml!=6.0.0,<=6.0.3',
-    'typer>=0.12.3,<=0.24.1',
+    # lightning currently does not support torch 2.10.0
+    # see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
+    'torch>=2.1.0,<2.10.0',
+    'torchmetrics >0.7.0, <1.9.0',
+
+    # --- Data, image processing and visualization ---
     'scikit-image<=0.26.0',
     'zarr>=3.0.0,<4.0.0',
-    'pillow<=12.2.0',
+    'tifffile<=2026.3.3',
     'matplotlib<=3.10.9',
-    'validators<=0.35.0',
-    'torchmetrics>=0.11.0,<1.5.0', # 1.5.0 causes `data_range` mandatory parameter issue
-    'microssim',
+    'microssim==0.0.3', # TODO absorb as careamics.metrics
+
+    # --- Used by LVAE code --- 
+    'torchvision<=0.25.0', # TODO used in model and module, revisit
+
+    # --- BMZ dependencies ---
+    'bioimageio.core>=0.9.0',
+    'pillow<=12.2.0', # TODO used to create covers, revisit
+
+    # --- Others ---
+    'psutil<=7.2.2', # used for virtual memory estimation
+    'typer', # TODO will be removed in #928
 ]
 
 [project.optional-dependencies]
@@ -71,7 +79,7 @@ examples = ["jupyter", "careamics-portfolio"]
 
 # loggers
 wandb = ["wandb"]
-tensorboard = ["tensorboard", "protobuf==5.29.1"]
+tensorboard = ["tensorboard"]#, "protobuf==5.29.1"]
 
 [dependency-groups]
 # development dependencies and tooling
@@ -83,7 +91,7 @@ dev = [
     "sybil", # doctesting
     # libraries used in some tests
     "onnxscript<=0.7.0",
-    "ml_dtypes>=0.5.0",  # required by onnx, causes issues in gh runners with py313
+    # "ml_dtypes>=0.5.0",  # required by onnx, causes issues in gh runners with py313
     'pylibCZIrw>=4.1.2,<7.0.0',  # czi files testing
     # example in docs
     "h5py>=3.15.1",

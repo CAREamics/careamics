@@ -367,14 +367,11 @@ dependencies = [
     { name = "psutil" },
     { name = "pydantic" },
     { name = "pytorch-lightning" },
-    { name = "pyyaml" },
     { name = "scikit-image" },
     { name = "tifffile" },
     { name = "torch" },
     { name = "torchmetrics" },
     { name = "torchvision" },
-    { name = "typer" },
-    { name = "validators" },
     { name = "zarr" },
 ]
 
@@ -413,24 +410,20 @@ requires-dist = [
     { name = "careamics-portfolio", marker = "extra == 'examples'" },
     { name = "jupyter", marker = "extra == 'examples'" },
     { name = "matplotlib", specifier = "<=3.10.8" },
-    { name = "microssim" },
+    { name = "microssim", specifier = "==0.0.3" },
     { name = "numpy", specifier = ">=1.21" },
-    { name = "numpy", marker = "python_full_version >= '3.13'", specifier = ">=2.1.0" },
     { name = "pillow", specifier = "<=12.2.0" },
     { name = "protobuf", marker = "extra == 'tensorboard'", specifier = "==5.29.1" },
     { name = "psutil", specifier = "<=7.2.2" },
     { name = "pydantic", specifier = ">=2.11,<=2.13.3" },
     { name = "pylibczirw", marker = "extra == 'czi'", specifier = ">=4.1.2,<7.0.0" },
     { name = "pytorch-lightning", specifier = ">=2.2,<=2.6.1" },
-    { name = "pyyaml", specifier = "!=6.0.0,<=6.0.3" },
     { name = "scikit-image", specifier = "<=0.26.0" },
     { name = "tensorboard", marker = "extra == 'tensorboard'" },
     { name = "tifffile", specifier = "<=2026.3.3" },
     { name = "torch", specifier = ">=2.1.0,<2.10.0" },
-    { name = "torchmetrics", specifier = ">=0.11.0,<1.5.0" },
+    { name = "torchmetrics", specifier = ">0.7.0,<1.9.0" },
     { name = "torchvision", specifier = "<=0.25.0" },
-    { name = "typer", specifier = ">=0.12.3,<=0.24.1" },
-    { name = "validators", specifier = "<=0.35.0" },
     { name = "wandb", marker = "extra == 'wandb'" },
     { name = "zarr", specifier = ">=3.0.0,<4.0.0" },
 ]
@@ -3902,15 +3895,6 @@ wheels = [
 ]
 
 [[package]]
-name = "shellingham"
-version = "1.5.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/58/15/8b3609fd3830ef7b27b655beb4b4e9c62313a4e8da8c676e142cc210d58e/shellingham-1.5.4.tar.gz", hash = "sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de", size = 10310, upload-time = "2023-10-24T04:13:40.426Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl", hash = "sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686", size = 9755, upload-time = "2023-10-24T04:13:38.866Z" },
-]
-
-[[package]]
 name = "six"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4256,21 +4240,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/37/92/e97fcc6b2c27cdb87ce5ee063d77f8f26f19f06916aa680464c8104ef0f6/triton-3.5.1-cp313-cp313t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0b4d2c70127fca6a23e247f9348b8adde979d2e7a20391bfbabaac6aebc7e6a8", size = 170579924, upload-time = "2025-11-11T17:41:12.455Z" },
     { url = "https://files.pythonhosted.org/packages/a4/e6/c595c35e5c50c4bc56a7bac96493dad321e9e29b953b526bbbe20f9911d0/triton-3.5.1-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:d0637b1efb1db599a8e9dc960d53ab6e4637db7d4ab6630a0974705d77b14b60", size = 170480488, upload-time = "2025-11-11T17:41:18.222Z" },
     { url = "https://files.pythonhosted.org/packages/16/b5/b0d3d8b901b6a04ca38df5e24c27e53afb15b93624d7fd7d658c7cd9352a/triton-3.5.1-cp314-cp314t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:bac7f7d959ad0f48c0e97d6643a1cc0fd5786fe61cb1f83b537c6b2d54776478", size = 170582192, upload-time = "2025-11-11T17:41:23.963Z" },
-]
-
-[[package]]
-name = "typer"
-version = "0.20.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click" },
-    { name = "rich" },
-    { name = "shellingham" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/8f/28/7c85c8032b91dbe79725b6f17d2fffc595dff06a35c7a30a37bef73a1ab4/typer-0.20.0.tar.gz", hash = "sha256:1aaf6494031793e4876fb0bacfa6a912b551cf43c1e63c800df8b1a866720c37", size = 106492, upload-time = "2025-10-20T17:03:49.445Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/78/64/7713ffe4b5983314e9d436a90d5bd4f63b6054e2aca783a3cfc44cb95bbf/typer-0.20.0-py3-none-any.whl", hash = "sha256:5b463df6793ec1dca6213a3cf4c0f03bc6e322ac5e16e13ddd622a889489784a", size = 47028, upload-time = "2025-10-20T17:03:47.617Z" },
 ]
 
 [[package]]
