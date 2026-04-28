@@ -998,7 +998,7 @@ class CAREamist:
         checkpoint : str or Path, default=None
             Checkpoint to load before making predictions. Can be "best", "last", or a
             path to a specific checkpoint. If None, uses the last checkpoint from
-            training Noise2Void or Noise2Noise models, otherwise the last checkpoint.
+            training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
         write_type : {"tiff", "zarr", "custom"}, default="tiff"
             The data type to save as, includes custom.
