@@ -1,32 +1,6 @@
-"""Old-vs-new equivalence tests for the MicroSplit dataset migration.
+"""Old-vs-new equivalence tests for the MicroSplit dataset migration."""
 
-Gate: these tests REQUIRE the new `MicroSplitDataset` implementation from Stage 4.
-Until Stage 4 is complete, this file will fail at import with an ImportError and
-that is the EXPECTED behavior during Stage 3.
-
-Do NOT weaken or skip these tests to make them pass prematurely.
-
-Equivalence criteria (single sample, deterministic patch location):
-
-Scale-0 (full-resolution level):
-- ``input_region.data[0]`` ≈ ``legacy_inp[0]``  (allclose, rtol=1e-4)
-- ``target_region.data``   ≈ ``legacy_norm_target`` (allclose, rtol=1e-4)
-
-Scales 1+ (lateral-context levels):
-- The new and legacy implementations use DIFFERENT algorithms:
-    * Legacy: pre-downsamples the full image, then crops.
-    * New (lateral_context_patch_constr): crops a larger region from the
-      original, then resizes.
-  The two approaches produce numerically different values for the same
-  center location, so only structural equivalence is required for scales 1+.
-  This is NOT a test weakening — it documents a deliberate design choice.
-
-Metadata:
-- ``input_region.axes`` == NGDataConfig.axes
-- ``input_region.data_shape`` is a non-empty sequence
-- ``input_region.dtype`` is a non-empty string
-- ``input_region.region_spec`` contains the required PatchSpecs keys
-"""
+# TODO this module to be removed after refactoring is complete
 
 from __future__ import annotations
 
@@ -34,7 +8,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-# ── Legacy and fixture imports ────────────────────────────────────────────────
+# Legacy and fixture imports
 from tests.dataset_ng.dataset.fixtures_microsplit import (
     MULTISCALE_COUNT,
     PATCH_SIZE,
@@ -45,15 +19,15 @@ from tests.dataset_ng.dataset.fixtures_microsplit import (
 
 from careamics.config.data.ng_data_config import NGDataConfig
 
-# ── Config imports (new pipeline) ─────────────────────────────────────────────
+# Config imports (new pipeline)
 from careamics.config.data.normalization_config import MeanStdConfig
 from careamics.config.data.patching_strategies import RandomPatchingConfig
 
-# ── Stage-gate import: will raise ImportError until Stage 4 is complete ───────
+# Stage-gate import: will raise ImportError until Stage 4 is complete
 from careamics.dataset_ng.microsplit_dataset import MicroSplitDataset
 from careamics.dataset_ng.patching_strategies import FixedPatchingStrategy
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# Fixtures
 
 
 @pytest.fixture(scope="module")
@@ -110,7 +84,7 @@ def new_dataset_det():
     )
 
 
-# ── Equivalence assertions ────────────────────────────────────────────────────
+# Equivalence assertions
 
 
 class TestSingleSampleEquivalence:
@@ -199,10 +173,10 @@ class TestSingleSampleEquivalence:
         assert target_region.data.dtype == np.float32
 
 
-# ── Metadata contract ─────────────────────────────────────────────────────────
+# Metadata
 
 
-class TestMetadataContract:
+class TestMetadata:
     """Verify ImageRegionData metadata fields are correctly populated."""
 
     def test_input_axes_matches_config(self, new_dataset_det):
@@ -254,10 +228,10 @@ class TestMetadataContract:
         assert isinstance(target_region.source, str)
 
 
-# ── Return-type contract ──────────────────────────────────────────────────────
+# Return-type
 
 
-class TestReturnTypeContract:
+class TestReturnType:
     """Verify that __getitem__ returns a 2-tuple of ImageRegionData."""
 
     def test_returns_tuple_of_two(self, new_dataset_det):

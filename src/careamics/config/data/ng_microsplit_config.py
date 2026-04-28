@@ -34,7 +34,7 @@ class MicroSplitDataConfig(NGDataConfig):
     performs internal self-consistency checks.
     """
 
-    # ── LC parameters ─────────────────────────────────────────────────────────
+    #  LC parameters
     lateral_context: bool = Field(default=True)
     """Enable lateral-context multi-scale patch construction."""
 
@@ -44,21 +44,21 @@ class MicroSplitDataConfig(NGDataConfig):
     padding_mode: Literal["reflect", "wrap"] = Field(default="reflect")
     """Boundary padding mode for the LC patch constructor."""
 
-    # ── Alpha / input synthesis ────────────────────────────────────────────────
+    #  Alpha / input synthesis
     input_is_sum: bool = Field(default=False)
     """Multiply the average-combined input by C to get the sum."""
 
     alpha_range: tuple[float, float] | None = Field(default=None)
     """Per-channel alpha sampling range (start, end). None → equal weights."""
 
-    # ── Uncorrelated-channel augmentation ─────────────────────────────────────
+    #  Uncorrelated-channel augmentation
     mix_uncorrelated_channels: bool = Field(default=False)
     """Draw channels 1…C-1 from random locations with given probability."""
 
     uncorrelated_channel_probab: float = Field(default=0.5, ge=0.0, le=1.0)
     """Probability of applying the uncorrelated-channel swap per sample."""
 
-    # ── Empty-patch mixing ────────────────────────────────────────────────────
+    #  Empty-patch mixing
     empty_patch_mixing: bool = Field(default=False)
     """Force channels to contain signal or background (requires filters)."""
 
@@ -71,7 +71,7 @@ class MicroSplitDataConfig(NGDataConfig):
     empty_patch_patience: int = Field(default=200, ge=1)
     """Max candidates per channel when enforcing empty/signal criterion."""
 
-    # ── Validators ────────────────────────────────────────────────────────────
+    #  Validators
 
     @model_validator(mode="after")
     def _validate_alpha_range(self) -> MicroSplitDataConfig:

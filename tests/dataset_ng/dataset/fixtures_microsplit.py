@@ -1,11 +1,4 @@
-"""Shared fixtures for MicroSplit old-vs-new equivalence tests.
-
-This module provides:
-- Deterministic synthetic 2-channel image data (N, H, W, C=2) for the old dataset
-  and the same data reshaped to (S, C, Y, X) for the new pipeline.
-- A factory function to create a configured `LCMultiChDloader` from synthetic data.
-- Per-channel and one-mu-std statistics helpers that match the legacy computation.
-"""
+"""Shared fixtures for MicroSplit old-vs-new equivalence tests."""
 
 from __future__ import annotations
 
@@ -14,7 +7,7 @@ from typing import NamedTuple
 
 import numpy as np
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+# Constants
 
 SEED = 42
 N_FRAMES = 4
@@ -27,7 +20,7 @@ MULTISCALE_COUNT = 3  # multiscale_lowres_count
 AXES = "SYX"  # new pipeline axes string
 
 
-# ── Synthetic data helpers ─────────────────────────────────────────────────────
+# Synthetic data helpers
 
 
 def make_synthetic_nhwc() -> np.ndarray:
@@ -62,7 +55,7 @@ def make_synthetic_scyx() -> np.ndarray:
     return nhwc.transpose(0, 3, 1, 2).copy()
 
 
-# ── Legacy dataset factory ─────────────────────────────────────────────────────
+# Legacy dataset factory
 
 
 class LegacyDatasetBundle(NamedTuple):
@@ -163,7 +156,7 @@ def make_legacy_dataset(
     return LegacyDatasetBundle(dataset=dataset, mean_dict=mean_dict, std_dict=std_dict)
 
 
-# ── Statistics extraction helpers ─────────────────────────────────────────────
+# Statistics extraction helpers
 
 
 def compute_legacy_stats(

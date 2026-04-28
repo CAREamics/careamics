@@ -11,6 +11,8 @@ Pins verified:
 - LC structure: each channel carries `multiscale_count` scales stacked on axis 0.
 """
 
+# TODO to be removed after refactoring is complete
+
 from __future__ import annotations
 
 import numpy as np
@@ -23,7 +25,7 @@ from tests.dataset_ng.dataset.fixtures_microsplit import (
     make_legacy_dataset,
 )
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# Helpers
 
 
 @pytest.fixture(scope="module")
@@ -38,11 +40,11 @@ def legacy_bundle_random():
     return make_legacy_dataset(enable_random_cropping=True)
 
 
-# ── Output contract ────────────────────────────────────────────────────────────
+# Output
 
 
-class TestOutputContract:
-    """Pin the __getitem__ return type and shape contract."""
+class TestOutput:
+    """Pin the __getitem__ return type and shape."""
 
     def test_returns_tuple(self, legacy_bundle):
         sample = legacy_bundle.dataset[0]
@@ -70,7 +72,7 @@ class TestOutputContract:
         assert tgt.dtype == np.float32
 
 
-# ── Shape contract ─────────────────────────────────────────────────────────────
+# Shape
 
 
 class TestShapes:
@@ -99,7 +101,7 @@ class TestShapes:
         assert inp.shape[0] == 2
 
 
-# ── Determinism when random_cropping=False ────────────────────────────────────
+# Determinism when random_cropping=False
 
 
 class TestDeterminism:
@@ -125,7 +127,7 @@ class TestDeterminism:
         assert not np.array_equal(inp0, inp1)
 
 
-# ── Normalization properties ───────────────────────────────────────────────────
+# Normalization properties
 
 
 class TestNormalization:
@@ -145,7 +147,7 @@ class TestNormalization:
             assert tgt.shape[0] == N_CHANNELS
 
 
-# ── LC structure ───────────────────────────────────────────────────────────────
+# LC structure
 
 
 class TestLCStructure:
@@ -171,7 +173,7 @@ class TestLCStructure:
             ), f"Scale {k} has wrong shape: {inp[k].shape}"
 
 
-# ── Dataset length ─────────────────────────────────────────────────────────────
+# Dataset length
 
 
 class TestDatasetLength:

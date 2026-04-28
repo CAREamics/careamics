@@ -27,22 +27,23 @@ from careamics.transforms import Compose
 
 
 class MicroSplitDataset(Dataset):
-    """Dataset for MicroSplit (LVAE) channel-separation training.
+    """Dataset for MicroSplit channel-separation training.
 
-    This dataset implements the MicroSplit input synthesis pipeline:
-
-    1. Multi-channel fluorescence images are loaded into a single image stack.
+    1. Multi-channel images are loaded into a single image stack.
     2. A multi-scale lateral-context (LC) patch is extracted for each channel.
     3. Channels are combined via alpha-weighted superposition to create the
-       synthetic input (mimicking a multi-channel microscope observation).
+       synthetic input.
     4. Target is the full-resolution patch per channel.
     5. Input and target are normalized separately (one-mu-std for input,
        per-channel for target), matching the legacy ``LCMultiChDloader``.
 
-    This class intentionally does **not** call ``CareamicsDataset.__init__``:
+    This class intentionally does not call ``CareamicsDataset.__init__``:
     the normalization and patch-extraction pipelines differ fundamentally from
     the standard single-channel workflow, so a composition approach is used
     while still inheriting the ``ImageRegionData`` type contract.
+
+    Some parameters are left as is from the legacy ``LCMultiChDloader``, subject to
+    review and potential removal.
 
     Parameters
     ----------
@@ -118,7 +119,7 @@ class MicroSplitDataset(Dataset):
 
         self.config = data_config
 
-        # ── Image stack ───────────────────────────────────────────────────────
+        #  Image stack
         # train_data is expected in SC(Z)YX order (e.g. SCYX for 2-D).
         image_stack = InMemoryImageStack(
             source="array",
@@ -128,13 +129,13 @@ class MicroSplitDataset(Dataset):
         )
         self._image_stack = image_stack
 
-        # ── Patch extractor with lateral-context constructor ──────────────────
+        #  Patch extractor with lateral-context constructor
         lc_constructor = lateral_context_patch_constr(multiscale_count, padding_mode)
         self.input_extractor: PatchExtractor[InMemoryImageStack] = PatchExtractor(
             [image_stack], patch_constructor=lc_constructor
         )
 
-        # ── Patching strategy ─────────────────────────────────────────────────
+        #  Patching strategy
         if patching_strategy is not None:
             self.patching_strategy: PatchingStrategy = patching_strategy
         else:
@@ -149,7 +150,7 @@ class MicroSplitDataset(Dataset):
                 seed=seed if seed is not None else getattr(data_config, "seed", None),
             )
 
-        # ── Normalization statistics ──────────────────────────────────────────
+        #  Normalization statistics
         # Compute directly from the raw array (mirrors compute_mean_std in
         # the legacy MultiChDloader with target_separate_normalization=True,
         # use_one_mu_std=True, input_is_sum=False).
@@ -176,7 +177,7 @@ class MicroSplitDataset(Dataset):
             input_stds=per_ch_stds,
         )
 
-        # ── LC / mixing parameters ────────────────────────────────────────────
+        #  LC / mixing parameters
         self.multiscale_count = multiscale_count
         self.padding_mode = padding_mode
         self.input_is_sum = input_is_sum
@@ -189,7 +190,7 @@ class MicroSplitDataset(Dataset):
         _seed = seed if seed is not None else getattr(data_config, "seed", None)
         self._rng = np.random.default_rng(seed=_seed)
 
-        # ── Augmentations ─────────────────────────────────────────────────────
+        #  Augmentations
         # Reuse the Compose pipeline from the config (training mode only).
         from careamics.config.data.ng_data_config import Mode
 
@@ -198,7 +199,7 @@ class MicroSplitDataset(Dataset):
         else:
             self.transforms = Compose([])
 
-    # ── Protocol ──────────────────────────────────────────────────────────────
+    #  Protocol
 
     def __len__(self) -> int:
         """Number of patches in the dataset.
@@ -263,7 +264,7 @@ class MicroSplitDataset(Dataset):
 
         return input_region, target_region
 
-    # ── Internal helpers ───────────────────────────────────────────────────────
+    #  Internal helpers
 
     def _extract_lc_patch(self, patch_spec: PatchSpecs) -> NDArray:
         """Extract an ``(C, L, (Z), Y, X)`` LC patch for all channels.
