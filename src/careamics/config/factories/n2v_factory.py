@@ -18,8 +18,8 @@ from careamics.config.utils.random import generate_random_seed
 
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import (
+    SupportedPatchFilterConfig,
     create_ng_data_configuration,
-    create_patch_filter_configuration,
     list_spatial_augmentations,
 )
 from .training_factory import create_training_configuration, update_trainer_params
@@ -217,8 +217,7 @@ def create_advanced_n2v_config(
     independent_channels: bool = True,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
-    patch_filter: Literal["shannon", "max", "mean_std"] | None = None,
-    patch_filter_params: dict[str, Any] | None = None,
+    patch_filter_config: SupportedPatchFilterConfig | None = None,
     # - N2V specific
     use_n2v2: bool = False,
     roi_size: int = 11,
@@ -324,20 +323,16 @@ def create_advanced_n2v_config(
         Normalization strategy to use.
     normalization_params : dict[str, Any] | None, default=None
         Strategy-specific normalization parameters. If None, default values are used.
+
         - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
         - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
         - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         - For "none": No parameters needed.
-    patch_filter : {"shannon", "max", "mean_std"} or None, default=None
-        Patch filtering strategy to use. If `None`, no patch filter is applied.
-    patch_filter_params : dict[str, Any] | None, default=None
-        Strategy-specific patch filter parameters. All filters accept
-        {"ref_channel": int, "filtered_patch_prob": float} (optional).
-        - For "shannon": {"threshold": float}.
-        - For "max": {"threshold": float, "coverage": float} ("coverage" optional,
-        defaults to 0.25 for 2D data and 0.125 for 3D data).
-        - For "mean_std": {"mean_threshold": float, "std_threshold": float} with
-        "std_threshold" optional.
+
+    patch_filter_config : SupportedPatchFilterConfig or None, default=None
+        Specify the configuration for patch filtering. Patch filtering reduces the
+        probability of background patches being selected during training. If `None`,
+        no patch filter is applied.
     use_n2v2 : bool, default=False
         Whether to use N2V2.
     roi_size : int, default=11
@@ -424,11 +419,6 @@ def create_advanced_n2v_config(
     if normalization_params is not None:
         norm_config.update(normalization_params)
 
-    patch_filter_config = create_patch_filter_configuration(
-        patch_filter=patch_filter,
-        patch_filter_params=patch_filter_params,
-    )
-
     # augmentations
     augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
     if augmentations is not None:
@@ -458,7 +448,7 @@ def create_advanced_n2v_config(
         batch_size=batch_size,
         augmentations=spatial_transforms,
         normalization=norm_config,
-        patch_filter=patch_filter_config,
+        patch_filter_config=patch_filter_config,
         channels=channels,
         in_memory=in_memory,
         n_val_patches=n_val_patches,

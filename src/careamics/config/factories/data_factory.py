@@ -9,9 +9,17 @@ from careamics.config.augmentations import (
     XYRandomRotate90Config,
 )
 from careamics.config.data import DataConfig
+from careamics.config.data.patch_filter import (
+    MaxPatchFilterConfig,
+    MeanStdPatchFilterConfig,
+    ShannonPatchFilterConfig,
+)
 from careamics.config.utils.random import generate_random_seed
 
-PatchFilterLiteral = Literal["shannon", "max", "mean_std"]
+SupportedPatchFilterConfig = (
+    MaxPatchFilterConfig | MeanStdPatchFilterConfig | ShannonPatchFilterConfig
+)
+"""Configuration for filtering background patches during training."""
 
 
 def list_spatial_augmentations(
@@ -67,51 +75,6 @@ def list_spatial_augmentations(
     return transform_list
 
 
-def create_patch_filter_configuration(
-    patch_filter: PatchFilterLiteral | None = None,
-    patch_filter_params: dict[str, Any] | None = None,
-) -> dict[str, Any] | None:
-    """
-    Create a patch filter configuration dictionary.
-
-    Parameters
-    ----------
-    patch_filter : {"shannon", "max", "mean_std"} or None, default=None
-        Patch filtering strategy to use. If `None`, no patch filter is applied.
-    patch_filter_params : dict[str, Any] or None, default=None
-        Strategy-specific patch filter parameters. All filters accept
-        {"ref_channel": int, "filtered_patch_prob": float} (optional).
-        For "shannon": {"threshold": float}.
-        For "max": {"threshold": float, "coverage": float} ("coverage" optional,
-        defaults to 0.25 for 2D data and 0.125 for 3D data).
-        For "mean_std": {"mean_threshold": float, "std_threshold": float} with
-        "std_threshold" optional.
-
-    Returns
-    -------
-    dict[str, Any] or None
-        Patch filter configuration dictionary, or None if no patch filter is applied.
-
-    Raises
-    ------
-    ValueError
-        If `patch_filter_params` are provided without a patch filter.
-    """
-    if patch_filter is None:
-        if patch_filter_params is not None:
-            raise ValueError(
-                "`patch_filter_params` can only be specified when `patch_filter` is "
-                "not None."
-            )
-        return None
-
-    config = {"name": patch_filter}
-    if patch_filter_params is not None:
-        config.update(patch_filter_params)
-
-    return config
-
-
 def create_ng_data_configuration(
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
@@ -119,7 +82,7 @@ def create_ng_data_configuration(
     batch_size: int,
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
     normalization: dict | None = None,
-    patch_filter: dict[str, Any] | None = None,
+    patch_filter_config: SupportedPatchFilterConfig | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
     n_val_patches: int = 8,
@@ -151,8 +114,10 @@ def create_ng_data_configuration(
     normalization : dict, default=None
         Normalization configuration dictionary. If None, defaults to mean_std
         normalization with automatically computed statistics.
-    patch_filter : dict[str, Any] or None, default=None
-        Patch filter configuration dictionary. If None, no patch filter is applied.
+    patch_filter_config : SupportedPatchFilterConfig or None, default=None
+        Specify the configuration for patch filtering. Patch filtering reduces the
+        probability of background patches being selected during training. If `None`,
+        no patch filter is applied.
     channels : Sequence of int, default=None
         List of channels to use. If `None`, all channels are used.
     in_memory : bool, default=None
@@ -204,8 +169,8 @@ def create_ng_data_configuration(
         ),
     }
 
-    if patch_filter is not None:
-        data["patch_filter"] = patch_filter
+    if patch_filter_config is not None:
+        data["patch_filter"] = patch_filter_config
 
     if in_memory is not None:
         data["in_memory"] = in_memory
