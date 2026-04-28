@@ -54,7 +54,6 @@ def test_advanced_n2n_config_patch_filter(
     )
 
     assert config.data_config.patch_filter is not None
-    assert config.data_config.patch_filter.name == "mean_std"
     assert config.data_config.patch_filter.name == patch_filter_config.name
 
 
