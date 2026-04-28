@@ -31,7 +31,7 @@ from .normalization_config import NormalizationConfig
 from .patch_filter import (
     MaskPatchFilterConfig,
     MaxPatchFilterConfig,
-    MeanSTDPatchFilterConfig,
+    MeanStdPatchFilterConfig,
     ShannonPatchFilterConfig,
 )
 from .patching_strategies import (
@@ -258,7 +258,7 @@ PatchingConfig = Union[
 
 PatchFilterConfig = Union[
     MaxPatchFilterConfig,
-    MeanSTDPatchFilterConfig,
+    MeanStdPatchFilterConfig,
     ShannonPatchFilterConfig,
 ]
 """Patch filter type."""

@@ -4,7 +4,7 @@ from typing import Union
 
 from careamics.config.data.patch_filter import (
     MaxPatchFilterConfig,
-    MeanSTDPatchFilterConfig,
+    MeanStdPatchFilterConfig,
     PatchFilterConfig,
     ShannonPatchFilterConfig,
 )
@@ -44,7 +44,7 @@ def create_patch_filter(filter_config: PatchFilterConfig) -> PatchFilter:
             threshold=filter_config.threshold, coverage=filter_config.coverage
         )
     elif filter_config.name == SupportedPatchFilters.MEANSTD:
-        assert isinstance(filter_config, MeanSTDPatchFilterConfig)
+        assert isinstance(filter_config, MeanStdPatchFilterConfig)
         return MeanStdPatchFilter(
             mean_threshold=filter_config.mean_threshold,
             std_threshold=filter_config.std_threshold,
