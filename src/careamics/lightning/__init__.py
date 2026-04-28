@@ -5,10 +5,12 @@ __all__ = [
     "CareamicsDataModule",
     "ConfigSaverCallback",
     "DataStatsCallback",
+    "ImageStackLoading",
     "MicroSplitDataModule",
     "N2VModule",
     "PredictionStoppedException",
     "ProgressBarCallback",
+    "ReadFuncLoading",
     "StopPredictionCallback",
     "VAEModule",
     "convert_prediction",
@@ -17,6 +19,9 @@ __all__ = [
     "load_config_from_checkpoint",
     "load_module_from_checkpoint",
 ]
+
+# exporting for lightning-API user's convenience
+from careamics.dataset.factory import ImageStackLoading, ReadFuncLoading
 
 from .callbacks import (
     ConfigSaverCallback,

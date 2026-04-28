@@ -7,7 +7,7 @@ import pytest
 from numpy.typing import NDArray
 
 from careamics.dataset.image_stack.czi_image_stack import CziImageStack
-from careamics.dataset.image_stack.image_utils import channel_slice
+from careamics.utils.reshape_array import channel_slice
 
 # skip if fail imports
 pylib = pytest.importorskip("pylibCZIrw")
