@@ -270,7 +270,7 @@ def create_advanced_care_config(
         - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         - For "none": No parameters needed.
 
-    patch_filter_config : SupportedPatchFilterConfig or None, default=None
+    patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.
@@ -427,7 +427,7 @@ def create_advanced_n2n_config(
         - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         - For "none": No parameters needed.
 
-    patch_filter_config : SupportedPatchFilterConfig or None, default=None
+    patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.
@@ -586,7 +586,7 @@ def _create_advanced_supervised_config(
         - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         - For "none": No parameters needed.
 
-    patch_filter_config : SupportedPatchFilterConfig or None, default=None
+    patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.

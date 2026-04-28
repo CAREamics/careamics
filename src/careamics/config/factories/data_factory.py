@@ -114,7 +114,7 @@ def create_ng_data_configuration(
     normalization : dict, default=None
         Normalization configuration dictionary. If None, defaults to mean_std
         normalization with automatically computed statistics.
-    patch_filter_config : SupportedPatchFilterConfig or None, default=None
+    patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.

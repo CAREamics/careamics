@@ -329,7 +329,7 @@ def create_advanced_n2v_config(
         - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
         - For "none": No parameters needed.
 
-    patch_filter_config : SupportedPatchFilterConfig or None, default=None
+    patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.
