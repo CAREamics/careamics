@@ -1937,6 +1937,7 @@ def create_microsplit_configuration(
             "min_lr": 1e-12,
         },
     )
+    # TODO maybe we don't need it here at all? Only reason is to dump the config later
     if noise_model_config is None and denoisplit_weight > 0:
         print(
             "[create_microsplit_configuration] REMINDER: denoisplit_weight > 0 "

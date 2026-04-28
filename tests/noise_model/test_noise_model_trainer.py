@@ -59,7 +59,6 @@ def test_init_custom_params() -> None:
     assert trainer.min_sigma == 100.0
 
 
-
 def test_train_from_pairs_single_channel() -> None:
     gen = np.random.default_rng(42)
     signal = gen.uniform(0, 255, (5, 64, 64))
@@ -485,12 +484,18 @@ def test_trainer_equivalent_to_reference_loop_per_channel_range() -> None:
     )
 
     # Patch _train_single_channel to inject deterministic seeds
-    original_method = trainer._train_single_channel.__func__
-
     ch_call_count = [0]
 
-    def seeded_train(self, signal, observation, n_epochs, learning_rate,
-                     batch_size, min_signal=None, max_signal=None):
+    def seeded_train(
+        self,
+        signal,
+        observation,
+        n_epochs,
+        learning_rate,
+        batch_size,
+        min_signal=None,
+        max_signal=None,
+    ):
         ch = ch_call_count[0]
         torch.manual_seed(42 + ch)
         ch_call_count[0] += 1
@@ -499,6 +504,7 @@ def test_trainer_equivalent_to_reference_loop_per_channel_range() -> None:
         from careamics.models.lvae.noise_models import (
             GaussianMixtureNoiseModel as _G,
         )
+
         cfg = _C(
             model_type="GaussianMixtureNoiseModel",
             min_signal=min_signal if min_signal is not None else float(signal.min()),
@@ -521,6 +527,7 @@ def test_trainer_equivalent_to_reference_loop_per_channel_range() -> None:
         return nm, losses
 
     import types
+
     trainer._train_single_channel = types.MethodType(seeded_train, trainer)
 
     trainer.train_from_pairs(
@@ -565,21 +572,15 @@ def test_trainer_global_signal_range() -> None:
     global_max = float(signal.max())
 
     for nm in trainer.noise_models:
-        assert np.isclose(float(nm.min_signal.item()), global_min, atol=1e-4), (
-            "global min_signal mismatch"
-        )
-        assert np.isclose(float(nm.max_signal.item()), global_max, atol=1e-4), (
-            "global max_signal mismatch"
-        )
-
-
-# ---------------------------------------------------------------------------
-# Issue #850: NoiseModelTrainer.get_config() returns MultiChannelNMConfig
-# ---------------------------------------------------------------------------
+        assert np.isclose(
+            float(nm.min_signal.item()), global_min, atol=1e-4
+        ), "global min_signal mismatch"
+        assert np.isclose(
+            float(nm.max_signal.item()), global_max, atol=1e-4
+        ), "global max_signal mismatch"
 
 
 def test_get_config_returns_multichannel_nm_config() -> None:
-    """Issue #850: get_config() returns a MultiChannelNMConfig without disk I/O."""
     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
     gen = np.random.default_rng(2)
@@ -641,13 +642,32 @@ def test_get_config_roundtrip_numerically_equivalent(tmp_path: Path) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Issue #851: Channel order metadata and validation
-# ---------------------------------------------------------------------------
+def test_config_from_paths_builds_multichannel_config(tmp_path: Path) -> None:
+    """config_from_paths() builds config from saved .npz files."""
+    gen = np.random.default_rng(13)
+    signal = gen.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
+    observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
+
+    trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
+    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=5)
+    saved_paths = trainer.save(tmp_path)
+
+    config = NoiseModelTrainer.config_from_paths(saved_paths)
+
+    assert isinstance(config, MultiChannelNMConfig)
+    assert len(config.noise_models) == 2
+    assert config.channel_indices == [0, 1]
+    for expected_ch, cfg in enumerate(config.noise_models):
+        assert cfg.channel_index == expected_ch
+
+
+def test_config_from_paths_empty_paths_raises() -> None:
+    """config_from_paths() raises on empty path list."""
+    with pytest.raises(ValueError, match="No noise model paths provided"):
+        NoiseModelTrainer.config_from_paths([])
 
 
 def test_channel_indices_stored_after_training() -> None:
-    """Issue #851: channel_indices are stored and match training order."""
     gen = np.random.default_rng(4)
     signal = gen.uniform(0, 255, (4, 3, 16, 16)).astype(np.float32)
     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
@@ -659,7 +679,6 @@ def test_channel_indices_stored_after_training() -> None:
 
 
 def test_save_embeds_channel_index_metadata(tmp_path: Path) -> None:
-    """Issue #851: saved .npz files include channel_index."""
     gen = np.random.default_rng(5)
     signal = gen.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
@@ -675,7 +694,6 @@ def test_save_embeds_channel_index_metadata(tmp_path: Path) -> None:
 
 
 def test_load_old_npz_without_channel_index_backward_compat(tmp_path: Path) -> None:
-    """Issue #851: .npz files without channel_index still load correctly."""
     from careamics.config.noise_model import GaussianMixtureNMConfig
 
     weights = np.random.randn(3, 2).astype(np.float32)
@@ -694,7 +712,6 @@ def test_load_old_npz_without_channel_index_backward_compat(tmp_path: Path) -> N
 
 
 def test_multichannel_nm_config_rejects_wrong_channel_order() -> None:
-    """Issue #851: MultiChannelNMConfig raises on channel_index mismatch."""
     from careamics.config.noise_model import GaussianMixtureNMConfig
     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
@@ -707,9 +724,7 @@ def test_multichannel_nm_config_rejects_wrong_channel_order() -> None:
     )
 
     # Correct order: should succeed
-    mc = MultiChannelNMConfig(
-        noise_models=[cfg0, cfg1], channel_indices=[0, 1]
-    )
+    mc = MultiChannelNMConfig(noise_models=[cfg0, cfg1], channel_indices=[0, 1])
     assert mc.channel_indices == [0, 1]
 
     # Swapped order with metadata mismatch: should fail
@@ -740,36 +755,14 @@ def test_get_config_channel_indices_match_metadata() -> None:
 
     config = trainer.get_config()
     for pos, gmm_cfg in enumerate(config.noise_models):
-        assert gmm_cfg.channel_index == pos, (
-            f"channel_index mismatch at position {pos}: {gmm_cfg.channel_index}"
-        )
-
-
-# ---------------------------------------------------------------------------
-# Issue #849: nm_paths removed from create_microsplit_configuration
-# ---------------------------------------------------------------------------
-
-
-def test_create_microsplit_configuration_no_nm_paths_param() -> None:
-    """Issue #849: create_microsplit_configuration does not accept nm_paths."""
-    import inspect
-
-    from careamics.config.configuration_factories import (
-        create_microsplit_configuration,
-    )
-
-    sig = inspect.signature(create_microsplit_configuration)
-    assert "nm_paths" not in sig.parameters, (
-        "nm_paths should have been removed from create_microsplit_configuration "
-        "(issue #849)"
-    )
+        assert (
+            gmm_cfg.channel_index == pos
+        ), f"channel_index mismatch at position {pos}: {gmm_cfg.channel_index}"
 
 
 def test_create_microsplit_configuration_without_noise_model_prints_reminder(
     capsys,
 ) -> None:
-    """Issue #849: factory prints a reminder when denoisplit_weight > 0 and
-    no noise_model_config is given."""
     import warnings
 
     from careamics.config.configuration_factories import (
@@ -790,21 +783,22 @@ def test_create_microsplit_configuration_without_noise_model_prints_reminder(
         )
 
     captured = capsys.readouterr()
-    assert "REMINDER" in captured.out or "noise" in captured.out.lower(), (
-        "Expected a reminder about noise model but got none"
-    )
+    assert (
+        "REMINDER" in captured.out or "noise" in captured.out.lower()
+    ), "Expected a reminder about noise model but got none"
 
 
 # ---------------------------------------------------------------------------
-# VAEModule.set_noise_model – extended tests
+# VAEModule.set_noise_model - extended tests
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture
 def microsplit_module(tmp_path):
     """Minimal VAEModule with denoisplit_weight=0.9 (2 output channels)."""
-    import numpy as np
     import warnings
+
+    import numpy as np
 
     from careamics.config.noise_model import GaussianMixtureNMConfig
     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
@@ -860,13 +854,109 @@ def test_set_noise_model_accepts_multichannel_nm_config(microsplit_module) -> No
     module, _ = microsplit_module
     weights = np.random.randn(3, 2).astype(np.float32)
     nm_cfg = GaussianMixtureNMConfig(
-        weight=weights, min_signal=0.0, max_signal=255.0, min_sigma=125.0,
-        n_gaussian=1, n_coeff=2,
+        weight=weights,
+        min_signal=0.0,
+        max_signal=255.0,
+        min_sigma=125.0,
+        n_gaussian=1,
+        n_coeff=2,
     )
     mc_config = MultiChannelNMConfig(noise_models=[nm_cfg, nm_cfg])
 
     module.set_noise_model(mc_config)
     assert isinstance(module.noise_model, MultiChannelNoiseModel)
+
+
+def test_on_fit_start_requires_noise_model_for_denoisplit() -> None:
+    """denoiSplit cannot start fitting without an attached noise model."""
+    import warnings
+
+    from careamics.config.configuration_factories import (
+        create_microsplit_configuration,
+    )
+    from careamics.lightning.lightning_module import VAEModule
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        config = create_microsplit_configuration(
+            experiment_name="missing_noise_model_test",
+            data_type="array",
+            axes="SYX",
+            patch_size=[64, 64],
+            batch_size=4,
+            denoisplit_weight=0.9,
+            musplit_weight=0.1,
+            output_channels=2,
+        )
+
+    module = VAEModule(config.algorithm_config)
+
+    with pytest.raises(RuntimeError, match="A noise model is required"):
+        module.on_fit_start()
+
+
+def test_on_fit_start_accepts_runtime_attached_noise_model() -> None:
+    """denoiSplit can start fitting after runtime noise-model attachment."""
+    import warnings
+
+    from careamics.config.configuration_factories import (
+        create_microsplit_configuration,
+    )
+    from careamics.lightning.lightning_module import VAEModule
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        config = create_microsplit_configuration(
+            experiment_name="runtime_noise_model_test",
+            data_type="array",
+            axes="SYX",
+            patch_size=[64, 64],
+            batch_size=4,
+            denoisplit_weight=0.9,
+            musplit_weight=0.1,
+            output_channels=2,
+        )
+
+    module = VAEModule(config.algorithm_config)
+    weights = np.random.randn(3, 2).astype(np.float32)
+    nm_cfg = GaussianMixtureNMConfig(
+        weight=weights,
+        min_signal=0.0,
+        max_signal=255.0,
+        min_sigma=125.0,
+        n_gaussian=1,
+        n_coeff=2,
+    )
+    mc_config = MultiChannelNMConfig(noise_models=[nm_cfg, nm_cfg])
+
+    module.set_noise_model(mc_config)
+    module.on_fit_start()
+
+
+def test_on_fit_start_allows_missing_noise_model_when_not_required() -> None:
+    """muSplit-only training does not require a noise model."""
+    import warnings
+
+    from careamics.config.configuration_factories import (
+        create_microsplit_configuration,
+    )
+    from careamics.lightning.lightning_module import VAEModule
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        config = create_microsplit_configuration(
+            experiment_name="no_noise_model_required_test",
+            data_type="array",
+            axes="SYX",
+            patch_size=[64, 64],
+            batch_size=4,
+            musplit_weight=1.0,
+            denoisplit_weight=0.0,
+            output_channels=2,
+        )
+
+    module = VAEModule(config.algorithm_config)
+    module.on_fit_start()
 
 
 def test_set_noise_model_accepts_paths(microsplit_module, tmp_path) -> None:
@@ -894,8 +984,12 @@ def test_set_noise_model_rejects_wrong_channel_count(microsplit_module) -> None:
     module, _ = microsplit_module
     weights = np.random.randn(3, 2).astype(np.float32)
     nm_cfg = GaussianMixtureNMConfig(
-        weight=weights, min_signal=0.0, max_signal=255.0, min_sigma=125.0,
-        n_gaussian=1, n_coeff=2,
+        weight=weights,
+        min_signal=0.0,
+        max_signal=255.0,
+        min_sigma=125.0,
+        n_gaussian=1,
+        n_coeff=2,
     )
     mc_config = MultiChannelNMConfig(noise_models=[nm_cfg])  # only 1 instead of 2
 
@@ -907,11 +1001,11 @@ def test_set_noise_model_rejects_when_no_noise_model_required() -> None:
     """set_noise_model() raises when denoisplit_weight == 0 (musplit only)."""
     import warnings
 
-    from careamics.config.noise_model import GaussianMixtureNMConfig
-    from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
     from careamics.config.configuration_factories import (
         create_microsplit_configuration,
     )
+    from careamics.config.noise_model import GaussianMixtureNMConfig
+    from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
     from careamics.lightning.lightning_module import VAEModule
 
     with warnings.catch_warnings():
@@ -931,8 +1025,12 @@ def test_set_noise_model_rejects_when_no_noise_model_required() -> None:
 
     weights = np.random.randn(3, 2).astype(np.float32)
     nm_cfg = GaussianMixtureNMConfig(
-        weight=weights, min_signal=0.0, max_signal=255.0, min_sigma=125.0,
-        n_gaussian=1, n_coeff=2,
+        weight=weights,
+        min_signal=0.0,
+        max_signal=255.0,
+        min_sigma=125.0,
+        n_gaussian=1,
+        n_coeff=2,
     )
     mc_config = MultiChannelNMConfig(noise_models=[nm_cfg, nm_cfg])
 
@@ -943,7 +1041,6 @@ def test_set_noise_model_rejects_when_no_noise_model_required() -> None:
 def test_set_noise_model_path_channel_order_mismatch_raises(
     microsplit_module, tmp_path
 ) -> None:
-    """Issue #851: set_noise_model() raises when path channel_index is wrong."""
     module, _ = microsplit_module
 
     gen = np.random.default_rng(8)

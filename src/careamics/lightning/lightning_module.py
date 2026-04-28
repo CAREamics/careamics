@@ -16,6 +16,7 @@ from careamics.config import (
     algorithm_factory,
 )
 from careamics.config.data.tile_information import TileInformation
+from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -24,7 +25,6 @@ from careamics.config.support import (
     SupportedScheduler,
 )
 from careamics.losses import loss_factory
-from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
@@ -453,6 +453,10 @@ class VAEModule(L.LightningModule):
             RunningPSNR() for _ in range(self.algorithm_config.model.output_channels)
         ]
 
+    def on_fit_start(self) -> None:
+        """Validate fit-time requirements before the first training batch."""
+        self._validate_noise_model_required()
+
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.
 
@@ -545,6 +549,17 @@ class VAEModule(L.LightningModule):
 
         self.noise_model = resolved
 
+    def _validate_noise_model_required(self) -> None:
+        """Raise if denoiSplit training requires a missing noise model."""
+        denoisplit_weight = self.loss_parameters.denoisplit_weight
+        if denoisplit_weight > 0 and self.noise_model is None:
+            raise RuntimeError(
+                "A noise model is required for denoiSplit training "
+                "(denoisplit_weight > 0) but none has been set. "
+                "Call set_noise_model() before training, or pass "
+                "noise_model_config to create_microsplit_configuration()."
+            )
+
     def set_data_stats(self, data_mean: float, data_std: float) -> None:
         """Set data mean and std for denormalization in loss computation.
 
@@ -594,14 +609,7 @@ class VAEModule(L.LightningModule):
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
 
         # Compute loss
-        denoisplit_weight = self.loss_parameters.denoisplit_weight
-        if denoisplit_weight > 0 and self.noise_model is None:
-            raise RuntimeError(
-                "A noise model is required for denoiSplit training "
-                "(denoisplit_weight > 0) but none has been set. "
-                "Call set_noise_model() before training, or pass "
-                "noise_model_config to create_microsplit_configuration()."
-            )
+        self._validate_noise_model_required()
         if self.noise_model is not None and (
             self._data_mean is None or self._data_std is None
         ):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
@@ -12,6 +13,10 @@ from careamics.losses.lvae.loss_utils import free_bits_kl
 if TYPE_CHECKING:
     from careamics.config import LVAELossConfig
     from careamics.models.lvae.noise_models import MultiChannelNoiseModel
+
+# DEBUG: print interval for per-channel diagnostics (0 = disabled)
+_DEBUG_GAUSSIAN_PRINT_EVERY = 10
+_debug_gaussian_step_counter = 0
 
 
 def _compute_gaussian_log_likelihood(
@@ -47,6 +52,55 @@ def _compute_gaussian_log_likelihood(
         log_prob = -0.5 * (
             ((target - mean) ** 2) / var + logvar + torch.tensor(2 * np.pi).log()
         )
+
+        global _debug_gaussian_step_counter
+        _debug_gaussian_step_counter += 1
+        if (
+            _DEBUG_GAUSSIAN_PRINT_EVERY > 0
+            and _debug_gaussian_step_counter % _DEBUG_GAUSSIAN_PRINT_EVERY == 0
+        ):
+            n_ch = mean.shape[1]
+            sq_err = (target - mean) ** 2
+            loss_stats = []
+            value_stats = []
+            for ch in range(n_ch):
+                sq_err_ch = sq_err[:, ch].detach()
+                logvar_ch = logvar[:, ch].detach()
+                var_ch = var[:, ch].detach()
+                target_ch = target[:, ch].detach()
+                mean_ch = mean[:, ch].detach()
+                err_ch = (mean_ch - target_ch).detach()
+                mse_ch = sq_err_ch.mean().item()
+                lv_mean = logvar_ch.mean().item()
+                lv_min = logvar_ch.min().item()
+                lv_max = logvar_ch.max().item()
+                eff_var = var_ch.mean().item()
+                weighted_term = (sq_err_ch / var_ch).mean().item()
+                loss_stats.append(
+                    f"ch{ch} mse={mse_ch:.3e} "
+                    f"logvar(mean/min/max)={lv_mean:.3e}/{lv_min:.3e}/{lv_max:.3e} "
+                    f"var_mean={eff_var:.3e} sq_over_var={weighted_term:.3e}"
+                )
+                value_stats.append(
+                    f"ch{ch} "
+                    f"target(m/s/min/max)="
+                    f"{target_ch.mean().item():.3e}/{target_ch.std(unbiased=False).item():.3e}/"
+                    f"{target_ch.min().item():.3e}/{target_ch.max().item():.3e} "
+                    f"pred(m/s/min/max)="
+                    f"{mean_ch.mean().item():.3e}/{mean_ch.std(unbiased=False).item():.3e}/"
+                    f"{mean_ch.min().item():.3e}/{mean_ch.max().item():.3e} "
+                    f"err(m/s)={err_ch.mean().item():.3e}/"
+                    f"{err_ch.std(unbiased=False).item():.3e}"
+                )
+            sys.__stdout__.write(
+                f"[gauss_dbg step={_debug_gaussian_step_counter} loss] "
+                + " | ".join(loss_stats)
+                + "\n"
+                + f"[gauss_dbg step={_debug_gaussian_step_counter} values] "
+                + " | ".join(value_stats)
+                + "\n"
+            )
+            sys.__stdout__.flush()
     else:
         log_prob = -0.5 * (reconstruction - target) ** 2
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
@@ -258,6 +259,42 @@ class NoiseModelTrainer:
             config = GaussianMixtureNMConfig.from_npz(path)
             noise_models.append(GaussianMixtureNoiseModel(config))
         return noise_models
+
+    @classmethod
+    def config_from_paths(
+        cls,
+        paths: Sequence[Path | str],
+    ) -> MultiChannelNMConfig:
+        """Build a ``MultiChannelNMConfig`` from saved ``.npz`` files.
+
+        Parameters
+        ----------
+        paths : Sequence[Path | str]
+            Paths to per-channel GaussianMixture noise model files.
+
+        Returns
+        -------
+        MultiChannelNMConfig
+            Multi-channel configuration built from disk-stored models.
+
+        Raises
+        ------
+        ValueError
+            If ``paths`` is empty.
+        """
+        if len(paths) == 0:
+            raise ValueError("No noise model paths provided.")
+
+        gmm_configs = [GaussianMixtureNMConfig.from_npz(path) for path in paths]
+
+        channel_indices: list[int] | None = None
+        if all(cfg.channel_index is not None for cfg in gmm_configs):
+            channel_indices = [int(cfg.channel_index) for cfg in gmm_configs]
+
+        return MultiChannelNMConfig(
+            noise_models=gmm_configs,
+            channel_indices=channel_indices,
+        )
 
     def get_config(self) -> MultiChannelNMConfig:
         """Build a ``MultiChannelNMConfig`` from the trained models.
