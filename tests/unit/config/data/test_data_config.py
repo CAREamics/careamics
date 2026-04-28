@@ -668,7 +668,7 @@ def test_validate_channel_conversion(
     + list(itertools.product(AXES_WO_CHANNELS_3D, [None], [0.125]))
     + list(itertools.product(AXES_WO_CHANNELS_3D, [0.33], [0.33])),
 )
-def test_max_patch_filter_config_default_coverage(
+def test_max_patch_filter_default_coverage(
     axes: str, coverage: float | None, expected: float
 ):
     """Test max patch filter default coverage is updated only when not specified."""
@@ -932,58 +932,6 @@ class TestConvertMode:
         else:
             assert cfg.mask_filter is not None
             assert cfg.mask_filter.coverage == expected_coverage
-
-    @pytest.mark.parametrize(
-        "axes, data_type, expected_coverage",
-        list(
-            itertools.product(
-                AXES_WO_CHANNELS_2D + AXES_W_CHANNELS_2D,
-                ["array"],
-                [0.25],
-            )
-        )
-        + list(
-            itertools.product(
-                AXES_WO_CHANNELS_3D + AXES_W_CHANNELS_3D,
-                ["array"],
-                [0.125],
-            )
-        )
-        + list(itertools.product(AXES_CZI_2D, ["czi"], [0.25]))
-        + list(itertools.product(AXES_CZI_3D, ["czi"], [0.125])),
-    )
-    def test_max_patch_filter_default_coverage(
-        self, axes: str, data_type: str, expected_coverage: float
-    ):
-        """Test max patch filter coverage is set based on dimensionality."""
-        cfg_dict = data_config_dict_testing(
-            mode=TRAINING,
-            axes=axes,
-            data_type=data_type,
-            patch_filter=patch_filter_dict_testing("max"),
-        )
-        cfg = DataConfig(**cfg_dict)
-
-        assert cfg.patch_filter is not None
-        assert isinstance(cfg.patch_filter, MaxPatchFilterConfig)
-        assert cfg.patch_filter.coverage == expected_coverage
-
-    def test_max_patch_filter_explicit_coverage(self):
-        """Test explicit max patch filter coverage is preserved."""
-        explicit_coverage = 0.5
-        patch_filter = patch_filter_dict_testing("max")
-        patch_filter["coverage"] = explicit_coverage
-        cfg_dict = data_config_dict_testing(
-            mode=TRAINING,
-            axes="ZYX",
-            data_type="array",
-            patch_filter=patch_filter,
-        )
-        cfg = DataConfig(**cfg_dict)
-
-        assert cfg.patch_filter is not None
-        assert isinstance(cfg.patch_filter, MaxPatchFilterConfig)
-        assert cfg.patch_filter.coverage == explicit_coverage
 
 
 class TestGetDefaultNumWorkers:
