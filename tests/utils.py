@@ -121,7 +121,8 @@ def unet_algo_dict_testing(
     dims: int = DEFAULT_DIMS,
     n_channels_in: int = DEFAULT_N_CHANNELS_IN,
     n_channels_out: int = DEFAULT_N_CHANNELS_OUT,
-    **model_kwargs: Any,
+    model_kwargs: dict[str, Any] | None = None,
+    algo_kwargs: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return a UNet algorithm dictionary."""
     if algorithm == "n2v":
@@ -140,8 +141,9 @@ def unet_algo_dict_testing(
             "in_channels": n_channels_in,
             "num_classes": n_channels_out,
             "independent_channels": ind_channels,
-            **model_kwargs,
+            **(model_kwargs or {}),
         },
+        **(algo_kwargs or {}),
     }
 
 
@@ -153,6 +155,7 @@ def unet_config_dict_testing(
     n_channels_in: int = DEFAULT_N_CHANNELS_IN,
     n_channels_out: int = DEFAULT_N_CHANNELS_OUT,
     model_kwargs: dict[str, Any] | None = None,
+    algo_kwargs: dict[str, Any] | None = None,
     # data
     mode: str = DEFAULT_MODE,
     data_type: str = DEFAULT_DATA_TYPE,
@@ -170,7 +173,7 @@ def unet_config_dict_testing(
     return {
         "experiment_name": experiment_name,
         "algorithm_config": unet_algo_dict_testing(
-            algorithm, dims, n_channels_in, n_channels_out, **(model_kwargs or {})
+            algorithm, dims, n_channels_in, n_channels_out, model_kwargs, algo_kwargs
         ),
         "data_config": data_config_dict_testing(
             mode, data_type, axes, patching, patch_size, **(data_kwargs or {})

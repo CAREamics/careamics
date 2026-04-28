@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Protocol, Union
+from typing import Any, Protocol, Union
 
 from numpy.typing import NDArray
 
@@ -14,9 +14,20 @@ from .tiff import read_tiff
 # This is very strict, function signature has to match including arg names
 # See WriteFunc notes
 class ReadFunc(Protocol):
-    """Protocol for type hinting read functions."""
+    """Protocol that defines the accepted function signature for "read functions".
 
-    def __call__(self, file_path: Path, *args, **kwargs) -> NDArray:
+    Read functions take a file path and read image data into a numpy array.
+
+    The first argument MUST be named `file_path` and be type `pathlib.Path`, any number
+    of additional arguments of any type are allowed. The return type MUST be
+    `numpy.typing.NDArray[Any]`. For example:
+
+    ```python
+    def read_func_example(file_path: Path, extra_arg: int) -> NDArray[Any]: ...
+    ```
+    """
+
+    def __call__(self, file_path: Path, *args: Any, **kwargs: Any) -> NDArray[Any]:
         """
         Type hinted callables must match this function signature (not including self).
 
@@ -29,6 +40,7 @@ class ReadFunc(Protocol):
         **kwargs
             Other keyword arguments.
         """
+        ...
 
 
 READ_FUNCS: dict[SupportedData, ReadFunc] = {
