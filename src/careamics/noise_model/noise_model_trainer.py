@@ -231,9 +231,7 @@ class NoiseModelTrainer:
         for idx, nm in enumerate(self.noise_models):
             filename = f"{prefix}_ch{idx}.npz"
             channel_index = (
-                self.channel_indices[idx]
-                if self.channel_indices is not None
-                else None
+                self.channel_indices[idx] if self.channel_indices is not None else None
             )
             nm.save(str(path), filename, channel_index=channel_index)
             saved_paths.append(path / filename)
@@ -323,9 +321,7 @@ class NoiseModelTrainer:
         gmm_configs = []
         for idx, nm in enumerate(self.noise_models):
             channel_idx = (
-                self.channel_indices[idx]
-                if self.channel_indices is not None
-                else idx
+                self.channel_indices[idx] if self.channel_indices is not None else idx
             )
             config = GaussianMixtureNMConfig(
                 weight=nm.weight.detach().cpu().numpy(),
@@ -410,9 +406,7 @@ class NoiseModelTrainer:
         results = []
         for idx, nm in enumerate(self.noise_models):
             channel_idx = (
-                self.channel_indices[idx]
-                if self.channel_indices is not None
-                else idx
+                self.channel_indices[idx] if self.channel_indices is not None else idx
             )
             ch_signal = signal[:, channel_idx]
             ch_obs = observation[:, channel_idx]
@@ -431,13 +425,9 @@ class NoiseModelTrainer:
 
             sig_min = float(nm.min_signal.item())
             sig_max = float(nm.max_signal.item())
-            coverage = float(
-                np.mean((ch_signal >= sig_min) & (ch_signal <= sig_max))
-            )
+            coverage = float(np.mean((ch_signal >= sig_min) & (ch_signal <= sig_max)))
 
-            losses = (
-                self.train_losses[idx] if self.train_losses is not None else None
-            )
+            losses = self.train_losses[idx] if self.train_losses is not None else None
             final_loss = losses[-1] if losses else float("nan")
             loss_trend: str
             if losses and len(losses) >= 20:
@@ -558,9 +548,7 @@ class NoiseModelTrainer:
             return
         for idx, nm in enumerate(self.noise_models):
             channel_idx = (
-                self.channel_indices[idx]
-                if self.channel_indices is not None
-                else idx
+                self.channel_indices[idx] if self.channel_indices is not None else idx
             )
             weight_arr = nm.weight.detach().cpu()
             if bool(weight_arr.isnan().any().item()):

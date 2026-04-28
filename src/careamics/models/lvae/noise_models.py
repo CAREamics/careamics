@@ -731,9 +731,7 @@ class GaussianMixtureNoiseModel(nn.Module):
                 )
         return observation
 
-    def save(
-        self, path: str, name: str, channel_index: int | None = None
-    ) -> None:
+    def save(self, path: str, name: str, channel_index: int | None = None) -> None:
         """Save the trained parameters on the noise model.
 
         Parameters

@@ -1,12 +1,10 @@
 """Noise models config."""
 
 from pathlib import Path
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, Self, Union
 
 import numpy as np
 import torch
-from typing import Self
-
 from pydantic import (
     BaseModel,
     ConfigDict,

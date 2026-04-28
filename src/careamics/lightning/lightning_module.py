@@ -476,10 +476,7 @@ class VAEModule(L.LightningModule):
     def set_noise_model(
         self,
         noise_model: (
-            MultiChannelNoiseModel
-            | MultiChannelNMConfig
-            | list[str]
-            | list[Path]
+            MultiChannelNoiseModel | MultiChannelNMConfig | list[str] | list[Path]
         ),
     ) -> None:
         """Set the noise model after construction.
@@ -1011,4 +1008,3 @@ def create_careamics_module(
         raise NotImplementedError(
             f"Algorithm {which_algo} is not implemented or unknown."
         )
-
