@@ -35,9 +35,6 @@ class MicroSplitDataConfig(NGDataConfig):
     """
 
     #  LC parameters
-    lateral_context: bool = Field(default=True)
-    """Enable lateral-context multi-scale patch construction."""
-
     multiscale_count: int = Field(default=3, ge=1)
     """Number of LC levels (including full-resolution level 0)."""
 
@@ -110,22 +107,6 @@ class MicroSplitDataConfig(NGDataConfig):
             raise ValueError(
                 f"Channels {overlap} appear in both empty_signal_channels and "
                 f"empty_background_channels. A channel cannot be both."
-            )
-        return self
-
-    @model_validator(mode="after")
-    def _validate_lateral_context_needs_multiscale(self) -> MicroSplitDataConfig:
-        """Validate lateral-context consistency with multiscale_count.
-
-        Returns
-        -------
-        MicroSplitDataConfig
-            The validated configuration instance.
-        """
-        if not self.lateral_context and self.multiscale_count > 1:
-            raise ValueError(
-                f"lateral_context=False but multiscale_count={self.multiscale_count} "
-                f"> 1. Set multiscale_count=1 when lateral_context is disabled."
             )
         return self
 

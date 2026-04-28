@@ -11,7 +11,7 @@ Pins verified:
 - LC structure: each channel carries `multiscale_count` scales stacked on axis 0.
 """
 
-# TODO to be removed after refactoring is complete
+# TODO this module to be removed after refactoring is complete
 
 from __future__ import annotations
 
