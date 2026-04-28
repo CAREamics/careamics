@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Literal, overload
 
 from numpy.typing import NDArray
-from pytorch_lightning import Callback, Trainer
+from pytorch_lightning import Callback, Trainer, seed_everything
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
@@ -135,6 +135,8 @@ class CAREamist:
 
         self.config: ConfigurationType
         self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
+
+        _ = seed_everything(self.config.data_config.seed, workers=True)
 
         self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
