@@ -37,8 +37,8 @@ class MicroSplitDataConfig(BaseModel):
     """Indices of the channels where the targets are stored in the data"""
 
     # TODO: where are there used?
-    start_alpha: Any | None = None
-    end_alpha: Any | None = None
+    start_alpha: Any | None = None  # remove
+    end_alpha: Any | None = None  # remove
 
     image_size: tuple  # TODO: revisit, new model_config uses tuple
     """Size of one patch of data"""
@@ -60,16 +60,16 @@ class MicroSplitDataConfig(BaseModel):
     channel content 'uncorrelated'"""
     uncorrelated_channel_probab: float | None = 0.5
 
-    poisson_noise_factor: float | None = -1
+    poisson_noise_factor: float | None = -1  # remove
     """The added poisson noise factor"""
 
-    synthetic_gaussian_scale: float | None = 0.1
+    synthetic_gaussian_scale: float | None = 0.1  # remove
 
     # TODO: set to True in training code, recheck
-    input_has_dependant_noise: bool | None = False
+    input_has_dependant_noise: bool | None = False  # remove
 
     # TODO: sometimes max_val differs between runs with fixed seeds with noise enabled
-    enable_gaussian_noise: bool | None = False
+    enable_gaussian_noise: bool | None = False  # remove
     """Whether to enable gaussian noise"""
 
     # TODO: is this parameter used?
@@ -86,17 +86,17 @@ class MicroSplitDataConfig(BaseModel):
     """Maximum data in the dataset. Is calculated for train split, and should be
     externally set for val and test splits."""
 
-    overlapping_padding_kwargs: Any = None
+    overlapping_padding_kwargs: Any = None  # remove
     """Parameters for np.pad method"""
 
     # TODO: remove this parameter, controls debug print
-    print_vars: bool | None = False
+    print_vars: bool | None = False  # remove
 
     # Hard-coded parameters (used to be in the config file)
-    normalized_input: bool = True
+    normalized_input: bool = True  # remove
     """If this is set to true, then one mean and stdev is used
                 for both channels. Otherwise, two different mean and stdev are used."""
-    use_one_mu_std: bool | None = True
+    use_one_mu_std: bool | None = True  # remove
 
     # TODO: is this parameter used?
     train_aug_rotate: bool | None = False
@@ -112,15 +112,15 @@ class MicroSplitDataConfig(BaseModel):
     mode_3D: bool | None = False
     """If training in 3D mode or not"""
 
-    trainig_datausage_fraction: float | None = 1.0
+    trainig_datausage_fraction: float | None = 1.0  # remove
 
-    validtarget_random_fraction: float | None = None
+    validtarget_random_fraction: float | None = None  # remove
 
-    validation_datausage_fraction: float | None = 1.0
+    validation_datausage_fraction: float | None = 1.0  # remove
 
     random_flip_z_3D: bool | None = False
 
-    padding_kwargs: dict = {"mode": "reflect"}  # TODO remove !!
+    padding_kwargs: dict = {"mode": "reflect"}  # remove !!
 
     def __init__(self, **data):
         # Convert string data_type to enum if needed
