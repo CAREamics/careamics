@@ -221,7 +221,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
             warnings.warn(
                 f"Warning: Batch normalization is used with batch size "
                 f"{self.data_config.batch_size}. We advise using a batch size of at"
-                f" least 32 when using batch normalization, as smaller batch sizes "
+                f" least 8 when using batch normalization, as smaller batch sizes "
                 f"may be unreliable. Consider increasing the batch size or disabling "
                 f"batch normalization in the algorithm `model` parameter.",
                 stacklevel=2,

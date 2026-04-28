@@ -1,10 +1,8 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.image_stack.image_utils.image_stack_utils import (
-    channel_slice,
-    pad_patch,
-)
+from careamics.dataset.image_stack.image_utils import pad_patch
+from careamics.utils.reshape_array import channel_slice
 
 data = np.array(
     [
