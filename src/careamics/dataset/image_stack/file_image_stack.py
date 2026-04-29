@@ -9,9 +9,9 @@ import tifffile
 from numpy.typing import DTypeLike, NDArray
 
 from careamics.file_io.read import ReadFunc, read_tiff
-from careamics.utils.reshape_array import AxesTransform, reshape_array
+from careamics.utils.reshape_array import AxesTransform, channel_slice, reshape_array
 
-from .image_utils.image_stack_utils import channel_slice, pad_patch
+from .image_utils.image_stack_utils import pad_patch
 
 
 class FileImageStack:
