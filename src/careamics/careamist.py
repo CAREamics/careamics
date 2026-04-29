@@ -136,8 +136,6 @@ class CAREamist:
         self.config: ConfigurationType
         self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
 
-        _ = seed_everything(self.config.data_config.seed, workers=True)
-
         self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
         )
