@@ -273,7 +273,7 @@ class CziImageStack:
         channels: Sequence[int] | None,  # `channels = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
-    ) -> NDArray:
+    ) -> NDArray[np.float32]:
         """Extract a patch for a given sample and channels within the image stack.
 
         Parameters
@@ -376,7 +376,9 @@ class CziImageStack:
                     extracted_roi = extracted_roi.squeeze(-1)
 
                 # add requested channel into the patch
-                patch[patch_channel, third_dim_index] = extracted_roi
+                patch[patch_channel, third_dim_index] = extracted_roi.astype(
+                    np.float32, copy=False
+                )
 
         # Remove dummy 3rd dimension for 2-D data
         if third_dim is None:
