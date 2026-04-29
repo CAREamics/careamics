@@ -79,8 +79,6 @@ class CAREModule(L.LightningModule):
             }
         )
 
-        self._best_checkpoint_loaded: bool = False
-
     def on_fit_start(self) -> None:
         """On fit start hook for CARE module.
 
