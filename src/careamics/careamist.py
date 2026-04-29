@@ -507,6 +507,9 @@ class CAREamist:
 
         if checkpoint is not None:
             return checkpoint
+            
+        if self.checkpoint_path is not None:
+            return self.checkpoint_path
 
         # for all other algorithms, if checkpoint is None, choose "best"
         return "best"
