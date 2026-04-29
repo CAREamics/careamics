@@ -231,7 +231,7 @@ class CAREamist:
             config = load_configuration(Path(config))
         assert not isinstance(config, (Path, str))
 
-        _ = seed_everything(config.data_config.seed, workers=True)
+        _ = seed_everything(config.data_config.seed, workers=True, verbose=False)
         model = create_module(config.algorithm_config)
         return config, model
 
@@ -255,7 +255,7 @@ class CAREamist:
         """
         checkpoint_path = Path(checkpoint_path)
         config = load_config_from_checkpoint(checkpoint_path)
-        _ = seed_everything(config.data_config.seed, workers=True)
+        _ = seed_everything(config.data_config.seed, workers=True, verbose=False)
         module = load_module_from_checkpoint(checkpoint_path)
 
         return config, module
@@ -554,6 +554,7 @@ class CAREamist:
         self.trainer.should_stop = False
         self.trainer.limit_val_batches = 1.0  # equivalent to all validation batches
 
+        _ = seed_everything(self.config.data_config.seed, workers=True)
         self.trainer.fit(
             self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
         )
