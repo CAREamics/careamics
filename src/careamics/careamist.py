@@ -233,6 +233,7 @@ class CAREamist:
             config = load_configuration(Path(config))
         assert not isinstance(config, (Path, str))
 
+        _ = seed_everything(config.data_config.seed, workers=True)
         model = create_module(config.algorithm_config)
         return config, model
 
@@ -256,6 +257,7 @@ class CAREamist:
         """
         checkpoint_path = Path(checkpoint_path)
         config = load_config_from_checkpoint(checkpoint_path)
+        _ = seed_everything(config.data_config.seed, workers=True)
         module = load_module_from_checkpoint(checkpoint_path)
 
         return config, module
