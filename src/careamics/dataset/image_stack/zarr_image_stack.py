@@ -6,9 +6,9 @@ import numpy as np
 import zarr
 from numpy.typing import DTypeLike, NDArray
 
-from careamics.utils.reshape_array import AxesTransform, reshape_array
+from careamics.utils.reshape_array import AxesTransform, get_patch_slices, reshape_patch
 
-from .image_utils.image_stack_utils import channel_slice, pad_patch
+from .image_utils.image_stack_utils import pad_patch
 
 
 class ZarrImageStack:
@@ -165,112 +165,16 @@ class ZarrImageStack:
         numpy.ndarray
             A patch of the image data from a particular sample with dimensions C(Z)YX.
         """
-        # original axes assumed to be any subset of STCZYX (containing YX), in any order
-        # arguments must be transformed to index data in original axes order
-        # to do this: loop through original axes and append correct index/slice
-        #   for each case: STCZYX
-        #   Note: if any axis is not present in original_axes it is skipped.
+        patch_slice = get_patch_slices(
+            self._original_axes,
+            self._original_data_shape,
+            sample_idx,
+            channels,
+            coords,
+            patch_size,
+        )
 
-        # guard for no S and T in original axes
-        if ("S" not in self._original_axes) and ("T" not in self._original_axes):
-            if sample_idx not in [0, -1]:
-                raise IndexError(
-                    f"Sample index {sample_idx} out of bounds for S axes with size "
-                    f"{self.data_shape[0]}"
-                )
-
-        # check that channels are within bounds
-        if channels is not None:
-            max_channel = self.data_shape[1] - 1  # channel is second dimension
-            for ch in channels:
-                if ch > max_channel:
-                    raise ValueError(
-                        f"Channel index {ch} is out of bounds for data with "
-                        f"{self.data_shape[1]} channels. Check the provided `channels` "
-                        f"parameter in the configuration for erroneous channel "
-                        f"indices."
-                    )
-
-        patch_slice: list[int | slice] = []
-        for d in self._original_axes:
-            if d == "S":
-                patch_slice.append(self._get_S_index(sample_idx))
-            elif d == "T":
-                patch_slice.append(self._get_T_index(sample_idx))
-            elif d == "C":
-                patch_slice.append(channel_slice(channels))  # type: ignore
-            elif d == "Z":
-                patch_slice.append(slice(coords[0], coords[0] + patch_size[0]))
-            elif d == "Y":
-                y_idx = 0 if "Z" not in self._original_axes else 1
-                patch_slice.append(
-                    slice(coords[y_idx], coords[y_idx] + patch_size[y_idx])
-                )
-            elif d == "X":
-                x_idx = 1 if "Z" not in self._original_axes else 2
-                patch_slice.append(
-                    slice(coords[x_idx], coords[x_idx] + patch_size[x_idx])
-                )
-            else:
-                raise ValueError(f"Unrecognised axis '{d}', axes should be in STCZYX.")
-
-        patch_data: NDArray = self._array[tuple(patch_slice)]  # type: ignore
-        patch_axes = self._original_axes.replace("S", "").replace("T", "")
-        patch_data = reshape_array(patch_data, patch_axes)[0]  # remove first sample dim
-        patch_data = patch_data.astype(np.float32, copy=False)
+        patch_data: NDArray = self._array[patch_slice]  # type: ignore
+        patch_data = reshape_patch(patch_data, self._original_axes)
         patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
-
         return patch
-
-    def _get_T_index(self, sample_idx: int) -> int:
-        """Get `T` dimension index given `sample_idx`.
-
-        Parameters
-        ----------
-        sample_idx : int
-            Flat sample index (S*T or S).
-
-        Returns
-        -------
-        int
-            Index along the T axis.
-        """
-        if "T" not in self._original_axes:
-            raise ValueError("No 'T' axis specified in original data axes.")
-        axis_idx = self._original_axes.index("T")
-        dim = self._original_data_shape[axis_idx]
-
-        # new S' = S*T
-        # T_idx = S_idx' // T_size
-        # S_idx = S_idx' % T_size
-        # - floor divide finds the row
-        # - modulus finds how far along the row i.e. the column
-        return sample_idx % dim
-
-    def _get_S_index(self, sample_idx: int) -> int:
-        """Get `S` dimension index given `sample_idx`.
-
-        Parameters
-        ----------
-        sample_idx : int
-            Flat sample index (S*T or S).
-
-        Returns
-        -------
-        int
-            Index along the S axis.
-        """
-        if "S" not in self._original_axes:
-            raise ValueError("No 'S' axis specified in original data axes.")
-        if "T" in self._original_axes:
-            T_axis_idx = self._original_axes.index("T")
-            T_dim = self._original_data_shape[T_axis_idx]
-
-            # new S' = S*T
-            # T_idx = S_idx' // T_size
-            # S_idx = S_idx' % T_size
-            # - floor divide finds the row
-            # - modulus finds how far along the row i.e. the column
-            return sample_idx // T_dim
-        else:
-            return sample_idx

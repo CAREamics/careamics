@@ -61,33 +61,6 @@ def test_train_error_no_target_data(tmp_path: Path):
         )
 
 
-# TODO since this happens in the LightningModule, this test should be removed
-def test_target_unsupported_warning_n2v(tmp_path: Path):
-    """Test that a warning is emitted when a target is provided for N2V."""
-    config = create_advanced_n2v_config(
-        experiment_name="test",
-        data_type="array",
-        axes="YX",
-        patch_size=(8, 8),
-        batch_size=2,
-        num_epochs=1,
-        roi_size=5,
-        masked_pixel_percentage=5,
-    )
-    careamics = CAREamist(config=config, work_dir=tmp_path)
-
-    train_array = np.ones((32, 32))
-    val_array = np.ones((32, 32))
-
-    with pytest.warns(match="train_data_target.*ignored"):
-        careamics.train(
-            train_data=train_array,
-            val_data=val_array,
-            train_data_target=train_array,
-            val_data_target=val_array,
-        )
-
-
 @pytest.mark.mps_gh_fail
 def test_v2_train_array(tmp_path: Path):
     """Test that CAREamist can be trained on arrays."""

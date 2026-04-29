@@ -35,7 +35,5 @@ def test_pn2v_loss_basic(tmp_path: Path, create_dummy_noise_model):
         loss_value = pn2v_loss(samples, labels, masks, noise_model)
         assert isinstance(loss_value, torch.Tensor)
         assert loss_value.dim() == 0  # Should be a scalar
-        print(f"PN2V loss computed successfully: {loss_value.item()}")
-    except Exception as e:
-        print(f"Error calling pn2v_loss: {e}")
+    except Exception:
         raise
