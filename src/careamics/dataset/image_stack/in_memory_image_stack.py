@@ -53,9 +53,9 @@ class InMemoryImageStack:
         """
         self.source: Union[str, Path, Literal["array"]] = source
         # data expected to be in SC(Z)YX shape, reason to use from_array constructor
-        self._data: NDArray = data
+        self.data_dtype: DTypeLike = data.dtype
+        self._data: NDArray = data.astype(np.float32, copy=False)
         self.data_shape: Sequence[int] = self._data.shape
-        self.data_dtype: DTypeLike = self._data.dtype
         self._original_axes: str = original_axes if original_axes is not None else ""
         self._original_data_shape: tuple[int, ...] = (
             original_data_shape if original_data_shape is not None else ()
@@ -67,7 +67,7 @@ class InMemoryImageStack:
         channels: Sequence[int] | None,  # `channels = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
-    ) -> NDArray:
+    ) -> NDArray[np.float32]:
         """Extract a patch for a given sample and channels within the image stack.
 
         Parameters

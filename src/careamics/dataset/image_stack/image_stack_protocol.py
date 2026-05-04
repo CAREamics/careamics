@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, Protocol, TypeVar, Union
 
+import numpy as np
 from numpy.typing import DTypeLike, NDArray
 
 
@@ -56,7 +57,7 @@ class ImageStack(Protocol):
         channels: Sequence[int] | None,
         coords: Sequence[int],
         patch_size: Sequence[int],
-    ) -> NDArray:
+    ) -> NDArray[np.float32]:
         """Extract a patch for a given sample and channels within the image stack.
 
         Parameters

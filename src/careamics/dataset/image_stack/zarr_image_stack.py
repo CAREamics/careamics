@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 
+import numpy as np
 import zarr
 from numpy.typing import DTypeLike, NDArray
 
@@ -145,7 +146,7 @@ class ZarrImageStack:
         channels: Sequence[int] | None,  # `channels = None` to select all channels,
         coords: Sequence[int],
         patch_size: Sequence[int],
-    ) -> NDArray:
+    ) -> NDArray[np.float32]:
         """Extract a patch for a given sample and channels within the image stack.
 
         Parameters
