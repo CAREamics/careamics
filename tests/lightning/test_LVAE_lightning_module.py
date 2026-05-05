@@ -232,9 +232,13 @@ def test_hdn_lightning_init(
 
 
 @pytest.mark.parametrize(
-    "multiscale_count, predict_logvar, target_ch, nm_cnt, musplit_w, denoisplit_w, exp_error",
+    (
+        "multiscale_count, predict_logvar, target_ch, "
+        "nm_cnt, musplit_w, denoisplit_w, exp_error"
+    ),
     [
-        # musplit cases (target_ch=3, no noise model needed, musplit_weight=1.0, denoisplit_weight=0.0)
+        # musplit cases (target_ch=3, no noise model needed, musplit_weight=1.0,
+        # denoisplit_weight=0.0)
         (1, False, 3, 0, 1.0, 0.0, does_not_raise()),
         (1, True, 3, 0, 1.0, 0.0, does_not_raise()),
         (5, False, 3, 0, 1.0, 0.0, does_not_raise()),

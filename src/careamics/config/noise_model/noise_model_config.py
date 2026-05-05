@@ -157,6 +157,13 @@ class MultiChannelNMConfig(BaseModel):
 
     @model_validator(mode="after")
     def _validate_channel_order(self) -> Self:
+        """Validate length/content and consistency of ``channel_indices``.
+
+        Returns
+        -------
+        Self
+            Validated model instance.
+        """
         if self.channel_indices is not None:
             if len(self.channel_indices) != len(self.noise_models):
                 raise ValueError(

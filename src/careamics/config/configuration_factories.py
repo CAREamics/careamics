@@ -1835,8 +1835,6 @@ def create_microsplit_configuration(
         Whether to predict per-pixel log-variance, by default True.
     logvar_lowerbound : float | None, optional
         Lower bound for the log variance, by default -5.0.
-    kl_type : Literal["kl", "kl_restricted"], optional
-        Type of KL divergence, by default "kl_restricted".
     reconstruction_weight : float, optional
         Weight for reconstruction loss, by default 1.0.
     kl_weight : float, optional

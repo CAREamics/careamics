@@ -77,6 +77,19 @@ class NoiseModelTrainer:
         min_sigma: float = 125.0,
         global_signal_range: bool = False,
     ) -> None:
+        """Initialize trainer hyperparameters and empty training state.
+
+        Parameters
+        ----------
+        n_gaussian : int, default=3
+            Number of Gaussian components in the mixture.
+        n_coeff : int, default=3
+            Number of polynomial coefficients for signal-dependent parameters.
+        min_sigma : float, default=125.0
+            Minimum standard deviation for GMM components.
+        global_signal_range : bool, default=False
+            Whether to use one global signal range across channels.
+        """
         self.n_gaussian = n_gaussian
         self.n_coeff = n_coeff
         self.min_sigma = min_sigma
@@ -286,8 +299,11 @@ class NoiseModelTrainer:
         gmm_configs = [GaussianMixtureNMConfig.from_npz(path) for path in paths]
 
         channel_indices: list[int] | None = None
-        if all(cfg.channel_index is not None for cfg in gmm_configs):
-            channel_indices = [int(cfg.channel_index) for cfg in gmm_configs]
+        raw_channel_indices = [cfg.channel_index for cfg in gmm_configs]
+        if all(idx is not None for idx in raw_channel_indices):
+            channel_indices = [
+                int(idx) for idx in raw_channel_indices if idx is not None
+            ]
 
         return MultiChannelNMConfig(
             noise_models=gmm_configs,
@@ -588,7 +604,32 @@ class NoiseModelTrainer:
         min_signal: float | None = None,
         max_signal: float | None = None,
     ) -> tuple[GaussianMixtureNoiseModel, list[float]]:
-        """Train a single-channel noise model."""
+        """Train one channel-specific Gaussian-mixture noise model.
+
+        Parameters
+        ----------
+        signal : NDArray
+            Denoised/clean signal samples for one channel.
+        observation : NDArray
+            Noisy observations paired with ``signal``.
+        n_epochs : int
+            Number of optimization epochs.
+        learning_rate : float
+            Optimizer learning rate.
+        batch_size : int
+            Number of samples per optimization step.
+        min_signal : float | None, default=None
+            Lower initialization bound for the signal range. If ``None``, use
+            ``signal.min()``.
+        max_signal : float | None, default=None
+            Upper initialization bound for the signal range. If ``None``, use
+            ``signal.max()``.
+
+        Returns
+        -------
+        tuple[GaussianMixtureNoiseModel, list[float]]
+            The trained model and its per-epoch training losses.
+        """
         config = GaussianMixtureNMConfig(
             model_type="GaussianMixtureNoiseModel",
             min_signal=min_signal if min_signal is not None else float(signal.min()),
