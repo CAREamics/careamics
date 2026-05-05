@@ -5,7 +5,7 @@ from typing import Self
 import numpy as np
 from pydantic import model_validator
 
-from careamics.config.algorithms import N2VAlgorithm
+from careamics.config.algorithms import N2VAlgorithm, PN2VAlgorithm
 from careamics.config.data.patching_strategies import WholePatchingConfig
 
 from .ng_configuration import NGConfiguration
@@ -14,7 +14,7 @@ from .ng_configuration import NGConfiguration
 class N2VConfiguration(NGConfiguration):
     """N2V-specific configuration."""
 
-    algorithm_config: N2VAlgorithm
+    algorithm_config: N2VAlgorithm | PN2VAlgorithm
 
     @model_validator(mode="after")
     def validate_n2v_mask_pixel_perc(self: Self) -> Self:

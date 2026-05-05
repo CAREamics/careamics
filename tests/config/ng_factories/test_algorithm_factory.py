@@ -1,4 +1,5 @@
 from careamics.config.ng_factories.algorithm_factory import (
+    algorithm_factory,
     create_algorithm_configuration,
 )
 
@@ -41,3 +42,22 @@ class TestUNetConfiguration:
         assert config["model"].in_channels == in_channels
         assert config["model"].num_classes == num_classes
         assert config["model"].independent_channels == independent_channels
+
+
+def test_algorithm_factory_supports_pn2v():
+    """Test that algorithm_factory validates PN2V algorithm dictionaries."""
+    cfg = algorithm_factory(
+        {
+            "algorithm": "pn2v",
+            "loss": "pn2v",
+            "model": {
+                "architecture": "UNet",
+                "conv_dims": 2,
+                "in_channels": 1,
+                "num_classes": 1,
+                "independent_channels": True,
+            },
+            "noise_model": {"model_type": "GaussianMixtureNoiseModel"},
+        }
+    )
+    assert cfg.algorithm == "pn2v"

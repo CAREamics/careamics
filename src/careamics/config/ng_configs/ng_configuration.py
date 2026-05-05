@@ -13,6 +13,7 @@ from careamics.config.algorithms import (
     CAREAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
 )
 from careamics.config.data import NGDataConfig
 from careamics.config.ng_configs.ng_training_configuration import (
@@ -23,7 +24,13 @@ from careamics.lightning.dataset_ng.lightning_modules.constraints import (
     get_model_constraints,
 )
 
-AlgorithmConfig = TypeVar("AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm)
+AlgorithmConfig = TypeVar(
+    "AlgorithmConfig",
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    PN2VAlgorithm,
+)
 
 
 class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
@@ -302,7 +309,8 @@ class NGConfiguration(BaseModel, Generic[AlgorithmConfig]):
         bool
             True if the algorithm is supervised, False otherwise.
         """
-        return self.algorithm_config.is_supervised()
+        # PN2V does not expose `is_supervised()`, but it is unsupervised like N2V.
+        return self.algorithm_config.algorithm not in {"n2v", "pn2v"}
 
     def set_3D(self, is_3D: bool, axes: str, patch_size: list[int]) -> None:
         """

@@ -5,7 +5,11 @@ from contextlib import nullcontext
 
 import pytest
 
-from careamics.config.ng_configs import N2VConfiguration, NGConfiguration
+from careamics.config.ng_configs import (
+    N2VConfiguration,
+    NGConfiguration,
+    PN2VConfiguration,
+)
 from careamics.config.ng_factories.ng_config_discriminator import instantiate_config
 from tests.unit.config.data.test_normalization_config import (
     NORMS_W_NONE,
@@ -40,6 +44,19 @@ def test_unet_configs(algorithm, config_class):
     unet_config_dict = unet_ng_config_dict_testing(algorithm=algorithm)
     cfg = instantiate_config(unet_config_dict)
     assert isinstance(cfg, config_class)
+
+
+def test_pn2v_config_instantiation():
+    """Test that PN2V configuration is discriminated to PN2VConfiguration."""
+    pn2v_config_dict = unet_ng_config_dict_testing(algorithm="n2v")
+    pn2v_config_dict["algorithm_config"]["algorithm"] = "pn2v"
+    pn2v_config_dict["algorithm_config"]["loss"] = "pn2v"
+    pn2v_config_dict["algorithm_config"]["noise_model"] = {
+        "model_type": "GaussianMixtureNoiseModel"
+    }
+
+    cfg = instantiate_config(pn2v_config_dict)
+    assert isinstance(cfg, PN2VConfiguration)
 
 
 # -------------------------- Unit tests ----------------------------
