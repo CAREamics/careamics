@@ -12,7 +12,7 @@ particular constraints.
 ## Arrays
 
 Arrays are the simplest and fastest way to train and predict with CAREamics, they can be
-passed as is to the `CAREamist`.
+passed as is to the `CAREamist` (list or single array).
 
 ## TIFF
 
