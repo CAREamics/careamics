@@ -13,7 +13,7 @@ from careamics.dataset.patching import (
     TiledPatching,
     TileSpecs,
 )
-from careamics.file_io.write import write_tiff
+from careamics.image_io.write import write_tiff
 from careamics.lightning.callbacks.prediction import (
     TileWriteStrategy,
     create_write_file_path,

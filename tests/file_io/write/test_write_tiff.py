@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.file_io.write import write_tiff
+from careamics.image_io.write import write_tiff
 
 
 def test_write_tiff(tmp_path, ordered_array):

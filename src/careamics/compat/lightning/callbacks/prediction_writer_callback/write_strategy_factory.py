@@ -3,7 +3,7 @@
 from typing import Any
 
 from careamics.config.support import SupportedData
-from careamics.file_io import SupportedWriteType, WriteFunc, get_write_func
+from careamics.image_io import SupportedWriteType, WriteFunc, get_write_func
 
 from .write_strategy import CacheTiles, WriteImage, WriteStrategy
 
