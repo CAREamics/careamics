@@ -111,8 +111,8 @@ class ShannonPatchFilter(PatchFilter):
         Returns
         -------
         numpy.typing.NDArray[np.bool_]
-           A binary map where True indicates patches that pass the filter, i.e. they
-           should be kept for training.
+            A binary map where True indicates patches that pass the filter, i.e. they
+            should be kept for training.
         """
         return filter_map > threshold
 

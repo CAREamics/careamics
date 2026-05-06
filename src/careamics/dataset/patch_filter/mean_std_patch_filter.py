@@ -146,8 +146,8 @@ class MeanStdPatchFilter(PatchFilter):
         Returns
         -------
         numpy.typing.NDArray[np.bool_]
-           A binary map where True indicates patches that pass the filter, i.e. they
-           should be kept for training.
+            A binary map where True indicates patches that pass the filter, i.e. they
+            should be kept for training.
         """
         if std_threshold is not None:
             return (filter_map[0, ...] > mean_threshold) & (
