@@ -15,7 +15,7 @@ from careamics.compat.dataset.tiling import extract_tiles
 from careamics.compat.lightning.callbacks.prediction_writer_callback import (
     CacheTiles,
 )
-from careamics.file_io import WriteFunc
+from careamics.image_io import WriteFunc
 
 
 def create_tiles(n_samples: int) -> tuple[list[NDArray], list[TileInformation]]:

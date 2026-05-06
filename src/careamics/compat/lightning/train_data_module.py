@@ -19,7 +19,7 @@ from careamics.compat.dataset.iterable_dataset import (
     PathIterableDataset,
 )
 from careamics.config.support import SupportedData
-from careamics.file_io.read import get_read_func
+from careamics.image_io.read import get_read_func
 from careamics.lightning.data.data_module_utils import (
     list_files,
     validate_source_target_files,

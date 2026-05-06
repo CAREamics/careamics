@@ -21,7 +21,7 @@ from careamics.compat.dataset.patching.patching import (
     prepare_patches_unsupervised_array,
 )
 from careamics.compat.transforms.compose import Compose
-from careamics.file_io.read import read_tiff
+from careamics.image_io.read import read_tiff
 from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
