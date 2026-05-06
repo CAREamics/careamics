@@ -80,8 +80,7 @@ def test_v2_train_array(tmp_path: Path):
 
     careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
-
-    assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
+    assert len(careamist.get_checkpoints()) > 0
 
 
 def test_v2_train_array_auto_val_split_small_data(tmp_path: Path):
@@ -134,7 +133,7 @@ def test_v2_train_array_channel(tmp_path: Path, independent_channels: bool):
     careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
 
-    assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
+    assert len(careamist.get_checkpoints()) > 0
 
 
 @pytest.mark.mps_gh_fail
@@ -157,7 +156,7 @@ def test_v2_train_array_3d(tmp_path: Path):
     careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
 
-    assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
+    assert len(careamist.get_checkpoints()) > 0
 
 
 @pytest.mark.mps_gh_fail
@@ -186,7 +185,7 @@ def test_v2_train_tiff_in_memory(tmp_path: Path):
     careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_file, val_data=val_file)
 
-    assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
+    assert len(careamist.get_checkpoints()) > 0
 
 
 @pytest.mark.mps_gh_fail
@@ -216,7 +215,7 @@ def test_v2_train_tiff_not_in_memory(tmp_path: Path):
     careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_file, val_data=val_file)
 
-    assert Path(tmp_path / "checkpoints" / "test" / "test_last.ckpt").exists()
+    assert len(careamist.get_checkpoints()) > 0
 
 
 def test_init_from_checkpoint(tmp_path: Path, checkpoint):

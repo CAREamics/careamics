@@ -20,7 +20,6 @@ from careamics.utils.logging import get_logger
 
 from .module_utils import (
     configure_optimizers,
-    load_best_checkpoint,
     log_training_stats,
     log_validation_stats,
 )
@@ -79,8 +78,6 @@ class CAREModule(L.LightningModule):
                 for i in range(self.config.model.num_classes)
             }
         )
-
-        self._best_checkpoint_loaded: bool = False
 
     def on_fit_start(self) -> None:
         """On fit start hook for CARE module.
@@ -174,7 +171,6 @@ class CAREModule(L.LightningModule):
         self,
         batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
         batch_idx: int,
-        load_best_ckpt: bool = False,
     ) -> ImageRegionData:
         """Prediction step for CARE module.
 
@@ -184,17 +180,12 @@ class CAREModule(L.LightningModule):
             A tuple containing the input data and optionally the target data.
         batch_idx : int
             The index of the current batch in the prediction loop.
-        load_best_ckpt : bool, default=False
-            Whether to load the best checkpoint before making predictions.
 
         Returns
         -------
         ImageRegionData
             The output batch containing the predictions.
         """
-        if not self._best_checkpoint_loaded and load_best_ckpt:
-            self._best_checkpoint_loaded = load_best_checkpoint(self)
-
         x = batch[0]
         # TODO: add TTA
         prediction = self.model(x.data)

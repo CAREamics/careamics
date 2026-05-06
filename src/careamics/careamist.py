@@ -11,7 +11,7 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
-from .config.support import SupportedLogger
+from .config.support import SupportedAlgorithm, SupportedLogger
 from .config.utils.configuration_io import load_configuration
 from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .dataset.image_region_data import ImageRegionData
@@ -33,9 +33,10 @@ from .lightning.utils import (
     read_csv_logger,
 )
 from .models import get_model_constraints
-from .utils import get_logger
+from .utils import get_logger, get_run_version
 
 logger = get_logger(__name__)
+
 
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
@@ -136,10 +137,21 @@ class CAREamist:
         self.config: ConfigurationType
         self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
 
+        # set default run version and update it based on existing folders
+        self.run_version = 0  # default
+        self.run_version = get_run_version(
+            self._get_checkpoint_root().parent, self.config.get_safe_experiment_name()
+        )
+
+        # whether to enable the progress bar
         self.config.training_config.trainer_params["enable_progress_bar"] = (
             enable_progress_bar
         )
-        self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
+
+        # set up trainer
+        self.callbacks = self._define_callbacks(
+            callbacks, self.config, self._get_checkpoint_root()
+        )
 
         self.prediction_writer = PredictionWriterCallback(
             self.work_dir, enable_writing=False
@@ -150,6 +162,7 @@ class CAREamist:
             self.config.get_safe_experiment_name(),
             self.work_dir,
             self.config,
+            self.run_version,
         )
 
         self.trainer = Trainer(
@@ -315,7 +328,7 @@ class CAREamist:
     def _define_callbacks(
         callbacks: list[Callback] | None,
         config: ConfigurationType,
-        work_dir: Path,
+        ckpt_root: Path,
     ) -> list[Callback]:
         """Define callbacks for the training process.
 
@@ -327,8 +340,8 @@ class CAREamist:
             already defined in CAREamics and instantiated in this method.
         config : Configuration
             The CAREamics configuration, used to instantiate the callbacks.
-        work_dir : Path
-            The working directory, used as a parameter to the checkpointing callback.
+        ckpt_root : Path
+            The root directory of checkpoints.
 
         Returns
         -------
@@ -359,7 +372,7 @@ class CAREamist:
                 )
 
         checkpoint_callback = ModelCheckpoint(
-            dirpath=work_dir / "checkpoints" / config.get_safe_experiment_name(),
+            dirpath=ckpt_root,
             filename=(
                 f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_"
                 f"{{val_loss:.4f}}"
@@ -397,6 +410,7 @@ class CAREamist:
         experiment_name: str,
         work_dir: Path,
         config: Configuration,
+        version: int = 0,
     ) -> list[TensorBoardLogger | WandbLogger | CSVLogger]:
         """Create loggers for the experiment.
 
@@ -411,13 +425,19 @@ class CAREamist:
             The working directory, used as a parameter to the loggers.
         config : NGConfiguration
             Full CAREamics config logged to Wandb at run initialization.
+        version : int, default=0
+            Version number for the experiment, used as a parameter to the loggers.
 
         Returns
         -------
         list[TensorBoardLogger | WandbLogger | CSVLogger]
             The list of loggers to use during training.
         """
-        csv_logger = CSVLogger(name=experiment_name, save_dir=work_dir / "csv_logs")
+        csv_logger = CSVLogger(
+            name=experiment_name,
+            save_dir=work_dir / "csv_logs",
+            version=version,
+        )
 
         if logger is not None:
             logger = SupportedLogger(logger)
@@ -429,16 +449,72 @@ class CAREamist:
                         name=experiment_name,
                         save_dir=work_dir / "wandb_logs",
                         config=config.model_dump(),
+                        version=version,
                     ),
                     csv_logger,
                 ]
             case SupportedLogger.TENSORBOARD:
                 return [
-                    TensorBoardLogger(save_dir=work_dir / "tb_logs"),
+                    TensorBoardLogger(save_dir=work_dir / "tb_logs", version=version),
                     csv_logger,
                 ]
             case _:
                 return [csv_logger]
+
+    def _get_checkpoint_root(self) -> Path:
+        """Get the root directory for checkpoints.
+
+        Returns
+        -------
+        Path
+            Full path to the checkpoint root directory.
+        """
+        return (
+            self.work_dir
+            / "checkpoints"
+            / (self.config.get_safe_experiment_name() + "_" + str(self.run_version))
+        )
+
+    def _get_default_ckpt(self, checkpoint: str | Path | None) -> str | Path:
+        """Get default checkpoint to use for prediction based on the algorithm.
+
+        Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
+        based on validation loss, therefore this method returns "last" for these
+        algorithms and "best" for others.
+
+        Parameters
+        ----------
+        checkpoint : str | Path | None
+            The checkpoint specified for prediction. If not None, this method will
+            return the specified checkpoint instead of the default.
+
+        Returns
+        -------
+        str | Path
+            The checkpoint to use for prediction, either the specified checkpoint or the
+            default based on the algorithm.
+        """
+        if self.config.algorithm_config.algorithm in [
+            SupportedAlgorithm.N2V,
+            SupportedAlgorithm.N2N,
+        ]:
+            if checkpoint == "best":
+                raise ValueError(
+                    f"{self.config.algorithm_config.get_algorithm_friendly_name()} does"
+                    f" not have a well-defined best checkpoint based on validation "
+                    f"loss. Please specify an explicit checkpoint path."
+                )
+            elif checkpoint is None:
+                return "last"
+
+        if checkpoint is not None:
+            return checkpoint
+
+        if self.checkpoint_path is not None:
+            return self.checkpoint_path
+
+        # for all other algorithms, if checkpoint is None, choose "best"
+        return "best"
 
     # Two overloads:
     # - 1st for supported data types & using ReadFuncLoading
@@ -666,6 +742,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
+        checkpoint: str | Path | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -684,6 +761,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
+        checkpoint: str | Path | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
 
     def predict(
@@ -701,6 +779,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: Loading = None,
+        checkpoint: str | Path | None = None,
     ) -> tuple[list[NDArray], list[str]]:
         """
         Predict on data and return the predictions.
@@ -746,6 +825,11 @@ class CAREamist:
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
+        checkpoint : str or Path, optional
+            Checkpoint to load before making predictions. Can be "best", "last", or a
+            path to a specific checkpoint. If None, uses the last checkpoint from
+            training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
+            Call `CAREamist.get_checkpoints` for a list of available checkpoints.
 
         Returns
         -------
@@ -770,12 +854,16 @@ class CAREamist:
             loading=loading,
         )
 
+        checkpoint = self._get_default_ckpt(checkpoint)
+
         predictions: list[ImageRegionData] = self.trainer.predict(
-            model=self.model, datamodule=datamodule
+            model=self.model, datamodule=datamodule, ckpt_path=checkpoint
         )  # type: ignore[assignment]
         tiled = tile_size is not None
         predictions_output, sources = convert_prediction(
-            predictions, tiled=tiled, restore_shape=True
+            predictions,
+            tiled=tiled,
+            restore_shape=True,
         )
 
         return predictions_output, sources
@@ -799,6 +887,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
+        checkpoint: str | Path | None = None,
         # WRITE OPTIONS
         write_type: Literal["tiff", "zarr", "custom"] = "tiff",
         write_extension: str | None = None,
@@ -824,6 +913,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
+        checkpoint: str | Path | None = None,
         # WRITE OPTIONS
         write_type: Literal["tiff", "zarr", "custom"] = "tiff",
         write_extension: str | None = None,
@@ -848,6 +938,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: Loading = None,
+        checkpoint: str | Path | None = None,
         # WRITE OPTIONS
         write_type: Literal["tiff", "zarr", "custom"] = "tiff",
         write_extension: str | None = None,
@@ -910,6 +1001,11 @@ class CAREamist:
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
+        checkpoint : str or Path, default=None
+            Checkpoint to load before making predictions. Can be "best", "last", or a
+            path to a specific checkpoint. If None, uses the last checkpoint from
+            training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
+            Call `CAREamist.get_checkpoints` for a list of available checkpoints.
         write_type : {"tiff", "zarr", "custom"}, default="tiff"
             The data type to save as, includes custom.
         write_extension : str, optional
@@ -963,6 +1059,8 @@ class CAREamist:
 
         self.prediction_writer.enable_writing(True)
 
+        checkpoint = self._get_default_ckpt(checkpoint)
+
         try:
             datamodule = self._build_predict_datamodule(
                 pred_data,
@@ -979,11 +1077,34 @@ class CAREamist:
             )
 
             self.trainer.predict(
-                model=self.model, datamodule=datamodule, return_predictions=False
+                model=self.model,
+                datamodule=datamodule,
+                return_predictions=False,
+                ckpt_path=checkpoint,
             )
 
         finally:
             self.prediction_writer.enable_writing(False)
+
+    def get_checkpoints(self) -> list[Path]:
+        """Return the filenames of available checkpoints.
+
+        Scans the checkpoint directory and returns checkpoint filenames sorted
+        by epoch number.
+
+        Returns
+        -------
+        list of Path
+            Checkpoint paths sorted by epoch number. The last checkpoint
+            (if present) is appended at the end.
+        """
+        checkpoint_dir = self._get_checkpoint_root()
+        epoch_checkpoints = sorted(
+            p for p in checkpoint_dir.glob("*.ckpt") if not p.stem.endswith("_last")
+        )
+        last = list(checkpoint_dir.glob("*_last.ckpt"))
+
+        return epoch_checkpoints + last
 
     def export_to_bmz(
         self,
