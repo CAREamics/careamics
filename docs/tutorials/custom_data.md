@@ -1,3 +1,5 @@
+# Custom data formats
+
 As mentioned in the [Data Preparation Guide](../current/data.md#custom-data-formats) CAREamics provides two mechanisms for training and predicting on custom data types. There is:
 
 1. ["read function"](#custom-read-function), which can be used to read all the data to memory; and
