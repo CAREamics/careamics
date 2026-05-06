@@ -856,9 +856,18 @@ class CAREamist:
 
         checkpoint = self._get_default_ckpt(checkpoint)
 
-        predictions: list[ImageRegionData] = self.trainer.predict(
-            model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-        )  # type: ignore[assignment]
+        try:
+            predictions: list[ImageRegionData] = self.trainer.predict(
+                model=self.model, datamodule=datamodule, ckpt_path=checkpoint
+            )  # type: ignore[assignment]
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                raise RuntimeError(
+                    "Out of memory error during prediction. Try reducing batch size or "
+                    "tile size, e.g. predict(..., batch_size=1) or "
+                    "predict(..., tile_size=(64, 64))."
+                ) from e
+            raise
         tiled = tile_size is not None
         predictions_output, sources = convert_prediction(
             predictions,
@@ -1083,6 +1092,14 @@ class CAREamist:
                 ckpt_path=checkpoint,
             )
 
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                raise RuntimeError(
+                    "Out of memory error during prediction. Try reducing batch size or "
+                    "tile size, e.g. predict_to_disk(..., batch_size=1) or "
+                    "predict_to_disk(..., tile_size=(64, 64))."
+                ) from e
+            raise
         finally:
             self.prediction_writer.enable_writing(False)
 
