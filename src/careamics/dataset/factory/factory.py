@@ -42,8 +42,13 @@ class ReadFuncLoading:
     """Loading specification using a custom read function."""
 
     read_source_func: ReadFunc
+    """A function for reading image data to numpy arrays."""
     read_kwargs: dict[str, Any] | None = None
+    """Additional keyword arguments to pass to the `read_source_func` alongside the
+    file path to the image data."""
     extension_filter: str = ""
+    """A filter for finding source files using glob-style pattern matching. For example,
+    to select files with the extension .npy one should use the filter `"*.npy"`."""
 
 
 @dataclass
@@ -51,7 +56,10 @@ class ImageStackLoading:
     """Loading spec. for a custom image stack loader (chunked / memory-mapped)."""
 
     image_stack_loader: ImageStackLoader[..., ImageStack]
+    """A function that loads image data to a sequence of `ImageStack` objects."""
     image_stack_loader_kwargs: dict[str, Any] | None = None
+    """Additional keyword arguments to pass to the `image_stack_loader` alongside the
+    source of the image data."""
 
 
 Loading = ReadFuncLoading | ImageStackLoading | None

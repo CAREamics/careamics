@@ -5,7 +5,7 @@ import pytest
 import tifffile
 
 from careamics.dataset.image_stack import FileImageStack
-from careamics.dataset.image_stack.image_utils import channel_slice
+from careamics.utils.reshape_array import channel_slice
 
 
 def test_extract_patch(tmp_path: Path):

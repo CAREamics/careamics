@@ -16,6 +16,7 @@ from careamics.config.data.data_config import (
     default_in_memory,
     get_default_num_workers,
 )
+from careamics.config.data.patch_filter import MaxPatchFilterConfig
 from tests.utils import (
     DEFAULT_MODE,
     DEFAULT_PATCHING,
@@ -658,6 +659,31 @@ def test_validate_channel_conversion(
     """Test channel conversion validation."""
     with expected_error:
         _validate_channel_conversion(old_axes, old_channels, new_axes, new_channels)
+
+
+@pytest.mark.parametrize(
+    "axes, coverage, expected",
+    list(itertools.product(AXES_WO_CHANNELS_2D, [None], [0.25]))
+    + list(itertools.product(AXES_WO_CHANNELS_2D, [0.33], [0.33]))
+    + list(itertools.product(AXES_WO_CHANNELS_3D, [None], [0.125]))
+    + list(itertools.product(AXES_WO_CHANNELS_3D, [0.33], [0.33])),
+)
+def test_max_patch_filter_default_coverage(
+    axes: str, coverage: float | None, expected: float
+):
+    """Test max patch filter default coverage is updated only when not specified."""
+    if coverage is None:
+        patch_filter_config = MaxPatchFilterConfig(threshold=0.5)
+    else:
+        patch_filter_config = MaxPatchFilterConfig(threshold=0.5, coverage=coverage)
+    config_dict = data_config_dict_testing(
+        data_type="array", axes=axes, patch_filter=patch_filter_config
+    )
+    config = DataConfig(**config_dict)
+
+    assert config.patch_filter is not None
+    assert isinstance(config.patch_filter, MaxPatchFilterConfig)
+    assert config.patch_filter.coverage == expected
 
 
 class TestConvertMode:

@@ -5,11 +5,11 @@ from __future__ import annotations
 import os
 import platform
 import sys
+import warnings
 from collections.abc import Sequence
 from enum import StrEnum
 from pprint import pformat
 from typing import Annotated, Any, Literal, Self, Union
-from warnings import warn
 
 import numpy as np
 from pydantic import (
@@ -26,12 +26,13 @@ from careamics.config.augmentations import XYFlipConfig, XYRandomRotate90Config
 from careamics.config.support import SupportedData
 from careamics.config.utils.random import generate_random_seed
 from careamics.config.validators import check_axes_validity, check_czi_axes_validity
+from careamics.utils import get_logger
 
 from .normalization_config import NormalizationConfig
 from .patch_filter import (
     MaskPatchFilterConfig,
     MaxPatchFilterConfig,
-    MeanSTDPatchFilterConfig,
+    MeanStdPatchFilterConfig,
     ShannonPatchFilterConfig,
 )
 from .patching_strategies import (
@@ -53,6 +54,8 @@ from .patching_strategies import (
 
 # TODO: this module is very long, can we split the validation somewhere else and
 #       leverage Pydantic to add validation directly to the declaration of each field?
+
+logger = get_logger("DataConfig")
 
 
 def _is_3D(axes: str, data_type: SupportedData) -> bool:
@@ -155,13 +158,13 @@ def _validate_channel_conversion(
 
     if adding_C_axis:
         if new_channels is None:
-            warn(
+            warnings.warn(
                 f"When switching to axes with 'C' (got {new_axes}) from axes "
                 f"{old_axes}, errors may be raised in the model if the channel "
                 f"dimension in the data is not a singleton dimension. To select a "
                 f"specific channel, use the `new_channels` parameter (e.g. "
                 f"`new_channels=[1]`).",
-                stacklevel=1,
+                stacklevel=2,
             )
         elif len(new_channels) != 1:
             raise ValueError(
@@ -185,11 +188,11 @@ def _validate_channel_conversion(
                 f"current channels length ({len(old_channels)})."
             )
     elif old_channels is None and new_channels is not None:
-        warn(
+        warnings.warn(
             f"Switching from all channels (`channels=None`) to specifying channels "
             f"{new_channels} may lead to errors if {new_channels} are not covering "
             f"all channels.",
-            stacklevel=1,
+            stacklevel=2,
         )  # Note that in the opposite case, old_channels is kept because
         # new_channels is None
 
@@ -258,7 +261,7 @@ PatchingConfig = Union[
 
 PatchFilterConfig = Union[
     MaxPatchFilterConfig,
-    MeanSTDPatchFilterConfig,
+    MeanStdPatchFilterConfig,
     ShannonPatchFilterConfig,
 ]
 """Patch filter type."""
@@ -319,10 +322,24 @@ def _create_mask_filter(
     assert data_type is not None and isinstance(data_type, str)
     is_3d = _is_3D(axes, SupportedData(data_type))
 
-    ndims = 3 if is_3d else 2
-    coverage = 1 / (2**ndims)
+    return MaskPatchFilterConfig(coverage=_default_filter_coverage(is_3d))
 
-    return MaskPatchFilterConfig(coverage=coverage)
+
+def _default_filter_coverage(is_3d: bool) -> float:
+    """Return default filter coverage based on spatial dimensionality.
+
+    Parameters
+    ----------
+    is_3d : bool
+        Whether the data is 3D.
+
+    Returns
+    -------
+    float
+        Default filter coverage, 0.25 for 2D data and 0.125 for 3D data.
+    """
+    ndims = 3 if is_3d else 2
+    return 1 / (2**ndims)
 
 
 class DataConfig(BaseModel):
@@ -713,10 +730,11 @@ class DataConfig(BaseModel):
         elif ("shuffle" in train_dataloader_params) and (
             not train_dataloader_params["shuffle"]
         ):
-            warn(
+            warnings.warn(
                 "`train_dataloader_params` includes `shuffle=False`, which may lead to "
-                "lower quality results.",
-                stacklevel=1,
+                "lower quality results. Consider setting `shuffle=True` to ensure the "
+                "best training performance.",
+                stacklevel=2,
             )
         return train_dataloader_params
 
@@ -795,6 +813,26 @@ class DataConfig(BaseModel):
                 self.patching.seed = self.seed
         return self
 
+    @model_validator(mode="after")
+    def set_default_max_patch_filter_coverage(self: Self) -> Self:
+        """
+        Set default max patch filter coverage based on data dimensionality.
+
+        Returns
+        -------
+        Self
+            Data model with default max patch filter coverage updated.
+        """
+        # NOTE: model_fields_set attr shows whether the field was set explicitly by user
+        if (
+            isinstance(self.patch_filter, MaxPatchFilterConfig)
+            and "coverage" not in self.patch_filter.model_fields_set
+        ):
+            is_3d = _is_3D(self.axes, SupportedData(self.data_type))
+            self.patch_filter.coverage = _default_filter_coverage(is_3d)
+
+        return self
+
     @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
     @classmethod
     def set_default_pin_memory(
@@ -842,8 +880,8 @@ class DataConfig(BaseModel):
             ("pred_dataloader_params", self.pred_dataloader_params),
         ):
             if "num_workers" in params and params["num_workers"] != self.num_workers:
-                print(
-                    f"Warning: `num_workers={self.num_workers}` conflicts with "
+                logger.warning(
+                    f"`num_workers={self.num_workers}` conflicts with "
                     f"`{name}['num_workers']={params['num_workers']}`. "
                     f"The per-dataloader value takes precedence."
                 )

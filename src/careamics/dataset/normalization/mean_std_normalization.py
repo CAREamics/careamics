@@ -81,9 +81,9 @@ class MeanStdNormalization(Normalization):
         input_means = broadcast_stats(self.input_means, n_channels, "input_means")
         input_stds = broadcast_stats(self.input_stds, n_channels, "input_stds")
 
-        patch = patch.astype(np.float32)
+        patch = patch.astype(np.float32, copy=False)
         if target is not None:
-            target = target.astype(np.float32)
+            target = target.astype(np.float32, copy=False)
 
         means = reshape_stats(input_means, patch.ndim, channel_axis=0)
         stds = reshape_stats(input_stds, patch.ndim, channel_axis=0)

@@ -3,7 +3,7 @@ import pytest
 from numpy.typing import NDArray
 
 from careamics.dataset.image_stack import InMemoryImageStack
-from careamics.dataset.image_stack.image_utils import channel_slice
+from careamics.utils.reshape_array import channel_slice
 
 
 @pytest.fixture

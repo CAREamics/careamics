@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, Protocol, TypeVar, Union
 
+import numpy as np
 from numpy.typing import DTypeLike, NDArray
 
 
@@ -17,8 +18,12 @@ class ImageStack(Protocol):
         Origin of the image data.
     data_shape: Sequence[int]
         The shape of the data, it is expected to be in the order (SC(Z)YX).
-    data_dtype: DTypeLike
+    data_dtype: numpy.typing.DTypeLike
         The data type of the image data.
+    original_data_shape: Sequence[int]
+        The original shape of the data before it is transformed.
+    original_axes: str
+        The original axes order before the data is transformed.
     """
 
     @property
@@ -52,7 +57,7 @@ class ImageStack(Protocol):
         channels: Sequence[int] | None,
         coords: Sequence[int],
         patch_size: Sequence[int],
-    ) -> NDArray:
+    ) -> NDArray[np.float32]:
         """Extract a patch for a given sample and channels within the image stack.
 
         Parameters

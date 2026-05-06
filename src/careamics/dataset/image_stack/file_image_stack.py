@@ -9,9 +9,9 @@ import tifffile
 from numpy.typing import DTypeLike, NDArray
 
 from careamics.image_io.read import ReadFunc, read_tiff
-from careamics.utils.reshape_array import AxesTransform, reshape_array
+from careamics.utils.reshape_array import AxesTransform, channel_slice, reshape_array
 
-from .image_utils.image_stack_utils import channel_slice, pad_patch
+from .image_utils.image_stack_utils import pad_patch
 
 
 class FileImageStack:
@@ -95,7 +95,7 @@ class FileImageStack:
         channels: Sequence[int] | None,  # `channels = None` to select all channels
         coords: Sequence[int],
         patch_size: Sequence[int],
-    ) -> NDArray:
+    ) -> NDArray[np.float32]:
         """Extract a patch for a given sample and channels within the image stack.
 
         Parameters
@@ -159,7 +159,7 @@ class FileImageStack:
     def load(self):
         """Load the data stored in a file."""
         data = self.read_func(self.source)
-        self._data = reshape_array(data, self.axes)
+        self._data = reshape_array(data, self.axes).astype(np.float32, copy=False)
 
     # TODO: maybe this should be called something else
     def close(self):

@@ -14,6 +14,9 @@ from careamics.dataset.image_stack import ImageStack
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patch_filter import PatchFilter
 from careamics.dataset.patching import Patching, PatchSpecs
+from careamics.utils import get_logger
+
+logger = get_logger("MicroSplitInputSynth")
 
 
 # TODO: better name
@@ -361,7 +364,7 @@ def get_empty_channel_patches(
             patience_ -= 1
         if patience <= 0:
             # TODO: log properly
-            print(f"Out of patience finding patch for channel {c}")
+            logger.warning(f"Out of patience finding patch for channel {c}")
 
         patches[c] = patch
         patch_specs[c] = patch_spec

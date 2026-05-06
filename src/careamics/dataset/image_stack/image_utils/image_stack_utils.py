@@ -1,46 +1,17 @@
 """Utilities for channel slicing and patch padding."""
 
 from collections.abc import Sequence
-from types import EllipsisType
-from typing import TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
-
-T = TypeVar("T", bound=np.generic)
-
-
-def channel_slice(
-    channels: Sequence[int] | None,
-) -> EllipsisType | Sequence[int]:
-    """Create a slice or sequence for indexing channels while preserving dimensions.
-
-    Parameters
-    ----------
-    channels : Sequence[int] | None
-        The channel indices to select, or None to select all channels.
-
-    Returns
-    -------
-    EllipsisType | Sequence[int]
-        An indexing object that can be used to index the channel dimension while
-        preserving it.
-    """
-    if channels is None:
-        return ...
-
-    if len(channels) == 0:
-        raise ValueError("Channel index sequence cannot be empty.")
-
-    return channels
 
 
 def pad_patch(
     coords: Sequence[int],
     patch_size: Sequence[int],
     data_shape: Sequence[int],
-    patch_data: NDArray[T],
-) -> NDArray[T]:
+    patch_data: NDArray,
+) -> NDArray[np.float32]:
     """
     Pad patch data with zeros where it is outside the bounds of it's source image.
 
@@ -61,16 +32,16 @@ def pad_patch(
         The size of the patch in the spatial dimensions.
     data_shape : Sequence[int]
         The shape of the image the patch originates from, must be in the format SC(Z)YX.
-    patch_data : NDArray[T]
-        The patch data to be padded.
+    patch_data : numpy.typing.NDArray[T]
+        The patch data to be padded, with axes C(Z)YX.
 
     Returns
     -------
-    NDArray[T]
+    numpy.typing.NDArray[np.float32]
         The resulting padded patch.
     """
     coords_ = np.array(coords)
-    patch = np.zeros((patch_data.shape[0], *patch_size), dtype=patch_data.dtype)
+    patch = np.zeros((patch_data.shape[0], *patch_size), dtype=np.float32)
     # data start will be zero unless coords are negative
     data_start = np.clip(coords_, 0, None) - coords_
     data_end = data_start + np.array(patch_data.shape[1:])
