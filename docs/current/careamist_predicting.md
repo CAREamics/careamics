@@ -13,6 +13,33 @@ The simplest form of prediction is to call `predict`, which returns the predicti
 --8<-- "current/careamist_predicting.py:pred"
 ```
 
+!!! note "Checkpoint"
+
+    By default, CAREamics uses a checkpoint callback that saves multiple checkpoints
+    during training. Depending on the algorithm, the prediction method will either
+    use the best checkpoint (the one with the lowest validation loss) or the last
+    checkpoint (the one from the last epoch).
+
+    Noise2Void and Noise2Noise will use the last checkpoint, while the other algorithms
+    will use the best checkpoint.
+
+### Choosing the checkpoint
+
+Checkpoints can be specified by passing a `checkpoint` argument to the `predict` method.
+It can be either a path to a checkpoint file or one of the keywords specified by
+PyTorch Lightning (typically `"best"` or `"last"`, see [documentation](https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict)).
+
+```python title="Prediction with checkpoint"
+--8<-- "current/careamist_predicting.py:pred_checkpoint"
+```
+
+!!! warning "Noise2Void and Noise2Noise"
+
+    Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
+    based on validation loss. Specify an explicit path if you want to use a
+    specific checkpoint.
+
+
 ### Tiling
 
 For odd-sized or large images, tiling should be used. Tiling is enabled by passing

@@ -81,37 +81,6 @@ def log_validation_stats(
     module.log_dict(metrics, on_step=False, on_epoch=True, batch_size=batch_size)
 
 
-def load_best_checkpoint(module: L.LightningModule) -> bool:
-    """Load the best checkpoint from the trainer's checkpoint callback.
-
-    Parameters
-    ----------
-    module : L.LightningModule
-        The Lightning module to load the checkpoint into.
-
-    Returns
-    -------
-    bool
-        True if checkpoint was loaded, False otherwise.
-    """
-    if (
-        not hasattr(module.trainer, "checkpoint_callback")
-        or module.trainer.checkpoint_callback is None
-    ):
-        logger.warning("No checkpoint callback found, cannot load best checkpoint.")
-        return False
-
-    best_model_path = module.trainer.checkpoint_callback.best_model_path  # type: ignore[attr-defined]
-    if best_model_path and best_model_path != "":
-        logger.info(f"Loading best checkpoint from: {best_model_path}")
-        model_state = torch.load(best_model_path, weights_only=True)["state_dict"]
-        module.load_state_dict(model_state)
-        return True
-    else:
-        logger.warning("No best checkpoint found.")
-        return False
-
-
 def get_optimizer(name: str) -> type[torch.optim.Optimizer]:
     """
     Return the optimizer class given its name.

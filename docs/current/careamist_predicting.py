@@ -49,6 +49,13 @@ predictions = careamist.predict(
 )
 # --8<-- [end:pred]
 
+# %%
+# --8<-- [start:pred_checkpoint]
+predictions = careamist.predict(
+    pred_data=pred_data,
+    checkpoint="last",  # or "best"
+)
+# --8<-- [end:pred_checkpoint]
 
 # %%
 # --8<-- [start:pred_tiled]
