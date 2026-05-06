@@ -3,6 +3,7 @@
 import psutil
 
 
+# TODO only used in compat, but we should use it for loading files in memory
 def get_ram_size() -> int:
     """
     Get RAM size in mbytes.

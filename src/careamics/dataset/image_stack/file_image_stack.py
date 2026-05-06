@@ -1,0 +1,236 @@
+"""ImageStack implementation for file-backed data."""
+
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any, Self
+
+import numpy as np
+import tifffile
+from numpy.typing import DTypeLike, NDArray
+
+from careamics.file_io.read import ReadFunc, read_tiff
+from careamics.utils.reshape_array import AxesTransform, channel_slice, reshape_array
+
+from .image_utils.image_stack_utils import pad_patch
+
+
+class FileImageStack:
+    """
+    ImageStack implementation for file-backed data.
+
+    This implementation is aimed at representing a single file from a set of multi-file
+    datasets, where the entire dataset cannot be loaded into memory at once.
+
+    Parameters
+    ----------
+    source : Path
+        Path to the file.
+    axes : str
+        Axis order (e.g. STCZYX).
+    data_shape : tuple of int
+        Shape in SC(Z)YX order.
+    data_dtype : numpy.DTypeLike
+        Type of the data.
+    read_func : ReadFunc
+        Function to read the file into an array.
+    read_kwargs : dict or Any, optional
+        Extra keyword arguments for `read_func`.
+    original_data_shape : tuple of int or None, optional
+        Shape in original axis order.
+
+    Notes
+    -----
+    The data will not be loaded until the `load` method is called. The `close`
+    method can be used to remove the internal reference to the data.
+    """
+
+    def __init__(
+        self,
+        source: Path,
+        axes: str,
+        data_shape: tuple[int, ...],
+        data_dtype: DTypeLike,
+        read_func: ReadFunc,
+        read_kwargs: dict[str, Any] | Any = None,
+        original_data_shape: tuple[int, ...] | None = None,
+    ):
+        """Constructor.
+
+        This implementation is aimed at representing a single file from a set of
+        multi-file datasets, where the entire dataset cannot be loaded into memory at
+        once. The data is therefore only loaded when the `load` method is called, and
+        internal reference is deleted upon calling the `close` method.
+
+        Parameters
+        ----------
+        source : Path
+            Path to the file.
+        axes : str
+            Axis order (e.g. STCZYX).
+        data_shape : tuple of int
+            Shape in SC(Z)YX order after transformation.
+        data_dtype : numpy.DTypeLike
+            Type of the data.
+        read_func : ReadFunc
+            Function to read the file into an array.
+        read_kwargs : dict or Any, optional
+            Extra keyword arguments passed to `read_func`.
+        original_data_shape : tuple of int or None, optional
+            Shape in original axis order before transformation.
+        """
+        self.source = source
+        self.axes = axes
+        self.data_shape = data_shape
+        self.data_dtype = data_dtype
+        self.read_func = read_func
+        self.read_kwargs = read_kwargs
+        self._data: NDArray | None = None
+        self._original_data_shape: tuple[int, ...] = (
+            original_data_shape if original_data_shape is not None else ()
+        )
+
+    def extract_patch(
+        self,
+        sample_idx: int,
+        channels: Sequence[int] | None,  # `channels = None` to select all channels
+        coords: Sequence[int],
+        patch_size: Sequence[int],
+    ) -> NDArray[np.float32]:
+        """Extract a patch for a given sample and channels within the image stack.
+
+        Parameters
+        ----------
+        sample_idx : int
+            Sample index.
+        channels : sequence of int or None
+            Channel indices to extract. If `None`, all channels will be extracted.
+        coords : sequence of int
+            Spatial coordinates of the top-left corner of the patch.
+        patch_size : sequence of int
+            Size of the patch in each spatial dimension.
+
+        Returns
+        -------
+        numpy.ndarray
+            A patch of the image data from a particular sample with dimensions C(Z)YX.
+        """
+        if self._data is None:
+            raise ValueError(
+                "Cannot extract patch because data has not been loaded from "
+                f"'{self.source}', the `load` method must be called first."
+            )
+
+        if (coord_dims := len(coords)) != (patch_dims := len(patch_size)):
+            raise ValueError(
+                "Patch coordinates and patch size must have the same dimensions but "
+                f"found {coord_dims} and {patch_dims}."
+            )
+
+        # check that channels are within bounds
+        if channels is not None:
+            max_channel = self.data_shape[1] - 1  # channel is second dimension
+            for ch in channels:
+                if ch > max_channel:
+                    raise ValueError(
+                        f"Channel index {ch} is out of bounds for data with "
+                        f"{self.data_shape[1]} channels. Check the provided `channels` "
+                        f"parameter in the configuration for erroneous channel "
+                        f"indices."
+                    )
+
+        patch_data = self._data[
+            (
+                sample_idx,  # type: ignore
+                # use channel slice so that channel dimension is kept
+                channel_slice(channels),  # type: ignore
+                *[
+                    slice(
+                        np.clip(c, 0, self.data_shape[2 + i]),
+                        np.clip(c + ps, 0, self.data_shape[2 + i]),
+                    )
+                    for i, (c, ps) in enumerate(zip(coords, patch_size, strict=False))
+                ],  # type: ignore
+            )  # type: ignore
+        ]
+        patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
+
+        return patch
+
+    def load(self):
+        """Load the data stored in a file."""
+        data = self.read_func(self.source)
+        self._data = reshape_array(data, self.axes).astype(np.float32, copy=False)
+
+    # TODO: maybe this should be called something else
+    def close(self):
+        """Remove the internal reference to the data to clear up memory."""
+        # will get cleaned up by the garbage collector since there is no longer a ref
+        self._data = None
+
+    @property
+    def is_loaded(self):
+        """True if the file has been loaded into memory.
+
+        Returns
+        -------
+        bool
+            True if the file has been loaded into memory, False otherwise.
+        """
+        return self._data is not None
+
+    @property
+    def original_data_shape(self) -> tuple[int, ...]:
+        """Original shape of the data.
+
+        Returns
+        -------
+        tuple of int
+            Shape in original axis order.
+        """
+        return self._original_data_shape
+
+    @property
+    def original_axes(self) -> str:
+        """Original axes of the data.
+
+        Returns
+        -------
+        str
+            Axis order string (e.g. STCZYX).
+        """
+        return self.axes
+
+    @classmethod
+    def from_tiff(
+        cls,
+        path: Path,
+        axes: str,
+    ) -> Self:
+        """
+        Construct the `ImageStack` from a TIFF file.
+
+        Parameters
+        ----------
+        path : Path
+            Path to the TIFF file.
+        axes : str
+            The original axes of the data, must be a subset of STCZYX.
+
+        Returns
+        -------
+        Self
+            The `ImageStack` with the underlying data being from a TIFF file.
+        """
+        # TODO: think this is correct but need more examples to test
+        file = tifffile.TiffFile(path)
+        original_data_shape = file.series[0].shape
+        data_shape = AxesTransform(axes, original_data_shape).transformed_shape
+        dtype = file.series[0].dtype
+        return cls(
+            source=path,
+            axes=axes,
+            data_shape=data_shape,
+            data_dtype=dtype,
+            read_func=read_tiff,
+            original_data_shape=original_data_shape,
+        )

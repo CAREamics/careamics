@@ -6,13 +6,13 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import AfterValidator, ConfigDict, model_validator
 
 from careamics.config.architectures import UNetConfig
-from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
 from careamics.config.validators import (
     model_matching_in_out_channels,
     model_without_final_activation,
 )
 
+from .n2v_manipulation import N2VManipulateConfig
 from .unet_algorithm_config import UNetBasedAlgorithm
 
 N2V = "Noise2Void"
@@ -89,7 +89,9 @@ STR_N2V2_DESCRIPTION = (
 class N2VAlgorithm(UNetBasedAlgorithm):
     """N2V Algorithm configuration."""
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
 
     algorithm: Literal["n2v"] = "n2v"
     """N2V Algorithm name."""

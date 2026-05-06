@@ -5,14 +5,14 @@ from typing import Union
 
 import yaml
 
-from careamics.config import Configuration
-from careamics.config.ng_factories.ng_config_discriminator import (
-    NGConfigs,
+from careamics.config.configuration import Configuration
+from careamics.config.factories.config_discriminators import (
+    Config,
     instantiate_config,
 )
 
 
-def load_configuration(path: Union[str, Path]) -> Configuration:
+def load_configuration(path: Union[str, Path]) -> Config:
     """
     Load configuration from a yaml file.
 
@@ -23,37 +23,7 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
 
     Returns
     -------
-    Configuration
-        Configuration.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the configuration file does not exist.
-    """
-    # load dictionary from yaml
-    if not Path(path).exists():
-        raise FileNotFoundError(
-            f"Configuration file {path} does not exist in " f" {Path.cwd()!s}"
-        )
-
-    dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
-
-    return Configuration(**dictionary)
-
-
-def load_configuration_ng(path: Union[str, Path]) -> NGConfigs:
-    """
-    Load configuration from a yaml file.
-
-    Parameters
-    ----------
-    path : str or Path
-        Path to the configuration.
-
-    Returns
-    -------
-    Configuration
+    Config
         Configuration.
 
     Raises
@@ -100,7 +70,7 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     # check if path is pointing to an existing directory or .yml file
     if config_path.exists():
         if config_path.is_dir():
-            config_path = Path(config_path, "config.yml")
+            config_path = Path(config_path, "careamics_config.yml")
         elif config_path.suffix != ".yml" and config_path.suffix != ".yaml":
             raise ValueError(
                 f"Path must be a directory or .yml or .yaml file (got {config_path})."

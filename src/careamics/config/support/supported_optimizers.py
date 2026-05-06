@@ -1,9 +1,9 @@
 """Optimizers and schedulers supported by CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedOptimizer(str, BaseEnum):
+class SupportedOptimizer(StrEnum):
     """Supported optimizers.
 
     Attributes
@@ -33,7 +33,7 @@ class SupportedOptimizer(str, BaseEnum):
     # SparseAdam = "SparseAdam"
 
 
-class SupportedScheduler(str, BaseEnum):
+class SupportedScheduler(StrEnum):
     """Supported schedulers.
 
     Attributes

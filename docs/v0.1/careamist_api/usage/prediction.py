@@ -5,8 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
-from careamics import CAREamist
-from careamics.config import create_n2v_configuration
+from careamics.compat.careamist import CAREamist
+from careamics.compat.config import create_n2v_configuration
 from careamics.utils import get_careamics_home
 
 train_array = np.random.rand(256, 256)

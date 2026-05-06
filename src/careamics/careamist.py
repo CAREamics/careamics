@@ -1,780 +1,916 @@
-"""A class to train, predict and export models in CAREamics."""
+"""Main interface for training and predicting with CAREamics."""
 
-from collections.abc import Callable
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, Union, overload
+from typing import Any, Literal, overload
 
-import numpy as np
 from numpy.typing import NDArray
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import (
-    Callback,
-    EarlyStopping,
-    ModelCheckpoint,
-)
+from pytorch_lightning import Callback, Trainer, seed_everything
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from careamics.config import Configuration, UNetBasedAlgorithm
-from careamics.config.support import (
-    SupportedAlgorithm,
-    SupportedArchitecture,
-    SupportedData,
-    SupportedLogger,
-)
-from careamics.config.utils.configuration_io import load_configuration
-from careamics.dataset.dataset_utils import list_files
-from careamics.file_io import WriteFunc, get_write_func
-from careamics.lightning import (
-    FCNModule,
-    HyperParametersCallback,
-    PredictDataModule,
+from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from .config.configuration import Configuration
+from .config.support import SupportedLogger
+from .config.utils.configuration_io import load_configuration
+from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
+from .dataset.image_region_data import ImageRegionData
+from .file_io import WriteFunc
+from .lightning.callbacks import (
+    ConfigSaverCallback,
+    PredictionWriterCallback,
     ProgressBarCallback,
-    TrainDataModule,
-    create_predict_datamodule,
 )
-from careamics.model_io import export_to_bmz, load_pretrained
-from careamics.prediction_utils import convert_outputs
-from careamics.utils import check_path_exists, get_logger
-from careamics.utils.lightning_utils import read_csv_logger
-from careamics.utils.reshape_array import reshape_array
+from .lightning.data import CareamicsDataModule, InputVar
+from .lightning.modules import (
+    CAREamicsModule,
+    create_module,
+)
+from .lightning.prediction import convert_prediction
+from .lightning.utils import (
+    load_config_from_checkpoint,
+    load_module_from_checkpoint,
+    read_csv_logger,
+)
+from .models import get_model_constraints
+from .utils import get_logger
 
 logger = get_logger(__name__)
 
-LOGGER_TYPES = list[Union[TensorBoardLogger, WandbLogger, CSVLogger]]
+ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
+PathInput = str | Path | Sequence[str | Path]
+InputType = ArrayInput | PathInput
+
+ConfigurationType = (
+    Configuration[CAREAlgorithm]
+    | Configuration[N2NAlgorithm]
+    | Configuration[N2VAlgorithm]
+)
 
 
-# TODO type ignore have been added because of the czi data type in data configuration
 class CAREamist:
-    """Main CAREamics class, allowing training and prediction using various algorithms.
-
-    Parameters
-    ----------
-    source : pathlib.Path or str or CAREamics Configuration
-        Path to a configuration file or a trained model.
-    work_dir : str, optional
-        Path to working directory in which to save checkpoints and logs,
-        by default None.
-    callbacks : list of Callback, optional
-        List of callbacks to use during training and prediction, by default None.
-    enable_progress_bar : bool
-        Whether a progress bar will be displayed during training, validation and
-        prediction.
+    """Main interface for training and predicting with CAREamics.
 
     Attributes
     ----------
-    model : CAREamicsModule
-        CAREamics model.
-    cfg : Configuration
+    workdir : Path
+        Working directory in which to save training outputs.
+    config : Configuration[AlgorithmConfig]
         CAREamics configuration.
+    model : CAREamicsModule
+        The PyTorch Lightning module to be trained and used for prediction.
+    checkpoint_path : Path | None
+        Path to a checkpoint file from which model and configuration may be loaded.
     trainer : Trainer
-        PyTorch Lightning trainer.
-    experiment_logger : TensorBoardLogger or WandbLogger
-        Experiment logger, "wandb" or "tensorboard".
-    work_dir : pathlib.Path
-        Working directory.
-    train_datamodule : TrainDataModule
-        Training datamodule.
-    pred_datamodule : PredictDataModule
-        Prediction datamodule.
+        The PyTorch Lightning Trainer used for training and prediction.
+    callbacks : list[Callback]
+        List of callbacks used during training.
+    prediction_writer : PredictionWriterCallback
+        Callback used to write predictions to disk during prediction.
+    train_datamodule : CareamicsDataModule | None
+        The datamodule used for training, set after calling `train()`.
+
+    Parameters
+    ----------
+    config : Configuration | Path | str, default=None
+        CAREamics configuration, or a path to a configuration file. See
+        `careamics.config.ng_factories` for method to build configurations.
+    checkpoint_path : Path | str, default=None
+        Path to a checkpoint file from which to load the model and configuration.
+    bmz_path : Path | str, default=None
+        Path to a BioImage Model Zoo archive from which to load the model and
+        configuration.
+    work_dir : Path | str, default=None
+        Working directory in which to save training outputs. If None, the current
+        working directory will be used.
+    callbacks : list of PyTorch Lightning Callbacks, default=None
+        List of callbacks to use during training. If None, no additional callbacks
+        will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
+        already defined in CAREamics and should only be modified through the
+        training configuration (see Configuration and TrainingConfig).
+    enable_progress_bar : bool, default=True
+        Whether to show the progress bar during training.
     """
-
-    @overload
-    def __init__(  # numpydoc ignore=GL08
-        self,
-        source: Union[Path, str],
-        work_dir: Union[Path, str] | None = None,
-        callbacks: list[Callback] | None = None,
-        enable_progress_bar: bool = True,
-    ) -> None: ...
-
-    @overload
-    def __init__(  # numpydoc ignore=GL08
-        self,
-        source: Configuration,
-        work_dir: Union[Path, str] | None = None,
-        callbacks: list[Callback] | None = None,
-        enable_progress_bar: bool = True,
-    ) -> None: ...
 
     def __init__(
         self,
-        source: Union[Path, str, Configuration],
-        work_dir: Union[Path, str] | None = None,
+        config: ConfigurationType | Path | str | None = None,
+        *,
+        checkpoint_path: Path | str | None = None,
+        bmz_path: Path | str | None = None,
+        work_dir: Path | str | None = None,
         callbacks: list[Callback] | None = None,
         enable_progress_bar: bool = True,
     ) -> None:
-        """
-        Initialize CAREamist with a configuration object or a path.
+        """Constructor.
 
-        A configuration object can be created using directly by calling `Configuration`,
-        using the configuration factory or loading a configuration from a yaml file.
-
-        Path can contain either a yaml file with parameters, or a saved checkpoint.
-
-        If no working directory is provided, the current working directory is used.
+        Exactly one of `config`, `checkpoint_path`, or `bmz_path` must be provided.
 
         Parameters
         ----------
-        source : pathlib.Path or str or CAREamics Configuration
-            Path to a configuration file or a trained model.
-        work_dir : str or pathlib.Path, optional
-            Path to working directory in which to save checkpoints and logs,
-            by default None.
-        callbacks : list of Callback, optional
-            List of callbacks to use during training and prediction, by default None.
-        enable_progress_bar : bool
-            Whether a progress bar will be displayed during training, validation and
-            prediction.
+        config : Configuration | Path | str, default=None
+            CAREamics configuration, or a path to a configuration file. See
+            `careamics.config.ng_factories` for method to build configurations. `config`
+            is mutually exclusive with `checkpoint_path` and `bmz_path`.
+        checkpoint_path : Path | str, default=None
+            Path to a checkpoint file from which to load the model and configuration.
+            `checkpoint_path` is mutually exclusive with `config` and `bmz_path`.
+        bmz_path : Path | str, default=None
+            Path to a BioImage Model Zoo archive from which to load the model and
+            configuration. `bmz_path` is mutually exclusive with `config` and
+            `checkpoint_path`.
+        work_dir : Path | str, default=None
+            Working directory in which to save training outputs. If None, the current
+            working directory will be used.
+        callbacks : list of PyTorch Lightning Callbacks, default=None
+            List of callbacks to use during training. If None, no additional callbacks
+            will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
+            already defined in CAREamics and should only be modified through the
+            training configuration (see Configuration and TrainingConfig).
+        enable_progress_bar : bool, default=True
+            Whether to show the progress bar during training.
+        """
+        self.checkpoint_path = checkpoint_path
+        self.work_dir = self._resolve_work_dir(work_dir)
+
+        self.config: ConfigurationType
+        self.config, self.model = self._load_model(config, checkpoint_path, bmz_path)
+
+        self.config.training_config.trainer_params["enable_progress_bar"] = (
+            enable_progress_bar
+        )
+        self.callbacks = self._define_callbacks(callbacks, self.config, self.work_dir)
+
+        self.prediction_writer = PredictionWriterCallback(
+            self.work_dir, enable_writing=False
+        )
+
+        experiment_loggers = self._create_loggers(
+            self.config.training_config.logger,
+            self.config.get_safe_experiment_name(),
+            self.work_dir,
+            self.config,
+        )
+
+        self.trainer = Trainer(
+            callbacks=[self.prediction_writer, *self.callbacks],
+            default_root_dir=self.work_dir,
+            logger=experiment_loggers,
+            **self.config.training_config.trainer_params or {},
+        )
+
+        self.train_datamodule: CareamicsDataModule | None = None
+
+    def _load_model(
+        self,
+        config: ConfigurationType | Path | str | None,
+        checkpoint_path: Path | str | None,
+        bmz_path: Path | str | None,
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
+        """Load model.
+
+        Parameters
+        ----------
+        config : Configuration | Path | None
+            CAREamics configuration, or a path to a configuration file.
+        checkpoint_path : Path | None
+            Path to a checkpoint file from which to load the model and configuration.
+        bmz_path : Path | None
+            Path to a BioImage Model Zoo archive from which to load the model and
+            configuration.
+
+        Returns
+        -------
+        Configuration
+            The loaded configuration.
+        CAREamicsModule
+            The loaded model.
+
+        Raises
+        ------
+        ValueError
+            If not exactly one of `config`, `checkpoint_path`, or `bmz_path` is
+            provided.
+        """
+        n_inputs = sum(
+            [config is not None, checkpoint_path is not None, bmz_path is not None]
+        )
+        if n_inputs != 1:
+            raise ValueError(
+                "Exactly one of `config`, `checkpoint_path`, or `bmz_path` "
+                "must be provided."
+            )
+        if config is not None:
+            return self._from_config(config)
+        elif checkpoint_path is not None:
+            return self._from_checkpoint(checkpoint_path)
+        else:
+            assert bmz_path is not None
+            return self._from_bmz(bmz_path)
+
+    @staticmethod
+    def _from_config(
+        config: ConfigurationType | Path | str,
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
+        """Create model from configuration.
+
+        Parameters
+        ----------
+        config : Configuration | Path | str
+            CAREamics configuration, or a path to a configuration file.
+
+        Returns
+        -------
+        Configuration
+            The loaded configuration if a path was provided, otherwise the original
+            configuration.
+        CAREamicsModule
+            The created model.
+        """
+        if isinstance(config, (Path, str)):
+            config = load_configuration(Path(config))
+        assert not isinstance(config, (Path, str))
+
+        _ = seed_everything(config.data_config.seed, workers=True, verbose=False)
+        model = create_module(config.algorithm_config)
+        return config, model
+
+    @staticmethod
+    def _from_checkpoint(
+        checkpoint_path: Path | str,
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
+        """Load checkpoint and configuration from checkpoint file.
+
+        Parameters
+        ----------
+        checkpoint_path : Path | str
+            Path to a checkpoint file from which to load the model and configuration.
+
+        Returns
+        -------
+        Configuration
+            The loaded configuration.
+        CAREamicsModule
+            The loaded model.
+        """
+        checkpoint_path = Path(checkpoint_path)
+        config = load_config_from_checkpoint(checkpoint_path)
+        _ = seed_everything(config.data_config.seed, workers=True, verbose=False)
+        module = load_module_from_checkpoint(checkpoint_path)
+
+        return config, module
+
+    @staticmethod
+    def _from_bmz(
+        bmz_path: Path | str,
+    ) -> tuple[ConfigurationType, CAREamicsModule]:
+        """Load checkpoint and configuration from a BioImage Model Zoo archive.
+
+        Parameters
+        ----------
+        bmz_path : Path | str
+            Path to a BioImage Model Zoo archive from which to load the model and
+            configuration.
+
+        Returns
+        -------
+        Configuration
+            The loaded configuration.
+        CAREamicsModule
+            The loaded model.
 
         Raises
         ------
         NotImplementedError
-            If the model is loaded from BioImage Model Zoo.
-        ValueError
-            If no hyper parameters are found in the checkpoint.
-        ValueError
-            If no data module hyper parameters are found in the checkpoint.
+            Loading from BMZ is not implemented yet.
         """
-        # select current working directory if work_dir is None
+        raise NotImplementedError("Loading from BMZ is not implemented yet.")
+
+    @staticmethod
+    def _resolve_work_dir(work_dir: str | Path | None) -> Path:
+        """Resolve working directory.
+
+        Parameters
+        ----------
+        work_dir : str | Path | None
+            The working directory to resolve. If None, the current working directory
+            will be used.
+
+        Returns
+        -------
+        Path
+            The resolved working directory.
+        """
         if work_dir is None:
-            self.work_dir = Path.cwd()
+            work_dir = Path.cwd().resolve()
             logger.warning(
                 f"No working directory provided. Using current working directory: "
-                f"{self.work_dir}."
+                f"{work_dir}."
             )
         else:
-            self.work_dir = Path(work_dir)
+            work_dir = Path(work_dir).resolve()
+        return work_dir
 
-        # configuration object
-        if isinstance(source, Configuration):
-            self.cfg = source
-
-            # instantiate model
-            if isinstance(self.cfg.algorithm_config, UNetBasedAlgorithm):
-                self.model = FCNModule(
-                    algorithm_config=self.cfg.algorithm_config,
-                )
-            else:
-                raise NotImplementedError("Architecture not supported.")
-
-        # path to configuration file or model
-        else:
-            # TODO: update this check so models can be downloaded directly from BMZ
-            source = check_path_exists(source)
-
-            # configuration file
-            if source.is_file() and (
-                source.suffix == ".yaml" or source.suffix == ".yml"
-            ):
-                # load configuration
-                self.cfg = load_configuration(source)
-
-                # instantiate model
-                if isinstance(self.cfg.algorithm_config, UNetBasedAlgorithm):
-                    self.model = FCNModule(
-                        algorithm_config=self.cfg.algorithm_config,
-                    )  # type: ignore
-                else:
-                    raise NotImplementedError("Architecture not supported.")
-
-            # attempt loading a pre-trained model
-            else:
-                self.model, self.cfg = load_pretrained(source)
-
-        # define the checkpoint saving callback
-        self._define_callbacks(callbacks, enable_progress_bar)
-
-        # instantiate logger
-        csv_logger = CSVLogger(
-            name=self.cfg.get_safe_experiment_name(),
-            save_dir=self.work_dir / "csv_logs",
-        )
-
-        if self.cfg.training_config.has_logger():
-            if self.cfg.training_config.logger == SupportedLogger.WANDB:
-                experiment_logger: LOGGER_TYPES = [
-                    WandbLogger(
-                        name=self.cfg.get_safe_experiment_name(),
-                        save_dir=self.work_dir / Path("wandb_logs"),
-                    ),
-                    csv_logger,
-                ]
-            elif self.cfg.training_config.logger == SupportedLogger.TENSORBOARD:
-                experiment_logger = [
-                    TensorBoardLogger(
-                        save_dir=self.work_dir / Path("tb_logs"),
-                    ),
-                    csv_logger,
-                ]
-        else:
-            experiment_logger = [csv_logger]
-
-        # instantiate trainer
-        self.trainer = Trainer(
-            enable_progress_bar=enable_progress_bar,
-            callbacks=self.callbacks,
-            default_root_dir=self.work_dir,
-            logger=experiment_logger,
-            **self.cfg.training_config.lightning_trainer_config or {},
-        )
-
-        # place holder for the datamodules
-        self.train_datamodule: TrainDataModule | None = None
-        self.pred_datamodule: PredictDataModule | None = None
-
+    @staticmethod
     def _define_callbacks(
-        self, callbacks: list[Callback] | None, enable_progress_bar: bool
-    ) -> None:
-        """Define the callbacks for the training loop.
+        callbacks: list[Callback] | None,
+        config: ConfigurationType,
+        work_dir: Path,
+    ) -> list[Callback]:
+        """Define callbacks for the training process.
 
         Parameters
         ----------
-        callbacks : list of Callback, optional
-            List of callbacks to use during training and prediction, by default None.
-        enable_progress_bar : bool
-            Whether a progress bar will be displayed during training, validation and
-            prediction. It controls whether a `ProgressBarCallback` is added to the
-            callback list.
-        """
-        self.callbacks = [] if callbacks is None else callbacks
+        callbacks : list[Callback] | None
+            List of callbacks to use during training. If None, no additional callbacks
+            will be used. Note that `ModelCheckpoint` and `EarlyStopping` callbacks are
+            already defined in CAREamics and instantiated in this method.
+        config : Configuration
+            The CAREamics configuration, used to instantiate the callbacks.
+        work_dir : Path
+            The working directory, used as a parameter to the checkpointing callback.
 
-        # check that user callbacks are not any of the CAREamics callbacks
-        for c in self.callbacks:
-            if isinstance(c, ModelCheckpoint) or isinstance(c, EarlyStopping):
-                raise ValueError(
-                    "ModelCheckpoint and EarlyStopping callbacks are already defined "
-                    "in CAREamics and should only be modified through the "
-                    "training configuration (see TrainingConfig)."
-                )
-
-            if isinstance(c, HyperParametersCallback) or isinstance(
-                c, ProgressBarCallback
-            ):
-                raise ValueError(
-                    "HyperParameter and ProgressBar callbacks are defined internally "
-                    "and should not be passed as callbacks."
-                )
-
-        checkpoint_callback = ModelCheckpoint(
-            dirpath=self.work_dir / "checkpoints" / self.cfg.get_safe_experiment_name(),
-            filename=f"{self.cfg.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_{{val_loss:.4f}}",
-            **self.cfg.training_config.checkpoint_callback.model_dump(),
-        )
-        checkpoint_callback.CHECKPOINT_NAME_LAST = (
-            f"{self.cfg.get_safe_experiment_name()}_last"
-        )
-        self.callbacks.extend(
-            [
-                HyperParametersCallback(self.cfg),
-                checkpoint_callback,
-            ]
-        )
-        if enable_progress_bar:
-            self.callbacks.append(ProgressBarCallback())
-
-        # early stopping callback
-        if self.cfg.training_config.early_stopping_callback is not None:
-            self.callbacks.append(
-                EarlyStopping(
-                    **self.cfg.training_config.early_stopping_callback.model_dump()
-                )
-            )
-
-    def stop_training(self) -> None:
-        """Stop the training loop."""
-        # raise stop training flag
-        self.trainer.should_stop = True
-        self.trainer.limit_val_batches = 0  # skip  validation
-
-    # TODO: is there are more elegant way than calling train again after _train_on_paths
-    def train(
-        self,
-        *,
-        datamodule: TrainDataModule | None = None,
-        train_source: Union[Path, str, NDArray] | None = None,
-        val_source: Union[Path, str, NDArray] | None = None,
-        train_target: Union[Path, str, NDArray] | None = None,
-        val_target: Union[Path, str, NDArray] | None = None,
-        use_in_memory: bool = True,
-        val_percentage: float = 0.1,
-        val_minimum_split: int = 1,
-    ) -> None:
-        """
-        Train the model on the provided data.
-
-        If a datamodule is provided, then training will be performed using it.
-        Alternatively, the training data can be provided as arrays or paths.
-
-        If `use_in_memory` is set to True, the source provided as Path or str will be
-        loaded in memory if it fits. Otherwise, training will be performed by loading
-        patches from the files one by one. Training on arrays is always performed
-        in memory.
-
-        If no validation source is provided, then the validation is extracted from
-        the training data using `val_percentage` and `val_minimum_split`. In the case
-        of data provided as Path or str, the percentage and minimum number are applied
-        to the number of files. For arrays, it is the number of patches.
-
-        Parameters
-        ----------
-        datamodule : TrainDataModule, optional
-            Datamodule to train on, by default None.
-        train_source : pathlib.Path or str or NDArray, optional
-            Train source, if no datamodule is provided, by default None.
-        val_source : pathlib.Path or str or NDArray, optional
-            Validation source, if no datamodule is provided, by default None.
-        train_target : pathlib.Path or str or NDArray, optional
-            Train target source, if no datamodule is provided, by default None.
-        val_target : pathlib.Path or str or NDArray, optional
-            Validation target source, if no datamodule is provided, by default None.
-        use_in_memory : bool, optional
-            Use in memory dataset if possible, by default True.
-        val_percentage : float, optional
-            Percentage of validation extracted from training data, by default 0.1.
-        val_minimum_split : int, optional
-            Minimum number of validation (patch or file) extracted from training data,
-            by default 1.
+        Returns
+        -------
+        list[Callback]
+            The list of callbacks to use during training.
 
         Raises
         ------
         ValueError
-            If both `datamodule` and `train_source` are provided.
-        ValueError
-            If sources are not of the same type (e.g. train is an array and val is
-            a Path).
-        ValueError
-            If the training target is provided to N2V.
-        ValueError
-            If neither a datamodule nor a source is provided.
+            If `ModelCheckpoint` or `EarlyStopping` callbacks are included in the
+            provided `callbacks` list, as these are already defined in CAREamics and
+            should only be modified through the training configuration (see
+            Configuration and TrainingConfig).
         """
-        if datamodule is not None and train_source is not None:
-            raise ValueError(
-                "Only one of `datamodule` and `train_source` can be provided."
+        callback_lst: list[Callback] = [] if callbacks is None else callbacks
+        for c in callback_lst:
+            if isinstance(c, (ModelCheckpoint, EarlyStopping)):
+                raise ValueError(
+                    "`ModelCheckpoint` and `EarlyStopping` callbacks are already "
+                    "defined in CAREamics and should only be modified through the "
+                    "training configuration (see TrainingConfig)."
+                )
+
+            if isinstance(c, (ConfigSaverCallback, ProgressBarCallback)):
+                raise ValueError(
+                    "`CareamicsCheckpointInfo` and `ProgressBar` callbacks are defined "
+                    "internally and should not be passed as callbacks."
+                )
+
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=work_dir / "checkpoints" / config.get_safe_experiment_name(),
+            filename=(
+                f"{config.get_safe_experiment_name()}_{{epoch:02d}}_step_{{step}}_"
+                f"{{val_loss:.4f}}"
+            ),
+            **config.training_config.checkpoint_params,
+        )
+        checkpoint_callback.CHECKPOINT_NAME_LAST = (
+            f"{config.get_safe_experiment_name()}_last"
+        )
+        internal_callbacks: list[Callback] = [
+            checkpoint_callback,
+            ConfigSaverCallback(
+                config.version,
+                config.get_safe_experiment_name(),
+                config.training_config,
+            ),
+        ]
+
+        enable_progress_bar = config.training_config.trainer_params.get(
+            "enable_progress_bar", True
+        )
+        if enable_progress_bar:
+            internal_callbacks.append(ProgressBarCallback())
+
+        if config.training_config.early_stopping_params:
+            internal_callbacks.append(
+                EarlyStopping(**config.training_config.early_stopping_params)
             )
 
-        # check that inputs are the same type
-        source_types = {
-            type(s)
-            for s in (train_source, val_source, train_target, val_target)
-            if s is not None
-        }
-        if len(source_types) > 1:
-            raise ValueError("All sources should be of the same type.")
+        return internal_callbacks + callback_lst
 
-        # train
-        if datamodule is not None:
-            self._train_on_datamodule(datamodule=datamodule)
-
-        else:
-            # raise error if target is provided to N2V
-            if self.cfg.algorithm_config.algorithm == SupportedAlgorithm.N2V.value:
-                if train_target is not None:
-                    raise ValueError(
-                        "Training target not compatible with N2V training."
-                    )
-
-            # dispatch the training
-            if isinstance(train_source, np.ndarray):
-                # mypy checks
-                assert isinstance(val_source, np.ndarray) or val_source is None
-                assert isinstance(train_target, np.ndarray) or train_target is None
-                assert isinstance(val_target, np.ndarray) or val_target is None
-
-                self._train_on_array(
-                    train_source,
-                    val_source,
-                    train_target,
-                    val_target,
-                    val_percentage,
-                    val_minimum_split,
-                )
-
-            elif isinstance(train_source, Path) or isinstance(train_source, str):
-                # mypy checks
-                assert (
-                    isinstance(val_source, Path)
-                    or isinstance(val_source, str)
-                    or val_source is None
-                )
-                assert (
-                    isinstance(train_target, Path)
-                    or isinstance(train_target, str)
-                    or train_target is None
-                )
-                assert (
-                    isinstance(val_target, Path)
-                    or isinstance(val_target, str)
-                    or val_target is None
-                )
-
-                self._train_on_path(
-                    train_source,
-                    val_source,
-                    train_target,
-                    val_target,
-                    use_in_memory,
-                    val_percentage,
-                    val_minimum_split,
-                )
-
-            else:
-                raise ValueError(
-                    f"Invalid input, expected a str, Path, array or TrainDataModule "
-                    f"instance (got {type(train_source)})."
-                )
-
-    def _train_on_datamodule(self, datamodule: TrainDataModule) -> None:
-        """
-        Train the model on the provided datamodule.
+    @staticmethod
+    def _create_loggers(
+        logger: str | None,
+        experiment_name: str,
+        work_dir: Path,
+        config: Configuration,
+    ) -> list[TensorBoardLogger | WandbLogger | CSVLogger]:
+        """Create loggers for the experiment.
 
         Parameters
         ----------
-        datamodule : TrainDataModule
-            Datamodule to train on.
+        logger : str | None
+            Logger to use during training. If None, no logger will be used. Available
+            loggers are defined in SupportedLogger.
+        experiment_name : str
+            Name of the experiment, used as a parameter to the loggers.
+        work_dir : Path
+            The working directory, used as a parameter to the loggers.
+        config : NGConfiguration
+            Full CAREamics config logged to Wandb at run initialization.
+
+        Returns
+        -------
+        list[TensorBoardLogger | WandbLogger | CSVLogger]
+            The list of loggers to use during training.
         """
-        # register datamodule
-        self.train_datamodule = datamodule
+        csv_logger = CSVLogger(name=experiment_name, save_dir=work_dir / "csv_logs")
 
-        # set defaults (in case `stop_training` was called before)
-        self.trainer.should_stop = False
-        self.trainer.limit_val_batches = 1.0  # 100%
+        if logger is not None:
+            logger = SupportedLogger(logger)
 
-        # train
-        self.trainer.fit(self.model, datamodule=datamodule)
+        match logger:
+            case SupportedLogger.WANDB:
+                return [
+                    WandbLogger(
+                        name=experiment_name,
+                        save_dir=work_dir / "wandb_logs",
+                        config=config.model_dump(),
+                    ),
+                    csv_logger,
+                ]
+            case SupportedLogger.TENSORBOARD:
+                return [
+                    TensorBoardLogger(save_dir=work_dir / "tb_logs"),
+                    csv_logger,
+                ]
+            case _:
+                return [csv_logger]
 
-    def _train_on_array(
+    # Two overloads:
+    # - 1st for supported data types & using ReadFuncLoading
+    # - 2nd for ImageStackLoading
+    # Why:
+    #   ImageStackLoading supports any type as input, but we want to tell most users
+    #   that they are only allowed Path, str, ndarray or a sequence of these.
+    #   The first overload will be displaced first by most code editors, this is what
+    #   most users will see.
+    @overload
+    def train(  # numpydoc ignore=GL08
         self,
-        train_data: NDArray,
-        val_data: NDArray | None = None,
-        train_target: NDArray | None = None,
-        val_target: NDArray | None = None,
-        val_percentage: float = 0.1,
-        val_minimum_split: int = 5,
+        *,
+        # BASIC PARAMS
+        train_data: InputVar | None = None,
+        train_data_target: InputVar | None = None,
+        val_data: InputVar | None = None,
+        val_data_target: InputVar | None = None,
+        # ADVANCED PARAMS
+        filtering_mask: InputVar | None = None,
+        loading: ReadFuncLoading | None = None,
+    ) -> None: ...
+
+    @overload  # any data input is allowed for ImageStackLoading
+    def train(  # numpydoc ignore=GL08
+        self,
+        *,
+        # BASIC PARAMS
+        train_data: Any | None = None,
+        train_data_target: Any | None = None,
+        val_data: Any | None = None,
+        val_data_target: Any | None = None,
+        # ADVANCED PARAMS
+        filtering_mask: Any | None = None,
+        loading: ImageStackLoading = ...,
+    ) -> None: ...
+
+    def train(
+        self,
+        *,
+        # BASIC PARAMS
+        train_data: Any | None = None,
+        train_data_target: Any | None = None,
+        val_data: Any | None = None,
+        val_data_target: Any | None = None,
+        # ADVANCED PARAMS
+        filtering_mask: Any | None = None,
+        loading: Loading = None,
     ) -> None:
-        """
-        Train the model on the provided data arrays.
+        """Train the model on the provided data.
+
+        The training data can be provided as arrays or paths.
 
         Parameters
         ----------
-        train_data : NDArray
-            Training data.
-        val_data : NDArray, optional
-            Validation data, by default None.
-        train_target : NDArray, optional
-            Train target data, by default None.
-        val_target : NDArray, optional
+        train_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+            Training data, by default None.
+        train_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these
+            Training target data, by default None.
+        val_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
+            Validation data. If not provided, `data_config.n_val_patches` patches will
+            selected from the training data for validation.
+        val_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these
             Validation target data, by default None.
-        val_percentage : float, optional
-            Percentage of patches to use for validation, by default 0.1.
-        val_minimum_split : int, optional
-            Minimum number of patches to use for validation, by default 5.
+        filtering_mask : pathlib.Path, str, numpy.ndarray, or sequence of these
+            Filtering mask for coordinate-based patch filtering, by default None.
+        loading : Loading, default=None
+            Loading strategy to use for the prediction data. May be a ReadFuncLoading or
+            ImageStackLoading. If None, uses the loading strategy from the training
+            configuration.
+
+        Raises
+        ------
+        ValueError
+            If train_data is not provided.
         """
-        # create datamodule
-        datamodule = TrainDataModule(
-            data_config=self.cfg.data_config,
+        if train_data is None:
+            raise ValueError("Training data must be provided. Provide `train_data`.")
+
+        if self.config.is_supervised() and train_data_target is None:
+            raise ValueError(
+                f"Training target data must be provided for supervised training (got "
+                f"{self.config.get_algorithm_friendly_name()} algorithm). Provide "
+                f"`train_data_target`."
+            )
+
+        if (
+            self.config.is_supervised()
+            and val_data is not None
+            and val_data_target is None
+        ):
+            raise ValueError(
+                f"Validation target data must be provided for supervised training (got "
+                f"{self.config.get_algorithm_friendly_name()} algorithm). Provide "
+                f"`val_data_target`."
+            )
+
+        datamodule = CareamicsDataModule(  # type: ignore
+            data_config=self.config.data_config,
             train_data=train_data,
             val_data=val_data,
-            train_data_target=train_target,
-            val_data_target=val_target,
-            val_percentage=val_percentage,
-            val_minimum_split=val_minimum_split,
+            train_data_target=train_data_target,
+            val_data_target=val_data_target,
+            train_data_mask=filtering_mask,
+            model_constraints=get_model_constraints(self.config.algorithm_config.model),
+            loading=loading,  # type: ignore
         )
 
-        # train
-        self.train(datamodule=datamodule)
+        self.train_datamodule = datamodule
 
-    def _train_on_path(
+        # set parameters back to defaults, this is a guard against `stop_training`
+        # which changes them in order to interrupt training gracefully
+        self.trainer.should_stop = False
+        self.trainer.limit_val_batches = 1.0  # equivalent to all validation batches
+
+        _ = seed_everything(self.config.data_config.seed, workers=True)
+        self.trainer.fit(
+            self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
+        )
+        for lgr in self.trainer.loggers:
+            if isinstance(lgr, WandbLogger):
+                import wandb
+
+                norm_stats = self.train_datamodule.config.normalization.model_dump()
+                wandb.run.config.update(
+                    {"normalization": norm_stats}, allow_val_change=True
+                )
+                wandb.finish()
+                break
+
+    def _build_predict_datamodule(
         self,
-        path_to_train_data: Union[Path, str],
-        path_to_val_data: Union[Path, str] | None = None,
-        path_to_train_target: Union[Path, str] | None = None,
-        path_to_val_target: Union[Path, str] | None = None,
-        use_in_memory: bool = True,
-        val_percentage: float = 0.1,
-        val_minimum_split: int = 1,
-    ) -> None:
-        """
-        Train the model on the provided data paths.
+        pred_data: Any,
+        *,
+        pred_data_target: Any | None = None,
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: Loading = None,
+    ) -> CareamicsDataModule:
+        """Create prediction data module.
 
         Parameters
         ----------
-        path_to_train_data : pathlib.Path or str
-            Path to the training data.
-        path_to_val_data : pathlib.Path or str, optional
-            Path to validation data, by default None.
-        path_to_train_target : pathlib.Path or str, optional
-            Path to train target data, by default None.
-        path_to_val_target : pathlib.Path or str, optional
-            Path to validation target data, by default None.
-        use_in_memory : bool, optional
-            Use in memory dataset if possible, by default True.
-        val_percentage : float, optional
-            Percentage of files to use for validation, by default 0.1.
-        val_minimum_split : int, optional
-            Minimum number of files to use for validation, by default 1.
+        pred_data : Any
+            Prediction data.
+        pred_data_target : Any | None, default=None
+            Prediction target data, by default None. Can be used to compute metrics
+            during prediction.
+        batch_size : int | None, default=None
+            Batch size for prediction. If None, uses the batch size from the training
+            configuration.
+        tile_size : tuple[int, ...] | None, default=None
+            Tile size for prediction. If None, uses whole image prediction.
+        tile_overlap : tuple[int, ...] | None, default=(48, 48)
+            Tile overlap for prediction. If None, defaults to (48, 48).
+        axes : str | None, default=None
+            Axes for prediction. If None, uses training configuration axes.
+        data_type : {"array", "tiff", "zarr", "czi", "custom"} | None, default=None
+            Data type for prediction. If None, uses training configuration data type.
+        num_workers : int | None, default=None
+            Number of workers for data loading during prediction.
+        channels : Sequence[int] | Literal["all"] | None, default=None
+            Channels to use for prediction. If "all", uses all channels. If None, uses
+            the channels from the training configuration.
+        in_memory : bool | None, default=None
+            Whether to load data into memory during prediction. If None, uses training
+            configuration.
+        loading : Loading, default=None
+            Loading strategy for prediction data if data type (either from training
+            configuration or specified) is `"custom"`.
+
+        Returns
+        -------
+        CareamicsDataModule
+            Prediction data module.
         """
-        # sanity check on data (path exists)
-        path_to_train_data = check_path_exists(path_to_train_data)
+        dataloader_params: dict[str, Any] | None = None
+        if num_workers is not None:
+            dataloader_params = {"num_workers": num_workers}
 
-        if path_to_val_data is not None:
-            path_to_val_data = check_path_exists(path_to_val_data)
-
-        if path_to_train_target is not None:
-            path_to_train_target = check_path_exists(path_to_train_target)
-
-        if path_to_val_target is not None:
-            path_to_val_target = check_path_exists(path_to_val_target)
-
-        # create datamodule
-        datamodule = TrainDataModule(
-            data_config=self.cfg.data_config,
-            train_data=path_to_train_data,
-            val_data=path_to_val_data,
-            train_data_target=path_to_train_target,
-            val_data_target=path_to_val_target,
-            use_in_memory=use_in_memory,
-            val_percentage=val_percentage,
-            val_minimum_split=val_minimum_split,
+        pred_data_config = self.config.data_config.convert_mode(
+            new_mode="predicting",
+            new_patch_size=tile_size,
+            overlap_size=tile_overlap,
+            new_batch_size=batch_size,
+            new_data_type=data_type,
+            new_dataloader_params=dataloader_params,
+            new_axes=axes,
+            new_channels=channels,
+            new_in_memory=in_memory,
         )
 
-        # train
-        self.train(datamodule=datamodule)
+        # validate new data config against the rest of the configuration by triggering
+        # the model level validation
+        self.config.model_copy().data_config = pred_data_config
 
-    @overload
-    def predict(  # numpydoc ignore=GL08
-        self, source: PredictDataModule
-    ) -> Union[list[NDArray], NDArray]: ...
+        return CareamicsDataModule(
+            data_config=pred_data_config,
+            pred_data=pred_data,
+            pred_data_target=pred_data_target,
+            model_constraints=get_model_constraints(self.config.algorithm_config.model),
+            loading=loading,
+        )
 
-    @overload
+    # see comment on train func for a description of why we have these two overloads
+    @overload  # constrained input data type for supported data or ReadFuncLoading
     def predict(  # numpydoc ignore=GL08
         self,
-        source: Union[Path, str],
+        # BASIC PARAMS
+        pred_data: InputVar,
         *,
-        batch_size: int = 1,
+        batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["tiff", "custom"] | None = None,
-        tta_transforms: bool = False,
-        dataloader_params: dict | None = None,
-        read_source_func: Callable | None = None,
-        extension_filter: str = "",
-    ) -> Union[list[NDArray], NDArray]: ...
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: ReadFuncLoading | None = None,
+    ) -> tuple[list[NDArray], list[str]]: ...
 
-    @overload
+    @overload  # any data input is allowed for ImageStackLoading
     def predict(  # numpydoc ignore=GL08
         self,
-        source: NDArray,
+        # BASIC PARAMS
+        pred_data: Any,
         *,
-        batch_size: int = 1,
+        batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array"] | None = None,
-        tta_transforms: bool = False,
-        dataloader_params: dict | None = None,
-    ) -> Union[list[NDArray], NDArray]: ...
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: ImageStackLoading = ...,
+    ) -> tuple[list[NDArray], list[str]]: ...
 
     def predict(
         self,
-        source: Union[PredictDataModule, Path, str, NDArray],
+        # BASIC PARAMS
+        pred_data: InputVar,
         *,
-        batch_size: int = 1,
+        batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "custom"] | None = None,
-        tta_transforms: bool = False,
-        dataloader_params: dict | None = None,
-        read_source_func: Callable | None = None,
-        extension_filter: str = "",
-        **kwargs: Any,
-    ) -> Union[list[NDArray], NDArray]:
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: Loading = None,
+    ) -> tuple[list[NDArray], list[str]]:
         """
-        Make predictions on the provided data.
+        Predict on data and return the predictions.
 
-        Input can be a CAREamicsPredData instance, a path to a data file, or a numpy
-        array.
+        Input can be a path to a data file, a list of paths, a numpy array, or a
+        list of numpy arrays.
 
-        If `data_type`, `axes` and `tile_size` are not provided, the training
-        configuration parameters will be used, with the `patch_size` instead of
-        `tile_size`.
-
-        Test-time augmentation (TTA) can be switched on using the `tta_transforms`
-        parameter. The TTA augmentation applies all possible flip and 90 degrees
-        rotations to the prediction input and averages the predictions. TTA augmentation
-        should not be used if you did not train with these augmentations.
+        If `data_type` and `axes` are not provided, the training configuration
+        parameters will be used. If `tile_size` is not provided, prediction will
+        be performed on the whole image.
 
         Note that if you are using a UNet model and tiling, the tile size must be
         divisible in every dimension by 2**d, where d is the depth of the model. This
         avoids artefacts arising from the broken shift invariance induced by the
-        pooling layers of the UNet. If your image has less dimensions, as it may
-        happen in the Z dimension, consider padding your image.
+        pooling layers of the UNet. Images smaller than the tile size in any spatial
+        dimension will be automatically zero-padded.
 
         Parameters
         ----------
-        source : PredictDataModule, pathlib.Path, str or numpy.ndarray
-            Data to predict on.
-        batch_size : int, default=1
-            Batch size for prediction.
+        pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
+            Data to predict on. Can be a single item or a sequence of paths/arrays.
+        batch_size : int, optional
+            Batch size for prediction. If not provided, uses the training configuration
+            batch size.
         tile_size : tuple of int, optional
-            Size of the tiles to use for prediction.
+            Size of the tiles to use for prediction. If not provided, prediction
+            will be performed on the whole image.
         tile_overlap : tuple of int, default=(48, 48)
             Overlap between tiles, can be None.
         axes : str, optional
             Axes of the input data, by default None.
-        data_type : {"array", "tiff", "custom"}, optional
+        data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
-        tta_transforms : bool, default=True
-            Whether to apply test-time augmentation.
-        dataloader_params : dict, optional
-            Parameters to pass to the dataloader.
-        read_source_func : Callable, optional
-            Function to read the source data.
-        extension_filter : str, default=""
-            Filter for the file extension.
-        **kwargs : Any
-            Unused.
+        num_workers : int, optional
+            Number of workers for the dataloader, by default None.
+        channels : sequence of int or "all", optional
+            Channels to use from the data. If None, uses the training configuration
+            channels.
+        in_memory : bool, optional
+            Whether to load all data into memory. If None, uses the training
+            configuration setting.
+        loading : Loading, default=None
+            Loading strategy to use for the prediction data. May be a ReadFuncLoading or
+            ImageStackLoading. If None, uses the loading strategy from the training
+            configuration.
 
         Returns
         -------
-        list of NDArray or NDArray
-            Predictions made by the model.
+        tuple of (list of NDArray, list of str)
+            Predictions made by the model and their source identifiers.
 
         Raises
         ------
         ValueError
-            If mean and std are not provided in the configuration.
-        ValueError
-            If tile size is not divisible by 2**depth for UNet models.
-        ValueError
-            If tile overlap is not specified.
+            If tile overlap is not specified when tile_size is provided.
         """
-        if (
-            self.cfg.data_config.image_means is None
-            or self.cfg.data_config.image_stds is None
-        ):
-            raise ValueError("Mean and std must be provided in the configuration.")
-
-        # tile size for UNets
-        if tile_size is not None:
-            model = self.cfg.algorithm_config.model
-
-            if model.architecture == SupportedArchitecture.UNET.value:
-                # tile size must be equal to k*2^n, where n is the number of pooling
-                # layers (equal to the depth) and k is an integer
-                depth = model.depth
-                tile_increment = 2**depth
-
-                for i, t in enumerate(tile_size):
-                    if t % tile_increment != 0:
-                        raise ValueError(
-                            f"Tile size must be divisible by {tile_increment} along "
-                            f"all axes (got {t} for axis {i}). If your image size is "
-                            f"smaller along one axis (e.g. Z), consider padding the "
-                            f"image."
-                        )
-
-            # tile overlaps must be specified
-            if tile_overlap is None:
-                raise ValueError("Tile overlap must be specified.")
-
-        # create the prediction
-        self.pred_datamodule = create_predict_datamodule(
-            pred_data=source,
-            data_type=data_type or self.cfg.data_config.data_type,  # type: ignore
-            axes=axes or self.cfg.data_config.axes,
-            image_means=self.cfg.data_config.image_means,
-            image_stds=self.cfg.data_config.image_stds,
+        datamodule = self._build_predict_datamodule(
+            pred_data,
+            batch_size=batch_size,
             tile_size=tile_size,
             tile_overlap=tile_overlap,
-            batch_size=batch_size or self.cfg.data_config.batch_size,
-            tta_transforms=tta_transforms,
-            read_source_func=read_source_func,
-            extension_filter=extension_filter,
-            dataloader_params=dataloader_params,
+            axes=axes,
+            data_type=data_type,
+            num_workers=num_workers,
+            channels=channels,
+            in_memory=in_memory,
+            loading=loading,
         )
 
-        # predict
-        predictions = self.trainer.predict(
-            model=self.model, datamodule=self.pred_datamodule
+        predictions: list[ImageRegionData] = self.trainer.predict(
+            model=self.model, datamodule=datamodule
+        )  # type: ignore[assignment]
+        tiled = tile_size is not None
+        predictions_output, sources = convert_prediction(
+            predictions, tiled=tiled, restore_shape=True
         )
-        return convert_outputs(predictions, self.pred_datamodule.tiled)
 
-    def predict_to_disk(
+        return predictions_output, sources
+
+    # see comment on train func for a description of why we have these two overloads
+    @overload  # constrained input data type for supported data or ReadFuncLoading
+    def predict_to_disk(  # numpydoc ignore=GL08
         self,
-        source: Union[PredictDataModule, Path, str],
+        # BASIC PARAMS
+        pred_data: InputVar,
         *,
-        batch_size: int = 1,
+        pred_data_target: InputVar | None = None,
+        prediction_dir: Path | str = "predictions",
+        batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["tiff", "custom"] | None = None,
-        tta_transforms: bool = False,
-        dataloader_params: dict | None = None,
-        read_source_func: Callable | None = None,
-        extension_filter: str = "",
-        write_type: Literal["tiff", "custom"] = "tiff",
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: ReadFuncLoading | None = None,
+        # WRITE OPTIONS
+        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
-        prediction_dir: Union[Path, str] = "predictions",
-        **kwargs,
+    ) -> None: ...
+
+    @overload  # any data input is allowed for ImageStackLoading
+    def predict_to_disk(  # numpydoc ignore=GL08
+        self,
+        # BASIC PARAMS
+        pred_data: Any,
+        *,
+        pred_data_target: Any | None = None,
+        prediction_dir: Path | str = "predictions",
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: ImageStackLoading = ...,
+        # WRITE OPTIONS
+        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
+        write_extension: str | None = None,
+        write_func: WriteFunc | None = None,
+        write_func_kwargs: dict[str, Any] | None = None,
+    ) -> None: ...
+
+    def predict_to_disk(
+        self,
+        # BASIC PARAMS
+        pred_data: Any,
+        *,
+        pred_data_target: Any | None = None,
+        prediction_dir: Path | str = "predictions",
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: Loading = None,
+        # WRITE OPTIONS
+        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
+        write_extension: str | None = None,
+        write_func: WriteFunc | None = None,
+        write_func_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """
         Make predictions on the provided data and save outputs to files.
 
-        The predictions will be saved in a new directory 'predictions' within the set
-        working directory. The directory stucture within the 'predictions' directory
-        will match that of the source directory.
+        Predictions are saved to `prediction_dir` (absolute paths are used as-is,
+        relative paths are relative to `work_dir`). The directory structure matches
+        the source directory.
 
-        The `source` must be from files and not arrays. The file names of the
-        predictions will match those of the source. If there is more than one sample
-        within a file, the samples will be saved to seperate files. The file names of
-        samples will have the name of the corresponding source file but with the sample
-        index appended. E.g. If the the source file name is 'images.tiff' then the first
-        sample's prediction will be saved with the file name "image_0.tiff".
-        Input can be a PredictDataModule instance, a path to a data file, or a numpy
-        array.
+        The file names of the predictions will match those of the source. If there is
+        more than one sample within a file, the samples will be stacked along the sample
+        dimension in the output file.
 
-        If `data_type`, `axes` and `tile_size` are not provided, the training
-        configuration parameters will be used, with the `patch_size` instead of
-        `tile_size`.
-
-        Test-time augmentation (TTA) can be switched on using the `tta_transforms`
-        parameter. The TTA augmentation applies all possible flip and 90 degrees
-        rotations to the prediction input and averages the predictions. TTA augmentation
-        should not be used if you did not train with these augmentations.
+        If `data_type` and `axes` are not provided, the training configuration
+        parameters will be used. If `tile_size` is not provided, prediction
+        will be performed on whole images rather than in a tiled manner.
 
         Note that if you are using a UNet model and tiling, the tile size must be
         divisible in every dimension by 2**d, where d is the depth of the model. This
         avoids artefacts arising from the broken shift invariance induced by the
-        pooling layers of the UNet. If your image has less dimensions, as it may
-        happen in the Z dimension, consider padding your image.
+        pooling layers of the UNet. Images smaller than the tile size in any spatial
+        dimension will be automatically zero-padded.
 
         Parameters
         ----------
-        source : PredictDataModule or pathlib.Path, str
-            Data to predict on.
-        batch_size : int, default=1
-            Batch size for prediction.
+        pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
+            Data to predict on. Can be a single item or a sequence of paths/arrays.
+        pred_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these
+            Prediction data target, by default None.
+        prediction_dir : Path | str, default="predictions"
+            The path to save the prediction results to. If `prediction_dir` is an
+            absolute path, it will be used as-is. If it is a relative path, it will
+            be relative to the pre-set `work_dir`. If the directory does not exist it
+            will be created.
+        batch_size : int, optional
+            Batch size for prediction. If not provided, uses the training configuration
+            batch size.
         tile_size : tuple of int, optional
-            Size of the tiles to use for prediction.
+            Size of the tiles to use for prediction. If not provided, uses whole image
+            strategy.
         tile_overlap : tuple of int, default=(48, 48)
             Overlap between tiles.
         axes : str, optional
             Axes of the input data, by default None.
-        data_type : {"array", "tiff", "custom"}, optional
+        data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
-        tta_transforms : bool, default=True
-            Whether to apply test-time augmentation.
-        dataloader_params : dict, optional
-            Parameters to pass to the dataloader.
-        read_source_func : Callable, optional
-            Function to read the source data.
-        extension_filter : str, default=""
-            Filter for the file extension.
-        write_type : {"tiff", "custom"}, default="tiff"
+        num_workers : int, optional
+            Number of workers for the dataloader, by default None.
+        channels : sequence of int or "all", optional
+            Channels to use from the data. If None, uses the training configuration
+            channels.
+        in_memory : bool, optional
+            Whether to load all data into memory. If None, uses the training
+            configuration setting.
+        loading : Loading, default=None
+            Loading strategy to use for the prediction data. May be a ReadFuncLoading or
+            ImageStackLoading. If None, uses the loading strategy from the training
+            configuration.
+        write_type : {"tiff", "zarr", "custom"}, default="tiff"
             The data type to save as, includes custom.
         write_extension : str, optional
             If a known `write_type` is selected this argument is ignored. For a custom
@@ -784,21 +920,13 @@ class CAREamist:
             `write_type` a function to save the data must be passed. See notes below.
         write_func_kwargs : dict of {str: any}, optional
             Additional keyword arguments to be passed to the save function.
-        prediction_dir : Path | str, default="predictions"
-            The path to save the prediction results to. If `prediction_dir` is not
-            absolute, the directory will be assumed to be relative to the pre-set
-            `work_dir`. If the directory does not exist it will be created.
-        **kwargs : Any
-            Unused.
 
         Raises
         ------
         ValueError
             If `write_type` is custom and `write_extension` is None.
         ValueError
-            If `write_type` is custom and `write_fun is None.
-        ValueError
-            If `source` is not `str`, `Path` or `PredictDataModule`
+            If `write_type` is custom and `write_func` is None.
         """
         if write_func_kwargs is None:
             write_func_kwargs = {}
@@ -807,10 +935,9 @@ class CAREamist:
             write_dir = Path(prediction_dir)
         else:
             write_dir = self.work_dir / prediction_dir
-        write_dir.mkdir(exist_ok=True, parents=True)
+        self.prediction_writer.dirpath = write_dir
 
-        # guards for custom types
-        if write_type == SupportedData.CUSTOM:
+        if write_type == "custom":
             if write_extension is None:
                 raise ValueError(
                     "A `write_extension` must be provided for custom write types."
@@ -819,79 +946,56 @@ class CAREamist:
                 raise ValueError(
                     "A `write_func` must be provided for custom write types."
                 )
-        else:
-            write_func = get_write_func(write_type)
-            write_extension = SupportedData.get_extension(write_type)
-
-        # extract file names
-        source_path: Union[Path, str, NDArray]
-        source_data_type: Literal["array", "tiff", "custom"]
-        if isinstance(source, PredictDataModule):
-            source_path = source.pred_data
-            source_data_type = source.data_type  # type: ignore
-            extension_filter = source.extension_filter
-        elif isinstance(source, (str | Path)):
-            source_path = source
-            source_data_type = (
-                data_type or self.cfg.data_config.data_type  # type: ignore
-            )
-            extension_filter = SupportedData.get_extension_pattern(
-                SupportedData(source_data_type)
-            )
-        else:
-            raise ValueError(f"Unsupported source type: '{type(source)}'.")
-
-        if source_data_type == "array":
+        if write_type == "zarr" and tile_size is None:
             raise ValueError(
-                "Predicting to disk is not supported for input type 'array'."
+                "Writing prediction to Zarr is only supported with tiling. Please "
+                "provide a value for `tile_size`, and optionally `tile_overlap`."
             )
-        assert isinstance(source_path, (Path | str))  # because data_type != "array"
-        source_path = Path(source_path)
 
-        file_paths = list_files(source_path, source_data_type, extension_filter)
+        tiled = tile_size is not None
+        self.prediction_writer.set_writing_strategy(
+            write_type=write_type,
+            tiled=tiled,
+            write_func=write_func,
+            write_extension=write_extension,
+            write_func_kwargs=write_func_kwargs,
+        )
 
-        # predict and write each file in turn
-        for file_path in file_paths:
-            # source_path is relative to original source path...
-            # should mirror original directory structure
-            prediction = self.predict(
-                source=file_path,
+        self.prediction_writer.enable_writing(True)
+
+        try:
+            datamodule = self._build_predict_datamodule(
+                pred_data,
+                pred_data_target=pred_data_target,
                 batch_size=batch_size,
                 tile_size=tile_size,
                 tile_overlap=tile_overlap,
                 axes=axes,
                 data_type=data_type,
-                tta_transforms=tta_transforms,
-                dataloader_params=dataloader_params,
-                read_source_func=read_source_func,
-                extension_filter=extension_filter,
-                **kwargs,
+                num_workers=num_workers,
+                channels=channels,
+                in_memory=in_memory,
+                loading=loading,
             )
-            # TODO: cast to float16?
-            write_data = np.concatenate(prediction)
 
-            # create directory structure and write path
-            if not source_path.is_file():
-                file_write_dir = write_dir / file_path.parent.relative_to(source_path)
-            else:
-                file_write_dir = write_dir
-            file_write_dir.mkdir(parents=True, exist_ok=True)
-            write_path = (file_write_dir / file_path.name).with_suffix(write_extension)
+            self.trainer.predict(
+                model=self.model, datamodule=datamodule, return_predictions=False
+            )
 
-            # write data
-            write_func(file_path=write_path, img=write_data)
+        finally:
+            self.prediction_writer.enable_writing(False)
 
     def export_to_bmz(
         self,
-        path_to_archive: Union[Path | str],
+        path_to_archive: Path | str,
         friendly_model_name: str,
         input_array: NDArray,
         authors: list[dict],
         general_description: str,
         data_description: str,
-        covers: list[Union[Path, str]] | None = None,
+        covers: list[Path | str] | None = None,
         channel_names: list[str] | None = None,
-        model_version: str = "0.1.0",
+        model_version: str = "0.2.0",
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
@@ -928,34 +1032,33 @@ class CAREamist:
             Paths to the cover images.
         channel_names : list of str, default=None
             Channel names.
-        model_version : str, default="0.2.0"
+        model_version : str, default="0.1.0"
             Version of the model.
         """
-        # TODO: add in docs that it is expected that input_array dimensions match
-        # those in data_config
+        # from .model_io import export_to_bmz
 
-        output_patch = self.predict(
-            input_array,
-            data_type=SupportedData.ARRAY.value,
-            tta_transforms=False,
-        )
-        output = np.concatenate(output_patch, axis=0)
-        input_array = reshape_array(input_array, self.cfg.data_config.axes)
+        # output_patch = self.predict(
+        #     pred_data=input_array,
+        #     data_type=SupportedData.ARRAY.value,
+        # )
+        # output = np.concatenate(output_patch, axis=0)
+        # input_array = reshape_array(input_array, self.config.data_config.axes)
 
-        export_to_bmz(
-            model=self.model,
-            config=self.cfg,
-            path_to_archive=path_to_archive,
-            model_name=friendly_model_name,
-            general_description=general_description,
-            data_description=data_description,
-            authors=authors,
-            input_array=input_array,
-            output_array=output,
-            covers=covers,
-            channel_names=channel_names,
-            model_version=model_version,
-        )
+        # export_to_bmz(
+        #     model=self.model,
+        #     config=self.config,
+        #     path_to_archive=path_to_archive,
+        #     model_name=friendly_model_name,
+        #     general_description=general_description,
+        #     data_description=data_description,
+        #     authors=authors,
+        #     input_array=input_array,
+        #     output_array=output,
+        #     covers=covers,
+        #     channel_names=channel_names,
+        #     model_version=model_version,
+        # )
+        raise NotImplementedError("Exporting to BMZ is not implemented yet.")
 
     def get_losses(self) -> dict[str, list]:
         """Return data that can be used to plot train and validation loss curves.
@@ -963,8 +1066,13 @@ class CAREamist:
         Returns
         -------
         dict of str: list
-            Dictionary containing the losses for each epoch.
+            Dictionary containing losses for each epoch.
         """
         return read_csv_logger(
-            self.cfg.get_safe_experiment_name(), self.work_dir / "csv_logs"
+            self.config.get_safe_experiment_name(), self.work_dir / "csv_logs"
         )
+
+    def stop_training(self) -> None:
+        """Stop the training loop."""
+        self.trainer.should_stop = True
+        self.trainer.limit_val_batches = 0  # skip validation

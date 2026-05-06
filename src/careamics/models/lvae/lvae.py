@@ -12,7 +12,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from ..activation import get_activation
+from careamics.models.model_utils import get_activation
 from .layers import (
     BottomUpDeterministicResBlock,
     BottomUpLayer,

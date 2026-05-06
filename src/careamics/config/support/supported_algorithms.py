@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedAlgorithm(str, BaseEnum):
+class SupportedAlgorithm(StrEnum):
     """Algorithms available in CAREamics.
 
     These definitions are the same as the keyword `name` of the algorithm

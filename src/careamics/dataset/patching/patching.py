@@ -1,301 +1,163 @@
-"""Patching functions."""
+"""A module to contain type definitions relating to patching strategies."""
 
-from collections.abc import Callable
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Union
+from collections.abc import Sequence
+from typing import Protocol, TypedDict, TypeGuard, TypeVar
 
-import numpy as np
-from numpy.typing import NDArray
-
-from careamics.utils.reshape_array import reshape_array
-
-from ...utils.logging import get_logger
-from ..dataset_utils.running_stats import compute_normalization_stats
-from .sequential_patching import extract_patches_sequential
-
-logger = get_logger(__name__)
+RegionSpecs = TypeVar("RegionSpecs", bound="PatchSpecs")
 
 
-@dataclass
-class Stats:
-    """Dataclass to store statistics."""
+class PatchSpecs(TypedDict):
+    """A dictionary that specifies a single patch in a series of `ImageStacks`.
 
-    means: Union[NDArray, tuple, list, None]
-    """Mean of the data across channels."""
+    Attributes
+    ----------
+    data_idx: int
+        Determines which `ImageStack` a patch belongs to, within a series of
+        `ImageStack`s.
+    sample_idx: int
+        Determines which sample a patch belongs to, within an `ImageStack`.
+    coords: sequence of int
+        The top-left (and first z-slice for 3D data) of a patch. The sequence will have
+        length 2 or 3, for 2D and 3D data respectively.
+    patch_size: sequence of int
+        The size of the patch. The sequence will have length 2 or 3, for 2D and 3D data
+        respectively.
+    """
 
-    stds: Union[NDArray, tuple, list, None]
-    """Standard deviation of the data across channels."""
+    data_idx: int
+    sample_idx: int
+    coords: Sequence[int]
+    patch_size: Sequence[int]
 
-    def get_statistics(self) -> tuple[list[float], list[float]]:
-        """Return the means and standard deviations.
+
+class TileSpecs(PatchSpecs):
+    """A dictionary that specifies a single patch in a series of `ImageStacks`.
+
+    Attributes
+    ----------
+    data_idx: int
+        Determines which `ImageStack` a patch belongs to, within a series of
+        `ImageStack`s.
+    sample_idx: int
+        Determines which sample a patch belongs to, within an `ImageStack`.
+    coords: sequence of int
+        The top-left (and first z-slice for 3D data) of a patch. The sequence will have
+        length 2 or 3, for 2D and 3D data respectively.
+    patch_size: sequence of int
+        The size of the patch. The sequence will have length 2 or 3, for 2D and 3D data
+        respectively.
+    crop_coords: sequence of int
+        The top-left side of where the tile will be cropped, in coordinates relative
+        to the tile.
+    crop_size: sequence of int
+        The size of the cropped tile.
+    stitch_coords: sequence of int
+        Where the tile will be stitched back into an image, taking into account
+        that the tile will be cropped, in coords relative to the image.
+    total_tiles: int
+        Number of tiles belonging to the same data.
+    """
+
+    crop_coords: Sequence[int]
+    crop_size: Sequence[int]
+    stitch_coords: Sequence[int]
+    total_tiles: int
+
+
+def is_tile_specs(specs: PatchSpecs) -> TypeGuard[TileSpecs]:
+    """Determine whether a given PatchSpecs is a TileSpecs.
+
+    Used for type checking.
+
+    Parameters
+    ----------
+    specs : PatchSpecs
+        A patch specification.
+
+    Returns
+    -------
+    bool
+        Whether the given specs is a TileSpecs.
+    """
+    return (
+        ("crop_coords" in specs)
+        and ("crop_size" in specs)
+        and ("stitch_coords" in specs)
+    )
+
+
+class Patching(Protocol):
+    """
+    An interface for patching strategies.
+
+    Patching strategies are a component of the `CAREamicsDataset`; they determine
+    how patches are extracted from the underlying data.
+
+    Attributes
+    ----------
+    n_patches: int
+        The number of patches that the patching strategy will return.
+
+    Methods
+    -------
+    get_patch_spec(index: int) -> PatchSpecs
+        Get a patch specification for a given patch index.
+    """
+
+    # TODO: add data_shapes and patch_size as properties (more convenient in tests)
+
+    @property
+    def n_patches(self) -> int:
+        """
+        The number of patches that the patching strategy will return.
+
+        It also determines the maximum index that can be given to `get_patch_spec`,
+        and the length of the `CAREamicsDataset`.
 
         Returns
         -------
-        tuple of two lists of floats
-            Means and standard deviations.
+        int
+            Number of patches.
         """
-        if self.means is None or self.stds is None:
-            return [], []
+        ...
 
-        return list(self.means), list(self.stds)
+    def get_patch_spec(self, index: int) -> PatchSpecs:
+        """
+        Get a patch specification for a given patch index.
 
+        This method is intended to be called from within the
+        `CAREamicsDataset.__getitem__`. The index will be passed through from this
+        method.
 
-@dataclass
-class PatchedOutput:
-    """Dataclass to store patches and statistics."""
+        Parameters
+        ----------
+        index : int
+            A patch index.
 
-    patches: Union[NDArray]
-    """Image patches."""
+        Returns
+        -------
+        PatchSpecs
+            A dictionary that specifies a single patch in a series of `ImageStacks`.
+        """
+        ...
 
-    targets: Union[NDArray, None]
-    """Target patches."""
+    # Note: this is used by the FileIterSampler
+    def get_patch_indices(self, data_idx: int) -> Sequence[int]:
+        """
+        Get the patch indices will return patches for a specific `image_stack`.
 
-    image_stats: Stats
-    """Statistics of the image patches."""
+        The `image_stack` corresponds to the given `data_idx`.
 
-    target_stats: Stats
-    """Statistics of the target patches."""
+        Parameters
+        ----------
+        data_idx : int
+            An index that corresponds to a given `image_stack`.
 
-
-# called by in memory dataset
-def prepare_patches_supervised(
-    train_files: list[Path],
-    target_files: list[Path],
-    axes: str,
-    patch_size: Union[list[int], tuple[int, ...]],
-    read_source_func: Callable,
-) -> PatchedOutput:
-    """
-    Iterate over data source and create an array of patches and corresponding targets.
-
-    The lists of Paths should be pre-sorted.
-
-    Parameters
-    ----------
-    train_files : list of pathlib.Path
-        List of paths to training data.
-    target_files : list of pathlib.Path
-        List of paths to target data.
-    axes : str
-        Axes of the data.
-    patch_size : list or tuple of int
-        Size of the patches.
-    read_source_func : Callable
-        Function to read the data.
-
-    Returns
-    -------
-    np.ndarray
-        Array of patches.
-    """
-    means, stds, num_samples = 0, 0, 0
-    all_patches, all_targets = [], []
-    for train_filename, target_filename in zip(train_files, target_files, strict=False):
-        try:
-            sample: np.ndarray = read_source_func(train_filename, axes)
-            target: np.ndarray = read_source_func(target_filename, axes)
-            means += sample.mean()
-            stds += sample.std()
-            num_samples += 1
-
-            # reshape array
-            sample = reshape_array(sample, axes)
-            target = reshape_array(target, axes)
-
-            # generate patches, return a generator
-            patches, targets = extract_patches_sequential(
-                sample, patch_size=patch_size, target=target
-            )
-
-            # convert generator to list and add to all_patches
-            all_patches.append(patches)
-
-            # ensure targets are not None (type checking)
-            if targets is not None:
-                all_targets.append(targets)
-            else:
-                raise ValueError(f"No target found for {target_filename}.")
-
-        except Exception as e:
-            # emit warning and continue
-            logger.error(f"Failed to read {train_filename} or {target_filename}: {e}")
-
-    # raise error if no valid samples found
-    if num_samples == 0 or len(all_patches) == 0:
-        raise ValueError(
-            f"No valid samples found in the input data: {train_files} and "
-            f"{target_files}."
-        )
-
-    image_means, image_stds = compute_normalization_stats(np.concatenate(all_patches))
-    target_means, target_stds = compute_normalization_stats(np.concatenate(all_targets))
-
-    patch_array: np.ndarray = np.concatenate(all_patches, axis=0)
-    target_array: np.ndarray = np.concatenate(all_targets, axis=0)
-    logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
-
-    return PatchedOutput(
-        patch_array,
-        target_array,
-        Stats(image_means, image_stds),
-        Stats(target_means, target_stds),
-    )
-
-
-# called by in_memory_dataset
-def prepare_patches_unsupervised(
-    train_files: list[Path],
-    axes: str,
-    patch_size: Union[list[int], tuple[int]],
-    read_source_func: Callable,
-) -> PatchedOutput:
-    """Iterate over data source and create an array of patches.
-
-    This method returns the mean and standard deviation of the image.
-
-    Parameters
-    ----------
-    train_files : list of pathlib.Path
-        List of paths to training data.
-    axes : str
-        Axes of the data.
-    patch_size : list or tuple of int
-        Size of the patches.
-    read_source_func : Callable
-        Function to read the data.
-
-    Returns
-    -------
-    PatchedOutput
-        Dataclass holding patches and their statistics.
-    """
-    means, stds, num_samples = 0, 0, 0
-    all_patches = []
-    for filename in train_files:
-        try:
-            sample: np.ndarray = read_source_func(filename, axes)
-            means += sample.mean()
-            stds += sample.std()
-            num_samples += 1
-
-            # reshape array
-            sample = reshape_array(sample, axes)
-
-            # generate patches, return a generator
-            patches, _ = extract_patches_sequential(sample, patch_size=patch_size)
-
-            # convert generator to list and add to all_patches
-            all_patches.append(patches)
-        except Exception as e:
-            # emit warning and continue
-            logger.error(f"Failed to read {filename}: {e}")
-
-    # raise error if no valid samples found
-    if num_samples == 0:
-        raise ValueError(f"No valid samples found in the input data: {train_files}.")
-
-    image_means, image_stds = compute_normalization_stats(np.concatenate(all_patches))
-
-    patch_array: np.ndarray = np.concatenate(all_patches)
-    logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
-
-    return PatchedOutput(
-        patch_array, None, Stats(image_means, image_stds), Stats((), ())
-    )
-
-
-# called on arrays by in memory dataset
-def prepare_patches_supervised_array(
-    data: NDArray,
-    axes: str,
-    data_target: NDArray,
-    patch_size: Union[list[int], tuple[int]],
-) -> PatchedOutput:
-    """Iterate over data source and create an array of patches.
-
-    This method expects an array of shape SC(Z)YX, where S and C can be singleton
-    dimensions.
-
-    Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
-
-    Parameters
-    ----------
-    data : numpy.ndarray
-        Input data array.
-    axes : str
-        Axes of the data.
-    data_target : numpy.ndarray
-        Target data array.
-    patch_size : list or tuple of int
-        Size of the patches.
-
-    Returns
-    -------
-    PatchedOutput
-        Dataclass holding the source and target patches, with their statistics.
-    """
-    # reshape array
-    reshaped_sample = reshape_array(data, axes)
-    reshaped_target = reshape_array(data_target, axes)
-
-    # compute statistics
-    image_means, image_stds = compute_normalization_stats(reshaped_sample)
-    target_means, target_stds = compute_normalization_stats(reshaped_target)
-
-    # generate patches, return a generator
-    patches, patch_targets = extract_patches_sequential(
-        reshaped_sample, patch_size=patch_size, target=reshaped_target
-    )
-
-    if patch_targets is None:
-        raise ValueError("No target extracted.")
-
-    logger.info(f"Extracted {patches.shape[0]} patches from input array.")
-
-    return PatchedOutput(
-        patches,
-        patch_targets,
-        Stats(image_means, image_stds),
-        Stats(target_means, target_stds),
-    )
-
-
-# called by in memory dataset
-def prepare_patches_unsupervised_array(
-    data: NDArray,
-    axes: str,
-    patch_size: Union[list[int], tuple[int]],
-) -> PatchedOutput:
-    """
-    Iterate over data source and create an array of patches.
-
-    This method expects an array of shape SC(Z)YX, where S and C can be singleton
-    dimensions.
-
-    Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
-
-    Parameters
-    ----------
-    data : numpy.ndarray
-        Input data array.
-    axes : str
-        Axes of the data.
-    patch_size : list or tuple of int
-        Size of the patches.
-
-    Returns
-    -------
-    PatchedOutput
-        Dataclass holding the patches and their statistics.
-    """
-    # reshape array
-    reshaped_sample = reshape_array(data, axes)
-
-    # calculate mean and std
-    means, stds = compute_normalization_stats(reshaped_sample)
-
-    # generate patches, return a generator
-    patches, _ = extract_patches_sequential(reshaped_sample, patch_size=patch_size)
-
-    return PatchedOutput(patches, None, Stats(means, stds), Stats((), ()))
+        Returns
+        -------
+        sequence of int
+            A sequence of patch indices, that when used to index the `CAREamicsDataset
+            will return a patch that comes from the `image_stack` corresponding to the
+            given `data_idx`.
+        """
+        ...

@@ -19,11 +19,11 @@ from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.losses.loss_factory import (
-    SupportedLoss,
-    loss_factory,
+from careamics.config.support import SupportedLoss
+from careamics.losses.lvae.lvae_loss_factory import (
+    lvae_loss_factory,
 )
-from careamics.losses.lvae.losses import (
+from careamics.losses.lvae.lvae_losses import (
     _reconstruction_loss_musplit_denoisplit,
     denoisplit_loss,
     denoisplit_musplit_loss,
@@ -90,7 +90,7 @@ def test_lvae_loss_factory(
     loss_type: Union[SupportedLoss, str], exp_loss_func: Callable, exp_error: Callable
 ):
     with exp_error:
-        loss_func = loss_factory(loss_type)
+        loss_func = lvae_loss_factory(loss_type)
         assert loss_func is not None
         assert callable(loss_func)
         assert loss_func == exp_loss_func

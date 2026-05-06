@@ -1,9 +1,9 @@
 """Logger supported by CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedLogger(str, BaseEnum):
+class SupportedLogger(StrEnum):
     """Available loggers."""
 
     WANDB = "wandb"

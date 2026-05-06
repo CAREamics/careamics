@@ -3,7 +3,7 @@
 # %%
 # Noise2Void with channels
 # --8<-- [start:simple]
-from careamics.config import (
+from careamics.compat.config import (
     create_care_configuration,  # CARE
     create_n2n_configuration,  # Noise2Noise
     create_n2v_configuration,  # Noise2Void

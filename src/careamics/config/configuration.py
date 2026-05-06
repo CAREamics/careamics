@@ -1,40 +1,34 @@
-"""Pydantic CAREamics configuration."""
+"""CAREamics configuration compatible with the NG Dataset."""
 
 from __future__ import annotations
 
 import re
+import warnings
 from pprint import pformat
-from typing import Any, Literal, Self, Union
+from typing import Annotated, Any, Generic, Literal, Self, TypeVar
 
-import numpy as np
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
-    HDNAlgorithm,
-    MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
-    PN2VAlgorithm,
 )
 from careamics.config.data import DataConfig
-from careamics.config.lightning.training_config import TrainingConfig
-from careamics.lvae_training.dataset.config import MicroSplitDataConfig
+from careamics.config.lightning.training_configuration import (
+    TrainingConfig,
+    default_training_factory,
+)
+from careamics.models import (
+    get_model_constraints,
+)
 
-ALGORITHMS = Union[
-    CAREAlgorithm,
-    HDNAlgorithm,
-    MicroSplitAlgorithm,
-    N2NAlgorithm,
-    N2VAlgorithm,
-    PN2VAlgorithm,
-]
+AlgorithmConfig = TypeVar("AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm)
 
 
-class Configuration(BaseModel):
-    """
-    CAREamics configuration.
+class Configuration(BaseModel, Generic[AlgorithmConfig]):
+    """CAREamics configuration.
 
     The configuration defines all parameters used to build and train a CAREamics model.
     These parameters are validated to ensure that they are compatible with each other.
@@ -59,15 +53,6 @@ class Configuration(BaseModel):
     training : TrainingModel
         Training configuration.
 
-    Methods
-    -------
-    set_3D(is_3D: bool, axes: str, patch_size: List[int]) -> None
-        Switch configuration between 2D and 3D.
-    model_dump(
-        exclude_defaults: bool = False, exclude_none: bool = True, **kwargs: Dict
-        ) -> Dict
-        Export configuration to a dictionary.
-
     Raises
     ------
     ValueError
@@ -79,49 +64,6 @@ class Configuration(BaseModel):
         with "Z" in data axes.
     ValueError
         Algorithm, data or training validation errors.
-
-    Notes
-    -----
-    We provide convenience methods to create standards configurations, for instance:
-    >>> from careamics.config import create_n2v_configuration
-    >>> config = create_n2v_configuration(
-    ...     experiment_name="n2v_experiment",
-    ...     data_type="array",
-    ...     axes="YX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ... )
-
-    The configuration can be exported to a dictionary using the model_dump method:
-    >>> config_dict = config.model_dump()
-
-    Configurations can also be exported or imported from yaml files:
-    >>> from careamics.config.utils.configuration_io import save_configuration
-    >>> from careamics.config.utils.configuration_io import load_configuration
-    >>> path_to_config = save_configuration(config, my_path / "config.yml")
-    >>> other_config = load_configuration(path_to_config)
-
-    Examples
-    --------
-    Minimum example:
-    >>> from careamics import Configuration
-    >>> config_dict = {
-    ...         "experiment_name": "N2V_experiment",
-    ...         "algorithm_config": {
-    ...             "algorithm": "n2v",
-    ...             "loss": "n2v",
-    ...             "model": {
-    ...                 "architecture": "UNet",
-    ...             },
-    ...         },
-    ...         "training_config": {},
-    ...         "data_config": {
-    ...             "data_type": "tiff",
-    ...             "patch_size": [64, 64],
-    ...             "axes": "SYX",
-    ...         },
-    ...     }
-    >>> config = Configuration(**config_dict)
     """
 
     model_config = ConfigDict(
@@ -130,7 +72,7 @@ class Configuration(BaseModel):
     )
 
     # version
-    version: Literal["0.1.0"] = "0.1.0"
+    version: Literal["0.2.0"] = "0.2.0"
     """CAREamics configuration version."""
 
     # required parameters
@@ -138,15 +80,15 @@ class Configuration(BaseModel):
     """Name of the experiment, used to name logs and checkpoints."""
 
     # Sub-configurations
-    algorithm_config: ALGORITHMS = Field(discriminator="algorithm")
+    algorithm_config: Annotated[AlgorithmConfig, Field(discriminator="algorithm")]
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: DataConfig | MicroSplitDataConfig
+    data_config: DataConfig
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
-    training_config: TrainingConfig
+    training_config: TrainingConfig = Field(default_factory=default_training_factory)
     """Training configuration, holding all parameters required to configure the
     training process."""
 
@@ -156,7 +98,7 @@ class Configuration(BaseModel):
         """
         Validate experiment name.
 
-        A valid experiment name is a non-empty string with only contains letters,
+        A valid experiment name is a non-empty string that only contains letters,
         numbers, underscores, dashes and spaces.
 
         Parameters
@@ -187,66 +129,103 @@ class Configuration(BaseModel):
 
         return name
 
-    @model_validator(mode="after")  # TODO move to n2v configs or remove
-    def validate_n2v_mask_pixel_perc(self: Self) -> Self:
+    @model_validator(mode="after")
+    def validate_3D(self: Self) -> Self:
         """
-        Validate that there will always be at least one blind-spot pixel in every patch.
-
-        The probability of creating a blind-spot pixel is a function of the chosen
-        masked pixel percentage and patch size.
+        Validate algorithm dimensions to match data dimensions.
 
         Returns
         -------
         Self
             Validated configuration.
-
-        Raises
-        ------
-        ValueError
-            If the probability of masking a pixel within a patch is less than 1 for the
-            chosen masked pixel percentage and patch size.
         """
-        # No validation needed for non n2v algorithms # TODO: why ?
-        if not isinstance(self.algorithm_config, N2VAlgorithm | PN2VAlgorithm):
-            return self
-
-        mask_pixel_perc = self.algorithm_config.n2v_config.masked_pixel_percentage
-        patch_size = self.data_config.patch_size
-        expected_area_per_pixel = 1 / (mask_pixel_perc / 100)
-
-        n_dims = 3 if self.algorithm_config.model.is_3D() else 2
-        patch_size_lower_bound = int(np.ceil(expected_area_per_pixel ** (1 / n_dims)))
-        required_patch_size = tuple(
-            2 ** int(np.ceil(np.log2(patch_size_lower_bound))) for _ in range(n_dims)
-        )
-        required_mask_pixel_perc = (1 / np.prod(patch_size)) * 100
-        if expected_area_per_pixel > np.prod(patch_size):
+        if self.data_config.is_3D() != self.algorithm_config.model.is_3D():
             raise ValueError(
-                "The probability of creating a blind-spot pixel within a patch is "
-                f"below 1, for a patch size of {patch_size} with a masked pixel "
-                f"percentage of {mask_pixel_perc}%. Either increase the patch size to "
-                f"{required_patch_size} or increase the masked pixel percentage to "
-                f"at least {required_mask_pixel_perc}%."
+                f"Mismatch between data ({'3D' if self.data_config.is_3D() else '2D'}) "
+                f"and algorithm ("
+                f"{'3D' if self.algorithm_config.model.is_3D() else '2D'}). Data "
+                f"dimensionality is determined by the axes ({self.data_config.axes}), "
+                f"as well as patch size (if applicable) and data type (if data type "
+                f"is 'czi', which uses 3D when 'T' axis is specified)."
             )
 
         return self
 
     @model_validator(mode="after")
-    def validate_3D(self: Self) -> Self:
+    def validate_patch_against_model(self: Self) -> Self:
         """
-        Change algorithm dimensions to match data.axes.
+        Validate that the patch size is compatible with the model constraints.
+
+        This is done by checking that the patch size is compatible with the model
+        constraints.
 
         Returns
         -------
         Self
             Validated configuration.
         """
-        if "Z" in self.data_config.axes and not self.algorithm_config.model.is_3D():
-            # change algorithm to 3D
-            self.algorithm_config.model.set_3D(True)
-        elif "Z" not in self.data_config.axes and self.algorithm_config.model.is_3D():
-            # change algorithm to 2D
-            self.algorithm_config.model.set_3D(False)
+        # no patching, so no need to validate against model constraints
+        if not hasattr(self.data_config.patching, "patch_size"):
+            return self
+
+        model_constraints = get_model_constraints(self.algorithm_config.model)
+        model_constraints.validate_spatial_shape(self.data_config.patching.patch_size)
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_channels_against_inputs(self: Self) -> Self:
+        """
+        Validate that the number of channels in the data is compatible with the model.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        if self.data_config.channels is not None:
+            model_constraints = get_model_constraints(self.algorithm_config.model)
+            model_constraints.validate_input_channels(len(self.data_config.channels))
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_norm_against_channels(self: Self) -> Self:
+        """Validate that normalization is compatible with the model in/out channels.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        # delegate validation to the specific norm
+        self.data_config.normalization.validate_size(
+            self.algorithm_config.model.get_num_input_channels(),
+            self.algorithm_config.model.get_num_output_channels(),
+        )
+        return self
+
+    @model_validator(mode="after")
+    def warn_batch_norm(self: Self) -> Self:
+        """Warn if batch normalization is used with small batch size.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        if (
+            self.algorithm_config.model.uses_batch_norm()
+            and self.data_config.batch_size < 8
+        ):
+            warnings.warn(
+                f"Warning: Batch normalization is used with batch size "
+                f"{self.data_config.batch_size}. We advise using a batch size of at"
+                f" least 8 when using batch normalization, as smaller batch sizes "
+                f"may be unreliable. Consider increasing the batch size or disabling "
+                f"batch normalization in the algorithm `model` parameter.",
+                stacklevel=2,
+            )
 
         return self
 
@@ -260,26 +239,6 @@ class Configuration(BaseModel):
             Pretty string.
         """
         return pformat(self.model_dump())
-
-    def set_3D(self, is_3D: bool, axes: str, patch_size: list[int]) -> None:
-        """
-        Set 3D flag and axes.
-
-        Parameters
-        ----------
-        is_3D : bool
-            Whether the algorithm is 3D or not.
-        axes : str
-            Axes of the data.
-        patch_size : list[int]
-            Patch size.
-        """
-        # set the flag and axes (this will not trigger validation at the config level)
-        self.algorithm_config.model.set_3D(is_3D)
-        self.data_config.set_3D(axes, patch_size)
-
-        # cheap hack: trigger validation
-        self.algorithm_config = self.algorithm_config
 
     def get_algorithm_friendly_name(self) -> str:
         """
@@ -355,6 +314,39 @@ class Configuration(BaseModel):
             Experiment name with spaces replaced with underscores.
         """
         return self.experiment_name.replace(" ", "_")
+
+    def is_supervised(self) -> bool:
+        """
+        Return whether the algorithm is supervised.
+
+        This is true for CARE and N2N, and false for N2V. This is used to determine
+        whether a target is required for training.
+
+        Returns
+        -------
+        bool
+            True if the algorithm is supervised, False otherwise.
+        """
+        return self.algorithm_config.is_supervised()
+
+    def set_3D(self, is_3D: bool, axes: str, patch_size: list[int]) -> None:
+        """
+        Set 3D flag and axes.
+
+        Parameters
+        ----------
+        is_3D : bool
+            Whether the algorithm is 3D or not.
+        axes : str
+            Axes of the data.
+        patch_size : list[int]
+            Patch size.
+        """
+        # set the flag, axes, and patch size
+        self.algorithm_config.model.set_3D(is_3D)
+        self.data_config.set_3D(axes, patch_size)
+        # validate the ng-config instance
+        Configuration.model_validate(self)
 
     def model_dump(
         self,

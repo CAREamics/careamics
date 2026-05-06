@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 from pathlib import Path
 import numpy as np
-from careamics.config.ng_factories import create_n2v_config, create_care_config
-from careamics.dataset_ng.factory import ReadFuncLoading
-from careamics.careamist_v2 import CAREamistV2
+from careamics.config.factories import create_n2v_config, create_care_config
+from careamics.dataset.factory import ReadFuncLoading
+from careamics.careamist import CAREamist
 import tifffile
 import shutil
 
@@ -39,7 +39,7 @@ mask_data = train_data > 50
 
 read_func = None  # fake it
 
-careamist = CAREamistV2(config)
+careamist = CAREamist(config)
 careamist.train(train_data=train_data)
 
 # %%

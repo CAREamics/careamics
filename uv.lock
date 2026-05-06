@@ -396,6 +396,7 @@ wandb = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "h5py" },
     { name = "ml-dtypes" },
     { name = "onnxscript" },
     { name = "pre-commit" },
@@ -418,7 +419,7 @@ requires-dist = [
     { name = "pillow", specifier = "<=12.2.0" },
     { name = "protobuf", marker = "extra == 'tensorboard'", specifier = "==5.29.1" },
     { name = "psutil", specifier = "<=7.2.2" },
-    { name = "pydantic", specifier = ">=2.11,<=2.12.5" },
+    { name = "pydantic", specifier = ">=2.11,<=2.13.3" },
     { name = "pylibczirw", marker = "extra == 'czi'", specifier = ">=4.1.2,<7.0.0" },
     { name = "pytorch-lightning", specifier = ">=2.2,<=2.6.1" },
     { name = "pyyaml", specifier = "!=6.0.0,<=6.0.3" },
@@ -437,8 +438,9 @@ provides-extras = ["czi", "examples", "tensorboard", "wandb"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "h5py", specifier = ">=3.15.1" },
     { name = "ml-dtypes", specifier = ">=0.5.0" },
-    { name = "onnxscript", specifier = "<=0.6.2" },
+    { name = "onnxscript", specifier = "<=0.7.0" },
     { name = "pre-commit" },
     { name = "pylibczirw", specifier = ">=4.1.2,<7.0.0" },
     { name = "pytest" },

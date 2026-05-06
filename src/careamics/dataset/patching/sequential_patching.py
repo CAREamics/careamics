@@ -1,212 +1,165 @@
-"""Sequential patching functions."""
+"""Sequential (grid) patching strategy; prototype, not guaranteed complete."""
 
-from typing import Union
+import itertools
+from collections.abc import Sequence
 
 import numpy as np
-from skimage.util import view_as_windows
+from typing_extensions import ParamSpec
 
-from .validate_patch_dimension import validate_patch_dimensions
+from .patching import PatchSpecs
+
+P = ParamSpec("P")
 
 
-def _compute_number_of_patches(
-    arr_shape: tuple[int, ...], patch_sizes: Union[list[int], tuple[int, ...]]
-) -> tuple[int, ...]:
-    """
-    Compute the number of patches that fit in each dimension.
+# TODO: this is an unfinished prototype based on current tiling implementation
+#  not guaranteed to work!
+class SequentialPatching:
+    """Grid patching strategy with optional overlap; prototype.
 
     Parameters
     ----------
-    arr_shape : tuple[int, ...]
-        Shape of the input array.
-    patch_sizes : Union[list[int], tuple[int, ...]
-        Shape of the patches.
-
-    Returns
-    -------
-    tuple[int, ...]
-        Number of patches in each dimension.
+    data_shapes : sequence of (sequence of int)
+        Shapes of the underlying data (axes SC(Z)YX).
+    patch_size : sequence of int
+        Patch size per spatial dimension.
+    overlaps : sequence of int or None, optional
+        Overlap per axis; if None, no overlap.
     """
-    if len(arr_shape) != len(patch_sizes):
-        raise ValueError(
-            f"Array shape {arr_shape} and patch size {patch_sizes} should have the "
-            f"same dimension, including singleton dimension for S and equal dimension "
-            f"for C."
-        )
 
-    try:
-        n_patches = [
-            np.ceil(arr_shape[i] / patch_sizes[i]).astype(int)
-            for i in range(len(patch_sizes))
+    def __init__(
+        self,
+        data_shapes: Sequence[Sequence[int]],
+        patch_size: Sequence[int],
+        overlaps: Sequence[int] | None = None,
+    ):
+        """Initialize sequential patching with optional overlap per axis.
+
+        Parameters
+        ----------
+        data_shapes : sequence of (sequence of int)
+            Shapes of the underlying data (axes SC(Z)YX).
+        patch_size : sequence of int
+            Patch size per spatial dimension.
+        overlaps : sequence of int or None, optional
+            Overlap per axis; if None, no overlap.
+        """
+        self.data_shapes = data_shapes
+        self.patch_size = patch_size
+        if overlaps is None:
+            overlaps = [0] * len(patch_size)
+        self.overlaps = np.asarray(overlaps)
+
+        self.patch_specs: list[PatchSpecs] = self._initialize_patch_specs()
+
+    @property
+    def n_patches(self) -> int:
+        """Total number of patches.
+
+        Returns
+        -------
+        int
+            Number of patches.
+        """
+        return len(self.patch_specs)
+
+    def get_patch_spec(self, index: int) -> PatchSpecs:
+        """Return the patch spec for the given index.
+
+        Parameters
+        ----------
+        index : int
+            Patch index.
+
+        Returns
+        -------
+        PatchSpecs
+            Patch spec for that index.
+        """
+        return self.patch_specs[index]
+
+    # Note: this is used by the FileIterSampler
+    def get_patch_indices(self, data_idx: int) -> Sequence[int]:
+        """
+        Get the patch indices will return patches for a specific `image_stack`.
+
+        The `image_stack` corresponds to the given `data_idx`.
+
+        Parameters
+        ----------
+        data_idx : int
+            An index that corresponds to a given `image_stack`.
+
+        Returns
+        -------
+        sequence of int
+            A sequence of patch indices, that when used to index the `CAREamicsDataset
+            will return a patch that comes from the `image_stack` corresponding to the
+            given `data_idx`.
+        """
+        return [
+            i
+            for i, patch_spec in enumerate(self.patch_specs)
+            if patch_spec["data_idx"] == data_idx
         ]
-    except IndexError as e:
-        raise ValueError(
-            f"Patch size {patch_sizes} is not compatible with array shape {arr_shape}"
-        ) from e
 
-    return tuple(n_patches)
+    def _compute_coords_1d(
+        self, patch_size: int, spatial_shape: int, overlap: int
+    ) -> list[tuple[int, int]]:
+        """Compute 1D crop (start, end) coords along one axis with given overlap.
 
+        Parameters
+        ----------
+        patch_size : int
+            Size of patch along this axis.
+        spatial_shape : int
+            Size of spatial dimension.
+        overlap : int
+            Overlap along this axis.
 
-def _compute_overlap(
-    arr_shape: tuple[int, ...], patch_sizes: Union[list[int], tuple[int, ...]]
-) -> tuple[int, ...]:
-    """
-    Compute the overlap between patches in each dimension.
+        Returns
+        -------
+        list of tuple of (int, int)
+            (start, end) for each crop.
+        """
+        step = patch_size - overlap
+        crop_coords = []
 
-    If the array dimensions are divisible by the patch sizes, then the overlap is
-    0. Otherwise, it is the result of the division rounded to the upper value.
+        current_pos = 0
+        while current_pos <= spatial_shape - patch_size:
+            crop_coords.append((current_pos, current_pos + patch_size))
+            current_pos += step
 
-    Parameters
-    ----------
-    arr_shape : tuple[int, ...]
-        Input array shape.
-    patch_sizes : Union[list[int], tuple[int, ...]]
-        Size of the patches.
+        if crop_coords[-1][1] < spatial_shape:
+            crop_coords.append((spatial_shape - patch_size, spatial_shape))
 
-    Returns
-    -------
-    tuple[int, ...]
-        Overlap between patches in each dimension.
-    """
-    n_patches = _compute_number_of_patches(arr_shape, patch_sizes)
+        return crop_coords
 
-    overlap = [
-        np.ceil(
-            np.clip(n_patches[i] * patch_sizes[i] - arr_shape[i], 0, None)
-            / max(1, (n_patches[i] - 1))
-        ).astype(int)
-        for i in range(len(patch_sizes))
-    ]
-    return tuple(overlap)
+    def _initialize_patch_specs(self) -> list[PatchSpecs]:
+        """Build the full list of patch specs for all data shapes.
 
+        Returns
+        -------
+        list of PatchSpecs
+            Full list of patch specs.
+        """
+        patch_specs: list[PatchSpecs] = []
+        for data_idx, data_shape in enumerate(self.data_shapes):
 
-def _compute_patch_steps(
-    patch_sizes: Union[list[int], tuple[int, ...]], overlaps: tuple[int, ...]
-) -> tuple[int, ...]:
-    """
-    Compute steps between patches.
-
-    Parameters
-    ----------
-    patch_sizes : tuple[int]
-        Size of the patches.
-    overlaps : tuple[int]
-        Overlap between patches.
-
-    Returns
-    -------
-    tuple[int]
-        Steps between patches.
-    """
-    steps = [
-        min(patch_sizes[i] - overlaps[i], patch_sizes[i])
-        for i in range(len(patch_sizes))
-    ]
-    return tuple(steps)
-
-
-# TODO why stack the target here and not on a different dimension before this function?
-def _compute_patch_views(
-    arr: np.ndarray,
-    window_shape: list[int],
-    step: tuple[int, ...],
-    output_shape: list[int],
-    target: np.ndarray | None = None,
-) -> np.ndarray:
-    """
-    Compute views of an array corresponding to patches.
-
-    Parameters
-    ----------
-    arr : np.ndarray
-        Array from which the views are extracted.
-    window_shape : tuple[int]
-        Shape of the views.
-    step : tuple[int]
-        Steps between views.
-    output_shape : tuple[int]
-        Shape of the output array.
-    target : Optional[np.ndarray], optional
-        Target array, by default None.
-
-    Returns
-    -------
-    np.ndarray
-        Array with views dimension.
-    """
-    rng = np.random.default_rng()
-
-    if target is not None:
-        arr = np.stack([arr, target], axis=0)
-        window_shape = [arr.shape[0], *window_shape]
-        step = (arr.shape[0], *step)
-        output_shape = [-1, arr.shape[0], arr.shape[2], *output_shape[2:]]
-
-    patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
-        *output_shape
-    )
-    rng.shuffle(patches, axis=0)
-    return patches
-
-
-def extract_patches_sequential(
-    arr: np.ndarray,
-    patch_size: Union[list[int], tuple[int, ...]],
-    target: np.ndarray | None = None,
-) -> tuple[np.ndarray, np.ndarray | None]:
-    """
-    Generate patches from an array in a sequential manner.
-
-    Array dimensions should be SC(Z)YX, where S and C can be singleton dimensions. The
-    patches are generated sequentially and cover the whole array.
-
-    Parameters
-    ----------
-    arr : np.ndarray
-        Input image array.
-    patch_size : tuple[int]
-        Patch sizes in each dimension.
-    target : Optional[np.ndarray], optional
-        Target array, by default None.
-
-    Returns
-    -------
-    tuple[np.ndarray, Optional[np.ndarray]]
-        Patches.
-    """
-    is_3d_patch = len(patch_size) == 3
-
-    # Patches sanity check
-    validate_patch_dimensions(arr, patch_size, is_3d_patch)
-
-    # Update patch size to encompass S and C dimensions
-    patch_size = [1, arr.shape[1], *patch_size]
-
-    # Compute overlap
-    overlaps = _compute_overlap(arr_shape=arr.shape, patch_sizes=patch_size)
-
-    # Create view window and overlaps
-    window_steps = _compute_patch_steps(patch_sizes=patch_size, overlaps=overlaps)
-
-    output_shape = [
-        -1,
-    ] + patch_size[1:]
-
-    # Generate a view of the input array containing pre-calculated number of patches
-    # in each dimension with overlap.
-    # Resulting array is resized to (n_patches, C, Z, Y, X) or (n_patches, C, Y, X)
-    patches = _compute_patch_views(
-        arr,
-        window_shape=patch_size,
-        step=window_steps,
-        output_shape=output_shape,
-        target=target,
-    )
-
-    if target is not None:
-        # target was concatenated to patches in _compute_reshaped_view
-        return (
-            patches[:, 0, ...],
-            patches[:, 1, ...],
-        )  # TODO  in _compute_reshaped_view?
-    else:
-        return patches, None
+            data_spatial_shape = data_shape[-len(self.patch_size) :]
+            coords_list = [
+                self._compute_coords_1d(
+                    self.patch_size[i], data_spatial_shape[i], self.overlaps[i]
+                )
+                for i in range(len(self.patch_size))
+            ]
+            for sample_idx in range(data_shape[0]):
+                for crop_coord in itertools.product(*coords_list):
+                    patch_specs.append(
+                        PatchSpecs(
+                            data_idx=data_idx,
+                            sample_idx=sample_idx,
+                            coords=tuple(coord[0] for coord in crop_coord),
+                            patch_size=self.patch_size,
+                        )
+                    )
+        return patch_specs

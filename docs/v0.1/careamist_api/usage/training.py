@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # %%
 # pre-requisite
-from careamics import CAREamist
-from careamics.config import create_n2v_configuration
+from careamics.compat.careamist import CAREamist
+from careamics.compat.config import create_n2v_configuration
 
 config = create_n2v_configuration(
     experiment_name="n2v_2D",
@@ -65,7 +65,7 @@ careamist.train(
 
 # %%
 # --8<-- [start:datamodule]
-from careamics.lightning import TrainDataModule
+from careamics.compat.lightning import TrainDataModule
 
 data_module = TrainDataModule(  # (1)!
     data_config=config.data_config, train_data=train_array
@@ -75,7 +75,7 @@ careamist.train(datamodule=data_module)
 # --8<-- [end:datamodule]
 
 # %%
-from careamics.config import create_care_configuration
+from careamics.compat.config import create_care_configuration
 
 config_care = create_care_configuration(
     experiment_name="care_2D",
