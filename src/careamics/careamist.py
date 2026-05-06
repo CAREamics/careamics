@@ -863,9 +863,8 @@ class CAREamist:
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
                 raise RuntimeError(
-                    "Out of memory error during prediction. Try reducing batch size or "
-                    "tile size, e.g. predict(..., batch_size=1) or "
-                    "predict(..., tile_size=(64, 64))."
+                    "\nOut of GPU memory during prediction.\n"
+                    "Try reducing the batch size: predict(..., batch_size=1)\n"
                 ) from e
             raise
         tiled = tile_size is not None
@@ -1095,9 +1094,8 @@ class CAREamist:
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
                 raise RuntimeError(
-                    "Out of memory error during prediction. Try reducing batch size or "
-                    "tile size, e.g. predict_to_disk(..., batch_size=1) or "
-                    "predict_to_disk(..., tile_size=(64, 64))."
+                    "\nOut of GPU memory during prediction.\n"
+                    "Try reducing the batch size: predict_to_disk(..., batch_size=1)\n"
                 ) from e
             raise
         finally:
