@@ -4,7 +4,7 @@
 ################ Noise2Void ################
 # %%
 # --8<-- [start:adv_config_n2v_trainer]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -20,7 +20,7 @@ config = create_advanced_n2v_config(
 
 # %%
 # --8<-- [start:adv_config_n2v_no_val]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -37,7 +37,7 @@ config = create_advanced_n2v_config(
 
 # %%
 # --8<-- [start:adv_config_n2v_model]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -55,7 +55,7 @@ config = create_advanced_n2v_config(
 
 # %%
 # --8<-- [start:adv_config_n2v_opt]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -73,7 +73,7 @@ config = create_advanced_n2v_config(
 # --8<-- [end:adv_config_n2v_opt]
 # %%
 # --8<-- [start:adv_config_n2v_lr]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -92,7 +92,7 @@ config = create_advanced_n2v_config(
 # --8<-- [end:adv_config_n2v_lr]
 # %%
 # --8<-- [start:adv_config_n2v_train_dm]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -111,7 +111,7 @@ config = create_advanced_n2v_config(
 
 # %%
 # --8<-- [start:adv_config_n2v_checkpoint]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -133,7 +133,7 @@ config = create_advanced_n2v_config(
 ################# CARE/N2N #################
 # %%
 # --8<-- [start:adv_config_care_trainer]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -148,7 +148,7 @@ config = create_advanced_care_config(
 # --8<-- [end:adv_config_care_trainer]
 # %%
 # --8<-- [start:adv_config_care_model]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -166,7 +166,7 @@ config = create_advanced_care_config(
 
 # %%
 # --8<-- [start:adv_config_care_opt]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -184,7 +184,7 @@ config = create_advanced_care_config(
 # --8<-- [end:adv_config_care_opt]
 # %%
 # --8<-- [start:adv_config_care_lr]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -203,7 +203,7 @@ config = create_advanced_care_config(
 # --8<-- [end:adv_config_care_lr]
 # %%
 # --8<-- [start:adv_config_care_train_dm]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -221,7 +221,7 @@ config = create_advanced_care_config(
 # --8<-- [end:adv_config_care_train_dm]
 # %%
 # --8<-- [start:adv_config_care_checkpoint]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -241,7 +241,7 @@ config = create_advanced_care_config(
 
 # %%
 # --8<-- [start:adv_config_care_early_stop]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config.factories import create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(

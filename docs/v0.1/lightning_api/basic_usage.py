@@ -12,12 +12,12 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 
-from careamics.lightning import (  # (1)!
+from careamics.compat.lightning import (  # (1)!
     create_careamics_module,
     create_predict_datamodule,
     create_train_datamodule,
 )
-from careamics.prediction_utils import convert_outputs
+from careamics.compat.prediction_utils import convert_outputs
 
 # training data
 rng = np.random.default_rng(42)
