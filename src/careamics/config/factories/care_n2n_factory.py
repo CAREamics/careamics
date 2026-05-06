@@ -11,7 +11,11 @@ from careamics.config.augmentations import (
 from careamics.config.configuration import Configuration
 
 from .algorithm_factory import create_algorithm_configuration
-from .data_factory import create_ng_data_configuration, list_spatial_augmentations
+from .data_factory import (
+    SupportedPatchFilterConfig,
+    create_ng_data_configuration,
+    list_spatial_augmentations,
+)
 from .training_factory import create_training_configuration, update_trainer_params
 
 
@@ -175,6 +179,7 @@ def create_advanced_care_config(
     independent_channels: bool = False,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
+    patch_filter_config: SupportedPatchFilterConfig | None = None,
     # - Lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -259,10 +264,16 @@ def create_advanced_care_config(
         Normalization strategy to use.
     normalization_params : dict[str, Any] | None, default=None
         Strategy-specific normalization parameters. If None, default values are used.
-        For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
-        For "none": No parameters needed.
+
+        - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
+        - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
+        - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
+        - For "none": No parameters needed.
+
+    patch_filter_config : SupportedPatchFilterConfig | None, default=None
+        Specify the configuration for patch filtering. Patch filtering reduces the
+        probability of background patches being selected during training. If `None`,
+        no patch filter is applied.
     num_workers : int, default=-1
         Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
@@ -326,6 +337,7 @@ def create_advanced_n2n_config(
     independent_channels: bool = True,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
+    patch_filter_config: SupportedPatchFilterConfig | None = None,
     # - Lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -409,10 +421,16 @@ def create_advanced_n2n_config(
         Normalization strategy to use.
     normalization_params : dict[str, Any] | None, default=None
         Strategy-specific normalization parameters. If None, default values are used.
-        For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
-        For "none": No parameters needed.
+
+        - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
+        - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
+        - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
+        - For "none": No parameters needed.
+
+    patch_filter_config : SupportedPatchFilterConfig | None, default=None
+        Specify the configuration for patch filtering. Patch filtering reduces the
+        probability of background patches being selected during training. If `None`,
+        no patch filter is applied.
     num_workers : int, default=-1
         Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
@@ -475,6 +493,7 @@ def _create_advanced_supervised_config(
     independent_channels: bool = False,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
+    patch_filter_config: SupportedPatchFilterConfig | None = None,
     # - Lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -561,10 +580,16 @@ def _create_advanced_supervised_config(
         Normalization strategy to use.
     normalization_params : dict[str, Any] | None, default=None
         Strategy-specific normalization parameters. If None, default values are used.
-        For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
-        For "none": No parameters needed.
+
+        - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
+        - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
+        - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
+        - For "none": No parameters needed.
+
+    patch_filter_config : SupportedPatchFilterConfig | None, default=None
+        Specify the configuration for patch filtering. Patch filtering reduces the
+        probability of background patches being selected during training. If `None`,
+        no patch filter is applied.
     num_workers : int, default=-1
         Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
@@ -671,6 +696,7 @@ def _create_advanced_supervised_config(
         augmentations=spatial_transforms,
         n_val_patches=n_val_patches,
         normalization=norm_config,
+        patch_filter_config=patch_filter_config,
         channels=channels,
         in_memory=in_memory,
         num_workers=num_workers,

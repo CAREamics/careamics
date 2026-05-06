@@ -7,11 +7,14 @@ __all__ = [
     "HDNAlgorithm",
     "LVAEConfig",
     "LVAELossConfig",
+    "MaxPatchFilterConfig",
+    "MeanStdPatchFilterConfig",
     "MicroSplitAlgorithm",
     "MultiChannelNMConfig",
     "N2NAlgorithm",
     "N2VAlgorithm",
     "PN2VAlgorithm",
+    "ShannonPatchFilterConfig",
     "UNetBasedAlgorithm",
     "UNetConfig",
     "VAEBasedAlgorithm",
@@ -36,7 +39,12 @@ from .algorithms import (
     VAEBasedAlgorithm,
 )
 from .architectures import LVAEConfig, UNetConfig
-from .data import DataConfig
+from .data import (
+    DataConfig,
+    MaxPatchFilterConfig,
+    MeanStdPatchFilterConfig,
+    ShannonPatchFilterConfig,
+)
 from .factories import (
     create_advanced_care_config,
     create_advanced_n2n_config,

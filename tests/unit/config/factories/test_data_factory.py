@@ -6,16 +6,27 @@ from careamics.config.augmentations import (
     XYRandomRotate90Config,
 )
 from careamics.config.data import DataConfig
+from careamics.config.data.patch_filter import (
+    MaxPatchFilterConfig,
+    MeanStdPatchFilterConfig,
+    ShannonPatchFilterConfig,
+)
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.factories.data_factory import (
+    SupportedPatchFilterConfig,
     create_ng_data_configuration,
     list_spatial_augmentations,
 )
 from careamics.config.support import SupportedTransform
 
+PATCH_FILTER_CONFIGS = (
+    MeanStdPatchFilterConfig(mean_threshold=0.5),
+    ShannonPatchFilterConfig(threshold=0.5),
+    MaxPatchFilterConfig(threshold=0.5),
+)
+
 
 class TestSpatialAugmentations:
-
     def test_list_aug_default(self):
         """Test that the default augmentations are present."""
         list_aug = list_spatial_augmentations(augmentations=None)
@@ -49,7 +60,6 @@ class TestSpatialAugmentations:
 
 
 class TestDataConfiguration:
-
     def test_default_aug(self):
         """Test that the default augmentations are present in the configuration."""
         config: DataConfig = create_ng_data_configuration(
@@ -100,3 +110,17 @@ class TestDataConfiguration:
         assert config.train_dataloader_params["num_workers"] == 4
         assert config.val_dataloader_params["num_workers"] == 4
         assert config.pred_dataloader_params["num_workers"] == 4
+
+    @pytest.mark.parametrize("patch_filter_config", PATCH_FILTER_CONFIGS)
+    def test_patch_filter(self, patch_filter_config: SupportedPatchFilterConfig):
+        """Test that patch filter configuration is passed through."""
+        config: DataConfig = create_ng_data_configuration(
+            data_type="array",
+            axes="YX",
+            patch_size=(16, 16),
+            batch_size=1,
+            patch_filter_config=patch_filter_config,
+        )
+
+        assert config.patch_filter is not None
+        assert config.patch_filter.name == patch_filter_config.name

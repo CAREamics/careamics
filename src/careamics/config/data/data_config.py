@@ -32,7 +32,7 @@ from .normalization_config import NormalizationConfig
 from .patch_filter import (
     MaskPatchFilterConfig,
     MaxPatchFilterConfig,
-    MeanSTDPatchFilterConfig,
+    MeanStdPatchFilterConfig,
     ShannonPatchFilterConfig,
 )
 from .patching_strategies import (
@@ -261,7 +261,7 @@ PatchingConfig = Union[
 
 PatchFilterConfig = Union[
     MaxPatchFilterConfig,
-    MeanSTDPatchFilterConfig,
+    MeanStdPatchFilterConfig,
     ShannonPatchFilterConfig,
 ]
 """Patch filter type."""
@@ -322,10 +322,24 @@ def _create_mask_filter(
     assert data_type is not None and isinstance(data_type, str)
     is_3d = _is_3D(axes, SupportedData(data_type))
 
-    ndims = 3 if is_3d else 2
-    coverage = 1 / (2**ndims)
+    return MaskPatchFilterConfig(coverage=_default_filter_coverage(is_3d))
 
-    return MaskPatchFilterConfig(coverage=coverage)
+
+def _default_filter_coverage(is_3d: bool) -> float:
+    """Return default filter coverage based on spatial dimensionality.
+
+    Parameters
+    ----------
+    is_3d : bool
+        Whether the data is 3D.
+
+    Returns
+    -------
+    float
+        Default filter coverage, 0.25 for 2D data and 0.125 for 3D data.
+    """
+    ndims = 3 if is_3d else 2
+    return 1 / (2**ndims)
 
 
 class DataConfig(BaseModel):
@@ -797,6 +811,26 @@ class DataConfig(BaseModel):
         if self.seed is not None:
             if hasattr(self.patching, "seed") and self.patching.seed is None:
                 self.patching.seed = self.seed
+        return self
+
+    @model_validator(mode="after")
+    def set_default_max_patch_filter_coverage(self: Self) -> Self:
+        """
+        Set default max patch filter coverage based on data dimensionality.
+
+        Returns
+        -------
+        Self
+            Data model with default max patch filter coverage updated.
+        """
+        # NOTE: model_fields_set attr shows whether the field was set explicitly by user
+        if (
+            isinstance(self.patch_filter, MaxPatchFilterConfig)
+            and "coverage" not in self.patch_filter.model_fields_set
+        ):
+            is_3d = _is_3D(self.axes, SupportedData(self.data_type))
+            self.patch_filter.coverage = _default_filter_coverage(is_3d)
+
         return self
 
     @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
