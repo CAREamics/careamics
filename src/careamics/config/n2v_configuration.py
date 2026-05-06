@@ -16,6 +16,9 @@ class N2VConfiguration(Configuration):
 
     algorithm_config: N2VAlgorithm
 
+    # TODO note that only patch sizes 4 and 8 may lead to less than 1 expected masked
+    # pixel per patch given a minimum masked pixel percentage of 0.05%. This validation
+    # could be removed in the future.
     @model_validator(mode="after")
     def validate_n2v_mask_pixel_perc(self: Self) -> Self:
         """
@@ -59,6 +62,37 @@ class N2VConfiguration(Configuration):
                     f"percentage of {mask_pixel_perc}%. Either increase the patch size "
                     f"to {required_patch_size} or increase the masked pixel percentage "
                     f"to at least {required_mask_pixel_perc}%."
+                )
+
+        return self
+
+    @model_validator(mode="after")
+    def monitor_training_when_no_validation(self: Self) -> Self:
+        """
+        Validate that training loss is monitored when no validation data is used.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+
+        Raises
+        ------
+        ValueError
+            If no validation data is used and the monitored metric is not a training
+            metric.
+        """
+        if self.data_config.mode == "training" and self.data_config.n_val_patches == 0:
+            monitored_metric = self.algorithm_config.monitor_metric
+
+            if monitored_metric not in ["train_loss", "train_loss_epoch"]:
+                raise ValueError(
+                    f"No validation data is used (`n_val_patches=0`), but the monitored"
+                    f" metric ({monitored_metric}) is not a training metric. Please set"
+                    f" `algorithm_config.monitor_metric` to `train_loss` or "
+                    f"`train_loss_epoch` to monitor the training loss during training. "
+                    f"Note that the `n_val_patches` parameter is ignored if passing "
+                    f"validation data. In which case, keep the default value."
                 )
 
         return self

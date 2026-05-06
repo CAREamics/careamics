@@ -51,6 +51,7 @@ dependencies = [
     'torchmetrics >0.7.0, <1.9.0',
 
     # --- Data, image processing and visualization ---
+    'pyyaml!=6.0.0,<=6.0.3',
     'scikit-image<=0.26.0',
     'zarr>=3.0.0,<4.0.0',
     'tifffile<=2026.3.3',
@@ -101,9 +102,6 @@ dev = [
 homepage = "https://careamics.github.io/"
 repository = "https://github.com/CAREamics/careamics"
 
-# cli
-[project.scripts]
-careamics = "careamics.cli.main:run"
 
 # https://beta.ruff.rs/docs
 [tool.ruff]

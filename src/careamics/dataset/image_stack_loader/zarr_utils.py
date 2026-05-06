@@ -1,10 +1,13 @@
 """Zarr path and URI utilities for image stack loaders."""
 
-import warnings
 from pathlib import Path
 from urllib.parse import urlparse
 
 import zarr
+
+from careamics.utils import get_logger
+
+logger = get_logger("ZarrUtils")
 
 INPUT = str | Path
 
@@ -56,11 +59,7 @@ def collect_arrays(zarr_group: zarr.Group) -> list[str]:
             arrays.append(name)
 
     if arrays == []:
-        warnings.warn(
-            f"No arrays found in zarr group at '{zarr_group.path}'.",
-            UserWarning,
-            stacklevel=2,
-        )
+        logger.warning(f"No arrays found in zarr group at '{zarr_group.path}'.")
 
     return arrays
 

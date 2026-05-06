@@ -107,8 +107,6 @@ class ZarrTileWriteStrategy(WriteStrategy):
 
             self.current_store = open_store
 
-        print(f"Store: {Path(store).absolute()}")
-
     def _create_group(self, group_path: str) -> None:
         """Create a new group in an existing zarr storage.
 

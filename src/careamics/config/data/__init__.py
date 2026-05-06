@@ -5,8 +5,8 @@ __all__ = [
     "DataConfig",
     "MaskPatchFilterConfig",
     "MaxPatchFilterConfig",
-    "MeanSTDPatchFilterConfig",
     "MeanStdConfig",
+    "MeanStdPatchFilterConfig",
     "MinMaxConfig",
     "NoNormConfig",
     "NormalizationConfig",
@@ -28,7 +28,7 @@ from .normalization_config import (
 from .patch_filter import (
     MaskPatchFilterConfig,
     MaxPatchFilterConfig,
-    MeanSTDPatchFilterConfig,
+    MeanStdPatchFilterConfig,
     ShannonPatchFilterConfig,
 )
 from .patching_strategies import (

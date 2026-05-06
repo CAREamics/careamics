@@ -1,10 +1,8 @@
 """Version utility."""
 
-import logging
+import warnings
 
 from careamics import __version__
-
-logger = logging.getLogger(__name__)
 
 
 # TODO only used in BMZ, but could be useful as a convenience function for users
@@ -27,12 +25,13 @@ def get_careamics_version() -> str:
         parts[2] = "*"
         clean_version = ".".join(parts[:3])
 
-        logger.warning(
+        warnings.warn(
             f"Your CAREamics version seems to be a locally modified version "
             f"({__version__}). The recorded version for loading models will be "
             f"{clean_version}, which may not exist. If you want to ensure "
             f"exporting the model with an existing version, please install the "
-            f"closest CAREamics version from PyPI or conda-forge."
+            f"closest CAREamics version from PyPI or conda-forge.",
+            stacklevel=2,
         )
 
     # Remove any local version identifier

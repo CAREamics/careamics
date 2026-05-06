@@ -158,7 +158,7 @@ def lateral_context_patch_constr(
         # TODO: maybe we want to limit this constructor to only images with 1 channel
         #   then we can put LCs in the channel dimension
         #   but not sure if this artificially limits potential use-cases
-        patch = np.zeros((n_channels, multiscale_count, *patch_size))
+        patch = np.zeros((n_channels, multiscale_count, *patch_size), dtype=np.float32)
         for scale in range(multiscale_count):
             lc_patch_size = np.array(patch_size) * (2**scale)
             lc_start = np.array(coords) + np.array(patch_size) // 2 - lc_patch_size // 2
