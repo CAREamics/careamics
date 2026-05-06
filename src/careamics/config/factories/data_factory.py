@@ -9,7 +9,17 @@ from careamics.config.augmentations import (
     XYRandomRotate90Config,
 )
 from careamics.config.data import DataConfig
+from careamics.config.data.patch_filter import (
+    MaxPatchFilterConfig,
+    MeanStdPatchFilterConfig,
+    ShannonPatchFilterConfig,
+)
 from careamics.config.utils.random import generate_random_seed
+
+SupportedPatchFilterConfig = (
+    MaxPatchFilterConfig | MeanStdPatchFilterConfig | ShannonPatchFilterConfig
+)
+"""Configuration for filtering background patches during training."""
 
 
 def list_spatial_augmentations(
@@ -72,6 +82,7 @@ def create_ng_data_configuration(
     batch_size: int,
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
     normalization: dict | None = None,
+    patch_filter_config: SupportedPatchFilterConfig | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
     n_val_patches: int = 8,
@@ -103,6 +114,10 @@ def create_ng_data_configuration(
     normalization : dict, default=None
         Normalization configuration dictionary. If None, defaults to mean_std
         normalization with automatically computed statistics.
+    patch_filter_config : SupportedPatchFilterConfig | None, default=None
+        Specify the configuration for patch filtering. Patch filtering reduces the
+        probability of background patches being selected during training. If `None`,
+        no patch filter is applied.
     channels : Sequence of int, default=None
         List of channels to use. If `None`, all channels are used.
     in_memory : bool, default=None
@@ -153,6 +168,9 @@ def create_ng_data_configuration(
             normalization if normalization is not None else {"name": "mean_std"}
         ),
     }
+
+    if patch_filter_config is not None:
+        data["patch_filter"] = patch_filter_config
 
     if in_memory is not None:
         data["in_memory"] = in_memory
