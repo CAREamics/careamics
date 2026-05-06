@@ -13,7 +13,7 @@ from careamics.compat.lightning.callbacks.prediction_writer_callback import (
     select_write_extension,
     select_write_func,
 )
-from careamics.file_io.write import write_tiff
+from careamics.image_io.write import write_tiff
 
 
 def save_numpy(file_path: Path, img: NDArray, *args, **kwargs) -> None:

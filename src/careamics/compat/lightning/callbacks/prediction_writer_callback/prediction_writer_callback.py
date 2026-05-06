@@ -14,7 +14,7 @@ from careamics.compat.dataset import (
     IterablePredDataset,
     IterableTiledPredDataset,
 )
-from careamics.file_io import SupportedWriteType, WriteFunc
+from careamics.image_io import SupportedWriteType, WriteFunc
 from careamics.utils import get_logger
 
 from .write_strategy import WriteStrategy

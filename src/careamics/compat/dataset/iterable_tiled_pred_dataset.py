@@ -13,7 +13,7 @@ from careamics.compat.config.augmentations import NormalizeConfig
 from careamics.compat.config.data import InferenceConfig
 from careamics.compat.config.data.tile_information import TileInformation
 from careamics.compat.transforms.compose import Compose
-from careamics.file_io.read import read_tiff
+from careamics.image_io.read import read_tiff
 
 from .dataset_utils import iterate_over_files
 from .tiling import extract_tiles

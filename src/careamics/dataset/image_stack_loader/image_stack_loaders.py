@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from zarr.storage import StorePath
 
 from careamics.config.validators import check_czi_axes_validity
-from careamics.file_io import ReadFunc
+from careamics.image_io import ReadFunc
 
 from ..image_stack import (
     FileImageStack,
@@ -20,7 +20,7 @@ from ..image_stack.czi_image_stack import CziImageStack
 from .zarr_utils import collect_arrays, decipher_zarr_uri, is_ome_zarr, is_valid_uri
 
 if TYPE_CHECKING:
-    from careamics.file_io.read import ReadFunc
+    from careamics.image_io.read import ReadFunc
 
 
 def load_arrays(source: Sequence[NDArray[Any]], axes: str) -> list[InMemoryImageStack]:
