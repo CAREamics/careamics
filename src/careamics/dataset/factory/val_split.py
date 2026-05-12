@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import numpy as np
 from numpy.typing import NDArray
 
+from careamics.utils.logging import get_logger
 from ..patching import (
     FixedPatching,
     PatchSpecs,
@@ -44,48 +45,57 @@ def create_val_split(
         The patching strategy to be used for validation. It will return the same patches
         every epoch.
     """
+    logger = get_logger("Validation Splitting")
     patch_size = stratified_patching.patch_size
-    if n_val_patches >= stratified_patching.n_patches:
-        raise ValueError(
-            "The number of validation patches to be extracted from the training set is "
-            f"too large for given training data size(got {n_val_patches} validation"
-            f"patches but only {stratified_patching.n_patches} training patches "
-            f"available with patch size {patch_size}). Make sure you have enough data "
-            "to train with, decrease 'n_val_patches' or the patch size."
-        )
 
     # validation patches have to lie on this grid
     grid_coords = stratified_patching.get_included_grid_coords()
     # sample_ids are (data_idx, sample_idx)
     sample_ids = list(grid_coords.keys())
 
-    # select validation patches
-    n_patches_per_image = np.array(
+    # --- randomly decide how many validation patches will be selected from each sample
+    viable_patches_per_image = np.array(
         [
-            stratified_patching.image_patching[data_idx][sample_idx].n_patches
+            # Note: images with a (2 x 2) grid have no viable validation patches
+            _n_viable_val_patches(
+                stratified_patching.image_patching[data_idx][sample_idx].grid_shape
+            )
             for data_idx, sample_idx in sample_ids
         ]
     )
-    n_selected_image_patches = np.zeros_like(n_patches_per_image)
+    if n_val_patches >= viable_patches_per_image.sum():
+        raise ValueError(
+            "The number of validation patches to be extracted from the training set is "
+            f"too large for given training data size(got {n_val_patches} validation"
+            f"patches but only {viable_patches_per_image.sum()} training patches "
+            f"available with patch size {patch_size}). Make sure you have enough data "
+            "to train with, decrease 'n_val_patches' or the patch size."
+        )
+    val_patches_per_image = np.zeros_like(viable_patches_per_image)
     val_patch_specs: list[PatchSpecs] = []
     for _ in range(n_val_patches):
-        probs = n_patches_per_image / n_patches_per_image.sum()
-        idx = rng.choice(np.arange(len(n_patches_per_image)), p=probs)
-        n_selected_image_patches[idx] += 1
-        n_patches_per_image[idx] -= 1
+        probs = viable_patches_per_image / viable_patches_per_image.sum()
+        idx = rng.choice(np.arange(len(viable_patches_per_image)), p=probs)
+        # add to the selected and remove from the viable count
+        val_patches_per_image[idx] += 1
+        viable_patches_per_image[idx] -= 1
 
-    for idx, n_patches in enumerate(n_selected_image_patches):
+    # --- for each image select the validation patches
+    n_selected = 0  # for logging (it may not be possible to select the exact n patches)
+    for idx, n_patches in enumerate(val_patches_per_image):
+        if n_patches == 0:
+            continue
+
         data_idx, sample_idx = sample_ids[idx]
-        # randomly choose the validation patches in the image
-        coord_indices = rng.choice(
-            len(grid_coords[(data_idx, sample_idx)]), n_patches, replace=False
-        )
-        coords: list[tuple[int, ...]] = [
-            grid_coords[(data_idx, sample_idx)][coord_idx]
-            for coord_idx in coord_indices
-        ]
+
+        # select validation patches
+        grid_shape = stratified_patching.image_patching[data_idx][sample_idx].grid_shape
+        coords = select_validation(grid_shape, n_patches, rng)
         # exclude the chosen validation patches from training
         stratified_patching.exclude_patches(data_idx, sample_idx, coords)
+        n_selected += len(
+            stratified_patching.image_patching[data_idx][sample_idx].excluded_patches
+        )
 
         # collect the chosen validation patches to create the fixed patching strategy
         patch_specs: list[PatchSpecs] = [
@@ -98,6 +108,10 @@ def create_val_split(
             for grid_coord in coords
         ]
         val_patch_specs.extend(patch_specs)
+    logger.info(
+        f"Selected and split {n_selected} patches from the training data for "
+        "validation."
+    )
 
     val_patching_strategy = FixedPatching(val_patch_specs)
     return stratified_patching, val_patching_strategy
@@ -107,40 +121,12 @@ def select_validation(
     grid_shape: Sequence[int],
     n_val_patches: int,
     rng: np.random.Generator | None = None,
-) -> NDArray[np.int_]:
+) -> list[tuple[int, int]]:
     if rng is None:
         rng = np.random.default_rng()
-
-    n_dims = len(grid_shape)
-
     coords = _create_validation_blocks(grid_shape, n_val_patches, rng)
-
-    padding = 2
-    coord_map = np.zeros(grid_shape, dtype=bool)
-    coord_map[coords[:, 0], coords[:, 1]] = True
-    coord_map = np.pad(coord_map, padding, mode="constant", constant_values=True)
-    selected: list[int] = np.random.permutation(len(coords)).tolist()
-
-    # randomly remove coords, but only those that do not create a gap of size 1
-    while len(selected) > n_val_patches:
-        removable: list[bool] = []
-
-        for idx in rng.permutation(selected).copy():
-            coord = coords[idx]
-            is_removable = not _cannot_remove(coord, coord_map, padding)
-            if is_removable:
-                coord_map[
-                    *[slice(coord[i], coord[i] + padding) for i in range(n_dims)]
-                ] = False
-                selected.remove(idx)
-            removable.append(is_removable)
-            if len(selected) <= n_val_patches:
-                break
-
-        if not any(removable):
-            break
-
-    return coords[selected]
+    val_coords = _remove_excess_selected(grid_shape, coords, n_val_patches, rng)
+    return [tuple(coord) for coord in val_coords]
 
 
 def _create_validation_blocks(
@@ -174,6 +160,12 @@ def _create_validation_blocks(
 
         block_size, gap_size = _find_block_sequence_params(dim_size, n_coords)
         val_coords_1D[i] = _block_sequence(block_size, gap_size, dim_size)
+
+        # add random offset
+        if (edge_diff := dim_size - val_coords_1D[i][-1]) > 4:
+            random_offset = rng.choice(np.concat([[0], np.arange(2, edge_diff - 2)]))
+            val_coords_1D[i] += random_offset
+
         # randomly mirror sequence:
         if rng.integers(0, 1, endpoint=True):
             val_coords_1D[i] = dim_size - 1 - val_coords_1D[i]
@@ -228,7 +220,11 @@ def _find_block_sequence_params(max_value: int, n_values: int) -> tuple[int, int
             candidate["length_diff"] <= best["length_diff"]
             # less than two periods pushes all the selection to the edges
             # we only want less than two blocks if the previous best had less than two
-            and (best["n_periods"] <= 2 or best["gap_size"] == 2)
+            and (
+                best["n_periods"] <= 2
+                or candidate["n_periods"] >= 2
+                or best["gap_size"] == 2
+            )
         ):
             best = candidate
 
@@ -237,6 +233,41 @@ def _find_block_sequence_params(max_value: int, n_values: int) -> tuple[int, int
         ):
             break
     return best["block_size"], best["gap_size"]
+
+
+def _remove_excess_selected(
+    grid_shape: Sequence[int],
+    coords: NDArray[np.int_],
+    n_val_patches: int,
+    rng: np.random.Generator,
+):
+    n_dims = len(grid_shape)
+    padding = 2
+    coord_map = np.zeros(grid_shape, dtype=bool)
+    coord_map[*[coords[:, i] for i in range(n_dims)]] = True
+    coord_map = np.pad(coord_map, padding, mode="constant", constant_values=True)
+    selected: list[int] = rng.permutation(len(coords)).tolist()
+
+    # randomly remove coords, but only those that do not create a gap of size 1
+    while len(selected) > n_val_patches:
+        removable: list[bool] = []
+
+        for idx in rng.permutation(selected).copy():
+            coord = coords[idx]
+            is_removable = not _cannot_remove(coord, coord_map, padding)
+            if is_removable:
+                coord_map[
+                    *[slice(coord[i], coord[i] + padding) for i in range(n_dims)]
+                ] = False
+                selected.remove(idx)
+            removable.append(is_removable)
+            if len(selected) <= n_val_patches:
+                break
+
+        if not any(removable):
+            break
+
+    return coords[selected]
 
 
 def _cannot_remove(
@@ -264,3 +295,8 @@ def _cannot_remove(
 
 def _contains_gap_size_1(arr: np.ndarray[tuple[int], np.dtype[np.bool_]]) -> bool:
     return np.any(arr[:-2] & ~arr[1:-1] & arr[2:]).item()
+
+
+def _n_viable_val_patches(grid_shape: Sequence[int]):
+    # return zero if negative
+    return max(0, np.prod([gs - 2 for gs in grid_shape]))
