@@ -856,9 +856,39 @@ class CAREamist:
 
         checkpoint = self._get_default_ckpt(checkpoint)
 
-        predictions: list[ImageRegionData] = self.trainer.predict(
-            model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-        )  # type: ignore[assignment]
+        try:
+            predictions: list[ImageRegionData] = self.trainer.predict(
+                model=self.model, datamodule=datamodule, ckpt_path=checkpoint
+            )  # type: ignore[assignment]
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                tiled = tile_size is not None
+                at_min_batch = datamodule.config.batch_size <= 1
+                if not tiled and not at_min_batch:
+                    hint = (
+                        "Try reducing the batch size:"
+                        " predict(..., batch_size=1)\n"
+                        "or enable tiling:"
+                        " predict(..., tile_size=(64, 64))\n"
+                    )
+                elif not tiled:
+                    hint = "Try enabling tiling:" " predict(..., tile_size=(64, 64))\n"
+                elif not at_min_batch:
+                    hint = (
+                        "Try reducing the batch size:"
+                        " predict(..., batch_size=1)\n"
+                        "or use a smaller tile size:"
+                        " predict(..., tile_size=(...))\n"
+                    )
+                else:
+                    hint = (
+                        "Try using a smaller tile size:"
+                        " predict(..., tile_size=(...))\n"
+                    )
+                raise RuntimeError(
+                    "\nOut of GPU memory during prediction.\n" + hint
+                ) from e
+            raise
         tiled = tile_size is not None
         predictions_output, sources = convert_prediction(
             predictions,
@@ -1061,21 +1091,21 @@ class CAREamist:
 
         checkpoint = self._get_default_ckpt(checkpoint)
 
-        try:
-            datamodule = self._build_predict_datamodule(
-                pred_data,
-                pred_data_target=pred_data_target,
-                batch_size=batch_size,
-                tile_size=tile_size,
-                tile_overlap=tile_overlap,
-                axes=axes,
-                data_type=data_type,
-                num_workers=num_workers,
-                channels=channels,
-                in_memory=in_memory,
-                loading=loading,
-            )
+        datamodule = self._build_predict_datamodule(
+            pred_data,
+            pred_data_target=pred_data_target,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            axes=axes,
+            data_type=data_type,
+            num_workers=num_workers,
+            channels=channels,
+            in_memory=in_memory,
+            loading=loading,
+        )
 
+        try:
             self.trainer.predict(
                 model=self.model,
                 datamodule=datamodule,
@@ -1083,6 +1113,37 @@ class CAREamist:
                 ckpt_path=checkpoint,
             )
 
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                at_min_batch = datamodule.config.batch_size <= 1
+                if not tiled and not at_min_batch:
+                    hint = (
+                        "Try reducing the batch size:"
+                        " predict_to_disk(..., batch_size=1)\n"
+                        "or enable tiling:"
+                        " predict_to_disk(..., tile_size=(64, 64))\n"
+                    )
+                elif not tiled:
+                    hint = (
+                        "Try enabling tiling:"
+                        " predict_to_disk(..., tile_size=(64, 64))\n"
+                    )
+                elif not at_min_batch:
+                    hint = (
+                        "Try reducing the batch size:"
+                        " predict_to_disk(..., batch_size=1)\n"
+                        "or use a smaller tile size:"
+                        " predict_to_disk(..., tile_size=(...))\n"
+                    )
+                else:
+                    hint = (
+                        "Try using a smaller tile size:"
+                        " predict_to_disk(..., tile_size=(...))\n"
+                    )
+                raise RuntimeError(
+                    "\nOut of GPU memory during prediction.\n" + hint
+                ) from e
+            raise
         finally:
             self.prediction_writer.enable_writing(False)
 
