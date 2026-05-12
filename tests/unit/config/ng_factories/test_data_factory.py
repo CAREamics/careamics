@@ -86,3 +86,17 @@ class TestNGDataConfiguration:
         )
 
         assert isinstance(config.patching, StratifiedPatchingConfig)
+
+    def test_num_workers_explicit(self):
+        """Test that an explicit num_workers value is passed through unchanged."""
+        config: NGDataConfig = create_ng_data_configuration(
+            data_type="array",
+            axes="YX",
+            patch_size=(16, 16),
+            batch_size=1,
+            num_workers=4,
+        )
+
+        assert config.train_dataloader_params["num_workers"] == 4
+        assert config.val_dataloader_params["num_workers"] == 4
+        assert config.pred_dataloader_params["num_workers"] == 4
