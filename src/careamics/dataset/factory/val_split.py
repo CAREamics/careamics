@@ -122,7 +122,7 @@ def select_validation(
     grid_shape: Sequence[int],
     n_val_patches: int,
     rng: np.random.Generator | None = None,
-) -> list[Sequence[int]]:
+) -> list[tuple[int]]:
     """
     Choose grid coordinates for validation patches.
 
@@ -143,7 +143,9 @@ def select_validation(
     """
     if rng is None:
         rng = np.random.default_rng()
+    # the validation coordinate blocks may contain more patches than requested
     coords = _create_validation_blocks(grid_shape, n_val_patches, rng)
+    # randomly remove patches until we have the correct number of patches
     val_coords = _remove_excess_selected(grid_shape, coords, n_val_patches, rng)
     return [tuple(coord) for coord in val_coords]
 
@@ -153,30 +155,62 @@ def _create_validation_blocks(
     n_val_patches: int,
     rng: np.random.Generator | None = None,
 ) -> NDArray[np.int_]:
+    """
+    Generate validation coordinates so that the coordinates are grouped in blocks.
+
+    The blocks are at least to patch widths apart and evenly spaced.
+
+    Parameters
+    ----------
+    grid_shape : Sequence[int]
+        Validation patches must lie on a grid. The grid shape is the floor of the image
+        size divided by the patch size.
+    n_val_patches : n_val_patches
+        The number of validation patches to select.
+    rng : numpy.random.Generator | None, default=None
+        Random number generator for reproducibility.
+
+    Returns
+    -------
+    NDArray[np.int_]
+        Validation block coordinates. An N x D array of integers where N is the number
+        of coordinates and D is the number of dimensions. N may be larger than the
+        requested `n_val_patches`.
+    """
     if rng is None:
         rng = np.random.default_rng()
 
     ndims = len(grid_shape)
 
-    # calculate coordinates of validation patches in each dimension
-    val_coords_1D = [None for _ in range(ndims)]
+    # calculate validation patch coordinates in each dimension
+    val_coords_1D: list[NDArray[np.int_] | None] = [None for _ in range(ndims)]
     for i in rng.permutation(np.arange(ndims)):
         dim_size: int = grid_shape[i]
 
-        # calculate how many val coords in the current dimension
-        remaining = np.ceil(
-            n_val_patches
-            / np.prod([len(coords) for coords in val_coords_1D if coords is not None])
-        )
+        # --- calculate the number of coordinates in each dimension
+        # try to have the patches distributed evenly in each dimension
         ratios: list[float] = [  # ratios between dimensions
             grid_shape[i] / grid_shape[j]
             for j in range(ndims)
             if i != j and val_coords_1D[j] is None
         ]
+        # remaining val patches for the dimensions not calculate yet
+        remaining = np.ceil(
+            n_val_patches
+            / np.prod(
+                np.array(
+                    [len(coords) for coords in val_coords_1D if coords is not None]
+                )
+            )
+            # NOTE: prod([]) == 1
+        )
+        # distribute the remaining coords evenly between dimension
         n_coords = int(
             np.ceil((remaining * np.prod(ratios)) ** (1 / (len(ratios) + 1)))
         )
 
+        # --- chose the validation coordinates
+        # optimum block_size and gap_size
         block_size, gap_size = _find_block_sequence_params(dim_size, n_coords)
         val_coords_1D[i] = _block_sequence(block_size, gap_size, dim_size)
 
@@ -185,17 +219,36 @@ def _create_validation_blocks(
             random_offset = rng.choice(np.concat([[0], np.arange(2, edge_diff - 2)]))
             val_coords_1D[i] += random_offset
 
-        # randomly mirror sequence:
+        # randomly mirror sequence (otherwise top left corner always selected)
         if rng.integers(0, 1, endpoint=True):
             val_coords_1D[i] = dim_size - 1 - val_coords_1D[i]
 
-    val_coords = np.stack(np.meshgrid(*val_coords_1D, indexing="ij"), axis=-1).reshape(
-        -1, ndims
-    )
+    val_coords: NDArray[np.int_] = np.stack(
+        np.meshgrid(*val_coords_1D, indexing="ij"), axis=-1
+    ).reshape(-1, ndims)
     return val_coords
 
 
 def _block_sequence(block_size: int, gap_size: int, max_value: int) -> NDArray[np.int_]:
+    """Create a block sequence.
+
+    This is a sequence of `block_size` consecutive integers followed by a `gap_size`
+    until the next set of integer values, until the `max_value`.
+
+    Parameters
+    ----------
+    block_size : int
+        The length of consecutive sets of integers in the sequence.
+    gap_size : int
+        The length of the gap between consecutive sets of integers.
+    max_value : int
+        The maximum of all the values of the sequence.
+
+    Returns
+    -------
+    NDArray[np.int_]
+        The 1D sequence of integers.
+    """
     n_values = int(np.ceil(max_value / (block_size + gap_size))) * block_size
     sequence = np.array(
         # eqn that produces n consecutive values followed by a gap of size m
@@ -207,9 +260,43 @@ def _block_sequence(block_size: int, gap_size: int, max_value: int) -> NDArray[n
 
 
 def _find_block_sequence_params(max_value: int, n_values: int) -> tuple[int, int]:
+    """
+    Find a `block_size` and `gap_size` for a block sequence.
+
+    Given `max_value` and `n_values` we can find a `block_size` and a `gap_size` such
+    that:
+    - The `gap_size` is greater than (inclusive) 2 and greater than (inclusive) 3 if
+    possible.
+    - The gap between an element and the edge must not be 1. (It Can be 0 or greater
+    than 1).
+    - The sequence length is greater than (inclusive) but as close to `n_values` as
+      possible.
+
+    Parameters
+    ----------
+    max_value : int
+        The maximum of all the values of the sequence.
+    n_values : int
+        The desired number of elements in the sequence.
+
+    Returns
+    -------
+    tuple[int, int]
+        The (`block_size`, `gap_size`) to parametrize the block sequence.
+    """
+    # iterate through the block sizes until the best candidate is found
+    # we want that:
+    # - the gap between values an the edge must not be 1.
+    # - the length of the generated sequence closely matches the desired n_values
+    # - ideally that the gap_size >= 3 (but must be >= 2)
+    # - ideally that the selected coords represent both the edge and centre of the image
+    if n_values == 0:
+        raise ValueError("Cannot choose block parameters for `n_values=0`.")
     best = None
     for block_size in range(1, n_values + 1):
         total_periods = np.ceil(n_values / block_size)
+
+        # calculate the gap_size from the block size
         gap_size = max(
             2, np.ceil((max_value - total_periods * block_size) / total_periods)
         )
@@ -234,9 +321,11 @@ def _find_block_sequence_params(max_value: int, n_values: int) -> tuple[int, int
         if best is None:
             # the first candidate (smallest block size that matches the constraints)
             best = candidate
+        # only change from the first candidate if certain constraints are met
         if (
             candidate["length_diff"] <= best["length_diff"]
             and candidate["gap_size"] >= 3
+            # if the number of periods is < 2 the selected values are pushed to the edge
             and max_value / period >= 2
         ):
             best = candidate
@@ -245,7 +334,8 @@ def _find_block_sequence_params(max_value: int, n_values: int) -> tuple[int, int
         #   - otherwise values will likely get pushed to the edges
         if best["length_diff"] <= 1 and best["gap_size"] >= 3:
             break
-    return best["block_size"], best["gap_size"]
+    assert best is not None  # best is always assigned the first candidate
+    return int(best["block_size"]), int(best["gap_size"])
 
 
 def _remove_excess_selected(
@@ -253,11 +343,33 @@ def _remove_excess_selected(
     coords: NDArray[np.int_],
     n_val_patches: int,
     rng: np.random.Generator,
-):
+) -> NDArray[np.int_]:
+    """Remove excess coordinates without creating an invalid selection.
+
+    There must not be a gap of size 1 between two validation patches.
+
+    Parameters
+    ----------
+    grid_shape : Sequence[int]
+        The shape of the validation coordinate grid.
+    coords : NDArray[np.int_]
+        The coordinates of validation patches.
+    n_val_patches : int
+        The number of desired validation patches. Shape (N x D) where D is dimensions.
+    rng : np.random.Generator
+        Random number generator for reproducibility.
+
+    Returns
+    -------
+    NDArray[np.int_]
+        The reduced validation coordinates.
+    """
     n_dims = len(grid_shape)
     padding = 2
     coord_map = np.zeros(grid_shape, dtype=bool)
     coord_map[*[coords[:, i] for i in range(n_dims)]] = True
+    # The coordinate map needs to be padded because we also cannot have a gap of 1
+    # between a coordinate and the edge.
     coord_map = np.pad(coord_map, padding, mode="constant", constant_values=True)
     selected: list[int] = rng.permutation(len(coords)).tolist()
 
@@ -267,7 +379,7 @@ def _remove_excess_selected(
 
         for idx in rng.permutation(selected).copy():
             coord = coords[idx]
-            is_removable = not _cannot_remove(coord, coord_map, padding)
+            is_removable = _coord_is_removable(coord, coord_map, padding)
             if is_removable:
                 coord_map[
                     *[slice(coord[i], coord[i] + padding) for i in range(n_dims)]
@@ -283,33 +395,81 @@ def _remove_excess_selected(
     return coords[selected]
 
 
-def _cannot_remove(
+def _coord_is_removable(
     coord: np.ndarray[tuple[int], np.dtype[np.int_]],
     coord_map: NDArray[np.bool],
     padding: int = 2,
 ) -> bool:
-    n_dims = coord_map.ndim
+    """Test if a coordinate is removable.
 
+    Parameters
+    ----------
+    coord : np.ndarray[tuple[int], np.dtype[np.int_]]
+        The candidate coordinate.
+    coord_map : NDArray[np.bool]
+        Coordinate map (padded with True values). Shows the location of the selected
+        coordinates on a grid. The coordinate map needs to be padded because we also
+        cannot have a gap of 1 between a coordinate and the edge.
+    padding : int, default=True
+        The padding size of the coordinate map.
+
+    Returns
+    -------
+    bool
+        True if the coordinate can be removed.
+    """
+    # testing removability by removing a coordinate and checking if it creates a gap
+
+    n_dims = coord_map.ndim
     # Remove coord
     coord_map[coord[0] + padding, coord[1] + padding] = False
     neigborhood = coord_map[
         *[slice(coord[i], coord[i] + 2 * padding + 1) for i in range(n_dims)]
     ]
-    not_removable = False
+    removable = True
+    # has to not create a gap in any dimension
     for axis in range(n_dims):
         axis_slice = tuple(Ellipsis if i == axis else padding for i in range(n_dims))
-        not_removable = _contains_gap_size_1(neigborhood[axis_slice])
-        if not_removable:
+        if _contains_gap_size_1(neigborhood[axis_slice]):
+            removable = False
+        if not removable:
             break
     # replace
     coord_map[*[slice(coord[i], coord[i] + padding) for i in range(n_dims)]] = True
-    return not_removable
+    return removable
 
 
 def _contains_gap_size_1(arr: np.ndarray[tuple[int], np.dtype[np.bool_]]) -> bool:
+    """Return whether a sequence of bools contains a gap of size 1.
+
+    A gap of size 1 would be for example: `[True, True, False, True]`.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        1D array of booleans.
+
+    Returns
+    -------
+    bool
+        Whether a gap of size 1 is contained within the sequence.
+    """
     return np.any(arr[:-2] & ~arr[1:-1] & arr[2:]).item()
 
 
-def _n_viable_val_patches(grid_shape: Sequence[int]):
+def _n_viable_val_patches(grid_shape: Sequence[int]) -> int:
+    """The maximum number of validation patches allowed for `grid_shape`.
+
+    Parameters
+    ----------
+    grid_shape : Sequence[int]
+        Validation patches must lie on a grid. The grid shape is the floor of the image
+        size divided by the patch size.
+
+    Returns
+    -------
+    int
+        The maximum allowed number of validation patches.
+    """
     # return zero if negative
-    return max(0, np.prod([gs - 2 for gs in grid_shape]))
+    return max(0, np.prod([gs - 2 for gs in grid_shape]).item())
