@@ -143,33 +143,6 @@ def select_validation(
     return coords[selected]
 
 
-def _cannot_remove(
-    coord: np.ndarray[tuple[int], np.dtype[np.int_]],
-    coord_map: NDArray[np.bool],
-    padding: int = 2,
-) -> bool:
-    n_dims = coord_map.ndim
-
-    # Remove coord
-    coord_map[coord[0] + padding, coord[1] + padding] = False
-    neigborhood = coord_map[
-        *[slice(coord[i], coord[i] + 2 * padding + 1) for i in range(n_dims)]
-    ]
-    not_removable = False
-    for axis in range(n_dims):
-        axis_slice = tuple(Ellipsis if i == axis else padding for i in range(n_dims))
-        not_removable = _contains_gap_size_1(neigborhood[axis_slice])
-        if not_removable:
-            break
-    # replace
-    coord_map[*[slice(coord[i], coord[i] + padding) for i in range(n_dims)]] = True
-    return not_removable
-
-
-def _contains_gap_size_1(arr: np.ndarray[tuple[int], np.dtype[np.bool_]]) -> bool:
-    return np.any(arr[:-2] & ~arr[1:-1] & arr[2:]).item()
-
-
 def _create_validation_blocks(
     grid_shape: Sequence[int],
     n_val_patches: int,
@@ -198,26 +171,12 @@ def _create_validation_blocks(
         n_coords = int(
             np.ceil((remaining * np.prod(ratios)) ** (1 / (len(ratios) + 1)))
         )
-        # At least 1 of the dimensions cannot have more than half be validation patches
-        if all(coords is None for coords in val_coords_1D):
-            n_coords = min(n_coords, dim_size // 2)
 
-        # calculate the validation blocks
-        gap_size = 3 if dim_size > 8 else 2  # initial gap size
-        if n_coords < dim_size:
-            block_size = int(np.ceil(gap_size * n_coords / (dim_size - n_coords)))
-        else:
-            # cannot have more coordinates than the size of the dimension
-            # TODO: raise warning?
-            block_size = dim_size
-
-        # recalculate gap size, might want to increase it
-        gap_size = int(np.ceil(block_size * (dim_size - n_coords) / n_coords))
-        gap_size = max(gap_size, 2)  # not sure if this is needed
-
-        val_coords_1D[i] = _val_block_sequence_1D(
-            dim_size, block_size, gap_size, rng=rng
-        )
+        block_size, gap_size = _find_block_sequence_params(dim_size, n_coords)
+        val_coords_1D[i] = _block_sequence(block_size, gap_size, dim_size)
+        # randomly mirror sequence:
+        if rng.integers(0, 1, endpoint=True):
+            val_coords_1D[i] = dim_size - 1 - val_coords_1D[i]
 
     val_coords = np.stack(np.meshgrid(*val_coords_1D, indexing="ij"), axis=-1).reshape(
         -1, ndims
@@ -225,38 +184,83 @@ def _create_validation_blocks(
     return val_coords
 
 
-def _val_block_sequence_1D(
-    dim_size: int,
-    block_size: int,
-    gap_size: int,
-    edge_dist: int = 2,
-    rng: np.random.Generator | None = None,
-) -> NDArray[np.int_]:
-    if rng is None:
-        rng = np.random.default_rng()
-
-    n_patches = int(np.ceil(dim_size / (block_size + gap_size))) * block_size
+def _block_sequence(block_size: int, gap_size: int, max_value: int) -> NDArray[np.int_]:
+    n_values = int(np.ceil(max_value / (block_size + gap_size))) * block_size
     sequence = np.array(
         # eqn that produces n consecutive values followed by a gap of size m
-        # e.g. n = 2, m = 3: [0, 1, 5, 6, 10, 11, ...]
-        [int(i + gap_size * np.floor(i / block_size)) for i in range(n_patches)]
+        # e.g. block_size = 2, gap_size = 3: [0, 1, 5, 6, 10, 11, ...]
+        [int(i + gap_size * np.floor(i / block_size)) for i in range(n_values)]
     )
-    sequence = sequence[sequence < dim_size]
-
-    # if the final the final element is not touching the edge
-    if sequence[-1] != dim_size - 1:
-        # remove values which are closer than `edge_dist` to the edge
-        sequence = sequence[dim_size - sequence > edge_dist]
-
-    # add a random offset (stops single values from being at the edge)
-    edge_dist_true = dim_size - sequence[-1]
-    if edge_dist_true // 2 > 2:
-        centre_offset = rng.choice(
-            np.concat([[0], np.arange(2, edge_dist_true // 2 + 1)])
-        )
-        sequence += centre_offset
-
-    # random chance to mirror sequence
-    if rng.integers(0, 2):
-        sequence = dim_size - 1 - sequence
+    sequence = sequence[sequence < max_value]
     return sequence
+
+
+def _find_block_sequence_params(max_value: int, n_values: int) -> tuple[int, int]:
+    # TODO: raise error for for too many n_values
+    best = None
+    for gap_size in range(2, max_value):
+        n_full_periods = (max_value - n_values) // gap_size
+        block_size = int(
+            np.ceil((max_value - n_full_periods * gap_size) / (n_full_periods + 1))
+        )
+        period = block_size + gap_size
+        remainder = max_value % period
+        sequence_length = (max_value // period) * block_size + remainder
+
+        # prevents gaps of less than 2 at the edges
+        if remainder > block_size:
+            continue
+        if sequence_length < n_values:
+            continue
+
+        n_periods = max_value / period
+
+        candidate = {
+            "block_size": block_size,
+            "gap_size": gap_size,
+            "length_diff": sequence_length - n_values,
+            "n_periods": n_periods,
+        }
+        if best is None:
+            best = candidate
+
+        if (
+            candidate["length_diff"] <= best["length_diff"]
+            # less than two periods pushes all the selection to the edges
+            # we only want less than two blocks if the previous best had less than two
+            and (best["n_periods"] <= 2 or best["gap_size"] == 2)
+        ):
+            best = candidate
+
+        if (best["length_diff"] <= 1) and (
+            best["gap_size"] >= 3 or candidate["n_periods"] <= 2
+        ):
+            break
+    return best["block_size"], best["gap_size"]
+
+
+def _cannot_remove(
+    coord: np.ndarray[tuple[int], np.dtype[np.int_]],
+    coord_map: NDArray[np.bool],
+    padding: int = 2,
+) -> bool:
+    n_dims = coord_map.ndim
+
+    # Remove coord
+    coord_map[coord[0] + padding, coord[1] + padding] = False
+    neigborhood = coord_map[
+        *[slice(coord[i], coord[i] + 2 * padding + 1) for i in range(n_dims)]
+    ]
+    not_removable = False
+    for axis in range(n_dims):
+        axis_slice = tuple(Ellipsis if i == axis else padding for i in range(n_dims))
+        not_removable = _contains_gap_size_1(neigborhood[axis_slice])
+        if not_removable:
+            break
+    # replace
+    coord_map[*[slice(coord[i], coord[i] + padding) for i in range(n_dims)]] = True
+    return not_removable
+
+
+def _contains_gap_size_1(arr: np.ndarray[tuple[int], np.dtype[np.bool_]]) -> bool:
+    return np.any(arr[:-2] & ~arr[1:-1] & arr[2:]).item()
