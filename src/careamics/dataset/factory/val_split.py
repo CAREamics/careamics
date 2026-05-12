@@ -6,6 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from careamics.utils.logging import get_logger
+
 from ..patching import (
     FixedPatching,
     PatchSpecs,
@@ -121,7 +122,25 @@ def select_validation(
     grid_shape: Sequence[int],
     n_val_patches: int,
     rng: np.random.Generator | None = None,
-) -> list[tuple[int, int]]:
+) -> list[Sequence[int]]:
+    """
+    Choose grid coordinates for validation patches.
+
+    Parameters
+    ----------
+    grid_shape : Sequence[int]
+        Validation patches must lie on a grid. The grid shape is the floor of the image
+        size divided by the patch size.
+    n_val_patches : n_val_patches
+        The number of validation patches to select.
+    rng : numpy.random.Generator | None, default=None
+        Random number generator for reproducibility.
+
+    Returns
+    -------
+    list[Sequence[int]]
+        A list of grid coordinates for validation patches.
+    """
     if rng is None:
         rng = np.random.default_rng()
     coords = _create_validation_blocks(grid_shape, n_val_patches, rng)
@@ -188,49 +207,43 @@ def _block_sequence(block_size: int, gap_size: int, max_value: int) -> NDArray[n
 
 
 def _find_block_sequence_params(max_value: int, n_values: int) -> tuple[int, int]:
-    # TODO: raise error for for too many n_values
     best = None
-    for gap_size in range(2, max_value):
-        n_full_periods = (max_value - n_values) // gap_size
-        block_size = int(
-            np.ceil((max_value - n_full_periods * gap_size) / (n_full_periods + 1))
+    for block_size in range(1, n_values + 1):
+        total_periods = np.ceil(n_values / block_size)
+        gap_size = max(
+            2, np.ceil((max_value - total_periods * block_size) / total_periods)
         )
+
         period = block_size + gap_size
         remainder = max_value % period
-        sequence_length = (max_value // period) * block_size + remainder
-
-        # prevents gaps of less than 2 at the edges
-        if remainder > block_size:
-            continue
+        sequence_length = (max_value // period) * block_size + min(
+            block_size, remainder
+        )
         if sequence_length < n_values:
             continue
-
-        n_periods = max_value / period
+        # if the block is not touching the edge there must be a gap of at least 2
+        if block_size < remainder and remainder - block_size <= 2:
+            continue
 
         candidate = {
             "block_size": block_size,
             "gap_size": gap_size,
             "length_diff": sequence_length - n_values,
-            "n_periods": n_periods,
         }
-        if best is None:
-            best = candidate
 
+        if best is None:
+            # the first candidate (smallest block size that matches the constraints)
+            best = candidate
         if (
             candidate["length_diff"] <= best["length_diff"]
-            # less than two periods pushes all the selection to the edges
-            # we only want less than two blocks if the previous best had less than two
-            and (
-                best["n_periods"] <= 2
-                or candidate["n_periods"] >= 2
-                or best["gap_size"] == 2
-            )
+            and candidate["gap_size"] >= 3
+            and max_value / period >= 2
         ):
             best = candidate
 
-        if (best["length_diff"] <= 1) and (
-            best["gap_size"] >= 3 or candidate["n_periods"] <= 2
-        ):
+        # NOTE: length_diff <= 1 is best for not easily divisible numbers
+        #   - otherwise values will likely get pushed to the edges
+        if best["length_diff"] <= 1 and best["gap_size"] >= 3:
             break
     return best["block_size"], best["gap_size"]
 
