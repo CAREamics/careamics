@@ -1,11 +1,24 @@
-"""Module containing pytorch implementations for obtaining predictions from an LVAE."""
+"""Module containing pytorch implementations for obtaining predictions from an LVAE.
 
-from typing import Any
+DEPRECATED: This module uses the old likelihood-based approach and needs to be updated
+to work with the refactored microsplit loss computation.
+"""
+
+from typing import Any, Protocol
 
 import torch
 
 from careamics.models.lvae import LadderVAE as LVAE
-from careamics.models.lvae.likelihoods import LikelihoodModule
+
+
+# TODO: Remove this after refactoring prediction code to not use likelihood objects
+class LikelihoodModule(Protocol):
+    """Protocol for backward compatibility."""
+
+    def get_mean_lv(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """Get mean and log variance from output."""
+        ...
+
 
 # TODO: convert these functions to lightning module `predict_step`
 #   -> mmse_count will have to be an instance attribute?

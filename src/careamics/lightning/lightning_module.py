@@ -23,11 +23,6 @@ from careamics.config.support import (
     SupportedScheduler,
 )
 from careamics.losses import loss_factory
-from careamics.models.lvae.likelihoods import (
-    GaussianLikelihood,
-    NoiseModelLikelihood,
-    likelihood_factory,
-)
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
@@ -384,13 +379,16 @@ class VAEModule(L.LightningModule):
 
     Parameters
     ----------
-    algorithm_config : Union[VAEAlgorithmConfig, dict]
-        Algorithm configuration.
+    algorithm_config : Union[VAEBasedAlgorithm, dict]
+        Algorithm configuration. If `algorithm_config.noise_model` is set,
+        `set_noise_model` is called automatically during initialization.
 
     Attributes
     ----------
     model : nn.Module
         PyTorch model.
+    noise_model : MultiChannelNoiseModel or None
+        Multi-channel noise model, built from the algorithm config if provided.
     loss_func : nn.Module
         Loss function.
     optimizer_name : str
@@ -401,7 +399,10 @@ class VAEModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: Union[VAEBasedAlgorithm, dict]) -> None:
+    def __init__(
+        self,
+        algorithm_config: Union[VAEBasedAlgorithm, dict],
+    ) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
@@ -409,8 +410,9 @@ class VAEModule(L.LightningModule):
 
         Parameters
         ----------
-        algorithm_config : Union[AlgorithmModel, dict]
-            Algorithm configuration.
+        algorithm_config : Union[VAEBasedAlgorithm, dict]
+            Algorithm configuration. If `algorithm_config.noise_model` is set,
+            the noise model is instantiated automatically via `set_noise_model`.
         """
         super().__init__()
         # if loading from a checkpoint, AlgorithmModel needs to be instantiated
@@ -428,21 +430,12 @@ class VAEModule(L.LightningModule):
 
         # supervised_mode
         self.supervised_mode = self.algorithm_config.is_supervised
-        # create noise model (VAE algorithms always use multichannel nm factory)
-        self.noise_model: NoiseModel | None = multichannel_noise_model_factory(
+
+        self.noise_model = multichannel_noise_model_factory(
             self.algorithm_config.noise_model
         )
-
-        self.noise_model_likelihood: NoiseModelLikelihood | None = None
-        if self.algorithm_config.noise_model_likelihood is not None:
-            self.noise_model_likelihood = likelihood_factory(
-                config=self.algorithm_config.noise_model_likelihood,
-                noise_model=self.noise_model,
-            )
-
-        self.gaussian_likelihood: GaussianLikelihood | None = likelihood_factory(
-            self.algorithm_config.gaussian_likelihood
-        )
+        self._data_mean: float | None = None
+        self._data_std: float | None = None
 
         self.loss_parameters = self.algorithm_config.loss
         self.loss_func = loss_factory(self.algorithm_config.loss.loss_type)
@@ -474,8 +467,18 @@ class VAEModule(L.LightningModule):
         """
         return self.model(x)  # TODO Different model can have more than one output
 
-    def set_data_stats(self, data_mean, data_std):
-        """Set data mean and std for the noise model likelihood.
+    def set_noise_model(self, noise_model: MultiChannelNoiseModel) -> None:
+        """Set the noise model.
+
+        Parameters
+        ----------
+        noise_model : MultiChannelNoiseModel
+            The noise model to use.
+        """
+        self.noise_model = noise_model
+
+    def set_data_stats(self, data_mean: float, data_std: float) -> None:
+        """Set data mean and std for denormalization in loss computation.
 
         Parameters
         ----------
@@ -484,8 +487,8 @@ class VAEModule(L.LightningModule):
         data_std : float
             Standard deviation of the data.
         """
-        if self.noise_model_likelihood is not None:
-            self.noise_model_likelihood.set_data_stats(data_mean, data_std)
+        self._data_mean = data_mean
+        self._data_std = data_std
 
     def training_step(
         self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: Any
@@ -523,20 +526,20 @@ class VAEModule(L.LightningModule):
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
 
         # Compute loss
-        if self.noise_model_likelihood is not None:
-            if (
-                self.noise_model_likelihood.data_mean is None
-                or self.noise_model_likelihood.data_std is None
-            ):
-                raise RuntimeError(
-                    "NoiseModelLikelihood: mean and std must be set before training."
-                )
+        if self.noise_model is not None and (
+            self._data_mean is None or self._data_std is None
+        ):
+            raise RuntimeError(
+                "Data mean and std must be set before training with noise model."
+            )
+
         loss = self.loss_func(
             model_outputs=out,
             targets=target,
             config=self.loss_parameters,
-            gaussian_likelihood=self.gaussian_likelihood,
-            noise_model_likelihood=self.noise_model_likelihood,
+            noise_model=self.noise_model,
+            data_mean=self._data_mean,
+            data_std=self._data_std,
         )
 
         # Logging
@@ -585,8 +588,9 @@ class VAEModule(L.LightningModule):
             model_outputs=out,
             targets=target,
             config=self.loss_parameters,
-            gaussian_likelihood=self.gaussian_likelihood,
-            noise_model_likelihood=self.noise_model_likelihood,
+            noise_model=self.noise_model,
+            data_mean=self._data_mean,
+            data_std=self._data_std,
         )
 
         # Logging
@@ -653,8 +657,8 @@ class VAEModule(L.LightningModule):
                 image_means=means_list,
                 image_stds=stds_list,
             )
-            tile_prediction = denorm(patch=mmse_imgs.cpu().numpy())
-            tile_std = std_imgs.cpu().numpy()
+            tile_prediction = denorm(patch=mmse_imgs.float().cpu().numpy())
+            tile_std = std_imgs.float().cpu().numpy()
 
             return tile_prediction, tile_std
 
@@ -704,7 +708,7 @@ class VAEModule(L.LightningModule):
                 image_stds=self._trainer.datamodule.predict_dataset.image_stds,
             )
 
-            denormalized_output = denorm(patch=mmse.cpu().numpy())
+            denormalized_output = denorm(patch=mmse.float().cpu().numpy())
 
             if len(aux) > 0:  # aux can be tiling information
                 return denormalized_output, std, *aux
@@ -754,10 +758,10 @@ class VAEModule(L.LightningModule):
             Reconstructed tensor, i.e., the predicted mean.
         """
         predictions, _ = model_outputs
-        if self.model.predict_logvar is None:
-            return predictions
-        elif self.model.predict_logvar == "pixelwise":
+        if self.model.predict_logvar:
             return predictions.chunk(2, dim=1)[0]
+        else:
+            return predictions
 
     def compute_val_psnr(
         self,
@@ -797,8 +801,8 @@ class VAEModule(L.LightningModule):
         # and hence can be moved to a separate module
         return [
             psnr_func(
-                gt=target[:, i].clone().detach().cpu().numpy(),
-                pred=recons_img[:, i].clone().detach().cpu().numpy(),
+                gt=target[:, i].clone().detach().float().cpu().numpy(),
+                pred=recons_img[:, i].clone().detach().float().cpu().numpy(),
             )
             for i in range(out_channels)
         ]
