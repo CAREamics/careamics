@@ -1,6 +1,6 @@
 """Tests for LVAE loss functions."""
 
-#TODO to be reviewed, many tests are equivalence tests with legacy
+# TODO to be reviewed, many tests are equivalence tests with legacy
 
 
 from __future__ import annotations
