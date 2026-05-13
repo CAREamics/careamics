@@ -67,7 +67,7 @@ def plot_block_validation():
     patch_size = (64, 64)
     fig, axes = plt.subplots(3, 4, figsize=(16, 12), constrained_layout=True)
     fig.suptitle("Block validation selection")
-    rng = np.random.default_rng(seed=42)
+    rng = np.random.default_rng(seed=0)
     for i, data_shape in enumerate(data_shapes):
         axes[i][0].set_ylabel(f"Shape: {data_shape}")
         for j in range(4):
@@ -100,7 +100,7 @@ def plot_random_validation():
     patch_size = (64, 64)
     fig, axes = plt.subplots(3, 4, figsize=(16, 12), constrained_layout=True)
     fig.suptitle("Random validation selection")
-    rng = np.random.default_rng(seed=42)
+    rng = np.random.default_rng(seed=0)
     for i, data_shape in enumerate(data_shapes):
         axes[i][0].set_ylabel(f"Shape: {data_shape}")
         for j in range(4):
