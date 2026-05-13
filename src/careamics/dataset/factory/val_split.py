@@ -389,9 +389,7 @@ def _remove_excess_selected(
             coord = coords[idx]
             is_removable = _coord_is_removable(coord, coord_map, padding)
             if is_removable:
-                coord_map[
-                    *[slice(coord[i], coord[i] + padding) for i in range(n_dims)]
-                ] = False
+                coord_map[*[c + padding for c in coord]] = False
                 selected.remove(idx)
             removable.append(is_removable)
             if len(selected) <= n_val_patches:
@@ -430,7 +428,7 @@ def _coord_is_removable(
 
     n_dims = coord_map.ndim
     # Remove coord
-    coord_map[coord[0] + padding, coord[1] + padding] = False
+    coord_map[*[c + padding for c in coord]] = False
     neigborhood = coord_map[
         *[slice(coord[i], coord[i] + 2 * padding + 1) for i in range(n_dims)]
     ]
@@ -443,7 +441,7 @@ def _coord_is_removable(
         if not removable:
             break
     # replace
-    coord_map[*[slice(coord[i], coord[i] + padding) for i in range(n_dims)]] = True
+    coord_map[*[c + padding for c in coord]] = True
     return removable
 
 
