@@ -64,13 +64,14 @@ def create_val_split(
             for data_idx, sample_idx in sample_ids
         ]
     )
-    if n_val_patches >= viable_patches_per_image.sum():
+    if n_val_patches > viable_patches_per_image.sum():
         raise ValueError(
             "The number of validation patches to be extracted from the training set is "
-            f"too large for given training data size(got {n_val_patches} validation"
-            f"patches but only {viable_patches_per_image.sum()} training patches "
-            f"available with patch size {patch_size}). Make sure you have enough data "
-            "to train with, decrease 'n_val_patches' or the patch size."
+            f"too large for given training data size (got {n_val_patches} validation "
+            f"patches but only {viable_patches_per_image.sum()} viable validation "
+            f"patches available with patch size {patch_size}). Make sure you have "
+            "enough data to train with, decrease 'n_val_patches' or the patch size. "
+            "Alternatively, provide a separate validation input."
         )
     val_patches_per_image = np.zeros_like(viable_patches_per_image)
     val_patch_specs: list[PatchSpecs] = []
