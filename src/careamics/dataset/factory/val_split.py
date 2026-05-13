@@ -184,7 +184,8 @@ def _create_validation_blocks(
 
     # calculate validation patch coordinates in each dimension
     val_coords_1D: list[NDArray[np.int_] | None] = [None for _ in range(ndims)]
-    for i in rng.permutation(np.arange(ndims)):
+    # order dimensions smallest to largest but random order if they are the same size
+    for i in np.lexsort((rng.random(ndims), np.array(grid_shape))):
         dim_size: int = grid_shape[i]
 
         # --- calculate the number of coordinates in each dimension
@@ -292,8 +293,13 @@ def _find_block_sequence_params(max_value: int, n_values: int) -> tuple[int, int
     # - ideally that the selected coords represent both the edge and centre of the image
     if n_values == 0:
         raise ValueError("Cannot choose block parameters for `n_values=0`.")
+    # specific case for small grid size:
+    # (current algorithm would instead put a validation patch in each corner)
+    if max_value == 4 and n_values == 2:
+        return 2, 2
+
     best = None
-    for block_size in range(1, n_values + 1):
+    for block_size in range(1, max_value + 1):
         total_periods = np.ceil(n_values / block_size)
 
         # calculate the gap_size from the block size
@@ -321,11 +327,13 @@ def _find_block_sequence_params(max_value: int, n_values: int) -> tuple[int, int
         if best is None:
             # the first candidate (smallest block size that matches the constraints)
             best = candidate
+
         # only change from the first candidate if certain constraints are met
+        # prefer a gap size > 2
+        improved_gap_size = best["gap_size"] == 2 and candidate["gap_size"] > 2
         if (
             candidate["length_diff"] <= best["length_diff"]
-            and candidate["gap_size"] >= 3
-            # if the number of periods is < 2 the selected values are pushed to the edge
+            and improved_gap_size
             and max_value / period >= 2
         ):
             best = candidate
@@ -471,5 +479,10 @@ def _n_viable_val_patches(grid_shape: Sequence[int]) -> int:
     int
         The maximum allowed number of validation patches.
     """
-    # return zero if negative
-    return max(0, np.prod([gs - 2 for gs in grid_shape]).item())
+    # no viable validation patches for (2 x 2)
+    if all(gs <= 2 for gs in grid_shape):
+        return 0
+
+    # for a grid size <= 2, the number of viable patches the full shape
+    # ^ this is mostly to allow for a small Z dimension
+    return np.prod([gs - 2 if gs > 2 else gs for gs in grid_shape]).item()
