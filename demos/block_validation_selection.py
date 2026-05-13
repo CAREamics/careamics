@@ -76,8 +76,10 @@ def plot_block_validation():
                 n_val_patches = 8
                 axes[0][j].set_title("N Val Patches: 8")
             else:
-                n_val_patches = int(np.floor(stratified_patching.n_patches * (j * 0.1)))
-                axes[0][j].set_title(f"N Val Patches: {j}0%")
+                n_val_patches = int(
+                    np.floor(stratified_patching.n_patches * (j * 0.08))
+                )
+                axes[0][j].set_title(f"N Val Patches: {int(j * 0.08 * 100)}%")
 
             coords = select_validation(
                 stratified_patching.image_patching[0][0].grid_shape,
@@ -107,8 +109,10 @@ def plot_random_validation():
                 n_val_patches = 8
                 axes[0][j].set_title("N Val Patches: 8")
             else:
-                n_val_patches = int(np.floor(stratified_patching.n_patches * (j * 0.1)))
-                axes[0][j].set_title(f"N Val Patches: {j}0%")
+                n_val_patches = int(
+                    np.floor(stratified_patching.n_patches * (j * 0.08))
+                )
+                axes[0][j].set_title(f"N Val Patches: {int(j * 0.08 * 100)}%")
 
             grid_coords = stratified_patching.get_included_grid_coords()[0, 0]
             # randomly choose the validation patches in the image
