@@ -1,5 +1,8 @@
 """Tests for LVAE loss functions."""
 
+#TODO to be reviewed, many tests are equivalence tests with legacy
+
+
 from __future__ import annotations
 
 import math
@@ -31,11 +34,6 @@ if TYPE_CHECKING:
     pass
 
 pytestmark = pytest.mark.lvae
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def create_dummy_noise_model_file(tmp_path, n_gaussians=3, n_coeffs=3):
@@ -71,11 +69,6 @@ def _make_td_data(batch_size, n_layers, img_size, enable_lc):
     }
 
 
-# ---------------------------------------------------------------------------
-# Loss factory
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "loss_type, exp_loss_func, exp_error",
     [
@@ -90,11 +83,6 @@ def test_lvae_loss_factory(loss_type, exp_loss_func, exp_error):
         assert loss_func is not None
         assert callable(loss_func)
         assert loss_func == exp_loss_func
-
-
-# ---------------------------------------------------------------------------
-# Reconstruction loss helpers (new API)
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
@@ -135,11 +123,6 @@ def test_noise_model_log_likelihood(tmp_path, batch_size, target_ch):
     assert isinstance(loss, torch.Tensor)
     assert loss.ndim == 0
     assert torch.isfinite(loss)
-
-
-# ---------------------------------------------------------------------------
-# KL divergence loss (unchanged API)
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
@@ -269,13 +252,6 @@ def test_microsplit_loss_combined_mode(tmp_path, musplit_weight):
     assert output is not None
     assert set(output.keys()) == {"loss", "reconstruction_loss", "kl_loss"}
     assert torch.isfinite(output["loss"])
-
-
-# ---------------------------------------------------------------------------
-# Numerical equivalence tests (Tests A-E from migration plan)
-# Each test inlines the legacy formula and compares numerically with the
-# refactored implementation to confirm behavior preservation.
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("predict_logvar", [False, True])

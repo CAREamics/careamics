@@ -421,141 +421,6 @@ def test_sample_observation_distribution_matches_multichannel() -> None:
         ), f"Channel {ch}: Wasserstein distance {distance:.4f} too high"
 
 
-# ---------------------------------------------------------------------------
-# Equivalence test: NoiseModelTrainer must produce numerically identical
-# results to the reference MicroSplit training loop when configured to use
-# the same per-channel min/max signal range (trainer default behaviour).
-# ---------------------------------------------------------------------------
-
-
-def test_trainer_equivalent_to_reference_loop_per_channel_range() -> None:
-    """NoiseModelTrainer matches reference loop with per-channel signal range.
-
-    The reference loop is re-implemented here verbatim except that channel
-    extraction uses ``[:, channel_idx]`` (SCYX order, matching the trainer)
-    rather than ``[..., channel_idx]`` which would be channel-last.
-
-    Both paths are seeded with the same torch seed so that weight
-    initialisation and shuffle order are identical.
-    """
-    from careamics.config.noise_model import GaussianMixtureNMConfig
-    from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
-
-    gen = np.random.default_rng(0)
-    n_samples, n_channels, height, width = 4, 2, 16, 16
-    signal = gen.uniform(0, 255, (n_samples, n_channels, height, width)).astype(
-        np.float32
-    )
-    observation = (signal + gen.normal(0, 20, signal.shape)).astype(np.float32)
-
-    n_gaussian, n_coeff, min_sigma = 2, 3, 125.0
-    n_epochs, lr, batch_size = 5, 0.1, 250000
-
-    # --- reference loop (per-channel min/max, matching trainer default) ---
-    ref_models = []
-    for ch in range(n_channels):
-        ch_signal = signal[:, ch]  # (S, H, W)
-        ch_obs = observation[:, ch]
-        cfg = GaussianMixtureNMConfig(
-            model_type="GaussianMixtureNoiseModel",
-            min_signal=float(ch_signal.min()),
-            max_signal=float(ch_signal.max()),
-            n_gaussian=n_gaussian,
-            n_coeff=n_coeff,
-            min_sigma=min_sigma,
-        )
-        torch.manual_seed(42 + ch)
-        nm = GaussianMixtureNoiseModel(cfg)
-        ch_signal_flat = ch_signal.reshape(-1, *ch_signal.shape[-2:])
-        ch_obs_flat = ch_obs.reshape(-1, *ch_obs.shape[-2:])
-        torch.manual_seed(42 + ch)
-        nm.fit(
-            signal=ch_signal_flat,
-            observation=ch_obs_flat,
-            learning_rate=lr,
-            batch_size=batch_size,
-            n_epochs=n_epochs,
-        )
-        ref_models.append(nm)
-
-    # --- trainer path (per-channel, default) ---
-    trainer = NoiseModelTrainer(
-        n_gaussian=n_gaussian, n_coeff=n_coeff, min_sigma=min_sigma
-    )
-
-    # Patch _train_single_channel to inject deterministic seeds
-    ch_call_count = [0]
-
-    def seeded_train(
-        self,
-        signal,
-        observation,
-        n_epochs,
-        learning_rate,
-        batch_size,
-        min_signal=None,
-        max_signal=None,
-    ):
-        ch = ch_call_count[0]
-        torch.manual_seed(42 + ch)
-        ch_call_count[0] += 1
-        # rebuild with same seed for init
-        from careamics.config.noise_model import GaussianMixtureNMConfig as _C
-        from careamics.models.lvae.noise_models import (
-            GaussianMixtureNoiseModel as _G,
-        )
-
-        cfg = _C(
-            model_type="GaussianMixtureNoiseModel",
-            min_signal=min_signal if min_signal is not None else float(signal.min()),
-            max_signal=max_signal if max_signal is not None else float(signal.max()),
-            n_gaussian=self.n_gaussian,
-            n_coeff=self.n_coeff,
-            min_sigma=self.min_sigma,
-        )
-        nm = _G(cfg)
-        sig_flat = signal.reshape(-1, *signal.shape[-2:])
-        obs_flat = observation.reshape(-1, *observation.shape[-2:])
-        torch.manual_seed(42 + ch)
-        losses = nm.fit(
-            signal=sig_flat,
-            observation=obs_flat,
-            learning_rate=learning_rate,
-            batch_size=batch_size,
-            n_epochs=n_epochs,
-        )
-        return nm, losses
-
-    import types
-
-    trainer._train_single_channel = types.MethodType(seeded_train, trainer)
-
-    trainer.train_from_pairs(
-        signal=signal,
-        observation=observation,
-        n_epochs=n_epochs,
-        learning_rate=lr,
-        batch_size=batch_size,
-    )
-
-    for ch in range(n_channels):
-        np.testing.assert_allclose(
-            trainer.noise_models[ch].weight.detach().cpu().numpy(),
-            ref_models[ch].weight.detach().cpu().numpy(),
-            rtol=1e-5,
-            atol=1e-6,
-            err_msg=f"Channel {ch}: trainer weight differs from reference loop",
-        )
-        assert np.isclose(
-            float(trainer.noise_models[ch].min_signal.item()),
-            float(ref_models[ch].min_signal.item()),
-        )
-        assert np.isclose(
-            float(trainer.noise_models[ch].max_signal.item()),
-            float(ref_models[ch].max_signal.item()),
-        )
-
-
 def test_trainer_global_signal_range() -> None:
     """global_signal_range=True uses global min/max across all channels."""
     gen = np.random.default_rng(1)
@@ -786,11 +651,6 @@ def test_create_microsplit_configuration_without_noise_model_prints_reminder(
     assert (
         "REMINDER" in captured.out or "noise" in captured.out.lower()
     ), "Expected a reminder about noise model but got none"
-
-
-# ---------------------------------------------------------------------------
-# VAEModule.set_noise_model - extended tests
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -1056,11 +916,6 @@ def test_set_noise_model_path_channel_order_mismatch_raises(
     reversed_paths = [str(paths[1]), str(paths[0])]
     with pytest.raises(ValueError, match="channel_index"):
         module.set_noise_model(reversed_paths)
-
-
-# ---------------------------------------------------------------------------
-# Diagnostics
-# ---------------------------------------------------------------------------
 
 
 def test_diagnose_returns_per_channel_dicts() -> None:

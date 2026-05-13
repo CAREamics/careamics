@@ -1774,6 +1774,7 @@ def create_microsplit_configuration(
     denoisplit_weight: float = 0.9,
     noise_model_config: MultiChannelNMConfig | None = None,
     mmse_count: int = 10,
+    nm_paths: list[str] | None = None,
     # Training parameters
     optimizer: Literal["Adam", "SGD", "Adamax"] = "Adamax",
     lr_scheduler_patience: int = 30,
