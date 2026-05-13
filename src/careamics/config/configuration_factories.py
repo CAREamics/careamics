@@ -1774,7 +1774,6 @@ def create_microsplit_configuration(
     denoisplit_weight: float = 0.9,
     noise_model_config: MultiChannelNMConfig | None = None,
     mmse_count: int = 10,
-    nm_paths: list[str] | None = None,
     # Training parameters
     optimizer: Literal["Adam", "SGD", "Adamax"] = "Adamax",
     lr_scheduler_patience: int = 30,
@@ -1836,8 +1835,6 @@ def create_microsplit_configuration(
         Whether to predict per-pixel log-variance, by default True.
     logvar_lowerbound : float | None, optional
         Lower bound for the log variance, by default -5.0.
-    kl_type : Literal["kl", "kl_restricted"], optional
-        Type of KL divergence, by default "kl_restricted".
     reconstruction_weight : float, optional
         Weight for reconstruction loss, by default 1.0.
     kl_weight : float, optional
@@ -1847,8 +1844,7 @@ def create_microsplit_configuration(
     denoisplit_weight : float, optional
         Weight for denoiSplit loss, by default 1.0.
     noise_model_config : MultiChannelNMConfig | None, optional
-        Multi-channel noise model configuration, required when
-        `denoisplit_weight > 0`, by default None.
+        Multi-channel noise model configuration.
     mmse_count : int, optional
         Number of MMSE samples to use, by default 10.
     optimizer : Literal["Adam", "SGD", "Adamax"], optional
@@ -1939,12 +1935,16 @@ def create_microsplit_configuration(
             "min_lr": 1e-12,
         },
     )
-    if noise_model_config is None:
-        gmm_list = []
-        if nm_paths is not None:
-            for NM_path in nm_paths:
-                gmm_list.append(GaussianMixtureNMConfig.from_npz(NM_path))
-        noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
+    # TODO maybe we don't need it here at all? Only reason is to dump the config later
+    if noise_model_config is None and denoisplit_weight > 0:
+        print(
+            "[create_microsplit_configuration] REMINDER: denoisplit_weight > 0 "
+            "but no noise_model_config was provided. A noise model is required "
+            "for denoiSplit training. Train noise models first with "
+            "NoiseModelTrainer, then either pass "
+            "trainer.get_config() as noise_model_config here, or call "
+            "VAEModule.set_noise_model() before training starts."
+        )
 
     algorithm_params = {
         "algorithm": "microsplit",

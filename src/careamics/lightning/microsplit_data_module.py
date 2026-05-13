@@ -404,6 +404,7 @@ def create_microsplit_train_datamodule(
         "batch_size": batch_size,
         "train_dataloader_params": train_dataloader_params,
         "val_dataloader_params": val_dataloader_params,
+        "input_is_sum": True,  # TODO remove, hardcoded for debug
         **dataset_kwargs,
     }
 

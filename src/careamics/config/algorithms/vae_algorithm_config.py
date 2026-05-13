@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pprint import pformat
 from typing import Literal, Self
 
@@ -79,9 +80,18 @@ class VAEBasedAlgorithm(BaseModel):
                     f"Algorithm {self.algorithm} only supports loss `microsplit`."
                 )
 
-            # Validate noise model requirement based on denoisplit_weight
+            # Remind users to attach a noise model when using denoiSplit
             if self.loss.denoisplit_weight > 0 and self.noise_model is None:
-                raise ValueError("Noise model is required when denoisplit_weight > 0.")
+                warnings.warn(
+                    "denoisplit_weight > 0 but no noise_model is provided in the "
+                    "configuration. A noise model is required for denoiSplit training. "
+                    "Train one with NoiseModelTrainer, then either pass the result to "
+                    "create_microsplit_configuration("
+                    "noise_model_config=trainer.get_config()) "
+                    "or call VAEModule.set_noise_model() before training.",
+                    UserWarning,
+                    stacklevel=2,
+                )
         # TODO: what if algorithm is not musplit or denoisplit
         return self
 
