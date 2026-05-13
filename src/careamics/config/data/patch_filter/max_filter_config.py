@@ -4,10 +4,10 @@ from typing import Literal
 
 from pydantic import Field
 
-from .filter_config import FilterConfig
+from .patch_filter_config import PatchFilterConfig
 
 
-class MaxFilterConfig(FilterConfig):
+class MaxPatchFilterConfig(PatchFilterConfig):
     """Pydantic model for the max patch filter."""
 
     name: Literal["max"] = "max"
@@ -16,7 +16,7 @@ class MaxFilterConfig(FilterConfig):
     threshold: float
     """Threshold for the minimum of the max-filtered patch."""
 
-    coverage: float = Field(0.25, ge=0.0, le=1.0)
+    coverage: float = Field(default=0.25, ge=0.0, le=1.0)
     """Minimum ratio of masked pixels required to keep a sampling region. The optimum
     value is 1/(2**ndims) where ndims is the number of spatial dimensions.
     """

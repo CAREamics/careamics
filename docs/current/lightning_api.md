@@ -29,7 +29,7 @@ are setting up Noise2Void, but the same can be done for CARE and N2N using the `
 For more details, refer to the [data documentation]().
 5. Careamics configuration has its own default set of parameters for the `ModelCheckpoint`
 callback (and `EarlyStopping`). You can either use those or set up your own.
-6. The `CareamicsCheckpointInfo` callback is used to log the configuration in the 
+6. The `ConfigSaverCallback` callback is used to log the configuration in the 
 checkpoints.
 7. Similarly, the configuration create training parameters configuration. You can set your
 own rather than reusing those.
@@ -48,7 +48,7 @@ A useful feature of CAREamics that can be leveraged in the Lightning API is writ
 predictions directly to disk. This is achieved by adding a `PredictionWriterCallback`.
 
 ```python
---8<-- "current/lightning_api.py:lightning_api"
+--8<-- "current/lightning_api.py:predict_to_disk"
 ```
 
 1. We keep the prediction writer in memory and disable writing, in case we want to

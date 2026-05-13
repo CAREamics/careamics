@@ -2,23 +2,22 @@
 
 __all__ = [
     "DataConfig",
-    "MaskFilterConfig",
-    "MaxFilterConfig",
-    "MeanSTDFilterConfig",
+    "DataConfig",
+    "MaskPatchFilterConfig",
+    "MaxPatchFilterConfig",
     "MeanStdConfig",
+    "MeanStdPatchFilterConfig",
     "MinMaxConfig",
-    "NGDataConfig",
     "NoNormConfig",
     "NormalizationConfig",
     "QuantileConfig",
     "RandomPatchingConfig",
-    "ShannonFilterConfig",
+    "ShannonPatchFilterConfig",
     "TiledPatchingConfig",
     "WholePatchingConfig",
 ]
 
 from .data_config import DataConfig
-from .ng_data_config import NGDataConfig
 from .normalization_config import (
     MeanStdConfig,
     MinMaxConfig,
@@ -27,10 +26,10 @@ from .normalization_config import (
     QuantileConfig,
 )
 from .patch_filter import (
-    MaskFilterConfig,
-    MaxFilterConfig,
-    MeanSTDFilterConfig,
-    ShannonFilterConfig,
+    MaskPatchFilterConfig,
+    MaxPatchFilterConfig,
+    MeanStdPatchFilterConfig,
+    ShannonPatchFilterConfig,
 )
 from .patching_strategies import (
     RandomPatchingConfig,

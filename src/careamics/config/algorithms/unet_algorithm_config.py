@@ -89,14 +89,12 @@ class UNetBasedAlgorithm(BaseModel):
         """
         return self.model.get_num_input_channels()
 
-    # TODO: remove, used in v0.1.0 only
-    @classmethod
-    def get_compatible_algorithms(cls) -> list[str]:
-        """Get the list of compatible algorithms.
+    def uses_batch_norm(self) -> bool:
+        """Return whether the model uses batch normalization.
 
         Returns
         -------
-        list of str
-            List of compatible algorithms.
+        bool
+            Whether the model uses batch normalization.
         """
-        return ["n2v", "care", "n2n", "pn2v"]
+        return self.model.uses_batch_norm()

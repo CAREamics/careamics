@@ -2,7 +2,7 @@
 
 # %%
 # --8<-- [start:czi]
-from careamics.config.ng_factories import create_n2v_config
+from careamics.config.factories import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -54,7 +54,7 @@ train_from_list = [  # (4)!
 # --8<-- [end:zarr]
 
 # test that the training data can be read
-from careamics.dataset_ng.image_stack_loader import load_zarrs
+from careamics.dataset.image_stack_loader import load_zarrs
 
 assert (
     len(load_zarrs([train_from_zarr], axes="YX")) == 2

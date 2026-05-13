@@ -9,9 +9,9 @@ except PackageNotFoundError:
 
 __all__ = [
     "CAREamist",
-    "Configuration",
-    "algorithm_factory",
+    "ImageStackLoading",
+    "ReadFuncLoading",
 ]
 
 from .careamist import CAREamist
-from .config import Configuration, algorithm_factory
+from .dataset.factory import ImageStackLoading, ReadFuncLoading

@@ -2,7 +2,7 @@
 
 # %%
 # --8<-- [start:config_n2v2]
-from careamics.config.ng_factories import create_n2v_config
+from careamics.config.factories import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -18,7 +18,7 @@ config = create_n2v_config(
 
 # %%
 # --8<-- [start:adv_config_n2v_params]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -35,7 +35,7 @@ config = create_advanced_n2v_config(
 
 # %%
 # --8<-- [start:adv_config_structn2v]
-from careamics.config.ng_factories import create_advanced_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
