@@ -8,8 +8,34 @@ CAREamics will perform a first pass through all the data before training starts 
 
 There are two options for the filtering function, either:
 
-- one of the built-in filtering functions can be selected and parametrized, or
-- pre-computed masks can be provided.
+- [pre-computed masks](#pre-computed-masks) can be provided, or
+- one of the [built-in filtering functions](#filtering-functions) can be selected and parametrized.
+
+## Pre-computed masks
+
+Using precomputed masks is relatively simple, the masks in the same format as the data — either as an array or saved in files — can be provided during training.
+
+=== "Noise2Void"
+    
+    ```python title="Specifying a mask for Noise2Void training"
+    --8<-- "current/careamist_training.py:train_n2v_mask"
+    ```
+ 
+    1. The mask is passed alongside the data.
+
+=== "CARE/N2N"
+
+    ```python title="Specifying a mask for CARE training"
+    --8<-- "current/careamist_training.py:train_care_mask"
+    ```
+    
+    1. The mask is passed alongside the data.
+
+!!! note "What is masked?"
+
+    The mask is a binary set of images with the same size as the training data and
+    should have value `1` for pixels that should be included in the training and `0`
+    for pixels that should be excluded.
 
 ## Filtering functions
 
@@ -19,9 +45,15 @@ CAREamics has 3 built-in filtering functions, which work by filtering by thresho
 - [`MeanStdPatchFilter`][careamics.dataset.patch_filter.MeanStdPatchFilter]: that filters the data based on the mean and optionally the standard deviation of regions of the data.
 - [`ShannonPatchFilter`][careamics.dataset.patch_filter.ShannonPatchFilter]: that filters the data based on the shannon entropy of regions of the data.
 
+!!! note "Multi-channel data"
+
+    For multi-channel data the filtering function is only applied to a single channel of your choosing.
+
 ### Finding appropriate thresholds
 
 Finding appropriate thresholds requires manually inspecting some examples. The patch filter classes provide `filter_map` and `plot_filter_map` which can be used to visualize at what threshold a region will be considered background.
+
+---
 
 For demonstration purposes we will use the Hagen dataset which is used in other CAREamics examples; however, it doesn't have enough background area to typically require patch filtering.
 
@@ -29,15 +61,17 @@ For demonstration purposes we will use the Hagen dataset which is used in other 
 --8<-- "tutorials/patch_filtering.py:download-data"
 ```
 
+---
+
 Now we inspect the filter maps to decide on a patch filtering function and threshold. For data with multiple samples it is generally a good idea to inspect the filter maps of a few different samples; and for 3D data one should look at multiple z-slices. 
-
-!!! info "3D data"
-
-    For 3D data the `plot_filter_map` has the `z_idx` argument to control which z-slice is displayed.
 
 ```python title="Plot Filter Maps"
 --8<-- "tutorials/patch_filtering.py:filter-maps"
 ```
+
+!!! info "3D data"
+
+    For 3D data `plot_filter_map` has the `z_idx` argument to control which z-slice is displayed.
 
 ![Max filter map](../../../images/tutorials/patch_filtering/max_filter_map.png)
 
@@ -45,7 +79,9 @@ Now we inspect the filter maps to decide on a patch filtering function and thres
 
 ![Mean-Std filter map](../../../images/tutorials/patch_filtering/mean_std_filter_map.png)
 
-We will choose the shannon patch filter, with a threshold of 7.5, and to confirm that this is a good choice we will look at the resulting mask.
+---
+
+We will choose the shannon patch filter, with a threshold of 7.5, and to confirm that this is a good choice we will look at the resulting mask, by using the `ShannonPatchFilter.apply_filter` method.
 
 ```python title="Plot Filter Maps"
 --8<-- "tutorials/patch_filtering.py:mask"
@@ -65,16 +101,20 @@ Each of the patch filter classes has a corresponding configuration class, where 
 
 We will create the configuration using `create_advanced_n2v_config` and passing `ShannonPatchFilterConfig` with our selected threshold to the `patch_filter_config` argument.
 
-!!! info Other algorithms
-
-    The configuration factory functions for other algorithms, such as CARE and N2N also have a `patch_filter_config` argument.
-
 
 ```python title="Create Config and Train"
 --8<-- "tutorials/patch_filtering.py:config"
 ```
 
 1. Using shannon filtering with a threshold of 7.5
+
+!!! info "Multi-channel data"
+
+    For multi-channel data set the `ref_channel` parameter in the patch filter configs to the index of your desired channel.
+
+!!! info "Other algorithms"
+
+    The configuration factory functions for other algorithms, such as CARE and N2N also have a `patch_filter_config` argument.
 
 !!! success Success
 
