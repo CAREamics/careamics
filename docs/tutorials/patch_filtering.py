@@ -51,9 +51,6 @@ plt.title("Filter mask")
 # --8<-- [end:mask]
 
 
-plt.show()
-
-
 # --8<-- [start:config]
 from careamics import CAREamist
 from careamics.config import ShannonPatchFilterConfig, create_advanced_n2v_config
