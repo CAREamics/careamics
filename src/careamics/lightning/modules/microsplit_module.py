@@ -1,7 +1,7 @@
 """MicroSplit Lightning module."""
 
 from collections.abc import Callable
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -12,6 +12,8 @@ from careamics.compat.transforms.tta import ImageRestorationTTA
 from careamics.config import (
     VAEBasedAlgorithm,
 )
+from careamics.dataset import ImageRegionData
+from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.lightning.modules.module_utils import (
     get_optimizer,
     get_scheduler,
@@ -29,6 +31,9 @@ from careamics.models.lvae.noise_models import (
     multichannel_noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
+
+if TYPE_CHECKING:
+    from careamics.lightning.data.data_module import CareamicsDataModule
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
@@ -85,9 +90,6 @@ class MicroSplitModule(L.LightningModule):
         # create model
         self.model: torch.nn.Module = model_factory(self.algorithm_config.model)
 
-        # supervised_mode
-        self.supervised_mode = self.algorithm_config.is_supervised
-        
         # create noise model (VAE algorithms always use multichannel nm factory)
         self.noise_model: NoiseModel | None = multichannel_noise_model_factory(
             self.algorithm_config.noise_model
@@ -118,6 +120,27 @@ class MicroSplitModule(L.LightningModule):
             RunningPSNR() for _ in range(self.algorithm_config.model.output_channels)
         ]
 
+    def on_fit_start(self) -> None:
+        """On fit start hook.
+
+        Check that training and validation target data have been supplied, since
+        MicroSplit is trained in a fully supervised manner.
+        """
+        assert self._trainer is not None
+        datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
+        assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
+        if datamodule._data.train_data_target is None:
+            raise ValueError(
+                "Training target data must be provided for supervised training."
+            )
+        if (
+            isinstance(datamodule._data, TrainValData)
+            and datamodule._data.val_data_target is None
+        ):
+            raise ValueError(
+                "Validation target data must be provided for supervised training."
+            )
+
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.
 
@@ -132,7 +155,7 @@ class MicroSplitModule(L.LightningModule):
         tuple[torch.Tensor, dict[str, Any]]
             A tuple with the output tensor and additional data from the top-down pass.
         """
-        return self.model(x)  # TODO Different model can have more than one output
+        return self.model(x)
 
     def set_data_stats(self, data_mean, data_std):
         """Set data mean and std for the noise model likelihood.
@@ -148,16 +171,16 @@ class MicroSplitModule(L.LightningModule):
             self.noise_model_likelihood.set_data_stats(data_mean, data_std)
 
     def training_step(
-        self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: Any
+        self, batch: tuple[ImageRegionData, ImageRegionData], batch_idx: Any
     ) -> dict[str, torch.Tensor] | None:
         """Training step.
 
         Parameters
         ----------
-        batch : tuple[torch.Tensor, torch.Tensor]
-            Input batch. It is a tuple with the input tensor and the target tensor.
-            The input tensor has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
-            number of lateral inputs. The target tensor has shape (B, C, [Z], Y, X),
+        batch : tuple[ImageRegionData, ImageRegionData]
+            Input batch. It is a tuple with the input data and the target data.
+            The input data has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
+            number of lateral inputs. The target data has shape (B, C, [Z], Y, X),
             where C is the number of target channels (e.g., 1 in HDN, >1 in
             muSplit/denoiSplit).
         batch_idx : Any
@@ -168,16 +191,11 @@ class MicroSplitModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, *target = batch
+        x, target = batch[0], batch[1]
 
         # Forward pass
-        out = self.model(x)
-        if not self.supervised_mode:
-            target = x
-        else:
-            target = target[
-                0
-            ]  # hacky way to unpack. #TODO maybe should be fixed on the dataset level
+        out = self.model(x.data)
+        target = target.data
 
         # Update loss parameters
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
@@ -215,31 +233,27 @@ class MicroSplitModule(L.LightningModule):
         return loss
 
     def validation_step(
-        self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: Any
+        self, batch: tuple[ImageRegionData, ImageRegionData], batch_idx: Any
     ) -> None:
         """Validation step.
 
         Parameters
         ----------
-        batch : tuple[torch.Tensor, torch.Tensor]
-            Input batch. It is a tuple with the input tensor and the target tensor.
-            The input tensor has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
-            number of lateral inputs. The target tensor has shape (B, C, [Z], Y, X),
+        batch : tuple[ImageRegionData, ImageRegionData]
+            Input batch. It is a tuple with the input data and the target data.
+            The input data has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
+            number of lateral inputs. The target data has shape (B, C, [Z], Y, X),
             where C is the number of target channels (e.g., 1 in HDN, >1 in
             muSplit/denoiSplit).
         batch_idx : Any
             Batch index.
         """
-        x, *target = batch
+        x, target = batch[0], batch[1]
 
         # Forward pass
-        out = self.model(x)
-        if not self.supervised_mode:
-            target = x
-        else:
-            target = target[
-                0
-            ]  # hacky way to unpack. #TODO maybe should be fixed on the datasel level
+        out = self.model(x.data)
+        target = target.data
+
         # Compute loss
         loss = self.loss_func(
             model_outputs=out,
@@ -265,6 +279,9 @@ class MicroSplitModule(L.LightningModule):
         else:
             self.log("val_psnr", 0.0, on_epoch=True, prog_bar=True)
 
+    # TODO: migrate to the new ImageRegionData batch format (train/val already migrated).
+    # Requires deciding how to expose target-channel mean/std for denormalization
+    # on the new dataset, plus integrating TTA into the new pipeline.
     def predict_step(self, batch: torch.Tensor, batch_idx: Any) -> Any:
         """Prediction step.
 
