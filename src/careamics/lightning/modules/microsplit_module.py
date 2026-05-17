@@ -8,7 +8,6 @@ import pytorch_lightning as L
 import torch
 
 from careamics.compat.transforms.normalize import Denormalize
-from careamics.compat.transforms.tta import ImageRestorationTTA
 from careamics.config import (
     VAEBasedAlgorithm,
 )
@@ -37,9 +36,8 @@ if TYPE_CHECKING:
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
-# TODO TTA and Denormalize are now in careamics.compat, need to investigate
-# reimplementating them
-# TODO Imported here for use by create_careamics_module
+# TODO Denormalize is still imported from careamics.compat; replace once
+# Normalization.denormalize supports target-space stats.
 
 
 class MicroSplitModule(L.LightningModule):
@@ -279,114 +277,83 @@ class MicroSplitModule(L.LightningModule):
         else:
             self.log("val_psnr", 0.0, on_epoch=True, prog_bar=True)
 
-    # TODO: migrate to the new ImageRegionData batch format (train/val already migrated).
-    # Requires deciding how to expose target-channel mean/std for denormalization
-    # on the new dataset, plus integrating TTA into the new pipeline.
-    def predict_step(self, batch: torch.Tensor, batch_idx: Any) -> Any:
+    def predict_step(
+        self, batch: tuple[ImageRegionData, ...], batch_idx: Any
+    ) -> tuple[ImageRegionData, ImageRegionData]:
         """Prediction step.
+
+        Runs `mmse_count` stochastic forward passes, returning the per-pixel mean
+        (denormalized into target space) and the per-pixel sample standard deviation.
 
         Parameters
         ----------
-        batch : torch.Tensor
-            Input batch.
+        batch : tuple[ImageRegionData, ...]
+            Input batch. The first element holds the input region; trailing elements
+            (e.g. target) are ignored at prediction time.
         batch_idx : Any
             Batch index.
 
         Returns
         -------
-        Any
-            Model output.
+        tuple[ImageRegionData, ImageRegionData]
+            A pair `(mean_region, std_region)` carrying respectively the
+            denormalized MMSE mean prediction and the per-pixel sample standard
+            deviation. Both share the input region's metadata (source, axes,
+            region_spec, ...) so that downstream tile stitching can be applied
+            identically to either.
         """
-        if self.algorithm_config.algorithm == "microsplit":
-            x, *aux = batch
-            # Reset model for inference with spatial dimensions only (H, W)
-            self.model.reset_for_inference(x.shape[-2:])
+        x = batch[0]
+        # Reset model for inference with spatial dimensions only (H, W)
+        self.model.reset_for_inference(x.data.shape[-2:]) # TODO: check this
 
-            rec_img_list = []
-            for _ in range(self.algorithm_config.mmse_count):
-                # get model output
-                rec, _ = self.model(x)
+        rec_img_list = []
+        for _ in range(self.algorithm_config.mmse_count):
+            rec, _ = self.model(x.data)
 
-                # get reconstructed img
-                if self.model.predict_logvar is None:
-                    rec_img = rec
-                    _logvar = torch.tensor([-1])
-                else:
-                    rec_img, _logvar = torch.chunk(rec, chunks=2, dim=1)
-                rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
-
-            # aggregate results
-            samples = torch.cat(rec_img_list, dim=0)
-            mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
-            std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
-
-            # Denormalize the output using target channel statistics
-            mean_dict, std_dict = (
-                self._trainer.datamodule.predict_dataset.get_mean_std()
-            )
-            means_list = np.atleast_1d(mean_dict["target"].squeeze()).tolist()
-            stds_list = np.atleast_1d(std_dict["target"].squeeze()).tolist()
-            denorm = Denormalize(
-                image_means=means_list,
-                image_stds=stds_list,
-            )
-            tile_prediction = denorm(patch=mmse_imgs.cpu().numpy())
-            tile_std = std_imgs.cpu().numpy()
-
-            return tile_prediction, tile_std
-
-        else:
-            # Regular prediction logic
-            if self._trainer.datamodule.tiled:
-                # TODO tile_size should match model input size
-                x, *aux = batch
-                x = (
-                    x[0] if isinstance(x, list | tuple) else x
-                )  # TODO ugly, so far i don't know why x might be a list
-                self.model.reset_for_inference(x.shape)  # TODO should it be here ?
+            # split out the predicted mean from logvar if the model emits both
+            if self.model.predict_logvar is None:
+                rec_img = rec
             else:
-                x = batch[0] if isinstance(batch, list | tuple) else batch
-                aux = []
-                self.model.reset_for_inference(x.shape)
+                rec_img, _ = torch.chunk(rec, chunks=2, dim=1)
+            rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
 
-            mmse_list = []
-            for _ in range(self.algorithm_config.mmse_count):
-                # apply test-time augmentation if available
-                if self._trainer.datamodule.prediction_config.tta_transforms:
-                    tta = ImageRestorationTTA()
-                    augmented_batch = tta.forward(x)  # list of augmented tensors
-                    augmented_output = []
-                    for augmented in augmented_batch:
-                        augmented_pred = self.model(augmented)
-                        augmented_output.append(augmented_pred)
-                    output = tta.backward(augmented_output)
-                else:
-                    output = self.model(x)
+        # aggregate over MMSE samples
+        samples = torch.cat(rec_img_list, dim=0)
+        mmse_imgs = torch.mean(samples, dim=0)
+        std_imgs = torch.std(samples, dim=0)
 
-                # taking the 1st element of the output, 2nd is std if
-                # predict_logvar=="pixelwise"
-                output = (
-                    output[0]
-                    if self.model.predict_logvar is None
-                    else output[0][:, 0:1, ...]
-                )
-                mmse_list.append(output)
+        # Denormalize the MMSE mean using target-channel statistics. The new
+        # Normalization.denormalize() uses input stats only, so we reach into the
+        # stored target stats and build a Denormalize transform manually.
+        # TODO: clean this up once Normalization gains target-space denormalization.
+        normalization = self._trainer.datamodule.predict_dataset.normalization
+        target_means = np.atleast_1d(np.asarray(normalization.target_means)).tolist()
+        target_stds = np.atleast_1d(np.asarray(normalization.target_stds)).tolist()
+        denorm = Denormalize(image_means=target_means, image_stds=target_stds)
+        mean_array = denorm(patch=mmse_imgs.numpy())
+        std_array = std_imgs.numpy()
 
-            mmse = torch.stack(mmse_list).mean(0)
-            std = torch.stack(mmse_list).std(0)  # TODO why?
-            # TODO better way to unpack if pred logvar
-            # Denormalize the output
-            denorm = Denormalize(
-                image_means=self._trainer.datamodule.predict_dataset.image_means,
-                image_stds=self._trainer.datamodule.predict_dataset.image_stds,
-            )
-
-            denormalized_output = denorm(patch=mmse.cpu().numpy())
-
-            if len(aux) > 0:  # aux can be tiling information
-                return denormalized_output, std, *aux
-            else:
-                return denormalized_output, std
+        mean_region = ImageRegionData(
+            data=mean_array,
+            source=x.source,
+            data_shape=x.data_shape,
+            dtype=x.dtype,
+            axes=x.axes,
+            region_spec=x.region_spec,
+            additional_metadata=x.additional_metadata,
+            original_data_shape=x.original_data_shape,
+        )
+        std_region = ImageRegionData(
+            data=std_array,
+            source=x.source,
+            data_shape=x.data_shape,
+            dtype=x.dtype,
+            axes=x.axes,
+            region_spec=x.region_spec,
+            additional_metadata=x.additional_metadata,
+            original_data_shape=x.original_data_shape,
+        )
+        return mean_region, std_region
 
     # TODO use lightning.modules.model_utils configure_optimizers
     def configure_optimizers(self) -> Any:
