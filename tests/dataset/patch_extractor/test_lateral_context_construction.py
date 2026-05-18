@@ -85,6 +85,7 @@ def test_lateral_context_constructor(
         _assert_lc_centralized(lc_patch)
 
 
+@pytest.mark.skip("This mechanism is being refactored.")
 def test_patch_extractor_lc_injection():
     rng = np.random.default_rng(seed=42)
     multiscale_count = 4

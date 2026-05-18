@@ -7,8 +7,6 @@ from numpy.typing import NDArray
 
 from careamics.dataset.image_stack import GenericImageStack
 
-from .patch_construction import PatchConstructor, default_patch_constr
-
 
 class PatchExtractor(Generic[GenericImageStack]):
     """
@@ -18,14 +16,11 @@ class PatchExtractor(Generic[GenericImageStack]):
     ----------
     image_stacks : sequence of ImageStack
         Image stacks to extract patches from.
-    patch_constructor : PatchConstructor, optional
-        Callable used to build a patch from an image stack.
     """
 
     def __init__(
         self,
         image_stacks: Sequence[GenericImageStack],
-        patch_constructor: PatchConstructor = default_patch_constr,
     ) -> None:
         """Constructor.
 
@@ -33,10 +28,7 @@ class PatchExtractor(Generic[GenericImageStack]):
         ----------
         image_stacks : sequence of ImageStack
             Image stacks to extract patches from.
-        patch_constructor : PatchConstructor, optional
-            Callable used to build a patch from an image stack (default constructor).
         """
-        self.patch_constructor = patch_constructor
         self.image_stacks: list[GenericImageStack] = list(image_stacks)
 
         # check all image stacks have the same number of dimensions
@@ -123,8 +115,7 @@ class PatchExtractor(Generic[GenericImageStack]):
         numpy.ndarray
             The extracted patch.
         """
-        return self.patch_constructor(
-            self.image_stacks[data_idx],
+        return self.image_stacks[data_idx].extract_patch(
             sample_idx=sample_idx,
             channels=channels,
             coords=coords,
