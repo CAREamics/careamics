@@ -2,11 +2,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from careamics.config.data import (
-    DataConfig,
-    TiledPatchingConfig,
-    MeanStdConfig
-)
+from careamics.config.data import DataConfig, MeanStdConfig, TiledPatchingConfig
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.lightning.data import (
     CareamicsDataModule,
@@ -19,10 +15,7 @@ from careamics.lightning.prediction import (
 @pytest.fixture
 def data_arrays(num_arrays: int, shape: tuple[int, ...]) -> list[NDArray[np.float32]]:
     """Fixture providing data arrays to test stitching tiled predictions."""
-    data_arrays = [
-        np.random.rand(*shape).astype(np.float32)
-        for _ in range(num_arrays)
-    ]
+    data_arrays = [np.random.rand(*shape).astype(np.float32) for _ in range(num_arrays)]
 
     return data_arrays
 
@@ -32,8 +25,8 @@ def data_arrays(num_arrays: int, shape: tuple[int, ...]) -> list[NDArray[np.floa
     [
         (2, (64, 64), "YX", [0]),
         (2, (5, 64, 64), "CYX", [0, 1, 2, 3, 4]),
-        (2, (5, 64, 64), "CYX", [0, 2])
-    ]
+        (2, (5, 64, 64), "CYX", [0, 2]),
+    ],
 )
 def test_stitch_tiled_prediction(
     data_arrays: list[NDArray[np.float32]],
@@ -59,10 +52,7 @@ def test_stitch_tiled_prediction(
         ),
     )
 
-    datamodule = CareamicsDataModule(
-        data_config=config,
-        pred_data=data_arrays
-    )
+    datamodule = CareamicsDataModule(data_config=config, pred_data=data_arrays)
     datamodule.setup(stage="predict")
 
     predictions = []
@@ -91,9 +81,7 @@ def test_stitch_tiled_prediction(
         if len(data_arrays[i].shape) > 2:
             # there is a channel dimension
             assert stitched_prediction[i].shape == data_arrays[i][pred_channels].shape
-            assert np.allclose(
-                stitched_prediction[i], data_arrays[i][pred_channels]
-            )
+            assert np.allclose(stitched_prediction[i], data_arrays[i][pred_channels])
         else:
             assert stitched_prediction[i].shape == data_arrays[i].shape
             assert np.allclose(stitched_prediction[i], data_arrays[i])
