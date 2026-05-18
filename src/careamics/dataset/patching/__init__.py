@@ -17,13 +17,8 @@ __all__ = [
 ]
 
 from .fixed_patching import FixedPatching
-from .patching import (
-    Patching,
-    PatchSpecs,
-    RegionSpecs,
-    TileSpecs,
-    is_tile_specs,
-)
+from .patch_specs import RegionSpecs, TileSpecs, is_tile_specs
+from .patching import Patching, PatchSpecs
 from .patching_factory import create_patching
 from .random_patching import FixedRandomPatching, RandomPatching
 from .sequential_patching import SequentialPatching
