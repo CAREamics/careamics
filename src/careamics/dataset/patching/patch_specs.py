@@ -64,6 +64,30 @@ class TileSpecs(PatchSpecs):
     total_tiles: int
 
 
+# not the most elegant solution but the patch specs are not used during training
+class UncorrelatedPatchSpecs(PatchSpecs):
+    """Each channel comes from a different location in the dataset.
+
+    This kind of patch can be used in the MicroSplit training pipeline.
+
+    Attributes
+    ----------
+    principle_channel : int
+        An index that represents the channel that the main patch specs describe.
+    all_data_idx : Sequence[int]
+        A sequence that contains the data index that each channel patch belongs to.
+    all_sample_idx : Sequence[int]
+        A sequence that contains the sample index that each channel patch belongs to.
+    all_coords : Sequence[Sequence[int]]
+        The coordinate of each channel patch.
+    """
+
+    principle_channel: int
+    all_data_idx: Sequence[int]
+    all_sample_idx: Sequence[int]
+    all_coords: Sequence[Sequence[int]]
+
+
 def is_tile_specs(specs: PatchSpecs) -> TypeGuard[TileSpecs]:
     """Determine whether a given PatchSpecs is a TileSpecs.
 
