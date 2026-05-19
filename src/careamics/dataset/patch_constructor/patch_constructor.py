@@ -1,10 +1,13 @@
 """PatchConstructor Protocol."""
 
+from collections.abc import Sequence
 from typing import Any, Protocol
 
 from numpy.typing import NDArray
 
 from careamics.dataset.patching import PatchSpecs
+
+from .metadata_utils import ImageMetadata
 
 
 class PatchConstructor(Protocol):
@@ -14,6 +17,12 @@ class PatchConstructor(Protocol):
     def n_patches(self) -> int:
         """The number of patches."""
         ...
+
+    @property
+    def input_shapes(self) -> Sequence[Sequence[int]]: ...
+
+    @property
+    def target_shapes(self) -> Sequence[Sequence[int]] | None: ...
 
     def construct_patch(
         self, index: int
@@ -54,3 +63,7 @@ class PatchConstructor(Protocol):
             The principal input (C(Z)YX).
         """
         ...
+
+    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata: ...
+
+    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None: ...

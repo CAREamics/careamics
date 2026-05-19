@@ -7,6 +7,7 @@ from careamics.dataset.image_stack import GenericImageStack
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import Patching, PatchSpecs
 
+from .metadata_utils import ImageMetadata, get_image_metadata
 from .patch_constructor import PatchConstructor
 
 
@@ -27,7 +28,7 @@ class BasicPatchConstructor(PatchConstructor):
     def n_patches(self):
         return self.patching_strategy.n_patches
 
-    def constuct_patch(
+    def construct_patch(
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any] | None, PatchSpecs]:
         patch_spec = self.patching_strategy.get_patch_spec(index)
@@ -36,6 +37,16 @@ class BasicPatchConstructor(PatchConstructor):
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         return input_patch
+
+    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+        image_stack = self.input_extractor.image_stacks[data_idx]
+        return get_image_metadata(image_stack)
+
+    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+        if self.target_extractor is not None:
+            image_stack = self.target_extractor.image_stacks[data_idx]
+            return get_image_metadata(image_stack)
+        return None
 
     def _extract_patches(
         self, patch_spec: PatchSpecs

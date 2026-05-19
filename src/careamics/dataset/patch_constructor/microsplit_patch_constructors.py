@@ -15,6 +15,7 @@ from careamics.dataset.patching import (
     UncorrelatedPatchSpecs,
 )
 
+from .metadata_utils import ImageMetadata, get_image_metadata
 from .patch_constructor import PatchConstructor
 
 # placeholder names
@@ -90,6 +91,14 @@ class MsT1PatchConstructor(PatchConstructor):
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         return input_patch[0]
 
+    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+        image_stack = self.target_extractor.image_stacks[data_idx]
+        return get_image_metadata(image_stack)
+
+    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+        image_stack = self.target_extractor.image_stacks[data_idx]
+        return get_image_metadata(image_stack)
+
 
 # target channels in separate files, synthetic input
 class MsT2PatchConstructor(PatchConstructor):
@@ -149,6 +158,44 @@ class MsT2PatchConstructor(PatchConstructor):
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         return input_patch[0]
 
+    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+        image_stacks = [
+            extractor.image_stacks[data_idx] for extractor in self.target_extractors
+        ]
+        principal_image_stack = image_stacks[self.principal_channel]
+        all_sources = [str(image_stack.source) for image_stack in image_stacks]
+        all_data_shapes = [image_stack.data_shape for image_stack in image_stacks]
+        all_original_data_shapes = [
+            image_stack.original_data_shape for image_stack in image_stacks
+        ]
+
+        metadata = get_image_metadata(principal_image_stack)
+        metadata["additional_metadata"]["all_sources"] = all_sources
+        metadata["additional_metadata"]["all_data_shapes"] = all_data_shapes
+        metadata["additional_metadata"][
+            "all_original_data_shapes"
+        ] = all_original_data_shapes
+        return metadata
+
+    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+        image_stacks = [
+            extractor.image_stacks[data_idx] for extractor in self.target_extractors
+        ]
+        principal_image_stack = image_stacks[self.principal_channel]
+        all_sources = [str(image_stack.source) for image_stack in image_stacks]
+        all_data_shapes = [image_stack.data_shape for image_stack in image_stacks]
+        all_original_data_shapes = [
+            image_stack.original_data_shape for image_stack in image_stacks
+        ]
+
+        metadata = get_image_metadata(principal_image_stack)
+        metadata["additional_metadata"]["all_sources"] = all_sources
+        metadata["additional_metadata"]["all_data_shapes"] = all_data_shapes
+        metadata["additional_metadata"][
+            "all_original_data_shapes"
+        ] = all_original_data_shapes
+        return metadata
+
 
 # real target image and input images
 class MsT3PatchConstructor(PatchConstructor):
@@ -189,6 +236,14 @@ class MsT3PatchConstructor(PatchConstructor):
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         return input_patch[0]
 
+    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+        image_stack = self.input_extractor.image_stacks[data_idx]
+        return get_image_metadata(image_stack)
+
+    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+        image_stack = self.target_extractor.image_stacks[data_idx]
+        return get_image_metadata(image_stack)
+
 
 class MsPredPatchConstructor(PatchConstructor):
     # prediction - input only
@@ -225,6 +280,13 @@ class MsPredPatchConstructor(PatchConstructor):
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         return input_patch[0]
+
+    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+        image_stack = self.input_extractor.image_stacks[data_idx]
+        return get_image_metadata(image_stack)
+
+    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+        return None
 
 
 def _sample_alphas(
