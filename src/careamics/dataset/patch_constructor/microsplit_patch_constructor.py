@@ -154,7 +154,11 @@ class MsT2PatchConstructor(PatchConstructor):
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any], UncorrelatedPatchSpecs]:
         n_channels = len(self.patching_strategies)
-        indices = self.rng.integers(0, self.n_patches, n_channels).tolist()
+        n_patches = [
+            patching_strategy.n_patches
+            for patching_strategy in self.patching_strategies
+        ]
+        indices = self.rng.integers(0, n_patches, n_channels).tolist()
         indices[self.principal_channel] = index
         patch_specs = [
             strategy.get_patch_spec(i)
@@ -185,12 +189,14 @@ class MsT3PatchConstructor(PatchConstructor):
         patching_strategy: Patching,
         input_extractor: PatchExtractor[Any],
         target_extractor: PatchExtractor[Any],
-        multiscale_count: int = 1,
+        multiscale_count: int,
+        padding_mode: Literal["reflect", "wrap"],
     ):
         self.patching_strategy = patching_strategy
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
         self.multiscale_count = multiscale_count
+        self.padding_mode: Literal["reflect", "wrap"] = padding_mode
 
     @property
     def n_patches(self) -> int:
@@ -201,6 +207,14 @@ class MsT3PatchConstructor(PatchConstructor):
     ) -> tuple[NDArray[Any], NDArray[Any], PatchSpecs]:
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = self.input_extractor.extract_patch(**patch_spec)
+        input_patch = _extract_lc_patch(
+            self.input_extractor,
+            **patch_spec,
+            channels=None,
+            multiscale_count=self.multiscale_count,
+            padding_mode=self.padding_mode,
+        )
+        input_patch = input_patch.squeeze(0)  # output is CL(Z)YX
         target_patch = self.target_extractor.extract_patch(**patch_spec)
         return input_patch, target_patch, patch_spec
 
@@ -220,7 +234,7 @@ class MsPredPatchConstructor(PatchConstructor):
         self.patching_strategy = patching_strategy
         self.input_extractor = input_extractor
         self.multiscale_count = multiscale_count
-        self.padding_mode = padding_mode
+        self.padding_mode: Literal["reflect", "wrap"] = padding_mode
 
     @property
     def n_patches(self) -> int:
@@ -228,12 +242,17 @@ class MsPredPatchConstructor(PatchConstructor):
 
     def construct_patch(self, index: int) -> tuple[NDArray[Any], None, TileSpecs]:
         patch_spec = self.patching_strategy.get_patch_spec(index)
-        input_patch = self.input_extractor.extract_patch(
+        input_patch = _extract_lc_patch(
+            self.input_extractor,
             data_idx=patch_spec["data_idx"],
             sample_idx=patch_spec["sample_idx"],
             coords=patch_spec["coords"],
             patch_size=patch_spec["patch_size"],
+            channels=None,
+            multiscale_count=self.multiscale_count,
+            padding_mode=self.padding_mode,
         )
+        input_patch = input_patch.squeeze(0)  # output is CL(Z)YX
         return input_patch, None, patch_spec
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
