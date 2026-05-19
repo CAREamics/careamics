@@ -18,18 +18,20 @@ from careamics.dataset.patching import (
 from .metadata_utils import ImageMetadata, get_image_metadata
 from .patch_constructor import PatchConstructor
 
-# placeholder names
+# placeholder names (correspond to Training Modes I, II & III described in the paper)
 
 
 # target channels acquired together, synthetic sum input
 class MsT1PatchConstructor(PatchConstructor):
+    """Construct MicroSplit patches from jointly acquired target channels."""
+
     def __init__(
         self,
         patching_strategy: Patching,
         target_extractor: PatchExtractor[Any],
         multiscale_count: int,
         padding_mode: Literal["reflect", "wrap"],
-        alpha_ranges: Sequence[tuple[float, float]],
+        alpha_ranges: Sequence[tuple[float, float]] | None,
         uncorrelated_channel_prob: float,
         channels: Sequence[int] | None = None,
         rng: np.random.Generator | None = None,
@@ -46,11 +48,23 @@ class MsT1PatchConstructor(PatchConstructor):
 
     @property
     def n_patches(self) -> int:
+        """Return the number of available patches."""
         return self.patching_strategy.n_patches
+
+    @property
+    def input_shapes(self) -> Sequence[Sequence[int]]:
+        """Return input image shapes."""
+        return self.target_extractor.shapes
+
+    @property
+    def target_shapes(self) -> Sequence[Sequence[int]]:
+        """Return target image shapes."""
+        return self.target_extractor.shapes
 
     def construct_patch(
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any], PatchSpecs | UncorrelatedPatchSpecs]:
+        """Construct the synthetic input and target patch for an index."""
         p = self.rng.random()
         patch_spec: PatchSpecs | UncorrelatedPatchSpecs
         if p < self.uncorrelated_channel_prob:
@@ -89,26 +103,31 @@ class MsT1PatchConstructor(PatchConstructor):
         return input_patch, target_patch, patch_spec
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
+        """Return the principal input without lateral context."""
         return input_patch[0]
 
     def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+        """Return metadata for the input image."""
         image_stack = self.target_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
     def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+        """Return metadata for the target image."""
         image_stack = self.target_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
 
 # target channels in separate files, synthetic input
 class MsT2PatchConstructor(PatchConstructor):
+    """Construct MicroSplit patches from target channels in separate files."""
+
     def __init__(
         self,
         patching_strategies: Sequence[Patching],
         target_extractors: Sequence[PatchExtractor[Any]],
         multiscale_count: int,
         padding_mode: Literal["reflect", "wrap"],
-        alpha_ranges: Sequence[tuple[float, float]],
+        alpha_ranges: Sequence[tuple[float, float]] | None,
         rng: np.random.Generator | None = None,
     ):
         self.rng = rng if rng is not None else np.random.default_rng()
@@ -125,11 +144,23 @@ class MsT2PatchConstructor(PatchConstructor):
 
     @property
     def n_patches(self) -> int:
+        """Return the number of available patches."""
         return self.patching_strategies[self.principal_channel].n_patches
+
+    @property
+    def input_shapes(self) -> Sequence[Sequence[int]]:
+        """Return input image shapes."""
+        return self.target_extractors[self.principal_channel].shapes
+
+    @property
+    def target_shapes(self) -> Sequence[Sequence[int]]:
+        """Return target image shapes."""
+        return self.target_extractors[self.principal_channel].shapes
 
     def construct_patch(
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any], UncorrelatedPatchSpecs]:
+        """Construct the synthetic input and target patch for an index."""
         n_channels = len(self.patching_strategies)
         n_patches = [
             patching_strategy.n_patches
@@ -156,9 +187,11 @@ class MsT2PatchConstructor(PatchConstructor):
         return input_patch, target_patch, uncorr_patch_specs
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
+        """Return the principal input without lateral context."""
         return input_patch[0]
 
     def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+        """Return metadata for the input image."""
         image_stacks = [
             extractor.image_stacks[data_idx] for extractor in self.target_extractors
         ]
@@ -178,6 +211,7 @@ class MsT2PatchConstructor(PatchConstructor):
         return metadata
 
     def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+        """Return metadata for the target image."""
         image_stacks = [
             extractor.image_stacks[data_idx] for extractor in self.target_extractors
         ]
@@ -199,6 +233,8 @@ class MsT2PatchConstructor(PatchConstructor):
 
 # real target image and input images
 class MsT3PatchConstructor(PatchConstructor):
+    """Construct MicroSplit patches from paired real input and target images."""
+
     def __init__(
         self,
         patching_strategy: Patching,
@@ -215,11 +251,23 @@ class MsT3PatchConstructor(PatchConstructor):
 
     @property
     def n_patches(self) -> int:
+        """Return the number of available patches."""
         return self.patching_strategy.n_patches
+
+    @property
+    def input_shapes(self) -> Sequence[Sequence[int]]:
+        """Return input image shapes."""
+        return self.input_extractor.shapes
+
+    @property
+    def target_shapes(self) -> Sequence[Sequence[int]]:
+        """Return target image shapes."""
+        return self.target_extractor.shapes
 
     def construct_patch(
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any], PatchSpecs]:
+        """Construct the real input and target patch for an index."""
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = self.input_extractor.extract_patch(**patch_spec)
         input_patch = _extract_lc_patch(
@@ -234,18 +282,23 @@ class MsT3PatchConstructor(PatchConstructor):
         return input_patch, target_patch, patch_spec
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
+        """Return the principal input without lateral context."""
         return input_patch[0]
 
     def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+        """Return metadata for the input image."""
         image_stack = self.input_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
     def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+        """Return metadata for the target image."""
         image_stack = self.target_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
 
 class MsPredPatchConstructor(PatchConstructor):
+    """Construct MicroSplit prediction patches."""
+
     # prediction - input only
     def __init__(
         self,
@@ -261,9 +314,21 @@ class MsPredPatchConstructor(PatchConstructor):
 
     @property
     def n_patches(self) -> int:
+        """Return the number of available patches."""
         return self.patching_strategy.n_patches
 
+    @property
+    def input_shapes(self) -> Sequence[Sequence[int]]:
+        """Return input image shapes."""
+        return self.input_extractor.shapes
+
+    @property
+    def target_shapes(self) -> None:
+        """Return target image shapes, if targets exist."""
+        return None
+
     def construct_patch(self, index: int) -> tuple[NDArray[Any], None, TileSpecs]:
+        """Construct the input patch for prediction."""
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = _extract_lc_patch(
             self.input_extractor,
@@ -279,30 +344,38 @@ class MsPredPatchConstructor(PatchConstructor):
         return input_patch, None, patch_spec
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
+        """Return the principal input without lateral context."""
         return input_patch[0]
 
     def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+        """Return metadata for the input image."""
         image_stack = self.input_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
     def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+        """Return metadata for the target image."""
         return None
 
 
 def _sample_alphas(
-    alpha_ranges: Sequence[tuple[float, float]], rng: np.random.Generator
+    alpha_ranges: Sequence[tuple[float, float]] | None,
+    n_channels: int,
+    rng: np.random.Generator,
 ):
-    low = tuple(r[0] for r in alpha_ranges)
-    high = tuple(r[1] for r in alpha_ranges)
-    return rng.uniform(low, high)
+    if alpha_ranges is None:
+        return np.array([1 / n_channels for _ in range(n_channels)])
+    else:
+        low = tuple(r[0] for r in alpha_ranges)
+        high = tuple(r[1] for r in alpha_ranges)
+        return rng.uniform(low, high)
 
 
 def _create_input_target(
     patch: NDArray[Any],
-    alpha_ranges: Sequence[tuple[float, float]],
+    alpha_ranges: Sequence[tuple[float, float]] | None,
     rng: np.random.Generator,
 ):
-    alphas = _sample_alphas(alpha_ranges, rng)
+    alphas = _sample_alphas(alpha_ranges, patch.shape[0], rng)
     alpha_broadcast = alphas.reshape(len(alphas), *(1,) * (len(patch.shape) - 1))
     # weight channels by alphas then sum on the channel axis
     # input dims will be L(Z)YX
