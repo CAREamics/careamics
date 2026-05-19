@@ -13,8 +13,9 @@ nav = [
 ]},
 {"Tutorials" = [
     "content/guides/tutorials/index.md",
-    {"Custom format" = "content/guides/tutorials/custom_data.md"},
-    {"Implementing an Image Stack" = "content/guides/tutorials/implementing_an_image_stack.md"}
+    {"Custom Data Formats" = "content/guides/tutorials/custom_data.md"},
+    {"Implementing an Image Stack" = "content/guides/tutorials/implementing_an_image_stack.md"},
+    {"Patch Filtering" = "content/guides/tutorials/patch_filtering.md"}
 ]},
 {"Legacy (v0.1)" = [
     "content/guides/v0.1/index.md",
