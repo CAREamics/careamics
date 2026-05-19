@@ -19,6 +19,7 @@ from careamics.models.constraints import ModelConstraints
 from .image_region_data import ImageRegionData
 from .image_stack import GenericImageStack
 from .normalization import create_normalization
+from .normalization.statistics import resolve_normalization_config
 from .patch_constructor import PatchConstructor
 from .patching import PatchSpecs, RegionSpecs
 
@@ -207,12 +208,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     ----------
     data_config : DataConfig
         Dataset configuration.
-    patching_strategy : PatchingStrategy
-        Strategy for sampling patches.
-    input_extractor : PatchExtractor
-        Extractor for input patches.
-    target_extractor : PatchExtractor or None, default=None
-        Extractor for target patches.
+    patch_constructor : PatchConstructor
+        Constructor for input and target patches.
     model_constraints : ModelConstraints, default=None
         If provided, the dataset will validate that the input patch size is compatible
         with the model constraints. Only used for prediction datasets.
@@ -230,12 +227,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         ----------
         data_config : DataConfig
             Dataset configuration.
-        patching_strategy : PatchingStrategy
-            Strategy for sampling patches.
-        input_extractor : PatchExtractor
-            Extractor for input patches.
-        target_extractor : PatchExtractor or None, default=None
-            Extractor for target patches.
+        patch_constructor : PatchConstructor
+            Constructor for input and target patches.
         model_constraints : ModelConstraints, default=None
             If provided, the dataset will validate that the input spatial shape is
             compatible with the model constraints.
@@ -256,17 +249,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self.config = data_config
         self.patch_constructor = patch_constructor
 
-        if self.config.normalization.needs_computation():
-            raise NotImplementedError(
-                "Computation of stats for normalization is not implemented yet."
-            )
-            # resolve_normalization_config(
-            #     norm_config=self.config.normalization,
-            #     patching_strategy=self.patching_strategy,
-            #     input_extractor=self.input_extractor,
-            #     target_extractor=self.target_extractor,
-            #     channels=self.config.channels,
-            # )
+        resolve_normalization_config(
+            norm_config=self.config.normalization,
+            patch_constructor=self.patch_constructor,
+        )
         self.normalization = create_normalization(self.config.normalization)
 
         self.transforms = self._initialize_augmentations()
@@ -291,21 +277,21 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         target_patch: NDArray[Any] | None,
         patch_spec: RegionSpecs,
     ) -> tuple[ImageRegionData[RegionSpecs], ImageRegionData[RegionSpecs] | None]:
-        """Wrap a patch and its spec into an ImageRegionData for the given extractor.
+        """Wrap patches and their spec into ImageRegionData objects.
 
         Parameters
         ----------
-        patch : np.ndarray
-            Patch data.
-        patch_spec : PatchSpecs
+        input_patch : NDArray
+            Input patch data.
+        target_patch : NDArray or None
+            Optional target patch data.
+        patch_spec : RegionSpecs
             Patch specification.
-        extractor : PatchExtractor
-            Extractor used (for metadata).
 
         Returns
         -------
-        ImageRegionData
-            Region data for the patch.
+        tuple of ImageRegionData and ImageRegionData or None
+            Region data for the input patch and optional target patch.
         """
         data_idx = patch_spec["data_idx"]
         input_metadata = self.patch_constructor.get_input_image_metadata(data_idx)
