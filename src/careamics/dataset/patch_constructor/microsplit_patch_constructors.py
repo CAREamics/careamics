@@ -104,7 +104,7 @@ class MsT1PatchConstructor(PatchConstructor):
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         """Return the principal input without lateral context."""
-        return input_patch[0]
+        return input_patch[[0]]
 
     def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
         """Return metadata for the input image."""
@@ -188,10 +188,11 @@ class MsT2PatchConstructor(PatchConstructor):
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         """Return the principal input without lateral context."""
-        return input_patch[0]
+        return input_patch[[0]]
 
     def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
         """Return metadata for the input image."""
+        # TODO: not correct for uncorrelated patches
         image_stacks = [
             extractor.image_stacks[data_idx] for extractor in self.target_extractors
         ]
@@ -283,7 +284,7 @@ class MsT3PatchConstructor(PatchConstructor):
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         """Return the principal input without lateral context."""
-        return input_patch[0]
+        return input_patch[[0]]
 
     def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
         """Return metadata for the input image."""
@@ -345,7 +346,7 @@ class MsPredPatchConstructor(PatchConstructor):
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         """Return the principal input without lateral context."""
-        return input_patch[0]
+        return input_patch[[0]]
 
     def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
         """Return metadata for the input image."""
