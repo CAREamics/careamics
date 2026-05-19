@@ -28,6 +28,7 @@ from ..image_stack_loader import (
     load_tiffs,
     load_zarrs,
 )
+from ..patch_constructor import BasicPatchConstructor
 from ..patch_extractor import LimitFilesPatchExtractor, PatchExtractor
 from ..patching import StratifiedPatching, create_patching
 from .filter_bg import filter_background, filter_background_with_mask
@@ -154,11 +155,15 @@ def create_dataset(
 
     patching_strategy = create_patching(input_extractor.shapes, config.patching)
 
-    return CareamicsDataset(
-        data_config=config,
+    patch_constructor = BasicPatchConstructor(
         patching_strategy=patching_strategy,
         input_extractor=input_extractor,
         target_extractor=target_extractor,
+        channels=config.channels,
+    )
+    return CareamicsDataset(
+        data_config=config,
+        patch_constructor=patch_constructor,
         model_constraints=model_constraints,
     )
 
@@ -252,11 +257,15 @@ def create_train_dataset(
             mask_extractor,
         )
 
-    return CareamicsDataset(
-        data_config=config,
+    patch_constructor = BasicPatchConstructor(
         patching_strategy=patching_strategy,
         input_extractor=input_extractor,
         target_extractor=target_extractor,
+        channels=config.channels,
+    )
+    return CareamicsDataset(
+        data_config=config,
+        patch_constructor=patch_constructor,
         model_constraints=model_constraints,
     )
 
@@ -356,7 +365,14 @@ def create_val_split_datasets(
         )
 
     train_dataset = create_train_dataset(config, data, loading, model_constraints)
-    train_patching = train_dataset.patching_strategy
+
+    # NOTE: temporary guard before refactoring this further
+    if not isinstance(train_dataset.patch_constructor, BasicPatchConstructor):
+        raise NotImplementedError(
+            "Validation splitting is currently only implemented for basic patch "
+            "construction used by the algorithms `CARE`, `N2N` and `N2V`."
+        )
+    train_patching = train_dataset.patch_constructor.patching_strategy
     # ensured by guard on config at the start of function
     assert isinstance(train_patching, StratifiedPatching)
 
@@ -366,11 +382,15 @@ def create_val_split_datasets(
         train_patching, data.n_val_patches, rng=rng
     )
 
-    val_dataset = CareamicsDataset(
-        data_config=config.convert_mode("validating"),
-        input_extractor=train_dataset.input_extractor,
-        target_extractor=train_dataset.target_extractor,
+    patch_constructor = BasicPatchConstructor(
         patching_strategy=val_patching,
+        input_extractor=train_dataset.patch_constructor.input_extractor,
+        target_extractor=train_dataset.patch_constructor.target_extractor,
+        channels=config.channels,
+    )
+    val_dataset: CareamicsDataset[ImageStack] = CareamicsDataset(
+        data_config=config.convert_mode("validating"),
+        patch_constructor=patch_constructor,
         model_constraints=model_constraints,
     )
     return train_dataset, val_dataset

@@ -28,6 +28,16 @@ class BasicPatchConstructor(PatchConstructor):
     def n_patches(self):
         return self.patching_strategy.n_patches
 
+    @property
+    def input_shapes(self) -> Sequence[Sequence[int]]:
+        return self.input_extractor.shapes
+
+    @property
+    def target_shapes(self) -> Sequence[Sequence[int]] | None:
+        if self.target_extractor is not None:
+            return self.target_extractor.shapes
+        return None
+
     def construct_patch(
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any] | None, PatchSpecs]:
