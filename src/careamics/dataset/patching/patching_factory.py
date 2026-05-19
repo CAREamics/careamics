@@ -9,6 +9,7 @@ from careamics.config.support.supported_patching import (
 
 from .patching import Patching
 from .random_patching import FixedRandomPatching, RandomPatching
+from .sliding_window_tiled_patching import SlidingWindowTiledPatching
 from .stratified_patching import StratifiedPatching
 from .tiled_patching import TiledPatching
 from .whole_sample_patching import WholeSamplePatching
@@ -41,6 +42,8 @@ def create_patching(
             patch_class = FixedRandomPatching
         case SupportedPatching.TILED:
             patch_class = TiledPatching
+        case SupportedPatching.SLIDING_WINDOW_TILED:
+            patch_class = SlidingWindowTiledPatching
         case SupportedPatching.WHOLE:
             patch_class = WholeSamplePatching
         case _:

@@ -4,6 +4,7 @@ __all__ = [
     "FixedRandomPatchingConfig",
     "RandomPatchingConfig",
     "SequentialPatchingConfig",
+    "SlidingWindowTiledPatchingConfig",
     "StratifiedPatchingConfig",
     "TiledPatchingConfig",
     "WholePatchingConfig",
@@ -12,6 +13,7 @@ __all__ = [
 
 from .random_patching_config import FixedRandomPatchingConfig, RandomPatchingConfig
 from .sequential_patching_config import SequentialPatchingConfig
+from .sliding_window_tiled_patching_config import SlidingWindowTiledPatchingConfig
 from .stratified_patching_config import StratifiedPatchingConfig
 from .tiled_patching_config import TiledPatchingConfig
 from .whole_patching_config import WholePatchingConfig

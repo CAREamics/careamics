@@ -8,11 +8,13 @@ __all__ = [
     "RandomPatching",
     "RegionSpecs",
     "SequentialPatching",
+    "SlidingWindowTiledPatching",
     "StratifiedPatching",
     "TileSpecs",
     "TiledPatching",
     "WholeSamplePatching",
     "create_patching",
+    "effective_mmse_count",
     "is_tile_specs",
 ]
 
@@ -27,6 +29,10 @@ from .patching import (
 from .patching_factory import create_patching
 from .random_patching import FixedRandomPatching, RandomPatching
 from .sequential_patching import SequentialPatching
+from .sliding_window_tiled_patching import (
+    SlidingWindowTiledPatching,
+    effective_mmse_count,
+)
 from .stratified_patching import StratifiedPatching
 from .tiled_patching import TiledPatching
 from .whole_sample_patching import WholeSamplePatching

@@ -1,8 +1,12 @@
-"""Sliding-window tiled prediction for posterior models (v1, MicroSplit-only).
+"""Sliding-window inner-tiled prediction for posterior models (MicroSplit-only).
 
-Implements a dense-overlap tile stitcher that keeps *all* predicted pixels and
-averages them across overlapping tiles, rather than the standard inner-tiling
-approach of cropping each tile to its central region.
+Implements a dense-overlap inner-tile stitcher: each predicted tile is cropped
+to its kept inner region (drop margin of ``overlap // 2`` per side, asymmetric
+at image edges) and pasted at its ``stitch_coords`` with `+=` into a running
+sum, with a parallel count array tracking coverage. Tile geometry is produced
+by ``SlidingWindowTiledPatching``; effective per-pixel MMSE count is determined
+by ``effective_mmse_count(patch_size, stride, overlap)`` and edge replication
+in the patching strategy equalises border coverage with the interior.
 
 See ``swin_tiled_pred.md`` for design notes.
 """
@@ -97,43 +101,45 @@ def _allocate_accumulator(tile: ImageRegionData) -> _TileAccumulator:
     )
 
 
-def _tile_paste_slices(spec: TileSpecs) -> tuple[Any, ...]:
-    """Build the destination slice into an SC(Z)YX accumulator for a tile.
+def _tile_paste_slices(
+    spec: TileSpecs,
+) -> tuple[tuple[Any, ...], tuple[Any, ...]]:
+    """Build the source-crop and destination-stitch slices for a tile.
 
-    Uses the **full** tile extent (``coords`` / ``patch_size``); the
-    ``crop_coords``/``stitch_coords`` fields used by the legacy inner-tile
-    stitcher are intentionally ignored here.
+    Source slice indexes into the tile data (``C(Z)YX``) to extract its kept
+    inner region (``crop_coords`` / ``crop_size``). Destination slice indexes
+    into the ``SC(Z)YX`` accumulator at the tile's ``stitch_coords``.
     """
-    coords = spec["coords"]
-    size = spec["patch_size"]
+    crop_coords = spec["crop_coords"]
+    crop_size = spec["crop_size"]
+    stitch_coords = spec["stitch_coords"]
     sample_idx = int(spec["sample_idx"])
-    spatial = tuple(
-        slice(int(s), int(s) + int(length))
-        for s, length in zip(coords, size, strict=True)
+    source = (
+        ...,
+        *[
+            slice(int(c), int(c) + int(sz))
+            for c, sz in zip(crop_coords, crop_size, strict=True)
+        ],
     )
-    return (sample_idx, ..., *spatial)
+    dest = (
+        sample_idx,
+        ...,
+        *[
+            slice(int(s), int(s) + int(sz))
+            for s, sz in zip(stitch_coords, crop_size, strict=True)
+        ],
+    )
+    return source, dest
 
 
 def _paste_tile(acc: _TileAccumulator, tile: ImageRegionData) -> None:
-    """Add a tile's data into the accumulator and bump the count."""
+    """Add a tile's cropped inner region into the accumulator and bump the count."""
     spec: TileSpecs = tile.region_spec  # type: ignore[assignment]
-    slices = _tile_paste_slices(spec)
-    acc.sum[slices] += np.asarray(tile.data, dtype=np.float32)
-    acc.count[slices] += 1.0
+    source_slice, dest_slice = _tile_paste_slices(spec)
+    cropped = np.asarray(tile.data, dtype=np.float32)[source_slice]
+    acc.sum[dest_slice] += cropped
+    acc.count[dest_slice] += 1.0
     acc.seen += 1
-
-
-def _handle_border_tiles(acc: _TileAccumulator) -> None:
-    """Placeholder for the border-MMSE correction.
-
-    The first/last P×P panels of the image are not covered by enough sliding
-    windows to reach MMSE-fixed status. The intended fix is to run a standalone
-    MMSE prediction at the borders and weight-paste pixels P, P-1, ... towards
-    the interior. Not implemented in v1.
-    """
-    # TODO: run a standalone MMSE prediction at the borders and weight-paste
-    # P, P-1, ... towards the interior.
-    return
 
 
 def _resolve_output_path(save_dir: Path, data_idx: int, source: str) -> Path:
@@ -152,8 +158,9 @@ def _finalize_and_save(
     if (acc.count == 0).any():
         n_uncovered = int((acc.count == 0).sum())
         logger.warning(
-            "Image data_idx=%d has %d uncovered pixel(s) — likely the border "
-            "edge case (not handled in v1). Those pixels will be written as 0.",
+            "Image data_idx=%d has %d uncovered pixel(s). With "
+            "SlidingWindowTiledPatching this should not happen — check your "
+            "stride/overlap configuration. Those pixels will be written as 0.",
             data_idx,
             n_uncovered,
         )
@@ -188,27 +195,34 @@ def sw_tiled_prediction(
     inputs: Sequence[NDArray | Path | str],
     save_dir: Path | str,
 ) -> None:
-    """Run dense-overlap sliding-window tiled prediction.
+    """Run dense-overlap sliding-window inner-tiled prediction.
 
     Iterates the prediction dataloader once. For each batch the model's
-    ``predict_step`` produces an already-denormalised MMSE mean per tile; tiles
-    are pasted (summed) into a per-image accumulator at their full ``coords`` +
-    ``patch_size`` location and a parallel count array tracks coverage. When all
-    tiles for an image have arrived (per ``TileSpecs.total_tiles``), the sum is
-    divided by the count and written to disk as a TIFF, and the accumulator is
-    flushed.
+    ``predict_step`` produces an already-denormalised MMSE mean per tile; each
+    tile's kept inner region (per its ``crop_coords`` / ``crop_size``) is
+    pasted at ``stitch_coords`` into a per-image accumulator with ``+=``, and
+    a parallel count array tracks coverage. When all tiles for an image have
+    arrived (per ``TileSpecs.total_tiles``), the sum is divided by the count
+    and written to disk as a TIFF, and the accumulator is flushed.
+
+    The effective per-pixel MMSE count is determined by the patching strategy:
+    use ``SlidingWindowTiledPatchingConfig`` and the helper
+    ``effective_mmse_count(patch_size, stride, overlap)`` to predict it. With
+    ``edge_replication=True`` the border matches the interior. Set
+    ``model.algorithm_config.mmse_count = 1`` for canonical behaviour; values
+    > 1 multiply the effective count.
 
     Parameters
     ----------
     model : MicroSplitModule
         Trained MicroSplit module. Caller is responsible for loading weights
-        (e.g. via ``load_microsplit_from_checkpoint``).
+        (e.g. via ``load_microsplit_from_checkpoint``) and for setting
+        ``model.algorithm_config.mmse_count = 1`` before invocation.
     use_logger : bool
         Currently unused; kept for API compatibility with the handout.
     data_config : DataConfig or dict
-        Configuration for the prediction ``CareamicsDataModule``. Dense overlap
-        is driven by setting a small grid stride on the tiled-patching strategy
-        in this config — no new patching strategy is introduced.
+        Configuration for the prediction ``CareamicsDataModule``. Expected to
+        carry a ``SlidingWindowTiledPatchingConfig`` as its patching strategy.
     inputs : sequence of NDArray or Path
         Prediction inputs. If items are paths, each output is saved as
         ``{stem}_pred.tif``; otherwise outputs are saved as
@@ -248,7 +262,6 @@ def sw_tiled_prediction(
                 _paste_tile(acc, tile)
 
                 if acc.is_complete():
-                    _handle_border_tiles(acc)
                     _finalize_and_save(
                         accumulators.pop(data_idx), save_dir, data_idx
                     )
