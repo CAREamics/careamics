@@ -87,38 +87,6 @@ class MsT1PatchConstructor(PatchConstructor):
         )
         return input_patch, target_patch, patch_spec
 
-    def _construct_uncorrelated_patch(
-        self, index: int
-    ) -> tuple[NDArray[Any], UncorrelatedPatchSpecs]:
-        indices: list[int] = [index] + self.rng.integers(
-            0, self.n_patches, self.target_extractor.n_channels - 1
-        ).tolist()
-        patch_specs = [self.patching_strategy.get_patch_spec(i) for i in indices]
-
-        n_channels = (
-            self.target_extractor.n_channels
-            if self.channels is None
-            else len(self.channels)
-        )
-        patch_size = patch_specs[0]["patch_size"]
-        patch = np.zeros((n_channels, self.multiscale_count, *patch_size))
-        for c in range(n_channels):
-            patch[[c]] = _extract_lc_patch(
-                self.target_extractor,
-                **patch_specs[c],
-                channels=[c],
-                multiscale_count=self.multiscale_count,
-                padding_mode=self.padding_mode,
-            )
-        uncorr_patch_specs = UncorrelatedPatchSpecs(
-            **patch_specs[0],
-            principle_channel=0,
-            all_data_idx=[ps["data_idx"] for ps in patch_specs],
-            all_sample_idx=[ps["sample_idx"] for ps in patch_specs],
-            all_coords=[ps["coords"] for ps in patch_specs],
-        )
-        return patch, uncorr_patch_specs
-
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         return input_patch[0]
 
