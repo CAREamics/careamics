@@ -11,7 +11,7 @@ class PatchConstructor(Protocol):
     """Module for extracting and constructing inputs and targets."""
 
     @property
-    def n_patches(self):
+    def n_patches(self) -> int:
         """The number of patches."""
         ...
 
@@ -38,7 +38,7 @@ class PatchConstructor(Protocol):
 
     # e.g. for MicroSplit the full input has the lateral context.
     #      we need to remove the lateral context to calculate the normalization stats.
-    def get_principal_input(self, input: NDArray[Any]) -> NDArray[Any]:
+    def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         """Get the principle input.
 
         This is useful for tasks such as the calculation of stats for normalization.
@@ -51,6 +51,6 @@ class PatchConstructor(Protocol):
         Returns
         -------
         NDArray[Any]
-            The principal input.
+            The principal input (C(Z)YX).
         """
         ...

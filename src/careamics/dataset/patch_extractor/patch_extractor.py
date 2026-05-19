@@ -34,7 +34,6 @@ class PatchExtractor(Generic[GenericImageStack]):
         # check all image stacks have the same number of dimensions
         # check all image stacks have the same number of channels
         self.n_spatial_dims = len(self.image_stacks[0].data_shape) - 2  # SC(Z)YX
-        self.n_channels = self.image_stacks[0].data_shape[1]
         for i, image_stack in enumerate(image_stacks):
             if (ndims := len(image_stack.data_shape) - 2) != self.n_spatial_dims:
                 raise ValueError(
@@ -132,3 +131,8 @@ class PatchExtractor(Generic[GenericImageStack]):
             Shape of each stack.
         """
         return [stack.data_shape for stack in self.image_stacks]
+
+    @property
+    def n_channels(self) -> int:
+        """Return the number of channels that the data has."""
+        return self.image_stacks[0].data_shape[1]
