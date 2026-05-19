@@ -39,7 +39,7 @@ Using precomputed masks is relatively simple, the masks in the same format as th
 
 ## Filtering functions
 
-CAREamics has 3 built-in filtering functions, which work by filtering by thresholding different metrics:
+CAREamics has 3 built-in filtering functions, which work by filtering out patches using thresholds on different metrics:
 
 - [`MaxPatchFilter`][careamics.dataset.patch_filter.MaxPatchFilter]: that filters the data based on the max value of each region.
 - [`MeanStdPatchFilter`][careamics.dataset.patch_filter.MeanStdPatchFilter]: that filters the data based on the mean and optionally the standard deviation of regions of the data.
