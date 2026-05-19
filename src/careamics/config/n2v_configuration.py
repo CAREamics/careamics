@@ -15,6 +15,8 @@ class N2VConfiguration(Configuration):
     """N2V-specific configuration."""
 
     algorithm_config: N2VAlgorithm
+    """Algorithm configuration, holding all parameters required to configure the
+    model."""
 
     # TODO note that only patch sizes 4 and 8 may lead to less than 1 expected masked
     # pixel per patch given a minimum masked pixel percentage of 0.05%. This validation

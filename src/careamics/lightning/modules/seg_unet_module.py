@@ -1,48 +1,51 @@
-"""Noise2Void Lightning Module."""
+"""UNet-based segmentation Lightning Module."""
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import pytorch_lightning as L
 import torch
 from torch import nn
 from torchmetrics import MetricCollection
+from torchmetrics.segmentation import GeneralizedDiceScore
 
-from careamics.config import N2VAlgorithm
+from careamics.config import SegAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
-from careamics.losses import n2v_loss
-from careamics.metrics import SIPSNR
+from careamics.lightning.losses import get_seg_loss
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
 
-from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
-from .n2v_utils import N2VManipulate
-
-logger = get_logger(__name__)
+from .module_utils import (
+    configure_optimizers,
+    log_training_stats,
+    log_validation_stats,
+)
 
 if TYPE_CHECKING:
     from careamics.lightning.data.data_module import CareamicsDataModule
 
+logger = get_logger(__name__)
 
-class N2VModule(L.LightningModule):
-    """CAREamics PyTorch Lightning module for N2V algorithm.
+
+class SegModule(L.LightningModule):
+    """CAREamics PyTorch Lightning module for UNet-based segmentation.
 
     Parameters
     ----------
-    algorithm_config : N2VAlgorithm or dict
-        Configuration for the N2V algorithm, either as an N2VAlgorithm instance or a
-        dictionary.
+    algorithm_config : SegAlgorithm or dict
+        Configuration for the segmentation algorithm, either as a SegAlgorithm
+        instance or a dictionary.
     """
 
-    def __init__(self, algorithm_config: N2VAlgorithm | dict[str, Any]) -> None:
-        """Instantiate N2VModule.
+    def __init__(self, algorithm_config: SegAlgorithm | dict) -> None:
+        """Instantiate Segmentation Module.
 
         Parameters
         ----------
-        algorithm_config : N2VAlgorithm or dict
-            Configuration for the N2V algorithm, either as an N2VAlgorithm instance or a
-            dictionary.
+        algorithm_config : SegAlgorithm or dict
+            Configuration for the segmentation algorithm, either as a SegAlgorithm
+            instance or a dictionary.
         """
         super().__init__()
 
@@ -51,38 +54,41 @@ class N2VModule(L.LightningModule):
         else:
             config = algorithm_config
 
-        if not isinstance(config, N2VAlgorithm):
+        if not isinstance(config, SegAlgorithm):
             raise ValueError(
                 f"Parameter `algorithm_config` must be a N2VAlgorithm "
                 f"or a dict that represents a valid N2VAlgorithm Pydantic model "
                 f"(got {type(config).__name__})."
             )
+
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
-        self.n2v_manipulate = N2VManipulate(self.config.n2v_config)
-        self.loss_func = n2v_loss
+        loss = self.config.loss
+        self.loss_func = get_seg_loss(loss)
 
         self.metrics: MetricCollection = MetricCollection(
-            {
-                f"SIPSNR_{i}": SIPSNR(
-                    n_channels=self.config.model.num_classes,
-                    output_channel=i,
-                    use_scale_invariance=True,
-                )
-                for i in range(self.config.model.num_classes)
-            }
+            GeneralizedDiceScore(num_classes=self.config.model.num_classes)
         )
 
     def on_fit_start(self) -> None:
-        """On fit start hook for N2V module."""
+        """On fit start hook for Segmentation module.
+
+        Check that training and validation target data have been supplied.
+        """
         assert self._trainer is not None
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
         assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
-        if datamodule._data.train_data_target is not None:
-            logger.warning(
-                "N2V is a self-supervised algorithm, arguments passed to "
-                "`train_data_target` will be ignored.",
+        if datamodule._data.train_data_target is None:
+            raise ValueError(
+                "Training target data must be provided for supervised training."
+            )
+        if (
+            isinstance(datamodule._data, TrainValData)
+            and datamodule._data.val_data_target is None
+        ):
+            raise ValueError(
+                "Validation target data must be provided for supervised training."
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -103,14 +109,14 @@ class N2VModule(L.LightningModule):
 
     def training_step(
         self,
-        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[ImageRegionData, ImageRegionData],
         batch_idx: int,
     ) -> torch.Tensor:
-        """Training step for N2V model.
+        """Training step for segmentation module.
 
         Parameters
         ----------
-        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
+        batch : (ImageRegionData, ImageRegionData)
             A tuple containing the input data and the target data.
         batch_idx : int
             The index of the current batch in the training loop.
@@ -118,40 +124,51 @@ class N2VModule(L.LightningModule):
         Returns
         -------
         torch.Tensor
-            The loss value for the current training step.
+            The loss value computed for the current batch.
         """
-        x = batch[0]
-        x_data = cast(torch.Tensor, x.data)
-        x_masked, x_original, mask = self.n2v_manipulate(x_data)
-        prediction = self.model(x_masked)
-        loss = self.loss_func(prediction, x_original, mask)
+        x, target = batch[0], batch[1]
 
-        log_training_stats(self, loss, batch_size=x_data.shape[0])
+        prediction = self.model(x.data)
+        loss = self.loss_func(prediction, target.data)
+
+        log_training_stats(self, loss, batch_size=x.data.shape[0])
 
         return loss
 
     def validation_step(
         self,
-        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[ImageRegionData, ImageRegionData],
         batch_idx: int,
     ) -> None:
-        """Validation step for N2V model.
+        """Validation step for segmentation module.
 
         Parameters
         ----------
-        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
+        batch : (ImageRegionData, ImageRegionData)
             A tuple containing the input data and the target data.
         batch_idx : int
             The index of the current batch in the validation loop.
         """
-        x = batch[0]
-        x_data = cast(torch.Tensor, x.data)
-        x_masked, x_original, mask = self.n2v_manipulate(x_data)
-        prediction = self.model(x_masked)
-        val_loss = self.loss_func(prediction, x_original, mask)
-        self.metrics(prediction, x_original)
+        x, target = batch[0], batch[1]
+
+        prediction = self.model(x.data)
+        val_loss = self.loss_func(prediction, target.data)
+
+        # convert predictions to class indices for metrics
+        # for binary (1 channel): apply sigmoid and threshold
+        # for multi-class (>1 channels): apply argmax
+        if prediction.shape[1] == 1:
+            pred_classes = (prediction.sigmoid() > 0.5).long()
+        else:
+            pred_classes = prediction.argmax(dim=1, keepdim=True)
+
+        # ensure targets are long type (torch.int64)
+        # torch.nn.functional.one_hot is only applicable to index LongTensor, see
+        # generalized_dice implementation in torchmetrics
+        target_long = target.data.long()  # type: ignore
+        self.metrics(pred_classes, target_long)
         log_validation_stats(
-            self, val_loss, batch_size=x_data.shape[0], metrics=self.metrics
+            self, val_loss, batch_size=x.data.shape[0], metrics=self.metrics
         )
 
     def predict_step(
@@ -159,7 +176,7 @@ class N2VModule(L.LightningModule):
         batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
         batch_idx: int,
     ) -> ImageRegionData:
-        """Prediction step for N2V model.
+        """Prediction step for segmentation module.
 
         Parameters
         ----------
@@ -174,22 +191,28 @@ class N2VModule(L.LightningModule):
             The output batch containing the predictions.
         """
         x = batch[0]
-        x_data = cast(torch.Tensor, x.data)
         # TODO: add TTA
-        prediction = self.model(x_data)
+        prediction = self.model(x.data)
 
-        normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
-        denormalized_output = normalization.denormalize(prediction).cpu().numpy()
+        # apply appropriate activation function based on number of classes
+        # for binary (1 channel): apply sigmoid to get probabilities
+        # for multi-class (>1 channels): apply softmax to get class probabilities
+        if prediction.shape[1] == 1:
+            prediction = prediction.sigmoid()
+        else:
+            prediction = prediction.softmax(dim=1)
+
+        prediction = prediction.cpu().numpy()
 
         output_batch = ImageRegionData(
-            data=denormalized_output,
+            data=prediction,
             source=x.source,
             data_shape=x.data_shape,
             dtype=x.dtype,
             axes=x.axes,
-            region_spec=x.region_spec,
-            additional_metadata={},
             original_data_shape=x.original_data_shape,
+            region_spec=x.region_spec,
+            additional_metadata=x.additional_metadata,
         )
         return output_batch
 
@@ -207,5 +230,4 @@ class N2VModule(L.LightningModule):
             optimizer_parameters=self.config.optimizer.parameters,
             lr_scheduler_name=self.config.lr_scheduler.name,
             lr_scheduler_parameters=self.config.lr_scheduler.parameters,
-            monitor=self.config.monitor_metric,
         )

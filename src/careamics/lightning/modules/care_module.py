@@ -57,8 +57,10 @@ class CAREModule(L.LightningModule):
             config = algorithm_config
 
         if not isinstance(config, (CAREAlgorithm, N2NAlgorithm)):
-            raise TypeError(
-                "algorithm_config must be a CAREAlgorithm or a N2NAlgorithm"
+            raise ValueError(
+                f"Parameter `algorithm_config` must be a CAREAlgorithm, N2NAlgorithm, "
+                f"or a dict that represents a valid CAREAlgorithm or N2NAlgorithm "
+                f"Pydantic model (got {type(config).__name__})."
             )
 
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
@@ -134,7 +136,6 @@ class CAREModule(L.LightningModule):
         torch.Tensor
             The loss value computed for the current batch.
         """
-        # TODO: add validation to determine if target is initialized
         x, target = batch[0], batch[1]
 
         prediction = self.model(x.data)
@@ -200,7 +201,7 @@ class CAREModule(L.LightningModule):
             dtype=x.dtype,
             axes=x.axes,
             region_spec=x.region_spec,
-            additional_metadata={},
+            additional_metadata=x.additional_metadata,
             original_data_shape=x.original_data_shape,
         )
         return output_batch

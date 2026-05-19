@@ -75,7 +75,7 @@ def list_spatial_augmentations(
     return transform_list
 
 
-def create_ng_data_configuration(
+def create_data_configuration(
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
     patch_size: Sequence[int],

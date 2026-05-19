@@ -7,7 +7,7 @@ import zarr
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from careamics.config import N2VAlgorithm, create_ng_data_configuration
+from careamics.config import N2VAlgorithm, create_data_configuration
 from careamics.lightning.callbacks.prediction import (
     PredictionWriterCallback,
 )
@@ -79,7 +79,7 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
         }
     )
     # create NGDataset configuration
-    dataset_cfg = create_ng_data_configuration(
+    dataset_cfg = create_data_configuration(
         data_type="array",
         axes=axes,
         patch_size=(16, 16) if "Z" not in axes else (8, 16, 16),
@@ -200,7 +200,7 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
         }
     )
     # create NGDataset configuration
-    dataset_cfg = create_ng_data_configuration(
+    dataset_cfg = create_data_configuration(
         data_type="array",
         axes=axes,
         patch_size=(16, 16) if "Z" not in axes else (8, 16, 16),

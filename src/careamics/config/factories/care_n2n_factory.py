@@ -13,7 +13,7 @@ from careamics.config.configuration import Configuration
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import (
     SupportedPatchFilterConfig,
-    create_ng_data_configuration,
+    create_data_configuration,
     list_spatial_augmentations,
 )
 from .training_factory import create_training_configuration, update_trainer_params
@@ -688,7 +688,7 @@ def _create_advanced_supervised_config(
     spatial_transforms = list_spatial_augmentations(augs)
 
     # data
-    data_config = create_ng_data_configuration(
+    data_config = create_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,

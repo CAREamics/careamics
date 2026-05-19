@@ -14,7 +14,7 @@ from careamics.config.data.patch_filter import (
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.factories.data_factory import (
     SupportedPatchFilterConfig,
-    create_ng_data_configuration,
+    create_data_configuration,
     list_spatial_augmentations,
 )
 from careamics.config.support import SupportedTransform
@@ -62,7 +62,7 @@ class TestSpatialAugmentations:
 class TestDataConfiguration:
     def test_default_aug(self):
         """Test that the default augmentations are present in the configuration."""
-        config: DataConfig = create_ng_data_configuration(
+        config: DataConfig = create_data_configuration(
             data_type="array",
             axes="YX",
             patch_size=(16, 16),
@@ -75,7 +75,7 @@ class TestDataConfiguration:
 
     def test_train_dataloader_params(self):
         """Test that shuffle is added silently to the train_dataloader_params."""
-        config: DataConfig = create_ng_data_configuration(
+        config: DataConfig = create_data_configuration(
             data_type="array",
             axes="YX",
             patch_size=(16, 16),
@@ -88,7 +88,7 @@ class TestDataConfiguration:
 
     def test_default_patching(self):
         """Test that the default patching strategy is random."""
-        config: DataConfig = create_ng_data_configuration(
+        config: DataConfig = create_data_configuration(
             data_type="array",
             axes="YX",
             patch_size=(32, 32),
@@ -99,7 +99,7 @@ class TestDataConfiguration:
 
     def test_num_workers_explicit(self):
         """Test that an explicit num_workers value is passed through unchanged."""
-        config: DataConfig = create_ng_data_configuration(
+        config: DataConfig = create_data_configuration(
             data_type="array",
             axes="YX",
             patch_size=(16, 16),
@@ -114,7 +114,7 @@ class TestDataConfiguration:
     @pytest.mark.parametrize("patch_filter_config", PATCH_FILTER_CONFIGS)
     def test_patch_filter(self, patch_filter_config: SupportedPatchFilterConfig):
         """Test that patch filter configuration is passed through."""
-        config: DataConfig = create_ng_data_configuration(
+        config: DataConfig = create_data_configuration(
             data_type="array",
             axes="YX",
             patch_size=(16, 16),

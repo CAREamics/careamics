@@ -1,66 +1,44 @@
-"""N2N Algorithm configuration."""
+"""Segmentation with UNet algorithm configuration."""
 
 from typing import Annotated, Literal
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import AfterValidator
 
+from careamics.config.algorithms.unet_algorithm_config import UNetBasedAlgorithm
 from careamics.config.architectures import UNetConfig
 from careamics.config.validators import (
-    model_no_c_ind_for_mismatching_channels,
     model_without_final_activation,
     model_without_n2v2,
 )
 
-from .unet_algorithm_config import UNetBasedAlgorithm
 
-N2N = "Noise2Noise"
+class SegAlgorithm(UNetBasedAlgorithm):
+    """Configuration for segmentation algorithm."""
 
-N2N_DESCRIPTION = (
-    "Noise2Noise is a deep-learning-based algorithm that uses a U-Net "
-    "architecture to restore images. Noise2Noise is a self-supervised "
-    "algorithm that requires only noisy images to train the network. "
-    "The algorithm learns to predict the clean image from the noisy "
-    "image. Noise2Noise is particularly useful when clean images are "
-    "not available for training."
-)
+    algorithm: Literal["seg"] = "seg"
+    """Segmentation algorithm name."""
 
-N2N_REF = CiteEntry(
-    text="Lehtinen, J., Munkberg, J., Hasselgren, J., Laine, S., Karras, T., "
-    'Aittala, M. and Aila, T., 2018. "Noise2Noise: Learning image restoration '
-    'without clean data". arXiv preprint arXiv:1803.04189.',
-    doi="10.48550/arXiv.1803.04189",
-)
-
-
-class N2NAlgorithm(UNetBasedAlgorithm):
-    """Noise2Noise Algorithm configuration."""
-
-    algorithm: Literal["n2n"] = "n2n"
-    """N2N Algorithm name."""
-
-    loss: Literal["mae", "mse"] = "mae"
-    """N2N-compatible loss function."""
+    loss: Literal["dice", "ce", "dice_ce"] = "dice"
+    """Segmentation-compatible loss function."""
 
     model: Annotated[
         UNetConfig,
         AfterValidator(model_without_n2v2),
         AfterValidator(model_without_final_activation),
-        AfterValidator(model_no_c_ind_for_mismatching_channels),
     ]
-    """UNet without a final activation function, without the `n2v2` modifications, and
-    without independent channels for mismatching input/output channel numbers."""
+    """UNet without a final activation function and without the `n2v2` modifications."""
 
     def get_algorithm_friendly_name(self) -> str:
         """
-        Get the algorithm friendly name.
+        Get the friendly name of the algorithm.
 
         Returns
         -------
         str
-            Friendly name of the algorithm.
+            Friendly name.
         """
-        return N2N
+        return "UNet semantic segmentation"
 
     def get_algorithm_keywords(self) -> list[str]:
         """
@@ -71,14 +49,15 @@ class N2NAlgorithm(UNetBasedAlgorithm):
         list[str]
             List of keywords.
         """
-        return [
-            "restoration",
+        keywords = [
+            "semantic segmentation",
             "UNet",
             "3D" if self.model.is_3D() else "2D",
             "CAREamics",
             "pytorch",
-            N2N,
         ]
+
+        return keywords
 
     def get_algorithm_references(self) -> str:
         """
@@ -91,7 +70,7 @@ class N2NAlgorithm(UNetBasedAlgorithm):
         str
             Algorithm references.
         """
-        return N2N_REF.text + " doi: " + N2N_REF.doi
+        return ""
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """
@@ -104,18 +83,20 @@ class N2NAlgorithm(UNetBasedAlgorithm):
         List[CiteEntry]
             List of citation entries.
         """
-        return [N2N_REF]
+        return []
 
     def get_algorithm_description(self) -> str:
         """
-        Get the algorithm description.
+        Return a description of the algorithm.
+
+        This method is used to generate the README of the BioImage Model Zoo export.
 
         Returns
         -------
         str
-            Algorithm description.
+            Description of the algorithm.
         """
-        return N2N_DESCRIPTION
+        return "UNet semantic segmentation."
 
     @classmethod
     def is_supervised(cls) -> bool:

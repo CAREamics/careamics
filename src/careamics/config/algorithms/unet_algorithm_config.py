@@ -1,7 +1,6 @@
 """UNet-based algorithm Pydantic model."""
 
 from pprint import pformat
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -28,7 +27,7 @@ class UNetBasedAlgorithm(BaseModel):
     ----------
     algorithm : {"n2v", "care", "n2n", "pn2v"}
         Algorithm to use.
-    loss : {"n2v", "mae", "mse"}
+    loss : str
         Loss function to use.
     model : UNetConfig
         Model architecture to use.
@@ -53,10 +52,10 @@ class UNetBasedAlgorithm(BaseModel):
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "care", "n2n", "pn2v"]
+    algorithm: str
     """Algorithm name, as defined in SupportedAlgorithm."""
 
-    loss: Literal["n2v", "mae", "mse", "pn2v"]
+    loss: str
     """Loss function to use, as defined in SupportedLoss."""
 
     model: UNetConfig
