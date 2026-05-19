@@ -18,14 +18,10 @@ class UNetBasedAlgorithm(BaseModel):
     training algorithm: which algorithm, loss function, model architecture, optimizer,
     and learning rate scheduler to use.
 
-    Currently, we only support N2V, CARE, N2N, and PN2V algorithms. In order to train
-    these algorithms, use the corresponding configuration child classes (e.g.
-    `N2VAlgorithm`) to ensure coherent parameters (e.g. specific losses).
-
 
     Attributes
     ----------
-    algorithm : {"n2v", "care", "n2n", "pn2v"}
+    algorithm : str
         Algorithm to use.
     loss : str
         Loss function to use.
