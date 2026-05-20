@@ -68,7 +68,10 @@ class SegModule(L.LightningModule):
         self.loss_func = get_seg_loss(loss)
 
         self.metrics: MetricCollection = MetricCollection(
-            GeneralizedDiceScore(num_classes=self.config.model.num_classes)
+            GeneralizedDiceScore(
+                num_classes=self.config.model.num_classes,
+                per_class=True,
+            )
         )
 
     def on_fit_start(self) -> None:
