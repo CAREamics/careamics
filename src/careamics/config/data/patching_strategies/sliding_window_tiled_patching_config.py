@@ -26,10 +26,6 @@ class SlidingWindowTiledPatchingConfig(_OverlappingPatchedConfig):
     stride : sequence of int
         Tile stride per spatial dimension. Must be positive and satisfy
         `stride[i] <= patch_size[i] - overlaps[i]`.
-    edge_replication : bool, default=True
-        If True, replicate the first/last tile per axis `K` times (where `K`
-        is the per-axis effective MMSE count) so border pixels match interior
-        coverage.
     """
 
     name: Literal["sliding_window_tiled"] = "sliding_window_tiled"
@@ -41,10 +37,6 @@ class SlidingWindowTiledPatchingConfig(_OverlappingPatchedConfig):
         max_length=3,
     )
     """Tile stride per spatial dimension."""
-
-    edge_replication: bool = True
-    """Replicate first/last tiles to equalise per-pixel MMSE coverage at the
-    image border."""
 
     @field_validator("stride")
     @classmethod

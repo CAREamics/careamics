@@ -10,10 +10,10 @@ from .patching import TileSpecs
 def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
     """Per-axis effective MMSE count for `SlidingWindowTiledPatching`.
 
-    Each interior pixel along the axis is covered by this many independent tile
+    Each pixel along the axis is covered by this many independent tile
     predictions (assuming `mmse_count = 1` in the model — each forward pass
-    yields one stochastic draw). For a multi-axis pixel, the effective count is
-    the product of this value across axes.
+    yields one stochastic draw). For a multi-axis pixel, the effective count
+    is the product of this value across axes.
 
     Parameters
     ----------
@@ -33,31 +33,35 @@ def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
 
 
 class SlidingWindowTiledPatching:
-    """Patching strategy combining inner-tiling with sliding-window logic.
+    """Sliding-window inner-tiled patching with uniform per-pixel coverage.
 
-    Drops a margin `M = overlap // 2` from each side of each tile, with the
-    same asymmetric edge convention as `TiledPatching` (first tile keeps its
-    left side fully; last tile fills the remaining gap up to the image edge).
-    Kept regions of adjacent interior tiles overlap when
-    `stride < patch_size - overlap`, so each pure-interior pixel is covered by
-    `K = (patch_size - overlap) // stride` independent predictions.
+    Iterates a single sliding-window grid of conceptual tile positions
+    `i ∈ { k·s : k ∈ ℤ }` whose inner kept region `[i + M, i + P − M)`
+    intersects the image. Here `P = patch_size`, `s = stride`, and
+    `M = overlap // 2` is the margin dropped from each side of each tile.
 
-    When ``edge_replication=True`` (default), the first/last tile along each
-    axis is replicated `K` times so border pixels also see `K` predictions,
-    equalising the effective per-pixel MMSE count with the interior at the
-    image edge. Corner tiles (edge along multiple axes simultaneously) are
-    replicated multiplicatively (`K**d` for an `d`-axis corner) via the
-    cartesian product.
+    Real positions (`0 ≤ i ≤ axis_size − P`) place the model input at
+    `actual_coord = i` and contribute the symmetric inner crop. Phantom
+    positions (`i < 0` or `i > axis_size − P`) snap their model input to the
+    nearest boundary (`actual_coord = 0` or `axis_size − P`) but use
+    progressively shifted crop windows so each phantom credits its sample to
+    a different sub-strip near the image edge. All phantoms at the same
+    boundary share their model input but are evaluated as separate forward
+    passes, so each phantom contributes one independent stochastic draw.
 
-    Note: there is a thin transition band of width `~(P - overlap)/2` just
-    inside each image edge where interior coverage ramps down from `K` toward
-    `0` but the replicated last tile hasn't kicked in yet. Pixels in that band
-    see between `1` and `K-1` contributions. The interior and the absolute
-    image edge are both at `K`; only the band in between is below.
+    Per-pixel coverage is **exactly** `K = (patch_size − overlap) // stride`
+    in 1D, and `K**d` for a `d`-axis pixel by the cartesian product in
+    `_generate_specs` — uniform across the image with no transition band.
 
     Intended to be used with posterior models configured with
     `mmse_count = 1`: each forward pass is one stochastic draw, so the
     per-pixel sample count is determined entirely by geometry.
+
+    Compute trade-off: per-axis tile count is roughly
+    `N_interior + 2(K + 1)` (vs `N_interior + 2K` for the prior
+    replication-based scheme), reflecting the extra phantom positions needed
+    to reach the corner pixels. For `P=64, overlap=32, s=8, axis=128`: 19
+    tiles per axis (vs 15 previously).
 
     Parameters
     ----------
@@ -66,14 +70,11 @@ class SlidingWindowTiledPatching:
     patch_size : sequence of int
         Tile size per spatial dimension (length 2 or 3).
     overlaps : sequence of int
-        Overlap per spatial dimension (= 2 * margin). Must be even and strictly
-        smaller than `patch_size[i]`.
+        Overlap per spatial dimension (= 2 * margin). Must be even and
+        strictly smaller than `patch_size[i]`.
     stride : sequence of int
         Tile stride per spatial dimension. Must satisfy
         `stride[i] <= patch_size[i] - overlaps[i]`.
-    edge_replication : bool, default=True
-        If True, replicate the first/last tile per axis `K` times so border
-        pixels match interior MMSE coverage.
     """
 
     def __init__(
@@ -82,18 +83,16 @@ class SlidingWindowTiledPatching:
         patch_size: Sequence[int],
         overlaps: Sequence[int],
         stride: Sequence[int],
-        edge_replication: bool = True,
     ):
         self.data_shapes = data_shapes
         self.patch_size = patch_size
         self.stride = stride
         self.overlaps = overlaps
-        self.edge_replication = edge_replication
         self.tile_specs: list[TileSpecs] = self._generate_specs()
 
     @property
     def n_patches(self) -> int:
-        """Total number of tile specs (post-replication)."""
+        """Total number of tile specs."""
         return len(self.tile_specs)
 
     def get_patch_spec(self, index: int) -> TileSpecs:
@@ -136,8 +135,8 @@ class SlidingWindowTiledPatching:
         ]
 
     def _generate_specs(self) -> list[TileSpecs]:
-        """Build the full list of tile spec.
-        
+        """Build the full list of tile specs.
+
         Returns
         -------
         list of TileSpecs
@@ -147,24 +146,30 @@ class SlidingWindowTiledPatching:
         for data_idx, data_shape in enumerate(self.data_shapes):
             spatial_shape = data_shape[2:]
 
-            per_axis_expanded = [
-                self._expand_1d(
-                    spatial_shape[axis_idx],
+            axis_specs: list[tuple[list[int], list[int], list[int], list[int]]] = [
+                self._compute_1d_coords(
+                    axis_size,
                     self.patch_size[axis_idx],
                     self.stride[axis_idx],
                     self.overlaps[axis_idx],
                 )
-                for axis_idx in range(len(spatial_shape))
+                for axis_idx, axis_size in enumerate(spatial_shape)
             ]
 
-            n_tiles = prod(len(axis) for axis in per_axis_expanded) * data_shape[0]
+            all_coords, all_stitch_coords, all_crop_coords, all_crop_size = zip(
+                *axis_specs, strict=False
+            )
+
+            n_tiles = prod(len(dim) for dim in all_coords) * data_shape[0]
 
             for sample_idx in range(data_shape[0]):
-                for combo in itertools.product(*per_axis_expanded):
-                    coords = tuple(c[0] for c in combo)
-                    stitch_coords = tuple(c[1] for c in combo)
-                    crop_coords = tuple(c[2] for c in combo)
-                    crop_size = tuple(c[3] for c in combo)
+                for coords, stitch_coords, crop_coords, crop_size in zip(
+                    itertools.product(*all_coords),
+                    itertools.product(*all_stitch_coords),
+                    itertools.product(*all_crop_coords),
+                    itertools.product(*all_crop_size),
+                    strict=False,
+                ):
                     tile_specs.append(
                         {
                             "data_idx": data_idx,
@@ -180,42 +185,23 @@ class SlidingWindowTiledPatching:
 
         return tile_specs
 
-    def _expand_1d(
-        self, axis_size: int, P: int, s: int, overlap: int
-    ) -> list[tuple[int, int, int, int]]:
-        """Build per-axis expanded tile list.
-
-        Each entry is `(coord, stitch_coord, crop_coord, crop_size)`. Edge tiles
-        are repeated `K = effective_mmse_count(P, s, overlap)` times when
-        `edge_replication` is True; the outer cartesian product then yields
-        multiplicative corner replication.
-        """
-        coords, stitch_coords, crop_coords, crop_size = self._compute_1d_coords(
-            axis_size, patch_size=P, stride=s, overlap=overlap
-        )
-        n = len(coords)
-        reps = [1] * n
-        if self.edge_replication and n >= 2:
-            K = effective_mmse_count(P, s, overlap)
-            reps[0] = K
-            reps[-1] = K
-
-        expanded: list[tuple[int, int, int, int]] = []
-        for k in range(n):
-            entry = (coords[k], stitch_coords[k], crop_coords[k], crop_size[k])
-            expanded.extend([entry] * reps[k])
-        return expanded
-
     @staticmethod
     def _compute_1d_coords(
         axis_size: int, patch_size: int, stride: int, overlap: int
     ) -> tuple[list[int], list[int], list[int], list[int]]:
-        """Compute tile coordinates along a single axis.
+        """Compute uniform-coverage sliding-window tile positions along one axis.
 
-        Mirrors the NG `TiledPatching._compute_1d_coords` exactly, with `stride`
-        passed in as an independent parameter (rather than being locked to
-        `patch_size - overlap`) and two `break` statements added so the
-        boundary branches fire at most once when `stride < patch_size - overlap`.
+        Iterates all conceptual sliding-window positions `i = k * stride` whose
+        kept region `[i + M, i + P − M)` intersects `[0, axis_size)`. Each `i`
+        is snapped to a valid model coord by clipping into `[0, axis_size − P]`,
+        with `crop_coords` / `crop_size` set so the model output is pasted at
+        the correct location. Phantoms (with `i` outside the real range) share
+        their model input with the boundary tile but contribute via shifted
+        output crops — each is still a separate model evaluation, hence an
+        independent stochastic draw.
+
+        Yields uniform `K = (patch_size − overlap) // stride` coverage at every
+        pixel.
 
         Parameters
         ----------
@@ -226,63 +212,45 @@ class SlidingWindowTiledPatching:
         stride : int
             The tile stride. Must satisfy `stride <= patch_size - overlap`.
         overlap : int
-            The tile overlap.
+            The tile overlap (= 2 * margin).
 
         Returns
         -------
-        coords: list of int
-            The top-left (and first z-slice for 3D data) of a tile, in coords
-            relative to the image.
-        stitch_coords: list of int
-            Where the tile will be stitched back into an image, taking into
-            account that the tile will be cropped, in coords relative to the
-            image.
-        crop_coords: list of int
-            The top-left side of where the tile will be cropped, in coordinates
-            relative to the tile.
-        crop_size: list of int
-            The size of the cropped tile.
+        coords : list of int
+            Top-left position of the model input for each tile, in image coords.
+        stitch_coords : list of int
+            Where the cropped tile is stitched back into the image, in image
+            coords.
+        crop_coords : list of int
+            Top-left of the kept region within the tile, in tile-local coords.
+        crop_size : list of int
+            Size of the kept region.
         """
+        M = overlap // 2
         coords: list[int] = []
         stitch_coords: list[int] = []
         crop_coords: list[int] = []
         crop_size: list[int] = []
 
-        for i in range(0, max(1, axis_size - overlap), stride):
-            if i == 0:
-                coords.append(i)
-                crop_coords.append(0)
-                stitch_coords.append(0)
-                if axis_size <= patch_size:
-                    crop_size.append(axis_size)
-                    # Single-tile case: nothing more to emit. Without this
-                    # break, the next iteration would fall into the else
-                    # branch and emit a zero-size duplicate.
-                    break
-                else:
-                    crop_size.append(patch_size - overlap // 2)
-            elif (0 < i) and (i + patch_size < axis_size):
-                coords.append(i)
-                crop_coords.append(overlap // 2)
-                stitch_coords.append(coords[-1] + crop_coords[-1])
-                crop_size.append(patch_size - overlap)
-            else:
-                previous_crop_size = crop_size[-1] if crop_size else 1
-                previous_stitch_coord = stitch_coords[-1] if stitch_coords else 0
-                previous_tile_end = previous_stitch_coord + previous_crop_size
+        if axis_size <= patch_size:
+            return [0], [0], [0], [axis_size]
 
-                coords.append(max(0, axis_size - patch_size))
-                stitch_coords.append(previous_tile_end)
-                crop_coords.append(stitch_coords[-1] - coords[-1])
-                crop_size.append(axis_size - stitch_coords[-1])
-                # Emit the last (gap-fill) tile exactly once. Subsequent
-                # iterations would otherwise re-enter this branch and append
-                # zero-size duplicates.
+        # Smallest multiple of `stride` such that the conceptual kept region
+        # [i+M, i+P-M) has non-empty intersection with [0, axis_size)
+        lower_bound = M - patch_size + 1
+        i_min = ((lower_bound + stride - 1) // stride) * stride
+
+        i = i_min
+        while True:
+            kept_start = max(0, i + M)
+            if kept_start >= axis_size:
                 break
+            kept_end = min(axis_size, i + patch_size - M)
+            actual_coord = max(0, min(i, axis_size - patch_size))
+            coords.append(actual_coord)
+            stitch_coords.append(kept_start)
+            crop_coords.append(kept_start - actual_coord)
+            crop_size.append(kept_end - kept_start)
+            i += stride
 
-        return (
-            coords,
-            stitch_coords,
-            crop_coords,
-            crop_size,
-        )
+        return coords, stitch_coords, crop_coords, crop_size
