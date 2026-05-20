@@ -32,12 +32,6 @@ class SlidingWindowTiledPatching:
     `mmse_count = 1`: each forward pass is one stochastic draw, so the
     per-pixel sample count is determined entirely by geometry.
 
-    Compute trade-off: per-axis tile count is roughly
-    `N_interior + 2(K + 1)` (vs `N_interior + 2K` for the prior
-    replication-based scheme), reflecting the extra phantom positions needed
-    to reach the corner pixels. For `P=64, overlap=32, s=8, axis=128`: 19
-    tiles per axis (vs 15 previously).
-
     Parameters
     ----------
     data_shapes : sequence of (sequence of int)
