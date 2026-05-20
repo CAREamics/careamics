@@ -946,10 +946,9 @@ def _extract_lc_patch(
     spatial_shape = shape[2:]
     n_channels = shape[1] if channels is None else len(channels)
 
+    center = np.array(coords) + np.array(patch_size) // 2
     final_lc_patch_size = np.array(patch_size) * (2**multiscale_count)
-    final_lc_start = (
-        np.array(coords) + np.array(patch_size) // 2 - final_lc_patch_size // 2
-    )
+    final_lc_start = center - final_lc_patch_size // 2
     final_lc_end = final_lc_start + np.array(final_lc_patch_size)
 
     start_clipped = np.clip(
