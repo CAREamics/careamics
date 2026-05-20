@@ -1,3 +1,5 @@
+"""Patch constructors for MicroSplit dataset modes."""
+
 from collections.abc import Sequence
 from typing import Any, Literal
 
@@ -24,7 +26,31 @@ from .patch_constructor import PatchConstructor
 
 # target channels acquired together, synthetic sum input
 class MsT1PatchConstructor(PatchConstructor):
-    """Construct MicroSplit patches from jointly acquired target channels."""
+    """Construct MicroSplit patches from multiplexed images of target channels.
+
+    Synthetic inputs created by summing the target channels, `alpha_ranges` are used
+    to decide the weight of each channel.
+
+    Parameters
+    ----------
+    patching_strategy : Patching
+        Strategy that maps dataset indices to patch specifications.
+    target_extractor : PatchExtractor
+        Extractor for multiplexed target channels.
+    multiscale_count : int
+        Number of lateral context inputs.
+    padding_mode : {"reflect", "wrap"}
+        Padding mode used when lateral context extends beyond image boundaries.
+    alpha_ranges : Sequence[tuple[float, float]] or None
+        Sampling ranges for channel mixing weights. If `None`, every channel gets a
+        fixed weight of `1 / n_channels`.
+    uncorrelated_channel_prob : float
+        Probability of sampling channels from different patch locations.
+    channels : Sequence[int] or None, default=None
+        Channel indices to use from the target data. If `None`, all channels are used.
+    rng : numpy.random.Generator or None, default=None
+        Random number generator. If `None`, a default generator is created.
+    """
 
     def __init__(
         self,
@@ -37,6 +63,29 @@ class MsT1PatchConstructor(PatchConstructor):
         channels: Sequence[int] | None = None,
         rng: np.random.Generator | None = None,
     ):
+        """Initialize the training mode I patch constructor.
+
+        Parameters
+        ----------
+        patching_strategy : Patching
+            Strategy that maps dataset indices to patch specifications.
+        target_extractor : PatchExtractor
+            Extractor for jointly acquired target channels.
+        multiscale_count : int
+            Number of lateral context inputs.
+        padding_mode : {"reflect", "wrap"}
+            Padding mode used when lateral context extends beyond image boundaries.
+        alpha_ranges : Sequence[tuple[float, float]] or None
+            Sampling ranges for channel mixing weights. If `None`, every channel gets
+            a fixed weight of `1 / n_channels`.
+        uncorrelated_channel_prob : float
+            Probability of sampling channels from different patch locations.
+        channels : Sequence[int] or None, default=None
+            Channel indices to use from the target data. If `None`, all channels are
+            used.
+        rng : numpy.random.Generator or None, default=None
+            Random number generator. If `None`, a default generator is created.
+        """
         self.rng = rng if rng is not None else np.random.default_rng()
 
         self.patching_strategy = patching_strategy
@@ -49,23 +98,58 @@ class MsT1PatchConstructor(PatchConstructor):
 
     @property
     def n_patches(self) -> int:
-        """Return the number of available patches."""
+        """Return the number of available patches.
+
+        Returns
+        -------
+        int
+            Number of patches available from the patching strategy.
+        """
         return self.patching_strategy.n_patches
 
     @property
     def input_shapes(self) -> Sequence[Sequence[int]]:
-        """Return input image shapes."""
+        """Return input image shapes.
+
+        Returns
+        -------
+        Sequence[Sequence[int]]
+            Input image shapes.
+        """
         return self.target_extractor.shapes
 
     @property
     def target_shapes(self) -> Sequence[Sequence[int]]:
-        """Return target image shapes."""
+        """Return target image shapes.
+
+        Returns
+        -------
+        Sequence[Sequence[int]]
+            Target image shapes.
+        """
         return self.target_extractor.shapes
 
     def construct_patch(
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any], PatchSpecs | UncorrelatedPatchSpecs]:
-        """Construct the synthetic input and target patch for an index."""
+        """Construct the synthetic input and target patch for an index.
+
+        Parameters
+        ----------
+        index : int
+            Dataset index to map to a patch specification.
+
+        Returns
+        -------
+        input_patch : NDArray[Any]
+            Synthetic input patch with axes L(Z)YX, where L is the lateral context
+            input axis ordered from the native patch scale to larger context scales.
+        target_patch : NDArray[Any]
+            Target patch with axes C(Z)YX.
+        patch_spec : PatchSpecs or UncorrelatedPatchSpecs
+            Standard patch specification for correlated channels, or uncorrelated
+            patch specification when channels are sampled from different locations.
+        """
         p = self.rng.random()
         patch_spec: PatchSpecs | UncorrelatedPatchSpecs
         if p < self.uncorrelated_channel_prob:
@@ -104,11 +188,34 @@ class MsT1PatchConstructor(PatchConstructor):
         return input_patch, target_patch, patch_spec
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
-        """Return the principal input without lateral context."""
+        """Return the principal input without lateral context.
+
+        Parameters
+        ----------
+        input_patch : NDArray[Any]
+            Input patch with axes L(Z)YX, where L is the lateral context input axis.
+
+        Returns
+        -------
+        NDArray[Any]
+            Principal input with axes C(Z)YX.
+        """
         return input_patch[[0]]
 
     def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
-        """Return metadata for the input image."""
+        """Return metadata for the input image.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification identifying the input image. Uncorrelated patch specs
+            include metadata for each channel location.
+
+        Returns
+        -------
+        ImageMetadata
+            Metadata for the input image or principal uncorrelated input image.
+        """
         if is_uncorrelated_specs(patch_spec):
             metadata = _get_uncorrelated_metadata(self.target_extractor, patch_spec)
             return metadata
@@ -118,9 +225,19 @@ class MsT1PatchConstructor(PatchConstructor):
             return get_image_metadata(image_stack)
 
     def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
-        """Return metadata for the target image."""
-        data_idx = patch_spec["data_idx"]
-        image_stack = self.target_extractor.image_stacks[data_idx]
+        """Return metadata for the target image.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification identifying the target image. Uncorrelated patch specs
+            include metadata for each channel location.
+
+        Returns
+        -------
+        ImageMetadata
+            Metadata for the target image or principal uncorrelated target image.
+        """
         if is_uncorrelated_specs(patch_spec):
             metadata = _get_uncorrelated_metadata(self.target_extractor, patch_spec)
             return metadata
@@ -132,7 +249,29 @@ class MsT1PatchConstructor(PatchConstructor):
 
 # target channels in separate files, synthetic input
 class MsT2PatchConstructor(PatchConstructor):
-    """Construct MicroSplit patches from target channels in separate files."""
+    """Construct MicroSplit patches from target channels in separate files.
+
+    The data for different target channels may have different shapes.
+
+    Synthetic inputs are created by summing patches from random locations,
+    `alpha_ranges` are used to decide the weight of each channel.
+
+    Parameters
+    ----------
+    patching_strategies : Sequence[Patching]
+        One patching strategy per target channel source.
+    target_extractors : Sequence[PatchExtractor]
+        One extractor per target channel source.
+    multiscale_count : int
+        Number of lateral context inputs.
+    padding_mode : {"reflect", "wrap"}
+        Padding mode used when lateral context extends beyond image boundaries.
+    alpha_ranges : Sequence[tuple[float, float]] or None
+        Sampling ranges for channel mixing weights. If `None`, every target source
+        gets a fixed weight of `1 / n_channels`.
+    rng : numpy.random.Generator or None, default=None
+        Random number generator. If `None`, a default generator is created.
+    """
 
     def __init__(
         self,
@@ -143,6 +282,24 @@ class MsT2PatchConstructor(PatchConstructor):
         alpha_ranges: Sequence[tuple[float, float]] | None,
         rng: np.random.Generator | None = None,
     ):
+        """Initialize the training mode II patch constructor.
+
+        Parameters
+        ----------
+        patching_strategies : Sequence[Patching]
+            One patching strategy per target channel source.
+        target_extractors : Sequence[PatchExtractor]
+            One extractor per target channel source.
+        multiscale_count : int
+            Number of lateral context inputs.
+        padding_mode : {"reflect", "wrap"}
+            Padding mode used when lateral context extends beyond image boundaries.
+        alpha_ranges : Sequence[tuple[float, float]] or None
+            Sampling ranges for channel mixing weights. If `None`, every target source
+            gets a fixed weight of `1 / n_channels`.
+        rng : numpy.random.Generator or None, default=None
+            Random number generator. If `None`, a default generator is created.
+        """
         self.rng = rng if rng is not None else np.random.default_rng()
 
         self.patching_strategies = patching_strategies
@@ -157,23 +314,57 @@ class MsT2PatchConstructor(PatchConstructor):
 
     @property
     def n_patches(self) -> int:
-        """Return the number of available patches."""
+        """Return the number of available patches.
+
+        Returns
+        -------
+        int
+            Number of patches available from the principal target channel source.
+        """
         return self.patching_strategies[self.principal_channel].n_patches
 
     @property
     def input_shapes(self) -> Sequence[Sequence[int]]:
-        """Return input image shapes."""
+        """Return input image shapes.
+
+        Returns
+        -------
+        Sequence[Sequence[int]]
+            Input image shapes for the principal target source.
+        """
         return self.target_extractors[self.principal_channel].shapes
 
     @property
     def target_shapes(self) -> Sequence[Sequence[int]]:
-        """Return target image shapes."""
+        """Return target image shapes.
+
+        Returns
+        -------
+        Sequence[Sequence[int]]
+            Target image shapes for the principal target source.
+        """
         return self.target_extractors[self.principal_channel].shapes
 
     def construct_patch(
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any], UncorrelatedPatchSpecs]:
-        """Construct the synthetic input and target patch for an index."""
+        """Construct the synthetic input and target patch for an index.
+
+        Parameters
+        ----------
+        index : int
+            Dataset index for the principal target channel source.
+
+        Returns
+        -------
+        input_patch : NDArray[Any]
+            Synthetic input patch with axes L(Z)YX, where L is the lateral context
+            input axis ordered from the native patch scale to larger context scales.
+        target_patch : NDArray[Any]
+            Target patch with axes C(Z)YX.
+        patch_spec : UncorrelatedPatchSpecs
+            Patch specification containing one location per target channel source.
+        """
         n_channels = len(self.patching_strategies)
         n_patches = [
             patching_strategy.n_patches
@@ -200,11 +391,34 @@ class MsT2PatchConstructor(PatchConstructor):
         return input_patch, target_patch, uncorr_patch_specs
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
-        """Return the principal input without lateral context."""
+        """Return the principal input without lateral context.
+
+        Parameters
+        ----------
+        input_patch : NDArray[Any]
+            Input patch with axes L(Z)YX, where L is the lateral context input axis.
+
+        Returns
+        -------
+        NDArray[Any]
+            Principal input with axes C(Z)YX.
+        """
         return input_patch[[0]]
 
     def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
-        """Return metadata for the input image."""
+        """Return metadata for the input image.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Uncorrelated patch specification identifying all channel source images.
+
+        Returns
+        -------
+        ImageMetadata
+            Metadata for the principal input image with additional per-channel source
+            metadata.
+        """
         if not is_uncorrelated_specs(patch_spec):
             raise TypeError(
                 # TODO: improve msg
@@ -215,7 +429,19 @@ class MsT2PatchConstructor(PatchConstructor):
         return metadata
 
     def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
-        """Return metadata for the target image."""
+        """Return metadata for the target image.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Uncorrelated patch specification identifying all channel source images.
+
+        Returns
+        -------
+        ImageMetadata
+            Metadata for the principal target image with additional per-channel source
+            metadata.
+        """
         if not is_uncorrelated_specs(patch_spec):
             raise TypeError(
                 # TODO: improve msg
@@ -228,7 +454,21 @@ class MsT2PatchConstructor(PatchConstructor):
 
 # real target image and input images
 class MsT3PatchConstructor(PatchConstructor):
-    """Construct MicroSplit patches from paired real input and target images."""
+    """Construct MicroSplit patches from paired real input and target images.
+
+    Parameters
+    ----------
+    patching_strategy : Patching
+        Strategy that maps dataset indices to patch specifications.
+    input_extractor : PatchExtractor
+        Extractor for real input images.
+    target_extractor : PatchExtractor
+        Extractor for target images.
+    multiscale_count : int
+        Number of lateral context inputs.
+    padding_mode : {"reflect", "wrap"}
+        Padding mode used when lateral context extends beyond image boundaries.
+    """
 
     def __init__(
         self,
@@ -238,6 +478,21 @@ class MsT3PatchConstructor(PatchConstructor):
         multiscale_count: int,
         padding_mode: Literal["reflect", "wrap"],
     ):
+        """Initialize the training mode III patch constructor.
+
+        Parameters
+        ----------
+        patching_strategy : Patching
+            Strategy that maps dataset indices to patch specifications.
+        input_extractor : PatchExtractor
+            Extractor for real input images.
+        target_extractor : PatchExtractor
+            Extractor for target images.
+        multiscale_count : int
+            Number of lateral context inputs.
+        padding_mode : {"reflect", "wrap"}
+            Padding mode used when lateral context extends beyond image boundaries.
+        """
         self.patching_strategy = patching_strategy
         self.input_extractor = input_extractor
         self.target_extractor = target_extractor
@@ -246,23 +501,57 @@ class MsT3PatchConstructor(PatchConstructor):
 
     @property
     def n_patches(self) -> int:
-        """Return the number of available patches."""
+        """Return the number of available patches.
+
+        Returns
+        -------
+        int
+            Number of patches available from the patching strategy.
+        """
         return self.patching_strategy.n_patches
 
     @property
     def input_shapes(self) -> Sequence[Sequence[int]]:
-        """Return input image shapes."""
+        """Return input image shapes.
+
+        Returns
+        -------
+        Sequence[Sequence[int]]
+            Input image shapes.
+        """
         return self.input_extractor.shapes
 
     @property
     def target_shapes(self) -> Sequence[Sequence[int]]:
-        """Return target image shapes."""
+        """Return target image shapes.
+
+        Returns
+        -------
+        Sequence[Sequence[int]]
+            Target image shapes.
+        """
         return self.target_extractor.shapes
 
     def construct_patch(
         self, index: int
     ) -> tuple[NDArray[Any], NDArray[Any], PatchSpecs]:
-        """Construct the real input and target patch for an index."""
+        """Construct the real input and target patch for an index.
+
+        Parameters
+        ----------
+        index : int
+            Dataset index to map to a patch specification.
+
+        Returns
+        -------
+        input_patch : NDArray[Any]
+            Real input patch with axes L(Z)YX, where L is the lateral context input
+            axis ordered from the native patch scale to larger context scales.
+        target_patch : NDArray[Any]
+            Target patch with axes C(Z)YX.
+        patch_spec : PatchSpecs
+            Patch specification used to extract the patches.
+        """
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = self.input_extractor.extract_patch(**patch_spec)
         input_patch = _extract_lc_patch(
@@ -277,24 +566,69 @@ class MsT3PatchConstructor(PatchConstructor):
         return input_patch, target_patch, patch_spec
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
-        """Return the principal input without lateral context."""
+        """Return the principal input without lateral context.
+
+        Parameters
+        ----------
+        input_patch : NDArray[Any]
+            Input patch with axes L(Z)YX, where L is the lateral context input axis.
+
+        Returns
+        -------
+        NDArray[Any]
+            Principal input with axes C(Z)YX.
+        """
         return input_patch[[0]]
 
     def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
-        """Return metadata for the input image."""
+        """Return metadata for the input image.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification identifying the input image.
+
+        Returns
+        -------
+        ImageMetadata
+            Metadata for the input image.
+        """
         data_idx = patch_spec["data_idx"]
         image_stack = self.input_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
     def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
-        """Return metadata for the target image."""
+        """Return metadata for the target image.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification identifying the target image.
+
+        Returns
+        -------
+        ImageMetadata
+            Metadata for the target image.
+        """
         data_idx = patch_spec["data_idx"]
         image_stack = self.target_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
 
 class MsPredPatchConstructor(PatchConstructor):
-    """Construct MicroSplit prediction patches."""
+    """Construct MicroSplit prediction patches.
+
+    Parameters
+    ----------
+    patching_strategy : TiledPatching
+        Strategy that maps dataset indices to tiled patch specifications.
+    input_extractor : PatchExtractor
+        Extractor for prediction input images.
+    multiscale_count : int
+        Number of lateral context inputs.
+    padding_mode : {"reflect", "wrap"}
+        Padding mode used when lateral context extends beyond image boundaries.
+    """
 
     # prediction - input only
     def __init__(
@@ -304,6 +638,19 @@ class MsPredPatchConstructor(PatchConstructor):
         multiscale_count: int,
         padding_mode: Literal["reflect", "wrap"],
     ):
+        """Initialize the prediction patch constructor.
+
+        Parameters
+        ----------
+        patching_strategy : TiledPatching
+            Strategy that maps dataset indices to tiled patch specifications.
+        input_extractor : PatchExtractor
+            Extractor for prediction input images.
+        multiscale_count : int
+            Number of lateral context inputs.
+        padding_mode : {"reflect", "wrap"}
+            Padding mode used when lateral context extends beyond image boundaries.
+        """
         self.patching_strategy = patching_strategy
         self.input_extractor = input_extractor
         self.multiscale_count = multiscale_count
@@ -311,21 +658,55 @@ class MsPredPatchConstructor(PatchConstructor):
 
     @property
     def n_patches(self) -> int:
-        """Return the number of available patches."""
+        """Return the number of available patches.
+
+        Returns
+        -------
+        int
+            Number of patches available from the tiled patching strategy.
+        """
         return self.patching_strategy.n_patches
 
     @property
     def input_shapes(self) -> Sequence[Sequence[int]]:
-        """Return input image shapes."""
+        """Return input image shapes.
+
+        Returns
+        -------
+        Sequence[Sequence[int]]
+            Input image shapes.
+        """
         return self.input_extractor.shapes
 
     @property
     def target_shapes(self) -> None:
-        """Return target image shapes, if targets exist."""
+        """Return target image shapes, if targets exist.
+
+        Returns
+        -------
+        None
+            Prediction datasets do not have target images.
+        """
         return None
 
     def construct_patch(self, index: int) -> tuple[NDArray[Any], None, TileSpecs]:
-        """Construct the input patch for prediction."""
+        """Construct the input patch for prediction.
+
+        Parameters
+        ----------
+        index : int
+            Dataset index to map to a tile specification.
+
+        Returns
+        -------
+        input_patch : NDArray[Any]
+            Prediction input patch with axes L(Z)YX, where L is the lateral context
+            input axis ordered from the native patch scale to larger context scales.
+        target_patch : None
+            Prediction datasets do not have target patches.
+        patch_spec : TileSpecs
+            Tile specification used to extract the patch.
+        """
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = _extract_lc_patch(
             self.input_extractor,
@@ -341,17 +722,51 @@ class MsPredPatchConstructor(PatchConstructor):
         return input_patch, None, patch_spec
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
-        """Return the principal input without lateral context."""
+        """Return the principal input without lateral context.
+
+        Parameters
+        ----------
+        input_patch : NDArray[Any]
+            Input patch with axes L(Z)YX, where L is the lateral context input axis.
+
+        Returns
+        -------
+        NDArray[Any]
+            Principal input with axes C(Z)YX.
+        """
         return input_patch[[0]]
 
     def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
-        """Return metadata for the input image."""
+        """Return metadata for the input image.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification identifying the input image.
+
+        Returns
+        -------
+        ImageMetadata
+            Metadata for the input image.
+        """
         data_idx = patch_spec["data_idx"]
         image_stack = self.input_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
     def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
-        """Return metadata for the target image."""
+        """Return metadata for the target image.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification. It is accepted to satisfy the protocol but is unused
+            because prediction datasets do not have targets.
+
+        Returns
+        -------
+        None
+            Prediction datasets do not have target images.
+        """
         return None
 
 
@@ -359,7 +774,24 @@ def _sample_alphas(
     alpha_ranges: Sequence[tuple[float, float]] | None,
     n_channels: int,
     rng: np.random.Generator,
-):
+) -> NDArray[Any]:
+    """Sample channel mixing weights.
+
+    Parameters
+    ----------
+    alpha_ranges : Sequence[tuple[float, float]] or None
+        Sampling ranges for channel mixing weights. If `None`, every channel gets a
+        fixed weight of `1 / n_channels`.
+    n_channels : int
+        Number of channel weights to sample.
+    rng : numpy.random.Generator
+        Random number generator used when `alpha_ranges` is provided.
+
+    Returns
+    -------
+    NDArray[Any]
+        Channel mixing weights with axes C.
+    """
     if alpha_ranges is None:
         return np.array([1 / n_channels for _ in range(n_channels)])
     else:
@@ -372,7 +804,28 @@ def _create_input_target(
     patch: NDArray[Any],
     alpha_ranges: Sequence[tuple[float, float]] | None,
     rng: np.random.Generator,
-):
+) -> tuple[NDArray[Any], NDArray[Any]]:
+    """Create synthetic MicroSplit input and target patches.
+
+    Parameters
+    ----------
+    patch : NDArray[Any]
+        Lateral context patch with axes CL(Z)YX, where L is the lateral context input
+        axis ordered from the native patch scale to larger context scales.
+    alpha_ranges : Sequence[tuple[float, float]] or None
+        Sampling ranges for channel mixing weights. If `None`, every channel gets a
+        fixed weight of `1 / n_channels`.
+    rng : numpy.random.Generator
+        Random number generator used when `alpha_ranges` is provided.
+
+    Returns
+    -------
+    input_patch : NDArray[Any]
+        Synthetic input patch with axes L(Z)YX, where L is the lateral context input
+        axis.
+    target_patch : NDArray[Any]
+        Target patch with axes C(Z)YX.
+    """
     alphas = _sample_alphas(alpha_ranges, patch.shape[0], rng)
     alpha_broadcast = alphas.reshape(len(alphas), *(1,) * (len(patch.shape) - 1))
     # weight channels by alphas then sum on the channel axis
@@ -390,6 +843,34 @@ def _construct_uncorrelated_patch(
     multiscale_count: int,
     padding_mode: Literal["reflect", "wrap"] = "reflect",
 ) -> tuple[NDArray[Any], UncorrelatedPatchSpecs]:
+    """Construct a patch from channel patches sampled at different locations.
+
+    Parameters
+    ----------
+    extractor : PatchExtractor or Sequence[PatchExtractor]
+        Extractor used to sample all channels when a single extractor is provided, or
+        one extractor per channel when a sequence is provided.
+    patch_specs : Sequence[PatchSpecs]
+        Patch specification for each sampled channel.
+    channels : Sequence[int] or None
+        Channel indices to extract when `extractor` is a single patch extractor. If
+        `None`, channel indices are inferred from the order of `patch_specs`.
+    principal_channel : int
+        Index of the channel whose patch specification is used as the primary region.
+    multiscale_count : int
+        Number of lateral context inputs.
+    padding_mode : {"reflect", "wrap"}, default="reflect"
+        Padding mode used when lateral context extends beyond image boundaries.
+
+    Returns
+    -------
+    patch : NDArray[Any]
+        Uncorrelated lateral context patch with axes CL(Z)YX, where L is the lateral
+        context input axis ordered from the native patch scale to larger context
+        scales.
+    patch_spec : UncorrelatedPatchSpecs
+        Patch specification containing all sampled channel locations.
+    """
     # TODO: cannot use channels with sequence of extractors
 
     n_channels = len(patch_specs)
@@ -434,6 +915,33 @@ def _extract_lc_patch(
     multiscale_count: int,
     padding_mode: Literal["reflect", "wrap"] = "reflect",
 ) -> NDArray[Any]:
+    """Extract a patch with lateral context inputs.
+
+    Parameters
+    ----------
+    extractor : PatchExtractor
+        Extractor used to sample the patch.
+    data_idx : int
+        Index of the image stack to sample.
+    sample_idx : int
+        Index of the sample within the image stack.
+    channels : Sequence[int] or None
+        Channel indices to extract. If `None`, all channels are extracted.
+    coords : Sequence[int]
+        Spatial start coordinates of the native-scale patch.
+    patch_size : Sequence[int]
+        Spatial size of the native-scale patch.
+    multiscale_count : int
+        Number of lateral context inputs.
+    padding_mode : {"reflect", "wrap"}, default="reflect"
+        Padding mode used when lateral context extends beyond image boundaries.
+
+    Returns
+    -------
+    NDArray[Any]
+        Lateral context patch with axes CL(Z)YX, where L is the lateral context input
+        axis ordered from the native patch scale to larger context scales.
+    """
     shape = extractor.image_stacks[data_idx].data_shape
     spatial_shape = shape[2:]
     n_channels = shape[1] if channels is None else len(channels)
@@ -487,7 +995,23 @@ def _extract_lc_patch(
 def _get_uncorrelated_metadata(
     target_extractor: PatchExtractor[ImageStack] | Sequence[PatchExtractor[ImageStack]],
     patch_spec: UncorrelatedPatchSpecs,
-):
+) -> ImageMetadata:
+    """Return metadata for an uncorrelated MicroSplit patch.
+
+    Parameters
+    ----------
+    target_extractor : PatchExtractor or Sequence[PatchExtractor]
+        Extractor containing all channel sources when a single extractor is provided,
+        or one extractor per channel when a sequence is provided.
+    patch_spec : UncorrelatedPatchSpecs
+        Patch specification containing all sampled channel locations.
+
+    Returns
+    -------
+    ImageMetadata
+        Metadata for the principal channel image with additional metadata for all
+        sampled channel images.
+    """
     if isinstance(target_extractor, PatchExtractor):
         image_stacks = [
             target_extractor.image_stacks[data_idx]

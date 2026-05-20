@@ -42,7 +42,17 @@ def _warn_unused_config_fields(
     field_names: Sequence[str],
     mode_name: str,
 ) -> None:
-    """Warn when explicitly configured fields are not used by a factory path."""
+    """Warn when explicitly configured fields are not used by a factory path.
+
+    Parameters
+    ----------
+    config : MicroSplitDataConfig
+        Configuration to inspect for explicitly set fields.
+    field_names : Sequence[str]
+        Field names that are unused by the selected factory path.
+    mode_name : str
+        Human-readable MicroSplit mode name used in the warning message.
+    """
     config_values = config.model_dump()
     unused_fields = sorted(
         field_name
@@ -62,7 +72,17 @@ def _warn_unused_training_config_fields(
     mode_name: str,
     extra_unused_fields: Sequence[str] = (),
 ) -> None:
-    """Warn for MicroSplit training config fields unused by a constructor mode."""
+    """Warn for MicroSplit training config fields unused by a constructor mode.
+
+    Parameters
+    ----------
+    config : MicroSplitDataConfig
+        Configuration to inspect for explicitly set fields.
+    mode_name : str
+        Human-readable MicroSplit mode name used in the warning message.
+    extra_unused_fields : Sequence[str], default=()
+        Additional fields unused by the selected training constructor.
+    """
     _warn_unused_config_fields(
         config,
         (
@@ -235,19 +255,23 @@ def create_microsplit_dataset(
 
 
 @overload
-def create_microsplit_pred_dataset(
+def create_microsplit_pred_dataset(  # numpydoc ignore=GL08
     config: MicroSplitDataConfig,
     input_data: Sequence[NDArray[Any]] | Sequence[Path],
     loading: ReadFuncLoading | None = None,
     model_constraints: ModelConstraints | None = None,
 ) -> CareamicsDataset[ImageStack]: ...
+
+
 @overload
-def create_microsplit_pred_dataset(
+def create_microsplit_pred_dataset(  # numpydoc ignore=GL08
     config: MicroSplitDataConfig,
     input_data: Any,
     loading: ImageStackLoading,
     model_constraints: ModelConstraints | None = None,
 ) -> CareamicsDataset[ImageStack]: ...
+
+
 def create_microsplit_pred_dataset(
     config: MicroSplitDataConfig,
     input_data: Any,
@@ -260,10 +284,13 @@ def create_microsplit_pred_dataset(
     ----------
     config : MicroSplitDataConfig
         MicroSplit prediction data configuration.
-    data : MicroSplitPredData or PredData
-        Prediction data sources.
+    input_data : Sequence[NDArray], Sequence[Path] or Any
+        Prediction data sources. For default loading, this is a list of numpy arrays
+        or a list of file paths. If using a custom image stack loader the input can be
+        any type that is supported by the loader.
     loading : Loading, default=None
-        Loading specification for custom data.
+        Loading specification. `None` or `ReadFuncLoading` is used for standard array
+        and path inputs, while `ImageStackLoading` is used for custom input data.
     model_constraints : ModelConstraints, optional
         Optional model constraints for dataset validation.
 

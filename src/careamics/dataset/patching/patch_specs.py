@@ -111,7 +111,18 @@ def is_tile_specs(specs: PatchSpecs) -> TypeGuard[TileSpecs]:
 
 
 def is_uncorrelated_specs(specs: PatchSpecs) -> TypeGuard[UncorrelatedPatchSpecs]:
-    """Determine whether a given PatchSpecs is an UncorrelatedPatchSpecs."""
+    """Determine whether a given PatchSpecs is an UncorrelatedPatchSpecs.
+
+    Parameters
+    ----------
+    specs : PatchSpecs
+        Patch specification to test.
+
+    Returns
+    -------
+    bool
+        Whether the patch specification contains uncorrelated patch metadata.
+    """
     return (
         ("all_data_idx" in specs)
         and ("all_sample_idx" in specs)

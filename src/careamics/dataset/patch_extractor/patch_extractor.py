@@ -134,5 +134,11 @@ class PatchExtractor(Generic[GenericImageStack]):
 
     @property
     def n_channels(self) -> int:
-        """Return the number of channels that the data has."""
+        """Return the number of channels that the data has.
+
+        Returns
+        -------
+        int
+            Number of channels.
+        """
         return self.image_stacks[0].data_shape[1]

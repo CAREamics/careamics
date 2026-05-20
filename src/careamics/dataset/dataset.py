@@ -31,12 +31,12 @@ def _adjust_shape_for_channels(
     channels: Sequence[int] | None,
     value: int | Literal["channels"] = "channels",
 ) -> tuple[int, ...]:
-    """Adjust shape to account for channel subsetting.
+    """Adjust shape to account for selecting a subset of channels.
 
     Parameters
     ----------
     shape : Sequence[int]
-        The original data shape in SC(Z)YX format.
+        The transformed data shape in SC(Z)YX format.
     channels : Sequence[int] | None
         The list of channels to select. If None, no adjustment is made.
     value : int | Literal["channels"], default="channels"
@@ -61,7 +61,25 @@ def _adjust_original_shape_for_channels(
     axes: str,
     value: int | Literal["channels"] = "channels",
 ) -> Sequence[int]:
-    # adjust original_data_shape for channel subsetting if needed
+    """Adjust original data shape to account for selecting a subset of channels.
+
+    Parameters
+    ----------
+    original_data_shape : Sequence[int]
+        Original source data shape.
+    channels : Sequence[int] or None
+        Selected channels. If None, no adjustment is made.
+    axes : str
+        Axes string describing `original_data_shape`.
+    value : int or "channels", default="channels"
+        The value to replace the channel dimension with. If "channels", the length
+        of the channels list is used, by default "channels".
+
+    Returns
+    -------
+    Sequence[int]
+        Adjusted original data shape.
+    """
     if channels is not None and "C" in axes:
         c_idx = axes.index("C")
         adjusted_original_shape = list(original_data_shape)
@@ -293,7 +311,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         tuple of ImageRegionData and ImageRegionData or None
             Region data for the input patch and optional target patch.
         """
-        data_idx = patch_spec["data_idx"]
         input_metadata = self.patch_constructor.get_input_image_metadata(patch_spec)
         target_metadata = self.patch_constructor.get_target_image_metadata(patch_spec)
 

@@ -58,7 +58,7 @@ class PatchConstructor(Protocol):
 
         Parameters
         ----------
-        input : NDArray[Any]
+        input_patch : NDArray[Any]
             The complete input.
 
         Returns
@@ -69,9 +69,31 @@ class PatchConstructor(Protocol):
         ...
 
     def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
-        """Return metadata for the input image."""
+        """Return metadata for the input image.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification identifying the input image.
+
+        Returns
+        -------
+        ImageMetadata
+            Metadata for the input image.
+        """
         ...
 
     def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
-        """Return metadata for the target image, if targets exist."""
+        """Return metadata for the target image, if targets exist.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification identifying the target image.
+
+        Returns
+        -------
+        ImageMetadata or None
+            Metadata for the target image, or `None` for input-only datasets.
+        """
         ...
