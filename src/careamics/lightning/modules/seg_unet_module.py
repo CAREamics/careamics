@@ -12,7 +12,7 @@ from careamics.config import SegAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
-from careamics.lightning.losses import get_seg_loss
+from careamics.losses import get_seg_loss
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
 
@@ -56,8 +56,8 @@ class SegModule(L.LightningModule):
 
         if not isinstance(config, SegAlgorithm):
             raise ValueError(
-                f"Parameter `algorithm_config` must be a N2VAlgorithm "
-                f"or a dict that represents a valid N2VAlgorithm Pydantic model "
+                f"Parameter `algorithm_config` must be a SegAlgorithm "
+                f"or a dict that represents a valid SegAlgorithm Pydantic model "
                 f"(got {type(config).__name__})."
             )
 

@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from careamics.lightning.losses.segmentation_losses import (
+from careamics.losses.segmentation_losses import (
     DiceCELoss,
     DiceLoss,
     get_seg_loss,
