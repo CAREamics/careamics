@@ -294,8 +294,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             Region data for the input patch and optional target patch.
         """
         data_idx = patch_spec["data_idx"]
-        input_metadata = self.patch_constructor.get_input_image_metadata(data_idx)
-        target_metadata = self.patch_constructor.get_target_image_metadata(data_idx)
+        input_metadata = self.patch_constructor.get_input_image_metadata(patch_spec)
+        target_metadata = self.patch_constructor.get_target_image_metadata(patch_spec)
 
         input_metadata["data_shape"] = _adjust_shape_for_channels(
             input_metadata["data_shape"], self.config.channels

@@ -13,6 +13,7 @@ from careamics.dataset.patching import (
     TiledPatching,
     TileSpecs,
     UncorrelatedPatchSpecs,
+    is_uncorrelated_specs,
 )
 
 from .metadata_utils import ImageMetadata, get_image_metadata
@@ -106,15 +107,27 @@ class MsT1PatchConstructor(PatchConstructor):
         """Return the principal input without lateral context."""
         return input_patch[[0]]
 
-    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+    def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
         """Return metadata for the input image."""
-        image_stack = self.target_extractor.image_stacks[data_idx]
-        return get_image_metadata(image_stack)
+        if is_uncorrelated_specs(patch_spec):
+            metadata = _get_uncorrelated_metadata(self.target_extractor, patch_spec)
+            return metadata
+        else:
+            data_idx = patch_spec["data_idx"]
+            image_stack = self.target_extractor.image_stacks[data_idx]
+            return get_image_metadata(image_stack)
 
-    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+    def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
         """Return metadata for the target image."""
+        data_idx = patch_spec["data_idx"]
         image_stack = self.target_extractor.image_stacks[data_idx]
-        return get_image_metadata(image_stack)
+        if is_uncorrelated_specs(patch_spec):
+            metadata = _get_uncorrelated_metadata(self.target_extractor, patch_spec)
+            return metadata
+        else:
+            data_idx = patch_spec["data_idx"]
+            image_stack = self.target_extractor.image_stacks[data_idx]
+            return get_image_metadata(image_stack)
 
 
 # target channels in separate files, synthetic input
@@ -190,45 +203,26 @@ class MsT2PatchConstructor(PatchConstructor):
         """Return the principal input without lateral context."""
         return input_patch[[0]]
 
-    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+    def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
         """Return metadata for the input image."""
-        # TODO: not correct for uncorrelated patches
-        image_stacks = [
-            extractor.image_stacks[data_idx] for extractor in self.target_extractors
-        ]
-        principal_image_stack = image_stacks[self.principal_channel]
-        all_sources = [str(image_stack.source) for image_stack in image_stacks]
-        all_data_shapes = [image_stack.data_shape for image_stack in image_stacks]
-        all_original_data_shapes = [
-            image_stack.original_data_shape for image_stack in image_stacks
-        ]
-
-        metadata = get_image_metadata(principal_image_stack)
-        metadata["additional_metadata"]["all_sources"] = all_sources
-        metadata["additional_metadata"]["all_data_shapes"] = all_data_shapes
-        metadata["additional_metadata"][
-            "all_original_data_shapes"
-        ] = all_original_data_shapes
+        if not is_uncorrelated_specs(patch_spec):
+            raise TypeError(
+                # TODO: improve msg
+                "Only uncorrelated patches are supported for this mode of MicroSplit "
+                "training."
+            )
+        metadata = _get_uncorrelated_metadata(self.target_extractors, patch_spec)
         return metadata
 
-    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+    def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
         """Return metadata for the target image."""
-        image_stacks = [
-            extractor.image_stacks[data_idx] for extractor in self.target_extractors
-        ]
-        principal_image_stack = image_stacks[self.principal_channel]
-        all_sources = [str(image_stack.source) for image_stack in image_stacks]
-        all_data_shapes = [image_stack.data_shape for image_stack in image_stacks]
-        all_original_data_shapes = [
-            image_stack.original_data_shape for image_stack in image_stacks
-        ]
-
-        metadata = get_image_metadata(principal_image_stack)
-        metadata["additional_metadata"]["all_sources"] = all_sources
-        metadata["additional_metadata"]["all_data_shapes"] = all_data_shapes
-        metadata["additional_metadata"][
-            "all_original_data_shapes"
-        ] = all_original_data_shapes
+        if not is_uncorrelated_specs(patch_spec):
+            raise TypeError(
+                # TODO: improve msg
+                "Only uncorrelated patches are supported for this mode of MicroSplit "
+                "training."
+            )
+        metadata = _get_uncorrelated_metadata(self.target_extractors, patch_spec)
         return metadata
 
 
@@ -286,13 +280,15 @@ class MsT3PatchConstructor(PatchConstructor):
         """Return the principal input without lateral context."""
         return input_patch[[0]]
 
-    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+    def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
         """Return metadata for the input image."""
+        data_idx = patch_spec["data_idx"]
         image_stack = self.input_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
-    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+    def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
         """Return metadata for the target image."""
+        data_idx = patch_spec["data_idx"]
         image_stack = self.target_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
@@ -348,12 +344,13 @@ class MsPredPatchConstructor(PatchConstructor):
         """Return the principal input without lateral context."""
         return input_patch[[0]]
 
-    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+    def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
         """Return metadata for the input image."""
+        data_idx = patch_spec["data_idx"]
         image_stack = self.input_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
-    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+    def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
         """Return metadata for the target image."""
         return None
 
@@ -485,3 +482,35 @@ def _extract_lc_patch(
         lc_patch = resize(lc_patch, (n_channels, *patch_size))
         patch[:, scale, ...] = lc_patch
     return patch
+
+
+def _get_uncorrelated_metadata(
+    target_extractor: PatchExtractor[ImageStack] | Sequence[PatchExtractor[ImageStack]],
+    patch_spec: UncorrelatedPatchSpecs,
+):
+    if isinstance(target_extractor, PatchExtractor):
+        image_stacks = [
+            target_extractor.image_stacks[data_idx]
+            for data_idx in patch_spec["all_data_idx"]
+        ]
+    else:  # sequence
+        image_stacks = [
+            extractor.image_stacks[data_idx]
+            for extractor, data_idx in zip(
+                target_extractor, patch_spec["all_data_idx"], strict=True
+            )
+        ]
+    principal_image_stack = image_stacks[patch_spec["principle_channel"]]
+    all_sources = [str(image_stack.source) for image_stack in image_stacks]
+    all_data_shapes = [image_stack.data_shape for image_stack in image_stacks]
+    all_original_data_shapes = [
+        image_stack.original_data_shape for image_stack in image_stacks
+    ]
+
+    metadata = get_image_metadata(principal_image_stack)
+    metadata["additional_metadata"]["all_sources"] = all_sources
+    metadata["additional_metadata"]["all_data_shapes"] = all_data_shapes
+    metadata["additional_metadata"][
+        "all_original_data_shapes"
+    ] = all_original_data_shapes
+    return metadata

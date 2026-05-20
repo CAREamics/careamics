@@ -15,10 +15,17 @@ __all__ = [
     "WholeSamplePatching",
     "create_patching",
     "is_tile_specs",
+    "is_uncorrelated_specs",
 ]
 
 from .fixed_patching import FixedPatching
-from .patch_specs import RegionSpecs, TileSpecs, UncorrelatedPatchSpecs, is_tile_specs
+from .patch_specs import (
+    RegionSpecs,
+    TileSpecs,
+    UncorrelatedPatchSpecs,
+    is_tile_specs,
+    is_uncorrelated_specs,
+)
 from .patching import Patching, PatchSpecs
 from .patching_factory import create_patching
 from .random_patching import FixedRandomPatching, RandomPatching

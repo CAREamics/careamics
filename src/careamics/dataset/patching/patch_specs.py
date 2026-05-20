@@ -108,3 +108,11 @@ def is_tile_specs(specs: PatchSpecs) -> TypeGuard[TileSpecs]:
         and ("crop_size" in specs)
         and ("stitch_coords" in specs)
     )
+
+
+def is_uncorrelated_specs(specs: PatchSpecs) -> TypeGuard[UncorrelatedPatchSpecs]:
+    return (
+        ("all_data_idx" in specs)
+        and ("all_sample_idx" in specs)
+        and ("all_coords" in specs)
+    )

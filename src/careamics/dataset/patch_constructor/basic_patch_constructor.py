@@ -48,11 +48,13 @@ class BasicPatchConstructor(PatchConstructor):
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         return input_patch
 
-    def get_input_image_metadata(self, data_idx: int) -> ImageMetadata:
+    def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
+        data_idx = patch_spec["data_idx"]
         image_stack = self.input_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
-    def get_target_image_metadata(self, data_idx: int) -> ImageMetadata | None:
+    def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
+        data_idx = patch_spec["data_idx"]
         if self.target_extractor is not None:
             image_stack = self.target_extractor.image_stacks[data_idx]
             return get_image_metadata(image_stack)
