@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Any, Literal, Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .data_config import DataConfig
 
@@ -88,3 +88,38 @@ class MicroSplitDataConfig(DataConfig):
             }
         )
         return MicroSplitDataConfig(**model_dict)
+
+    @model_validator(mode="after")
+    def validate_microsplit_params_against_mode(self):
+        """Validate certain parameters are not set for prediction.
+
+        Returns
+        -------
+        Self
+            Validated config.
+        """
+        if self.mode == "predicting":
+            if self.uncorrelated_channel_prob > 0:
+                raise ValueError(
+                    "Spatially uncorrelated channels are not supported for prediction."
+                )
+            if self.alpha_ranges is not None:
+                raise ValueError("Alpha ranges cannot be set for prediction.")
+
+        return self
+
+    @model_validator(mode="after")
+    def raise_unsupported_features(self):
+        """Raise error for features not supported by MicroSplit.
+
+        Returns
+        -------
+        Self
+            Validated config.
+        """
+        if self.patch_filter is not None:
+            raise NotImplementedError(
+                # temporary
+                "Patch filtering is currently not implemented for MicroSplit."
+            )
+        return self

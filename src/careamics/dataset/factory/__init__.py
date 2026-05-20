@@ -3,7 +3,7 @@
 __all__ = [
     "ImageStackLoading",
     "Loading",
-    "MicroSplitJointTargetData",
+    "MicroSplitMultiplexedTargetData",
     "MicroSplitPairedData",
     "MicroSplitSeparateTargetData",
     "PredData",
@@ -39,7 +39,7 @@ from .factory import (
     select_patch_extractor_type,
 )
 from .microsplit_factory import (
-    MicroSplitJointTargetData,
+    MicroSplitMultiplexedTargetData,
     MicroSplitPairedData,
     MicroSplitSeparateTargetData,
     create_microsplit_dataset,

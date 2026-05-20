@@ -70,7 +70,7 @@ def _warn_unused_config_fields(
 def _warn_unused_training_config_fields(
     config: MicroSplitDataConfig,
     mode_name: str,
-    extra_unused_fields: Sequence[str] = (),
+    unused_fields: Sequence[str] = (),
 ) -> None:
     """Warn for MicroSplit training config fields unused by a constructor mode.
 
@@ -80,22 +80,18 @@ def _warn_unused_training_config_fields(
         Configuration to inspect for explicitly set fields.
     mode_name : str
         Human-readable MicroSplit mode name used in the warning message.
-    extra_unused_fields : Sequence[str], default=()
+    unused_fields : Sequence[str], default=()
         Additional fields unused by the selected training constructor.
     """
     _warn_unused_config_fields(
         config,
-        (
-            "patch_filter",
-            "mask_filter",
-            *extra_unused_fields,
-        ),
+        unused_fields,
         mode_name,
     )
 
 
 @dataclass
-class MicroSplitJointTargetData(Generic[T]):
+class MicroSplitMultiplexedTargetData(Generic[T]):
     """MicroSplit data with target channels acquired together."""
 
     target_data: T
@@ -113,16 +109,23 @@ class MicroSplitSeparateTargetData(Generic[T]):
 
 @dataclass
 class MicroSplitPairedData(Generic[T]):
-    """MicroSplit data with real input and target sources."""
+    """MicroSplit data with real input and multiplexed target sources."""
 
     input_data: T
     target_data: T
 
 
+MicroSplitTrainingData = (
+    MicroSplitMultiplexedTargetData[Any]
+    | MicroSplitSeparateTargetData[Any]
+    | MicroSplitPairedData[Any]
+)
+
+
 def create_microsplit_dataset(
     config: MicroSplitDataConfig,
     data: (
-        MicroSplitJointTargetData[Any]
+        MicroSplitMultiplexedTargetData[Any]
         | MicroSplitSeparateTargetData[Any]
         | MicroSplitPairedData[Any]
     ),
@@ -132,18 +135,25 @@ def create_microsplit_dataset(
 ) -> CareamicsDataset[ImageStack]:
     """Create a MicroSplit training or validation dataset.
 
-    The `data` type determines which MicroSplit patch constructor is used:
-    `MicroSplitJointTargetData` selects `MsT1PatchConstructor`,
-    `MicroSplitSeparateTargetData` selects `MsT2PatchConstructor`, and
-    `MicroSplitPairedData` selects `MsT3PatchConstructor`.
+    The `data` type determines which MicroSplit training mode to use. There are three
+    options:
+
+        - `MicroSplitMultiplexedTargetData`: When only multiplexed target channels are
+        available the inputs can be synthesized by summing together the target channels.
+        - `MicroSplitSeparateTargetData`: Multiplexed target channels are not available,
+        instead, each channel are acquired separately. This should only be used for
+        structures which are not spatially correlated.
+        - `MicroSplitPairedData`: When both the multiplexed target channels and the
+        real input are available.
 
     Parameters
     ----------
     config : MicroSplitDataConfig
         MicroSplit data configuration.
-    data : MicroSplitJointTargetData, MicroSplitSeparateTargetData or
-        MicroSplitPairedData
-        Data sources used to construct MicroSplit patches.
+    data : MicroSplitTrainingData
+        Data sources used to construct MicroSplit training patches. Either
+        `MicroSplitMultiplexedTargetData`, `MicroSplitSeparateTargetData` or
+        `MicroSplitPairedData`.
     loading : Loading, default=None
         Loading specification for custom data.
     model_constraints : ModelConstraints, optional
@@ -173,8 +183,8 @@ def create_microsplit_dataset(
 
     patch_constructor: PatchConstructor
     match data:
-        case MicroSplitJointTargetData(target_data):
-            _warn_unused_training_config_fields(config, "joint-target mode")
+        case MicroSplitMultiplexedTargetData(target_data):
+            _warn_unused_training_config_fields(config, "multiplexed-target mode")
             target_extractor = init_patch_extractor(
                 patch_extractor_type, image_stack_loader, target_data, config.axes
             )
@@ -195,7 +205,7 @@ def create_microsplit_dataset(
             _warn_unused_training_config_fields(
                 config,
                 "separate-target mode",
-                extra_unused_fields=("channels", "uncorrelated_channel_prob"),
+                unused_fields=("channels", "uncorrelated_channel_prob"),
             )
             if len(target_channel_data) == 0:
                 raise ValueError("At least one target channel source must be provided.")
@@ -221,7 +231,7 @@ def create_microsplit_dataset(
             _warn_unused_training_config_fields(
                 config,
                 "paired-input-target mode",
-                extra_unused_fields=(
+                unused_fields=(
                     "alpha_ranges",
                     "channels",
                     "uncorrelated_channel_prob",
@@ -303,11 +313,6 @@ def create_microsplit_pred_dataset(
         raise ValueError(
             "`create_microsplit_pred_dataset` requires a config with mode='predicting'."
         )
-    _warn_unused_config_fields(
-        config,
-        ("alpha_ranges", "channels", "uncorrelated_channel_prob"),
-        "prediction mode",
-    )
 
     image_stack_loader = select_image_stack_loader(
         data_type=SupportedData(config.data_type),
