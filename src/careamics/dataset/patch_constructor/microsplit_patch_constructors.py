@@ -416,7 +416,7 @@ def _construct_uncorrelated_patch(
             )
     uncorr_patch_specs = UncorrelatedPatchSpecs(
         **patch_specs[principal_channel],
-        principle_channel=principal_channel,
+        principal_channel=principal_channel,
         all_data_idx=[ps["data_idx"] for ps in patch_specs],
         all_sample_idx=[ps["sample_idx"] for ps in patch_specs],
         all_coords=[ps["coords"] for ps in patch_specs],
@@ -500,7 +500,7 @@ def _get_uncorrelated_metadata(
                 target_extractor, patch_spec["all_data_idx"], strict=True
             )
         ]
-    principal_image_stack = image_stacks[patch_spec["principle_channel"]]
+    principal_image_stack = image_stacks[patch_spec["principal_channel"]]
     all_sources = [str(image_stack.source) for image_stack in image_stacks]
     all_data_shapes = [image_stack.data_shape for image_stack in image_stacks]
     all_original_data_shapes = [

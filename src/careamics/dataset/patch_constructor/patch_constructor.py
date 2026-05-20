@@ -19,10 +19,14 @@ class PatchConstructor(Protocol):
         ...
 
     @property
-    def input_shapes(self) -> Sequence[Sequence[int]]: ...
+    def input_shapes(self) -> Sequence[Sequence[int]]:
+        """Return input image shapes."""
+        ...
 
     @property
-    def target_shapes(self) -> Sequence[Sequence[int]] | None: ...
+    def target_shapes(self) -> Sequence[Sequence[int]] | None:
+        """Return target image shapes, if targets exist."""
+        ...
 
     def construct_patch(
         self, index: int
@@ -48,7 +52,7 @@ class PatchConstructor(Protocol):
     # e.g. for MicroSplit the full input has the lateral context.
     #      we need to remove the lateral context to calculate the normalization stats.
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
-        """Get the principle input.
+        """Get the principal input.
 
         This is useful for tasks such as the calculation of stats for normalization.
 
@@ -64,8 +68,10 @@ class PatchConstructor(Protocol):
         """
         ...
 
-    def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata: ...
+    def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
+        """Return metadata for the input image."""
+        ...
 
-    def get_target_image_metadata(
-        self, patch_spec: PatchSpecs
-    ) -> ImageMetadata | None: ...
+    def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
+        """Return metadata for the target image, if targets exist."""
+        ...

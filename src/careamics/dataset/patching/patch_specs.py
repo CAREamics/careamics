@@ -72,7 +72,7 @@ class UncorrelatedPatchSpecs(PatchSpecs):
 
     Attributes
     ----------
-    principle_channel : int
+    principal_channel : int
         An index that represents the channel that the main patch specs describe.
     all_data_idx : Sequence[int]
         A sequence that contains the data index that each channel patch belongs to.
@@ -82,7 +82,7 @@ class UncorrelatedPatchSpecs(PatchSpecs):
         The coordinate of each channel patch.
     """
 
-    principle_channel: int
+    principal_channel: int
     all_data_idx: Sequence[int]
     all_sample_idx: Sequence[int]
     all_coords: Sequence[Sequence[int]]
@@ -111,6 +111,7 @@ def is_tile_specs(specs: PatchSpecs) -> TypeGuard[TileSpecs]:
 
 
 def is_uncorrelated_specs(specs: PatchSpecs) -> TypeGuard[UncorrelatedPatchSpecs]:
+    """Determine whether a given PatchSpecs is an UncorrelatedPatchSpecs."""
     return (
         ("all_data_idx" in specs)
         and ("all_sample_idx" in specs)
