@@ -7,8 +7,6 @@ sum, with a parallel count array tracking coverage. Tile geometry is produced
 by ``SlidingWindowTiledPatching``; effective per-pixel MMSE count is determined
 by ``effective_mmse_count(patch_size, stride, overlap)`` and edge replication
 in the patching strategy equalises border coverage with the interior.
-
-See ``swin_tiled_pred.md`` for design notes.
 """
 
 from __future__ import annotations
@@ -63,6 +61,31 @@ def load_microsplit_from_checkpoint(
         algorithm_config=algorithm_config,
         strict=True,
     )
+
+
+def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
+    """Per-axis effective MMSE count for `SlidingWindowTiledPatching`.
+
+    Each pixel along the axis is covered by this many independent tile
+    predictions (assuming `mmse_count = 1` in the model — each forward pass
+    yields one stochastic draw). For a multi-axis pixel, the effective count
+    is the product of this value across axes.
+
+    Parameters
+    ----------
+    patch_size : int
+        Tile size along the axis.
+    stride : int
+        Tile stride along the axis.
+    overlap : int
+        Overlap dropped from each adjacent tile pair (= 2 * margin per side).
+
+    Returns
+    -------
+    int
+        `max(1, (patch_size - overlap) // stride)`.
+    """
+    return max(1, (patch_size - overlap) // stride)
 
 
 @dataclass
@@ -218,8 +241,6 @@ def sw_tiled_prediction(
         Trained MicroSplit module. Caller is responsible for loading weights
         (e.g. via ``load_microsplit_from_checkpoint``) and for setting
         ``model.algorithm_config.mmse_count = 1`` before invocation.
-    use_logger : bool
-        Currently unused; kept for API compatibility with the handout.
     data_config : DataConfig or dict
         Configuration for the prediction ``CareamicsDataModule``. Expected to
         carry a ``SlidingWindowTiledPatchingConfig`` as its patching strategy.
@@ -230,8 +251,6 @@ def sw_tiled_prediction(
     save_dir : Path or str
         Directory where TIFFs are written. Created if missing.
     """
-    del use_logger  # TODO: wire up if/when needed
-
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
 

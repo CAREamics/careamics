@@ -7,31 +7,6 @@ from math import prod
 from .patching import TileSpecs
 
 
-def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
-    """Per-axis effective MMSE count for `SlidingWindowTiledPatching`.
-
-    Each pixel along the axis is covered by this many independent tile
-    predictions (assuming `mmse_count = 1` in the model — each forward pass
-    yields one stochastic draw). For a multi-axis pixel, the effective count
-    is the product of this value across axes.
-
-    Parameters
-    ----------
-    patch_size : int
-        Tile size along the axis.
-    stride : int
-        Tile stride along the axis.
-    overlap : int
-        Overlap dropped from each adjacent tile pair (= 2 * margin per side).
-
-    Returns
-    -------
-    int
-        `max(1, (patch_size - overlap) // stride)`.
-    """
-    return max(1, (patch_size - overlap) // stride)
-
-
 class SlidingWindowTiledPatching:
     """Sliding-window inner-tiled patching with uniform per-pixel coverage.
 
