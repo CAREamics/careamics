@@ -2,9 +2,11 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from pathlib import Path
+from typing import Any, Generic, TypeVar, overload
 
 import numpy as np
+from numpy.typing import NDArray
 
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
 from careamics.config.support import SupportedData
@@ -22,8 +24,9 @@ from ..patch_constructor.microsplit_patch_constructors import (
 )
 from ..patching import TiledPatching, create_patching
 from .factory import (
+    ImageStackLoading,
     Loading,
-    PredData,
+    ReadFuncLoading,
     init_patch_extractor,
     select_image_stack_loader,
     select_patch_extractor_type,
@@ -94,13 +97,6 @@ class MicroSplitPairedData(Generic[T]):
 
     input_data: T
     target_data: T
-
-
-@dataclass
-class MicroSplitPredData(Generic[T]):
-    """MicroSplit prediction data."""
-
-    pred_data: T
 
 
 def create_microsplit_dataset(
@@ -238,9 +234,23 @@ def create_microsplit_dataset(
     )
 
 
+@overload
 def create_microsplit_pred_dataset(
     config: MicroSplitDataConfig,
-    data: MicroSplitPredData[Any] | PredData[Any],
+    input_data: Sequence[NDArray[Any]] | Sequence[Path],
+    loading: ReadFuncLoading | None = None,
+    model_constraints: ModelConstraints | None = None,
+) -> CareamicsDataset[ImageStack]: ...
+@overload
+def create_microsplit_pred_dataset(
+    config: MicroSplitDataConfig,
+    input_data: Any,
+    loading: ImageStackLoading,
+    model_constraints: ModelConstraints | None = None,
+) -> CareamicsDataset[ImageStack]: ...
+def create_microsplit_pred_dataset(
+    config: MicroSplitDataConfig,
+    input_data: Any,
     loading: Loading = None,
     model_constraints: ModelConstraints | None = None,
 ) -> CareamicsDataset[ImageStack]:
@@ -281,7 +291,7 @@ def create_microsplit_pred_dataset(
         data_type=SupportedData(config.data_type), in_memory=config.in_memory
     )
     input_extractor = init_patch_extractor(
-        patch_extractor_type, image_stack_loader, data.pred_data, config.axes
+        patch_extractor_type, image_stack_loader, input_data, config.axes
     )
     patching_strategy = create_patching(input_extractor.shapes, config.patching)
     if not isinstance(patching_strategy, TiledPatching):

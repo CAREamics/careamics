@@ -5,7 +5,6 @@ __all__ = [
     "Loading",
     "MicroSplitJointTargetData",
     "MicroSplitPairedData",
-    "MicroSplitPredData",
     "MicroSplitSeparateTargetData",
     "PredData",
     "ReadFuncLoading",
@@ -42,7 +41,6 @@ from .factory import (
 from .microsplit_factory import (
     MicroSplitJointTargetData,
     MicroSplitPairedData,
-    MicroSplitPredData,
     MicroSplitSeparateTargetData,
     create_microsplit_dataset,
     create_microsplit_pred_dataset,
