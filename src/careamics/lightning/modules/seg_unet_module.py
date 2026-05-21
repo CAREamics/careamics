@@ -168,7 +168,7 @@ class SegModule(L.LightningModule):
         # ensure targets are long type (torch.int64)
         # torch.nn.functional.one_hot is only applicable to index LongTensor, see
         # generalized_dice implementation in torchmetrics
-        target_long = target.data.long()  # type: ignore
+        target_long = target.data.long().argmax(dim=1, keepdim=True)  # type: ignore
         self.metrics(pred_classes, target_long)
         log_validation_stats(
             self, val_loss, batch_size=x.data.shape[0], metrics=self.metrics
