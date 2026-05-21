@@ -22,7 +22,7 @@ from ..patch_constructor.microsplit_patch_constructors import (
     MsT2PatchConstructor,
     MsT3PatchConstructor,
 )
-from ..patching import TiledPatching, create_patching
+from ..patching import create_patching
 from .factory import (
     ImageStackLoading,
     Loading,
@@ -228,6 +228,7 @@ def create_microsplit_dataset(
                 rng=rng,
             )
         case MicroSplitPairedData(input_data, target_data):
+            # TODO: currently input data has to have singleton C dimension
             _warn_unused_training_config_fields(
                 config,
                 "paired-input-target mode",
@@ -313,6 +314,12 @@ def create_microsplit_pred_dataset(
         raise ValueError(
             "`create_microsplit_pred_dataset` requires a config with mode='predicting'."
         )
+    is_standard_loading = loading is None or isinstance(loading, ReadFuncLoading)
+    if is_standard_loading and not isinstance(input_data, Sequence):
+        raise TypeError(
+            "Prediction input must be a sequence of numpy arrays or paths for standard "
+            "loading."
+        )
 
     image_stack_loader = select_image_stack_loader(
         data_type=SupportedData(config.data_type),
@@ -326,8 +333,6 @@ def create_microsplit_pred_dataset(
         patch_extractor_type, image_stack_loader, input_data, config.axes
     )
     patching_strategy = create_patching(input_extractor.shapes, config.patching)
-    if not isinstance(patching_strategy, TiledPatching):
-        raise TypeError("MicroSplit prediction currently requires tiled patching.")
 
     patch_constructor = MsPredPatchConstructor(
         patching_strategy=patching_strategy,

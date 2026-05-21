@@ -12,8 +12,6 @@ from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import (
     Patching,
     PatchSpecs,
-    TiledPatching,
-    TileSpecs,
     UncorrelatedPatchSpecs,
     is_uncorrelated_specs,
 )
@@ -633,7 +631,7 @@ class MsPredPatchConstructor(PatchConstructor):
     # prediction - input only
     def __init__(
         self,
-        patching_strategy: TiledPatching,
+        patching_strategy: Patching,
         input_extractor: PatchExtractor[Any],
         multiscale_count: int,
         padding_mode: Literal["reflect", "wrap"],
@@ -689,7 +687,7 @@ class MsPredPatchConstructor(PatchConstructor):
         """
         return None
 
-    def construct_patch(self, index: int) -> tuple[NDArray[Any], None, TileSpecs]:
+    def construct_patch(self, index: int) -> tuple[NDArray[Any], None, PatchSpecs]:
         """Construct the input patch for prediction.
 
         Parameters
