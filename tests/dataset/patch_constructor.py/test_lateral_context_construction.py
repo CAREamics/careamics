@@ -2,15 +2,14 @@ from typing import Any
 
 import numpy as np
 import pytest
-from careamics.dataset.patch_extractor.patch_construction import (
-    lateral_context_patch_constr,
-)
 from numpy.typing import NDArray
 from skimage.transform import resize
 
 from careamics.dataset.image_stack import InMemoryImageStack
+from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
+    _extract_lc_patch,
+)
 from careamics.dataset.patch_extractor import PatchExtractor
-from careamics.dataset.patching import RandomPatching
 
 
 def _assert_lc_centralized(lc_patch: NDArray[Any]):
@@ -67,7 +66,7 @@ def _assert_lc_centralized(lc_patch: NDArray[Any]):
 def test_lateral_context_constructor(
     data_shape: tuple[int, ...],
     patch_size: tuple[int, ...],
-    channels: int | None,
+    channels: list[int] | None,
     axes: str,
 ):
     """Test the lateral context patch constructor function."""
@@ -75,37 +74,21 @@ def test_lateral_context_constructor(
     multiscale_count = 4
     data = rng.random(data_shape)
     image_stack = InMemoryImageStack.from_array(data, axes)
+    patch_extractor = PatchExtractor([image_stack])
 
-    constructor_func = lateral_context_patch_constr(multiscale_count, "reflect")
     # test coord at edge (which will have padded lc) and coord at centre
     coords = [tuple(0 for _ in patch_size), tuple(ps // 2 for ps in (patch_size))]
     for coord in coords:
-        lc_patch = constructor_func(image_stack, 0, channels, coord, patch_size)
-        assert lc_patch.shape[1] == multiscale_count
-        _assert_lc_centralized(lc_patch)
-
-
-@pytest.mark.skip("This mechanism is being refactored.")
-def test_patch_extractor_lc_injection():
-    rng = np.random.default_rng(seed=42)
-    multiscale_count = 4
-    axes = "SYX"
-    data_shapes = [(1, 512, 496), (3, 451, 501)]
-    # create data
-    image_stacks = [
-        InMemoryImageStack.from_array(rng.random(data_shape), axes)
-        for data_shape in data_shapes
-    ]
-    # inject patch extractor with constructor func
-    constructor_func = lateral_context_patch_constr(multiscale_count, "reflect")
-    patch_extractor = PatchExtractor(image_stacks, constructor_func)
-
-    # use random patching strategy to generate patch specs and extract lc patches
-    patch_size = (64, 64)
-    patching_strat = RandomPatching(patch_extractor.shapes, patch_size, seed=42)
-    for idx in range(patching_strat.n_patches):
-        patch_spec = patching_strat.get_patch_spec(idx)
-        lc_patch = patch_extractor.extract_patch(**patch_spec)
+        lc_patch = _extract_lc_patch(
+            patch_extractor,
+            data_idx=0,
+            sample_idx=0,
+            channels=channels,
+            coords=coord,
+            patch_size=patch_size,
+            multiscale_count=multiscale_count,
+            padding_mode="reflect",
+        )
         assert lc_patch.shape[1] == multiscale_count
         _assert_lc_centralized(lc_patch)
 
@@ -114,9 +97,19 @@ def test_lateral_context_constructor_with_channels():
     """Test that the lateral context constructor raises an error with multiple
     channels."""
     rng = np.random.default_rng(seed=42)
-    data = rng.random((2, 512, 496))
+    data = rng.random((3, 512, 496))
     image_stack = InMemoryImageStack.from_array(data, "CYX")
+    patch_extractor = PatchExtractor([image_stack])
 
-    constructor_func = lateral_context_patch_constr(4, "reflect")
-    with pytest.raises(NotImplementedError):
-        constructor_func(image_stack, 0, [0, 1], (0, 0), (64, 64))
+    lc_patch = _extract_lc_patch(
+        patch_extractor,
+        data_idx=0,
+        sample_idx=0,
+        channels=[0, 1],
+        coords=(0, 0),
+        patch_size=(64, 64),
+        multiscale_count=2,
+        padding_mode="reflect",
+    )
+    assert lc_patch.shape[0] == 2
+    _assert_lc_centralized(lc_patch)
