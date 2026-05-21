@@ -196,7 +196,7 @@ def _create_validation_blocks(
             for j in range(ndims)
             if i != j and val_coords_1D[j] is None
         ]
-        # remaining val patches for the dimensions not calculate yet
+        # remaining val patches for the dimensions not calculated yet
         remaining = np.ceil(
             n_val_patches
             / np.prod(
