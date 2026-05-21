@@ -2,14 +2,14 @@ from typing import Any
 
 import numpy as np
 import pytest
+from careamics.dataset.patch_extractor.patch_construction import (
+    lateral_context_patch_constr,
+)
 from numpy.typing import NDArray
 from skimage.transform import resize
 
 from careamics.dataset.image_stack import InMemoryImageStack
 from careamics.dataset.patch_extractor import PatchExtractor
-from careamics.dataset.patch_extractor.patch_construction import (
-    lateral_context_patch_constr,
-)
 from careamics.dataset.patching import RandomPatching
 
 
