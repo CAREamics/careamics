@@ -11,6 +11,7 @@ from careamics.config.support import SupportedData
 from careamics.dataset.dataset import CareamicsDataset
 from careamics.dataset.factory import PredData, TrainValData, TrainValSplitData
 from careamics.dataset.image_stack import FileImageStack
+from careamics.dataset.patch_constructor import BasicPatchConstructor
 from careamics.dataset.patch_extractor.limit_file_extractor import (
     LimitFilesPatchExtractor,
 )
@@ -27,7 +28,8 @@ from careamics.lightning.data.grouped_index_sampler import GroupedIndexSampler
 
 def _patch_file_image_stacks(dataset: CareamicsDataset[FileImageStack]):
     mocks = []
-    for image_stack in dataset.input_extractor.image_stacks:
+    assert isinstance(dataset.patch_constructor, BasicPatchConstructor)
+    for image_stack in dataset.patch_constructor.input_extractor.image_stacks:
         load_patch = patch.object(image_stack, "load", wraps=image_stack.load)
         close_patch = patch.object(image_stack, "close", wraps=image_stack.close)
 
@@ -85,7 +87,10 @@ def test_not_in_mem_tiff(tmp_path: Path):
     for dataloader in dataloaders:
         assert isinstance(dataloader.sampler, GroupedIndexSampler)
         dataset = cast(CareamicsDataset, dataloader.dataset)
-        assert isinstance(dataset.input_extractor, LimitFilesPatchExtractor)
+        assert isinstance(dataset.patch_constructor, BasicPatchConstructor)
+        assert isinstance(
+            dataset.patch_constructor.input_extractor, LimitFilesPatchExtractor
+        )
         # to make sure load and closed will be called only once for each FileImageStack
         for _ in dataloader:
             pass

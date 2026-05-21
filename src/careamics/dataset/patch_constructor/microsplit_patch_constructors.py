@@ -244,6 +244,33 @@ class MsT1PatchConstructor(PatchConstructor):
             image_stack = self.target_extractor.image_stacks[data_idx]
             return get_image_metadata(image_stack)
 
+    # Note: this is used by the FileIterSampler
+    def get_patch_indices(self, data_idx: int) -> Sequence[int]:
+        """
+        Get the patch indices will return patches for a specific `image_stack`.
+
+        The `image_stack` corresponds to the given `data_idx`.
+
+        Parameters
+        ----------
+        data_idx : int
+            An index that corresponds to a given `image_stack`.
+
+        Returns
+        -------
+        sequence of int
+            A sequence of patch indices, that when used to index the `CAREamicsDataset
+            will return a patch that comes from the `image_stack` corresponding to the
+            given `data_idx`.
+        """
+        if self.uncorrelated_channel_prob == 0:
+            return self.patching_strategy.get_patch_indices(data_idx)
+        else:
+            raise NotImplementedError(
+                "Retrieving patch indices for MicroSplit training with spatially "
+                "uncorrelated data has not been implemented."
+            )
+
 
 # target channels in separate files, synthetic input
 class MsT2PatchConstructor(PatchConstructor):
@@ -449,6 +476,30 @@ class MsT2PatchConstructor(PatchConstructor):
         metadata = _get_uncorrelated_metadata(self.target_extractors, patch_spec)
         return metadata
 
+    # Note: this is used by the FileIterSampler
+    def get_patch_indices(self, data_idx: int) -> Sequence[int]:
+        """
+        Get the patch indices will return patches for a specific `image_stack`.
+
+        The `image_stack` corresponds to the given `data_idx`.
+
+        Parameters
+        ----------
+        data_idx : int
+            An index that corresponds to a given `image_stack`.
+
+        Returns
+        -------
+        sequence of int
+            A sequence of patch indices, that when used to index the `CAREamicsDataset
+            will return a patch that comes from the `image_stack` corresponding to the
+            given `data_idx`.
+        """
+        raise NotImplementedError(
+            "Retrieving patch indices for MicroSplit training with spatially "
+            "uncorrelated data has not been implemented."
+        )
+
 
 # real target image and input images
 class MsT3PatchConstructor(PatchConstructor):
@@ -612,6 +663,27 @@ class MsT3PatchConstructor(PatchConstructor):
         image_stack = self.target_extractor.image_stacks[data_idx]
         return get_image_metadata(image_stack)
 
+    # Note: this is used by the FileIterSampler
+    def get_patch_indices(self, data_idx: int) -> Sequence[int]:
+        """
+        Get the patch indices will return patches for a specific `image_stack`.
+
+        The `image_stack` corresponds to the given `data_idx`.
+
+        Parameters
+        ----------
+        data_idx : int
+            An index that corresponds to a given `image_stack`.
+
+        Returns
+        -------
+        sequence of int
+            A sequence of patch indices, that when used to index the `CAREamicsDataset
+            will return a patch that comes from the `image_stack` corresponding to the
+            given `data_idx`.
+        """
+        return self.patching_strategy.get_patch_indices(data_idx)
+
 
 class MsPredPatchConstructor(PatchConstructor):
     """Construct MicroSplit prediction patches.
@@ -766,6 +838,27 @@ class MsPredPatchConstructor(PatchConstructor):
             Prediction datasets do not have target images.
         """
         return None
+
+    # Note: this is used by the FileIterSampler
+    def get_patch_indices(self, data_idx: int) -> Sequence[int]:
+        """
+        Get the patch indices will return patches for a specific `image_stack`.
+
+        The `image_stack` corresponds to the given `data_idx`.
+
+        Parameters
+        ----------
+        data_idx : int
+            An index that corresponds to a given `image_stack`.
+
+        Returns
+        -------
+        sequence of int
+            A sequence of patch indices, that when used to index the `CAREamicsDataset
+            will return a patch that comes from the `image_stack` corresponding to the
+            given `data_idx`.
+        """
+        return self.patching_strategy.get_patch_indices(data_idx)
 
 
 def _sample_alphas(
