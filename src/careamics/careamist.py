@@ -671,7 +671,7 @@ class CAREamist:
             train_data_target=train_data_target,
             val_data_target=val_data_target,
             train_data_mask=filtering_mask,
-            model_constraints=get_model_constraints(self.config.algorithm_config.model),
+            model_constraints=get_model_constraints(self.config.algorithm_config),
             loading=loading,  # type: ignore
         )
 
@@ -781,7 +781,7 @@ class CAREamist:
             data_config=pred_data_config,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
-            model_constraints=get_model_constraints(self.config.algorithm_config.model),
+            model_constraints=get_model_constraints(self.config.algorithm_config),
             loading=loading,
         )
 
