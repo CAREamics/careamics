@@ -1,12 +1,14 @@
-"""UNet model constraints."""
+"""Segmentation UNet model constraints."""
 
 from collections.abc import Sequence
 
 from careamics.config.architectures import UNetConfig
 
 
-class UNetConstraints:
-    """UNet model constraints on input and output tensors.
+# TODO the SegUnet is now testing the number of channels of the target, meaning
+# that it acts more as a task constraint validator than a model one.
+class SegUNetConstraints:
+    """SegmentationUNet model constraints on input and output tensors.
 
     Parameters
     ----------
@@ -60,13 +62,14 @@ class UNetConstraints:
         ValueError
             If the number of channels is not compatible with the model constraints.
         """
-        # validate target channels
-        if n_channels != self.model_config.get_num_output_channels():
+        # in segmentation the targets will have n_channels = 1, while the model will
+        # output multiple classes as channels
+        if n_channels != 1:
             raise ValueError(
                 f"Number of channels in target image ({n_channels}) does not match the "
-                f"number of output channels expected by the model configuration "
-                f"({self.model_config.get_num_output_channels()}). Adjust the number of"
-                f" output channels in the configuration to match your data."
+                f"number of channels expected for segmentation targets (1). If your "
+                f"targets are one-hot encoded, adjust your data to have a single "
+                f"channel with integer class labels."
             )
 
     def validate_spatial_shape(self, input_shape: Sequence[int]) -> None:
