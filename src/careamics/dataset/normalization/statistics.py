@@ -282,7 +282,11 @@ def resolve_normalization_config(
             )
             norm_config.set_input_stats(input_means, input_stds)
 
-        if target_extractor is not None and norm_config.target_means is None:
+        if (
+            target_extractor is not None
+            and not norm_config.skip_target
+            and norm_config.target_means is None
+        ):
             target_means, target_stds = _compute_mean_std(
                 target_extractor,
                 patching_strategy,
@@ -303,7 +307,11 @@ def resolve_normalization_config(
             )
             norm_config.set_input_range(input_mins, input_maxes)
 
-        if target_extractor is not None and norm_config.target_mins is None:
+        if (
+            target_extractor is not None
+            and not norm_config.skip_target
+            and norm_config.target_mins is None
+        ):
             target_mins, target_maxes = _compute_min_max(
                 target_extractor,
                 patching_strategy,
@@ -331,6 +339,7 @@ def resolve_normalization_config(
 
         if (
             target_extractor is not None
+            and not norm_config.skip_target
             and norm_config.target_lower_quantile_values is None
         ):
             lower_levels, upper_levels = _resolve_quantile_levels(

@@ -34,6 +34,7 @@ def create_normalization(norm_model: NormalizationConfig) -> Normalization:
                 input_maxes=norm_model.input_upper_quantile_values,
                 target_mins=norm_model.target_lower_quantile_values,
                 target_maxes=norm_model.target_upper_quantile_values,
+                skip_target=norm_model.skip_target,
             )
         case SupportedNormalization.MINMAX:
             return RangeNormalization(
