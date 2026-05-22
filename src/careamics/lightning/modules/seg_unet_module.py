@@ -1,20 +1,18 @@
-"""CARE Lightning Module."""
+"""UNet-based segmentation Lightning Module."""
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import pytorch_lightning as L
 import torch
 from torch import nn
-from torch.nn import L1Loss, MSELoss
 from torchmetrics import MetricCollection
+from torchmetrics.segmentation import GeneralizedDiceScore
 
-from careamics.config import CAREAlgorithm, N2NAlgorithm
+from careamics.config import SegAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
-from careamics.config.support import SupportedLoss
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
-from careamics.metrics import SIPSNR
+from careamics.losses import get_seg_loss
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
 
@@ -30,23 +28,23 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class CAREModule(L.LightningModule):
-    """CAREamics PyTorch Lightning module for CARE algorithm.
+class SegModule(L.LightningModule):
+    """CAREamics PyTorch Lightning module for UNet-based segmentation.
 
     Parameters
     ----------
-    algorithm_config : CAREAlgorithm, N2NAlgorithm, or dict
-        Configuration for the CARE algorithm, either as a CAREAlgorithm/N2NAlgorithm
+    algorithm_config : SegAlgorithm or dict
+        Configuration for the segmentation algorithm, either as a SegAlgorithm
         instance or a dictionary.
     """
 
-    def __init__(self, algorithm_config: CAREAlgorithm | N2NAlgorithm | dict) -> None:
-        """Instantiate CARE Module.
+    def __init__(self, algorithm_config: SegAlgorithm | dict) -> None:
+        """Instantiate Segmentation Module.
 
         Parameters
         ----------
-        algorithm_config : CAREAlgorithm, N2NAlgorithm, or dict
-            Configuration for the CARE algorithm, either as a CAREAlgorithm/N2NAlgorithm
+        algorithm_config : SegAlgorithm or dict
+            Configuration for the segmentation algorithm, either as a SegAlgorithm
             instance or a dictionary.
         """
         super().__init__()
@@ -56,33 +54,28 @@ class CAREModule(L.LightningModule):
         else:
             config = algorithm_config
 
-        if not isinstance(config, (CAREAlgorithm, N2NAlgorithm)):
+        if not isinstance(config, SegAlgorithm):
             raise ValueError(
-                f"Parameter `algorithm_config` must be a CAREAlgorithm, N2NAlgorithm, "
-                f"or a dict that represents a valid CAREAlgorithm or N2NAlgorithm "
-                f"Pydantic model (got {type(config).__name__})."
+                f"Parameter `algorithm_config` must be a SegAlgorithm "
+                f"or a dict that represents a valid SegAlgorithm Pydantic model "
+                f"(got {type(config).__name__})."
             )
 
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
-        self.loss_func: Callable = (
-            MSELoss() if self.config.loss == SupportedLoss.MSE else L1Loss()
-        )
+        loss = self.config.loss
+        self.loss_func = get_seg_loss(loss)
 
         self.metrics: MetricCollection = MetricCollection(
-            {
-                f"SIPSNR_{i}": SIPSNR(
-                    n_channels=self.config.model.num_classes,
-                    output_channel=i,
-                    use_scale_invariance=True,
-                )
-                for i in range(self.config.model.num_classes)
-            }
+            GeneralizedDiceScore(
+                num_classes=self.config.model.num_classes,
+                per_class=True,
+            )
         )
 
     def on_fit_start(self) -> None:
-        """On fit start hook for CARE module.
+        """On fit start hook for Segmentation module.
 
         Check that training and validation target data have been supplied.
         """
@@ -122,7 +115,7 @@ class CAREModule(L.LightningModule):
         batch: tuple[ImageRegionData, ImageRegionData],
         batch_idx: int,
     ) -> torch.Tensor:
-        """Training step for CARE module.
+        """Training step for segmentation module.
 
         Parameters
         ----------
@@ -150,7 +143,7 @@ class CAREModule(L.LightningModule):
         batch: tuple[ImageRegionData, ImageRegionData],
         batch_idx: int,
     ) -> None:
-        """Validation step for CARE module.
+        """Validation step for segmentation module.
 
         Parameters
         ----------
@@ -163,7 +156,20 @@ class CAREModule(L.LightningModule):
 
         prediction = self.model(x.data)
         val_loss = self.loss_func(prediction, target.data)
-        self.metrics(prediction, target.data)
+
+        # convert predictions to class indices for metrics
+        # for binary (1 channel): apply sigmoid and threshold
+        # for multi-class (>1 channels): apply argmax
+        if prediction.shape[1] == 1:
+            pred_classes = (prediction.sigmoid() > 0.5).long()
+        else:
+            pred_classes = prediction.argmax(dim=1, keepdim=True)
+
+        # ensure targets are long type (torch.int64)
+        # torch.nn.functional.one_hot is only applicable to index LongTensor, see
+        # generalized_dice implementation in torchmetrics
+        target_long = target.data.long().argmax(dim=1, keepdim=True)  # type: ignore
+        self.metrics(pred_classes, target_long)
         log_validation_stats(
             self, val_loss, batch_size=x.data.shape[0], metrics=self.metrics
         )
@@ -173,7 +179,7 @@ class CAREModule(L.LightningModule):
         batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
         batch_idx: int,
     ) -> ImageRegionData:
-        """Prediction step for CARE module.
+        """Prediction step for segmentation module.
 
         Parameters
         ----------
@@ -191,18 +197,25 @@ class CAREModule(L.LightningModule):
         # TODO: add TTA
         prediction = self.model(x.data)
 
-        normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
-        denormalized_output = normalization.denormalize(prediction).cpu().numpy()
+        # apply appropriate activation function based on number of classes
+        # for binary (1 channel): apply sigmoid to get probabilities
+        # for multi-class (>1 channels): apply softmax to get class probabilities
+        if prediction.shape[1] == 1:
+            prediction = prediction.sigmoid()
+        else:
+            prediction = prediction.softmax(dim=1)
+
+        prediction = prediction.cpu().numpy()
 
         output_batch = ImageRegionData(
-            data=denormalized_output,
+            data=prediction,
             source=x.source,
             data_shape=x.data_shape,
             dtype=x.dtype,
             axes=x.axes,
+            original_data_shape=x.original_data_shape,
             region_spec=x.region_spec,
             additional_metadata=x.additional_metadata,
-            original_data_shape=x.original_data_shape,
         )
         return output_batch
 

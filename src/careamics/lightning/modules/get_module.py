@@ -1,14 +1,15 @@
 """Factory functions for lightning modules."""
 
-from careamics.config import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from careamics.config import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
 from careamics.config.algorithms.unet_algorithm_config import UNetBasedAlgorithm
 from careamics.config.support import SupportedAlgorithm
 
 from .care_module import CAREModule
 from .n2v_module import N2VModule
+from .seg_unet_module import SegModule
 
-CAREamicsModuleCls = type[N2VModule] | type[CAREModule]
-CAREamicsModule = N2VModule | CAREModule
+CAREamicsModuleCls = type[N2VModule] | type[CAREModule] | type[SegModule]
+CAREamicsModule = N2VModule | CAREModule | SegModule
 
 
 # TODO: update to accept all algorithm configs
@@ -35,6 +36,8 @@ def create_module(algorithm_config: UNetBasedAlgorithm) -> CAREamicsModule:
         return CAREModule(algorithm_config)
     elif isinstance(algorithm_config, N2VAlgorithm):
         return N2VModule(algorithm_config)
+    elif isinstance(algorithm_config, SegAlgorithm):
+        return SegModule(algorithm_config)
     else:
         algorithm = algorithm_config.algorithm
         raise NotImplementedError(
@@ -67,6 +70,8 @@ def get_module_cls(algorithm: SupportedAlgorithm) -> CAREamicsModuleCls:
             return CAREModule
         case SupportedAlgorithm.N2V:
             return N2VModule
+        case SupportedAlgorithm.SEG:
+            return SegModule
         case _:
             raise NotImplementedError(
                 f"Support for {algorithm.value} has not been implemented yet."

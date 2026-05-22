@@ -1,20 +1,13 @@
-"""Convenience function to create N2V configurations."""
+"""Convenience function to create UNet-based segmentation configurations."""
 
 from collections.abc import Sequence
 from typing import Any, Literal
 
-from careamics.config.algorithms import N2VAlgorithm
-from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.augmentations import (
     XYFlipConfig,
     XYRandomRotate90Config,
 )
-from careamics.config.n2v_configuration import N2VConfiguration
-from careamics.config.support import (
-    SupportedPixelManipulation,
-    SupportedTransform,
-)
-from careamics.config.utils.random import generate_random_seed
+from careamics.config.configuration import Configuration
 
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import (
@@ -24,30 +17,31 @@ from .data_factory import (
 )
 from .training_factory import create_training_configuration, update_trainer_params
 
+# TODO compare with updated care factories
 
-def create_n2v_config(
-    # mandatory parameters
+
+def create_seg_config(
+    *,
     experiment_name: str,
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
+    n_classes: int,
     # optional parameters
-    num_epochs: int = 30,  # not too high, in case data is very large
+    num_epochs: int = 30,
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
-    use_n2v2: bool = False,
-    n_channels: int | None = None,
-) -> N2VConfiguration:
+    n_channels_in: int | None = None,
+) -> Configuration:
     """
-    Create a configuration for training N2V.
-
-    To activate N2V2, set `use_n2v2` to True.
+    Create a configuration for training a UNet for semantic segmentation.
 
     The `axes` parameters must reflect the actual axes and axis order from the data,
     and should be the same throughout all images. The accepted axes are STCZYX. If "C"
-    is in `axes`, then you need to set `n_channels` to the number of channels.
+    is in `axes`, then you need to set `n_channels_in` to the number of channels
+    expected in the input.
 
     By default, CAREamics will go through the entire training data once per epoch. For
     large datasets, this can lead to very long epochs. To limit the number of batches
@@ -58,7 +52,7 @@ def create_n2v_config(
     random flips along X and Y, and random 90 degrees rotations in the XY plane. To
     disable augmentations, set `augmentations=[]`.
 
-    See `create_advanced_n2v_config` for more parameters.
+    See `create_advanced_seg_config` for more parameters.
 
     Parameters
     ----------
@@ -73,6 +67,8 @@ def create_n2v_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    n_classes : int
+        Number of segmentation classes.
     num_epochs : int, default=30
         Number of epochs to train for.
     num_steps : int, default=None
@@ -82,203 +78,68 @@ def create_n2v_config(
     n_val_patches : int, default=8,
         The number of patches to set aside for validation during training. This
         parameter will be ignored if separate validation data is specified for training.
-    use_n2v2 : bool, default=False
-        Whether to use N2V2.
-    n_channels : int or None, default=None
-        Number of channels (in and out).
+    n_channels_in : int or None, default=None
+        Number of input channels.
 
     Returns
     -------
-    N2VConfiguration
-        Configuration for training N2V.
+    Configuration
+        Configuration for training a UNet for semantic segmentation.
     """
-    return create_advanced_n2v_config(
-        experiment_name=experiment_name,
-        data_type=data_type,
-        axes=axes,
-        patch_size=patch_size,
-        batch_size=batch_size,
-        num_epochs=num_epochs,
-        num_steps=num_steps,
-        augmentations=augmentations,
-        n_val_patches=n_val_patches,
-        use_n2v2=use_n2v2,
-        n_channels=n_channels,
-    )
+    return create_advanced_seg_config(**locals())
 
 
-def create_structn2v_config(
-    # mandatory parameters
+def create_advanced_seg_config(
     experiment_name: str,
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    # struct n2v
-    struct_n2v_axis: Literal["horizontal", "vertical"],
-    struct_n2v_span: int = 5,
+    n_classes: int,
     # optional parameters
     num_epochs: int = 30,
     num_steps: int | None = None,
-    # TODO no rotation until we support 2D masks for structN2V
-    n_val_patches: int = 8,
-    use_n2v2: bool = False,
-    n_channels: int | None = None,
-) -> N2VConfiguration:
-    """
-    Create a configuration for training structN2V.
-
-    The structN2V mask is applied a horizontal or vertical axis, with extent defined by
-    `struct_n2v_span` (default=5, leading to a mask of size 11). For structN2V,
-    augmentations are disabled.
-
-    To activate N2V2, set `use_n2v2` to True.
-
-    The `axes` parameters must reflect the actual axes and axis order from the data,
-    and should be the same throughout all images. The accepted axes are STCZYX. If "C"
-    is in `axes`, then you need to set `n_channels` to the number of channels.
-
-    `patch_size` is only along the spatial dimensions and should be of length 3 if "Z"
-    is present in `axes`, otherwise of length 2.
-
-    By default, CAREamics will go through the entire training data once per epoch. For
-    large datasets, this can lead to very long epochs. To limit the number of batches
-    per epoch, set the `num_steps` parameter to the desired number of batches.
-
-    See `create_advanced_n2v_config` for more parameters.
-
-    Parameters
-    ----------
-    experiment_name : str
-        Name of the experiment. A valid experiment name is a non-empty string that only
-        contains letters, numbers, underscores, dashes and spaces.
-    data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
-        Type of the data.
-    axes : str
-        Axes of the data (e.g. SYX).
-    patch_size : Sequence[int]
-        Size of the patches along the spatial dimensions (e.g. [64, 64]).
-    batch_size : int
-        Batch size.
-    struct_n2v_axis : Literal["horizontal", "vertical"]
-        Axis along which to apply structN2V mask.
-    struct_n2v_span : int, default=5
-        Span of the structN2V mask.
-    num_epochs : int, default=30
-        Number of epochs to train for.
-    num_steps : int, default=None
-        Number of batches in 1 epoch.
-    n_val_patches : int, default=8,
-        The number of patches to set aside for validation during training. This
-        parameter will be ignored if separate validation data is specified for training.
-    use_n2v2 : bool, default=False
-        Whether to use N2V2.
-    n_channels : int or None, default=None
-        Number of channels (in and out).
-
-    Returns
-    -------
-    N2VConfiguration
-        Configuration for training structN2V.
-    """
-    return create_advanced_n2v_config(
-        experiment_name=experiment_name,
-        data_type=data_type,
-        axes=axes,
-        patch_size=patch_size,
-        batch_size=batch_size,
-        num_epochs=num_epochs,
-        num_steps=num_steps,
-        augmentations=[],
-        use_n2v2=use_n2v2,
-        n_channels=n_channels,
-        n_val_patches=n_val_patches,
-        struct_n2v_axis=struct_n2v_axis,
-        struct_n2v_span=struct_n2v_span,
-    )
-
-
-# TODO reorganize docstring parameters
-def create_advanced_n2v_config(
-    experiment_name: str,
-    data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
-    axes: str,
-    patch_size: Sequence[int],
-    batch_size: int,
-    # optional parameters
-    num_epochs: int = 30,
-    num_steps: int | None = None,
-    n_channels: int | None = None,
+    n_channels_in: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     # advanced parameters
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
-    independent_channels: bool = True,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
-    # - N2V specific
-    use_n2v2: bool = False,
-    roi_size: int = 11,
-    masked_pixel_percentage: float = 0.2,
-    # - structN2V specific
-    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
-    struct_n2v_span: int = 5,
-    # - Lightning parameters
+    # lightning parameters
     num_workers: int = -1,
+    loss: Literal["dice", "ce", "dice_ce"] = "dice",
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
     optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
     lr_scheduler_params: dict[str, Any] | None = None,
-    monitor_metric: Literal["train_loss", "train_loss_epoch", "val_loss"] = "val_loss",
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
+    early_stopping_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    # - reproducibility
+    # reproducibility
     seed: int | None = None,
-) -> N2VConfiguration:
+) -> Configuration:
     """
-    Create a configuration for training Noise2Void.
-
-    N2V uses a UNet model to denoise images in a self-supervised manner. To use its
-    variants structN2V and N2V2, set the `struct_n2v_axis` and `struct_n2v_span`
-    (structN2V) parameters, or set `use_n2v2` to True (N2V2).
-
-    N2V2 modifies the UNet architecture by adding blur pool layers and removes the skip
-    connections, thus removing checkboard artefacts. StructN2V is used when vertical
-    or horizontal correlations are present in the noise; it applies an additional mask
-    to the manipulated pixel neighbors.
+    Create a configuration for training segmentation using a UNet model.
 
     If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
     2.
 
-    If "C" is present in `axes`, then you need to set `n_channels` to the number of
-    channels.
+    If "C" is present in `axes`, then you need to set `n_channels_in` to the number
+    of input channels.
 
-    By default, all channels are trained independently. To train all channels together,
-    set `independent_channels` to False.
-
-    By default, the augmentations applied are random flips along X or Y, and random
-    90 degrees rotations in the XY plane. To disable the augmentations, simply pass an
-    empty list.
-
-    The `roi_size` parameter specifies the size of the area around each pixel that will
-    be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
-    pixels per patch will be manipulated.
-
-    If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
-    will be applied to each manipulated pixel.
+    By default, the transformations applied are a random flip along X or Y, and a random
+    90 degrees rotation in the XY plane. Normalization is always applied, as well as the
+    N2V manipulation.
 
     The parameters of the UNet can be specified in the `model_params` (passed as a
-    parameter-value dictionary). Note that `use_n2v2` and 'n_channels' override the
-    corresponding parameters passed in `model_params`.
-
-    Note that `num_workers` is applied to all dataloaders unless explicitly overridden
-    in the respective dataloader parameters.
+    parameter-value dictionary).
 
     Parameters
     ----------
@@ -293,6 +154,8 @@ def create_advanced_n2v_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    n_classes : int
+        Number of segmentation classes.
     num_epochs : int, default=30
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
@@ -300,8 +163,8 @@ def create_advanced_n2v_config(
         Number of batches in 1 epoch. If provided, this will be added to trainer_params.
         Translates to `limit_train_batches` in PyTorch Lightning Trainer. See relevant
         documentation for more details.
-    n_channels : int | None, default=None
-        Number of channels (in and out). If `channels` is specified, then the number of
+    n_channels_in : int | None, default=None
+        Number of input channels. If `channels` is specified, then the number of
         channels is inferred from its length and this parameter is ignored.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
@@ -317,37 +180,25 @@ def create_advanced_n2v_config(
         for `array`.
     channels : Sequence[int] | None, default=None
         List of channels to use. If `None`, all channels are used.
-    independent_channels : bool, default=True
-        Whether to train all channels independently.
     normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
         Normalization strategy to use.
     normalization_params : dict[str, Any] | None, default=None
         Strategy-specific normalization parameters. If None, default values are used.
-
-        - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
-        - For "none": No parameters needed.
-
+        For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
+        For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
+        For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
+        For "none": No parameters needed.
     patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.
-    use_n2v2 : bool, default=False
-        Whether to use N2V2.
-    roi_size : int, default=11
-        N2V pixel manipulation area.
-    masked_pixel_percentage : float, default=0.2
-        Percentage of pixels masked in each patch.
-    struct_n2v_axis : Literal["horizontal", "vertical", "none"], default="none"
-        Axis along which to apply structN2V mask.
-    struct_n2v_span : int, default=5
-        Span of the structN2V mask.
     num_workers : int, default=-1
         Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
         `train_dataloader_params` and `val_dataloader_params`, this will be applied to
         all dataloaders.
+    loss : Literal["dice", "ce", "dice_ce"], default="dice"
+        Loss function to use for training.
     trainer_params : dict | None, default=None
         Parameters for the trainer, see the relevant documentation.
     model_params : dict | None, default=None
@@ -361,8 +212,6 @@ def create_advanced_n2v_config(
     lr_scheduler_params : dict[str, Any] | None, default=None
         Parameters for the learning rate scheduler, see PyTorch documentation for more
         details.
-    monitor_metric : Literal["train_loss", "train_loss_epoch", "val_loss"]
-        Metric to monitor for the learning rate scheduler. Default: "val_loss".
     train_dataloader_params : dict[str, Any] | None, default=None
         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
         If left as `None`, `{"shuffle": True}` will be used.
@@ -371,6 +220,9 @@ def create_advanced_n2v_config(
     checkpoint_params : dict[str, Any] | None, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
+    early_stopping_params : dict[str, Any] | None, default=None
+        Parameters for the early stopping callback, see PyTorch Lightning documentation
+        (`EarlyStopping`) for the list of available parameters.
     logger : Literal["wandb", "tensorboard", "none"], default="none"
         Logger to use.
     seed : int | None, default=None
@@ -378,34 +230,31 @@ def create_advanced_n2v_config(
 
     Returns
     -------
-    N2VConfiguration
-        Configuration for training N2V.
+    Configuration
+        Configuration for training a segmentation model.
     """
-    if seed is None:
-        seed = generate_random_seed()
-
     # if there are channels, we need to specify their number
     channels_present = "C" in axes
 
-    if channels_present and (n_channels is None and channels is None):
+    if channels_present and (n_channels_in is None and channels is None):
         raise ValueError(
-            "`n_channels` or `channels` must be specified when using channels."
+            "`n_channels_in` or `channels` must be specified when using channels."
         )
-    elif not channels_present and (n_channels is not None and n_channels > 1):
+    elif not channels_present and (n_channels_in is not None and n_channels_in > 1):
         raise ValueError(
-            f"C is not present in the axes, but number of channels is specified "
-            f"(got {n_channels} channel)."
+            f"C is not present in the axes, but number of input channels is specified "
+            f"(got {n_channels_in} channel)."
         )
 
-    if n_channels is not None and channels is not None:
-        if n_channels != len(channels):
+    if n_channels_in is not None and channels is not None:
+        if n_channels_in != len(channels):
             raise ValueError(
-                f"Number of channels ({n_channels}) does not match length of "
+                f"Number of input channels ({n_channels_in}) does not match length of "
                 f"`channels` ({len(channels)}). Only specify `channels`."
             )
 
-    if n_channels is None:
-        n_channels = 1 if channels is None else len(channels)
+    if n_channels_in is None:
+        n_channels_in = 1 if channels is None else len(channels)
 
     # normalization
     norm_config = {"name": normalization}
@@ -440,11 +289,11 @@ def create_advanced_n2v_config(
         patch_size=patch_size,
         batch_size=batch_size,
         augmentations=spatial_transforms,
+        n_val_patches=n_val_patches,
         normalization=norm_config,
         patch_filter_config=patch_filter_config,
         channels=channels,
         in_memory=in_memory,
-        n_val_patches=n_val_patches,
         num_workers=num_workers,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
@@ -454,35 +303,18 @@ def create_advanced_n2v_config(
     # algorithm
     algorithm_params = create_algorithm_configuration(
         dimensions=3 if data_config.is_3D() else 2,
-        algorithm="n2v",
-        loss="n2v",
-        independent_channels=independent_channels,
-        n_channels_in=n_channels,
-        n_channels_out=n_channels,
-        use_n2v2=use_n2v2,
+        algorithm="seg",
+        loss=loss,
+        independent_channels=False,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_classes,
+        use_n2v2=False,
         model_params=model_params,
         optimizer=optimizer,
         optimizer_params=optimizer_params,
         lr_scheduler=lr_scheduler,
         lr_scheduler_params=lr_scheduler_params,
     )
-
-    # create the N2VManipulate transform using the supplied parameters
-    n2v_transform = N2VManipulateConfig(
-        name=SupportedTransform.N2V_MANIPULATE.value,
-        strategy=(
-            SupportedPixelManipulation.MEDIAN.value
-            if use_n2v2
-            else SupportedPixelManipulation.UNIFORM.value
-        ),
-        roi_size=roi_size,
-        masked_pixel_percentage=masked_pixel_percentage,
-        struct_mask_axis=struct_n2v_axis,
-        struct_mask_span=struct_n2v_span,
-        seed=seed,
-    )
-    algorithm_params["n2v_config"] = n2v_transform
-    algorithm_params["monitor_metric"] = monitor_metric
 
     # training
     final_trainer_params = update_trainer_params(
@@ -491,17 +323,17 @@ def create_advanced_n2v_config(
         num_steps=num_steps,
     )
     training_params = create_training_configuration(
-        algorithm="n2v",
+        algorithm="seg",
         trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
-        monitor_metric=monitor_metric,
+        early_stopping_params=early_stopping_params,
+        monitor_metric="val_loss",
     )
 
-    algorithm_config = N2VAlgorithm(**algorithm_params)
-    return N2VConfiguration(
+    return Configuration(
         experiment_name=experiment_name,
-        algorithm_config=algorithm_config,
+        algorithm_config=algorithm_params,
         data_config=data_config,
         training_config=training_params,
     )
