@@ -1,0 +1,120 @@
+"""PatchConstructor Protocol."""
+
+from collections.abc import Sequence
+from typing import Any, Protocol
+
+from numpy.typing import NDArray
+
+from careamics.dataset.patching import PatchSpecs
+
+from .metadata_utils import ImageMetadata
+
+
+class PatchConstructor(Protocol):
+    """Module for extracting and constructing inputs and targets."""
+
+    @property
+    def n_patches(self) -> int:
+        """The number of patches."""
+        ...
+
+    @property
+    def input_shapes(self) -> Sequence[Sequence[int]]:
+        """Return input image shapes."""
+        ...
+
+    @property
+    def target_shapes(self) -> Sequence[Sequence[int]] | None:
+        """Return target image shapes, if targets exist."""
+        ...
+
+    def construct_patch(
+        self, index: int
+    ) -> tuple[NDArray[Any], NDArray[Any] | None, PatchSpecs]:
+        """Construct the patch that will be input into the model.
+
+        Parameters
+        ----------
+        index : int
+            The index of the patch, the index has to be less than `n_patches`.
+
+        Returns
+        -------
+        input : NDArray[Any]
+            The input patch.
+        target : NDArray[Any] | None
+            The target patch.
+        patch_spec : PatchSpecs
+            The patch specification.
+        """
+        ...
+
+    # e.g. for MicroSplit the full input has the lateral context.
+    #      we need to remove the lateral context to calculate the normalization stats.
+    def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
+        """Get the principal input.
+
+        This is useful for tasks such as the calculation of stats for normalization.
+
+        Parameters
+        ----------
+        input_patch : NDArray[Any]
+            The complete input.
+
+        Returns
+        -------
+        NDArray[Any]
+            The principal input (C(Z)YX).
+        """
+        ...
+
+    def get_input_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata:
+        """Return metadata for the input image.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification identifying the input image.
+
+        Returns
+        -------
+        ImageMetadata
+            Metadata for the input image.
+        """
+        ...
+
+    def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
+        """Return metadata for the target image, if targets exist.
+
+        Parameters
+        ----------
+        patch_spec : PatchSpecs
+            Patch specification identifying the target image.
+
+        Returns
+        -------
+        ImageMetadata or None
+            Metadata for the target image, or `None` for input-only datasets.
+        """
+        ...
+
+    # Note: this is used by the FileIterSampler
+    def get_patch_indices(self, data_idx: int) -> Sequence[int]:
+        """
+        Get the patch indices will return patches for a specific `image_stack`.
+
+        The `image_stack` corresponds to the given `data_idx`.
+
+        Parameters
+        ----------
+        data_idx : int
+            An index that corresponds to a given `image_stack`.
+
+        Returns
+        -------
+        sequence of int
+            A sequence of patch indices, that when used to index the `CAREamicsDataset
+            will return a patch that comes from the `image_stack` corresponding to the
+            given `data_idx`.
+        """
+        ...

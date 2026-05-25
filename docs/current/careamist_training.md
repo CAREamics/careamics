@@ -130,9 +130,12 @@ defined and instantiated, they can be passed to the `CAREamist` to train on cust
 
 ### Masking
 
-CAREamics supports providing a mask of the training data to define from which region
-should the training patches be sampled. This can be useful to exclude certain regions
-from training, for example areas with no signal or with zero values.
+Masking can be used to exclude certain regions from training, for example areas with no signal or with zero values.
+
+CAREamics supports two methods of masking data during training:
+
+- providing a mask of the training data to define from which region should the training patches be sampled, or
+- built-in filtering functions. See the full [tutorial](../tutorials/patch_filtering.md#filtering-functions).
 
 === "Noise2Void"
     

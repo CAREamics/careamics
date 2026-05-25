@@ -3,11 +3,16 @@
 __all__ = [
     "ImageStackLoading",
     "Loading",
+    "MicroSplitMultiplexedTargetData",
+    "MicroSplitPairedData",
+    "MicroSplitSeparateTargetData",
     "PredData",
     "ReadFuncLoading",
     "TrainValData",
     "TrainValSplitData",
     "create_dataset",
+    "create_microsplit_dataset",
+    "create_microsplit_pred_dataset",
     "create_pred_dataset",
     "create_train_dataset",
     "create_train_val_datasets",
@@ -32,4 +37,11 @@ from .factory import (
     init_patch_extractor,
     select_image_stack_loader,
     select_patch_extractor_type,
+)
+from .microsplit_factory import (
+    MicroSplitMultiplexedTargetData,
+    MicroSplitPairedData,
+    MicroSplitSeparateTargetData,
+    create_microsplit_dataset,
+    create_microsplit_pred_dataset,
 )

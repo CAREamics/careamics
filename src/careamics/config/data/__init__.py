@@ -7,6 +7,7 @@ __all__ = [
     "MaxPatchFilterConfig",
     "MeanStdConfig",
     "MeanStdPatchFilterConfig",
+    "MicroSplitDataConfig",
     "MinMaxConfig",
     "NoNormConfig",
     "NormalizationConfig",
@@ -19,6 +20,7 @@ __all__ = [
 ]
 
 from .data_config import DataConfig
+from .microsplit_data_config import MicroSplitDataConfig
 from .normalization_config import (
     MeanStdConfig,
     MinMaxConfig,
