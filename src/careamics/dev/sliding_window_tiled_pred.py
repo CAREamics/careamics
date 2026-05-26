@@ -109,10 +109,31 @@ class _TileAccumulator:
         return self.seen >= self.expected_tiles
 
 
-def _allocate_accumulator(tile: ImageRegionData) -> _TileAccumulator:
-    """Allocate an accumulator sized after the full image carried by ``tile``."""
+def _allocate_accumulator(
+    tile: ImageRegionData, output_channels: int
+) -> _TileAccumulator:
+    """Allocate an accumulator sized after the full image carried by ``tile``.
+
+    The spatial extent comes from ``tile.data_shape`` (the input image's
+    ``SC(Z)YX``), while the channel dimension is overridden with
+    ``output_channels`` so the buffer matches the model output (which may have a
+    different number of channels than the input — e.g. MicroSplit unmixing).
+
+    Parameters
+    ----------
+    tile : ImageRegionData
+        A tile carrying input-image metadata and a ``TileSpecs`` ``region_spec``.
+    output_channels : int
+        Number of channels produced by the model (used as the buffer's C axis).
+
+    Returns
+    -------
+    _TileAccumulator
+        Zero-initialised sum/count accumulator sized to the full output image.
+    """
     spec: TileSpecs = tile.region_spec  # type: ignore[assignment]
-    shape = tuple(int(d) for d in tile.data_shape)
+    input_shape = tuple(int(d) for d in tile.data_shape)
+    shape = (input_shape[0], int(output_channels), *input_shape[2:])
     return _TileAccumulator(
         sum=np.zeros(shape, dtype=np.float32),
         count=np.zeros(shape, dtype=np.float32),
@@ -213,7 +234,6 @@ def _move_input_to_device(
 
 def sw_tiled_prediction(
     model: MicroSplitModule,
-    use_logger: bool,
     data_config: DataConfig | dict[str, Any],
     inputs: Sequence[NDArray | Path | str],
     save_dir: Path | str,
@@ -258,6 +278,10 @@ def sw_tiled_prediction(
     dm.setup("predict")
     loader = dm.predict_dataloader()
 
+    # Model output channel count drives the stitch buffer's C axis.
+    # For MicroSplit this differs from the input image's channel count.
+    output_channels = int(model.algorithm_config.model.output_channels)
+
     accumulators: dict[int, _TileAccumulator] = {}
 
     model.eval()
@@ -267,23 +291,19 @@ def sw_tiled_prediction(
     with torch.inference_mode():
         for batch_idx, batch in enumerate(loader):
             batch = _move_input_to_device(batch, device)
-            mean_region_batch, _std_region_batch = model.predict_step(
-                batch, batch_idx
-            )
+            mean_region_batch, _std_region_batch = model.predict_step(batch, batch_idx)
             tiles = decollate_image_region_data(mean_region_batch)
 
             for tile in tiles:
                 data_idx = int(tile.region_spec["data_idx"])
                 acc = accumulators.get(data_idx)
                 if acc is None:
-                    acc = _allocate_accumulator(tile)
+                    acc = _allocate_accumulator(tile, output_channels)
                     accumulators[data_idx] = acc
                 _paste_tile(acc, tile)
 
                 if acc.is_complete():
-                    _finalize_and_save(
-                        accumulators.pop(data_idx), save_dir, data_idx
-                    )
+                    _finalize_and_save(accumulators.pop(data_idx), save_dir, data_idx)
 
     if accumulators:
         raise RuntimeError(

@@ -13,6 +13,7 @@ from careamics.dataset.patching import (
     Patching,
     PatchSpecs,
     UncorrelatedPatchSpecs,
+    is_tile_specs,
     is_uncorrelated_specs,
 )
 
@@ -720,7 +721,22 @@ class MsPredPatchConstructor(PatchConstructor):
             Number of lateral context inputs.
         padding_mode : {"reflect", "wrap"}
             Padding mode used when lateral context extends beyond image boundaries.
+
+        Raises
+        ------
+        TypeError
+            If `patching_strategy` does not produce `TileSpecs` (required by the
+            sliding-window / tiled prediction stitcher).
         """
+        if patching_strategy.n_patches > 0 and not is_tile_specs(
+            patching_strategy.get_patch_spec(0)
+        ):
+            raise TypeError(
+                "MsPredPatchConstructor requires a patching strategy that produces "
+                "`TileSpecs` (e.g. `TiledPatching` or `SlidingWindowTiledPatching`). "
+                f"Got `{type(patching_strategy).__name__}`, whose specs are missing "
+                "tile fields (`crop_coords`, `crop_size`, `stitch_coords`)."
+            )
         self.patching_strategy = patching_strategy
         self.input_extractor = input_extractor
         self.multiscale_count = multiscale_count

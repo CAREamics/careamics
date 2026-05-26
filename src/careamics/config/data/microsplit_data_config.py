@@ -6,6 +6,7 @@ from typing import Any, Literal, Self
 from pydantic import Field, model_validator
 
 from .data_config import DataConfig
+from .patching_strategies import SlidingWindowTiledPatchingConfig
 
 
 class MicroSplitDataConfig(DataConfig):
@@ -27,11 +28,12 @@ class MicroSplitDataConfig(DataConfig):
     uncorrelated_channel_prob: float = Field(default=0.0, ge=0.0, le=1.0)
     """Probability of sampling uncorrelated channels for synthetic training inputs."""
 
-    def convert_mode(
+    def convert_mode(  # type: ignore[override]
         self: Self,
         new_mode: Literal["validating", "predicting"],
         new_patch_size: Sequence[int] | None = None,
         overlap_size: Sequence[int] | None = None,
+        stride: Sequence[int] | None = None,
         new_batch_size: int | None = None,
         new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         new_axes: str | None = None,
@@ -50,6 +52,11 @@ class MicroSplitDataConfig(DataConfig):
         overlap_size : Sequence[int] or None, default=None
             New overlap size. Required when switching to tiled prediction with
             `new_patch_size`.
+        stride : Sequence[int] or None, default=None
+            New tile stride. When provided alongside `new_patch_size` and
+            `overlap_size` for `predicting` mode, the result uses a
+            `SlidingWindowTiledPatchingConfig` (dense-overlap inner tiling for
+            posterior models) instead of the default `TiledPatchingConfig`.
         new_batch_size : int or None, default=None
             New batch size. If `None`, keeps the current batch size.
         new_data_type : {"array", "tiff", "zarr", "czi", "custom"} or None, default=None
@@ -68,7 +75,21 @@ class MicroSplitDataConfig(DataConfig):
         -------
         MicroSplitDataConfig
             Converted configuration with relevant MicroSplit-specific fields preserved.
+
+        Raises
+        ------
+        ValueError
+            If `stride` is provided without `new_patch_size` and `overlap_size`, or
+            for a mode other than `predicting`.
         """
+        if stride is not None and (
+            new_mode != "predicting" or new_patch_size is None or overlap_size is None
+        ):
+            raise ValueError(
+                "`stride` is only valid for `predicting` mode together with "
+                "`new_patch_size` and `overlap_size`."
+            )
+
         converted = super().convert_mode(
             new_mode=new_mode,
             new_patch_size=new_patch_size,
@@ -87,6 +108,17 @@ class MicroSplitDataConfig(DataConfig):
                 "padding_mode": self.padding_mode,
             }
         )
+        if stride is not None:
+            # base convert_mode already built a TiledPatchingConfig; replace it
+            # with a SlidingWindowTiledPatchingConfig that carries the stride.
+            # Guard above ensures new_patch_size and overlap_size are non-None.
+            assert new_patch_size is not None
+            assert overlap_size is not None
+            model_dict["patching"] = SlidingWindowTiledPatchingConfig(
+                patch_size=list(new_patch_size),
+                overlaps=list(overlap_size),
+                stride=list(stride),
+            )
         return MicroSplitDataConfig(**model_dict)
 
     @model_validator(mode="after")
