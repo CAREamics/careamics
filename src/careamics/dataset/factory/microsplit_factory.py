@@ -207,8 +207,10 @@ def create_microsplit_dataset(
                 "separate-target mode",
                 unused_fields=("channels", "uncorrelated_channel_prob"),
             )
-            if len(target_channel_data) == 0:
-                raise ValueError("At least one target channel source must be provided.")
+            if len(target_channel_data) < 2:
+                raise ValueError(
+                    "At least two target channel sources must be provided."
+                )
             target_extractors = [
                 init_patch_extractor(
                     patch_extractor_type, image_stack_loader, source, config.axes
