@@ -4,7 +4,7 @@ import itertools
 from collections.abc import Sequence
 from math import prod
 
-from .patching import TileSpecs
+from .patch_specs import TileSpecs
 
 
 class SlidingWindowTiledPatching:
@@ -98,9 +98,7 @@ class SlidingWindowTiledPatching:
             given `data_idx`.
         """
         return [
-            i
-            for i, spec in enumerate(self.tile_specs)
-            if spec["data_idx"] == data_idx
+            i for i, spec in enumerate(self.tile_specs) if spec["data_idx"] == data_idx
         ]
 
     def _generate_specs(self) -> list[TileSpecs]:
