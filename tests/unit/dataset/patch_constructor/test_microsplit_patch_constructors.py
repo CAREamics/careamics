@@ -1,6 +1,7 @@
 """Tests for MicroSplit patch constructor behavior."""
 
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -8,13 +9,16 @@ import pytest
 
 from careamics.dataset.image_stack import InMemoryImageStack
 from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
+    MsPredPatchConstructor,
     MsT1PatchConstructor,
     MsT2PatchConstructor,
     MsT3PatchConstructor,
+    _get_uncorrelated_metadata,
 )
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import (
     StratifiedPatching,
+    UncorrelatedPatchSpecs,
     is_uncorrelated_specs,
 )
 
@@ -37,6 +41,24 @@ REAL_INPUT_VALUE = 16.2
 
 PATCH_SIZE = (64, 64)
 
+MULTIPLEXED_TARGET_SOURCE = "multiplexed_target_{idx}.tiff"
+REAL_INPUT_SOURCE = "input_{idx}.tiff"
+SEPARATE_CHANNEL_SOURCE = "separate_target_{channel_idx}_{data_idx}.tiff"
+
+
+def _image_stack_from_array(
+    source: str,
+    array: np.ndarray,
+    axes: str,
+) -> InMemoryImageStack:
+    """Return an image stack with a distinct source."""
+    return InMemoryImageStack(
+        source=Path(source),
+        data=array,
+        original_axes=axes,
+        original_data_shape=array.shape,
+    )
+
 
 @pytest.fixture
 def multiplexed_target_extractor():
@@ -45,7 +67,10 @@ def multiplexed_target_extractor():
         np.ones(shape) * np.array([C1_VALUE, C2_VALUE, C3_VALUE]).reshape(1, 3, 1, 1)
         for shape in MULTIPLEXED_TARGET_SHAPES
     ]
-    image_stacks = [InMemoryImageStack.from_array(array, axes) for array in arrays]
+    image_stacks = [
+        _image_stack_from_array(MULTIPLEXED_TARGET_SOURCE.format(idx=idx), array, axes)
+        for idx, array in enumerate(arrays)
+    ]
     return PatchExtractor(image_stacks)
 
 
@@ -53,7 +78,10 @@ def multiplexed_target_extractor():
 def input_target_extractor():
     axes = "SCYX"
     arrays = [np.full(shape, fill_value=REAL_INPUT_VALUE) for shape in INPUT_SHAPES]
-    image_stacks = [InMemoryImageStack.from_array(array, axes) for array in arrays]
+    image_stacks = [
+        _image_stack_from_array(REAL_INPUT_SOURCE.format(idx=idx), array, axes)
+        for idx, array in enumerate(arrays)
+    ]
     return PatchExtractor(image_stacks)
 
 
@@ -67,9 +95,20 @@ def separate_target_extractors():
         SEPARATE_C3_TARGET_SHAPES,
     ]
     target_values = [C1_VALUE, C2_VALUE, C3_VALUE]
-    for shapes, value in zip(target_shapes, target_values, strict=True):
+    for channel_idx, (shapes, value) in enumerate(
+        zip(target_shapes, target_values, strict=True)
+    ):
         arrays = [np.full(shape, fill_value=value) for shape in shapes]
-        image_stacks = [InMemoryImageStack.from_array(array, axes) for array in arrays]
+        image_stacks = [
+            _image_stack_from_array(
+                SEPARATE_CHANNEL_SOURCE.format(
+                    channel_idx=channel_idx, data_idx=data_idx
+                ),
+                array,
+                axes,
+            )
+            for data_idx, array in enumerate(arrays)
+        ]
         patch_extractors.append(PatchExtractor(image_stacks))
     return patch_extractors
 
@@ -267,3 +306,122 @@ def test_t3_construct_patch(
         assert (
             target_patch == np.array(channel_values).reshape(1, n_channels, 1, 1)
         ).all()
+
+
+@pytest.mark.parametrize("multiscale_count", [1, 2, 3])
+def test_pred_construct_patch(
+    multiscale_count: int,
+    input_target_extractor: PatchExtractor,
+    patching_strategy: StratifiedPatching,
+):
+    """Test that the MicroSplit T3 patch constructor outputs patches as expected."""
+    patch_constructor = MsPredPatchConstructor(
+        patching_strategy,
+        input_target_extractor,
+        multiscale_count,
+        "reflect",
+    )
+
+    # test each index
+    for index in range(patch_constructor.n_patches):
+        input_patch, target_patch, patch_specs = patch_constructor.construct_patch(
+            index
+        )
+
+        # lateral context patches
+        assert input_patch.shape[0] == multiscale_count
+
+        # no target
+        assert target_patch is None
+
+        # uncorrelated patch
+        assert not is_uncorrelated_specs(patch_specs)
+
+        # input_value
+        assert (input_patch == REAL_INPUT_VALUE).all()
+
+
+@pytest.mark.parametrize("principal_channel", [0, 1])
+@pytest.mark.parametrize(
+    "data_indices",
+    [
+        [0, 0, 1],
+        [1, 0, 1],
+        # testing with only 2 channels to emulate when `channels` option is used
+        [0, 0],
+        [1, 0],
+    ],
+)
+def test_get_uncorrelated_metadata_t1(
+    multiplexed_target_extractor: PatchExtractor,
+    data_indices: Sequence[int],
+    principal_channel: int,
+) -> None:
+    """
+    Test uncorrelated metadata records all channel sources and shapes.
+
+    Code path for training mode 1.
+    """
+    patch_spec = UncorrelatedPatchSpecs(
+        data_idx=1,
+        sample_idx=0,
+        coords=(0, 0),
+        patch_size=PATCH_SIZE,
+        principal_channel=principal_channel,
+        all_data_idx=data_indices,
+        all_sample_idx=[0, 0],
+        all_coords=[(0, 0), (0, 0)],
+    )
+
+    metadata = _get_uncorrelated_metadata(multiplexed_target_extractor, patch_spec)
+
+    expected_sources = [
+        MULTIPLEXED_TARGET_SOURCE.format(idx=data_idx) for data_idx in data_indices
+    ]
+    expected_shapes = [MULTIPLEXED_TARGET_SHAPES[idx] for idx in data_indices]
+    assert metadata["source"] == expected_sources[principal_channel]
+    assert metadata["additional_metadata"]["all_sources"] == expected_sources
+    assert metadata["additional_metadata"]["all_data_shapes"] == expected_shapes
+
+
+@pytest.mark.parametrize("principal_channel", [0, 1, 2])
+@pytest.mark.parametrize("data_indices", [[0, 0, 0], [1, 2, 0], [0, 1, 0]])
+def test_get_uncorrelated_metadata_t2(
+    separate_target_extractors: Sequence[PatchExtractor[Any]],
+    data_indices: Sequence[int],
+    principal_channel: int,
+) -> None:
+    """Test uncorrelated metadata records sources from multiple extractors.
+
+    Code path for training mode 2.
+    """
+    patch_spec = UncorrelatedPatchSpecs(
+        data_idx=0,
+        sample_idx=0,
+        coords=(0, 0),
+        patch_size=PATCH_SIZE,
+        principal_channel=principal_channel,
+        all_data_idx=data_indices,
+        all_sample_idx=[0, 0, 0],
+        all_coords=[(0, 0), (0, 0), (0, 0)],
+    )
+
+    metadata = _get_uncorrelated_metadata(separate_target_extractors, patch_spec)
+
+    expected_sources = [
+        SEPARATE_CHANNEL_SOURCE.format(channel_idx=c_idx, data_idx=data_idx)
+        for c_idx, data_idx in enumerate(data_indices)
+    ]
+    seperate_target_shapes = [
+        SEPARATE_C1_TARGET_SHAPES,
+        SEPARATE_C2_TARGET_SHAPES,
+        SEPARATE_C3_TARGET_SHAPES,
+    ]
+    expected_shapes = [
+        seperate_target_shapes[c_idx][data_idx]
+        for c_idx, data_idx in enumerate(data_indices)
+    ]
+
+    assert metadata["source"] == expected_sources[principal_channel]
+    assert metadata["additional_metadata"]["all_sources"] == expected_sources
+    assert metadata["additional_metadata"]["all_data_shapes"] == expected_shapes
