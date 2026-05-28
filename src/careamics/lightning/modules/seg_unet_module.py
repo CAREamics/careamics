@@ -170,9 +170,19 @@ class SegModule(L.LightningModule):
         # generalized_dice implementation in torchmetrics
         target_long = target.data.long().argmax(dim=1, keepdim=True)  # type: ignore
         self.metrics(pred_classes, target_long)
-        log_validation_stats(
-            self, val_loss, batch_size=x.data.shape[0], metrics=self.metrics
-        )
+
+        # not passing metrics because GenerelizedDiceScore is a tensor of length
+        # num_classes, which cannot be reduced to a scalar if num_classes > 1
+        # so we log the metrics ourselves in on_validation_epoch_end
+        log_validation_stats(self, val_loss, batch_size=x.data.shape[0])
+
+    def on_validation_epoch_end(self) -> None:
+        """Log per-class Dice scores at the end of each validation epoch."""
+        scores = self.metrics.compute()
+        dice_per_class = scores["GeneralizedDiceScore"]
+        for i, score in enumerate(dice_per_class):
+            self.log(f"val_dice_class_{i}", score, prog_bar=True, logger=True)
+        self.metrics.reset()
 
     def predict_step(
         self,
