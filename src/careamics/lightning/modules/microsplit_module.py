@@ -1,6 +1,6 @@
 """MicroSplit Lightning module."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, Union
 
 import numpy as np
@@ -118,6 +118,13 @@ class MicroSplitModule(L.LightningModule):
             RunningPSNR() for _ in range(self.algorithm_config.model.output_channels)
         ]
 
+        # target-channel denormalization stats used by `predict_step`. Set via
+        # `set_target_stats(...)` for standalone prediction, or auto-populated in
+        # `on_predict_start` from the trainer's data module when running through
+        # `Trainer.predict(...)`.
+        self.target_means: list[float] | None = None
+        self.target_stds: list[float] | None = None
+
     def on_fit_start(self) -> None:
         """On fit start hook.
 
@@ -167,6 +174,48 @@ class MicroSplitModule(L.LightningModule):
         """
         if self.noise_model_likelihood is not None:
             self.noise_model_likelihood.set_data_stats(data_mean, data_std)
+
+    def set_target_stats(
+        self,
+        target_means: Sequence[float],
+        target_stds: Sequence[float],
+    ) -> None:
+        """Set per-target-channel mean / std used to denormalize predictions.
+
+        Required for standalone calls to `predict_step` outside a Lightning Trainer.
+        When running through `Trainer.predict(...)`, `on_predict_start` will
+        auto-populate these from the data module's prediction-dataset normalization
+        if they are still unset.
+
+        Parameters
+        ----------
+        target_means : Sequence[float]
+            Per-target-channel means in target space.
+        target_stds : Sequence[float]
+            Per-target-channel standard deviations in target space.
+        """
+        self.target_means = np.atleast_1d(np.asarray(target_means)).tolist()
+        self.target_stds = np.atleast_1d(np.asarray(target_stds)).tolist()
+
+    def on_predict_start(self) -> None:
+        """Auto-populate target denormalization stats from the trainer if unset.
+
+        Preserves the existing `Trainer.predict(...)` flow (where stats live on the
+        data module's prediction-dataset normalization) for callers that don't
+        invoke `set_target_stats` explicitly.
+        """
+        if self.target_means is not None and self.target_stds is not None:
+            return
+        trainer = getattr(self, "_trainer", None)
+        if trainer is None:
+            return
+        datamodule = getattr(trainer, "datamodule", None)
+        predict_dataset = getattr(datamodule, "predict_dataset", None)
+        normalization = getattr(predict_dataset, "normalization", None)
+        target_means = getattr(normalization, "target_means", None)
+        target_stds = getattr(normalization, "target_stds", None)
+        if target_means is not None and target_stds is not None:
+            self.set_target_stats(target_means, target_stds)
 
     def training_step(
         self, batch: tuple[ImageRegionData, ImageRegionData], batch_idx: Any
@@ -322,21 +371,38 @@ class MicroSplitModule(L.LightningModule):
         mmse_imgs = torch.mean(samples, dim=0)
         std_imgs = torch.std(samples, dim=0)
 
-        # Denormalize the MMSE mean using target-channel statistics. The new
-        # Normalization.denormalize() uses input stats only, so we reach into the
-        # stored target stats and build a Denormalize transform manually.
+        # Denormalize the MMSE mean using target-channel statistics owned by the
+        # module (see `set_target_stats` / `on_predict_start`). The new
+        # Normalization.denormalize() uses input stats only, so we build a
+        # Denormalize transform manually.
         # TODO: clean this up once Normalization gains target-space denormalization.
-        normalization = self._trainer.datamodule.predict_dataset.normalization
-        target_means = np.atleast_1d(np.asarray(normalization.target_means)).tolist()
-        target_stds = np.atleast_1d(np.asarray(normalization.target_stds)).tolist()
-        denorm = Denormalize(image_means=target_means, image_stds=target_stds)
+        if self.target_means is None or self.target_stds is None:
+            raise RuntimeError(
+                "Target denormalization stats not set. Call "
+                "`module.set_target_stats(target_means, target_stds)` before "
+                "running `predict_step`, or run via `Trainer.predict(...)` with "
+                "a data module whose predict_dataset.normalization exposes them."
+            )
+        denorm = Denormalize(
+            image_means=self.target_means, image_stds=self.target_stds
+        )
         mean_array = denorm(patch=mmse_imgs.numpy())
         std_array = std_imgs.numpy()
+
+        # The input region's data_shape carries the *input* channel count (1 mixed
+        # channel for MicroSplit), but the predicted tensor has `output_channels`
+        # unmixed channels. Override the C dimension so downstream stitchers
+        # (which allocate from `data_shape`) sized things correctly.
+        output_data_shape = (
+            int(x.data_shape[0]),
+            int(self.algorithm_config.model.output_channels),
+            *(int(d) for d in x.data_shape[2:]),
+        )
 
         mean_region = ImageRegionData(
             data=mean_array,
             source=x.source,
-            data_shape=x.data_shape,
+            data_shape=output_data_shape,
             dtype=x.dtype,
             axes=x.axes,
             region_spec=x.region_spec,
@@ -346,7 +412,7 @@ class MicroSplitModule(L.LightningModule):
         std_region = ImageRegionData(
             data=std_array,
             source=x.source,
-            data_shape=x.data_shape,
+            data_shape=output_data_shape,
             dtype=x.dtype,
             axes=x.axes,
             region_spec=x.region_spec,
