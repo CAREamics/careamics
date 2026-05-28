@@ -96,7 +96,7 @@ def get_predict_config(
         :func:`careamics.dataset.factory.create_microsplit_pred_dataset`.
     """
     is_3d = pkl_data.get("mode_3D", False)
-    axes = "SCZYX" if is_3d else "SCYX"
+    axes = "CZYX" if is_3d else "CYX"
     img = pkl_data["image_size"]
     patch_size = [pkl_data["depth3D"], img, img] if is_3d else [img, img]
 

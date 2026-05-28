@@ -391,12 +391,12 @@ class MicroSplitModule(L.LightningModule):
 
         # The input region's data_shape carries the *input* channel count (1 mixed
         # channel for MicroSplit), but the predicted tensor has `output_channels`
-        # unmixed channels. Override the C dimension so downstream stitchers
-        # (which allocate from `data_shape`) sized things correctly.
-        output_data_shape = (
-            int(x.data_shape[0]),
-            int(self.algorithm_config.model.output_channels),
-            *(int(d) for d in x.data_shape[2:]),
+        # unmixed channels. Override the C dim so downstream stitchers (which
+        # allocate from `data_shape`) size things correctly.
+        output_channels = int(self.algorithm_config.model.output_channels)
+        output_data_shape = list(x.data_shape)
+        output_data_shape[1] = torch.full_like(
+            output_data_shape[1], output_channels
         )
 
         mean_region = ImageRegionData(

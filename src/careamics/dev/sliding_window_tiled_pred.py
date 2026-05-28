@@ -35,34 +35,6 @@ from careamics.utils import get_logger
 logger = get_logger(__name__)
 
 
-def load_microsplit_from_checkpoint(
-    ckpt_path: Path | str,
-    algorithm_config: VAEBasedAlgorithm,
-) -> MicroSplitModule:
-    """Instantiate a ``MicroSplitModule`` and load weights from a checkpoint.
-
-    ``MicroSplitModule.__init__`` does not call ``save_hyperparameters()``, so the
-    algorithm config must be supplied explicitly.
-
-    Parameters
-    ----------
-    ckpt_path : pathlib.Path or str
-        Path to the Lightning checkpoint file.
-    algorithm_config : VAEBasedAlgorithm
-        Algorithm configuration required to instantiate the module.
-
-    Returns
-    -------
-    MicroSplitModule
-        Module with weights loaded from the checkpoint.
-    """
-    return MicroSplitModule.load_from_checkpoint(
-        checkpoint_path=str(ckpt_path),
-        algorithm_config=algorithm_config,
-        strict=True,
-    )
-
-
 def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
     """Per-axis effective MMSE count for `SlidingWindowTiledPatching`.
 
@@ -259,8 +231,7 @@ def sw_tiled_prediction(
     ----------
     model : MicroSplitModule
         Trained MicroSplit module. Caller is responsible for loading weights
-        (e.g. via ``load_microsplit_from_checkpoint``) and for setting
-        ``model.algorithm_config.mmse_count = 1`` before invocation.
+        and for setting ``model.algorithm_config.mmse_count = 1`` before invocation.
     data_config : DataConfig or dict
         Configuration for the prediction ``CareamicsDataModule``. Expected to
         carry a ``SlidingWindowTiledPatchingConfig`` as its patching strategy.
