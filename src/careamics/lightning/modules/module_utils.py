@@ -54,7 +54,7 @@ def log_validation_stats(
     module: L.LightningModule,
     loss: Any,
     batch_size: int,
-    metrics: MetricCollection,
+    metrics: MetricCollection | None = None,
 ) -> None:
     """Log validation loss and metrics.
 
@@ -66,8 +66,8 @@ def log_validation_stats(
         The loss value for the current validation step.
     batch_size : int
         The size of the batch used in the current validation step.
-    metrics : MetricCollection
-        The metrics collection to log.
+    metrics : MetricCollection or None, optional
+        The metrics collection to log. When None, only the loss is logged.
     """
     module.log(
         "val_loss",
@@ -78,7 +78,8 @@ def log_validation_stats(
         logger=True,
         batch_size=batch_size,
     )
-    module.log_dict(metrics, on_step=False, on_epoch=True, batch_size=batch_size)
+    if metrics is not None:
+        module.log_dict(metrics, on_step=False, on_epoch=True, batch_size=batch_size)
 
 
 def get_optimizer(name: str) -> type[torch.optim.Optimizer]:

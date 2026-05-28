@@ -257,7 +257,7 @@ def create_advanced_seg_config(
         n_channels_in = 1 if channels is None else len(channels)
 
     # normalization
-    norm_config = {"name": normalization}
+    norm_config = {"name": normalization, "skip_target": True}
     if normalization_params is not None:
         norm_config.update(normalization_params)
 

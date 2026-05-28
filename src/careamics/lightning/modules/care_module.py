@@ -70,6 +70,10 @@ class CAREModule(L.LightningModule):
             MSELoss() if self.config.loss == SupportedLoss.MSE else L1Loss()
         )
 
+        # TODO an alternative to logging a SIPSNR per channel would be to remove the
+        # channel mechanism from SIPSNR, have it return a tensor of shape (n_channels,)
+        # and log the channels in an overload of on_validation_epoch_end, similarly to
+        # the segmentation module
         self.metrics: MetricCollection = MetricCollection(
             {
                 f"SIPSNR_{i}": SIPSNR(
