@@ -167,8 +167,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument(
         "--mmse-count", type=int, default=64,
-        help="target effective per-pixel coverage K^d (stride derived "
-             "to achieve smallest count >= target)",
+        help="target effective per-pixel coverage",
     )
     p.add_argument(
         "--stride-z", type=int, default=None,

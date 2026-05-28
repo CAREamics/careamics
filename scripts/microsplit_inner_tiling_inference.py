@@ -118,7 +118,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument(
         "--dataset", required=True,
-        help="experiment name; resolves <data_root>/<dataset>/ and "
+        help="dataset name; resolves <data_root>/<dataset>/ and "
              "<ckpt_root>/<dataset>/",
     )
     p.add_argument(
@@ -147,9 +147,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="tile overlap per spatial axis (length 2 for 2D, 3 for 3D)",
     )
     p.add_argument(
-        "--mmse-count", type=int, default=50,
-        help="number of stochastic forward passes per tile "
-             "(per-tile MMSE; ~50 is canonical for classical inner tiling)",
+        "--mmse-count", type=int, default=64,
+        help="number of stochastic forward passes per tile",
     )
     p.add_argument(
         "--batch-size", type=int, default=128,
