@@ -73,12 +73,12 @@ class MsT1PatchConstructor(PatchConstructor):
             Number of lateral context inputs.
         padding_mode : {"reflect", "wrap"}
             Padding mode used when lateral context extends beyond image boundaries.
-        alpha_ranges : Sequence[tuple[float, float]] or None
+        alpha_ranges : Sequence[tuple[float, float]] | None
             Sampling ranges for channel mixing weights. If `None`, every channel gets
             a fixed weight of `1 / n_channels`.
         uncorrelated_channel_prob : float
             Probability of sampling channels from different patch locations.
-        channels : Sequence[int] or None, default=None
+        channels : Sequence[int] | None, default=None
             Channel indices to use from the target data. If `None`, all channels are
             used.
         rng : numpy.random.Generator or None, default=None
@@ -180,9 +180,12 @@ class MsT1PatchConstructor(PatchConstructor):
             )
         # patch has axes CL(Z)YX
 
-        input_patch, target_patch = _create_input_target(
-            patch, self.alpha_ranges, self.rng
+        alpha_ranges = (
+            self.alpha_ranges
+            if self.channels is None or self.alpha_ranges is None
+            else [self.alpha_ranges[c_idx] for c_idx in self.channels]
         )
+        input_patch, target_patch = _create_input_target(patch, alpha_ranges, self.rng)
         return input_patch, target_patch, patch_spec
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
