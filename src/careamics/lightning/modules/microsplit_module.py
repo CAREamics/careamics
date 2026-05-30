@@ -352,8 +352,14 @@ class MicroSplitModule(L.LightningModule):
             identically to either.
         """
         x = batch[0]
-        # Reset model for inference with spatial dimensions only (H, W)
-        self.model.reset_for_inference(x.data.shape[-2:]) # TODO: check this
+        # Reset model for inference with the tile's spatial dimensions. The data
+        # tensor is (B, C, [Z], Y, X), so the number of spatial dims is
+        # `x.data.dim() - 2` — 2 for 2D ((Y, X)) and 3 for 3D ((Z, Y, X)). Passing
+        # the full spatial shape is required for 3D: dropping Z leaves the LVAE's
+        # `latent_shape` 2D while the input is 5D, which trips the crop/pad
+        # assertion in `topdown_pass`.
+        n_spatial_dims = x.data.dim() - 2
+        self.model.reset_for_inference(tuple(x.data.shape[-n_spatial_dims:]))
 
         rec_img_list = []
         for _ in range(self.algorithm_config.mmse_count):
