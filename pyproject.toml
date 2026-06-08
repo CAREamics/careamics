@@ -44,7 +44,7 @@ dependencies = [
     # --- Core dependencies ---
     "numpy>=1.21,<=2.4.5",
     'pydantic>=2.11,<=2.13.3',
-    'pytorch_lightning>=2.2,<=2.6.1,!=2.6.2,!=2.6.3',
+    'pytorch_lightning>=2.2,!=2.6.2,!=2.6.3,<=2.6.5',
     # lightning currently does not support torch 2.10.0
     # see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
     'torch>=2.1.0,<2.10.0',
