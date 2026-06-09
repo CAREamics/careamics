@@ -11,7 +11,7 @@ from careamics.compat.model_io.bmz_io import _export_state_dict, _load_state_dic
 pytestmark = pytest.mark.mps_gh_fail
 
 
-def test_state_dict_io(tmp_path, ordered_array, pre_trained):
+def test_state_dict_io_compat(tmp_path, ordered_array, pre_trained):
     """Test exporting and loading a state dict."""
     # training data
     train_array = ordered_array((32, 32))
@@ -36,7 +36,7 @@ def test_state_dict_io(tmp_path, ordered_array, pre_trained):
     np.testing.assert_almost_equal(predicted_loaded[0], predicted, decimal=3)
 
 
-def test_bmz_io(tmp_path, ordered_array, pre_trained):
+def test_bmz_io_compat(tmp_path, ordered_array, pre_trained):
     """Test exporting and loading to the BMZ."""
     # training data
     train_array = ordered_array((32, 32))

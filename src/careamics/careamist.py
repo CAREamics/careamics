@@ -32,8 +32,10 @@ from .lightning.utils import (
     load_module_from_checkpoint,
     read_csv_logger,
 )
+from .model_io.bmz_io import load_from_bmz
 from .models import get_model_constraints
 from .utils import get_logger, get_run_version
+from .utils.reshape_array import reshape_array
 
 logger = get_logger(__name__)
 
@@ -291,13 +293,8 @@ class CAREamist:
             The loaded configuration.
         CAREamicsModule
             The loaded model.
-
-        Raises
-        ------
-        NotImplementedError
-            Loading from BMZ is not implemented yet.
         """
-        raise NotImplementedError("Loading from BMZ is not implemented yet.")
+        return load_from_bmz(bmz_path)
 
     @staticmethod
     def _resolve_work_dir(work_dir: str | Path | None) -> Path:
@@ -1217,30 +1214,33 @@ class CAREamist:
         model_version : str, default="0.1.0"
             Version of the model.
         """
-        # from .model_io import export_to_bmz
+        import numpy as np
 
-        # output_patch = self.predict(
-        #     pred_data=input_array,
-        #     data_type=SupportedData.ARRAY.value,
-        # )
-        # output = np.concatenate(output_patch, axis=0)
-        # input_array = reshape_array(input_array, self.config.data_config.axes)
+        from .model_io import export_to_bmz
 
-        # export_to_bmz(
-        #     model=self.model,
-        #     config=self.config,
-        #     path_to_archive=path_to_archive,
-        #     model_name=friendly_model_name,
-        #     general_description=general_description,
-        #     data_description=data_description,
-        #     authors=authors,
-        #     input_array=input_array,
-        #     output_array=output,
-        #     covers=covers,
-        #     channel_names=channel_names,
-        #     model_version=model_version,
-        # )
-        raise NotImplementedError("Exporting to BMZ is not implemented yet.")
+        output_patch, _ = self.predict(
+            pred_data=input_array,
+            data_type="array",
+        )
+        output_array = reshape_array(
+            np.concatenate(output_patch, axis=0), self.config.data_config.axes
+        )
+        input_array = reshape_array(input_array, self.config.data_config.axes)
+
+        export_to_bmz(
+            model=self.model,
+            config=self.config,
+            path_to_archive=path_to_archive,
+            model_name=friendly_model_name,
+            general_description=general_description,
+            data_description=data_description,
+            authors=authors,
+            input_array=input_array,
+            output_array=output_array,
+            covers=covers,
+            channel_names=channel_names,
+            model_version=model_version,
+        )
 
     def get_losses(self) -> dict[str, list]:
         """Return data that can be used to plot train and validation loss curves.
