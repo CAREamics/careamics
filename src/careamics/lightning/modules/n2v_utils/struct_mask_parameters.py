@@ -10,11 +10,11 @@ class StructMaskParameters:
 
     Attributes
     ----------
-    axis : Literal[0, 1]
-        Axis along which to apply the mask, horizontal (0) or vertical (1).
+    axis : Literal[0, 1, 2]
+        Axis along which to apply the mask, horizontal (0), vertical (1) or cross (2).
     span : int
         Span of the mask.
     """
 
-    axis: Literal[0, 1]
+    axis: Literal[0, 1, 2]
     span: int

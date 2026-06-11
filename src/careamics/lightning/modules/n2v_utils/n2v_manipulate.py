@@ -1,6 +1,6 @@
 """N2V manipulation transform for PyTorch."""
 
-from typing import Any
+from typing import Any, Literal
 
 import torch
 
@@ -65,13 +65,13 @@ class N2VManipulate:
         if n2v_manipulate_config.struct_mask_axis == SupportedStructAxis.NONE:
             self.struct_mask: StructMaskParameters | None = None
         else:
+            _axis_map: dict[str, Literal[0, 1, 2]] = {
+                SupportedStructAxis.HORIZONTAL.value: 0,
+                SupportedStructAxis.VERTICAL.value: 1,
+                SupportedStructAxis.BOTH.value: 2,
+            }
             self.struct_mask = StructMaskParameters(
-                axis=(
-                    0
-                    if n2v_manipulate_config.struct_mask_axis
-                    == SupportedStructAxis.HORIZONTAL
-                    else 1
-                ),
+                axis=_axis_map[n2v_manipulate_config.struct_mask_axis],
                 span=n2v_manipulate_config.struct_mask_span,
             )
 

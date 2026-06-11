@@ -12,10 +12,13 @@ class SupportedStructAxis(StrEnum):
         Horizontal axis.
     VERTICAL : str
         Vertical axis.
+    BOTH : str
+        Both axes, i.e. horizontal and vertical.
     NONE : str
         No axis, the mask is not applied.
     """
 
     HORIZONTAL = "horizontal"
     VERTICAL = "vertical"
+    BOTH = "both"
     NONE = "none"

@@ -6,10 +6,10 @@ import torch
 from torch.nn.functional import pad
 
 from careamics.lightning.modules.n2v_utils.pixel_manipulation import (
-    _apply_struct_mask_torch,
-    _create_center_pixel_mask,
-    _create_struct_mask,
-    _get_stratified_coords_torch,
+    _apply_struct_mask,
+    _create_neg_center_pixel_mask,
+    _create_neg_struct_mask,
+    _get_stratified_coords,
     _get_subpatch_coords,
     median_manipulate,
     uniform_manipulate,
@@ -39,7 +39,7 @@ def test_get_stratified_coords_torch(mask_pixel_perc, shape, num_iterations):
     # biased towards any particular region.
     for _ in range(num_iterations):
         # Get the coordinates of the pixels to be masked
-        coords = _get_stratified_coords_torch(mask_pixel_perc, shape, rng)
+        coords = _get_stratified_coords(mask_pixel_perc, shape, rng)
 
         # Check that there is at least one coordinate chosen
         assert coords.numel() > 0
@@ -160,11 +160,11 @@ def test_median_manipulate_torch(ordered_array, shape, apply_struct: bool):
 
         ndims = len(shape) - 1
         if struct_params is not None:
-            roi_mask = _create_struct_mask(
+            roi_mask = _create_neg_struct_mask(
                 ndims, subpatch_size, struct_params, torch.device("cpu")
             )
         else:
-            roi_mask = _create_center_pixel_mask(
+            roi_mask = _create_neg_center_pixel_mask(
                 ndims, subpatch_size, torch.device("cpu")
             )
 
@@ -215,7 +215,7 @@ def test_apply_struct_mask_torch(patch_shape, coords, struct_axis, struct_span):
         coords = coords.unsqueeze(0)
 
     # Manipulate the tensor
-    transform_patch = _apply_struct_mask_torch(
+    transform_patch = _apply_struct_mask(
         patch,
         coords=coords,
         struct_params=struct_params,
@@ -308,7 +308,9 @@ def test_get_subpatch_coords(
 @pytest.mark.parametrize("n_dims", [2, 3])
 @pytest.mark.parametrize("subpatch_size", [5, 7, 11])
 def test_create_center_pixel_mask(n_dims: int, subpatch_size: int):
-    mask_tensor = _create_center_pixel_mask(n_dims, subpatch_size, torch.device("cpu"))
+    mask_tensor = _create_neg_center_pixel_mask(
+        n_dims, subpatch_size, torch.device("cpu")
+    )
     mask = mask_tensor.detach().numpy()
 
     assert np.count_nonzero(~mask) == 1  # only one value masked
@@ -325,7 +327,7 @@ def test_create_center_pixel_mask(n_dims: int, subpatch_size: int):
 def test_center_pixel_mask_even_size_error(n_dims: int, subpatch_size: int):
     """Test that even sized subpatch sizes are not allowed."""
     with pytest.raises(ValueError):
-        _ = _create_center_pixel_mask(n_dims, subpatch_size, torch.device("cpu"))
+        _ = _create_neg_center_pixel_mask(n_dims, subpatch_size, torch.device("cpu"))
 
 
 @pytest.mark.parametrize("n_dims", [2, 3])
@@ -336,7 +338,7 @@ def test_create_struct_mask(
     n_dims: int, subpatch_size: int, span: int, axis: Literal[0, 1]
 ):
     struct_params = StructMaskParameters(axis, span)
-    mask_tensor = _create_struct_mask(
+    mask_tensor = _create_neg_struct_mask(
         n_dims, subpatch_size, struct_params, torch.device("cpu")
     )
     mask = mask_tensor.detach().numpy()
@@ -367,7 +369,7 @@ def test_struct_mask_even_size_error(n_dims: int, subpatch_size: int):
     """Test that even sized subpatch sizes are not allowed."""
     struct_params = StructMaskParameters(0, 5)
     with pytest.raises(ValueError):
-        _ = _create_struct_mask(
+        _ = _create_neg_struct_mask(
             n_dims, subpatch_size, struct_params, torch.device("cpu")
         )
 
