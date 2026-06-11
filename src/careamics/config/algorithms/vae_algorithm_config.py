@@ -18,14 +18,7 @@ from careamics.config.support import SupportedAlgorithm, SupportedLoss
 
 
 class VAEBasedAlgorithm(BaseModel):
-    """VAE-based algorithm configuration.
-
-    # TODO
-
-    Examples
-    --------
-    # TODO add once finalized
-    """
+    """VAE-based algorithm configuration."""
 
     # Pydantic class configuration
     model_config = ConfigDict(

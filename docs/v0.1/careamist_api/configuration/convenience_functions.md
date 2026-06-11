@@ -2,7 +2,10 @@
 description: Convenience functions
 ---
 
-
+!!! warning "Legacy documentation"
+    This documentation is for the legacy version of CAREamics (v0.1), which is
+    accessible through the `careamics.compat` module. It is kept here for reference, but
+    we recommend using the latest version of CAREamics (v0.2) for new projects. Head to the [v0.2 guides](../v0.2/index.md).
 
 # Convenience functions
 
@@ -16,7 +19,7 @@ currently supports [Noise2Void](../../../algorithms/Noise2Void) and its variants
 [CARE](../../../algorithms/CARE) and [Noise2Noise](../../../algorithms/Noise2Noise). 
 
 ``` python title="Import convenience functions"
---8<-- "import_convenience.py:imports"
+--8<-- "v0.1/careamist_api/configuration/import_convenience.py:imports"
 ```
 
 Each method does all the heavy lifting to make the configuration coherent. They share
@@ -47,7 +50,7 @@ metrics calculation over the validation set occurs more often.
 === "Noise2Void"
     
     ```python title="Configuration with maximum number of steps"
-    --8<-- "convenience_functions.py:n2v_steps"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2v_steps"
     ```
 
     1. Set the maximum number of steps. If the number of patches is smaller than that number, then
@@ -56,7 +59,7 @@ metrics calculation over the validation set occurs more often.
 === "CARE"
 
     ```python title="Configuration with maximum number of steps"
-    --8<-- "convenience_functions.py:care_steps"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:care_steps"
     ```
 
     1. Set the maximum number of steps. If the number of patches is smaller than that number, then
@@ -65,7 +68,7 @@ metrics calculation over the validation set occurs more often.
 === "Noise2Noise"
 
     ```python title="Configuration with maximum number of steps"
-    --8<-- "convenience_functions.py:n2n_steps"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2n_steps"
     ```
 
     1. Set the maximum number of steps. If the number of patches is smaller than that number, then
@@ -85,7 +88,7 @@ The correct way is to specify them both at the same time.
 === "Noise2Void"
     
     ```python title="Configuration with multiple channels"
-    --8<-- "convenience_functions.py:n2v_channels"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2v_channels"
     ```
 
     1. The axes contain the letter `C`.
@@ -94,7 +97,7 @@ The correct way is to specify them both at the same time.
 === "CARE"
 
     ```python title="Configuration with multiple channels"
-    --8<-- "convenience_functions.py:care_channels"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:care_channels"
     ```
 
     1. The axes contain the letter `C`.
@@ -104,7 +107,7 @@ The correct way is to specify them both at the same time.
 === "Noise2Noise"
 
     ```python title="Configuration with multiple channels"
-    --8<-- "convenience_functions.py:n2n_channels"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2n_channels"
     ```
 
     1. The axes contain the letter `C`.
@@ -129,7 +132,7 @@ To control whether the channels are trained independently, you can use the
 === "Noise2Void"
     
     ```python title="Training channels together"
-    --8<-- "convenience_functions.py:n2v_mix_channels"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2v_mix_channels"
     ```
 
     1. As previously, we specify the channels in `axes` and `n_channels`.
@@ -139,7 +142,7 @@ To control whether the channels are trained independently, you can use the
 
 
     ```python title="Training channels together"
-    --8<-- "convenience_functions.py:care_mix_channels"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:care_mix_channels"
     ```
 
     1. As previously, we specify the channels in `axes` and `n_channels_in`.
@@ -149,7 +152,7 @@ To control whether the channels are trained independently, you can use the
 === "Noise2Noise"
 
     ```python title="Training channels together"
-    --8<-- "convenience_functions.py:n2n_mix_channels"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2n_mix_channels"
     ```
 
     1. As previously, we specify the channels in `axes` and `n_channels`.
@@ -171,7 +174,7 @@ have structures that are always oriented in the same direction. To do so there i
 === "Noise2Void"
     
     ```python title="Configuration without augmentations"
-    --8<-- "convenience_functions.py:n2v_no_aug"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2v_no_aug"
     ```
 
     1. Augmentations are disabled (but normalization and N2V pixel manipulation will still be added
@@ -180,7 +183,7 @@ have structures that are always oriented in the same direction. To do so there i
 === "CARE"
 
     ```python title="Configuration without augmentations"
-    --8<-- "convenience_functions.py:care_no_aug"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:care_no_aug"
     ```
 
     1. Augmentations are disabled (but normalization will still be added!).
@@ -188,7 +191,7 @@ have structures that are always oriented in the same direction. To do so there i
 === "Noise2Noise"
 
     ```python title="Configuration without augmentations"
-    --8<-- "convenience_functions.py:n2n_no_aug"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2n_no_aug"
     ```
 
     1. Augmentations are disabled (but normalization will still be added!).
@@ -208,7 +211,7 @@ only apply flipping along the `X` axis and not apply any rotation.
 === "Noise2Void"
     
     ```python title="Configuration with non-default augmentations"
-    --8<-- "convenience_functions.py:n2v_aug"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2v_aug"
     ```
 
     1. Only flipping along the `X` axis is applied.
@@ -216,7 +219,7 @@ only apply flipping along the `X` axis and not apply any rotation.
 === "CARE"
 
     ```python title="Configuration with non-default augmentations"
-    --8<-- "convenience_functions.py:care_aug"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:care_aug"
     ```
 
     1. Only flipping along the `X` axis is applied.
@@ -224,7 +227,7 @@ only apply flipping along the `X` axis and not apply any rotation.
 === "Noise2Noise"
 
     ```python title="Configuration with non-default augmentations"
-    --8<-- "convenience_functions.py:n2n_aug"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2n_aug"
     ```
 
     1. Only flipping along the `X` axis is applied.
@@ -252,7 +255,7 @@ possible to use either [WandB](https://wandb.ai/site) or [TensorBoard](https://p
 === "Noise2Void"
     
     ```python title="Configuration with WandB"
-    --8<-- "convenience_functions.py:n2v_wandb"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2v_wandb"
     ```
 
     1. `wandb` or `tensorboard`
@@ -260,7 +263,7 @@ possible to use either [WandB](https://wandb.ai/site) or [TensorBoard](https://p
 === "CARE"
 
     ```python title="Configuration with WandB"
-    --8<-- "convenience_functions.py:care_wandb"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:care_wandb"
     ```
 
     1. `wandb` or `tensorboard`
@@ -268,7 +271,7 @@ possible to use either [WandB](https://wandb.ai/site) or [TensorBoard](https://p
 === "Noise2Noise"
 
     ```python title="Configuration with WandB"
-    --8<-- "convenience_functions.py:n2n_wandb"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2n_wandb"
     ```
 
     1. `wandb` or `tensorboard`
@@ -283,7 +286,7 @@ The convenience functions allow passing data loader parameters directly through 
 === "Noise2Void"
     
     ```python title="Configuration with data loader parameters"
-    --8<-- "convenience_functions.py:n2v_dataloader_kwargs"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2v_dataloader_kwargs"
     ```
 
     1. In practice this is the one parameter you might want to change.
@@ -292,7 +295,7 @@ The convenience functions allow passing data loader parameters directly through 
 === "CARE"
 
     ```python title="Configuration with data loader parameters"
-    --8<-- "convenience_functions.py:care_dataloader_kwargs"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:care_dataloader_kwargs"
     ```
 
     1. In practice this is the one parameter you might want to change.
@@ -301,7 +304,7 @@ The convenience functions allow passing data loader parameters directly through 
 === "Noise2Noise"
 
     ```python title="Configuration with data loader parameters"
-    --8<-- "convenience_functions.py:n2n_dataloader_kwargs"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2n_dataloader_kwargs"
     ```
 
     1. In practice this is the one parameter you might want to change.
@@ -316,7 +319,7 @@ you are feeling brave, you can pass model specific parameters in the `model_para
 === "Noise2Void"
     
     ```python title="Configuration with model specific parameters"
-    --8<-- "convenience_functions.py:n2v_model_kwargs"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2v_model_kwargs"
     ```
 
     1. The depth of the UNet.
@@ -326,7 +329,7 @@ you are feeling brave, you can pass model specific parameters in the `model_para
 === "CARE"
 
     ```python title="Configuration with model specific parameters"
-    --8<-- "convenience_functions.py:care_model_kwargs"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:care_model_kwargs"
     ```
 
     1. The depth of the UNet.
@@ -336,7 +339,7 @@ you are feeling brave, you can pass model specific parameters in the `model_para
 === "Noise2Noise"
 
     ```python title="Configuration with model specific parameters"
-    --8<-- "convenience_functions.py:n2n_model_kwargs"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2n_model_kwargs"
     ```
 
     1. The depth of the UNet.
@@ -390,7 +393,7 @@ While the default values are usually fine, they can be tweaked to improve the tr
 in certain cases.
 
 ```python title="Configuration with N2V parameters"
---8<-- "convenience_functions.py:n2v_parameters"
+--8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2v_parameters"
 ```
 
 ### N2V2
@@ -398,7 +401,7 @@ in certain cases.
 To use N2V2, the `use_n2v2` parameter should simply be set to `True`.
 
 ```python title="Configuration with N2V2"
---8<-- "convenience_functions.py:n2v2"
+--8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2v2"
 ```
 
 1. What it does is modifying the architecture of the UNet model and the way the masked
@@ -414,7 +417,7 @@ StructN2V has two parameters that can be set:
 - `struct_n2v_span`: The size of the structN2V mask.
 
 ```python title="Configuration with structN2V"
---8<-- "convenience_functions.py:structn2v"
+--8<-- "v0.1/careamist_api/configuration/convenience_functions.py:structn2v"
 ```
 
 
@@ -429,7 +432,7 @@ can be trained with different loss functions. This can be set using the `loss` p
 === "CARE"
     
     ```python title="Configuration with different loss"
-    --8<-- "convenience_functions.py:care_loss"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:care_loss"
     ```
 
     1. `mae` or `mse`
@@ -437,7 +440,7 @@ can be trained with different loss functions. This can be set using the `loss` p
 === "Noise2Noise"
 
     ```python title="Configuration with different loss"
-    --8<-- "convenience_functions.py:n2n_loss"
+    --8<-- "v0.1/careamist_api/configuration/convenience_functions.py:n2n_loss"
     ```
 
     1. `mae` or `mse`

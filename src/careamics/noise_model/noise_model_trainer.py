@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.config import create_n2v_configuration
+from careamics.config import create_n2v_config
 from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
@@ -80,6 +80,17 @@ class NoiseModelTrainer:
         n_coeff: int = 3,
         min_sigma: float = 125.0,
     ) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        n_gaussian : int, default=3
+            Number of Gaussian components in the mixture.
+        n_coeff : int, default=3
+            Number of polynomial coefficients.
+        min_sigma : float, default=125.0
+            Minimum standard deviation for GMM components.
+        """
         self.n_gaussian = n_gaussian
         self.n_coeff = n_coeff
         self.min_sigma = min_sigma
@@ -88,6 +99,7 @@ class NoiseModelTrainer:
         self.histograms: list[NDArray] | None = None
         self._n2v_model: CAREamist | None = None
 
+    # TODO why use val data?
     def train(
         self,
         noisy_data: NDArray,
@@ -395,10 +407,33 @@ class NoiseModelTrainer:
         val_data: NDArray | None,
         work_dir: Path | str | None,
     ) -> NDArray:
-        """Train N2V and predict clean signal."""
+        """Train N2V and predict clean signal.
+
+        Parameters
+        ----------
+        noisy_data : NDArray
+            Noisy observation data for a single channel.
+        axes : str
+            Data axes string (e.g., "SYX", "SZYX").
+        patch_size : Sequence[int]
+            Patch size for N2V training.
+        batch_size : int
+            Batch size for N2V training.
+        n_epochs : int
+            Number of epochs for N2V training.
+        val_data : NDArray | None
+            Validation data for N2V training.
+        work_dir : Path | str | None
+            Working directory for saving intermediate results.
+
+        Returns
+        -------
+        NDArray
+            Predicted clean signal from N2V.
+        """
         from careamics.careamist import CAREamist
 
-        config = create_n2v_configuration(
+        config = create_n2v_config(
             experiment_name="noise_model_n2v",
             data_type="array",
             axes=axes,
@@ -407,15 +442,16 @@ class NoiseModelTrainer:
             num_epochs=n_epochs,
         )
 
-        careamist = CAREamist(source=config, work_dir=work_dir)
-        careamist.train(train_source=noisy_data, val_source=val_data)
+        careamist = CAREamist(config=config, work_dir=work_dir)
+        careamist.train(train_data=noisy_data, val_data=val_data)
 
-        predictions = careamist.predict(source=noisy_data, data_type="array")
+        predictions = careamist.predict(pred_data=noisy_data, data_type="array")
 
         self._n2v_model = careamist
 
         return np.concatenate(list(predictions), axis=0)
 
+    # TODO why pass learning rate?
     def _train_single_channel(
         self,
         signal: NDArray,
@@ -424,7 +460,26 @@ class NoiseModelTrainer:
         learning_rate: float,
         batch_size: int,
     ) -> GaussianMixtureNoiseModel:
-        """Train a single noise model."""
+        """Train a single noise model.
+
+        Parameters
+        ----------
+        signal : NDArray
+            Clean signal data for a single channel. Shape: (S, [Z], Y, X).
+        observation : NDArray
+            Noisy observation data for the same channel. Same shape as signal.
+        n_epochs : int
+            Number of training epochs.
+        learning_rate : float
+            Learning rate for optimization.
+        batch_size : int
+            Batch size for training.
+
+        Returns
+        -------
+        GaussianMixtureNoiseModel
+            Trained noise model for the channel.
+        """
         config = GaussianMixtureNMConfig(
             model_type="GaussianMixtureNoiseModel",
             min_signal=float(signal.min()),
@@ -451,14 +506,42 @@ class NoiseModelTrainer:
 
     @staticmethod
     def _get_n_channels(data: NDArray, axes: str) -> int:
-        """Get number of channels from data and axes."""
+        """Get number of channels from data and axes.
+
+        Parameters
+        ----------
+        data : NDArray
+            Input data array.
+        axes : str
+            Data axes string (e.g., "SCYX", "SYX").
+
+        Returns
+        -------
+        int
+            Number of channels.
+        """
         if "C" not in axes:
             return 1
         return data.shape[axes.index("C")]
 
     @staticmethod
     def _extract_channel(data: NDArray, channel_idx: int, axes: str) -> NDArray:
-        """Extract a single channel from data."""
+        """Extract a single channel from data.
+
+        Parameters
+        ----------
+        data : NDArray
+            Input data array.
+        channel_idx : int
+            Index of the channel to extract.
+        axes : str
+            Data axes string (e.g., "SCYX", "SYX").
+
+        Returns
+        -------
+        NDArray
+            Extracted channel data.
+        """
         if "C" not in axes:
             return data
         c_idx = axes.index("C")
@@ -466,5 +549,16 @@ class NoiseModelTrainer:
 
     @staticmethod
     def _remove_channel_axis(axes: str) -> str:
-        """Remove C from axes string."""
+        """Remove C from axes string.
+
+        Parameters
+        ----------
+        axes : str
+            Data axes string (e.g., "SCYX", "SYX").
+
+        Returns
+        -------
+        str
+            Axes string with C removed.
+        """
         return axes.replace("C", "")

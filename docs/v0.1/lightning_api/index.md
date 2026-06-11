@@ -4,6 +4,11 @@ description: Lightning API main page.
 
 # Lightning API
 
+!!! warning "Legacy documentation"
+    This documentation is for the legacy version of CAREamics (v0.1), which is
+    accessible through the `careamics.compat` module. It is kept here for reference, but
+    we recommend using the latest version of CAREamics (v0.2) for new projects. Head to the [v0.2 guides](../v0.2/index.md).
+
 The so-called "Lightning API" is how we refer to using the lightning modules 
 from CAREamics in a [PyTorch Ligthning](https://lightning.ai/docs/pytorch/stable/) 
 pipeline. In our [high-level API](../careamist_api/index.md), these modules are 
@@ -14,7 +19,7 @@ CAREamics modules in your own PyTorch Lightning pipeline.
 
 
 ```python title="Basic Usage"
---8<-- "basic_usage.py:basic_usage"
+--8<-- "v0.1/lightning_api/basic_usage.py:basic_usage"
 ```
 
 1. We provide convenience functions to create the various Lightning modules.

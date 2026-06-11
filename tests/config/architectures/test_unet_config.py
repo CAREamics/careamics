@@ -8,7 +8,7 @@ def test_instantiation():
     """Test that UNetModel can be instantiated."""
     model_params = {
         "architecture": "UNet",
-        "conv_dim": 2,
+        "conv_dims": 2,
         "num_channels_init": 16,
     }
 

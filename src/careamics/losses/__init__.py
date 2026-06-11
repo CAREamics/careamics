@@ -2,16 +2,15 @@
 
 __all__ = [
     "hdn_loss",
-    "loss_factory",
-    "mae_loss",
+    "lvae_loss_factory",
     "microsplit_loss",
-    "mse_loss",
     "n2v_loss",
+    "pn2v_loss",
 ]
 
-from .fcn.losses import mae_loss, mse_loss, n2v_loss
-from .loss_factory import loss_factory
-from .lvae.losses import (
+from .lvae import (
     hdn_loss,
+    lvae_loss_factory,
     microsplit_loss,
 )
+from .n2v_losses import n2v_loss, pn2v_loss

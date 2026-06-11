@@ -51,7 +51,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: 🧪 Run tests
-        run: uv run pytest --color=yes -m "not lvae"
+        run: uv run pytest --color=yes -m "not lvae and not compat"
 
 
   deploy:
@@ -85,10 +85,9 @@ jobs:
 
       # Check that basic features work and we didn't miss to include crucial files
       - name: Smoke test (wheel)
-        run: uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
-
+        run: uv run --isolated --no-project --with dist/*.whl tests/test_smoke_after_packaging.py
       - name: Smoke test (source distribution)
-        run: uv run --isolated --no-project --with dist/*.tar.gz tests/smoke_test.py
+        run: uv run --isolated --no-project --with dist/*.tar.gz tests/test_smoke_after_packaging.py
         
       - name: Publish
         run: uv publish

@@ -8,6 +8,7 @@ from numpy.typing import NDArray
 from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
 
 
+# TODO move to careamics.plot? along with autocorrelation, plot losses
 def plot_noise_model_probability_distribution(
     noise_model: GaussianMixtureNoiseModel,
     signalBinIndex: int,

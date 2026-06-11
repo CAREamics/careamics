@@ -1,17 +1,5 @@
-"""Dataset module."""
+"""Next-generation dataset components."""
 
-__all__ = [
-    "InMemoryDataset",
-    "InMemoryPredDataset",
-    "InMemoryTiledPredDataset",
-    "IterablePredDataset",
-    "IterableTiledPredDataset",
-    "PathIterableDataset",
-]
+from .image_region_data import ImageRegionData
 
-from .in_memory_dataset import InMemoryDataset
-from .in_memory_pred_dataset import InMemoryPredDataset
-from .in_memory_tiled_pred_dataset import InMemoryTiledPredDataset
-from .iterable_dataset import PathIterableDataset
-from .iterable_pred_dataset import IterablePredDataset
-from .iterable_tiled_pred_dataset import IterableTiledPredDataset
+__all__ = ["ImageRegionData"]

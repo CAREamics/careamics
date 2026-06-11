@@ -95,5 +95,5 @@ changes. This can be links to documentations, forum posts, past discussions etc.
 
 - [ ] Code builds and passes tests locally, including doctests
 - [ ] New tests have been added (for bug fixes/features)
+- [ ] Documentation has been updated
 - [ ] Pre-commit passes
-- [ ] PR to the documentation exists (for bug fixes / features)

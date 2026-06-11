@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Union
 
 
+# TODO used in BMZ and napari plugin
+# - move to bmz utils?
+# - add to napari plugin repo?
 def get_careamics_home() -> Path:
     """Return the CAREamics home directory.
 

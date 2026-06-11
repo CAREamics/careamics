@@ -14,12 +14,12 @@ from careamics.config import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
 )
-from careamics.config.losses.loss_config import LVAELossConfig
-from careamics.losses.loss_factory import (
-    SupportedLoss,
-    loss_factory,
+from careamics.config.losses import LVAELossConfig
+from careamics.config.support import SupportedLoss
+from careamics.losses.lvae.lvae_loss_factory import (
+    lvae_loss_factory,
 )
-from careamics.losses.lvae.losses import (
+from careamics.losses.lvae.lvae_losses import (
     _compute_gaussian_log_likelihood,
     _compute_noise_model_log_likelihood,
     get_kl_divergence_loss,
@@ -86,7 +86,7 @@ def _make_td_data(batch_size, n_layers, img_size, enable_lc):
 )
 def test_lvae_loss_factory(loss_type, exp_loss_func, exp_error):
     with exp_error:
-        loss_func = loss_factory(loss_type)
+        loss_func = lvae_loss_factory(loss_type)
         assert loss_func is not None
         assert callable(loss_func)
         assert loss_func == exp_loss_func
@@ -308,11 +308,11 @@ def test_equiv_gaussian_log_likelihood(predict_logvar, logvar_lowerbound):
 
     assert torch.isclose(
         new_loss, legacy_loss, rtol=1e-5, atol=1e-6
-    ), f"Gaussian LL mismatch: new={new_loss.item():.6f} legacy={legacy_loss.item():.6f}"
+    ), f"Mismatch: new={new_loss.item():.6f} legacy={legacy_loss.item():.6f}"
 
 
 def test_equiv_noise_model_log_likelihood(tmp_path):
-    """Test B: _compute_noise_model_log_likelihood matches legacy NoiseModelLikelihood."""
+    """Test B: _compute_noise_model_log_likelihood matches legacy."""
     torch.manual_seed(42)
     target_ch, img_size = 2, 16
     nm = init_noise_model(tmp_path, target_ch)
@@ -384,9 +384,10 @@ def test_equiv_musplit_loss(kl_weight):
     )
     legacy_net = legacy_recons + legacy_kl
 
-    assert torch.isclose(
-        new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5
-    ), f"musplit mismatch: new={new_output['loss'].item():.6f} legacy={legacy_net.item():.6f}"
+    assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
+        f"musplit mismatch: new={new_output['loss'].item():.6f} "
+        f"legacy={legacy_net.item():.6f}"
+    )
 
 
 def test_equiv_denoisplit_loss(tmp_path):
@@ -438,9 +439,10 @@ def test_equiv_denoisplit_loss(tmp_path):
     )
     legacy_net = legacy_recons + legacy_kl
 
-    assert torch.isclose(
-        new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5
-    ), f"denoisplit mismatch: new={new_output['loss'].item():.6f} legacy={legacy_net.item():.6f}"
+    assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
+        f"denoisplit mismatch: new={new_output['loss'].item():.6f} "
+        f"legacy={legacy_net.item():.6f}"
+    )
 
 
 def test_equiv_denoisplit_musplit_loss(tmp_path):
@@ -509,6 +511,7 @@ def test_equiv_denoisplit_musplit_loss(tmp_path):
     legacy_kl = denoisplit_w * denoisplit_kl + musplit_w * musplit_kl
     legacy_net = legacy_recons + legacy_kl
 
-    assert torch.isclose(
-        new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5
-    ), f"combined mismatch: new={new_output['loss'].item():.6f} legacy={legacy_net.item():.6f}"
+    assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
+        f"combined mismatch: new={new_output['loss'].item():.6f} "
+        f"legacy={legacy_net.item():.6f}"
+    )
