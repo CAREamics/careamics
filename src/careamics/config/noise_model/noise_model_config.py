@@ -14,7 +14,7 @@ from pydantic import (
     model_validator,
 )
 
-from careamics.utils.serializers import _array_to_json, _to_numpy, _to_torch
+from careamics.utils.serializers import _array_to_json, _to_numpy
 
 # TODO: this is a temporary solution to serialize and deserialize array fields
 # in pydantic models. Specifically, the aim is to enable saving and loading configs
