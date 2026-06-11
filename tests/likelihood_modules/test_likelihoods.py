@@ -3,14 +3,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
+from careamics.losses.lvae.losses import (
+    _compute_gaussian_log_likelihood,
+    _compute_noise_model_log_likelihood,
+)
 
 from careamics.config.noise_model.noise_model_config import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
-)
-from careamics.losses.lvae.losses import (
-    _compute_gaussian_log_likelihood,
-    _compute_noise_model_log_likelihood,
 )
 from careamics.models.lvae.noise_models import multichannel_noise_model_factory
 
