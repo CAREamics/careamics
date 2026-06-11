@@ -475,9 +475,7 @@ class VAEModule(L.LightningModule):
 
     def set_noise_model(
         self,
-        noise_model: (
-            MultiChannelNoiseModel | list[str] | list[Path]
-        ),
+        noise_model: MultiChannelNoiseModel | list[str] | list[Path],
     ) -> None:
         """Set the noise model after construction.
 
