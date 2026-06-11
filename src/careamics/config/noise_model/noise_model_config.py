@@ -27,14 +27,6 @@ Array = Annotated[
 """Annotated array type, used to serialize arrays or tensors to JSON strings
 and deserialize them back to arrays."""
 
-Tensor = Annotated[
-    torch.Tensor,
-    PlainSerializer(_array_to_json, return_type=str),
-    PlainValidator(_to_torch),
-]
-"""Annotated tensor type, used to serialize tensors to JSON strings
-and deserialize them back to tensors."""
-
 
 # TODO: add histogram-based noise model
 
