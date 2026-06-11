@@ -20,5 +20,5 @@ class SupportedStructAxis(StrEnum):
 
     HORIZONTAL = "horizontal"
     VERTICAL = "vertical"
-    BOTH = "both"
+    CROSS = "cross"
     NONE = "none"

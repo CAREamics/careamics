@@ -45,7 +45,7 @@ class N2VManipulateConfig(BaseModel):
     strategy: Literal["uniform", "median"] = Field(default="uniform")
     """Strategy for pixel value replacement."""
 
-    struct_mask_axis: Literal["horizontal", "vertical", "both", "none"] = Field(
+    struct_mask_axis: Literal["horizontal", "vertical", "cross", "none"] = Field(
         default="none"
     )
     """Orientation of the structN2V mask. Set to `\"none\"` to not apply StructN2V."""
