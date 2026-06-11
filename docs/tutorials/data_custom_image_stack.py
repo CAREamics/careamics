@@ -13,6 +13,7 @@ from careamics.utils.reshape_array import reshape_patch, get_patch_slices, AxesT
 from careamics.dataset.image_stack.image_utils import pad_patch
 
 DATA_PATH = Path("data")
+DATA_PATH.mkdir(exist_ok=True)
 
 # --- create toy data
 n_files = 5
@@ -158,3 +159,7 @@ sources  # inspect the sources of the predictions # (3)!
 # --8<-- [end:train-pred]
 
 # %%
+import shutil
+
+# delete data
+shutil.rmtree(DATA_PATH)
