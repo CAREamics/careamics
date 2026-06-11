@@ -476,7 +476,7 @@ class VAEModule(L.LightningModule):
     def set_noise_model(
         self,
         noise_model: (
-            MultiChannelNoiseModel | MultiChannelNMConfig | list[str] | list[Path]
+            MultiChannelNoiseModel | list[str] | list[Path]
         ),
     ) -> None:
         """Set the noise model after construction.
@@ -487,7 +487,7 @@ class VAEModule(L.LightningModule):
 
         Parameters
         ----------
-        noise_model : MultiChannelNoiseModel | MultiChannelNMConfig | list[str | Path]
+        noise_model : MultiChannelNoiseModel | list[str | Path]
             The noise model to attach.  When a list of paths is provided the
             files are loaded in the supplied order and must contain
             ``channel_index`` metadata that matches the list position.
@@ -512,8 +512,6 @@ class VAEModule(L.LightningModule):
         # --- normalise input to MultiChannelNoiseModel -----------------
         if isinstance(noise_model, MultiChannelNoiseModel):
             resolved: MultiChannelNoiseModel = noise_model
-        elif isinstance(noise_model, MultiChannelNMConfig):
-            resolved = multichannel_noise_model_factory(noise_model)
         elif isinstance(noise_model, list):
             from careamics.config.noise_model import GaussianMixtureNMConfig
 
