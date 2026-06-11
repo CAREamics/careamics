@@ -413,7 +413,7 @@ To use N2V2, the `use_n2v2` parameter should simply be set to `True`.
 StructN2V has two parameters that can be set:
 
 - `struct_n2v_axis`: The axis along which the structN2V mask will be applied. By default it
-    is set to `none` (structN2V is disabled), you can set it to either `horizontal` or `vertical`.
+    is set to `none` (structN2V is disabled), you can set it to either `horizontal`, `vertical` or `cross`.
 - `struct_n2v_span`: The size of the structN2V mask.
 
 ```python title="Configuration with structN2V"
