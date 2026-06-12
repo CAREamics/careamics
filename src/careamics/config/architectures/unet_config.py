@@ -25,7 +25,7 @@ class UNetConfig(ArchitectureConfig):
     """
 
     # pydantic model config
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
     # discriminator used for choosing the pydantic model in Model
     architecture: Literal["UNet"]
@@ -126,3 +126,36 @@ class UNetConfig(ArchitectureConfig):
             Whether the model is 3D or not.
         """
         return self.conv_dims == 3
+
+    def get_num_input_channels(self) -> int:
+        """
+        Get the number of input channels.
+
+        Returns
+        -------
+        int
+            Number of input channels.
+        """
+        return self.in_channels
+
+    def get_num_output_channels(self) -> int:
+        """
+        Get the number of output channels.
+
+        Returns
+        -------
+        int
+            Number of output channels.
+        """
+        return self.num_classes
+
+    def uses_batch_norm(self) -> bool:
+        """
+        Return whether the model uses batch normalization.
+
+        Returns
+        -------
+        bool
+            Whether the model uses batch normalization.
+        """
+        return self.use_batch_norm

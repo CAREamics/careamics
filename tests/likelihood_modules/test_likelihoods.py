@@ -8,7 +8,7 @@ from careamics.config.noise_model.noise_model_config import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
 )
-from careamics.losses.lvae.losses import (
+from careamics.losses.lvae.lvae_losses import (
     _compute_gaussian_log_likelihood,
     _compute_noise_model_log_likelihood,
 )

@@ -7,6 +7,8 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Discriminator,
+    ValidationInfo,
+    field_validator,
     model_validator,
 )
 
@@ -32,6 +34,41 @@ def _wrap_scalar(v: Any) -> Any:
 
 FloatStats = Annotated[list[float], BeforeValidator(_wrap_scalar)]
 OptionalFloatStats = Annotated[list[float] | None, BeforeValidator(_wrap_scalar)]
+
+
+def _validate_global_stats_single_element(
+    v: list[float] | None, info: ValidationInfo
+) -> list[float] | None:
+    """Validate that global statistics are provided as single-element lists.
+
+    Parameters
+    ----------
+    v : list[float] | None
+        The value to validate.
+    info : ValidationInfo
+        Information about the validation context.
+
+    Returns
+    -------
+    list[float] | None
+        The validated value.
+
+    Raises
+    ------
+    ValueError
+        If ``per_channel`` is False and the list does not have exactly one element.
+    """
+    if "per_channel" not in info.data:
+        raise ValueError("per_channel parameter must be provided for validation.")
+
+    per_channel = info.data["per_channel"]
+    if not per_channel and v is not None and len(v) != 1:
+        raise ValueError(
+            f'Global statistics (`per_channel="False"`) must be provided as '
+            f"single-element lists (got {v})."
+        )
+
+    return v
 
 
 class MeanStdConfig(BaseModel):
@@ -65,11 +102,36 @@ class MeanStdConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     name: Literal["mean_std"] = "mean_std"
+    per_channel: bool = True
     input_means: OptionalFloatStats = None
     input_stds: OptionalFloatStats = None
     target_means: OptionalFloatStats = None
     target_stds: OptionalFloatStats = None
-    per_channel: bool = True
+
+    @field_validator(
+        "input_means", "input_stds", "target_means", "target_stds", mode="after"
+    )
+    @classmethod
+    def validate_global_stats_single_element(
+        cls,
+        v: OptionalFloatStats,
+        info: ValidationInfo,
+    ) -> OptionalFloatStats:
+        """Validate stats length against the `per_channel` parameter.
+
+        Parameters
+        ----------
+        v : OptionalFloatStats
+            Value to validate.
+        info : ValidationInfo
+            Validated values.
+
+        Returns
+        -------
+        OptionalFloatStats
+            Validate value.
+        """
+        return _validate_global_stats_single_element(v, info)
 
     @model_validator(mode="after")
     def validate_means_stds(self: Self) -> Self:
@@ -145,6 +207,72 @@ class MeanStdConfig(BaseModel):
         object.__setattr__(self, "target_stds", stds)
         self.__class__.model_validate(self)
 
+    def _validate_input_stats_size(self: Self, n_input_channels: int) -> None:
+        """Validate that the input statistics have the correct length.
+
+        Parameters
+        ----------
+        n_input_channels : int
+            The number of input channels to validate against.
+
+        Raises
+        ------
+        ValueError
+            If the length of input_means does not match the number of input channels.
+        """
+        # we assume that means and stds are already validated against each other, and
+        # against per-channel parameter
+        if self.per_channel:
+            if self.input_means is not None:
+                if len(self.input_means) != n_input_channels:
+                    raise ValueError(
+                        f"input_means length {len(self.input_means)} does not match "
+                        f"number of input channels {n_input_channels}."
+                    )
+
+    def _validate_target_stats_size(self: Self, n_target_channels: int) -> None:
+        """Validate that the target statistics have the correct length.
+
+        Parameters
+        ----------
+        n_target_channels : int
+            The number of target channels to validate against.
+
+        Raises
+        ------
+        ValueError
+            If the length of target_means does not match the number of target channels.
+        """
+        # we assume that means and stds are already validated against each other, and
+        # against per-channel parameter
+        if self.per_channel:
+            if self.target_means is not None:
+                if len(self.target_means) != n_target_channels:
+                    raise ValueError(
+                        f"target_means length {len(self.target_means)} does not match "
+                        f"number of target channels {n_target_channels}."
+                    )
+
+    def validate_size(
+        self: Self, n_input_channels: int, n_output_channels: int
+    ) -> None:
+        """Validate that statistics sizes match the number of channels.
+
+        Parameters
+        ----------
+        n_input_channels : int
+            The number of input channels to validate against.
+        n_output_channels : int
+            The number of output channels to validate against.
+
+        Raises
+        ------
+        ValueError
+            If any provided statistics list does not match the expected size.
+        """
+        self._validate_input_stats_size(n_input_channels)
+        self._validate_target_stats_size(n_output_channels)
+
 
 class QuantileConfig(BaseModel):
     """
@@ -179,13 +307,44 @@ class QuantileConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     name: Literal["quantile"] = "quantile"
+    per_channel: bool = True
     lower_quantiles: FloatStats = [0.01]
     upper_quantiles: FloatStats = [0.99]
     input_lower_quantile_values: OptionalFloatStats = None
     input_upper_quantile_values: OptionalFloatStats = None
     target_lower_quantile_values: OptionalFloatStats = None
     target_upper_quantile_values: OptionalFloatStats = None
-    per_channel: bool = True
+
+    @field_validator(
+        "lower_quantiles",
+        "upper_quantiles",
+        "input_lower_quantile_values",
+        "input_upper_quantile_values",
+        "target_lower_quantile_values",
+        "target_upper_quantile_values",
+        mode="after",
+    )
+    @classmethod
+    def validate_global_stats_single_element(
+        cls,
+        v: OptionalFloatStats,
+        info: ValidationInfo,
+    ) -> OptionalFloatStats:
+        """Validate stats length against the `per_channel` parameter.
+
+        Parameters
+        ----------
+        v : OptionalFloatStats
+            Value to validate.
+        info : ValidationInfo
+            Validated values.
+
+        Returns
+        -------
+        OptionalFloatStats
+            Validate value.
+        """
+        return _validate_global_stats_single_element(v, info)
 
     @model_validator(mode="after")
     def validate_quantile_levels(self: Self) -> Self:
@@ -290,29 +449,6 @@ class QuantileConfig(BaseModel):
                     )
         return self
 
-    @model_validator(mode="after")
-    def validate_per_channel(self: Self) -> Self:
-        """Validate quantile levels match per_channel setting.
-
-        Returns
-        -------
-        Self
-            The validated model instance.
-
-        Raises
-        ------
-        ValueError
-            If per_channel=False but quantile levels are not length 1.
-        """
-        if not self.per_channel:
-            if len(self.lower_quantiles) != 1 or len(self.upper_quantiles) != 1:
-                raise ValueError(
-                    "When per_channel=False, quantile levels must be length 1. "
-                    f"Got lower_quantiles length {len(self.lower_quantiles)} "
-                    f"and upper_quantiles length {len(self.upper_quantiles)}."
-                )
-        return self
-
     def needs_computation(self) -> bool:
         """Check if quantile values need to be computed.
 
@@ -358,6 +494,111 @@ class QuantileConfig(BaseModel):
         object.__setattr__(self, "target_upper_quantile_values", upper)
         self.__class__.model_validate(self)
 
+    def _validate_input_quantile_size(self: Self, n_input_channels: int) -> None:
+        """Validate that the input quantile values have the correct length.
+
+        Parameters
+        ----------
+        n_input_channels : int
+            The number of input channels to validate against.
+
+        Raises
+        ------
+        ValueError
+            If the length of input_lower_quantile_values does not match the number of
+            input channels.
+        """
+        # we assume that lower and upper quantile values are already validated against
+        # each other, and against per-channel parameter
+        if self.per_channel:
+            if self.input_lower_quantile_values is not None:
+                if len(self.input_lower_quantile_values) != n_input_channels:
+                    raise ValueError(
+                        f"input_lower_quantile_values length "
+                        f"{len(self.input_lower_quantile_values)} does not match "
+                        f"number of input channels {n_input_channels}."
+                    )
+
+    def _validate_target_quantile_size(self: Self, n_target_channels: int) -> None:
+        """Validate that the target quantile values have the correct length.
+
+        Parameters
+        ----------
+        n_target_channels : int
+            The number of target channels to validate against.
+
+        Raises
+        ------
+        ValueError
+            If the length of target_lower_quantile_values does not match the number
+            of target channels.
+        """
+        # we assume that if lower and upper quantile values are already validated
+        # against each other, and
+        # against per-channel
+        if self.per_channel:
+            if self.target_lower_quantile_values is not None:
+                if len(self.target_lower_quantile_values) != n_target_channels:
+                    raise ValueError(
+                        f"target_lower_quantile_values length "
+                        f"{len(self.target_lower_quantile_values)} does not match "
+                        f"number of target channels {n_target_channels}."
+                    )
+
+    def _validate_quantiles_size(self: Self, n_input_channels: int) -> None:
+        """Validate that the quantiles values have the correct length.
+
+        Parameters
+        ----------
+        n_input_channels : int
+            The number of target channels to validate against.
+
+        Raises
+        ------
+        ValueError
+            If the length of lower_quantiles does not match the number
+            of input channels.
+        """
+        # we assume that if lower and upper quantiles are already validated
+        # against each other, and against per-channel
+        if self.per_channel:
+            if len(self.lower_quantiles) != n_input_channels:
+                raise ValueError(
+                    f"lower_quantiles length "
+                    f"{len(self.lower_quantiles)} does not match "
+                    f"number of input channels {n_input_channels}."
+                )
+
+    def validate_size(
+        self: Self, n_input_channels: int, n_output_channels: int
+    ) -> None:
+        """Validate that statistics sizes match the number of channels.
+
+        Parameters
+        ----------
+        n_input_channels : int
+            The number of input channels to validate against.
+        n_output_channels : int
+            The number of output channels to validate against.
+
+        Raises
+        ------
+        ValueError
+            If any provided statistics list does not match the expected size.
+        """
+        if self.per_channel:
+            if n_input_channels != n_output_channels:
+                raise ValueError(
+                    f"Quantile normalization per channel is only compatible with "
+                    f"matching number of input and output channels. Got "
+                    f"{n_input_channels} input channels and {n_output_channels} output "
+                    f"channels."
+                )
+
+        self._validate_input_quantile_size(n_input_channels)
+        self._validate_input_quantile_size(n_input_channels)
+        self._validate_target_quantile_size(n_output_channels)
+
 
 class MinMaxConfig(BaseModel):
     """
@@ -388,11 +629,36 @@ class MinMaxConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     name: Literal["min_max"] = "min_max"
+    per_channel: bool = True
     input_mins: OptionalFloatStats = None
     input_maxes: OptionalFloatStats = None
     target_mins: OptionalFloatStats = None
     target_maxes: OptionalFloatStats = None
-    per_channel: bool = True
+
+    @field_validator(
+        "input_mins", "input_maxes", "target_mins", "target_maxes", mode="after"
+    )
+    @classmethod
+    def validate_global_stats_single_element(
+        cls,
+        v: OptionalFloatStats,
+        info: ValidationInfo,
+    ) -> OptionalFloatStats:
+        """Validate stats length against the `per_channel` parameter.
+
+        Parameters
+        ----------
+        v : OptionalFloatStats
+            Value to validate.
+        info : ValidationInfo
+            Validated values.
+
+        Returns
+        -------
+        OptionalFloatStats
+            Validate value.
+        """
+        return _validate_global_stats_single_element(v, info)
 
     @model_validator(mode="after")
     def validate_mins_maxes(self: Self) -> Self:
@@ -417,6 +683,15 @@ class MinMaxConfig(BaseModel):
             if len(self.input_mins) != len(self.input_maxes):
                 raise ValueError("input_mins and input_maxes must have same length.")
 
+            for i, (min_val, max_val) in enumerate(
+                zip(self.input_mins, self.input_maxes, strict=True)
+            ):
+                if min_val >= max_val:
+                    raise ValueError(
+                        f"input_mins[{i}] ({min_val}) must be less than "
+                        f"input_maxes[{i}] ({max_val})"
+                    )
+
         if (self.target_mins is None) != (self.target_maxes is None):
             raise ValueError(
                 "target_mins and target_maxes must be both provided or both None."
@@ -424,6 +699,15 @@ class MinMaxConfig(BaseModel):
         if self.target_mins is not None and self.target_maxes is not None:
             if len(self.target_mins) != len(self.target_maxes):
                 raise ValueError("target_mins and target_maxes must have same length.")
+
+            for i, (min_val, max_val) in enumerate(
+                zip(self.target_mins, self.target_maxes, strict=True)
+            ):
+                if min_val >= max_val:
+                    raise ValueError(
+                        f"target_mins[{i}] ({min_val}) must be less than "
+                        f"target_maxes[{i}] ({max_val})"
+                    )
 
         return self
 
@@ -468,6 +752,72 @@ class MinMaxConfig(BaseModel):
         object.__setattr__(self, "target_maxes", maxes)
         self.__class__.model_validate(self)
 
+    def _validate_input_stats_size(self: Self, n_input_channels: int) -> None:
+        """Validate that the input statistics have the correct length.
+
+        Parameters
+        ----------
+        n_input_channels : int
+            The number of input channels to validate against.
+
+        Raises
+        ------
+        ValueError
+            If the length of input_mins does not match the number of input channels.
+        """
+        # we assume that mins and maxes are already validated against each other, and
+        # against per-channel parameter
+        if self.per_channel:
+            if self.input_mins is not None:
+                if len(self.input_mins) != n_input_channels:
+                    raise ValueError(
+                        f"input_mins length {len(self.input_mins)} does not match "
+                        f"number of input channels {n_input_channels}."
+                    )
+
+    def _validate_target_stats_size(self: Self, n_target_channels: int) -> None:
+        """Validate that the target statistics have the correct length.
+
+        Parameters
+        ----------
+        n_target_channels : int
+            The number of target channels to validate against.
+
+        Raises
+        ------
+        ValueError
+            If the length of target_mins does not match the number of target channels.
+        """
+        # we assume that mins and maxes are already validated against each other, and
+        # against per-channel parameter
+        if self.per_channel:
+            if self.target_mins is not None:
+                if len(self.target_mins) != n_target_channels:
+                    raise ValueError(
+                        f"target_mins length {len(self.target_mins)} does not match "
+                        f"number of target channels {n_target_channels}."
+                    )
+
+    def validate_size(
+        self: Self, n_input_channels: int, n_output_channels: int
+    ) -> None:
+        """Validate that statistics sizes match the number of channels.
+
+        Parameters
+        ----------
+        n_input_channels : int
+            The number of input channels to validate against.
+        n_output_channels : int
+            The number of output channels to validate against.
+
+        Raises
+        ------
+        ValueError
+            If any provided statistics list does not match the expected size.
+        """
+        self._validate_input_stats_size(n_input_channels)
+        self._validate_target_stats_size(n_output_channels)
+
 
 class NoNormConfig(BaseModel):
     """
@@ -492,6 +842,18 @@ class NoNormConfig(BaseModel):
             Always False, as no statistics are required.
         """
         return False
+
+    def validate_size(self: Self, *args: Any, **kwargs: Any) -> None:
+        """No validation needed.
+
+        Parameters
+        ----------
+        *args : Any
+            Parameters will be ignored.
+        **kwargs : Any
+            Parameters will be ignored.
+        """
+        pass
 
 
 NormalizationConfig = Annotated[

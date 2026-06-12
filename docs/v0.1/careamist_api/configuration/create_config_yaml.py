@@ -2,8 +2,8 @@
 # This script is used to create the config.yaml used in the docs
 from pathlib import Path
 
-from careamics.config.utils.configuration_io import save_configuration
-from careamics.config import create_n2v_configuration
+from careamics.compat.config.utils.configuration_io import save_configuration
+from careamics.compat.config import create_n2v_configuration
 
 config_path = Path(__file__).parent / "config.yml"
 config = create_n2v_configuration(

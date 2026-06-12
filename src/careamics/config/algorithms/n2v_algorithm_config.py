@@ -6,13 +6,13 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import AfterValidator, ConfigDict, model_validator
 
 from careamics.config.architectures import UNetConfig
-from careamics.config.augmentations import N2VManipulateConfig
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
 from careamics.config.validators import (
     model_matching_in_out_channels,
     model_without_final_activation,
 )
 
+from .n2v_manipulation import N2VManipulateConfig
 from .unet_algorithm_config import UNetBasedAlgorithm
 
 N2V = "Noise2Void"
@@ -89,7 +89,9 @@ STR_N2V2_DESCRIPTION = (
 class N2VAlgorithm(UNetBasedAlgorithm):
     """N2V Algorithm configuration."""
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
 
     algorithm: Literal["n2v"] = "n2v"
     """N2V Algorithm name."""
@@ -98,15 +100,18 @@ class N2VAlgorithm(UNetBasedAlgorithm):
     """N2V loss function."""
 
     monitor_metric: Literal["train_loss", "train_loss_epoch", "val_loss"] = "val_loss"
-    """Metric to monitor for the learning rate scheduler."""
+    """Metric to monitor for the learning rate scheduler. Used in the returned dict of
+    PyTorch Lightning `configure_optimizers` method."""
 
     n2v_config: N2VManipulateConfig = N2VManipulateConfig()
+    """Noise2Void pixel manipulation configuration."""
 
     model: Annotated[
         UNetConfig,
         AfterValidator(model_matching_in_out_channels),
         AfterValidator(model_without_final_activation),
     ]
+    """Model parameters."""
 
     @model_validator(mode="after")
     def validate_n2v2(self) -> Self:

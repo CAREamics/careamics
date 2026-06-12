@@ -630,7 +630,7 @@ def test_create_microsplit_configuration_without_noise_model_prints_reminder(
 ) -> None:
     import warnings
 
-    from careamics.config.configuration_factories import (
+    from careamics.compat.config.configuration_factories import (
         create_microsplit_configuration,
     )
 
@@ -662,7 +662,7 @@ def microsplit_module(tmp_path):
 
     from careamics.config.noise_model import GaussianMixtureNMConfig
     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-    from careamics.lightning.lightning_module import VAEModule
+    from careamics.lightning.modules.vae_lightning_module import VAEModule
 
     weights = np.random.randn(3, 2).astype(np.float32)
     nm_cfg = GaussianMixtureNMConfig(
@@ -675,7 +675,7 @@ def microsplit_module(tmp_path):
     )
     mc_config = MultiChannelNMConfig(noise_models=[nm_cfg, nm_cfg])
 
-    from careamics.config.configuration_factories import (
+    from careamics.compat.config.configuration_factories import (
         create_microsplit_configuration,
     )
 
@@ -706,35 +706,14 @@ def test_set_noise_model_accepts_multichannel_noise_model(microsplit_module) -> 
     assert isinstance(module.noise_model, MultiChannelNoiseModel)
 
 
-def test_set_noise_model_accepts_multichannel_nm_config(microsplit_module) -> None:
-    """set_noise_model() accepts a MultiChannelNMConfig."""
-    from careamics.config.noise_model import GaussianMixtureNMConfig
-    from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-
-    module, _ = microsplit_module
-    weights = np.random.randn(3, 2).astype(np.float32)
-    nm_cfg = GaussianMixtureNMConfig(
-        weight=weights,
-        min_signal=0.0,
-        max_signal=255.0,
-        min_sigma=125.0,
-        n_gaussian=1,
-        n_coeff=2,
-    )
-    mc_config = MultiChannelNMConfig(noise_models=[nm_cfg, nm_cfg])
-
-    module.set_noise_model(mc_config)
-    assert isinstance(module.noise_model, MultiChannelNoiseModel)
-
-
 def test_on_fit_start_requires_noise_model_for_denoisplit() -> None:
     """denoiSplit cannot start fitting without an attached noise model."""
     import warnings
 
-    from careamics.config.configuration_factories import (
+    from careamics.compat.config.configuration_factories import (
         create_microsplit_configuration,
     )
-    from careamics.lightning.lightning_module import VAEModule
+    from careamics.lightning.modules.vae_lightning_module import VAEModule
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -755,52 +734,53 @@ def test_on_fit_start_requires_noise_model_for_denoisplit() -> None:
         module.on_fit_start()
 
 
-def test_on_fit_start_accepts_runtime_attached_noise_model() -> None:
-    """denoiSplit can start fitting after runtime noise-model attachment."""
-    import warnings
+# --- Removed because set_noise_model does not accept simply a configuration
+# def test_on_fit_start_accepts_runtime_attached_noise_model() -> None:
+#     """denoiSplit can start fitting after runtime noise-model attachment."""
+#     import warnings
 
-    from careamics.config.configuration_factories import (
-        create_microsplit_configuration,
-    )
-    from careamics.lightning.lightning_module import VAEModule
+#     from careamics.compat.config.configuration_factories import (
+#         create_microsplit_configuration,
+#     )
+#     from careamics.lightning.modules.vae_lightning_module import VAEModule
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        config = create_microsplit_configuration(
-            experiment_name="runtime_noise_model_test",
-            data_type="array",
-            axes="SYX",
-            patch_size=[64, 64],
-            batch_size=4,
-            denoisplit_weight=0.9,
-            musplit_weight=0.1,
-            output_channels=2,
-        )
+#     with warnings.catch_warnings():
+#         warnings.simplefilter("ignore")
+#         config = create_microsplit_configuration(
+#             experiment_name="runtime_noise_model_test",
+#             data_type="array",
+#             axes="SYX",
+#             patch_size=[64, 64],
+#             batch_size=4,
+#             denoisplit_weight=0.9,
+#             musplit_weight=0.1,
+#             output_channels=2,
+#         )
 
-    module = VAEModule(config.algorithm_config)
-    weights = np.random.randn(3, 2).astype(np.float32)
-    nm_cfg = GaussianMixtureNMConfig(
-        weight=weights,
-        min_signal=0.0,
-        max_signal=255.0,
-        min_sigma=125.0,
-        n_gaussian=1,
-        n_coeff=2,
-    )
-    mc_config = MultiChannelNMConfig(noise_models=[nm_cfg, nm_cfg])
+#     module = VAEModule(config.algorithm_config)
+#     weights = np.random.randn(3, 2).astype(np.float32)
+#     nm_cfg = GaussianMixtureNMConfig(
+#         weight=weights,
+#         min_signal=0.0,
+#         max_signal=255.0,
+#         min_sigma=125.0,
+#         n_gaussian=1,
+#         n_coeff=2,
+#     )
+#     mc_config = MultiChannelNMConfig(noise_models=[nm_cfg, nm_cfg])
 
-    module.set_noise_model(mc_config)
-    module.on_fit_start()
+#     module.set_noise_model(mc_config)
+#     module.on_fit_start()
 
 
 def test_on_fit_start_allows_missing_noise_model_when_not_required() -> None:
     """muSplit-only training does not require a noise model."""
     import warnings
 
-    from careamics.config.configuration_factories import (
+    from careamics.compat.config.configuration_factories import (
         create_microsplit_configuration,
     )
-    from careamics.lightning.lightning_module import VAEModule
+    from careamics.lightning.modules.vae_lightning_module import VAEModule
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -836,37 +816,38 @@ def test_set_noise_model_accepts_paths(microsplit_module, tmp_path) -> None:
     assert module.noise_model._nm_cnt == 2
 
 
-def test_set_noise_model_rejects_wrong_channel_count(microsplit_module) -> None:
-    """set_noise_model() raises when channel count mismatches output_channels."""
-    from careamics.config.noise_model import GaussianMixtureNMConfig
-    from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
+# --- Removed because set_noise_model does not accept simply a configuration
+# def test_set_noise_model_rejects_wrong_channel_count(microsplit_module) -> None:
+#     """set_noise_model() raises when channel count mismatches output_channels."""
+#     from careamics.config.noise_model import GaussianMixtureNMConfig
+#     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
-    module, _ = microsplit_module
-    weights = np.random.randn(3, 2).astype(np.float32)
-    nm_cfg = GaussianMixtureNMConfig(
-        weight=weights,
-        min_signal=0.0,
-        max_signal=255.0,
-        min_sigma=125.0,
-        n_gaussian=1,
-        n_coeff=2,
-    )
-    mc_config = MultiChannelNMConfig(noise_models=[nm_cfg])  # only 1 instead of 2
+#     module, _ = microsplit_module
+#     weights = np.random.randn(3, 2).astype(np.float32)
+#     nm_cfg = GaussianMixtureNMConfig(
+#         weight=weights,
+#         min_signal=0.0,
+#         max_signal=255.0,
+#         min_sigma=125.0,
+#         n_gaussian=1,
+#         n_coeff=2,
+#     )
+#     mc_config = MultiChannelNMConfig(noise_models=[nm_cfg])  # only 1 instead of 2
 
-    with pytest.raises(ValueError, match="Number of noise models"):
-        module.set_noise_model(mc_config)
+#     with pytest.raises(ValueError, match="Number of noise models"):
+#         module.set_noise_model(mc_config)
 
 
 def test_set_noise_model_rejects_when_no_noise_model_required() -> None:
     """set_noise_model() raises when denoisplit_weight == 0 (musplit only)."""
     import warnings
 
-    from careamics.config.configuration_factories import (
+    from careamics.compat.config.configuration_factories import (
         create_microsplit_configuration,
     )
     from careamics.config.noise_model import GaussianMixtureNMConfig
     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-    from careamics.lightning.lightning_module import VAEModule
+    from careamics.lightning.modules.vae_lightning_module import VAEModule
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

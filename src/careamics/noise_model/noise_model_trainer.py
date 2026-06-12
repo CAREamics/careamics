@@ -594,6 +594,7 @@ class NoiseModelTrainer:
                             stacklevel=3,
                         )
 
+    # TODO why pass learning rate?
     def _train_single_channel(
         self,
         signal: NDArray,

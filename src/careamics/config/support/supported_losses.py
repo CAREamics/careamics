@@ -1,10 +1,10 @@
 """Losses supported by CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
 # TODO register loss with custom_loss decorator?
-class SupportedLoss(str, BaseEnum):
+class SupportedLoss(StrEnum):
     """Supported losses.
 
     Attributes
@@ -15,6 +15,12 @@ class SupportedLoss(str, BaseEnum):
         Mean Absolute Error loss.
     N2V : str
         Noise2Void loss.
+    PN2V : str
+        Probabilistic Noise2Void loss.
+    HDN : str
+        Hierarchical DivNoising loss.
+    MICROSPLIT : str
+        MicroSplit loss.
     """
 
     MSE = "mse"

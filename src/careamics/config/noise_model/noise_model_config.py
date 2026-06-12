@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Annotated, Literal, Self, Union
 
 import numpy as np
-import torch
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -14,15 +13,15 @@ from pydantic import (
     model_validator,
 )
 
-from careamics.utils.serializers import _array_to_json, _to_numpy
+from .serializers import array_to_json, to_numpy
 
 # TODO: this is a temporary solution to serialize and deserialize array fields
 # in pydantic models. Specifically, the aim is to enable saving and loading configs
 # with such arrays to/from JSON files during, resp., training and evaluation.
 Array = Annotated[
-    Union[np.ndarray, torch.Tensor],
-    PlainSerializer(_array_to_json, return_type=str),
-    PlainValidator(_to_numpy),
+    np.ndarray,
+    PlainSerializer(array_to_json, return_type=str),
+    PlainValidator(to_numpy),
 ]
 """Annotated array type, used to serialize arrays or tensors to JSON strings
 and deserialize them back to arrays."""
@@ -31,6 +30,9 @@ and deserialize them back to arrays."""
 # TODO: add histogram-based noise model
 
 
+# TODO I rogued added the following changes:
+# - removed torch.Tensor as a type for the weights
+# - removed the ConfigDict options `protected_namespace=()` and `extra="allow"`
 class GaussianMixtureNMConfig(BaseModel):
     """Gaussian mixture noise model configuration.
 
@@ -40,10 +42,8 @@ class GaussianMixtureNMConfig(BaseModel):
     """
 
     model_config = ConfigDict(
-        protected_namespaces=(),
         validate_assignment=True,
         arbitrary_types_allowed=True,
-        extra="allow",
     )
 
     model_type: Literal["GaussianMixtureNoiseModel"] = "GaussianMixtureNoiseModel"
@@ -136,10 +136,7 @@ class MultiChannelNMConfig(BaseModel):
     detecting channel-order swaps before training.
     """
 
-    # TODO: check that this model config is OK
-    model_config = ConfigDict(
-        validate_assignment=True, arbitrary_types_allowed=True, extra="allow"
-    )
+    model_config = ConfigDict(validate_assignment=True)
     noise_models: list[GaussianMixtureNMConfig]
     """List of noise models, one for each target channel."""
 

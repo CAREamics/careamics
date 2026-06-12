@@ -3,6 +3,7 @@ import pytest
 from careamics.config.architectures import UNetConfig
 from careamics.config.validators import (
     model_matching_in_out_channels,
+    model_no_c_ind_for_mismatching_channels,
     model_without_final_activation,
     model_without_n2v2,
 )
@@ -50,3 +51,23 @@ def test_model_matching_in_out_channels():
     )
     with pytest.raises(ValueError):
         model_matching_in_out_channels(model)
+
+
+def test_model_no_c_ind_for_mismatching_channels():
+    """Test the validation of the model with channel independence."""
+    model = UNetConfig(
+        architecture="UNet",
+        in_channels=3,
+        num_classes=5,
+        independent_channels=False,
+    )
+    assert model_no_c_ind_for_mismatching_channels(model) == model
+
+    model = UNetConfig(
+        architecture="UNet",
+        in_channels=3,
+        num_classes=5,
+        independent_channels=True,
+    )
+    with pytest.raises(ValueError):
+        model_no_c_ind_for_mismatching_channels(model)

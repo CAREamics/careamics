@@ -8,8 +8,6 @@ from pydantic import Field
 from ._overlapping_patched_config import _OverlappingPatchedConfig
 
 
-# TODO with UNet tiling must obey different rules than sequential tiling
-#   - needs to validated at the level of the configuration
 class TiledPatchingConfig(_OverlappingPatchedConfig):
     """Tiled patching Pydantic model.
 

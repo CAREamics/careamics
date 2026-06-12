@@ -9,14 +9,11 @@ except PackageNotFoundError:
 
 __all__ = [
     "CAREamist",
-    "Configuration",
+    "ImageStackLoading",
     "NoiseModelTrainer",
-    "algorithm_factory",
+    "ReadFuncLoading",
 ]
 
 from .careamist import CAREamist
-from .config import (
-    Configuration,
-    algorithm_factory,
-)
+from .dataset.factory import ImageStackLoading, ReadFuncLoading
 from .noise_model import NoiseModelTrainer

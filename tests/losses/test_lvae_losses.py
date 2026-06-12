@@ -17,12 +17,12 @@ from careamics.config import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
 )
-from careamics.config.losses.loss_config import LVAELossConfig
-from careamics.losses.loss_factory import (
-    SupportedLoss,
-    loss_factory,
+from careamics.config.losses import LVAELossConfig
+from careamics.config.support import SupportedLoss
+from careamics.losses.lvae.lvae_loss_factory import (
+    lvae_loss_factory,
 )
-from careamics.losses.lvae.losses import (
+from careamics.losses.lvae.lvae_losses import (
     _compute_gaussian_log_likelihood,
     _compute_noise_model_log_likelihood,
     get_kl_divergence_loss,
@@ -79,7 +79,7 @@ def _make_td_data(batch_size, n_layers, img_size, enable_lc):
 )
 def test_lvae_loss_factory(loss_type, exp_loss_func, exp_error):
     with exp_error:
-        loss_func = loss_factory(loss_type)
+        loss_func = lvae_loss_factory(loss_type)
         assert loss_func is not None
         assert callable(loss_func)
         assert loss_func == exp_loss_func

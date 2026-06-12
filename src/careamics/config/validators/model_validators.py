@@ -8,12 +8,12 @@ def model_without_n2v2(model: UNetConfig) -> UNetConfig:
 
     Parameters
     ----------
-    model : UNetModel
+    model : UNetConfig
         Model to validate.
 
     Returns
     -------
-    UNetModel
+    UNetConfig
         The validated model.
 
     Raises
@@ -35,12 +35,12 @@ def model_without_final_activation(model: UNetConfig) -> UNetConfig:
 
     Parameters
     ----------
-    model : UNetModel
+    model : UNetConfig
         Model to validate.
 
     Returns
     -------
-    UNetModel
+    UNetConfig
         The validated model.
 
     Raises
@@ -62,12 +62,12 @@ def model_matching_in_out_channels(model: UNetConfig) -> UNetConfig:
 
     Parameters
     ----------
-    model : UNetModel
+    model : UNetConfig
         Model to validate.
 
     Returns
     -------
-    UNetModel
+    UNetConfig
         Validated model.
 
     Raises
@@ -79,6 +79,35 @@ def model_matching_in_out_channels(model: UNetConfig) -> UNetConfig:
         raise ValueError(
             "The algorithm requires the same number of input and output channels. "
             "Make sure that `in_channels` and `num_classes` are equal."
+        )
+
+    return model
+
+
+def model_no_c_ind_for_mismatching_channels(model: UNetConfig) -> UNetConfig:
+    """Validate that UNet models with mismatching input/output has dependent channels.
+
+    Parameters
+    ----------
+    model : UNetModel
+        Model to validate.
+
+    Returns
+    -------
+    UNetModel
+        Validated model.
+
+    Raises
+    ------
+    ValueError
+        If the model has `independent_channels` set to `True` while the number of input
+        and output channels do not match.
+    """
+    if model.num_classes != model.in_channels and model.independent_channels:
+        raise ValueError(
+            f"Channels cannot be independent if the number of input and output channels"
+            f" do not match. Got {model.in_channels} input channels and "
+            f"{model.num_classes} output channels."
         )
 
     return model

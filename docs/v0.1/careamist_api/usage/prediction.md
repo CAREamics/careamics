@@ -1,5 +1,10 @@
 # Prediction
 
+!!! warning "Legacy documentation"
+    This documentation is for the legacy version of CAREamics (v0.1), which is
+    accessible through the `careamics.compat` module. It is kept here for reference, but
+    we recommend using the latest version of CAREamics (v0.2) for new projects. Head to the [v0.2 guides](../v0.2/index.md).
+
 Prediction is done by calling `careamist.predict` on either path or arrays. By default,
 the prediction function will expect the same type of data (e.g. array or path) as it
 was trained on, but it is possible to predict on a different type of data.
@@ -13,13 +18,13 @@ Prediction is performed using the current weights.
 === ":material-application-array-outline: On numpy arrays"
 
     ```python
-    --8<-- "prediction.py:array"
+    --8<-- "v0.1/careamist_api/usage/prediction.py:array"
     ```
 
 === ":octicons-rel-file-path-16: On Paths"
 
     ```python
-    --8<-- "prediction.py:path"
+    --8<-- "v0.1/careamist_api/usage/prediction.py:path"
     ```
 
 ## Tiling
@@ -31,7 +36,7 @@ tiled into smaller overlapping patches, predicted upon and ultimately recombined
 In `careamist.predict`, this is done by passing two parameters:
 
 ``` python
---8<-- "prediction.py:tiling"
+--8<-- "v0.1/careamist_api/usage/prediction.py:tiling"
 ```
 
 1. The tile sizes correspond to each spatial dimensions. A good start is the patch size
@@ -64,7 +69,7 @@ By default, test-time augmentation is applied by CAREamics. In order to deactiva
 you can set `tta` to `False`.
 
 ``` python
---8<-- "prediction.py:tta"
+--8<-- "v0.1/careamist_api/usage/prediction.py:tta"
 ```
 
 1. By default, TTA is activated!
@@ -79,7 +84,7 @@ you can set `tta` to `False`.
 To potentially predict faster, you can predict on batches of images.
 
 ``` python
---8<-- "prediction.py:batches"
+--8<-- "v0.1/careamist_api/usage/prediction.py:batches"
 ```
 
 1. Each prediction step will be performed on 2 images or tiles.
@@ -94,7 +99,7 @@ You can use a different type (in the sense `path` vs `array`) of data at predict
 by changing the `data_type` parameter.
 
 ``` python
---8<-- "prediction.py:diff_type"
+--8<-- "v0.1/careamist_api/usage/prediction.py:diff_type"
 ```
 
 1. As in the rest of CAREamics, the supported value are `tiff`, `array` and `custom`. 
@@ -106,7 +111,7 @@ as long as those have the same number of channels and spatial dimensions, then y
 change the `axes` parameter.
 
 ``` python
---8<-- "prediction.py:diff_axes"
+--8<-- "v0.1/careamist_api/usage/prediction.py:diff_axes"
 ```
 
 1. Obviously, this need to match `source`.
@@ -117,6 +122,6 @@ As for the training, one can predict on custom data types by providing a functio
 reads the data from a path and a function to filter the requested extension.
 
 ``` python
---8<-- "prediction.py:custom_type"
+--8<-- "v0.1/careamist_api/usage/prediction.py:custom_type"
 ```
 

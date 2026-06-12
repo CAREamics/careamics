@@ -79,13 +79,22 @@ class UNetBasedAlgorithm(BaseModel):
         """
         return pformat(self.model_dump())
 
-    @classmethod
-    def get_compatible_algorithms(cls) -> list[str]:
-        """Get the list of compatible algorithms.
+    def get_num_input_channels(self) -> int:
+        """Get the number of input channels.
 
         Returns
         -------
-        list of str
-            List of compatible algorithms.
+        int
+            Number of input channels.
         """
-        return ["n2v", "care", "n2n", "pn2v"]
+        return self.model.get_num_input_channels()
+
+    def uses_batch_norm(self) -> bool:
+        """Return whether the model uses batch normalization.
+
+        Returns
+        -------
+        bool
+            Whether the model uses batch normalization.
+        """
+        return self.model.uses_batch_norm()
