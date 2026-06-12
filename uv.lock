@@ -405,17 +405,17 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bioimageio-core", specifier = ">=0.9.0,<=0.9.5" },
+    { name = "bioimageio-core", specifier = ">=0.9.0,<=0.10.4" },
     { name = "careamics-portfolio", marker = "extra == 'examples'" },
     { name = "jupyter", marker = "extra == 'examples'" },
     { name = "matplotlib", specifier = "<=3.10.9" },
     { name = "microssim", specifier = "<=0.0.4" },
-    { name = "numpy", specifier = ">=1.21,<=2.4.4" },
+    { name = "numpy", specifier = ">=1.21,<=2.4.6" },
     { name = "pillow", specifier = "<=12.2.0" },
     { name = "psutil", specifier = "<=7.2.2" },
     { name = "pydantic", specifier = ">=2.11,<=2.13.3" },
     { name = "pylibczirw", marker = "extra == 'czi'", specifier = ">=4.1.2,<7.0.0" },
-    { name = "pytorch-lightning", specifier = ">=2.2,<=2.6.1,!=2.6.2,!=2.6.3" },
+    { name = "pytorch-lightning", specifier = ">=2.2,!=2.6.2,!=2.6.3,<=2.6.5" },
     { name = "pyyaml", specifier = "!=6.0.0,<=6.0.3" },
     { name = "scikit-image", specifier = "<=0.26.0" },
     { name = "tensorboard", marker = "extra == 'tensorboard'" },

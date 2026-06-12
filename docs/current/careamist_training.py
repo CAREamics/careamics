@@ -1,18 +1,22 @@
 #!/usr/bin/env python
 import numpy as np
-from careamics.config.factories import create_n2v_config, create_care_config
-from careamics.dataset.factory import ReadFuncLoading
+from careamics.config.factories import (
+    create_advanced_n2v_config,
+    create_advanced_care_config,
+)
 
 # create a configuration
-config_n2v = create_n2v_config(
+config_n2v = create_advanced_n2v_config(
     experiment_name="n2v",
     data_type="array",
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=1,
+    n_val_patches=2,
+    trainer_params={"limit_train_batches": 1},
 )
-config_care = create_care_config(
+config_care = create_advanced_care_config(
     experiment_name="care",
     data_type="array",
     axes="YX",
@@ -20,6 +24,7 @@ config_care = create_care_config(
     batch_size=8,
     num_epochs=1,
     n_val_patches=2,
+    trainer_params={"limit_train_batches": 1},
 )
 config = config_n2v
 

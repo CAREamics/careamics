@@ -38,6 +38,10 @@ config = create_n2v_config(
 )
 # --8<-- [end:data-config]
 
+# reduce epochs and training batches for CI to run quicker
+config.training_config.trainer_params["max_epochs"] = 1
+config.training_config.trainer_params["limit_train_batches"] = 1
+
 
 # --8<-- [start:training]
 # Wrapping numpy.load
