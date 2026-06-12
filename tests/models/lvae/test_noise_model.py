@@ -224,8 +224,7 @@ def test_noise_model_sampling(image_size, max_value):
 
 
 def test_noise_model_in_likelihood_call():
-    from careamics.losses.lvae.losses import _compute_noise_model_log_likelihood
-
+    from careamics.losses.lvae.lvae_losses import _compute_noise_model_log_likelihood
     from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 
     nm_config = GaussianMixtureNMConfig(

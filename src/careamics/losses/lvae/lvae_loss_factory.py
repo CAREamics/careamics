@@ -33,7 +33,7 @@ def lvae_loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
     NotImplementedError
         If the loss is unknown.
     """
-    if loss == SupportedLoss.MUSPLIT:
+    if loss == SupportedLoss.MICROSPLIT:
         return microsplit_loss
 
     elif loss == SupportedLoss.HDN:
