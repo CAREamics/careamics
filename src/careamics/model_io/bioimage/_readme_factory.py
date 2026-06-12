@@ -5,7 +5,6 @@ from pathlib import Path
 import yaml
 
 from careamics.config.configuration import Configuration
-from careamics.utils import cwd, get_careamics_home
 
 
 def _yaml_block(yaml_str: str) -> str:
@@ -25,6 +24,7 @@ def _yaml_block(yaml_str: str) -> str:
 
 
 def readme_factory(
+    model_dir: Path,
     config: Configuration,
     careamics_version: str,
     data_description: str,
@@ -36,6 +36,8 @@ def readme_factory(
 
     Parameters
     ----------
+    model_dir : Path
+        Model directory.
     config : Configuration
         CAREamics configuration.
     careamics_version : str
@@ -49,65 +51,72 @@ def readme_factory(
         Path to the README file.
     """
     # create file
-    # TODO use tempfile as in the bmz_io module
-    with cwd(get_careamics_home()):
-        readme = Path("README.md")
-        readme.touch()
+    readme = model_dir / "README.md"
+    readme.touch()
 
-        # algorithm pretty name
-        algorithm_flavour = config.get_algorithm_friendly_name()
-        algorithm_pretty_name = algorithm_flavour + " - CAREamics"
+    # algorithm pretty name
+    algorithm_flavour = config.get_algorithm_friendly_name()
+    algorithm_pretty_name = algorithm_flavour + " - CAREamics"
 
-        description = [f"# {algorithm_pretty_name}\n\n"]
+    description = [f"# {algorithm_pretty_name}\n\n"]
 
-        # data description
-        description.append("## Data description\n\n")
-        description.append(data_description)
+    # data description
+    description.append("## Data description\n\n")
+    description.append(data_description)
+    description.append("\n\n")
+
+    # algorithm description
+    description.append("## Algorithm description:\n\n")
+    description.append(config.get_algorithm_description())
+    description.append("\n\n")
+
+    # configuration description
+    description.append("## Configuration\n\n")
+
+    description.append(
+        f"{algorithm_flavour} was trained using CAREamics (version "
+        f"{careamics_version}) using the following configuration:\n\n"
+    )
+
+    description.append(_yaml_block(yaml.dump(config.model_dump(exclude_none=True))))
+    description.append("\n\n")
+
+    # validation
+    description.append("# Validation\n\n")
+
+    description.append(
+        "In order to validate the model, we encourage users to acquire a "
+        "test dataset with ground-truth data. Comparing the ground-truth data "
+        "with the prediction allows unbiased evaluation of the model performances. "
+        "This can be done for instance by using metrics such as PSNR, SSIM, or"
+        "MicroSSIM. In the absence of ground-truth, inspecting the residual image "
+        "(difference between input and predicted image) can be helpful to identify "
+        "whether real signal is removed from the input image.\n\n"
+    )
+
+    # careamics uv installation
+    description.append(
+        "## CAREamics installation\n\n"
+        "CAREamics can be installed using `uv` with the following command:\n\n"
+        "```bash\n"
+        'uv pip install "careamics[examples]"\n'
+        "```\n\n"
+    )
+
+    # references
+    reference = config.get_algorithm_references()
+    if reference != "":
+        description.append("## References\n\n")
+        description.append(reference)
         description.append("\n\n")
 
-        # algorithm description
-        description.append("## Algorithm description:\n\n")
-        description.append(config.get_algorithm_description())
-        description.append("\n\n")
+    # links
+    description.append(
+        "# Links\n\n"
+        "- [CAREamics repository](https://github.com/CAREamics/careamics)\n"
+        "- [CAREamics documentation](https://careamics.github.io/)\n"
+    )
 
-        # configuration description
-        description.append("## Configuration\n\n")
+    readme.write_text("".join(description))
 
-        description.append(
-            f"{algorithm_flavour} was trained using CAREamics (version "
-            f"{careamics_version}) using the following configuration:\n\n"
-        )
-
-        description.append(_yaml_block(yaml.dump(config.model_dump(exclude_none=True))))
-        description.append("\n\n")
-
-        # validation
-        description.append("# Validation\n\n")
-
-        description.append(
-            "In order to validate the model, we encourage users to acquire a "
-            "test dataset with ground-truth data. Comparing the ground-truth data "
-            "with the prediction allows unbiased evaluation of the model performances. "
-            "This can be done for instance by using metrics such as PSNR, SSIM, or"
-            "MicroSSIM. In the absence of ground-truth, inspecting the residual image "
-            "(difference between input and predicted image) can be helpful to identify "
-            "whether real signal is removed from the input image.\n\n"
-        )
-
-        # references
-        reference = config.get_algorithm_references()
-        if reference != "":
-            description.append("## References\n\n")
-            description.append(reference)
-            description.append("\n\n")
-
-        # links
-        description.append(
-            "# Links\n\n"
-            "- [CAREamics repository](https://github.com/CAREamics/careamics)\n"
-            "- [CAREamics documentation](https://careamics.github.io/)\n"
-        )
-
-        readme.write_text("".join(description))
-
-        return readme.absolute()
+    return readme.absolute()

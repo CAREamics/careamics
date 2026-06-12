@@ -156,6 +156,7 @@ def export_to_bmz(
 
         # create model description
         model_description = create_model_description(
+            model_dir=temp_path,
             config=config,
             name=model_name,
             general_description=general_description,

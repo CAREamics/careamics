@@ -1174,7 +1174,6 @@ class CAREamist:
         data_description: str,
         covers: list[Path | str] | None = None,
         channel_names: list[str] | None = None,
-        model_version: str = "0.2.0",
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
@@ -1211,8 +1210,6 @@ class CAREamist:
             Paths to the cover images.
         channel_names : list of str, default=None
             Channel names.
-        model_version : str, default="0.1.0"
-            Version of the model.
         """
         import numpy as np
 

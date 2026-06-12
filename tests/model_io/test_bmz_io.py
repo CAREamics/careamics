@@ -7,6 +7,7 @@ from torch import Tensor
 from careamics import CAREamist
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.model_io.bmz_io import _export_state_dict, _load_state_dict
+from careamics.utils.version import get_careamics_version
 
 pytestmark = pytest.mark.mps_gh_fail
 
@@ -60,14 +61,13 @@ def test_bmz_io(tmp_path, ordered_array, pre_trained_v2):
         authors=[{"name": "Amod", "affiliation": "El"}],
         input_array=train_array[np.newaxis, np.newaxis, ...],
         output_array=predicted[np.newaxis, np.newaxis, ...],
-        model_version="0.2.0",
     )
     assert path.exists()
 
     # load description
     description = load_description(path)
     assert not isinstance(description, InvalidDescr)
-    assert str(description.version) == "0.2.0"
+    assert str(description.version) == get_careamics_version()
 
     # load model
     config, model = load_pretrained(path)

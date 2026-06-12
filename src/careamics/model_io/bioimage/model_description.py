@@ -194,6 +194,7 @@ def _create_inputs_ouputs(
 
 
 def create_model_description(
+    model_dir: Path,
     config: Configuration,
     name: str,
     general_description: str,
@@ -211,6 +212,8 @@ def create_model_description(
 
     Parameters
     ----------
+    model_dir : Path
+        Model directory.
     config : Configuration
         CAREamics configuration.
     name : str
@@ -243,6 +246,7 @@ def create_model_description(
     """
     # documentation
     doc = readme_factory(
+        model_dir,
         config,
         careamics_version=get_careamics_version(),
         data_description=data_description,
