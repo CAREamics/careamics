@@ -206,7 +206,6 @@ def create_model_description(
     env_path: Union[Path, str],
     covers: list[Union[Path, str]],
     channel_names: list[str] | None = None,
-    model_version: str = "0.1.0",
 ) -> ModelDescr:
     """Create model description.
 
@@ -236,8 +235,6 @@ def create_model_description(
         Paths to cover images.
     channel_names : Optional[list[str]], optional
         Channel names, by default None.
-    model_version : str, default "0.1.0"
-        Model version.
 
     Returns
     -------
@@ -304,7 +301,7 @@ def create_model_description(
                 }
             }
         },
-        version=Version(model_version),
+        version=Version(get_careamics_version()),
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
         cite=config.get_algorithm_citations(),

@@ -11,79 +11,22 @@ from careamics.config.validators import (
     model_matching_in_out_channels,
     model_without_final_activation,
 )
+from careamics.references.n2v import (
+    N2V,
+    N2V2,
+    N2V2_DESCRIPTION,
+    N2V2_REF,
+    N2V_DESCRIPTION,
+    N2V_REF,
+    STR_N2V2_DESCRIPTION,
+    STR_N2V_DESCRIPTION,
+    STRUCT_N2V,
+    STRUCT_N2V2,
+    STRUCTN2V_REF,
+)
 
 from .n2v_manipulation import N2VManipulateConfig
 from .unet_algorithm_config import UNetBasedAlgorithm
-
-N2V = "Noise2Void"
-N2V2 = "N2V2"
-STRUCT_N2V = "StructN2V"
-STRUCT_N2V2 = "StructN2V2"
-
-N2V_REF = CiteEntry(
-    text='Krull, A., Buchholz, T.O. and Jug, F., 2019. "Noise2Void - Learning '
-    'denoising from single noisy images". In Proceedings of the IEEE/CVF '
-    "conference on computer vision and pattern recognition (pp. 2129-2137).",
-    doi="10.1109/cvpr.2019.00223",
-)
-
-N2V2_REF = CiteEntry(
-    text="Höck, E., Buchholz, T.O., Brachmann, A., Jug, F. and Freytag, A., "
-    '2022. "N2V2 - Fixing Noise2Void checkerboard artifacts with modified '
-    'sampling strategies and a tweaked network architecture". In European '
-    "Conference on Computer Vision (pp. 503-518).",
-    doi="10.1007/978-3-031-25069-9_33",
-)
-
-STRUCTN2V_REF = CiteEntry(
-    text="Broaddus, C., Krull, A., Weigert, M., Schmidt, U. and Myers, G., 2020."
-    '"Removing structured noise with self-supervised blind-spot '
-    'networks". In 2020 IEEE 17th International Symposium on Biomedical '
-    "Imaging (ISBI) (pp. 159-163).",
-    doi="10.1109/isbi45749.2020.9098336",
-)
-
-N2V_DESCRIPTION = (
-    "Noise2Void is a UNet-based self-supervised algorithm that "
-    "uses blind-spot training to denoise images. In short, in every "
-    "patches during training, random pixels are selected and their "
-    "value replaced by a neighboring pixel value. The network is then "
-    "trained to predict the original pixel value. The algorithm "
-    "relies on the continuity of the signal (neighboring pixels have "
-    "similar values) and the pixel-wise independence of the noise "
-    "(the noise in a pixel is not correlated with the noise in "
-    "neighboring pixels)."
-)
-
-N2V2_DESCRIPTION = (
-    "N2V2 is a variant of Noise2Void. "
-    + N2V_DESCRIPTION
-    + "\nN2V2 introduces blur-pool layers and removed skip "
-    "connections in the UNet architecture to remove checkboard "
-    "artefacts, a common artefacts ocurring in Noise2Void."
-)
-
-STR_N2V_DESCRIPTION = (
-    "StructN2V is a variant of Noise2Void. "
-    + N2V_DESCRIPTION
-    + "\nStructN2V uses a linear mask (horizontal or vertical) to replace "
-    "the pixel values of neighbors of the masked pixels by a random "
-    "value. Such masking allows removing 1D structured noise from the "
-    "the images, the main failure case of the original N2V."
-)
-
-STR_N2V2_DESCRIPTION = (
-    "StructN2V2 is a a variant of Noise2Void that uses both "
-    "structN2V and N2V2. "
-    + N2V_DESCRIPTION
-    + "\nStructN2V2 uses a linear mask (horizontal or vertical) to replace "
-    "the pixel values of neighbors of the masked pixels by a random "
-    "value. Such masking allows removing 1D structured noise from the "
-    "the images, the main failure case of the original N2V."
-    "\nN2V2 introduces blur-pool layers and removed skip connections in "
-    "the UNet architecture to remove checkboard artefacts, a common "
-    "artefacts ocurring in Noise2Void."
-)
 
 
 class N2VAlgorithm(UNetBasedAlgorithm):
@@ -239,9 +182,9 @@ class N2VAlgorithm(UNetBasedAlgorithm):
         use_structN2V = self.is_struct_n2v()
 
         references = [
-            N2V_REF.text + " doi: " + N2V_REF.doi,
-            N2V2_REF.text + " doi: " + N2V2_REF.doi,
-            STRUCTN2V_REF.text + " doi: " + STRUCTN2V_REF.doi,
+            N2V_REF.text + " doi: " + str(N2V_REF.doi),
+            N2V2_REF.text + " doi: " + str(N2V2_REF.doi),
+            STRUCTN2V_REF.text + " doi: " + str(STRUCTN2V_REF.doi),
         ]
 
         # return the (struct)N2V(2) references
