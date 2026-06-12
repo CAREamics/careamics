@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 import numpy as np
-from careamics.config.factories import create_n2v_config
+from careamics.config.factories import create_advanced_n2v_config
 from careamics.careamist import CAREamist
 
 train_data = np.random.randint(0, 255, (512, 512)).astype(np.float32)
 
-config_n2v = create_n2v_config(
+config_n2v = create_advanced_n2v_config(
     experiment_name="n2v",
     data_type="array",
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
-    num_epochs=2,
+    num_epochs=1,
+    trainer_params={"limit_train_batches": 1},
 )
 careamist = CAREamist(config_n2v)
 
