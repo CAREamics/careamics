@@ -55,7 +55,7 @@ dependencies = [
     'scikit-image<=0.26.0',
     'zarr>=3.0.0,<4.0.0',
     'tifffile<=2026.3.3',
-    'matplotlib<=3.10.9',
+    'matplotlib<=3.11.0',
     'microssim<=0.0.4', # TODO absorb as careamics.metrics
 
     # --- Used by LVAE code --- 
