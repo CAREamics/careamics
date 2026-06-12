@@ -11,7 +11,8 @@ config_n2v = create_n2v_config(
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
-    num_epochs=2,
+    num_epochs=1,
+    num_steps=1,
 )
 careamist = CAREamist(config_n2v)
 
