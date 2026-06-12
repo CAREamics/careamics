@@ -18,7 +18,7 @@ jobs:
     # included in the sdist (unless explicitly excluded)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - run: pipx run check-manifest
 
   test:
@@ -37,7 +37,9 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+        with:
+          fetch-tags: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
