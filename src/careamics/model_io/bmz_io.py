@@ -88,7 +88,6 @@ def export_to_bmz(
     output_array: np.ndarray,
     covers: list[Union[Path, str]] | None = None,
     channel_names: list[str] | None = None,
-    model_version: str = "0.2.0",
 ) -> None:
     """Export the model to BioImage Model Zoo format.
 
@@ -121,8 +120,6 @@ def export_to_bmz(
         Paths to the cover images.
     channel_names : Optional[list[str]], optional
         Channel names, by default None.
-    model_version : str, default="0.2.0"
-        Model version.
     """
     path_to_archive = Path(path_to_archive)
 
@@ -171,7 +168,6 @@ def export_to_bmz(
             env_path=env_path,
             covers=covers,
             channel_names=channel_names,
-            model_version=model_version,
         )
 
         # test model description

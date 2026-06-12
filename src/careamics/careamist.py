@@ -1239,7 +1239,6 @@ class CAREamist:
             output_array=output_array,
             covers=covers,
             channel_names=channel_names,
-            model_version=model_version,
         )
 
     def get_losses(self) -> dict[str, list]:
