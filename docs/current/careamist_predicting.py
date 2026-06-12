@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from pathlib import Path
 import numpy as np
-from careamics.config.factories import create_advanced_n2v_config
+from careamics.config.factories import create_n2v_config
 from careamics.careamist import CAREamist
 import tifffile
 import shutil
@@ -10,15 +10,15 @@ root = Path(__file__).parent / "temp_data"
 root.mkdir(exist_ok=True)
 
 # create a configuration
-config_n2v = create_advanced_n2v_config(
+config_n2v = create_n2v_config(
     experiment_name="n2v",
     data_type="array",
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=1,
+    num_steps=1,
     n_val_patches=2,
-    trainer_params={"limit_train_batches": 1},
 )
 config = config_n2v
 
