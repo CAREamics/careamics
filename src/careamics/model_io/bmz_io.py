@@ -182,7 +182,7 @@ def export_to_bmz(
             )
 
         summary: ValidationSummary = test_model(model_description, **test_kwargs)
-        summary.display()
+        summary.display(include_conda_list=False)
         if summary.status == "failed":
             raise ValueError("Model description test failed!")
         else:

@@ -281,6 +281,12 @@ def create_model_description(
         ),
     )
 
+    # careamics version
+    # (removing non numeric characters like "*"; might happens when using dev versions)
+    careamics_version = ".".join(
+        [s for s in get_careamics_version().split(".") if s.isnumeric()]
+    )
+
     # overall model description
     model = ModelDescr(
         name=name,
@@ -305,7 +311,7 @@ def create_model_description(
                 }
             }
         },
-        version=Version(get_careamics_version()),
+        version=Version(careamics_version),
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
         cite=config.get_algorithm_citations(),
