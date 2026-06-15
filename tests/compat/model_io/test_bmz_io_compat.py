@@ -2,11 +2,10 @@ import numpy as np
 import pytest
 import torch
 from bioimageio.spec import load_description
-from torch import Tensor
-
 from careamics.compat.careamist import CAREamist
 from careamics.compat.model_io import export_to_bmz, load_pretrained
 from careamics.compat.model_io.bmz_io import _export_state_dict, _load_state_dict
+from torch import Tensor
 
 pytestmark = pytest.mark.mps_gh_fail
 
