@@ -16,12 +16,12 @@ class LikelihoodModule(Protocol):
     """Protocol for backward compatibility."""
 
     def get_mean_lv(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
-        """Get mean and log variance from output.
+        """Get mean and optional log-variance from model output.
 
         Parameters
         ----------
         x : torch.Tensor
-            Output from the LVAE model.
+            Raw model output tensor.
         """
         ...
 

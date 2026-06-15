@@ -1,5 +1,8 @@
 """Tests for LVAE loss functions."""
 
+# TODO to be reviewed, many tests are equivalence tests with legacy
+
+
 from __future__ import annotations
 
 import math
@@ -31,11 +34,6 @@ if TYPE_CHECKING:
     pass
 
 pytestmark = pytest.mark.lvae
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def create_dummy_noise_model_file(tmp_path, n_gaussians=3, n_coeffs=3):
@@ -71,11 +69,6 @@ def _make_td_data(batch_size, n_layers, img_size, enable_lc):
     }
 
 
-# ---------------------------------------------------------------------------
-# Loss factory
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "loss_type, exp_loss_func, exp_error",
     [
@@ -90,11 +83,6 @@ def test_lvae_loss_factory(loss_type, exp_loss_func, exp_error):
         assert loss_func is not None
         assert callable(loss_func)
         assert loss_func == exp_loss_func
-
-
-# ---------------------------------------------------------------------------
-# Reconstruction loss helpers (new API)
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
@@ -135,11 +123,6 @@ def test_noise_model_log_likelihood(tmp_path, batch_size, target_ch):
     assert isinstance(loss, torch.Tensor)
     assert loss.ndim == 0
     assert torch.isfinite(loss)
-
-
-# ---------------------------------------------------------------------------
-# KL divergence loss (unchanged API)
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
@@ -271,13 +254,6 @@ def test_microsplit_loss_combined_mode(tmp_path, musplit_weight):
     assert torch.isfinite(output["loss"])
 
 
-# ---------------------------------------------------------------------------
-# Numerical equivalence tests (Tests A-E from migration plan)
-# Each test inlines the legacy formula and compares numerically with the
-# refactored implementation to confirm behavior preservation.
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize("predict_logvar", [False, True])
 @pytest.mark.parametrize("logvar_lowerbound", [None, -5.0])
 def test_equiv_gaussian_log_likelihood(predict_logvar, logvar_lowerbound):
@@ -306,13 +282,15 @@ def test_equiv_gaussian_log_likelihood(predict_logvar, logvar_lowerbound):
         log_prob = -0.5 * (reconstruction - target) ** 2
     legacy_loss = -log_prob.mean()
 
-    assert torch.isclose(
-        new_loss, legacy_loss, rtol=1e-5, atol=1e-6
-    ), f"Mismatch: new={new_loss.item():.6f} legacy={legacy_loss.item():.6f}"
+    assert torch.isclose(new_loss, legacy_loss, rtol=1e-5, atol=1e-6), (
+        "Gaussian LL mismatch: "
+        f"new={new_loss.item():.6f} "
+        f"legacy={legacy_loss.item():.6f}"
+    )
 
 
 def test_equiv_noise_model_log_likelihood(tmp_path):
-    """Test B: _compute_noise_model_log_likelihood matches legacy."""
+    """Test B: noise-model log-likelihood matches legacy implementation."""
     torch.manual_seed(42)
     target_ch, img_size = 2, 16
     nm = init_noise_model(tmp_path, target_ch)
@@ -385,7 +363,8 @@ def test_equiv_musplit_loss(kl_weight):
     legacy_net = legacy_recons + legacy_kl
 
     assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
-        f"musplit mismatch: new={new_output['loss'].item():.6f} "
+        "musplit mismatch: "
+        f"new={new_output['loss'].item():.6f} "
         f"legacy={legacy_net.item():.6f}"
     )
 
@@ -440,7 +419,8 @@ def test_equiv_denoisplit_loss(tmp_path):
     legacy_net = legacy_recons + legacy_kl
 
     assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
-        f"denoisplit mismatch: new={new_output['loss'].item():.6f} "
+        "denoisplit mismatch: "
+        f"new={new_output['loss'].item():.6f} "
         f"legacy={legacy_net.item():.6f}"
     )
 
@@ -512,6 +492,7 @@ def test_equiv_denoisplit_musplit_loss(tmp_path):
     legacy_net = legacy_recons + legacy_kl
 
     assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
-        f"combined mismatch: new={new_output['loss'].item():.6f} "
+        "combined mismatch: "
+        f"new={new_output['loss'].item():.6f} "
         f"legacy={legacy_net.item():.6f}"
     )
