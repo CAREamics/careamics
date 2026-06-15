@@ -50,6 +50,10 @@ plt.imshow(ShannonPatchFilter.apply_filter(shannon_filter_map, threshold=7.5))
 plt.title("Filter mask")
 # --8<-- [end:mask]
 
+# replace training data for CI to run quicker
+import numpy as np
+
+img = np.random.random((1, 64 * 4, 64 * 8))  # cannot be 1 patch bec n_val_patches
 
 # --8<-- [start:config]
 from careamics import CAREamist

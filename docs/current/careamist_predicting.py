@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 from pathlib import Path
 import numpy as np
-from careamics.config.factories import create_n2v_config, create_care_config
-from careamics.dataset.factory import ReadFuncLoading
+from careamics.config.factories import create_n2v_config
 from careamics.careamist import CAREamist
 import tifffile
 import shutil
@@ -18,14 +17,7 @@ config_n2v = create_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=1,
-)
-config_care = create_care_config(
-    experiment_name="care",
-    data_type="array",
-    axes="YX",
-    patch_size=[64, 64],
-    batch_size=8,
-    num_epochs=1,
+    num_steps=1,
     n_val_patches=2,
 )
 config = config_n2v
@@ -61,8 +53,8 @@ predictions = careamist.predict(
 # --8<-- [start:pred_tiled]
 predictions = careamist.predict(
     pred_data=pred_data,
-    tile_size=[128, 128],  # (1)!
-    tile_overlap=[48, 48],  # (2)!
+    tile_size=(128, 128),  # (1)!
+    tile_overlap=(48, 48),  # (2)!
 )
 # --8<-- [end:pred_tiled]
 
