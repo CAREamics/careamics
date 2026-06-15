@@ -376,7 +376,7 @@ def pre_trained(tmp_path):
     careamist.train(train_data=train_array)
 
     # check that it trained
-    pre_trained_path: Path = tmp_path / "checkpoints" / "test_last.ckpt"
+    pre_trained_path: Path = tmp_path / "checkpoints" / "test_0" / "test_last.ckpt"
     assert pre_trained_path.exists()
 
     return pre_trained_path
