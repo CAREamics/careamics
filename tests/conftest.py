@@ -5,9 +5,6 @@ import numpy as np
 import pytest
 from pytorch_lightning import Callback, Trainer
 
-from careamics.compat.careamist import CAREamist
-from careamics.compat.config import Configuration as ConfigurationV1
-from careamics.compat.model_io import export_to_bmz
 from careamics.config.configuration import Configuration
 from careamics.config.factories import (
     create_advanced_care_config,
@@ -352,35 +349,7 @@ def overlaps() -> tuple[int, int]:
 
 
 @pytest.fixture
-def pre_trained(tmp_path, minimum_n2v_configuration):
-    """Fixture to create a pre-trained CAREamics model."""
-    # training data
-    train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)
-
-    # create configuration
-    config = ConfigurationV1(**minimum_n2v_configuration)
-    config.data_config.axes = "YX"
-    config.data_config.batch_size = 2
-    config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (8, 8)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
-
-    # train CAREamist
-    careamist.train(train_source=train_array)
-
-    # check that it trained
-    pre_trained_path: Path = (
-        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
-    )
-    assert pre_trained_path.exists()
-
-    return pre_trained_path
-
-
-@pytest.fixture
-def pre_trained_v2(tmp_path):
+def pre_trained(tmp_path):
     """Fixture to create a pre-trained CAREamist model."""
     from careamics.careamist import CAREamist
     from careamics.config.factories import create_advanced_n2v_config
@@ -407,41 +376,10 @@ def pre_trained_v2(tmp_path):
     careamist.train(train_data=train_array)
 
     # check that it trained
-    pre_trained_path: Path = tmp_path / "checkpoints" / "test_last.ckpt"
+    pre_trained_path: Path = tmp_path / "checkpoints" / "test_0" / "test_last.ckpt"
     assert pre_trained_path.exists()
 
     return pre_trained_path
-
-
-@pytest.fixture
-def pre_trained_bmz(tmp_path, pre_trained) -> Path:
-    """Fixture to create a BMZ model."""
-    # training data
-    train_array = np.ones((32, 32), dtype=np.float32)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
-
-    # predict (no tiling and no tta)
-    predicted_output = careamist.predict(train_array, tta_transforms=False)
-    predicted = np.concatenate(predicted_output, axis=0)
-
-    # export to BioImage Model Zoo
-    path = tmp_path / "model.zip"
-    export_to_bmz(
-        model=careamist.model,
-        config=careamist.cfg,
-        path_to_archive=path,
-        model_name="TopModel",
-        general_description="A model that just walked in.",
-        data_description="My data.",
-        authors=[{"name": "Amod", "affiliation": "El"}],
-        input_array=train_array[np.newaxis, np.newaxis, ...],
-        output_array=predicted,
-    )
-    assert path.exists()
-
-    return path
 
 
 @pytest.fixture
