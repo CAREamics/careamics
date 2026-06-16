@@ -11,25 +11,13 @@ from careamics.config.validators import (
     model_without_final_activation,
     model_without_n2v2,
 )
+from careamics.references.care import (
+    CARE,
+    CARE_DESCRIPTION,
+    CARE_REF,
+)
 
 from .unet_algorithm_config import UNetBasedAlgorithm
-
-CARE = "CARE"
-
-CARE_DESCRIPTION = (
-    "Content-aware image restoration (CARE) is a deep-learning-based "
-    "algorithm that uses a U-Net architecture to restore images. CARE "
-    "is a supervised algorithm that requires pairs of noisy and "
-    "clean images to train the network. The algorithm learns to "
-    "predict the clean image from the noisy image. CARE is "
-    "particularly useful for denoising images acquired in low-light "
-    "conditions, such as fluorescence microscopy images."
-)
-CARE_REF = CiteEntry(
-    text='Weigert, Martin, et al. "Content-aware image restoration: pushing the '
-    'limits of fluorescence microscopy." Nature methods 15.12 (2018): 1090-1097.',
-    doi="10.1038/s41592-018-0216-7",
-)
 
 
 class CAREAlgorithm(UNetBasedAlgorithm):
@@ -98,7 +86,7 @@ class CAREAlgorithm(UNetBasedAlgorithm):
         str
             Algorithm references.
         """
-        return CARE_REF.text + " doi: " + CARE_REF.doi
+        return CARE_REF.text + " doi: " + str(CARE_REF.doi)
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """
