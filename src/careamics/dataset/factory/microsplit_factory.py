@@ -10,19 +10,19 @@ from numpy.typing import NDArray
 
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
 from careamics.config.support import SupportedData
-from careamics.models.constraints import ModelConstraints
-from careamics.utils import get_logger
-
-from ..dataset import CareamicsDataset
-from ..image_stack import ImageStack
-from ..patch_constructor import PatchConstructor
-from ..patch_constructor.microsplit_patch_constructors import (
+from careamics.dataset.dataset import CareamicsDataset
+from careamics.dataset.image_stack import ImageStack
+from careamics.dataset.patch_constructor import PatchConstructor
+from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
     MsPredPatchConstructor,
     MsT1PatchConstructor,
     MsT2PatchConstructor,
     MsT3PatchConstructor,
 )
-from ..patching import create_patching
+from careamics.dataset.patching import create_patching
+from careamics.models.constraints import ModelConstraints
+from careamics.utils import get_logger
+
 from .factory import (
     ImageStackLoading,
     Loading,

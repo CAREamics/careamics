@@ -9,17 +9,12 @@ from typing_extensions import ParamSpec
 
 from careamics.config.data.data_config import DataConfig
 from careamics.config.support import SupportedData
-from careamics.image_io.read import ReadFunc
-from careamics.models.constraints import (
-    ModelConstraints,
-)
-
-from ..dataset import CareamicsDataset
-from ..image_stack import (
+from careamics.dataset.dataset import CareamicsDataset
+from careamics.dataset.image_stack import (
     GenericImageStack,
     ImageStack,
 )
-from ..image_stack_loader import (
+from careamics.dataset.image_stack_loader import (
     ImageStackLoader,
     load_arrays,
     load_custom_file,
@@ -28,9 +23,14 @@ from ..image_stack_loader import (
     load_tiffs,
     load_zarrs,
 )
-from ..patch_constructor import BasicPatchConstructor
-from ..patch_extractor import LimitFilesPatchExtractor, PatchExtractor
-from ..patching import StratifiedPatching, create_patching
+from careamics.dataset.patch_constructor import BasicPatchConstructor
+from careamics.dataset.patch_extractor import LimitFilesPatchExtractor, PatchExtractor
+from careamics.dataset.patching import StratifiedPatching, create_patching
+from careamics.image_io.read import ReadFunc
+from careamics.models.constraints import (
+    ModelConstraints,
+)
+
 from .filter_bg import filter_background, filter_background_with_mask
 from .val_split import create_val_split
 
