@@ -359,11 +359,11 @@ def median_manipulate(
     ndims = batch.ndim - 1
     # subpatch mask to exclude values from median calculation
     if struct_params is None:
-        subpatch_mask = _create_neg_center_pixel_mask(
+        subpatch_mask = _create_center_pixel_exclusion_mask(
             ndims, subpatch_size, batch.device
         )
     else:
-        subpatch_mask = _create_neg_struct_mask(
+        subpatch_mask = _create_struct_exclusion_mask(
             ndims, subpatch_size, struct_params, batch.device
         )
     subpatches_masked = subpatches[:, subpatch_mask]
@@ -386,11 +386,11 @@ def median_manipulate(
 # -- Median pixel manipulation utilities
 
 
-def _create_neg_center_pixel_mask(
+def _create_center_pixel_exclusion_mask(
     ndims: int, subpatch_size: int, device: torch.device
 ) -> torch.Tensor:
     """
-    Create a negative mask to exclude the center pixel from median calculation.
+    Create a mask to exclude the center pixel from median calculation.
 
     Parameters
     ----------
@@ -416,14 +416,14 @@ def _create_neg_center_pixel_mask(
     return cp_mask
 
 
-def _create_neg_struct_mask(
+def _create_struct_exclusion_mask(
     ndims: int,
     subpatch_size: int,
     struct_params: StructMaskParameters,
     device: torch.device,
 ) -> torch.Tensor:
     """
-    Create a negative mask to exclude structN2V pattern from median calculation.
+    Create a mask to exclude structN2V pattern from median calculation.
 
     Parameters
     ----------

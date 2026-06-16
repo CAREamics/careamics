@@ -8,8 +8,8 @@ from careamics.config.algorithms.n2v_manipulation import StructMaskParameters
 from careamics.lightning.modules.n2v_utils.pixel_manipulation import (
     _apply_struct_mask,
     _build_struct_pattern,
-    _create_neg_center_pixel_mask,
-    _create_neg_struct_mask,
+    _create_center_pixel_exclusion_mask,
+    _create_struct_exclusion_mask,
 )
 
 # --- Utils
@@ -58,7 +58,7 @@ def test_create_neg_center_pixel_mask(ndims):
     center_idx = subpatch_size // 2
 
     # get mask
-    mask = _create_neg_center_pixel_mask(ndims, subpatch_size, device="cpu")
+    mask = _create_center_pixel_exclusion_mask(ndims, subpatch_size, device="cpu")
 
     assert not mask[(center_idx,) * ndims]
     assert mask.sum() == subpatch_size**ndims - 1
@@ -81,7 +81,7 @@ def test_create_neg_struct_mask(ndims, axes, span):
     expected_n_dims = 1 if axes in AXES_1D else 2
 
     # get mask
-    mask = _create_neg_struct_mask(
+    mask = _create_struct_exclusion_mask(
         ndims, subpatch_size, StructMaskParameters(axes=axes, span=span), device="cpu"
     )
 

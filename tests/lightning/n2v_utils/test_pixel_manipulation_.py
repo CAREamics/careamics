@@ -8,8 +8,8 @@ from torch.nn.functional import pad
 from careamics.config.algorithms.n2v_manipulation import StructMaskParameters
 from careamics.lightning.modules.n2v_utils.pixel_manipulation import (
     _apply_struct_mask,
-    _create_neg_center_pixel_mask,
-    _create_neg_struct_mask,
+    _create_center_pixel_exclusion_mask,
+    _create_struct_exclusion_mask,
     _get_stratified_coords,
     _get_subpatch_coords,
     median_manipulate,
@@ -160,11 +160,11 @@ def test_median_manipulate_torch(ordered_array, shape, apply_struct: bool):
 
         ndims = len(shape) - 1
         if struct_params is not None:
-            roi_mask = _create_neg_struct_mask(
+            roi_mask = _create_struct_exclusion_mask(
                 ndims, subpatch_size, struct_params, torch.device("cpu")
             )
         else:
-            roi_mask = _create_neg_center_pixel_mask(
+            roi_mask = _create_center_pixel_exclusion_mask(
                 ndims, subpatch_size, torch.device("cpu")
             )
 
@@ -309,7 +309,7 @@ def test_get_subpatch_coords(
 @pytest.mark.parametrize("n_dims", [2, 3])
 @pytest.mark.parametrize("subpatch_size", [5, 7, 11])
 def test_create_center_pixel_mask(n_dims: int, subpatch_size: int):
-    mask_tensor = _create_neg_center_pixel_mask(
+    mask_tensor = _create_center_pixel_exclusion_mask(
         n_dims, subpatch_size, torch.device("cpu")
     )
     mask = mask_tensor.detach().numpy()
@@ -328,7 +328,9 @@ def test_create_center_pixel_mask(n_dims: int, subpatch_size: int):
 def test_center_pixel_mask_even_size_error(n_dims: int, subpatch_size: int):
     """Test that even sized subpatch sizes are not allowed."""
     with pytest.raises(ValueError):
-        _ = _create_neg_center_pixel_mask(n_dims, subpatch_size, torch.device("cpu"))
+        _ = _create_center_pixel_exclusion_mask(
+            n_dims, subpatch_size, torch.device("cpu")
+        )
 
 
 @pytest.mark.parametrize("n_dims", [2, 3])
@@ -339,7 +341,7 @@ def test_create_struct_mask(
     n_dims: int, subpatch_size: int, span: int, axis: Literal["horizontal", "vertical"]
 ):
     struct_params = StructMaskParameters(axes=axis, span=span)
-    mask_tensor = _create_neg_struct_mask(
+    mask_tensor = _create_struct_exclusion_mask(
         n_dims, subpatch_size, struct_params, torch.device("cpu")
     )
     mask = mask_tensor.detach().numpy()
@@ -370,7 +372,7 @@ def test_struct_mask_even_size_error(n_dims: int, subpatch_size: int):
     """Test that even sized subpatch sizes are not allowed."""
     struct_params = StructMaskParameters(axes="horizontal", span=5)
     with pytest.raises(ValueError):
-        _ = _create_neg_struct_mask(
+        _ = _create_struct_exclusion_mask(
             n_dims, subpatch_size, struct_params, torch.device("cpu")
         )
 
