@@ -15,7 +15,8 @@ nav = [
     "content/guides/tutorials/index.md",
     {"Custom Data Formats" = "content/guides/tutorials/custom_data.md"},
     {"Implementing an Image Stack" = "content/guides/tutorials/implementing_an_image_stack.md"},
-    {"Patch Filtering" = "content/guides/tutorials/patch_filtering.md"}
+    {"Patch Filtering" = "content/guides/tutorials/patch_filtering.md"},
+    {"Logging with WandB and TensorBoard" = "content/guides/tutorials/logging_wandb_tensorboard.md"}
 ]},
 {"Legacy (v0.1)" = [
     "content/guides/v0.1/index.md",

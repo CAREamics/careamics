@@ -368,7 +368,4 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
         dict
             Dictionary containing the model parameters.
         """
-        if "exclude_none" not in kwargs:
-            kwargs["exclude_none"] = True
-
         return super().model_dump(**kwargs)

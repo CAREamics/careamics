@@ -3,7 +3,8 @@
 # %%
 import numpy as np
 
-train_data = np.random.randint(0, 255, (512, 512)).astype(np.float32)
+# cannot be 1 patch because of n_val_patches
+train_data = np.random.randint(0, 255, (64 * 4, 64 * 8)).astype(np.float32)
 train_target = train_data
 val_data = train_data
 val_target = train_data

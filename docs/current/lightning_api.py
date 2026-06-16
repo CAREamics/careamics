@@ -126,6 +126,13 @@ pred_writer.set_writing_strategy("tiff", tiled=True)  # (3)!
 pred_writer.enable_writing(True)  # (4)!
 
 tiled_predictions = trainer.predict(
-    model, datamodule=inf_data_module, return_predictions=False  # (5)!
+    model,
+    datamodule=inf_data_module,
+    return_predictions=False,  # (5)!
 )
 # --8<-- [end:predict_to_disk]
+
+import shutil
+
+# delete outputs
+shutil.rmtree("predictions")
