@@ -1,6 +1,6 @@
 """Compute and resolve normalization statistics from patch data."""
 
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -13,18 +13,22 @@ from careamics.config.data.normalization_config import (
     NormalizationConfig,
     QuantileConfig,
 )
-from careamics.dataset.patch_constructor import PatchConstructor
+from careamics.dataset.patch_constructor import (
+    PatchConstructor,
+)
 
 from .running_mean_std import WelfordStatistics
 from .running_quantile import QuantileEstimator
 from .utils import broadcast_stats
 
-StatsDict = dict[Literal["input", "target"], tuple[NDArray, NDArray]]
+StatsDict = dict[Literal["input", "target"], tuple[NDArray[Any], NDArray[Any]]]
 
 
 def _compute_mean_std(
     patch_constructor: PatchConstructor,
-    per_channel: bool = True,
+    per_channel: bool,
+    compute_input: bool,
+    compute_target: bool,
 ) -> StatsDict:
     """Compute mean and std from data.
 
@@ -32,9 +36,14 @@ def _compute_mean_std(
     ----------
     patch_constructor : PatchConstructor
         Constructor for paired input and target patches.
-    per_channel : bool, optional
+    per_channel : bool
         If True, computes per-channel statistics. If False, collapse all channels into
         one to produce a single mean/std pair.
+    compute_input : bool
+        Whether the statistics for the input data should be calculated.
+    compute_target : bool
+        Whether the statistics for the target data should be calculated. If there is no
+        target data present, this argument is ignored.
 
     Returns
     -------
@@ -43,30 +52,35 @@ def _compute_mean_std(
         entry. Each entry contains the mean and standard deviation values per channel,
         or a single mean/std pair if `per_channel` is False.
     """
-    input_stats = WelfordStatistics()
-    target_stats = WelfordStatistics()
     n_patches = patch_constructor.n_patches
     if n_patches == 0:
         raise ValueError("No patches found to compute mean/std statistics.")
 
-    has_target = False
-    target_idx = 0
+    stats: StatsDict = {}
+    if not compute_input and not compute_target:
+        return stats
+
+    input_stats = WelfordStatistics()
+    target_stats = WelfordStatistics()
     for idx in tqdm(range(n_patches), desc="Computing mean/std statistics"):
         input_patch, target_patch, _ = patch_constructor.construct_patch(idx)
-        has_target = has_target or target_patch is not None
         input_patch = patch_constructor.get_principal_input(input_patch)
-        if not per_channel:
-            input_patch = input_patch.reshape(1, -1)
-            if target_patch is not None:
-                target_patch = target_patch.reshape(1, -1)
-        input_stats.update(input_patch[None, ...], sample_idx=idx)
-        if target_patch is not None:
-            target_stats.update(target_patch[None, ...], sample_idx=target_idx)
-            target_idx += 1
 
-    input_means, input_stds = input_stats.finalize()
-    stats: StatsDict = {"input": (input_means, input_stds)}
-    if has_target:
+        if compute_input:
+            if not per_channel:
+                # flatten along axis for "global" stats
+                input_patch = input_patch.reshape(1, -1)
+            input_stats.update(input_patch[None, ...], sample_idx=idx)
+
+        if compute_target and target_patch is not None:
+            if not per_channel:
+                target_patch = target_patch.reshape(1, -1)
+            target_stats.update(target_patch[None, ...], sample_idx=idx)
+
+    if compute_input:
+        input_means, input_stds = input_stats.finalize()
+        stats["input"] = (input_means, input_stds)
+    if compute_target:
         target_means, target_stds = target_stats.finalize()
         stats["target"] = target_means, target_stds
     return stats
@@ -74,7 +88,9 @@ def _compute_mean_std(
 
 def _compute_min_max(
     patch_constructor: PatchConstructor,
-    per_channel: bool = True,
+    per_channel: bool,
+    compute_input: bool,
+    compute_target: bool,
 ) -> StatsDict:
     """Compute min and max from data.
 
@@ -85,6 +101,11 @@ def _compute_min_max(
     per_channel : bool, optional
         If True, computes per-channel statistics.
         If False, collapse all channels into one to produce a single min/max pair.
+    compute_input : bool
+        Whether the statistics for the input data should be calculated.
+    compute_target : bool
+        Whether the statistics for the target data should be calculated. If there is no
+        target data present, this argument is ignored.
 
     Returns
     -------
@@ -95,38 +116,43 @@ def _compute_min_max(
     """
     n_patches = patch_constructor.n_patches
     if n_patches == 0:
-        raise ValueError("No patches found to compute min/max statistics.")
+        raise ValueError("No patches found to compute mean/std statistics.")
+
+    stats: StatsDict = {}
+    if not compute_input and not compute_target:
+        return stats
 
     input_mins: NDArray | None = None
     input_maxes: NDArray | None = None
     target_mins: NDArray | None = None
     target_maxes: NDArray | None = None
-
     for idx in tqdm(range(n_patches), desc="Computing min/max statistics"):
         input_patch, target_patch, _ = patch_constructor.construct_patch(idx)
         input_patch = patch_constructor.get_principal_input(input_patch)
 
-        if not per_channel:
-            input_patch = input_patch.reshape(1, -1)
-            if target_patch is not None:
+        if compute_input:
+            if not per_channel:
+                input_patch = input_patch.reshape(1, -1)
+            current_mins = np.min(input_patch, axis=tuple(range(1, input_patch.ndim)))
+            current_maxes = np.max(input_patch, axis=tuple(range(1, input_patch.ndim)))
+            input_mins = (
+                current_mins
+                if input_mins is None
+                else np.minimum(input_mins, current_mins)
+            )
+            input_maxes = (
+                current_maxes
+                if input_maxes is None
+                else np.maximum(input_maxes, current_maxes)
+            )
+
+        if compute_target and target_patch is not None:
+            if not per_channel:
                 target_patch = target_patch.reshape(1, -1)
-
-        input_axes = tuple(dim for dim in range(input_patch.ndim) if dim != 0)
-        current_mins = np.min(input_patch, axis=input_axes)
-        current_maxes = np.max(input_patch, axis=input_axes)
-        input_mins = (
-            current_mins if input_mins is None else np.minimum(input_mins, current_mins)
-        )
-        input_maxes = (
-            current_maxes
-            if input_maxes is None
-            else np.maximum(input_maxes, current_maxes)
-        )
-
-        if target_patch is not None:
-            target_axes = tuple(dim for dim in range(target_patch.ndim) if dim != 0)
-            current_mins = np.min(target_patch, axis=target_axes)
-            current_maxes = np.max(target_patch, axis=target_axes)
+            current_mins = np.min(target_patch, axis=tuple(range(1, target_patch.ndim)))
+            current_maxes = np.max(
+                target_patch, axis=tuple(range(1, target_patch.ndim))
+            )
             target_mins = (
                 current_mins
                 if target_mins is None
@@ -138,18 +164,23 @@ def _compute_min_max(
                 else np.maximum(target_maxes, current_maxes)
             )
 
-    assert input_mins is not None
-    assert input_maxes is not None
-    stats: StatsDict = {"input": (input_mins, input_maxes)}
-    if target_mins is not None and target_maxes is not None:
-        stats["target"] = target_mins, target_maxes
+    if compute_input:
+        assert input_mins is not None
+        assert input_maxes is not None
+        stats["input"] = (input_mins, input_maxes)
+    if compute_target:
+        assert target_mins is not None
+        assert target_maxes is not None
+        stats["target"] = (target_mins, target_maxes)
     return stats
 
 
 def _compute_quantiles(
     patch_constructor: PatchConstructor,
     norm_config: QuantileConfig,
-    per_channel: bool = True,
+    per_channel: bool,
+    compute_input: bool,
+    compute_target: bool,
 ) -> StatsDict:
     """Compute quantile values from data.
 
@@ -162,6 +193,11 @@ def _compute_quantiles(
     per_channel : bool, optional
         If True, computes per-channel statistics.
         If False, collapse all channels into one to produce a single quantile pair.
+    compute_input : bool
+        Whether the statistics for the input data should be calculated.
+    compute_target : bool
+        Whether the statistics for the target data should be calculated. If there is no
+        target data present, this argument is ignored.
 
     Returns
     -------
@@ -170,30 +206,35 @@ def _compute_quantiles(
         entry. Each entry contains lower and upper quantile values per channel, or a
         single lower/upper pair if `per_channel` is False.
     """
+    n_patches = patch_constructor.n_patches
+    if n_patches == 0:
+        raise ValueError("No patches found to compute mean/std statistics.")
+
+    stats: StatsDict = {}
+    if not compute_input and not compute_target:
+        return stats
+
     input_estimator: QuantileEstimator | None = None
     target_estimator: QuantileEstimator | None = None
-
-    n_patches = patch_constructor.n_patches
     for idx in tqdm(range(n_patches), desc="Computing quantile statistics"):
         input_patch, target_patch, _ = patch_constructor.construct_patch(idx)
         input_patch = patch_constructor.get_principal_input(input_patch)
 
-        if not per_channel:
-            input_patch = input_patch.reshape(1, -1)
-            if target_patch is not None:
-                target_patch = target_patch.reshape(1, -1)
+        if compute_input:
+            if not per_channel:
+                input_patch = input_patch.reshape(1, -1)
 
-        if input_estimator is None:
-            lower_levels, upper_levels = _resolve_quantile_levels(
-                norm_config, input_patch
-            )
-            input_estimator = QuantileEstimator(
-                lower_quantiles=lower_levels,
-                upper_quantiles=upper_levels,
-            )
-        input_estimator.update(input_patch)
+            if input_estimator is None:
+                lower_levels, upper_levels = _resolve_quantile_levels(
+                    norm_config, input_patch
+                )
+                input_estimator = QuantileEstimator(
+                    lower_quantiles=lower_levels,
+                    upper_quantiles=upper_levels,
+                )
+            input_estimator.update(input_patch)
 
-        if target_patch is not None:
+        if compute_target and target_patch is not None:
             if target_estimator is None:
                 lower_levels, upper_levels = _resolve_quantile_levels(
                     norm_config, target_patch
@@ -204,12 +245,12 @@ def _compute_quantiles(
                 )
             target_estimator.update(target_patch)
 
-    if input_estimator is None:
-        raise ValueError("No patches found to compute quantile statistics.")
-
-    input_lower, input_upper = input_estimator.finalize()
-    stats: StatsDict = {"input": (input_lower, input_upper)}
-    if target_estimator is not None:
+    if compute_input:
+        assert input_estimator is not None
+        input_lower, input_upper = input_estimator.finalize()
+        stats["input"] = (input_lower, input_upper)
+    if compute_target:
+        assert target_estimator is not None
         target_lower, target_upper = target_estimator.finalize()
         stats["target"] = target_lower, target_upper
     return stats
@@ -283,6 +324,8 @@ def resolve_normalization_config(
             stats = _compute_mean_std(
                 patch_constructor,
                 per_channel=norm_config.per_channel,
+                compute_input=compute_input,
+                compute_target=compute_target,
             )
 
             if compute_input:
@@ -305,6 +348,8 @@ def resolve_normalization_config(
             stats = _compute_min_max(
                 patch_constructor,
                 per_channel=norm_config.per_channel,
+                compute_input=compute_input,
+                compute_target=compute_target,
             )
 
             if compute_input:
@@ -328,6 +373,8 @@ def resolve_normalization_config(
                 patch_constructor,
                 norm_config,
                 per_channel=norm_config.per_channel,
+                compute_input=compute_input,
+                compute_target=compute_target,
             )
 
             if compute_input:
