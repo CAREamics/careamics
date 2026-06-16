@@ -429,7 +429,7 @@ def _checkpoint_trainer(request):
     ) -> tuple[Trainer, ConfigSaverCallback | None]:
         if request.param:
             info_callback = ConfigSaverCallback(
-                careamics_version="0.2.0",
+                careamics_version="0.3.0",
                 experiment_name="testing",
                 training_config=TrainingConfig(
                     **default_training_dict(algorithm=algorithm)
