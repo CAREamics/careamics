@@ -14,11 +14,8 @@ class SupportedStructAxis(StrEnum):
         Vertical axis.
     CROSS : str
         Both axes, i.e. horizontal and vertical.
-    NONE : str
-        No axis, the mask is not applied.
     """
 
     HORIZONTAL = "horizontal"
     VERTICAL = "vertical"
     CROSS = "cross"
-    NONE = "none"

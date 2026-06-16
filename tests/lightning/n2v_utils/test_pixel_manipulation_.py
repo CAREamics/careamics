@@ -5,6 +5,7 @@ import pytest
 import torch
 from torch.nn.functional import pad
 
+from careamics.config.algorithms.n2v_manipulation import StructMaskParameters
 from careamics.lightning.modules.n2v_utils.pixel_manipulation import (
     _apply_struct_mask,
     _create_neg_center_pixel_mask,
@@ -13,9 +14,6 @@ from careamics.lightning.modules.n2v_utils.pixel_manipulation import (
     _get_subpatch_coords,
     median_manipulate,
     uniform_manipulate,
-)
-from careamics.lightning.modules.n2v_utils.struct_mask_parameters import (
-    StructMaskParameters,
 )
 
 
@@ -125,7 +123,9 @@ def test_median_manipulate_torch(ordered_array, shape, apply_struct: bool):
     patch = torch.from_numpy(ordered_array(shape)).float()
     subpatch_size = 5
 
-    struct_params = StructMaskParameters(0, 3) if apply_struct else None
+    struct_params = (
+        StructMaskParameters(axes="horizontal", span=3) if apply_struct else None
+    )
     # Manipulate the tensor
     transform_patch, mask = median_manipulate(
         patch,
@@ -178,15 +178,15 @@ def test_median_manipulate_torch(ordered_array, shape, apply_struct: bool):
     "patch_shape, coords, struct_axis, struct_span",
     [
         # 2D
-        ((4, 10, 10), (2, 2, 2), 1, 5),
-        ((4, 10, 10), (3, 3, 4), 0, 5),
-        ((4, 10, 10), (1, 9, 0), 0, 5),
-        ((4, 10, 10), ((1, 1, 2), (1, 3, 4)), 1, 5),
+        ((4, 10, 10), (2, 2, 2), "vertical", 5),
+        ((4, 10, 10), (3, 3, 4), "horizontal", 5),
+        ((4, 10, 10), (1, 9, 0), "horizontal", 5),
+        ((4, 10, 10), ((1, 1, 2), (1, 3, 4)), "vertical", 5),
         # 3D
-        ((4, 10, 10, 10), (2, 2, 2, 2), 1, 5),
-        ((4, 10, 10, 10), (3, 3, 4, 5), 0, 5),
-        ((4, 10, 10, 10), (1, 9, 0, 0), 0, 5),
-        ((4, 10, 10, 10), ((1, 1, 2, 3), (1, 3, 4, 5)), 1, 5),
+        ((4, 10, 10, 10), (2, 2, 2, 2), "vertical", 5),
+        ((4, 10, 10, 10), (3, 3, 4, 5), "horizontal", 5),
+        ((4, 10, 10, 10), (1, 9, 0, 0), "horizontal", 5),
+        ((4, 10, 10, 10), ((1, 1, 2, 3), (1, 3, 4, 5)), "vertical", 5),
     ],
 )
 def test_apply_struct_mask_torch(patch_shape, coords, struct_axis, struct_span):
@@ -197,7 +197,7 @@ def test_apply_struct_mask_torch(patch_shape, coords, struct_axis, struct_span):
     """
     rng = torch.Generator().manual_seed(42)
 
-    struct_params = StructMaskParameters(axis=struct_axis, span=struct_span)
+    struct_params = StructMaskParameters(axes=struct_axis, span=struct_span)
 
     # Create tensor
     patch = (
@@ -225,7 +225,8 @@ def test_apply_struct_mask_torch(patch_shape, coords, struct_axis, struct_span):
 
     # Check that the transformed pixels correspond to the masked pixels
     transformed = []
-    axis = -1 - struct_axis
+    int_axis = 0 if struct_axis == "horizontal" else 1
+    axis = -1 - int_axis
 
     for i in range(coords.shape[0]):
         # get indices to mask
@@ -333,27 +334,27 @@ def test_center_pixel_mask_even_size_error(n_dims: int, subpatch_size: int):
 @pytest.mark.parametrize("n_dims", [2, 3])
 @pytest.mark.parametrize("subpatch_size", [5, 7, 11])
 @pytest.mark.parametrize("span", [3, 5])
-@pytest.mark.parametrize("axis", [0, 1])
+@pytest.mark.parametrize("axis", ["horizontal", "vertical"])
 def test_create_struct_mask(
-    n_dims: int, subpatch_size: int, span: int, axis: Literal[0, 1]
+    n_dims: int, subpatch_size: int, span: int, axis: Literal["horizontal", "vertical"]
 ):
-    struct_params = StructMaskParameters(axis, span)
+    struct_params = StructMaskParameters(axes=axis, span=span)
     mask_tensor = _create_neg_struct_mask(
         n_dims, subpatch_size, struct_params, torch.device("cpu")
     )
     mask = mask_tensor.detach().numpy()
 
     if n_dims == 2:
-        if axis == 0:
+        if axis == "horizontal":
             expected_mask = _horizontal_struct_2D(subpatch_size, span)
-        elif axis == 1:
+        elif axis == "vertical":
             expected_mask = _vertical_struct_2D(subpatch_size, span)
         else:
             raise ValueError
     elif n_dims == 3:
-        if axis == 0:
+        if axis == "horizontal":
             expected_mask = _horizontal_struct_3D(subpatch_size, span)
-        elif axis == 1:
+        elif axis == "vertical":
             expected_mask = _vertical_struct_3D(subpatch_size, span)
         else:
             raise ValueError
@@ -367,7 +368,7 @@ def test_create_struct_mask(
 @pytest.mark.parametrize("subpatch_size", [6, 10])
 def test_struct_mask_even_size_error(n_dims: int, subpatch_size: int):
     """Test that even sized subpatch sizes are not allowed."""
-    struct_params = StructMaskParameters(0, 5)
+    struct_params = StructMaskParameters(axes="horizontal", span=5)
     with pytest.raises(ValueError):
         _ = _create_neg_struct_mask(
             n_dims, subpatch_size, struct_params, torch.device("cpu")

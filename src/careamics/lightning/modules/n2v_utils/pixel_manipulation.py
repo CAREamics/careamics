@@ -1,27 +1,30 @@
 """N2V manipulation functions for PyTorch."""
 
+from typing import Literal
+
 import torch
 
-from .struct_mask_parameters import StructMaskParameters
+from careamics.config.algorithms.n2v_manipulation import StructMaskParameters
 
 # -- General utilities
 
 
 def _build_struct_pattern(
-    span: int, axis: int, device: str | torch.device
+    span: int,
+    axes: Literal["horizontal", "vertical", "cross"],
+    device: str | torch.device,
 ) -> torch.Tensor:
     """Build a 2D (span, span) mask encoding the structN2V pattern.
 
     Returns a float tensor with 1 at positions belonging to the struct pattern and 0
-    elsewhere, including the center. Supports horizontal (axis=0), vertical (axis=1)
-    and cross (axis=2) patterns.
+    elsewhere, including the center. Supports horizontal, vertical, and cross patterns.
 
     Parameters
     ----------
     span : int
         Size of the mask in each dimension.
-    axis : int
-        Axis of the struct pattern: 0 (horizontal), 1 (vertical), 2 (cross).
+    axes : Literal["horizontal", "vertical", "cross"]
+        Axes of the struct pattern: "horizontal", "vertical", "cross".
     device : str | torch.device
         Device on which to create the mask.
 
@@ -32,9 +35,9 @@ def _build_struct_pattern(
     """
     mask = torch.zeros(span, span, device=device)
     center = span // 2
-    if axis in (0, 2):  # horizontal or cross
+    if axes in ("horizontal", "cross"):
         mask[center, :] = 1
-    if axis in (1, 2):  # vertical or cross
+    if axes in ("vertical", "cross"):
         mask[:, center] = 1
     mask[center, center] = 0  # always exclude center
     return mask
@@ -61,7 +64,7 @@ def _apply_struct_mask(
     coords : torch.Tensor
         Coordinates of the ROI (subpatch) centers, dimensions (n_pt, n_dim).
     struct_params : StructMaskParameters
-        Parameters for the structN2V mask (axis and span).
+        Parameters for the structN2V mask (axes and span).
     rng : torch.Generator, optional
         Random number generator.
 
@@ -75,7 +78,7 @@ def _apply_struct_mask(
 
     # build 2D (span x span) displacement mask: 1 where pixels should be replaced
     disp_mask_2d = _build_struct_pattern(
-        struct_params.span, struct_params.axis, patch.device
+        struct_params.span, struct_params.axes, patch.device
     )
     center_1d = struct_params.span // 2
     ys, xs = torch.where(disp_mask_2d == 1)
@@ -223,7 +226,7 @@ def uniform_manipulate(
     remove_center : bool
         Whether to remove the center pixel from the subpatch, by default True.
     struct_params : StructMaskParameters or None
-        Parameters for the structN2V mask (axis and span).
+        Parameters for the structN2V mask (axes and span).
     rng : torch.default_generator or None
         Random number generator.
 
@@ -320,7 +323,7 @@ def median_manipulate(
     subpatch_size : int
         Size of the subpatch the new pixel value is sampled from, by default 11.
     struct_params : StructMaskParameters or None, optional
-        Parameters for the structN2V mask (axis and span).
+        Parameters for the structN2V mask (axes and span).
     rng : torch.default_generator or None, optional
         Random number generator, by default None.
 
@@ -429,7 +432,7 @@ def _create_neg_struct_mask(
     subpatch_size : int
         The size of the subpatch in X and Y. Cannot be an even number.
     struct_params : StructMaskParameters
-        Parameters for the structN2V mask (axis and span).
+        Parameters for the structN2V mask (axes and span).
     device : torch.device
         Device to create the mask on, e.g. "cuda".
 
@@ -444,7 +447,7 @@ def _create_neg_struct_mask(
     span_start = (subpatch_size - struct_params.span) // 2
 
     # get 2D struct pattern: 1 at positions to exclude, 0 at center and outside
-    disp_mask_2d = _build_struct_pattern(struct_params.span, struct_params.axis, device)
+    disp_mask_2d = _build_struct_pattern(struct_params.span, struct_params.axes, device)
     ys, xs = torch.where(disp_mask_2d == 1)
 
     # build a mask and for the whole subpatch and set the struct pattern, and the

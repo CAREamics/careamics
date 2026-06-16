@@ -96,8 +96,8 @@ class TestStructConfig:
             config.algorithm_config.n2v_config.strategy
             == SupportedPixelManipulation.MEDIAN.value
         )
-        assert config.algorithm_config.n2v_config.struct_mask_axis == struct_mask_axis
-        assert config.algorithm_config.n2v_config.struct_mask_span == struct_n2v_span
+        assert config.algorithm_config.n2v_config.struct_mask.axes == struct_mask_axis
+        assert config.algorithm_config.n2v_config.struct_mask.span == struct_n2v_span
 
 
 class TestAdvancedConfig:
