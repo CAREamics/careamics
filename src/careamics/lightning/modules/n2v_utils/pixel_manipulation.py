@@ -77,11 +77,11 @@ def _apply_struct_mask(
         rng = torch.Generator(device=patch.device)
 
     # build 2D (span x span) displacement mask: 1 where pixels should be replaced
-    disp_mask_2d = _build_struct_pattern(
+    struct_pattern = _build_struct_pattern(
         struct_params.span, struct_params.axes, patch.device
     )
     center_1d = struct_params.span // 2
-    ys, xs = torch.where(disp_mask_2d == 1)
+    ys, xs = torch.where(struct_pattern == 1)
 
     # displacements from center in Y and X, zero for batch and Z dims
     n_masked_pix = ys.shape[0]
