@@ -408,7 +408,7 @@ def _create_center_pixel_exclusion_mask(
         Tensor of bools. False where pixels should be masked and True otherwise.
     """
     if subpatch_size % 2 == 0:
-        raise ValueError("`subpatch` size cannot be even.")
+        raise ValueError("`subpatch_size` must be an odd value.")
     subpatch_shape = (subpatch_size,) * ndims
     centre_idx = (subpatch_size // 2,) * ndims
     cp_mask = torch.ones(subpatch_shape, dtype=torch.bool, device=device)

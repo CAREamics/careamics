@@ -308,33 +308,6 @@ def test_get_subpatch_coords(
 
 @pytest.mark.parametrize("n_dims", [2, 3])
 @pytest.mark.parametrize("subpatch_size", [5, 7, 11])
-def test_create_center_pixel_mask(n_dims: int, subpatch_size: int):
-    mask_tensor = _create_center_pixel_exclusion_mask(
-        n_dims, subpatch_size, torch.device("cpu")
-    )
-    mask = mask_tensor.detach().numpy()
-
-    assert np.count_nonzero(~mask) == 1  # only one value masked
-
-    centre_idx = subpatch_size // 2
-    # the coordinate of the masked value should be the center index
-    coord = np.where(mask == 0)
-    for c in coord:
-        assert c == centre_idx
-
-
-@pytest.mark.parametrize("n_dims", [2, 3])
-@pytest.mark.parametrize("subpatch_size", [6, 10])
-def test_center_pixel_mask_even_size_error(n_dims: int, subpatch_size: int):
-    """Test that even sized subpatch sizes are not allowed."""
-    with pytest.raises(ValueError):
-        _ = _create_center_pixel_exclusion_mask(
-            n_dims, subpatch_size, torch.device("cpu")
-        )
-
-
-@pytest.mark.parametrize("n_dims", [2, 3])
-@pytest.mark.parametrize("subpatch_size", [5, 7, 11])
 @pytest.mark.parametrize("span", [3, 5])
 @pytest.mark.parametrize("axis", ["horizontal", "vertical"])
 def test_create_struct_mask(

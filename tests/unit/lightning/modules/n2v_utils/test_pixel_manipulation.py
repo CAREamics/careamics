@@ -52,9 +52,9 @@ def test_build_struct_pattern(axes, span):
         4,  # CZYX
     ],
 )
-def test_create_center_pixel_exclusion_mask(ndims):
+@pytest.mark.parametrize("subpatch_size", [5, 7, 11])
+def test_create_center_pixel_exclusion_mask(ndims: int, subpatch_size: int):
     """Test that the central pixel is correctly excluded."""
-    subpatch_size = 11
     center_idx = subpatch_size // 2
 
     # get mask
@@ -62,6 +62,13 @@ def test_create_center_pixel_exclusion_mask(ndims):
 
     assert not mask[(center_idx,) * ndims]
     assert mask.sum() == subpatch_size**ndims - 1
+
+
+@pytest.mark.parametrize("subpatch_size", [6, 10])
+def test_create_center_pixel_exclusion_mask_error(subpatch_size: int):
+    """Test that even sized subpatch sizes are not allowed."""
+    with pytest.raises(ValueError, match="must be an odd value"):
+        _ = _create_center_pixel_exclusion_mask(2, subpatch_size, torch.device("cpu"))
 
 
 @pytest.mark.parametrize(
