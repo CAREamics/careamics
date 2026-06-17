@@ -52,7 +52,7 @@ def test_build_struct_pattern(axes, span):
         4,  # CZYX
     ],
 )
-def test_create_neg_center_pixel_mask(ndims):
+def test_create_center_pixel_exclusion_mask(ndims):
     """Test that the central pixel is correctly excluded."""
     subpatch_size = 11
     center_idx = subpatch_size // 2
@@ -74,7 +74,7 @@ def test_create_neg_center_pixel_mask(ndims):
         )
     ),
 )
-def test_create_neg_struct_mask(ndims, axes, span):
+def test_create_struct_exclusion_mask(ndims, axes, span):
     """Test that structN2V pattern is correctly excluded."""
     subpatch_size = 11
     expected_n_pixels = span if axes in AXES_1D else 2 * span - 1  # with center pixel
