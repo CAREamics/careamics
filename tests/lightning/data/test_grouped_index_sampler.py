@@ -3,7 +3,7 @@ import pytest
 
 from careamics.config import create_ng_data_configuration
 from careamics.config.data import MicroSplitDataConfig
-from careamics.dataset.factory import MicroSplitMultiplexedTargetData, create_dataset
+from careamics.dataset.factory import MultiChannelTarget, create_dataset
 from careamics.dataset.factory.microsplit_factory import create_microsplit_dataset
 from careamics.lightning.data import GroupedIndexSampler
 
@@ -100,7 +100,7 @@ def test_from_microsplit_dataset(
     data = np.zeros((1, 2, 32, 32), dtype=np.float32)
     dataset = create_microsplit_dataset(
         config=config,
-        data=MicroSplitMultiplexedTargetData([data]),
+        data=MultiChannelTarget([data]),
         rng=np.random.default_rng(42),
     )
 

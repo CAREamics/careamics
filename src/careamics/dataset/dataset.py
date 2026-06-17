@@ -20,7 +20,7 @@ from .image_region_data import ImageRegionData
 from .image_stack import GenericImageStack
 from .normalization import create_normalization
 from .normalization.statistics import resolve_normalization_config
-from .patch_constructor import PatchConstructor
+from .patch_constructor import PatchConstr
 from .patching import PatchSpecs, RegionSpecs
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
@@ -236,7 +236,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
         data_config: DataConfig,
-        patch_constructor: PatchConstructor,
+        patch_constructor: PatchConstr,
         model_constraints: ModelConstraints | None = None,
     ) -> None:
         """Constructor.

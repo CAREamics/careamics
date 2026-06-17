@@ -13,9 +13,9 @@ from careamics.config.data.normalization_config import (
     QuantileConfig,
 )
 from careamics.dataset.factory import (
-    MicroSplitMultiplexedTargetData,
-    MicroSplitPairedData,
-    MicroSplitSeparateTargetData,
+    IndependentTargets,
+    MultiChannelTarget,
+    PairedInputTarget,
     create_microsplit_dataset,
 )
 
@@ -38,9 +38,9 @@ SEPARATE_TARGET_CH_0 = TARGET_CH_0
 SEPARATE_TARGET_CH_1 = TARGET_CH_1
 
 MicroSplitTrainingData = (
-    MicroSplitMultiplexedTargetData[list[np.ndarray]]
-    | MicroSplitSeparateTargetData[list[np.ndarray]]
-    | MicroSplitPairedData[list[np.ndarray]]
+    MultiChannelTarget[list[np.ndarray]]
+    | IndependentTargets[list[np.ndarray]]
+    | PairedInputTarget[list[np.ndarray]]
 )
 
 
@@ -140,23 +140,21 @@ def _assert_normalization_stats(
     ("data", "alpha_ranges", "expected_input", "expected_target"),
     [
         pytest.param(
-            MicroSplitMultiplexedTargetData([TARGET_PATCH]),
+            MultiChannelTarget([TARGET_PATCH]),
             ALPHA_RANGES,
             WEIGHTED_TARGET_SUM,
             TARGET_PATCH,
             id="t1-multiplexed",
         ),
         pytest.param(
-            MicroSplitSeparateTargetData(
-                [[SEPARATE_TARGET_CH_0], [SEPARATE_TARGET_CH_1]]
-            ),
+            IndependentTargets([[SEPARATE_TARGET_CH_0], [SEPARATE_TARGET_CH_1]]),
             ALPHA_RANGES,
             WEIGHTED_TARGET_SUM,
             TARGET_PATCH,
             id="t2-separate",
         ),
         pytest.param(
-            MicroSplitPairedData(
+            PairedInputTarget(
                 input_data=[REAL_INPUT],
                 target_data=[TARGET_PATCH],
             ),

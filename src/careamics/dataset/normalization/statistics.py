@@ -14,7 +14,7 @@ from careamics.config.data.normalization_config import (
     QuantileConfig,
 )
 from careamics.dataset.patch_constructor import (
-    PatchConstructor,
+    PatchConstr,
 )
 
 from .running_mean_std import WelfordStatistics
@@ -25,7 +25,7 @@ StatsDict = dict[Literal["input", "target"], tuple[NDArray[Any], NDArray[Any]]]
 
 
 def _compute_mean_std(
-    patch_constructor: PatchConstructor,
+    patch_constructor: PatchConstr,
     per_channel: bool,
     compute_input: bool,
     compute_target: bool,
@@ -87,7 +87,7 @@ def _compute_mean_std(
 
 
 def _compute_min_max(
-    patch_constructor: PatchConstructor,
+    patch_constructor: PatchConstr,
     per_channel: bool,
     compute_input: bool,
     compute_target: bool,
@@ -176,7 +176,7 @@ def _compute_min_max(
 
 
 def _compute_quantiles(
-    patch_constructor: PatchConstructor,
+    patch_constructor: PatchConstr,
     norm_config: QuantileConfig,
     per_channel: bool,
     compute_input: bool,
@@ -292,7 +292,7 @@ def _resolve_quantile_levels(
 
 def resolve_normalization_config(
     norm_config: NormalizationConfig,
-    patch_constructor: PatchConstructor,
+    patch_constructor: PatchConstr,
 ) -> NormalizationConfig:
     """
     Resolve a normalization config by computing any missing statistics.

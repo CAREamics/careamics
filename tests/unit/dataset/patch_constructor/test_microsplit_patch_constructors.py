@@ -9,10 +9,10 @@ import pytest
 
 from careamics.dataset.image_stack import InMemoryImageStack
 from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
-    MsPredPatchConstructor,
-    MsT1PatchConstructor,
-    MsT2PatchConstructor,
-    MsT3PatchConstructor,
+    IndependentTargetsMsPatchConstr,
+    MultiChannelTargetMsPatchConstr,
+    PairedInputTargetMsPatchConstr,
+    PredMsPatchConstr,
     _get_uncorrelated_metadata,
 )
 from careamics.dataset.patch_extractor import PatchExtractor
@@ -149,7 +149,7 @@ def test_t1_construct_patch(
 ):
     """Test that the MicroSplit T1 patch constructor outputs patches as expected."""
     rng = np.random.default_rng(42)
-    patch_constructor = MsT1PatchConstructor(
+    patch_constructor = MultiChannelTargetMsPatchConstr(
         patching_strategy,
         multiplexed_target_extractor,
         multiscale_count,
@@ -220,7 +220,7 @@ def test_t2_construct_patch(
 ):
     """Test that the MicroSplit T2 patch constructor outputs patches as expected."""
     rng = np.random.default_rng(42)
-    patch_constructor = MsT2PatchConstructor(
+    patch_constructor = IndependentTargetsMsPatchConstr(
         separate_patching_strategies,
         separate_target_extractors,
         multiscale_count,
@@ -272,7 +272,7 @@ def test_t3_construct_patch(
     patching_strategy: StratifiedPatching,
 ):
     """Test that the MicroSplit T3 patch constructor outputs patches as expected."""
-    patch_constructor = MsT3PatchConstructor(
+    patch_constructor = PairedInputTargetMsPatchConstr(
         patching_strategy,
         input_target_extractor,
         multiplexed_target_extractor,
@@ -315,7 +315,7 @@ def test_pred_construct_patch(
     patching_strategy: StratifiedPatching,
 ):
     """Test that the MicroSplit T3 patch constructor outputs patches as expected."""
-    patch_constructor = MsPredPatchConstructor(
+    patch_constructor = PredMsPatchConstr(
         patching_strategy,
         input_target_extractor,
         multiscale_count,

@@ -10,9 +10,9 @@ from numpy.typing import NDArray
 
 from careamics.config.data import MicroSplitDataConfig
 from careamics.dataset.factory import (
-    MicroSplitMultiplexedTargetData,
-    MicroSplitPairedData,
-    MicroSplitSeparateTargetData,
+    IndependentTargets,
+    MultiChannelTarget,
+    PairedInputTarget,
     create_microsplit_dataset,
     create_microsplit_pred_dataset,
 )
@@ -48,7 +48,7 @@ def _dummy_multiplexed_data(tmp_path: Path, data_type: Literal["array", "tiff"])
         tmp_path,
         "multiplexed_target",
     )
-    return MicroSplitMultiplexedTargetData(target_data), n_channels
+    return MultiChannelTarget(target_data), n_channels
 
 
 def _dummy_separate_channel_data(tmp_path: Path, data_type: Literal["array", "tiff"]):
@@ -68,7 +68,7 @@ def _dummy_separate_channel_data(tmp_path: Path, data_type: Literal["array", "ti
         ),
     ]
     n_channels = len(target_channel_data)
-    return MicroSplitSeparateTargetData(target_channel_data), n_channels
+    return IndependentTargets(target_channel_data), n_channels
 
 
 def _dummy_paired_data(tmp_path: Path, data_type: Literal["array", "tiff"]):
@@ -87,7 +87,7 @@ def _dummy_paired_data(tmp_path: Path, data_type: Literal["array", "tiff"]):
         "paired_target",
     )
     return (
-        MicroSplitPairedData(
+        PairedInputTarget(
             input_data=input_data,
             target_data=target_data,
         ),
@@ -114,9 +114,9 @@ def _microsplit_data_from_mode(
     data_type: Literal["array", "tiff"],
     tmp_path: Path,
 ) -> tuple[
-    MicroSplitMultiplexedTargetData[MicroSplitSource]
-    | MicroSplitSeparateTargetData[MicroSplitSource]
-    | MicroSplitPairedData[MicroSplitSource],
+    MultiChannelTarget[MicroSplitSource]
+    | IndependentTargets[MicroSplitSource]
+    | PairedInputTarget[MicroSplitSource],
     int,
 ]:
     """Return factory input data and expected constructor for a MicroSplit mode."""
@@ -228,7 +228,7 @@ def test_train_factory_rejects_predict_config() -> None:
     ):
         create_microsplit_dataset(
             config=config,
-            data=MicroSplitMultiplexedTargetData(data),
+            data=MultiChannelTarget(data),
         )
 
 
@@ -255,12 +255,12 @@ def test_pred_factory_rejects_train_config() -> None:
 @pytest.mark.parametrize(
     "data",
     [
-        MicroSplitSeparateTargetData([]),
-        MicroSplitSeparateTargetData([np.ones((128, 128))]),
+        IndependentTargets([]),
+        IndependentTargets([np.ones((128, 128))]),
     ],
 )
 def test_less_than_two_separate_channels_error(
-    data: MicroSplitSeparateTargetData,
+    data: IndependentTargets,
 ) -> None:
     """Test training factory rejects unsupported MicroSplit data inputs."""
     config = MicroSplitDataConfig(

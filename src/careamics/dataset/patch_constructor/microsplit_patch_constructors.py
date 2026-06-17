@@ -17,16 +17,15 @@ from careamics.dataset.patching import (
 )
 
 from .metadata_utils import ImageMetadata, get_image_metadata
-from .patch_constructor import PatchConstructor
-
-# placeholder names (correspond to Training Modes I, II & III described in the paper)
+from .patch_constructor import PatchConstr
 
 
 # target channels acquired together, synthetic sum input
-class MsT1PatchConstructor(PatchConstructor):
+# Corresponds to training-mode-i in the MicroSplit paper
+class MultiChannelTargetMsPatchConstr(PatchConstr):
     """Construct MicroSplit patches from multiplexed images of target channels.
 
-    Synthetic inputs created by summing the target channels, `alpha_ranges` are used
+    Synthetic inputs are created by summing the target channels, `alpha_ranges` are used
     to decide the weight of each channel.
 
     Parameters
@@ -276,20 +275,21 @@ class MsT1PatchConstructor(PatchConstructor):
 
 
 # target channels in separate files, synthetic input
-class MsT2PatchConstructor(PatchConstructor):
-    """Construct MicroSplit patches from target channels in separate files.
+# Corresponds to training-mode-ii in the MicroSplit paper
+class IndependentTargetsMsPatchConstr(PatchConstr):
+    """Construct MicroSplit patches from independent target structures.
 
-    The data for different target channels may have different shapes.
+    The data for different target structures may have different shapes.
 
-    Synthetic inputs are created by summing patches from random locations,
+    Synthetic inputs are created by summing patches from random locations in the data,
     `alpha_ranges` are used to decide the weight of each channel.
 
     Parameters
     ----------
     patching_strategies : Sequence[Patching]
-        One patching strategy per target channel source.
+        One patching strategy per target structure source.
     target_extractors : Sequence[PatchExtractor]
-        One extractor per target channel source.
+        One extractor per target structure source.
     multiscale_count : int
         Number of lateral context inputs.
     padding_mode : {"reflect", "wrap"}
@@ -315,9 +315,9 @@ class MsT2PatchConstructor(PatchConstructor):
         Parameters
         ----------
         patching_strategies : Sequence[Patching]
-            One patching strategy per target channel source.
+            One patching strategy per target structure source.
         target_extractors : Sequence[PatchExtractor]
-            One extractor per target channel source.
+            One extractor per target structure source.
         multiscale_count : int
             Number of lateral context inputs.
         padding_mode : {"reflect", "wrap"}
@@ -505,8 +505,9 @@ class MsT2PatchConstructor(PatchConstructor):
 
 
 # real target image and input images
-class MsT3PatchConstructor(PatchConstructor):
-    """Construct MicroSplit patches from paired real input and target images.
+# Corresponds to training-mode-iii in the MicroSplit paper
+class PairedInputTargetMsPatchConstr(PatchConstr):
+    """Construct MicroSplit patches from paired input and target images.
 
     Parameters
     ----------
@@ -688,7 +689,7 @@ class MsT3PatchConstructor(PatchConstructor):
         return self.patching_strategy.get_patch_indices(data_idx)
 
 
-class MsPredPatchConstructor(PatchConstructor):
+class PredMsPatchConstr(PatchConstr):
     """Construct MicroSplit prediction patches.
 
     Parameters

@@ -10,7 +10,7 @@ from tests.utils import (
 
 from careamics.config.data.data_config import DataConfig
 from careamics.dataset.factory import TrainValSplitData, create_train_dataset
-from careamics.dataset.patch_constructor import BasicPatchConstructor
+from careamics.dataset.patch_constructor import BasicPatchConstr
 
 
 @pytest.mark.parametrize(
@@ -52,7 +52,7 @@ def test_filter_background(
     mean_expected_prob = {(0, 0): background_prob}
 
     dataset = create_train_dataset(config, data_input, loading=None)
-    assert isinstance(dataset.patch_constructor, BasicPatchConstructor)
+    assert isinstance(dataset.patch_constructor, BasicPatchConstr)
     patching = dataset.patch_constructor.patching_strategy
 
     assert_expected_pixel_probability(
@@ -96,7 +96,7 @@ def test_filter_background_w_mask(
     mean_expected_prob = {(0, 0): background_prob}
 
     dataset = create_train_dataset(config, data_input, loading=None)
-    assert isinstance(dataset.patch_constructor, BasicPatchConstructor)
+    assert isinstance(dataset.patch_constructor, BasicPatchConstr)
     patching = dataset.patch_constructor.patching_strategy
 
     assert_expected_pixel_probability(
