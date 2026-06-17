@@ -115,7 +115,7 @@ def create_structn2v_config(
     patch_size: Sequence[int],
     batch_size: int,
     # struct n2v
-    struct_n2v_axis: Literal["horizontal", "vertical"],
+    struct_n2v_axes: Literal["horizontal", "vertical", "cross"],
     struct_n2v_span: int = 5,
     # optional parameters
     num_epochs: int = 30,
@@ -128,9 +128,9 @@ def create_structn2v_config(
     """
     Create a configuration for training structN2V.
 
-    The structN2V mask is applied a horizontal or vertical axis, with extent defined by
-    `struct_n2v_span` (default=5, leading to a mask of size 11). For structN2V,
-    augmentations are disabled.
+    The structN2V mask is applied a horizontal, vertical, or both axes, with extent
+    defined by `struct_n2v_span` (default=5, leading to a mask of size 11). For
+    structN2V, augmentations are disabled.
 
     To activate N2V2, set `use_n2v2` to True.
 
@@ -160,8 +160,8 @@ def create_structn2v_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    struct_n2v_axis : Literal["horizontal", "vertical"]
-        Axis along which to apply structN2V mask.
+    struct_n2v_axes : Literal["horizontal", "vertical", "cross"]
+        Axis or axes along which to apply structN2V mask.
     struct_n2v_span : int, default=5
         Span of the structN2V mask.
     num_epochs : int, default=30
@@ -193,7 +193,7 @@ def create_structn2v_config(
         use_n2v2=use_n2v2,
         n_channels=n_channels,
         n_val_patches=n_val_patches,
-        struct_n2v_axis=struct_n2v_axis,
+        struct_n2v_axes=struct_n2v_axes,
         struct_n2v_span=struct_n2v_span,
     )
 
@@ -223,7 +223,7 @@ def create_advanced_n2v_config(
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
     # - structN2V specific
-    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
+    struct_n2v_axes: Literal["horizontal", "vertical", "cross", "none"] = "none",
     struct_n2v_span: int = 5,
     # - Lightning parameters
     num_workers: int = -1,
@@ -245,12 +245,12 @@ def create_advanced_n2v_config(
     Create a configuration for training Noise2Void.
 
     N2V uses a UNet model to denoise images in a self-supervised manner. To use its
-    variants structN2V and N2V2, set the `struct_n2v_axis` and `struct_n2v_span`
+    variants structN2V and N2V2, set the `struct_n2v_axes` and `struct_n2v_span`
     (structN2V) parameters, or set `use_n2v2` to True (N2V2).
 
     N2V2 modifies the UNet architecture by adding blur pool layers and removes the skip
     connections, thus removing checkboard artefacts. StructN2V is used when vertical
-    or horizontal correlations are present in the noise; it applies an additional mask
+    or horizontal correlations are present in the noise. It applies an additional mask
     to the manipulated pixel neighbors.
 
     If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
@@ -270,8 +270,8 @@ def create_advanced_n2v_config(
     be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
     pixels per patch will be manipulated.
 
-    If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
-    will be applied to each manipulated pixel.
+    If you pass "horizontal", "vertical", or "cross" to `struct_n2v_axes`, then
+    structN2V mask will be applied to each manipulated pixel.
 
     The parameters of the UNet can be specified in the `model_params` (passed as a
     parameter-value dictionary). Note that `use_n2v2` and 'n_channels' override the
@@ -339,8 +339,8 @@ def create_advanced_n2v_config(
         N2V pixel manipulation area.
     masked_pixel_percentage : float, default=0.2
         Percentage of pixels masked in each patch.
-    struct_n2v_axis : Literal["horizontal", "vertical", "none"], default="none"
-        Axis along which to apply structN2V mask.
+    struct_n2v_axes : Literal["horizontal", "vertical", "cross", "none"], default="none"
+        Axis or axes along which to apply structN2V mask.
     struct_n2v_span : int, default=5
         Span of the structN2V mask.
     num_workers : int, default=-1
@@ -477,8 +477,14 @@ def create_advanced_n2v_config(
         ),
         roi_size=roi_size,
         masked_pixel_percentage=masked_pixel_percentage,
-        struct_mask_axis=struct_n2v_axis,
-        struct_mask_span=struct_n2v_span,
+        struct_mask=(
+            {
+                "axes": struct_n2v_axes,
+                "span": struct_n2v_span,
+            }
+            if struct_n2v_axes != "none"
+            else None
+        ),
         seed=seed,
     )
     algorithm_params["n2v_config"] = n2v_transform

@@ -1,17 +1,55 @@
 """N2V manipulation functions for PyTorch."""
 
+from typing import Literal
+
 import torch
 
-from .struct_mask_parameters import StructMaskParameters
+from careamics.config.algorithms.n2v_manipulation import StructMaskConfig
+
+# -- General utilities
 
 
-def _apply_struct_mask_torch(
+def _build_struct_pattern(
+    span: int,
+    axes: Literal["horizontal", "vertical", "cross"],
+    device: str | torch.device,
+) -> torch.Tensor:
+    """Build a 2D (span, span) mask encoding the structN2V pattern.
+
+    Returns a float tensor with 1 at positions belonging to the struct pattern and 0
+    elsewhere, including the center. Supports horizontal, vertical, and cross patterns.
+
+    Parameters
+    ----------
+    span : int
+        Size of the mask in each dimension.
+    axes : Literal["horizontal", "vertical", "cross"]
+        Axes of the struct pattern: "horizontal", "vertical", "cross".
+    device : str | torch.device
+        Device on which to create the mask.
+
+    Returns
+    -------
+    torch.Tensor
+        Float tensor of shape (span, span) with 1s at structN2V masked positions.
+    """
+    mask = torch.zeros(span, span, device=device)
+    center = span // 2
+    if axes in ("horizontal", "cross"):
+        mask[center, :] = 1
+    if axes in ("vertical", "cross"):
+        mask[:, center] = 1
+    mask[center, center] = 0  # always exclude center
+    return mask
+
+
+def _apply_struct_mask(
     patch: torch.Tensor,
     coords: torch.Tensor,
-    struct_params: StructMaskParameters,
+    struct_params: StructMaskConfig,
     rng: torch.Generator | None = None,
 ) -> torch.Tensor:
-    """Apply structN2V masks to patch.
+    """Apply structN2V mask to a patch on all coordinates.
 
     Each point in `coords` corresponds to the center of a mask. Masks are parameterized
     by `struct_params`, and pixels in the mask (with respect to `coords`) are replaced
@@ -24,9 +62,9 @@ def _apply_struct_mask_torch(
     patch : torch.Tensor
         Patch to be manipulated, (batch, y, x) or (batch, z, y, x).
     coords : torch.Tensor
-        Coordinates of the ROI (subpatch) centers.
+        Coordinates of the ROI (subpatch) centers, dimensions (n_pt, n_dim).
     struct_params : StructMaskParameters
-        Parameters for the structN2V mask (axis and span).
+        Parameters for the structN2V mask (axes and span).
     rng : torch.Generator, optional
         Random number generator.
 
@@ -38,37 +76,41 @@ def _apply_struct_mask_torch(
     if rng is None:
         rng = torch.Generator(device=patch.device)
 
-    # Relative axis
-    moving_axis = -1 - struct_params.axis
-
-    # Create a mask array
-    mask_shape = [1] * len(patch.shape)
-    mask_shape[moving_axis] = struct_params.span
-    mask = torch.ones(mask_shape, device=patch.device)
-
-    center = torch.tensor(mask.shape, device=patch.device) // 2
-
-    # Mark the center
-    mask[tuple(center)] = 0
-
-    # Displacements from center
-    displacements = torch.stack(torch.where(mask == 1)) - center.unsqueeze(1)
-
-    # Combine all coords (ndim, npts) with all displacements (ncoords, ndim)
-    mix = displacements.T.unsqueeze(-1) + coords.T.unsqueeze(0)
-    mix = mix.permute([1, 0, 2]).reshape([mask.ndim, -1]).T
-
-    # Filter out invalid indices
-    valid_indices = (mix[:, moving_axis] >= 0) & (
-        mix[:, moving_axis] < patch.shape[moving_axis]
+    # build 2D (span x span) displacement mask: 1 where pixels should be replaced
+    struct_pattern = _build_struct_pattern(
+        struct_params.span, struct_params.axes, patch.device
     )
-    mix = mix[valid_indices]
+    center_1d = struct_params.span // 2
+    ys, xs = torch.where(struct_pattern == 1)
+
+    # displacements from center in Y and X, zero for batch and Z dims
+    n_masked_pix = ys.shape[0]
+    displacements = torch.zeros(
+        patch.ndim, n_masked_pix, dtype=torch.long, device=patch.device
+    )
+    displacements[-2] = ys - center_1d
+    displacements[-1] = xs - center_1d
+
+    # combine all manipulated pixel coords (ndim, npts) with all struct masked pixel
+    # displacements (ncoords, ndim) resulting in all struct masked pixels coords
+    # around all manipulated pixels
+    all_masked = displacements.T.unsqueeze(-1) + coords.T.unsqueeze(0)
+    all_masked = all_masked.permute([1, 0, 2]).reshape([patch.ndim, -1]).T
+
+    # Filter out invalid indices for both Y and X spatial axes
+    valid_indices = (
+        (all_masked[:, -2] >= 0)
+        & (all_masked[:, -2] < patch.shape[-2])
+        & (all_masked[:, -1] >= 0)
+        & (all_masked[:, -1] < patch.shape[-1])
+    )
+    all_masked = all_masked[valid_indices]
 
     # flatten in spatial dims to find min and max for each patch in the batch
     batch_mins = patch.view(patch.shape[0], -1).min(dim=-1).values
     batch_maxs = patch.view(patch.shape[0], -1).max(dim=-1).values
     for i in range(patch.shape[0]):
-        batch_coords = mix[mix[:, 0] == i]
+        batch_coords = all_masked[all_masked[:, 0] == i]
         min_ = batch_mins[i].item()
         max_ = batch_maxs[i].item()
         random_values = torch.empty(len(batch_coords), device=patch.device).uniform_(
@@ -79,7 +121,7 @@ def _apply_struct_mask_torch(
     return patch
 
 
-def _get_stratified_coords_torch(
+def _get_stratified_coords(
     mask_pixel_perc: float,
     shape: tuple[int, ...],
     rng: torch.Generator,
@@ -153,18 +195,19 @@ def _get_stratified_coords_torch(
     return coords
 
 
+# -- Pixel manipulation functions
+
+
 def uniform_manipulate(
     patch: torch.Tensor,
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
     remove_center: bool = True,
-    struct_params: StructMaskParameters | None = None,
+    struct_params: StructMaskConfig | None = None,
     rng: torch.Generator | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Manipulate pixels by replacing them with a neighbor values.
-
-    # TODO add more details, especially about batch
 
     Manipulated pixels are selected uniformly selected in a subpatch, away from a grid
     with an approximate uniform probability to be selected across the whole patch.
@@ -183,7 +226,7 @@ def uniform_manipulate(
     remove_center : bool
         Whether to remove the center pixel from the subpatch, by default True.
     struct_params : StructMaskParameters or None
-        Parameters for the structN2V mask (axis and span).
+        Parameters for the structN2V mask (axes and span).
     rng : torch.default_generator or None
         Random number generator.
 
@@ -200,9 +243,7 @@ def uniform_manipulate(
     transformed_patch = patch.clone()
 
     # get the coordinates of the pixels to be masked
-    subpatch_centers = _get_stratified_coords_torch(
-        mask_pixel_percentage, patch.shape, rng
-    )
+    subpatch_centers = _get_stratified_coords(mask_pixel_percentage, patch.shape, rng)
     subpatch_centers = subpatch_centers.to(device=patch.device)
 
     # TODO refactor with non negative indices?
@@ -249,7 +290,7 @@ def uniform_manipulate(
 
     # apply structN2V mask if needed
     if struct_params is not None:
-        transformed_patch = _apply_struct_mask_torch(
+        transformed_patch = _apply_struct_mask(
             transformed_patch, subpatch_centers, struct_params, rng
         )
 
@@ -260,7 +301,7 @@ def median_manipulate(
     batch: torch.Tensor,
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
-    struct_params: StructMaskParameters | None = None,
+    struct_params: StructMaskConfig | None = None,
     rng: torch.Generator | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
@@ -282,7 +323,7 @@ def median_manipulate(
     subpatch_size : int
         Size of the subpatch the new pixel value is sampled from, by default 11.
     struct_params : StructMaskParameters or None, optional
-        Parameters for the structN2V mask (axis and span).
+        Parameters for the structN2V mask (axes and span).
     rng : torch.default_generator or None, optional
         Random number generator, by default None.
 
@@ -302,7 +343,7 @@ def median_manipulate(
         rng = torch.Generator(device=batch.device)
 
     # resulting center coord shape: (num_coordinates, batch + num_spatial_dims)
-    subpatch_center_coordinates = _get_stratified_coords_torch(
+    subpatch_center_coordinates = _get_stratified_coords(
         mask_pixel_percentage, batch.shape, rng
     )
     # pixel coordinates of all the subpatches
@@ -318,9 +359,11 @@ def median_manipulate(
     ndims = batch.ndim - 1
     # subpatch mask to exclude values from median calculation
     if struct_params is None:
-        subpatch_mask = _create_center_pixel_mask(ndims, subpatch_size, batch.device)
+        subpatch_mask = _create_center_pixel_exclusion_mask(
+            ndims, subpatch_size, batch.device
+        )
     else:
-        subpatch_mask = _create_struct_mask(
+        subpatch_mask = _create_struct_exclusion_mask(
             ndims, subpatch_size, struct_params, batch.device
         )
     subpatches_masked = subpatches[:, subpatch_mask]
@@ -333,18 +376,21 @@ def median_manipulate(
     mask = (batch != output_batch).to(torch.uint8)
 
     if struct_params is not None:
-        output_batch = _apply_struct_mask_torch(
+        output_batch = _apply_struct_mask(
             output_batch, subpatch_center_coordinates, struct_params, rng
         )
 
     return output_batch, mask
 
 
-def _create_center_pixel_mask(
+# -- Median pixel manipulation utilities
+
+
+def _create_center_pixel_exclusion_mask(
     ndims: int, subpatch_size: int, device: torch.device
 ) -> torch.Tensor:
     """
-    Create a mask for the center pixel of a subpatch.
+    Create a mask to exclude the center pixel from median calculation.
 
     Parameters
     ----------
@@ -362,7 +408,7 @@ def _create_center_pixel_mask(
         Tensor of bools. False where pixels should be masked and True otherwise.
     """
     if subpatch_size % 2 == 0:
-        raise ValueError("`subpatch` size cannot be even.")
+        raise ValueError("`subpatch_size` must be an odd value.")
     subpatch_shape = (subpatch_size,) * ndims
     centre_idx = (subpatch_size // 2,) * ndims
     cp_mask = torch.ones(subpatch_shape, dtype=torch.bool, device=device)
@@ -370,24 +416,23 @@ def _create_center_pixel_mask(
     return cp_mask
 
 
-def _create_struct_mask(
+def _create_struct_exclusion_mask(
     ndims: int,
     subpatch_size: int,
-    struct_params: StructMaskParameters,
+    struct_params: StructMaskConfig,
     device: torch.device,
 ) -> torch.Tensor:
     """
-    Create the mask for StructN2V.
+    Create a mask to exclude structN2V pattern from median calculation.
 
     Parameters
     ----------
     ndims : int
-        The number of dimensions.
+        The number of dimensions of the patch.
     subpatch_size : int
-        The size of one dimension of the subpatch. The created mask must be the same
-        size as the subpatch. Cannot be an even number.
+        The size of the subpatch in X and Y. Cannot be an even number.
     struct_params : StructMaskParameters
-        Parameters for the structN2V mask (axis and span).
+        Parameters for the structN2V mask (axes and span).
     device : torch.device
         Device to create the mask on, e.g. "cuda".
 
@@ -400,16 +445,18 @@ def _create_struct_mask(
         raise ValueError("`subpatch` size cannot be even.")
     center_idx = subpatch_size // 2
     span_start = (subpatch_size - struct_params.span) // 2
-    span_end = subpatch_size - span_start  # symmetric
-    span_axis = ndims - 1 - struct_params.axis  # e.g. horizontal is the last axis
 
+    # get 2D struct pattern: 1 at positions to exclude, 0 at center and outside
+    disp_mask_2d = _build_struct_pattern(struct_params.span, struct_params.axes, device)
+    ys, xs = torch.where(disp_mask_2d == 1)
+
+    # build a mask and for the whole subpatch and set the struct pattern, and the
+    # center pixel, to 0 for use in median calculation
     struct_mask = torch.ones((subpatch_size,) * ndims, dtype=torch.bool, device=device)
-    # indexes the center unless it is the axis on which the struct mask spans
-    struct_slice = (
-        center_idx if d != span_axis else slice(span_start, span_end)
-        for d in range(ndims)
-    )
-    struct_mask[*struct_slice] = False
+    # leading dims (e.g. Z for 3D) are fixed at the center index
+    leading = (center_idx,) * (ndims - 2)
+    struct_mask[(*leading, ys + span_start, xs + span_start)] = 0
+    struct_mask[(*leading, center_idx, center_idx)] = 0  # center pixel
     return struct_mask
 
 

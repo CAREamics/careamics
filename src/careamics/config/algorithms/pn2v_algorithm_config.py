@@ -8,7 +8,7 @@ from pydantic import AfterValidator, ConfigDict, model_validator
 from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.architectures import UNetConfig
 from careamics.config.noise_model import GaussianMixtureNMConfig
-from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
+from careamics.config.support import SupportedPixelManipulation
 from careamics.config.validators import (
     model_without_final_activation,
 )
@@ -111,7 +111,7 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
         bool
             Whether the configuration is using structPN2V.
         """
-        return self.n2v_config.struct_mask_axis != SupportedStructAxis.NONE.value
+        return self.n2v_config.struct_mask is not None
 
     def get_algorithm_friendly_name(self) -> str:
         """

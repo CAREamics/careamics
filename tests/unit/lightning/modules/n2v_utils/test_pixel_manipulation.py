@@ -1,0 +1,140 @@
+import itertools
+
+import numpy as np
+import pytest
+import torch
+
+from careamics.config.algorithms.n2v_manipulation import StructMaskConfig
+from careamics.lightning.modules.n2v_utils.pixel_manipulation import (
+    _apply_struct_mask,
+    _build_struct_pattern,
+    _create_center_pixel_exclusion_mask,
+    _create_struct_exclusion_mask,
+)
+
+# --- Utils
+
+COORDS_2D = torch.tensor([[0, 5, 8], [0, 21, 16]])
+COORDS_3D = torch.tensor([[0, 7, 5, 8], [0, 2, 21, 16]])
+COORDS_2D_BATCH = torch.tensor([[0, 5, 8], [0, 21, 16], [1, 12, 5]])
+COORDS_3D_BATCH = torch.tensor([[0, 7, 5, 8], [0, 2, 21, 16], [1, 5, 12, 5]])
+
+AXES_1D = ["horizontal", "vertical"]
+AXES = AXES_1D + ["cross"]
+SPAN = [3, 5, 7]
+
+# --- Unit tests
+
+
+@pytest.mark.parametrize("axes, span", list(itertools.product(AXES, SPAN)))
+def test_build_struct_pattern(axes, span):
+    """Test that the struct pattern is built correctly."""
+    expected_n_pixels = span - 1 if axes in AXES_1D else 2 * (span - 1)
+    expected_n_dims = 1 if axes in AXES_1D else 2
+
+    # create mask
+    mask = _build_struct_pattern(span=span, axes=axes, device="cpu")
+
+    # x and y coordinates of non-zero values in the mask
+    ys, xs = torch.where(mask == 1)
+    n_unique_ys = len(torch.unique(ys))
+    n_unique_xs = len(torch.unique(xs))
+    n_dims = (n_unique_ys > 1) + (n_unique_xs > 1)
+
+    assert len(ys) == expected_n_pixels
+    assert n_dims == expected_n_dims
+
+
+@pytest.mark.parametrize(
+    "ndims",
+    [
+        3,  # CYX
+        4,  # CZYX
+    ],
+)
+@pytest.mark.parametrize("subpatch_size", [5, 7, 11])
+def test_create_center_pixel_exclusion_mask(ndims: int, subpatch_size: int):
+    """Test that the central pixel is correctly excluded."""
+    center_idx = subpatch_size // 2
+
+    # get mask
+    mask = _create_center_pixel_exclusion_mask(ndims, subpatch_size, device="cpu")
+
+    assert not mask[(center_idx,) * ndims]
+    assert mask.sum() == subpatch_size**ndims - 1
+
+
+@pytest.mark.parametrize("subpatch_size", [6, 10])
+def test_create_center_pixel_exclusion_mask_error(subpatch_size: int):
+    """Test that even sized subpatch sizes are not allowed."""
+    with pytest.raises(ValueError, match="must be an odd value"):
+        _ = _create_center_pixel_exclusion_mask(2, subpatch_size, torch.device("cpu"))
+
+
+@pytest.mark.parametrize(
+    "ndims, axes, span",
+    list(
+        itertools.product(
+            [3, 4],  # BYX or BZYX
+            AXES,
+            SPAN,
+        )
+    ),
+)
+def test_create_struct_exclusion_mask(ndims, axes, span):
+    """Test that structN2V pattern is correctly excluded."""
+    subpatch_size = 11
+    expected_n_pixels = span if axes in AXES_1D else 2 * span - 1  # with center pixel
+    expected_n_dims = 1 if axes in AXES_1D else 2
+
+    # get mask
+    mask = _create_struct_exclusion_mask(
+        ndims, subpatch_size, StructMaskConfig(axes=axes, span=span), device="cpu"
+    )
+
+    # coordinates of non-zero values in the mask
+    coords = torch.where(mask == 0)
+    n_unique_xs = len(torch.unique(coords[-1]))
+    n_unique_ys = len(torch.unique(coords[-2]))
+    n_dims = (n_unique_ys > 1) + (n_unique_xs > 1)
+
+    assert mask.sum() == subpatch_size**ndims - expected_n_pixels
+    assert n_dims == expected_n_dims
+
+
+@pytest.mark.parametrize(
+    "coords, axes, span",
+    list(
+        itertools.product(
+            # coords
+            [COORDS_2D, COORDS_3D, COORDS_2D_BATCH, COORDS_3D_BATCH],
+            # axes and span of the structN2V mask
+            AXES,
+            SPAN,
+        )
+    ),
+)
+def test_apply_struct_mask(coords, axes, span):
+    """Test that structN2V mask is correctly applied to the coordinates."""
+    npts = coords.shape[0]
+    ndims = coords.shape[1]
+    nbatch = coords[:, 0].max().item() + 1
+    shape = (nbatch, 32, 32) if ndims == 3 else (nbatch, 8, 32, 32)
+    patch = torch.tensor(np.arange(np.prod(shape)).reshape(shape).astype(np.float32))
+
+    expected_n_pixels = (
+        npts * (span - 1) if axes in AXES_1D else npts * (2 * (span - 1))
+    )
+    expected_n_dims = 1 if axes in AXES_1D else 2
+
+    masked_patch = _apply_struct_mask(
+        patch.clone(), coords, StructMaskConfig(axes=axes, span=span)
+    )
+
+    diffs = torch.where(masked_patch != patch)
+    n_unique_ys = len(torch.unique(diffs[-2]))
+    n_unique_xs = len(torch.unique(diffs[-1]))
+    n_dims = (n_unique_ys > npts) + (n_unique_xs > npts)
+
+    assert len(diffs[0]) == expected_n_pixels
+    assert n_dims == expected_n_dims

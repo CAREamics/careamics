@@ -88,7 +88,7 @@ class TestStructConfig:
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            struct_n2v_axis=struct_mask_axis,
+            struct_n2v_axes=struct_mask_axis,
             struct_n2v_span=struct_n2v_span,
             use_n2v2=n2v2,
         )
@@ -96,8 +96,8 @@ class TestStructConfig:
             config.algorithm_config.n2v_config.strategy
             == SupportedPixelManipulation.MEDIAN.value
         )
-        assert config.algorithm_config.n2v_config.struct_mask_axis == struct_mask_axis
-        assert config.algorithm_config.n2v_config.struct_mask_span == struct_n2v_span
+        assert config.algorithm_config.n2v_config.struct_mask.axes == struct_mask_axis
+        assert config.algorithm_config.n2v_config.struct_mask.span == struct_n2v_span
 
 
 class TestAdvancedConfig:

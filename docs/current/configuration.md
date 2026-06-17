@@ -518,13 +518,13 @@ N2V2 is a variant of Noise2Void that mitigates checkerboard artefacts that arise
 
 ### structN2V
 
-structN2V is a variant of Noise2Void that is designed to better handle structured noise, such as line artefacts. It does so by masking out a line of pixels instead of a single pixel during training. To use structN2V, set the `struct_n2v_axis` and `struct_n2v_span` parameters.
+structN2V is a variant of Noise2Void that is designed to better handle structured noise, such as line artefacts. It does so by masking out lines of pixels instead of a single pixel during training. To use structN2V, set the `struct_n2v_axes` and `struct_n2v_span` parameters.
 
 ```python title="Using structN2V"
 --8<-- "current/configuration_n2v.py:adv_config_structn2v"
 ```
 
-1. Choices are `horizontal` or `vertical`.
+1. Choices are `horizontal`, `vertical` or `cross`.
 2. The number of pixels to mask out on each side of the pixel masked by Noise2Void.
 
 
