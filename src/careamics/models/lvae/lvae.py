@@ -242,7 +242,7 @@ class LadderVAE(nn.Module):
         # self.likelihood = self.create_likelihood_module()
 
         # Output layer --> Project to target_ch many channels
-        logvar_ch_needed = self.predict_logvar is not None
+        logvar_ch_needed = self.predict_logvar
         self.output_layer = self.parameter_net = self.decoder_conv_op(
             self.decoder_n_filters,
             self.target_ch * (1 + logvar_ch_needed),
