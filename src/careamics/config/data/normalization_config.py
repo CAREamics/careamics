@@ -177,6 +177,17 @@ class MeanStdConfig(BaseModel):
         """
         return self.input_means is None or self.input_stds is None
 
+    def target_needs_computation(self) -> bool:
+        """
+        Check if target statistics need to be computed.
+
+        Returns
+        -------
+        bool
+            True if target statistics are missing, False otherwise.
+        """
+        return self.target_means is None or self.target_stds is None
+
     def set_input_stats(self, means: list[float], stds: list[float]) -> None:
         """
         Set input means and stds together to avoid validation errors.
@@ -462,6 +473,19 @@ class QuantileConfig(BaseModel):
             or self.input_upper_quantile_values is None
         )
 
+    def target_needs_computation(self) -> bool:
+        """Check if target quantile values need to be computed.
+
+        Returns
+        -------
+        bool
+            True if target quantile values need to be computed.
+        """
+        return (
+            self.target_lower_quantile_values is None
+            or self.target_upper_quantile_values is None
+        )
+
     def set_input_quantile_values(self, lower: list[float], upper: list[float]) -> None:
         """
         Set input quantile values together to avoid validation errors.
@@ -722,6 +746,17 @@ class MinMaxConfig(BaseModel):
         """
         return self.input_mins is None or self.input_maxes is None
 
+    def target_needs_computation(self) -> bool:
+        """
+        Check if target min/max values need to be computed.
+
+        Returns
+        -------
+        bool
+            True if target statistics are missing, False otherwise.
+        """
+        return self.target_mins is None or self.target_maxes is None
+
     def set_input_range(self, mins: list[float], maxes: list[float]) -> None:
         """
         Set input mins and maxes together to avoid validation errors.
@@ -835,6 +870,16 @@ class NoNormConfig(BaseModel):
 
     def needs_computation(self) -> bool:
         """Check if statistics need to be computed.
+
+        Returns
+        -------
+        bool
+            Always False, as no statistics are required.
+        """
+        return False
+
+    def target_needs_computation(self) -> bool:
+        """Check if target statistics need to be computed.
 
         Returns
         -------
