@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.config.algorithms.n2v_manipulation import StructMaskParameters
+from careamics.config.algorithms.n2v_manipulation import StructMaskConfig
 from careamics.lightning.modules.n2v_utils.pixel_manipulation import (
     _apply_struct_mask,
     _build_struct_pattern,
@@ -82,7 +82,7 @@ def test_create_neg_struct_mask(ndims, axes, span):
 
     # get mask
     mask = _create_struct_exclusion_mask(
-        ndims, subpatch_size, StructMaskParameters(axes=axes, span=span), device="cpu"
+        ndims, subpatch_size, StructMaskConfig(axes=axes, span=span), device="cpu"
     )
 
     # coordinates of non-zero values in the mask
@@ -121,7 +121,7 @@ def test_apply_struct_mask(coords, axes, span):
     expected_n_dims = 1 if axes in AXES_1D else 2
 
     masked_patch = _apply_struct_mask(
-        patch.clone(), coords, StructMaskParameters(axes=axes, span=span)
+        patch.clone(), coords, StructMaskConfig(axes=axes, span=span)
     )
 
     diffs = torch.where(masked_patch != patch)

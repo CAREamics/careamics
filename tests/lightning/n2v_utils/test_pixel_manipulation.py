@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch.nn.functional import pad
 
-from careamics.config.algorithms.n2v_manipulation import StructMaskParameters
+from careamics.config.algorithms.n2v_manipulation import StructMaskConfig
 from careamics.lightning.modules.n2v_utils.pixel_manipulation import (
     _apply_struct_mask,
     _create_center_pixel_exclusion_mask,
@@ -124,7 +124,7 @@ def test_median_manipulate_torch(ordered_array, shape, apply_struct: bool):
     subpatch_size = 5
 
     struct_params = (
-        StructMaskParameters(axes="horizontal", span=3) if apply_struct else None
+        StructMaskConfig(axes="horizontal", span=3) if apply_struct else None
     )
     # Manipulate the tensor
     transform_patch, mask = median_manipulate(
@@ -197,7 +197,7 @@ def test_apply_struct_mask_torch(patch_shape, coords, struct_axis, struct_span):
     """
     rng = torch.Generator().manual_seed(42)
 
-    struct_params = StructMaskParameters(axes=struct_axis, span=struct_span)
+    struct_params = StructMaskConfig(axes=struct_axis, span=struct_span)
 
     # Create tensor
     patch = (
@@ -340,7 +340,7 @@ def test_center_pixel_mask_even_size_error(n_dims: int, subpatch_size: int):
 def test_create_struct_mask(
     n_dims: int, subpatch_size: int, span: int, axis: Literal["horizontal", "vertical"]
 ):
-    struct_params = StructMaskParameters(axes=axis, span=span)
+    struct_params = StructMaskConfig(axes=axis, span=span)
     mask_tensor = _create_struct_exclusion_mask(
         n_dims, subpatch_size, struct_params, torch.device("cpu")
     )
@@ -370,7 +370,7 @@ def test_create_struct_mask(
 @pytest.mark.parametrize("subpatch_size", [6, 10])
 def test_struct_mask_even_size_error(n_dims: int, subpatch_size: int):
     """Test that even sized subpatch sizes are not allowed."""
-    struct_params = StructMaskParameters(axes="horizontal", span=5)
+    struct_params = StructMaskConfig(axes="horizontal", span=5)
     with pytest.raises(ValueError):
         _ = _create_struct_exclusion_mask(
             n_dims, subpatch_size, struct_params, torch.device("cpu")

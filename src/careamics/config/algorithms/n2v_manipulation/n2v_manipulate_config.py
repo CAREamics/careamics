@@ -31,7 +31,7 @@ def _odd_value(v: int) -> int:
     return v
 
 
-class StructMaskParameters(BaseModel):
+class StructMaskConfig(BaseModel):
     """Parameters of structN2V masks.
 
     Attributes
@@ -63,7 +63,7 @@ class N2VManipulateConfig(BaseModel):
         Percentage of masked pixels, by default 0.2.
     strategy : Literal["uniform", "median"]
         Strategy pixel value replacement, by default "uniform".
-    struct_mask : StructMaskParameters | None
+    struct_mask : StructMaskConfig | None
         Parameters of the structN2V mask. If None, no structN2V mask is applied.
     seed : int
         Random seed for reproducibility.
@@ -87,7 +87,7 @@ class N2VManipulateConfig(BaseModel):
     strategy: Literal["uniform", "median"] = Field(default="uniform")
     """Strategy for pixel value replacement."""
 
-    struct_mask: StructMaskParameters | None = None
+    struct_mask: StructMaskConfig | None = None
     """Parameters of the structN2V mask. If None, no structN2V mask is applied."""
 
     seed: int = Field(default_factory=generate_random_seed, gt=0)

@@ -4,7 +4,7 @@ from typing import Literal
 
 import torch
 
-from careamics.config.algorithms.n2v_manipulation import StructMaskParameters
+from careamics.config.algorithms.n2v_manipulation import StructMaskConfig
 
 # -- General utilities
 
@@ -46,7 +46,7 @@ def _build_struct_pattern(
 def _apply_struct_mask(
     patch: torch.Tensor,
     coords: torch.Tensor,
-    struct_params: StructMaskParameters,
+    struct_params: StructMaskConfig,
     rng: torch.Generator | None = None,
 ) -> torch.Tensor:
     """Apply structN2V mask to a patch on all coordinates.
@@ -203,7 +203,7 @@ def uniform_manipulate(
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
     remove_center: bool = True,
-    struct_params: StructMaskParameters | None = None,
+    struct_params: StructMaskConfig | None = None,
     rng: torch.Generator | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
@@ -301,7 +301,7 @@ def median_manipulate(
     batch: torch.Tensor,
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
-    struct_params: StructMaskParameters | None = None,
+    struct_params: StructMaskConfig | None = None,
     rng: torch.Generator | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
@@ -419,7 +419,7 @@ def _create_center_pixel_exclusion_mask(
 def _create_struct_exclusion_mask(
     ndims: int,
     subpatch_size: int,
-    struct_params: StructMaskParameters,
+    struct_params: StructMaskConfig,
     device: torch.device,
 ) -> torch.Tensor:
     """
