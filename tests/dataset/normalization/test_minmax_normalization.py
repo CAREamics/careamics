@@ -221,3 +221,42 @@ def test_global_stats_pools_across_channels():
     sample, *_ = dataset[0]
     assert np.isclose(sample.data[0].mean(), 0.0, atol=0.01)
     assert np.isclose(sample.data[1].mean(), 1.0, atol=0.01)
+
+
+def test_denormalize_uses_target_range_not_input_range():
+    """Regression test for #967: denormalize() must use target range when
+    it exists, not input range. Real failure case: input and target have
+    a different number of channels, so reusing input's per-channel range
+    on the model's (target-shaped) output gives silently wrong values."""
+    rng = np.random.default_rng(42)
+    input_data = rng.integers(0, 100, size=(64, 64)).astype(np.float32)
+    target_data = rng.integers(0, 1000, size=(64, 64)).astype(np.float32)
+
+    config = DataConfig(
+        mode="training",
+        data_type="array",
+        axes="YX",
+        patching={"name": "random", "patch_size": (32, 32)},
+        normalization={
+            "name": "min_max",
+            "input_mins": [0.0],
+            "input_maxes": [100.0],
+            "target_mins": [0.0],
+            "target_maxes": [1000.0],
+        },
+    )
+    dataset = create_dataset(
+        config=config, inputs=[input_data], targets=[target_data]
+    )
+
+    norm = dataset.normalization
+    norm.target_mins = [0.0, 0.0]
+    norm.target_maxes = [1000.0, 2000.0]
+
+    model_output = torch.full((1, 2, 8, 8), 0.5)
+    result = norm.denormalize(model_output)
+
+    assert result.shape == (1, 2, 8, 8)
+    # 0.5 normalized -> midpoint of target range, proves target range used
+    assert torch.allclose(result[0, 0], torch.tensor(500.0), atol=1e-3)
+    assert torch.allclose(result[0, 1], torch.tensor(1000.0), atol=1e-3)
