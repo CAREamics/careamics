@@ -251,9 +251,7 @@ def test_denormalize_uses_target_stats_not_input_stats():
             "target_stds": [30.0],
         },
     )
-    dataset = create_dataset(
-        config=config, inputs=[input_data], targets=[target_data]
-    )
+    dataset = create_dataset(config=config, inputs=[input_data], targets=[target_data])
 
     # Real failure scenario from the issue: model output has a different
     # channel count than the input. Force target stats to be multi-channel

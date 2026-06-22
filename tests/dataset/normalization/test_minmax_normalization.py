@@ -245,9 +245,7 @@ def test_denormalize_uses_target_range_not_input_range():
             "target_maxes": [1000.0],
         },
     )
-    dataset = create_dataset(
-        config=config, inputs=[input_data], targets=[target_data]
-    )
+    dataset = create_dataset(config=config, inputs=[input_data], targets=[target_data])
 
     norm = dataset.normalization
     norm.target_mins = [0.0, 0.0]
