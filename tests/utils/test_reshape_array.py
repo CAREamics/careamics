@@ -9,11 +9,21 @@ from careamics.utils.reshape_array import (
     restore_tile,
 )
 
+# --- Re-usable utilities
+
+
+def _array_to_tile(input_shape, axes, target_shape):
+    """Create the input to restore_tile tests from the restore_array test inputs."""
+    return input_shape, axes, target_shape[1:]
+
+
 XY_S = 32
 Z_S = 16
 C_S = 3
 T_S = 4
 S_S = 5
+
+OUT_C_S = 5
 
 # Axes already in STCZYX order
 _ORDERED_CASES = [
@@ -43,11 +53,107 @@ _UNORDERED_CASES = [
     ((C_S, XY_S, XY_S, T_S, Z_S, S_S), "CYXTZS"),
 ]
 
+# Input-target with different shapes
+# parameters: input_shape, axes, target_shape (SCZYX)
+_SPATIAL_MISMATCH = [
+    # ordered cases
+    ((XY_S, XY_S), "YX", (1, 1, Z_S, XY_S, XY_S)),
+    ((Z_S, XY_S, XY_S), "ZYX", (1, 1, XY_S, XY_S)),
+    ((S_S, XY_S, XY_S), "SYX", (S_S, 1, Z_S, XY_S, XY_S)),
+    ((S_S, Z_S, XY_S, XY_S), "SZYX", (S_S, 1, XY_S, XY_S)),
+    ((C_S, XY_S, XY_S), "CYX", (1, C_S, Z_S, XY_S, XY_S)),
+    ((C_S, Z_S, XY_S, XY_S), "CZYX", (1, C_S, XY_S, XY_S)),
+    ((S_S, C_S, XY_S, XY_S), "SCYX", (S_S, C_S, Z_S, XY_S, XY_S)),
+    ((S_S, C_S, Z_S, XY_S, XY_S), "SCZYX", (S_S, C_S, XY_S, XY_S)),
+    ((S_S, T_S, XY_S, XY_S), "STYX", (S_S * T_S, 1, Z_S, XY_S, XY_S)),
+    ((S_S, T_S, Z_S, XY_S, XY_S), "STZYX", (S_S * T_S, 1, XY_S, XY_S)),
+]
+
+
+_SPATIAL_MISMATCH_DISORDERED = [
+    # unordered cases
+    ((XY_S, XY_S, C_S), "YXC", (1, C_S, Z_S, XY_S, XY_S)),
+    ((Z_S, XY_S, XY_S, C_S), "ZYXC", (1, C_S, XY_S, XY_S)),
+    ((XY_S, XY_S, T_S), "YXT", (T_S, 1, Z_S, XY_S, XY_S)),
+    ((XY_S, XY_S, T_S, Z_S), "YXTZ", (T_S, 1, XY_S, XY_S)),
+    ((XY_S, XY_S, S_S), "YXS", (S_S, 1, Z_S, XY_S, XY_S)),
+    ((XY_S, XY_S, S_S, Z_S), "YXSZ", (S_S, 1, XY_S, XY_S)),
+    ((C_S, XY_S, XY_S, T_S, Z_S, S_S), "CYXTZS", (S_S * T_S, C_S, XY_S, XY_S)),
+    ((C_S, XY_S, XY_S, T_S, S_S), "CYXTS", (S_S * T_S, C_S, Z_S, XY_S, XY_S)),
+]
+
+
+_CHANNEL_MISMATCH = [
+    # no channel vs channels
+    ((XY_S, XY_S), "YX", (1, C_S, XY_S, XY_S)),
+    ((C_S, XY_S, XY_S), "CYX", (1, 1, XY_S, XY_S)),
+    ((Z_S, XY_S, XY_S), "ZYX", (1, C_S, Z_S, XY_S, XY_S)),
+    ((C_S, Z_S, XY_S, XY_S), "CZYX", (1, 1, Z_S, XY_S, XY_S)),
+    ((S_S, XY_S, XY_S), "SYX", (S_S, C_S, XY_S, XY_S)),
+    ((S_S, C_S, XY_S, XY_S), "SCYX", (S_S, 1, XY_S, XY_S)),
+    ((S_S, Z_S, XY_S, XY_S), "SZYX", (S_S, C_S, Z_S, XY_S, XY_S)),
+    ((S_S, C_S, Z_S, XY_S, XY_S), "SCZYX", (S_S, 1, Z_S, XY_S, XY_S)),
+    ((T_S, XY_S, XY_S), "TYX", (T_S, C_S, XY_S, XY_S)),
+    ((T_S, C_S, XY_S, XY_S), "TCYX", (T_S, 1, XY_S, XY_S)),
+    ((T_S, Z_S, XY_S, XY_S), "TZYX", (T_S, C_S, Z_S, XY_S, XY_S)),
+    ((T_S, C_S, Z_S, XY_S, XY_S), "TCZYX", (T_S, 1, Z_S, XY_S, XY_S)),
+    ((S_S, T_S, XY_S, XY_S), "STYX", (S_S * T_S, C_S, XY_S, XY_S)),
+    ((S_S, T_S, C_S, XY_S, XY_S), "STCYX", (S_S * T_S, 1, XY_S, XY_S)),
+    ((S_S, T_S, Z_S, XY_S, XY_S), "STZYX", (S_S * T_S, C_S, Z_S, XY_S, XY_S)),
+    ((S_S, T_S, C_S, Z_S, XY_S, XY_S), "STCZYX", (S_S * T_S, 1, Z_S, XY_S, XY_S)),
+    # different channels
+    ((C_S, XY_S, XY_S), "CYX", (1, OUT_C_S, XY_S, XY_S)),
+    ((C_S, Z_S, XY_S, XY_S), "CZYX", (1, OUT_C_S, Z_S, XY_S, XY_S)),
+    ((S_S, C_S, XY_S, XY_S), "SCYX", (S_S, OUT_C_S, XY_S, XY_S)),
+    ((S_S, C_S, Z_S, XY_S, XY_S), "SCZYX", (S_S, OUT_C_S, Z_S, XY_S, XY_S)),
+    ((T_S, C_S, XY_S, XY_S), "TCYX", (T_S, OUT_C_S, XY_S, XY_S)),
+    ((S_S, T_S, C_S, XY_S, XY_S), "STCYX", (S_S * T_S, OUT_C_S, XY_S, XY_S)),
+]
+
+
+_CHANNEL_MISMATCH_DISORDERED = [
+    # no channel vs channels
+    ((XY_S, XY_S, C_S), "YXC", (1, 1, XY_S, XY_S)),
+    ((XY_S, XY_S, C_S, Z_S), "YXCZ", (1, 1, Z_S, XY_S, XY_S)),
+    ((XY_S, XY_S, Z_S), "YXZ", (1, C_S, Z_S, XY_S, XY_S)),
+    ((XY_S, XY_S, T_S), "YXT", (T_S, C_S, XY_S, XY_S)),
+    ((XY_S, XY_S, C_S, T_S), "YXCT", (T_S, 1, XY_S, XY_S)),
+    ((XY_S, XY_S, T_S, Z_S), "YXTZ", (T_S, C_S, Z_S, XY_S, XY_S)),
+    ((XY_S, XY_S, T_S, C_S, Z_S), "YXTCZ", (T_S, 1, Z_S, XY_S, XY_S)),
+    ((XY_S, XY_S, T_S, S_S, Z_S), "YXTSZ", (S_S * T_S, C_S, Z_S, XY_S, XY_S)),
+    ((XY_S, XY_S, T_S, C_S, S_S, Z_S), "YXTCSZ", (S_S * T_S, 1, Z_S, XY_S, XY_S)),
+    # different channels
+    ((XY_S, XY_S, C_S), "YXC", (1, OUT_C_S, XY_S, XY_S)),
+    ((XY_S, XY_S, C_S, Z_S), "YXCZ", (1, OUT_C_S, Z_S, XY_S, XY_S)),
+    ((C_S, XY_S, XY_S, T_S, S_S), "CYXTS", (S_S * T_S, OUT_C_S, Z_S, XY_S, XY_S)),
+    ((C_S, XY_S, XY_S, T_S, Z_S, S_S), "CYXTZS", (S_S * T_S, OUT_C_S, Z_S, XY_S, XY_S)),
+]
+
+_SPATIAL_MISMATCH_TILE = [
+    _array_to_tile(in_sh, axes, tar_sh) for in_sh, axes, tar_sh in _SPATIAL_MISMATCH
+]
+
+_SPATIAL_MISMATCH_TILE_DISORDERED = [
+    _array_to_tile(in_sh, axes, tar_sh)
+    for in_sh, axes, tar_sh in _SPATIAL_MISMATCH_DISORDERED
+]
+
+_CHANNEL_MISMATCH_TILE = [
+    _array_to_tile(in_sh, axes, tar_sh) for in_sh, axes, tar_sh in _CHANNEL_MISMATCH
+]
+
+_CHANNEL_MISMATCH_TILE_DISORDERED = [
+    _array_to_tile(in_sh, axes, tar_sh)
+    for in_sh, axes, tar_sh in _CHANNEL_MISMATCH_DISORDERED
+]
+
+# --- Unit tests
+
 
 class TestAxesTransform:
     def test_s_added(self):
         t = AxesTransform("YX", (XY_S, XY_S))
-        assert t.c_added is True
+        assert t.c_added_to_original is True
         assert len(t.sample_dims) == 0
 
     def test_t_becomes_s(self):
@@ -59,19 +165,19 @@ class TestAxesTransform:
         t = AxesTransform("STYX", (S_S, T_S, XY_S, XY_S))
         assert len(t.sample_dims) == 2
         assert set(t.sample_dims) == {"S", "T"}
-        assert t.c_added is True
+        assert t.c_added_to_original is True
 
     def test_c_added(self):
         t = AxesTransform("SYX", (S_S, XY_S, XY_S))
-        assert t.c_added is True
+        assert t.c_added_to_original is True
 
     def test_c_not_added(self):
         t = AxesTransform("SCYX", (S_S, C_S, XY_S, XY_S))
-        assert t.c_added is False
+        assert t.c_added_to_original is False
 
     def test_has_z(self):
-        assert AxesTransform("ZYX", (Z_S, XY_S, XY_S)).has_z is True
-        assert AxesTransform("YX", (XY_S, XY_S)).has_z is False
+        assert AxesTransform("ZYX", (Z_S, XY_S, XY_S)).original_has_z is True
+        assert AxesTransform("YX", (XY_S, XY_S)).original_has_z is False
 
     def test_dl_axes_2d(self):
         assert AxesTransform("YX", (XY_S, XY_S)).transformed_axes == "SCYX"
@@ -394,3 +500,64 @@ class TestOriginalStitchSlices:
                 crop_shape.append(crop_size[-1])
 
         restored[slices] = np.ones(crop_shape)
+
+
+class TestInputTargetMismatch:
+    """Test restoring array when the target shape is different from the input shape."""
+
+    @pytest.mark.parametrize(
+        "in_shape, axes, target_shape",
+        _SPATIAL_MISMATCH
+        + _CHANNEL_MISMATCH
+        + _SPATIAL_MISMATCH_DISORDERED
+        + _CHANNEL_MISMATCH_DISORDERED,
+    )
+    def test_restore_array(self, in_shape, axes, target_shape):
+        """Test that spatial dimensions are restored correctly."""
+        expected_shape = [a for a in target_shape if a != 1]  # remove singleton dims
+        ax_indices = ["STCZYX".index(a) for a in axes]
+        is_sorted = ax_indices == sorted(ax_indices)
+
+        array = np.arange(np.prod(target_shape)).reshape(target_shape)
+        restored = restore_array(array, axes, in_shape)
+
+        if not is_sorted and len(restored.shape) > 2:
+            # check that reordering has occured
+            # exclude symmetrical YX cases
+            assert list(restored.shape) != expected_shape
+
+        # check that the target dimensions are conserved
+        assert list(restored.shape).sort() == expected_shape.sort()
+
+    @pytest.mark.parametrize(
+        "in_shape, axes, target_shape",
+        # _SPATIAL_MISMATCH_TILE
+        # + _CHANNEL_MISMATCH_TILE
+        _SPATIAL_MISMATCH_TILE_DISORDERED,
+        # + _CHANNEL_MISMATCH_TILE_DISORDERED
+    )
+    def test_restore_tile(self, in_shape, axes, target_shape):
+        """Test that spatial dimensions are restored correctly."""
+        expected_shape = [a for a in target_shape if a != 1]  # remove singleton dims
+        ax_indices = ["STCZYX".index(a) for a in axes]
+        is_sorted = ax_indices == sorted(ax_indices)
+        c_added = "C" not in axes and target_shape[0] > 1
+        z_added = "Z" not in axes and target_shape[0] > 1
+
+        array = np.arange(np.prod(target_shape)).reshape(target_shape)
+        restored = restore_tile(array, axes, in_shape)
+
+        # skip sorting check if:
+        # - only YX
+        # - only YX and added Z
+        # - only YX and added C
+        if not is_sorted and not c_added and not z_added:
+            # check that reordering has occured
+            assert list(restored.shape) != expected_shape
+
+        # check that the target dimensions are conserved
+        assert list(restored.shape).sort() == expected_shape.sort()
+
+
+# TODO test for errors
+# TODO test transforms for the new stuff , reusing the fixtures

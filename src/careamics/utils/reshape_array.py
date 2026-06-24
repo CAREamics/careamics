@@ -13,6 +13,13 @@ _REF_ORDER = "STCZYX"
 _VALID_AXES = set(_REF_ORDER)
 
 
+# TODO
+# Actually, the shape may change between input and ouputs:
+# - number of channels may be different
+# - new channels may be added
+# - number of spatial dimensions may be different (e.g. 2D vs 3D)
+
+
 @dataclass(frozen=True)
 class AxesTransform:
     """Transformation between original and transformed space axes.
@@ -29,11 +36,11 @@ class AxesTransform:
     sample_dims : list[str]
         Computed property. Original dimensions merged into S. Spatial (Y, X and Z), as
         well as channels, are never considered sample dimensions.
-    c_added : bool
+    c_added_to_original : bool
         Computed property. Whether C is added as a singleton.
-    has_z : bool
+    original_has_z : bool
         Computed property. Whether original data contains a Z axis.
-    dim_sizes : dict[str, int]
+    original_dim_sizes : dict[str, int]
         Computed property. Map from axis name to original size.
     transformed_axes : str
         Computed property. Transformed axes string: "SC(Z)YX".
@@ -45,10 +52,38 @@ class AxesTransform:
     """
 
     original_axes: str
+    """Original axes string of the input data (e.g. "YXC", "STCZYX")."""
+
     original_shape: Sequence[int]
+    """Shape corresponding to `original_axes`."""
+
+    current_shape: tuple[int, ...] | None = None
+    """Current shape of the data. Must be in transformed space, either as a full array
+    of dims SC(Z)YX or a tile of shape C(Z)YX. If None, will be set to
+    `original_shape`."""
+
+    current_is_tile: bool = False
+    """Whether the current shape is a tile (C(Z)YX) or a full array (SC(Z)YX). If True,
+    `current_shape` must be in tile format."""
 
     def __post_init__(self) -> None:
         """Validate original axes and shape."""
+        if self.current_shape is None:
+            self.current_shape = tuple(self.original_shape)
+        else:
+            if self.current_is_tile:
+                if len(self.current_shape) not in (3, 4):
+                    raise ValueError(
+                        f"Current shape {self.current_shape} is not a valid tile "
+                        f"shape (C(Z)YX)."
+                    )
+            else:
+                if len(self.current_shape) not in (4, 5):
+                    raise ValueError(
+                        f"Current shape {self.current_shape} is not a valid array "
+                        f"shape (SC(Z)YX)."
+                    )
+
         if len(self.original_axes) != len(self.original_shape):
             raise ValueError(
                 f"Axes '{self.original_axes}' length ({len(self.original_axes)}) "
@@ -86,7 +121,7 @@ class AxesTransform:
         return [a for a in _REF_ORDER if a in self.original_axes and a not in excluded]
 
     @property
-    def c_added(self) -> bool:
+    def c_added_to_original(self) -> bool:
         """C is added as a singleton dimension.
 
         Returns
@@ -97,7 +132,7 @@ class AxesTransform:
         return "C" not in self.original_axes
 
     @property
-    def has_z(self) -> bool:
+    def original_has_z(self) -> bool:
         """Original data contains a Z axis.
 
         Returns
@@ -108,7 +143,7 @@ class AxesTransform:
         return "Z" in self.original_axes
 
     @property
-    def dim_sizes(self) -> dict[str, int]:
+    def original_dim_sizes(self) -> dict[str, int]:
         """Map from axis name to original size.
 
         Returns
@@ -117,6 +152,49 @@ class AxesTransform:
             Dictionary mapping axis name to its size in the original shape.
         """
         return dict(zip(self.original_axes, self.original_shape, strict=True))
+
+    @property
+    def current_axes(self) -> str:
+        """Current axes.
+
+        Returns
+        -------
+        str
+            Current axes string, based on current shape. Will be a subset of
+            `transformed_axes`.
+        """
+        match len(self.current_shape):
+            case 5:
+                return "SCZYX"
+            case 4:
+                return "CZYX" if self.current_is_tile else "SCYX"
+            case 3:
+                return "CYX"
+            case _:
+                raise ValueError(
+                    f"Current shape {self.current_shape} is not a valid array or tile "
+                    f"shape (SC(Z)YX or C(Z)YX)."
+                )
+
+    @property
+    def current_added_axes(self) -> list[str]:
+        """Added axes in the current shape.
+
+        Returns
+        -------
+        list[str]
+            List of axes that are present in the current shape but not in the original
+            axes.
+        """
+        return [
+            a
+            for a in self.current_axes
+            if (
+                a not in self.original_axes
+                and self.current_shape[self.current_axes.index(a)] > 1
+                and a not in "ST"  # exclude sample dims
+            )
+        ]
 
     @property
     def transformed_axes(self) -> str:
@@ -128,7 +206,7 @@ class AxesTransform:
             Transformed axes string. Will be `SCZYX` if original data has Z axis,
             otherwise `SCYX`.
         """
-        return "SCZYX" if self.has_z else "SCYX"
+        return "SCZYX" if self.original_has_z else "SCYX"
 
     @property
     def transformed_shape(self) -> tuple[int, ...]:
@@ -140,7 +218,7 @@ class AxesTransform:
             Expected shape after forward transformation, in the order of
             `transformed_axes`.
         """
-        dim_sizes = self.dim_sizes
+        dim_sizes = self.original_dim_sizes
 
         # resulting sample size is the product of all multiplexed axis sizes
         s = 1
@@ -149,7 +227,7 @@ class AxesTransform:
 
         c = dim_sizes.get("C", 1)
 
-        if self.has_z:
+        if self.original_has_z:
             return (s, c, dim_sizes["Z"], dim_sizes["Y"], dim_sizes["X"])
 
         return (s, c, dim_sizes["Y"], dim_sizes["X"])
@@ -254,7 +332,7 @@ def reshape_array(
         array = array[np.newaxis]
 
     # add singleton C, if necessary
-    if transform.c_added:
+    if transform.c_added_to_original:
         array = np.expand_dims(array, 1)
 
     return array
@@ -292,6 +370,10 @@ def restore_array(
 ) -> NDArray:
     """Restore array from `SC(Z)YX` space back to original axes and shape.
 
+    If `array` has different spatial dimensions or number of channels than the original
+    array, then the restored array will have the same shape as `array` in those
+    dimensions, but will still be reordered to match the original axes order.
+
     Parameters
     ----------
     array : numpy.ndarray
@@ -321,33 +403,51 @@ def restore_array(
             "depth axis)."
         )
 
-    transform = AxesTransform(original_axes, tuple(original_shape))
-    current_axes = list(transform.transformed_axes)
+    transform = AxesTransform(
+        original_axes=original_axes,
+        original_shape=tuple(original_shape),
+        current_shape=array.shape,
+    )
+    current_axes = list(transform.current_axes)
     sample_dims = transform.sample_dims
 
     # restore sample dimensions
     # - if multiple sample dims, it will reshape the array and add all sample dims back
     # - if single sample dim that is not S, it will rename the dimensions
     # - if no sample dims, it will remove the singleton S dim
-    sizes = tuple(transform.dim_sizes[d] for d in sample_dims)
+    sizes = tuple(transform.original_dim_sizes[d] for d in sample_dims)
     array = array.reshape(sizes + array.shape[1:])
     current_axes = list(sample_dims) + current_axes[1:]
 
-    # remove singleton C
-    if transform.c_added:
-        c_idx = current_axes.index("C")
-        array = np.squeeze(array, axis=c_idx)
-        current_axes.pop(c_idx)
+    # process channel dimension
+    if transform.c_added_to_original:
+        c_idx = 1
+
+        # remove singleton dimension
+        if array.shape[c_idx] == 1:
+            array = np.squeeze(array, axis=c_idx)
+            current_axes.pop(c_idx)
+
+    # new axes (C or Z) that were added in the output
+    n_new_axes = len(transform.current_added_axes)
 
     # reorder axes to original order
     current_str = "".join(current_axes)
     if current_str != original_axes:
-        source = [current_str.index(a) for a in original_axes]
-        array = np.moveaxis(array, source, list(range(len(original_axes))))
+        source = [current_str.index(a) for a in original_axes if a in current_axes]
+        array = np.moveaxis(
+            array,
+            source,
+            list(
+                # leave new axes (potentially C and Z) at the beginning and in order
+                range(n_new_axes, n_new_axes + len(source))
+            ),
+        )
 
     return array
 
 
+# TODO refactor with restore_array to avoid code duplication
 def restore_tile(
     tile: NDArray,
     original_axes: str,
@@ -372,24 +472,38 @@ def restore_tile(
     if len(tile.shape) not in (3, 4):
         raise ValueError(f"Expected 3D (CYX) or 4D (CZYX), got {len(tile.shape)}D.")
 
-    transform = AxesTransform(original_axes, tuple(original_shape))
+    transform = AxesTransform(
+        original_axes=original_axes,
+        original_shape=tuple(original_shape),
+        current_shape=tile.shape,
+        current_is_tile=True,
+    )
+    current_axes = list(transform.current_axes)
 
-    # remove sample dim
-    current_axes = list(transform.transformed_axes[1:])
+    # process channel dimension
+    if transform.c_added_to_original:
+        c_idx = 0
 
-    # remove singleton C if it was added
-    if transform.c_added:
-        tile = np.squeeze(tile, axis=0)
-        current_axes.pop(0)
+        # remove singleton dimension
+        if tile.shape[c_idx] == 1:
+            tile = np.squeeze(tile, axis=c_idx)
+            current_axes.pop(c_idx)
 
-    # expected dimensions for a tile in original space
-    tile_dims = set(transform.transformed_axes[1:])
-    tile_original = "".join(a for a in original_axes if a in tile_dims)
+    # new axes (C or Z) that were added in the output
+    n_new_axes = len(transform.current_added_axes)
 
+    # reorder axes to original order
     current_str = "".join(current_axes)
-    if current_str != tile_original:
-        source = [current_str.index(a) for a in tile_original]
-        tile = np.moveaxis(tile, source, list(range(len(tile_original))))
+    if current_str != original_axes:
+        source = [current_str.index(a) for a in original_axes if a in current_axes]
+        tile = np.moveaxis(
+            tile,
+            source,
+            list(
+                # leave new axes (potentially C and Z) at the beginning and in order
+                range(n_new_axes, n_new_axes + len(source))
+            ),
+        )
 
     return tile
 
@@ -434,15 +548,15 @@ def get_original_stitch_slices(
     # unravel sample indices
     if len(transform.sample_dims) >= 1:
         sample_dims = transform.sample_dims
-        sample_dim_sizes = [transform.dim_sizes[d] for d in sample_dims]
+        sample_dim_sizes = [transform.original_dim_sizes[d] for d in sample_dims]
         sample_indices = [
             int(i) for i in np.unravel_index(sample_idx, sample_dim_sizes)
         ]
         stitch_slices.extend(sample_indices)
         which_axes.extend(sample_dims)
 
-    if not transform.c_added:
-        stitch_slices.append(slice(0, transform.dim_sizes["C"]))
+    if not transform.c_added_to_original:
+        stitch_slices.append(slice(0, transform.original_dim_sizes["C"]))
         which_axes.append("C")
 
     # add spatial slices
