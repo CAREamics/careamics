@@ -267,66 +267,6 @@ class TestReshapeShape:
         assert result.shape[1] == expected_c
 
 
-class TestRestoreIntegrity:
-    """Test that restore_array specifically put the values in the right dimensions."""
-
-    def test_identity(self) -> None:
-        """Test that `restore_array` returns the same array if already in
-        original shape."""
-        original_shape = (5, 3, 32, 32)
-        prediction = np.arange(np.prod(original_shape)).reshape(original_shape)
-        restored = restore_array(prediction, "SCYX", original_shape)
-        assert np.array_equal(restored, prediction)
-
-    def test_singleton_s(self) -> None:
-        """Test that `restore_array` removes singleton S axis."""
-        prediction = np.arange(3 * 32 * 32).reshape((1, 3, 32, 32))
-        restored = restore_array(prediction, "CYX", (3, 32, 32))
-        assert np.array_equal(restored, prediction[0])
-
-    def test_singleton_c(self) -> None:
-        """Test that `restore_array` removes singleton C axis."""
-        prediction = np.arange(5 * 32 * 32).reshape((5, 1, 32, 32))
-        restored = restore_array(prediction, "SYX", (5, 32, 32))
-        assert np.array_equal(restored, prediction[:, 0])
-
-    def test_unflatten_s_and_t(self) -> None:
-        """Test that `restore_array` unflattens S axis to S and T."""
-        prediction = np.arange(5 * 3 * 16 * 32 * 32).reshape((15, 1, 16, 32, 32))
-        restored = restore_array(prediction, "STZYX", (3, 5, 16, 32, 32))
-
-        shape = restored.shape
-        for s in range(shape[0]):
-            for t in range(shape[1]):
-                np.testing.assert_array_equal(
-                    restored[s, t], prediction[s * shape[1] + t, 0]
-                )
-
-    def test_s_to_t(self) -> None:
-        """Test that `restore_array` converts S axis to T."""
-        prediction = np.arange(5 * 32 * 32).reshape((5, 1, 32, 32))
-        restored = restore_array(prediction, "TYX", (5, 32, 32))
-
-        shape = restored.shape
-        for t in range(shape[0]):
-            np.testing.assert_array_equal(restored[t], prediction[t, 0])
-
-    def test_reorder_axes(self) -> None:
-        """Test that `restore_array` reorders axes to match original."""
-        prediction = np.arange(5 * 3 * 16 * 32 * 32).reshape((5, 3, 16, 32, 32))
-        restored = restore_array(prediction, "CYXZS", (3, 32, 32, 16, 5))
-
-        shape = restored.shape
-        for c in range(shape[0]):
-            for y in range(shape[1]):
-                for x in range(shape[2]):
-                    for z in range(shape[3]):
-                        for s in range(shape[4]):
-                            np.testing.assert_array_equal(
-                                restored[c, y, x, z, s], prediction[s, c, z, y, x]
-                            )
-
-
 class TestReshapeIntegrity:
     """Test that reshape_array specifically put the values in the right dimensions."""
 
@@ -397,6 +337,66 @@ class TestReshapeIntegrity:
                     )
 
 
+class TestRestoreIntegrity:
+    """Test that restore_array specifically put the values in the right dimensions."""
+
+    def test_identity(self) -> None:
+        """Test that `restore_array` returns the same array if already in
+        original shape."""
+        original_shape = (5, 3, 32, 32)
+        prediction = np.arange(np.prod(original_shape)).reshape(original_shape)
+        restored = restore_array(prediction, "SCYX", original_shape)
+        assert np.array_equal(restored, prediction)
+
+    def test_singleton_s(self) -> None:
+        """Test that `restore_array` removes singleton S axis."""
+        prediction = np.arange(3 * 32 * 32).reshape((1, 3, 32, 32))
+        restored = restore_array(prediction, "CYX", (3, 32, 32))
+        assert np.array_equal(restored, prediction[0])
+
+    def test_singleton_c(self) -> None:
+        """Test that `restore_array` removes singleton C axis."""
+        prediction = np.arange(5 * 32 * 32).reshape((5, 1, 32, 32))
+        restored = restore_array(prediction, "SYX", (5, 32, 32))
+        assert np.array_equal(restored, prediction[:, 0])
+
+    def test_unflatten_s_and_t(self) -> None:
+        """Test that `restore_array` unflattens S axis to S and T."""
+        prediction = np.arange(5 * 3 * 16 * 32 * 32).reshape((15, 1, 16, 32, 32))
+        restored = restore_array(prediction, "STZYX", (3, 5, 16, 32, 32))
+
+        shape = restored.shape
+        for s in range(shape[0]):
+            for t in range(shape[1]):
+                np.testing.assert_array_equal(
+                    restored[s, t], prediction[s * shape[1] + t, 0]
+                )
+
+    def test_s_to_t(self) -> None:
+        """Test that `restore_array` converts S axis to T."""
+        prediction = np.arange(5 * 32 * 32).reshape((5, 1, 32, 32))
+        restored = restore_array(prediction, "TYX", (5, 32, 32))
+
+        shape = restored.shape
+        for t in range(shape[0]):
+            np.testing.assert_array_equal(restored[t], prediction[t, 0])
+
+    def test_reorder_axes(self) -> None:
+        """Test that `restore_array` reorders axes to match original."""
+        prediction = np.arange(5 * 3 * 16 * 32 * 32).reshape((5, 3, 16, 32, 32))
+        restored = restore_array(prediction, "CYXZS", (3, 32, 32, 16, 5))
+
+        shape = restored.shape
+        for c in range(shape[0]):
+            for y in range(shape[1]):
+                for x in range(shape[2]):
+                    for z in range(shape[3]):
+                        for s in range(shape[4]):
+                            np.testing.assert_array_equal(
+                                restored[c, y, x, z, s], prediction[s, c, z, y, x]
+                            )
+
+
 @pytest.mark.parametrize("shape, axes", _ORDERED_CASES + _UNORDERED_CASES)
 def test_restore_array_roundtrip(shape, axes):
     """reshape then restore should recover the original array."""
@@ -464,6 +464,51 @@ class TestRestoreTile:
             restore_tile(np.zeros((XY_S, XY_S)), "YX", (XY_S, XY_S))
 
 
+class TestInputTargetMismatch:
+    """Test restoring array/tile when input and target of different shapes."""
+
+    @pytest.mark.parametrize(
+        "in_shape, axes, target_shape",
+        _SPATIAL_MISMATCH
+        + _CHANNEL_MISMATCH
+        + _SPATIAL_MISMATCH_DISORDERED
+        + _CHANNEL_MISMATCH_DISORDERED,
+    )
+    def test_restore_array(self, in_shape, axes, target_shape):
+        """Test that spatial dimensions are restored correctly."""
+        expected_shape = [a for a in target_shape if a != 1]  # remove singleton dims
+        ax_indices = ["STCZYX".index(a) for a in axes]
+        is_sorted = ax_indices == sorted(ax_indices)
+
+        array = np.arange(np.prod(target_shape)).reshape(target_shape)
+        restored = restore_array(array, axes, in_shape)
+
+        if not is_sorted and len(restored.shape) > 2:
+            # check that reordering has occured
+            # exclude symmetrical YX cases
+            assert list(restored.shape) != expected_shape
+
+        # check that the target dimensions are conserved
+        assert list(restored.shape).sort() == expected_shape.sort()
+
+    @pytest.mark.parametrize(
+        "in_shape, axes, target_shape",
+        _SPATIAL_MISMATCH_TILE
+        + _CHANNEL_MISMATCH_TILE
+        + _SPATIAL_MISMATCH_TILE_DISORDERED
+        + _CHANNEL_MISMATCH_TILE_DISORDERED
+    )
+    def test_restore_tile(self, in_shape, axes, target_shape):
+        """Test that spatial dimensions are restored correctly."""
+        expected_shape = [a for a in target_shape if a != 1]  # remove singleton dims
+
+        array = np.arange(np.prod(target_shape)).reshape(target_shape)
+        restored = restore_tile(array, axes, in_shape)
+
+        # check that the target dimensions are conserved
+        assert list(restored.shape).sort() == expected_shape.sort()
+
+
 class TestOriginalStitchSlices:
     @pytest.mark.parametrize("shape, axes", _ORDERED_CASES + _UNORDERED_CASES)
     def test_indexing_on_restored(self, shape, axes):
@@ -501,63 +546,5 @@ class TestOriginalStitchSlices:
 
         restored[slices] = np.ones(crop_shape)
 
-
-class TestInputTargetMismatch:
-    """Test restoring array when the target shape is different from the input shape."""
-
-    @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
-        _SPATIAL_MISMATCH
-        + _CHANNEL_MISMATCH
-        + _SPATIAL_MISMATCH_DISORDERED
-        + _CHANNEL_MISMATCH_DISORDERED,
-    )
-    def test_restore_array(self, in_shape, axes, target_shape):
-        """Test that spatial dimensions are restored correctly."""
-        expected_shape = [a for a in target_shape if a != 1]  # remove singleton dims
-        ax_indices = ["STCZYX".index(a) for a in axes]
-        is_sorted = ax_indices == sorted(ax_indices)
-
-        array = np.arange(np.prod(target_shape)).reshape(target_shape)
-        restored = restore_array(array, axes, in_shape)
-
-        if not is_sorted and len(restored.shape) > 2:
-            # check that reordering has occured
-            # exclude symmetrical YX cases
-            assert list(restored.shape) != expected_shape
-
-        # check that the target dimensions are conserved
-        assert list(restored.shape).sort() == expected_shape.sort()
-
-    @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
-        # _SPATIAL_MISMATCH_TILE
-        # + _CHANNEL_MISMATCH_TILE
-        _SPATIAL_MISMATCH_TILE_DISORDERED,
-        # + _CHANNEL_MISMATCH_TILE_DISORDERED
-    )
-    def test_restore_tile(self, in_shape, axes, target_shape):
-        """Test that spatial dimensions are restored correctly."""
-        expected_shape = [a for a in target_shape if a != 1]  # remove singleton dims
-        ax_indices = ["STCZYX".index(a) for a in axes]
-        is_sorted = ax_indices == sorted(ax_indices)
-        c_added = "C" not in axes and target_shape[0] > 1
-        z_added = "Z" not in axes and target_shape[0] > 1
-
-        array = np.arange(np.prod(target_shape)).reshape(target_shape)
-        restored = restore_tile(array, axes, in_shape)
-
-        # skip sorting check if:
-        # - only YX
-        # - only YX and added Z
-        # - only YX and added C
-        if not is_sorted and not c_added and not z_added:
-            # check that reordering has occured
-            assert list(restored.shape) != expected_shape
-
-        # check that the target dimensions are conserved
-        assert list(restored.shape).sort() == expected_shape.sort()
-
-
 # TODO test for errors
-# TODO test transforms for the new stuff , reusing the fixtures
+# TODO test transforms for the new stuff, reusing the fixtures

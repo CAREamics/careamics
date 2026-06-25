@@ -13,13 +13,6 @@ _REF_ORDER = "STCZYX"
 _VALID_AXES = set(_REF_ORDER)
 
 
-# TODO
-# Actually, the shape may change between input and ouputs:
-# - number of channels may be different
-# - new channels may be added
-# - number of spatial dimensions may be different (e.g. 2D vs 3D)
-
-
 @dataclass(frozen=True)
 class AxesTransform:
     """Transformation between original and transformed space axes.
@@ -68,9 +61,7 @@ class AxesTransform:
 
     def __post_init__(self) -> None:
         """Validate original axes and shape."""
-        if self.current_shape is None:
-            self.current_shape = tuple(self.original_shape)
-        else:
+        if self.current_shape is not None:
             if self.current_is_tile:
                 if len(self.current_shape) not in (3, 4):
                     raise ValueError(
@@ -417,7 +408,7 @@ def _restore_from_transformed(
 
     # Remove singleton C only if C did not exist in original axes.
     if transform.c_added_to_original:
-        c_idx = 0 if is_tile else 1
+        c_idx = len(sample_sizes) if not is_tile and sample_sizes is not None else 0
         if data.shape[c_idx] == 1:
             data = np.squeeze(data, axis=c_idx)
             current_axes.pop(c_idx)
@@ -574,7 +565,6 @@ def get_original_stitch_slices(
     return tuple(stitch_slices)
 
 
-# TODO: unify with get_original_stitch_slices
 def get_patch_slices(
     original_axes: str,
     original_shape: Sequence[int],
