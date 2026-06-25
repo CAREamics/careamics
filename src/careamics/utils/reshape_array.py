@@ -178,7 +178,7 @@ class AxesTransform:
 
     @property
     def current_added_axes(self) -> list[str]:
-        """Added axes in the current shape.
+        """Added axes in the current.
 
         Returns
         -------
@@ -363,6 +363,68 @@ def reshape_patch(
     return patch_data
 
 
+def _count_new_axes(
+    current_axes: list[str],
+    current_shape: Sequence[int],
+    original_axes: str,
+) -> int:
+    """Count non-sample axes that were added in transformed output."""
+    return sum(
+        1
+        for idx, axis in enumerate(current_axes)
+        if axis not in original_axes and axis not in "ST" and current_shape[idx] > 1
+    )
+
+
+def _reorder_to_original_axes(
+    data: NDArray,
+    current_axes: list[str],
+    original_axes: str,
+) -> NDArray:
+    """Reorder data axes to match original order while keeping new axes leading."""
+    current_str = "".join(current_axes)
+    if current_str == original_axes:
+        return data
+
+    n_new_axes = _count_new_axes(current_axes, data.shape, original_axes)
+    source = [current_str.index(a) for a in original_axes if a in current_axes]
+    destination = list(range(n_new_axes, n_new_axes + len(source)))
+    return np.moveaxis(data, source, destination)
+
+
+def _restore_from_transformed(
+    data: NDArray,
+    original_axes: str,
+    original_shape: Sequence[int],
+    *,
+    is_tile: bool,
+) -> NDArray:
+    """Shared restore implementation for full arrays and tiles."""
+    transform = AxesTransform(
+        original_axes=original_axes,
+        original_shape=tuple(original_shape),
+        current_shape=data.shape,
+        current_is_tile=is_tile,
+    )
+    current_axes = list(transform.current_axes)
+
+    if not is_tile:
+        # Restore sample dimensions from flattened S.
+        sample_dims = transform.sample_dims
+        sample_sizes = tuple(transform.original_dim_sizes[d] for d in sample_dims)
+        data = data.reshape(sample_sizes + data.shape[1:])
+        current_axes = list(sample_dims) + current_axes[1:]
+
+    # Remove singleton C only if C did not exist in original axes.
+    if transform.c_added_to_original:
+        c_idx = 0 if is_tile else 1
+        if data.shape[c_idx] == 1:
+            data = np.squeeze(data, axis=c_idx)
+            current_axes.pop(c_idx)
+
+    return _reorder_to_original_axes(data, current_axes, original_axes)
+
+
 def restore_array(
     array: NDArray,
     original_axes: str,
@@ -403,51 +465,14 @@ def restore_array(
             "depth axis)."
         )
 
-    transform = AxesTransform(
+    return _restore_from_transformed(
+        data=array,
         original_axes=original_axes,
-        original_shape=tuple(original_shape),
-        current_shape=array.shape,
+        original_shape=original_shape,
+        is_tile=False,
     )
-    current_axes = list(transform.current_axes)
-    sample_dims = transform.sample_dims
-
-    # restore sample dimensions
-    # - if multiple sample dims, it will reshape the array and add all sample dims back
-    # - if single sample dim that is not S, it will rename the dimensions
-    # - if no sample dims, it will remove the singleton S dim
-    sizes = tuple(transform.original_dim_sizes[d] for d in sample_dims)
-    array = array.reshape(sizes + array.shape[1:])
-    current_axes = list(sample_dims) + current_axes[1:]
-
-    # process channel dimension
-    if transform.c_added_to_original:
-        c_idx = 1
-
-        # remove singleton dimension
-        if array.shape[c_idx] == 1:
-            array = np.squeeze(array, axis=c_idx)
-            current_axes.pop(c_idx)
-
-    # new axes (C or Z) that were added in the output
-    n_new_axes = len(transform.current_added_axes)
-
-    # reorder axes to original order
-    current_str = "".join(current_axes)
-    if current_str != original_axes:
-        source = [current_str.index(a) for a in original_axes if a in current_axes]
-        array = np.moveaxis(
-            array,
-            source,
-            list(
-                # leave new axes (potentially C and Z) at the beginning and in order
-                range(n_new_axes, n_new_axes + len(source))
-            ),
-        )
-
-    return array
 
 
-# TODO refactor with restore_array to avoid code duplication
 def restore_tile(
     tile: NDArray,
     original_axes: str,
@@ -472,40 +497,12 @@ def restore_tile(
     if len(tile.shape) not in (3, 4):
         raise ValueError(f"Expected 3D (CYX) or 4D (CZYX), got {len(tile.shape)}D.")
 
-    transform = AxesTransform(
+    return _restore_from_transformed(
+        data=tile,
         original_axes=original_axes,
-        original_shape=tuple(original_shape),
-        current_shape=tile.shape,
-        current_is_tile=True,
+        original_shape=original_shape,
+        is_tile=True,
     )
-    current_axes = list(transform.current_axes)
-
-    # process channel dimension
-    if transform.c_added_to_original:
-        c_idx = 0
-
-        # remove singleton dimension
-        if tile.shape[c_idx] == 1:
-            tile = np.squeeze(tile, axis=c_idx)
-            current_axes.pop(c_idx)
-
-    # new axes (C or Z) that were added in the output
-    n_new_axes = len(transform.current_added_axes)
-
-    # reorder axes to original order
-    current_str = "".join(current_axes)
-    if current_str != original_axes:
-        source = [current_str.index(a) for a in original_axes if a in current_axes]
-        tile = np.moveaxis(
-            tile,
-            source,
-            list(
-                # leave new axes (potentially C and Z) at the beginning and in order
-                range(n_new_axes, n_new_axes + len(source))
-            ),
-        )
-
-    return tile
 
 
 def get_original_stitch_slices(
