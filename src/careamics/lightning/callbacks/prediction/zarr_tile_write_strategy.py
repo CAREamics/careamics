@@ -267,7 +267,12 @@ class ZarrTileWriteStrategy(WriteStrategy):
         # compute sample slice
         sample_idx = tile_spec["sample_idx"]
         stitch_slices = get_stitch_slices(
-            original_axes, original_shape, sample_idx, stitch_coords, crop_size
+            original_axes,
+            original_shape,
+            region.data.shape,
+            sample_idx,
+            stitch_coords,
+            crop_size,
         )
         crop_slices: tuple[builtins.ellipsis | slice | int, ...] = (
             ...,
