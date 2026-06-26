@@ -14,7 +14,7 @@ from careamics.dataset.image_stack_loader.zarr_utils import (
 )
 from careamics.dataset.patching import TileSpecs, is_tile_specs
 from careamics.utils.reshape_array import (
-    get_original_stitch_slices,
+    get_stitch_slices,
     restore_tile,
 )
 
@@ -266,7 +266,7 @@ class ZarrTileWriteStrategy(WriteStrategy):
 
         # compute sample slice
         sample_idx = tile_spec["sample_idx"]
-        stitch_slices = get_original_stitch_slices(
+        stitch_slices = get_stitch_slices(
             original_axes, original_shape, sample_idx, stitch_coords, crop_size
         )
         crop_slices: tuple[builtins.ellipsis | slice | int, ...] = (

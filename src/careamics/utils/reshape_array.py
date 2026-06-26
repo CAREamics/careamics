@@ -325,6 +325,36 @@ def _count_new_axes(
     )
 
 
+def _get_axis_reordering(
+    current_axes: list[str],
+    current_shape: Sequence[int],
+    original_axes: str,
+) -> tuple[list[int], list[int]]:
+    """Return source and destination indices to reorder axes to original order.
+
+    Parameters
+    ----------
+    current_axes : list[str]
+        List of axes in the current transformed array.
+    current_shape : Sequence[int]
+        Shape of the current transformed array.
+    original_axes : str
+        Original axes string of the full data.
+
+    Returns
+    -------
+    list[int]
+        Source indices for reordering.
+    list[int]
+        Destination indices for reordering.
+    """
+    current_str = "".join(current_axes)
+    n_new_axes = _count_new_axes(current_axes, current_shape, original_axes)
+    source = [current_str.index(a) for a in original_axes if a in current_axes]
+    destination = list(range(n_new_axes, n_new_axes + len(source)))
+    return source, destination
+
+
 def _reorder_to_original_axes(
     data: NDArray,
     current_axes: list[str],
@@ -350,9 +380,7 @@ def _reorder_to_original_axes(
     if current_str == original_axes:
         return data
 
-    n_new_axes = _count_new_axes(current_axes, data.shape, original_axes)
-    source = [current_str.index(a) for a in original_axes if a in current_axes]
-    destination = list(range(n_new_axes, n_new_axes + len(source)))
+    source, destination = _get_axis_reordering(current_axes, data.shape, original_axes)
     return np.moveaxis(data, source, destination)
 
 
@@ -384,7 +412,7 @@ def _restore_from_transformed(
         original_axes=original_axes,
         original_shape=tuple(original_shape),
     )
-    current_axes_lst = current_axes.split()
+    current_axes_lst = list(current_axes)
     c_idx = 0
 
     if "S" in current_axes_lst:
@@ -395,11 +423,10 @@ def _restore_from_transformed(
         current_axes_lst = list(sample_dims) + current_axes_lst[1:]
         c_idx = len(sample_sizes)
 
-    # Remove singleton C only if C did not exist in original axes.
-    if transform.c_added_to_original:
-        if data.shape[c_idx] == 1:
-            data = np.squeeze(data, axis=c_idx)
-            current_axes_lst.pop(c_idx)
+    # remove singleton C
+    if data.shape[c_idx] == 1:
+        data = np.squeeze(data, axis=c_idx)
+        current_axes_lst.pop(c_idx)
 
     return _reorder_to_original_axes(data, current_axes_lst, original_axes)
 
@@ -484,9 +511,43 @@ def restore_tile(
     )
 
 
-def get_original_stitch_slices(
+def _apply_permutation_to_list(lst: list, src: list[int], dst: list[int]) -> list:
+    """Apply a permutation to a list.
+
+    Parameters
+    ----------
+    lst : list
+        List to permute.
+    src : list[int]
+        Source indices of the permutation.
+    dst : list[int]
+        Destination indices of the permutation.
+
+    Returns
+    -------
+    list
+        Permuted list.
+    """
+    if len(src) != len(dst):
+        raise ValueError("`src` and `dst` must have the same length.")
+
+    n = len(lst)
+    if any(i < 0 or i >= n for i in src + dst):
+        raise ValueError("Permutation indices are out of bounds.")
+
+    # Match numpy.moveaxis semantics:
+    # start from non-moved axes, then insert moved axes at destination indices.
+    order = [axis for axis in range(n) if axis not in src]
+    for axis, dest in sorted(zip(src, dst, strict=True), key=lambda pair: pair[1]):
+        order.insert(dest, axis)
+
+    return [lst[idx] for idx in order]
+
+
+def get_stitch_slices(
     original_axes: str,
     original_shape: Sequence[int],
+    tile_shape: Sequence[int],
     sample_idx: int,
     stitch_coords: Sequence[int],
     crop_size: Sequence[int],
@@ -494,8 +555,11 @@ def get_original_stitch_slices(
     """Get slices to stitch tile back into original array.
 
     `sample_idx and `stitch_coords` are expressed with respect to the transformed space
-    (SCZYX or SCYX). The returned slices will index into the original array for
-    stitching the tile back in place.
+    (SCZYX or SCYX). The returned slices will index into the array in original space to
+    stitch the tile back in place.
+
+    Note that the array in which the tile will be indexed may have different C and
+    spatial dimensions and dimension sizes.
 
     Parameters
     ----------
@@ -503,6 +567,8 @@ def get_original_stitch_slices(
         Original axes string of the full data.
     original_shape : Sequence[int]
         Original shape of the full data.
+    tile_shape : Sequence[int]
+        Shape of the tile in transformed space (C(Z)YX or CYX).
     sample_idx : int
         Index of the sample in transformed space (S axis) to stitch back.
     stitch_coords : Sequence[int]
@@ -519,7 +585,7 @@ def get_original_stitch_slices(
     transform = AxesTransform(original_axes, tuple(original_shape))
 
     stitch_slices: list[slice | int] = []
-    which_axes = []
+    current_axes: list[str] = []
 
     # unravel sample indices
     if len(transform.sample_dims) >= 1:
@@ -529,26 +595,27 @@ def get_original_stitch_slices(
             int(i) for i in np.unravel_index(sample_idx, sample_dim_sizes)
         ]
         stitch_slices.extend(sample_indices)
-        which_axes.extend(sample_dims)
+        current_axes.extend(sample_dims)
 
-    if not transform.c_added_to_original:
-        stitch_slices.append(slice(0, transform.original_dim_sizes["C"]))
-        which_axes.append("C")
+    if tile_shape[0] > 1:
+        stitch_slices.append(slice(0, tile_shape[0]))
+        current_axes.append("C")
+    else:
+        tile_shape = tile_shape[1:]  # remove C from shape if singleton
 
     # add spatial slices
+    spatial_axes = "ZYX" if len(crop_size) == 3 else "YX"
     stitch_slices.extend(
         [
             slice(start, start + length)
             for start, length in zip(stitch_coords, crop_size, strict=True)
         ]
     )
-    which_axes.extend([a for a in transform.transformed_axes if a in "ZYX"])
-    assert len(stitch_slices) == len(transform.original_axes)
+    current_axes.extend(a for a in spatial_axes)
 
     # reorder slices
-    stitch_slices = [
-        stitch_slices[which_axes.index(a)] for a in transform.original_axes
-    ]
+    source, destination = _get_axis_reordering(current_axes, tile_shape, original_axes)
+    stitch_slices = _apply_permutation_to_list(stitch_slices, source, destination)
 
     return tuple(stitch_slices)
 

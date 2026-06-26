@@ -3,7 +3,7 @@ import pytest
 
 from careamics.utils.reshape_array import (
     AxesTransform,
-    get_original_stitch_slices,
+    get_stitch_slices,
     reshape_array,
     restore_array,
     restore_tile,
@@ -496,7 +496,7 @@ class TestInputTargetMismatch:
         _SPATIAL_MISMATCH_TILE
         + _CHANNEL_MISMATCH_TILE
         + _SPATIAL_MISMATCH_TILE_DISORDERED
-        + _CHANNEL_MISMATCH_TILE_DISORDERED
+        + _CHANNEL_MISMATCH_TILE_DISORDERED,
     )
     def test_restore_tile(self, in_shape, axes, target_shape):
         """Test that spatial dimensions are restored correctly."""
@@ -508,8 +508,54 @@ class TestInputTargetMismatch:
         # check that the target dimensions are conserved
         assert list(restored.shape).sort() == expected_shape.sort()
 
+    @pytest.mark.parametrize(
+        "in_shape, axes, target_shape",
+        _SPATIAL_MISMATCH
+        + _CHANNEL_MISMATCH
+        + _SPATIAL_MISMATCH_DISORDERED
+        + _CHANNEL_MISMATCH_DISORDERED,
+    )
+    def test_stitch_slices(self, in_shape, axes, target_shape):
+        """Test stitch slices in the presence of input/target mismatching shapes."""
+        reshaped = np.arange(np.prod(target_shape)).reshape(target_shape)  # SC(Z)YX
+        restored = restore_array(reshaped, axes, in_shape)  # array in original space
+        tile = reshaped[0]  # C(Z)YX dims
 
-class TestOriginalStitchSlices:
+        # crop size and stitch coordinates dependent on the actual tile
+        if len(tile.shape) == 4:
+            crop_size = (8, 16, 16)
+            stitch_coords = (4, 12, 12)
+        else:
+            crop_size = (16, 16)
+            stitch_coords = (12, 12)
+
+        if (
+            "S" in axes or "T" in axes
+        ):  # if both are present, then 2 is indexed over S*T
+            sample_idx = 2
+        else:
+            sample_idx = 0
+
+        # get slices and index into restored array
+        slices = get_stitch_slices(
+            axes, in_shape, reshaped.shape[1:], sample_idx, stitch_coords, crop_size
+        )
+
+        crop_axes = "CZYX" if len(tile.shape) == 4 else "CYX"
+        crop_shape = []
+        for ax in crop_axes:
+            if ax == "C":
+                crop_shape.append(tile.shape[0])
+            elif ax == "Z":
+                crop_shape.append(crop_size[0])
+            elif ax == "Y" or ax == "X":
+                crop_shape.append(crop_size[-1])
+
+        restored[slices] = restore_tile(np.ones(crop_shape), axes, in_shape)
+
+
+# TODO these tests only work because expected input and target have same shape
+class TestStitchSlices:
     @pytest.mark.parametrize("shape, axes", _ORDERED_CASES + _UNORDERED_CASES)
     def test_indexing_on_restored(self, shape, axes):
 
@@ -526,12 +572,12 @@ class TestOriginalStitchSlices:
             sample_idx = 0
 
         array = np.arange(np.prod(shape)).reshape(shape)
-        reshaped = reshape_array(array, axes)
-        restored = restore_array(reshaped, axes, shape)
+        reshaped = reshape_array(array, axes)  # array in SC(Z)YX space
+        restored = restore_array(reshaped, axes, shape)  # array in original space
 
         # get slices and index into restored array
-        slices = get_original_stitch_slices(
-            axes, shape, sample_idx, stitch_coords, crop_size
+        slices = get_stitch_slices(
+            axes, shape, reshaped.shape[1:], sample_idx, stitch_coords, crop_size
         )
 
         crop_axes = [a for a in axes if a in "CZYX"]
@@ -545,6 +591,7 @@ class TestOriginalStitchSlices:
                 crop_shape.append(crop_size[-1])
 
         restored[slices] = np.ones(crop_shape)
+
 
 # TODO test for errors
 # TODO test transforms for the new stuff, reusing the fixtures
