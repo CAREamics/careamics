@@ -48,15 +48,6 @@ class AxesTransform:
     original_shape: Sequence[int]
     """Shape corresponding to `original_axes`."""
 
-    current_shape: tuple[int, ...] | None = None
-    """Current shape of the data. Must be in transformed space, either as a full array
-    of dims SC(Z)YX or a tile of shape C(Z)YX. If None, will be set to
-    `original_shape`."""
-
-    current_is_tile: bool = False
-    """Whether the current shape is a tile (C(Z)YX) or a full array (SC(Z)YX). If True,
-    `current_shape` must be in tile format."""
-
     def __post_init__(self) -> None:
         """Validate original axes and shape."""
         if len(self.original_axes) != len(self.original_shape):
@@ -511,13 +502,13 @@ def restore_tile(
     )
 
 
-def _apply_permutation_to_list(lst: list, src: list[int], dst: list[int]) -> list:
-    """Apply a permutation to a list.
+def _moveaxis_list(lst: list, src: list[int], dst: list[int]) -> list:
+    """Move axes of a list corresponding to dimensions.
 
     Parameters
     ----------
     lst : list
-        List to permute.
+        List of which to permute indices.
     src : list[int]
         Source indices of the permutation.
     dst : list[int]
@@ -582,6 +573,17 @@ def get_stitch_slices(
     tuple[slice | int, ...]
         Slices to index into the original array for stitching the tile back in place.
     """
+    if len(crop_size) != len(stitch_coords):
+        raise ValueError(
+            f"Length of `crop_size` ({len(crop_size)}) must match length of "
+            f"`stitch_coords` ({len(stitch_coords)})."
+        )
+    if len(crop_size) != len(tile_shape) - 1:
+        raise ValueError(
+            f"Length of `crop_size` ({len(crop_size)}) must match spatial dimensions "
+            f"of `tile_shape` ({len(tile_shape) - 1})."
+        )
+
     transform = AxesTransform(original_axes, tuple(original_shape))
 
     stitch_slices: list[slice | int] = []
@@ -615,7 +617,7 @@ def get_stitch_slices(
 
     # reorder slices
     source, destination = _get_axis_reordering(current_axes, tile_shape, original_axes)
-    stitch_slices = _apply_permutation_to_list(stitch_slices, source, destination)
+    stitch_slices = _moveaxis_list(stitch_slices, source, destination)
 
     return tuple(stitch_slices)
 
