@@ -42,7 +42,9 @@ class StructMaskConfig(BaseModel):
         Span of the mask, must be odd.
     """
 
-    axes: Literal["horizontal", "vertical", "cross"] = Field(default="horizontal")
+    axes: Literal["horizontal", "vertical", "cross", "square"] = Field(
+        default="horizontal"
+    )
     """Orientation of the structN2V mask."""
 
     span: Annotated[int, AfterValidator(_odd_value)] = Field(default=5, ge=3, le=15)
