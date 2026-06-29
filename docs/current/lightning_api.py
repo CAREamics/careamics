@@ -14,8 +14,14 @@ from careamics.lightning import (
 )
 
 # download example data
-train_image = pooch.retrieve("https://zenodo.org/records/21028053/files/train.tif")
-val_image = pooch.retrieve("https://zenodo.org/records/21028053/files/validation.tif")
+train_image = pooch.retrieve(
+    "https://zenodo.org/records/21028053/files/train.tif",
+    hash="8be263564a12381bcc0fc69c4271728f3a794aeed78ef85be5fac95e78f5ff73",
+)
+val_image = pooch.retrieve(
+    "https://zenodo.org/records/21028053/files/validation.tif",
+    hash="6f5cd80d4e7f086432458987ee09c7623b2f0c98568bdf2f05b747d804abfabb",
+)
 
 # create configuration
 config = create_advanced_n2v_config(  # (1)!
