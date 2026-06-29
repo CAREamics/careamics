@@ -11,20 +11,21 @@ from careamics.config.algorithms.n2v_manipulation import StructMaskConfig
 
 def _build_struct_pattern(
     span: int,
-    axes: Literal["horizontal", "vertical", "cross"],
+    axes: Literal["horizontal", "vertical", "cross", "square"],
     device: str | torch.device,
 ) -> torch.Tensor:
     """Build a 2D (span, span) mask encoding the structN2V pattern.
 
     Returns a float tensor with 1 at positions belonging to the struct pattern and 0
-    elsewhere, including the center. Supports horizontal, vertical, and cross patterns.
+    elsewhere, including the center. Supports horizontal, vertical, cross, and square
+    patterns.
 
     Parameters
     ----------
     span : int
         Size of the mask in each dimension.
-    axes : Literal["horizontal", "vertical", "cross"]
-        Axes of the struct pattern: "horizontal", "vertical", "cross".
+    axes : Literal["horizontal", "vertical", "cross", "square"]
+        Axes of the struct pattern: "horizontal", "vertical", "cross", or "square".
     device : str | torch.device
         Device on which to create the mask.
 
@@ -33,12 +34,17 @@ def _build_struct_pattern(
     torch.Tensor
         Float tensor of shape (span, span) with 1s at structN2V masked positions.
     """
-    mask = torch.zeros(span, span, device=device)
     center = span // 2
-    if axes in ("horizontal", "cross"):
-        mask[center, :] = 1
-    if axes in ("vertical", "cross"):
-        mask[:, center] = 1
+
+    if axes == "square":
+        mask = torch.ones((span, span), device=device)
+    else:
+        mask = torch.zeros(span, span, device=device)
+        if axes in ("horizontal", "cross"):
+            mask[center, :] = 1
+        if axes in ("vertical", "cross"):
+            mask[:, center] = 1
+
     mask[center, center] = 0  # always exclude center
     return mask
 

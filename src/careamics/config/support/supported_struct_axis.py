@@ -14,8 +14,11 @@ class SupportedStructAxis(StrEnum):
         Vertical axis.
     CROSS : str
         Both axes, i.e. horizontal and vertical.
+    SQUARE : str
+        Square mask, i.e. horizontal and vertical axes.
     """
 
     HORIZONTAL = "horizontal"
     VERTICAL = "vertical"
     CROSS = "cross"
+    SQUARE = "square"
