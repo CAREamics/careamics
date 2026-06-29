@@ -3,7 +3,7 @@
 # --8<-- [start:lightning_api]
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-from careamics_portfolio import PortfolioManager
+import pooch
 
 from careamics.config.factories import create_advanced_n2v_config
 from careamics.lightning import (
@@ -14,10 +14,8 @@ from careamics.lightning import (
 )
 
 # download example data
-portfolio_manager = PortfolioManager()
-files = portfolio_manager.denoising.N2V_SEM.download()
-train_image = files[0]
-val_image = files[1]
+train_image = pooch.retrieve("https://zenodo.org/records/21028053/files/train.tif")
+val_image = pooch.retrieve("https://zenodo.org/records/21028053/files/validation.tif")
 
 # create configuration
 config = create_advanced_n2v_config(  # (1)!
