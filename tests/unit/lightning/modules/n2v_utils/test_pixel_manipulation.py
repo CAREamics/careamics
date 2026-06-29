@@ -20,7 +20,7 @@ COORDS_2D_BATCH = torch.tensor([[0, 5, 8], [0, 21, 16], [1, 12, 5]])
 COORDS_3D_BATCH = torch.tensor([[0, 7, 5, 8], [0, 2, 21, 16], [1, 5, 12, 5]])
 
 AXES_1D = ["horizontal", "vertical"]
-AXES = AXES_1D + ["cross"]
+AXES = AXES_1D + ["cross", "square"]
 SPAN = [3, 5, 7]
 
 # --- Unit tests
@@ -29,8 +29,12 @@ SPAN = [3, 5, 7]
 @pytest.mark.parametrize("axes, span", list(itertools.product(AXES, SPAN)))
 def test_build_struct_pattern(axes, span):
     """Test that the struct pattern is built correctly."""
-    expected_n_pixels = span - 1 if axes in AXES_1D else 2 * (span - 1)
-    expected_n_dims = 1 if axes in AXES_1D else 2
+    if axes == "square":
+        expected_n_pixels = span**2 - 1
+        expected_n_dims = 2
+    else:
+        expected_n_pixels = span - 1 if axes in AXES_1D else 2 * (span - 1)
+        expected_n_dims = 1 if axes in AXES_1D else 2
 
     # create mask
     mask = _build_struct_pattern(span=span, axes=axes, device="cpu")
@@ -84,8 +88,12 @@ def test_create_center_pixel_exclusion_mask_error(subpatch_size: int):
 def test_create_struct_exclusion_mask(ndims, axes, span):
     """Test that structN2V pattern is correctly excluded."""
     subpatch_size = 11
-    expected_n_pixels = span if axes in AXES_1D else 2 * span - 1  # with center pixel
-    expected_n_dims = 1 if axes in AXES_1D else 2
+    if axes == "square":
+        expected_n_pixels = span**2  # center pixel counted in the mask
+        expected_n_dims = 2
+    else:
+        expected_n_pixels = span if axes in AXES_1D else 2 * span - 1  # center pixel
+        expected_n_dims = 1 if axes in AXES_1D else 2
 
     # get mask
     mask = _create_struct_exclusion_mask(
@@ -122,10 +130,14 @@ def test_apply_struct_mask(coords, axes, span):
     shape = (nbatch, 32, 32) if ndims == 3 else (nbatch, 8, 32, 32)
     patch = torch.tensor(np.arange(np.prod(shape)).reshape(shape).astype(np.float32))
 
-    expected_n_pixels = (
-        npts * (span - 1) if axes in AXES_1D else npts * (2 * (span - 1))
-    )
-    expected_n_dims = 1 if axes in AXES_1D else 2
+    if axes == "square":
+        expected_n_pixels = npts * (span**2 - 1)
+        expected_n_dims = 2
+    else:
+        expected_n_pixels = (
+            npts * (span - 1) if axes in AXES_1D else npts * (2 * (span - 1))
+        )
+        expected_n_dims = 1 if axes in AXES_1D else 2
 
     masked_patch = _apply_struct_mask(
         patch.clone(), coords, StructMaskConfig(axes=axes, span=span)
