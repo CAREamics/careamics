@@ -524,7 +524,7 @@ structN2V is a variant of Noise2Void that is designed to better handle structure
 --8<-- "current/configuration_n2v.py:adv_config_structn2v"
 ```
 
-1. Choices are `horizontal`, `vertical` or `cross`.
+1. Choices are `horizontal`, `vertical`, `cross` or `square`.
 2. The number of pixels to mask out on each side of the pixel masked by Noise2Void.
 
 
