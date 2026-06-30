@@ -690,9 +690,7 @@ class TestRestoredAxesTransform:
 
             if c_removed:
                 # C dim is removed from restored.shape, difference should be original C
-                assert set_in_shape - set_restored_shape == {
-                    in_shape[new_axes.index("C")]
-                }
+                assert set_in_shape - set_restored_shape == {in_shape[axes.index("C")]}
             else:
                 # C dim is added to restored.shape, difference should be target C
                 assert set_restored_shape - set_in_shape == {target_shape[0]}

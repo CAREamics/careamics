@@ -358,19 +358,7 @@ class RestoredAxesTransform:
             True if original data had no C and transformed data has a singleton C
             axis, False otherwise.
         """
-        return "C" not in self.original_axes and self.current_c_size == 1
-
-    @property
-    def insert_new_c(self) -> bool:
-        """Whether a new non-singleton C axis should be inserted in restored output.
-
-        Returns
-        -------
-        bool
-            True if original data had no C and transformed data has a non-singleton C
-            axis, False otherwise.
-        """
-        return "C" not in self.original_axes and self.current_c_size > 1
+        return self.current_c_size == 1
 
     @property
     def restored_array_axes(self) -> list[str]:
@@ -385,18 +373,23 @@ class RestoredAxesTransform:
             List of axes in the restored data output, following `restored_array_axes`.
         """
         axes = list(self.original_axes)
-        if not self.insert_new_c:
-            return axes
 
-        first_spatial_idx = next(i for i, axis in enumerate(axes) if axis in "ZYX")
-        return axes[:first_spatial_idx] + ["C"] + axes[first_spatial_idx:]
+        if "C" in axes and self.drop_current_c:
+            # remove C dimension
+            axes.remove("C")
+        elif "C" not in axes and self.current_c_size > 1:
+            # insert C before the first spatial axis (Z, Y, or X)
+            first_spatial_idx = next(i for i, axis in enumerate(axes) if axis in "ZYX")
+            axes = axes[:first_spatial_idx] + ["C"] + axes[first_spatial_idx:]
+
+        return axes
 
     @property
     def restored_axes(self) -> list[str]:
         """Restored axes order for the current output.
 
         Tiles do not carry S/T dimensions, so S/T axes are removed from the output axes
-        order in that case.
+        order if `current_is_tile` is True.
 
         Returns
         -------
