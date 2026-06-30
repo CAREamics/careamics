@@ -228,12 +228,8 @@ def test_global_stats_pools_across_channels():
     assert sample.data[1].mean() > 0.0
 
 
-def test_denormalize_uses_target_stats_not_input_stats():
-    """Regression test for #967: denormalize() must use target stats when
-    they exist, not input stats. Real failure case: input and target have
-    a different number of channels (e.g. denoising task), so reusing
-    input's per-channel stats on the model's (target-shaped) output either
-    crashes or silently applies the wrong values."""
+def test_denormalize_with_target_stats():
+    """denormalize() uses target stats instead of input stats when both differ."""
     rng = np.random.default_rng(42)
     input_data = rng.normal(loc=50, scale=10, size=(64, 64)).astype(np.float32)
     target_data = rng.normal(loc=150, scale=30, size=(64, 64)).astype(np.float32)
@@ -247,27 +243,21 @@ def test_denormalize_uses_target_stats_not_input_stats():
             "name": "mean_std",
             "input_means": [50.0],
             "input_stds": [10.0],
-            "target_means": [150.0],
-            "target_stds": [30.0],
+            "target_means": [150.0, 300.0],
+            "target_stds": [30.0, 50.0],
         },
     )
     dataset = create_dataset(config=config, inputs=[input_data], targets=[target_data])
 
-    # Real failure scenario from the issue: model output has a different
-    # channel count than the input. Force target stats to be multi-channel
-    # while input stats stay single-channel (global), the exact mismatch
-    # described in #967.
     norm = dataset.normalization
-    norm.target_means = [150.0, 300.0]
-    norm.target_stds = [30.0, 50.0]
 
     # Simulate model output: batch=1, 2 channels (matches target, not input)
-    model_output = torch.zeros((1, 2, 8, 8))
+    model_output = torch.ones((1, 2, 8, 8))
     result = norm.denormalize(model_output)
 
     assert result.shape == (1, 2, 8, 8)
-    # With model output all zeros, denormalized result should equal the
-    # target means exactly -- proves target stats were actually used,
-    # not input stats (which would give [50.0, 50.0] instead).
-    assert torch.allclose(result[0, 0], torch.tensor(150.0), atol=1e-3)
-    assert torch.allclose(result[0, 1], torch.tensor(300.0), atol=1e-3)
+    # With model output all ones, denormalized result should equal
+    # target_mean + target_std exactly -- proves target stats were used,
+    # not input stats, and that std is actually applied (not just mean).
+    assert torch.allclose(result[0, 0], torch.tensor(180.0), atol=1e-3)
+    assert torch.allclose(result[0, 1], torch.tensor(350.0), atol=1e-3)

@@ -102,10 +102,9 @@ class RangeNormalization(Normalization):
     def denormalize(self, patch: torch.Tensor) -> torch.Tensor:
         """Reverse the normalization operation for a batch of patches.
 
-        Uses target range when available, since the patch passed in is the
-        model's output (in the target's distribution), not the original input.
-        Falls back to input range when no target range was provided, preserving
-        prior behavior.
+        The data is denormalized using the target range, when available. When no
+        target range is available, which is the case for self-supervised algorithms
+        such as N2V, the data is denormalized using the input range.
 
         Parameters
         ----------
