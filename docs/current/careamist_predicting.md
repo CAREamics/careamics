@@ -179,7 +179,7 @@ You can also select a different write type that the default or from the source d
 We support passing a custom write function to save the predictions. The function must
 implement a particular `Protocol` ([`WriteFunc`][careamics.image_io.write.WriteFunc]),
 meaning that the function signature must strictly be that of the `WriteFunc` protocol.
-The function must accept a `path`, an `array` and allows passing additional keyword
+The function must accept a path, an array and allow passing additional keyword
 arguments. Here is an example of writing to a custom type (`.npy`):
 
 ```python title="Custom write function"
