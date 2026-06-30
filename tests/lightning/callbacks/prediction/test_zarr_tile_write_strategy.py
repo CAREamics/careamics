@@ -24,6 +24,7 @@ WriteTilesZarr = pd_writer.zarr_tile_write_strategy.ZarrTileWriteStrategy
 _auto_chunks = pd_writer.zarr_tile_write_strategy._auto_chunks
 
 # TODO test chunking and sharding errors and handling (e.g. when missing)
+# TODO add test for mismatching C axes between input and tiles
 
 
 def create_image_region(

@@ -14,6 +14,7 @@ from careamics.dataset.image_stack_loader.zarr_utils import (
 )
 from careamics.dataset.patching import TileSpecs, is_tile_specs
 from careamics.utils.reshape_array import (
+    get_restored_array_shape,
     get_stitch_slices,
     restore_tile,
 )
@@ -245,7 +246,9 @@ class ZarrTileWriteStrategy(WriteStrategy):
         if self.current_group is None or self.current_group.name != parent_path:
             self._create_group(parent_path)
 
-        original_shape = region.original_data_shape
+        original_shape = get_restored_array_shape(
+            region.axes, region.original_data_shape, region.data.shape
+        )
         original_axes = region.axes
 
         if self.current_array is None or self.current_array.basename != array_name:
