@@ -32,7 +32,7 @@ careamist = CAREamist(config)
 careamist.train(train_data=train_data)  # (2)!
 
 # once trained, predict
-prediction = careamist.predict(pred_data=pred_data)
+predictions, sources = careamist.predict(pred_data=pred_data)
 # --8<-- [end:quick_start_n2v]
 
 # --8<-- [start:quick_start_care]
@@ -61,5 +61,5 @@ careamist.train(
 )
 
 # once trained, predict
-prediction = careamist.predict(pred_data=pred_data)
+predictions, sources = careamist.predict(pred_data=pred_data)
 # --8<-- [end:quick_start_care]
