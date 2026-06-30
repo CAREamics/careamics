@@ -3,7 +3,7 @@
 # --8<-- [start:lightning_api]
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-from careamics_portfolio import PortfolioManager
+import pooch
 
 from careamics.config.factories import create_advanced_n2v_config
 from careamics.lightning import (
@@ -14,10 +14,14 @@ from careamics.lightning import (
 )
 
 # download example data
-portfolio_manager = PortfolioManager()
-files = portfolio_manager.denoising.N2V_SEM.download()
-train_image = files[0]
-val_image = files[1]
+train_image = pooch.retrieve(
+    "https://zenodo.org/records/21028053/files/train.tif",
+    known_hash="8be263564a12381bcc0fc69c4271728f3a794aeed78ef85be5fac95e78f5ff73",
+)
+val_image = pooch.retrieve(
+    "https://zenodo.org/records/21028053/files/validation.tif",
+    known_hash="6f5cd80d4e7f086432458987ee09c7623b2f0c98568bdf2f05b747d804abfabb",
+)
 
 # create configuration
 config = create_advanced_n2v_config(  # (1)!
@@ -121,11 +125,11 @@ inf_data_module = CareamicsDataModule(
     pred_data=train_image,
 )
 
-# run inference
+# run inference with predictions written to disk
 pred_writer.set_writing_strategy("tiff", tiled=True)  # (3)!
 pred_writer.enable_writing(True)  # (4)!
 
-tiled_predictions = trainer.predict(
+_ = trainer.predict(
     model,
     datamodule=inf_data_module,
     return_predictions=False,  # (5)!
