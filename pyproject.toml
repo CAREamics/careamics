@@ -87,7 +87,6 @@ dev = [
     "pre-commit",
     "pytest",
     "pytest-mock",
-    "pytest-cov",
     "sybil", # doctesting
     # libraries used in some tests
     "onnxscript<=0.7.1",
