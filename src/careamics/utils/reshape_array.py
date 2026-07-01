@@ -380,7 +380,7 @@ class RestoredAxesTransform:
         elif "C" not in axes and self.current_c_size > 1:
             # insert C before the first spatial axis (Z, Y, or X)
             first_spatial_idx = next(i for i, axis in enumerate(axes) if axis in "ZYX")
-            axes = axes[:first_spatial_idx] + ["C"] + axes[first_spatial_idx:]
+            axes.insert(first_spatial_idx, "C")
 
         return axes
 
@@ -572,6 +572,44 @@ class RestoredAxesTransform:
             slice_by_axis[axis] for axis in restored_array_axes if axis in slice_by_axis
         )
 
+    def adjust_shape(self, shape: Sequence[int]) -> tuple[int, ...]:
+        """Adjust shape to match the restored array shape.
+
+        This method adjusts the input shape to match the restored array shape, taking
+        into account any differences in the C dimension. If the original data had no C
+        and the transformed data has a non-singleton C axis, then the C dimension is
+        inserted just before spatial axes. If the original data had a C axis and the
+        transformed data has a singleton C axis, then the C dimension is removed.
+
+        Parameters
+        ----------
+        shape : Sequence[int]
+            Input shape to adjust.
+
+        Returns
+        -------
+        tuple[int, ...]
+            Adjusted shape that matches the restored array shape.
+        """
+        if len(shape) != len(self.original_shape):
+            raise ValueError(
+                f"Input shape {shape} does not match original shape "
+                f"{self.original_shape} length."
+            )
+
+        axes = self.original_axes
+        adjusted_shape = list(shape)
+
+        if "C" in axes and self.drop_current_c:
+            # remove C dimension
+            adjusted_shape.pop(axes.index("C"))
+        elif "C" not in axes and self.current_c_size > 1:
+            # insert C before the first spatial axis (Z, Y, or X)
+            first_spatial_idx = next(i for i, axis in enumerate(axes) if axis in "ZYX")
+            adjusted_shape.insert(first_spatial_idx, 1)
+
+        return tuple(adjusted_shape)
+
 
 def reshape_array(
     array: NDArray,
@@ -718,6 +756,7 @@ def restore_tile(
     return transform.restore(tile)
 
 
+# TODO delete
 def get_stitch_slices(
     original_axes: str,
     original_shape: Sequence[int],
@@ -776,6 +815,7 @@ def get_stitch_slices(
     return transform.stitch_slices(sample_idx, stitch_coords, crop_size)
 
 
+# TODO delete
 def get_restored_array_shape(
     original_axes: str,
     original_shape: Sequence[int],

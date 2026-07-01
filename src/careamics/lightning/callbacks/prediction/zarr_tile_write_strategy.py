@@ -1,30 +1,198 @@
 """Tile Zarr writing strategy."""
 
-import builtins
 from collections.abc import Sequence
 from pathlib import Path
+from types import EllipsisType
 
 import zarr
 from numpy import float32
+from numpy.typing import NDArray
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack_loader.zarr_utils import (
     decipher_zarr_uri,
     is_valid_uri,
 )
-from careamics.dataset.patching import TileSpecs, is_tile_specs
-from careamics.utils.reshape_array import (
-    get_restored_array_shape,
-    get_stitch_slices,
-    restore_tile,
-)
+from careamics.dataset.patching import TileSpecs
+from careamics.utils.reshape_array import RestoredAxesTransform
 
 from .write_strategy import WriteStrategy
 
 OUTPUT_KEY = "_output"
 
+# TODO create a separate Zarr protocol to create store, groups and arrays, independently
+# from the strategy
 
-def _auto_chunks(original_axes: str, original_shape: Sequence[int]) -> tuple[int, ...]:
+
+class TileHandler:
+    """A class handling metadata creation, cropping, restoring and stitching of a tile.
+
+    Parameters
+    ----------
+    region : ImageRegionData
+        The image region data containing the tile information.
+    """
+
+    original_chunks: Sequence[int] | None
+    """Original chunks of the array, if available."""
+
+    original_shards: Sequence[int] | None
+    """Original shards of the array, if available."""
+
+    crop_size: Sequence[int]
+    """Size of the tile to crop."""
+
+    crop_coords: Sequence[int]
+    """Coordinates where to crop the tile."""
+
+    stitch_coords: Sequence[int]
+    """Coordinates in the array for stitching the tile."""
+
+    sample_idx: int
+    """Sample index of the tile."""
+
+    tile: NDArray
+    """Tile data."""
+
+    def __init__(self, region: ImageRegionData) -> None:
+        """Initialize the TileHandler with the given ImageRegionData.
+
+        Parameters
+        ----------
+        region : ImageRegionData
+            The image region data containing the tile information.
+        """
+        self.tile = region.data
+        tile_shape = region.data.shape
+        original_shape = region.original_data_shape
+        original_axes = region.axes
+        self.original_chunks = region.additional_metadata.get("chunks", None)
+        self.original_shards = region.additional_metadata.get("shards", None)
+
+        tile_spec: TileSpecs = region.region_spec
+        self.crop_coords = tile_spec["crop_coords"]
+        self.crop_size = tile_spec["crop_size"]
+        self.stitch_coords = tile_spec["stitch_coords"]
+        self.sample_idx = tile_spec["sample_idx"]
+
+        # get adjusted shapes in original orders
+        # axes and shapes may differ in C channel
+        self.transform = RestoredAxesTransform(
+            original_axes=original_axes,
+            original_shape=original_shape,
+            current_shape=tile_shape,
+            current_is_tile=True,
+        )
+
+    @property
+    def pred_array_shape(self) -> tuple[int, ...]:
+        """Shape of the prediction array after restoring axes.
+
+        Returns
+        -------
+        tuple[int, ...]
+            Shape of the prediction array after restoring axes.
+        """
+        return self.transform.restored_array_shape
+
+    @property
+    def pred_array_axes(self) -> str:
+        """Prediction array axes after restoring axes.
+
+        Returns
+        -------
+        str
+            Axes of the prediction array after restoring axes.
+        """
+        return "".join(self.transform.restored_array_axes)
+
+    @property
+    def pred_chunks(self) -> tuple[int, ...]:
+        """Chunk sizes of the prediction array after restoring axes.
+
+        Returns
+        -------
+        tuple[int, ...]
+            Chunk sizes of the prediction array after restoring axes.
+        """
+        return (
+            self.transform.adjust_shape(self.original_chunks)
+            if self.original_chunks is not None
+            else _auto_chunks(self.pred_array_axes, self.pred_array_shape)
+        )
+
+    @property
+    def pred_shards(self) -> tuple[int, ...] | None:
+        """Shard sizes of the prediction array after restoring axes.
+
+        Returns
+        -------
+        tuple[int, ...] | None
+            Shard sizes of the prediction array after restoring axes, or None if not
+            available.
+        """
+        return (
+            self.transform.adjust_shape(self.original_shards)
+            if self.original_shards is not None
+            else None
+        )
+
+    @property
+    def crop_slices(self) -> tuple[EllipsisType | slice | int, ...]:
+        """Tuple of slices for cropping the tile.
+
+        Returns
+        -------
+        tuple[slice | int, ...]
+            Slices for cropping the tile.
+        """
+        return (
+            ...,
+            *[
+                slice(start, start + length)
+                for start, length in zip(self.crop_coords, self.crop_size, strict=True)
+            ],
+        )
+
+    @property
+    def stitch_slices(self) -> tuple[slice | int, ...]:
+        """Tuple of slices for stitching the tile into the prediction array.
+
+        Returns
+        -------
+        tuple[slice | int, ...]
+            Slices for stitching the tile into the prediction array.
+        """
+        return self.transform.stitch_slices(
+            self.sample_idx,
+            self.stitch_coords,
+            self.crop_size,
+        )
+
+    @property
+    def crop(self) -> NDArray:
+        """Cropped tile array.
+
+        Returns
+        -------
+        NDArray
+            Cropped tile array.
+        """
+        return self.tile[self.crop_slices]
+
+    @property
+    def restored_crop(self) -> NDArray:
+        """Cropped tile array with restored axes.
+
+        Returns
+        -------
+        NDArray
+            Cropped tile array with restored axes.
+        """
+        return self.transform.restore(self.crop)
+
+
+def _auto_chunks(axes: str, original_shape: Sequence[int]) -> tuple[int, ...]:
     """Generate automatic chunk sizes based on axes and shape.
 
     X and Y dimensions will be chunked with a maximum size of 128, other dimensions
@@ -32,8 +200,8 @@ def _auto_chunks(original_axes: str, original_shape: Sequence[int]) -> tuple[int
 
     Parameters
     ----------
-    original_axes : str
-        Axes string of the original data.
+    axes : str
+        Axes string of the data.
     original_shape : Sequence[int]
         Shape of the original array.
 
@@ -45,7 +213,7 @@ def _auto_chunks(original_axes: str, original_shape: Sequence[int]) -> tuple[int
     """
     chunk_sizes = []
 
-    for idx, ax in enumerate(original_axes):
+    for idx, ax in enumerate(axes):
         if ax in ("Y", "X"):
             dim_size = original_shape[idx]
             chunk_sizes.append(
@@ -75,6 +243,58 @@ def _add_output_key(dirpath: Path, path: str | Path) -> Path:
     p = Path(path)
     new_name = p.stem + OUTPUT_KEY + ".zarr"
     return dirpath / new_name
+
+
+def _decipher_destination(
+    region: ImageRegionData, dirpath: Path
+) -> tuple[str, Path, str]:
+    """Generate the destination for the zarr array based on the source of the data.
+
+    Parameters
+    ----------
+    region : ImageRegionData
+        The region data containing the source information.
+    dirpath : Path
+        The directory path to save the output zarr.
+
+    Returns
+    -------
+    str
+        The name of the array within the zarr store.
+    Path
+        The path to the output zarr store.
+    str
+        The parent path within the zarr store.
+    """
+    if region.source == "array":
+        # data source is an in-memory array:
+        # set a new zarr storage output path
+        parent_path = ""
+        output_store_path = dirpath.joinpath("prediction.zarr")
+        # use array data index for array name (in case of having multiple arrays)
+        data_idx = region.region_spec["data_idx"]
+        array_name = f"{data_idx}"
+    elif is_valid_uri(region.source):
+        # source is a zarr
+        store_path, parent_path, array_name = decipher_zarr_uri(region.source)
+        output_store_path = _add_output_key(dirpath, store_path)
+    elif ".zarr" not in region.source:
+        # data source is a tiff or custom format image:
+        # set the zarr storage output path using the source file name
+        _source = Path(region.source)
+        parent_path = ""
+        output_store_path = _source.parent.joinpath(f"{_source.stem}.zarr")
+        # use array data index for array name (in case of having multiple tiffs)
+        data_idx = region.region_spec["data_idx"]
+        array_name = f"{data_idx}"
+    else:
+        # probably we don't need this
+        raise NotImplementedError(
+            f"Invalid source: {region.source}. Currently, only predicting from "
+            f"array, Zarr, or TIFF files is supported when writing Zarr tiles."
+        )
+
+    return array_name, output_store_path, parent_path
 
 
 class ZarrTileWriteStrategy(WriteStrategy):
@@ -136,10 +356,9 @@ class ZarrTileWriteStrategy(WriteStrategy):
     def _create_array(
         self,
         array_name: str,
-        original_axes: str,
-        original_shape: Sequence[int],
+        shape: Sequence[int],
         shards: tuple[int, ...] | None,
-        chunks: tuple[int, ...] | None,
+        chunks: tuple[int, ...],
     ) -> None:
         """Create a new array in an existing zarr group.
 
@@ -147,9 +366,7 @@ class ZarrTileWriteStrategy(WriteStrategy):
         ----------
         array_name : str
             Name of the array within the zarr group.
-        original_axes : str
-            Axes string in SC(Z)YX format with original data order.
-        original_shape : Sequence[int]
+        shape : Sequence[int]
             Shape of the array.
         shards : tuple[int, ...] or None
             Shard size for the array.
@@ -165,14 +382,10 @@ class ZarrTileWriteStrategy(WriteStrategy):
             raise RuntimeError("Zarr group not initialized.")
 
         if array_name not in self.current_group:
-            if chunks is not None and len(original_shape) != len(chunks):
+            if len(shape) != len(chunks):
                 raise ValueError(
-                    f"Shape {original_shape} and chunks {chunks} have different "
-                    f"lengths."
+                    f"Shape {shape} and chunks {chunks} have different " f"lengths."
                 )
-
-            if chunks is None:
-                chunks = _auto_chunks(original_axes, original_shape)
 
             # TODO if we auto_chunks, we probably want to auto shards as well
             # there is shards="auto" in zarr, where array.target_shard_size_bytes
@@ -184,7 +397,7 @@ class ZarrTileWriteStrategy(WriteStrategy):
 
             self.current_array = self.current_group.create_array(
                 name=array_name,
-                shape=original_shape,
+                shape=shape,
                 shards=shards,
                 chunks=chunks,
                 dtype=float32,
@@ -205,36 +418,9 @@ class ZarrTileWriteStrategy(WriteStrategy):
         region : ImageRegionData
             Image region data containing tile information.
         """
-        if region.source == "array":
-            # data source is an in-memory array:
-            # set a new zarr storage output path
-            parent_path = ""
-            output_store_path = dirpath.joinpath("prediction.zarr")
-            # use array data index for array name (in case of having multiple arrays)
-            data_idx = region.region_spec["data_idx"]
-            array_name = f"{data_idx}"
-
-        elif is_valid_uri(region.source):
-            # source is a zarr
-            store_path, parent_path, array_name = decipher_zarr_uri(region.source)
-            output_store_path = _add_output_key(dirpath, store_path)
-
-        elif ".zarr" not in region.source:
-            # data source is a tiff or custom format image:
-            # set the zarr storage output path using the source file name
-            _source = Path(region.source)
-            parent_path = ""
-            output_store_path = _source.parent.joinpath(f"{_source.stem}.zarr")
-            # use array data index for array name (in case of having multiple tiffs)
-            data_idx = region.region_spec["data_idx"]
-            array_name = f"{data_idx}"
-
-        else:
-            # probably we don't need this
-            raise NotImplementedError(
-                f"Invalid source: {region.source}. Currently, only predicting from "
-                f"array, Zarr, or TIFF files is supported when writing Zarr tiles."
-            )
+        array_name, output_store_path, parent_path = _decipher_destination(
+            region, dirpath
+        )
 
         if (
             self.current_group is None
@@ -246,51 +432,21 @@ class ZarrTileWriteStrategy(WriteStrategy):
         if self.current_group is None or self.current_group.name != parent_path:
             self._create_group(parent_path)
 
-        original_shape = get_restored_array_shape(
-            region.axes, region.original_data_shape, region.data.shape
-        )
-        original_axes = region.axes
+        # create a TileHandler to manage the array and tile metadata, cropping,
+        # restoring and stitching
+        handler = TileHandler(region)
 
+        # create array
         if self.current_array is None or self.current_array.basename != array_name:
-            # If the source is not a Zarr file, then chunks and shards will be `None`.
-            chunks: tuple[int, ...] | None = region.additional_metadata.get(
-                "chunks", None
+            self._create_array(
+                array_name,
+                handler.pred_array_shape,
+                handler.pred_shards,
+                handler.pred_chunks,
             )
-            shards: tuple[int, ...] | None = region.additional_metadata.get(
-                "shards", None
-            )
-            self._create_array(array_name, region.axes, original_shape, shards, chunks)
-
-        assert is_tile_specs(region.region_spec)  # for mypy
-        tile_spec: TileSpecs = region.region_spec
-        crop_coords = tile_spec["crop_coords"]
-        crop_size = tile_spec["crop_size"]
-        stitch_coords = tile_spec["stitch_coords"]
-
-        # compute sample slice
-        sample_idx = tile_spec["sample_idx"]
-        stitch_slices = get_stitch_slices(
-            original_axes,
-            original_shape,
-            region.data.shape,
-            sample_idx,
-            stitch_coords,
-            crop_size,
-        )
-        crop_slices: tuple[builtins.ellipsis | slice | int, ...] = (
-            ...,
-            *[
-                slice(start, start + length)
-                for start, length in zip(crop_coords, crop_size, strict=True)
-            ],
-        )
 
         if self.current_array is not None:
-            # region.data has shape C(Z)YX
-            crop = region.data[crop_slices]
-            reshaped_crop = restore_tile(crop, original_axes, original_shape)
-
-            self.current_array[stitch_slices] = reshaped_crop
+            self.current_array[handler.stitch_slices] = handler.restored_crop
         else:
             raise RuntimeError("Zarr array not initialized.")
 

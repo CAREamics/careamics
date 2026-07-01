@@ -220,26 +220,26 @@ def test_auto_chunks(axes, data_shape, expected_chunks):
 @pytest.mark.parametrize(
     "axes, shape, shards, chunks, channels",
     [
+        # ordered
         ("YX", (32, 32), (16, 16), (8, 8), None),
         ("CYX", (3, 32, 32), (1, 16, 16), (1, 8, 8), None),
-        ("CYX", (3, 32, 32), (1, 16, 16), (1, 8, 8), [1]),
+        ("CYX", (3, 32, 32), (16, 16), (8, 8), [1]),
         ("CYX", (3, 32, 32), (1, 16, 16), (1, 8, 8), [0, 2]),
         ("ZYX", (16, 32, 32), (8, 16, 16), (4, 8, 8), None),
         ("CZYX", (3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), None),
-        ("CZYX", (3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), [1]),
+        ("CZYX", (3, 16, 32, 32), (8, 16, 16), (4, 8, 8), [1]),
         ("CZYX", (3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), [0, 2]),
         ("SZYX", (5, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), None),
         ("SCZYX", (5, 3, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), None),
-        ("SCZYX", (5, 3, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), [1]),
+        ("SCZYX", (5, 3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), [1]),
         ("SCZYX", (5, 3, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), [0, 2]),
+        # disordered
+        # channels dropped
+        # channels added
     ],
 )
 def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
-    """Test that `write_tile` correctly writes the data.
-
-    No need to test with different axes order since the data coming to the writer
-    is always in C(Z)YX format, with potential singleton dimensions.
-    """
+    """Test that `write_tile` correctly writes the data."""
     arrays, tiles_list = tiles
 
     source_set = {tile.source for tile in tiles_list}
