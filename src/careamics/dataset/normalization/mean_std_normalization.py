@@ -157,9 +157,10 @@ class MeanStdNormalization(Normalization):
     def denormalize(self, patch: torch.Tensor) -> torch.Tensor:
         """Reverse the normalization operation for a batch of patches.
 
-        The data is denormalized using the target statistics, when available. When no
-        target statistics are available, which is the case for self-supervised algorithms
-        such as N2V, the data is denormalized using the input statistics.
+        The data is denormalized using the target statistics, when available.
+        When no target statistics are available, which is the case for
+        self-supervised algorithms such as N2V, the data is denormalized
+        using the input statistics.
 
         Parameters
         ----------
