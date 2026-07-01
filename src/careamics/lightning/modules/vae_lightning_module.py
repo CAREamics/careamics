@@ -261,9 +261,6 @@ class VAEModule(L.LightningModule):
                 0
             ]  # hacky way to unpack. #TODO maybe should be fixed on the dataset level
 
-        # Update loss parameters
-        self.loss_parameters.kl_params.current_epoch = self.current_epoch
-
         # Compute loss
         self._validate_noise_model_required()
         if self.noise_model is not None and (

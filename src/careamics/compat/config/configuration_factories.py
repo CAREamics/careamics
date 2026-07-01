@@ -25,7 +25,7 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import KLLossConfig, LVAELossConfig
+from careamics.config.losses.loss_config import LVAELossConfig
 from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.config.support import (
     SupportedArchitecture,
@@ -1900,7 +1900,6 @@ def create_microsplit_configuration(
         denoisplit_weight=denoisplit_weight,
         predict_logvar=predict_logvar,
         logvar_lowerbound=logvar_lowerbound,
-        kl_params=KLLossConfig(),
     )
 
     # Create the LVAE model

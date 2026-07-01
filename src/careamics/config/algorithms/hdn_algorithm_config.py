@@ -7,6 +7,7 @@ from pydantic import ConfigDict
 
 from careamics.config.algorithms.vae_algorithm_config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEConfig
+from careamics.config.lightning.optimizer_configs import OptimizerConfig
 from careamics.config.losses.loss_config import LVAELossConfig
 
 HDN = "Hierarchical DivNoising"
@@ -36,6 +37,8 @@ class HDNAlgorithm(VAEBasedAlgorithm):
     model: LVAEConfig  # TODO add validators
 
     is_supervised: bool = False
+
+    optimizer: OptimizerConfig = OptimizerConfig(name="Adamax")
 
     def get_algorithm_friendly_name(self) -> str:
         """
