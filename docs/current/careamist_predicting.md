@@ -5,6 +5,13 @@ description: Quick start
 
 # Predicting with CAREamics
 
+Prediction can be performed right after training, re-using the same `CAREamist` object,
+or by creating a new one with a path to a checkpoint:
+
+```python title="Starting from a checkpoint"
+--8<-- "current/careamist_predicting.py:pred_start"
+```
+
 ## Returning predictions
 
 The simplest form of prediction is to call `predict`, which returns the predictions and
@@ -33,23 +40,6 @@ list:
 
     Noise2Void and Noise2Noise will use the last checkpoint, while the other algorithms
     will use the best checkpoint.
-
-### Choosing the checkpoint
-
-Checkpoints can be specified by passing a `checkpoint` argument to the `predict` method.
-It can be either a path to a checkpoint file or one of the keywords specified by
-PyTorch Lightning (typically `"best"` or `"last"`, see [documentation](https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict)).
-
-```python title="Prediction with checkpoint"
---8<-- "current/careamist_predicting.py:pred_checkpoint"
-```
-
-!!! warning "Noise2Void and Noise2Noise"
-
-    Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
-    based on validation loss. Specify an explicit path if you want to use a
-    specific checkpoint.
-
 
 ### Tiling
 
@@ -126,6 +116,22 @@ need to specify the new axes and `data_type`. Finally, we do not want to train i
     prediction. For example, if the new data has 3 channels, but the model was
     trained on single-channel data, then `channels=[1]` can be used to specify that
     only the second channel should be used for prediction.
+
+### Choosing the checkpoint
+
+Checkpoints can be specified by passing a `checkpoint` argument to the `predict` method.
+It can be either a path to a checkpoint file or one of the keywords specified by
+PyTorch Lightning (typically `"best"` or `"last"`, see [documentation](https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict)).
+
+```python title="Prediction with checkpoint"
+--8<-- "current/careamist_predicting.py:pred_checkpoint"
+```
+
+!!! warning "Noise2Void and Noise2Noise"
+
+    Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
+    based on validation loss. Specify an explicit path if you want to use a
+    specific checkpoint.
 
 
 ## Predicting to disk
