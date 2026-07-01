@@ -6,9 +6,9 @@ description: Quick start
 # Predicting with CAREamics
 
 Prediction can be performed right after training, re-using the same `CAREamist` object,
-or by creating a new one with a path to a checkpoint.
+or by creating a new one with a path to a checkpoint:
 
-```python title="Predicting from a checkpoint"
+```python title="Starting from a checkpoint"
 --8<-- "current/careamist_predicting.py:pred_start"
 ```
 
