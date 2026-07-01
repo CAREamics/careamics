@@ -558,8 +558,17 @@ class TestRestoredAxesTransform:
         )
         new_axes = "".join(transform.restored_array_axes)
 
-        # test that C is included in the restored axes if it is not singleton in target
-        assert ("C" in new_axes) == (target_shape[1] > 1)
+        # test that if "C" is in the new axes and is singleton, then it was in
+        match ("C" in axes, "C" in new_axes):
+            case (True, True):
+                # C must be singleton in the target shape
+                assert target_shape[1] == 1
+            case (False, True):
+                # C must have the target shape's C size
+                assert target_shape[1] > 1
+            case _:
+                # should not happen per parameters
+                raise ValueError("Unexpected combination of axes and new_axes")
 
         # remove C from either and test that they are the same
         purged_axes = "".join(ax for ax in new_axes if ax != "C")

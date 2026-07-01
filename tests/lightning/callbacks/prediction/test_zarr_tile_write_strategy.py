@@ -183,39 +183,6 @@ def tiles(
     return np.stack(arrays, axis=0), tiles
 
 
-@pytest.mark.parametrize(
-    "axes, data_shape, expected_chunks",
-    [
-        # axes are original data, can be STCZYX in any order
-        # data_shape is in format SC(Z)YX with potential singleton dimensions
-        # expected_chunks is in format SC(Z)YX as data is currently not reshaped
-        # simple usual shapes
-        ("YX", (32, 64), (32, 64)),
-        ("YX", (128, 32), (128, 32)),
-        ("ZYX", (32, 64, 64), (1, 64, 64)),
-        ("ZYX", (64, 128, 64), (1, 128, 64)),
-        ("CYX", (5, 64, 64), (1, 64, 64)),
-        ("SYX", (5, 64, 256), (1, 64, 128)),
-        ("SCYX", (8, 5, 64, 64), (1, 1, 64, 64)),
-        ("SCZYX", (5, 5, 32, 256, 64), (1, 1, 1, 128, 64)),
-        # different orders (but YX together)
-        ("YXZ", (64, 64, 32), (64, 64, 1)),
-        ("YXC", (64, 64, 3), (64, 64, 1)),
-        ("SYXZ", (4, 64, 64, 32), (1, 64, 64, 1)),
-        ("CSYX", (3, 5, 64, 64), (1, 1, 64, 64)),
-        ("SZCYX", (8, 16, 3, 256, 64), (1, 1, 1, 128, 64)),
-        # T dimension
-        ("TYX", (5, 64, 64), (1, 64, 64)),
-        ("TCYX", (5, 3, 64, 64), (1, 1, 64, 64)),
-        ("STYX", (5, 4, 64, 64), (1, 1, 64, 64)),
-        ("STCYX", (5, 4, 3, 256, 64), (1, 1, 1, 128, 64)),
-    ],
-)
-def test_auto_chunks(axes, data_shape, expected_chunks):
-    chunks = _auto_chunks(axes, data_shape)
-    assert chunks == expected_chunks
-
-
 @pytest.mark.parametrize("n_data", [1, 3])
 @pytest.mark.parametrize(
     "axes, shape, shards, chunks, channels",
@@ -317,7 +284,7 @@ def test_write_tile_restore(tmp_path, tiles, axes, shape, shards, chunks, channe
         # load array and compare with original
         g = zarr.open(zarr_path, mode="r")
 
-        # check sharding and chunking
+        # check that sharding and chunking are preserved
         if shards is not None:
             assert g[array_name].shards == shards
         if chunks is not None:

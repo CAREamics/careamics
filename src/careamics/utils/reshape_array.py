@@ -232,10 +232,13 @@ class AxesTransform:
 class RestoredAxesTransform:
     """Transformation from transformed space back to original axes order.
 
-    Validation is performed to ensure that the current shape is compatible with the
-    original axes. The only exception is the C dimension, which may be absent in the
-    original axes but present in the current shape, or inversely, or have a different
-    size. In these cases, the resulting C dimension follows the current shape.
+    The only difference between the current shape and the original shape is that the C
+    dimension might have been added, removed or have different dimension.
+
+    If C was removed, then the restored shapes will have a singleton C dimension. If C
+    was added, a C dimension equal to the number of channels in the current array will
+    be added to the restored shape. If C was changed, then the restored shape will have
+    the same number of channels as the current array.
     """
 
     original_axes: str
@@ -344,7 +347,7 @@ class RestoredAxesTransform:
             True if original data had no C and transformed data has a singleton C
             axis, False otherwise.
         """
-        return self.current_c_size == 1
+        return "C" not in self.original_axes and self.current_c_size == 1
 
     @property
     def restored_array_axes(self) -> list[str]:
