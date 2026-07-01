@@ -12,10 +12,6 @@ from numpy.typing import NDArray
 _REF_ORDER = "STCZYX"
 _VALID_AXES = set(_REF_ORDER)
 
-# TODO can things be simplified from axes order?
-# TODO new axes should be after S/T if these are leading
-# TODO should we just simplify and only take care of different C?
-
 
 def _validate_axes_and_shape(axes: str, shape: Sequence[int]) -> None:
     """Validate axes and shape.
@@ -206,11 +202,6 @@ class AxesTransform:
         axis_idx = self.original_axes.index("T")
         dim = self.original_shape[axis_idx]
 
-        # new S' = S*T
-        # T_idx = S_idx' % T_size
-        # S_idx = S_idx' // T_size
-        # - floor divide finds the row
-        # - modulus finds how far along the row i.e. the column
         return sample_idx % dim
 
     def calc_original_S_idx(self, sample_idx: int) -> int:
@@ -232,11 +223,6 @@ class AxesTransform:
             T_axis_idx = self.original_axes.index("T")
             T_dim = self.original_shape[T_axis_idx]
 
-            # new S' = S*T
-            # T_idx = S_idx' % T_size
-            # S_idx = S_idx' // T_size
-            # - floor divide finds the row
-            # - modulus finds how far along the row i.e. the column
             return sample_idx // T_dim
         else:
             return sample_idx
