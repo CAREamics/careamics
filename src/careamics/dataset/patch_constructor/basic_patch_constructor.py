@@ -10,10 +10,10 @@ from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import Patching, PatchSpecs
 
 from .metadata_utils import ImageMetadata, get_image_metadata
-from .patch_constructor import PatchConstructor
+from .patch_constructor import PatchConstr
 
 
-class BasicPatchConstructor(PatchConstructor):
+class BasicPatchConstr(PatchConstr):
     """Construct standard CAREamics input and optional target patches.
 
     This constructor can be used for both training and prediction pipelines.

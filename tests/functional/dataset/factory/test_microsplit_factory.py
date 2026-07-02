@@ -8,19 +8,16 @@ import pytest
 import tifffile
 from numpy.typing import NDArray
 
-from careamics.config.data import (
-    MicroSplitDataConfig,
-    SlidingWindowTiledPatchingConfig,
-)
+from careamics.config.data import MicroSplitDataConfig, SlidingWindowTiledPatchingConfig
 from careamics.dataset.factory import (
-    MicroSplitMultiplexedTargetData,
-    MicroSplitPairedData,
-    MicroSplitSeparateTargetData,
+    IndependentTargets,
+    MultiChannelTarget,
+    PairedInputTarget,
     create_microsplit_dataset,
     create_microsplit_pred_dataset,
 )
 from careamics.dataset.image_stack import InMemoryImageStack
-from careamics.dataset.patch_constructor import MsPredPatchConstructor
+from careamics.dataset.patch_constructor import PredMsPatchConstr
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import (
     SlidingWindowTiledPatching,
@@ -59,7 +56,7 @@ def _dummy_multiplexed_data(tmp_path: Path, data_type: Literal["array", "tiff"])
         tmp_path,
         "multiplexed_target",
     )
-    return MicroSplitMultiplexedTargetData(target_data), n_channels
+    return MultiChannelTarget(target_data), n_channels
 
 
 def _dummy_separate_channel_data(tmp_path: Path, data_type: Literal["array", "tiff"]):
@@ -79,7 +76,7 @@ def _dummy_separate_channel_data(tmp_path: Path, data_type: Literal["array", "ti
         ),
     ]
     n_channels = len(target_channel_data)
-    return MicroSplitSeparateTargetData(target_channel_data), n_channels
+    return IndependentTargets(target_channel_data), n_channels
 
 
 def _dummy_paired_data(tmp_path: Path, data_type: Literal["array", "tiff"]):
@@ -98,7 +95,7 @@ def _dummy_paired_data(tmp_path: Path, data_type: Literal["array", "tiff"]):
         "paired_target",
     )
     return (
-        MicroSplitPairedData(
+        PairedInputTarget(
             input_data=input_data,
             target_data=target_data,
         ),
@@ -106,14 +103,28 @@ def _dummy_paired_data(tmp_path: Path, data_type: Literal["array", "tiff"]):
     )
 
 
+def _dummy_pred_data(tmp_path: Path, data_type: Literal["array", "tiff"]):
+    rng = np.random.default_rng(42)
+    input_data = _format_sources(
+        [
+            rng.random(size=(2, 1, 256, 256)).astype(np.float32),
+            rng.random(size=(1, 1, 200, 300)).astype(np.float32),
+        ],
+        data_type,
+        tmp_path,
+        "pred",
+    )
+    return input_data, 1
+
+
 def _microsplit_data_from_mode(
-    mode: Literal["multiplexed", "separate", "paired"],
+    mode: Literal["multiplexed", "separate", "paired", "prediction"],
     data_type: Literal["array", "tiff"],
     tmp_path: Path,
 ) -> tuple[
-    MicroSplitMultiplexedTargetData[MicroSplitSource]
-    | MicroSplitSeparateTargetData[MicroSplitSource]
-    | MicroSplitPairedData[MicroSplitSource],
+    MultiChannelTarget[MicroSplitSource]
+    | IndependentTargets[MicroSplitSource]
+    | PairedInputTarget[MicroSplitSource],
     int,
 ]:
     """Return factory input data and expected constructor for a MicroSplit mode."""
@@ -127,6 +138,9 @@ def _microsplit_data_from_mode(
     elif mode == "paired":
         return _dummy_paired_data(tmp_path, data_type)
 
+    else:
+        raise ValueError(f"Mode {mode} unrecognized.")
+
 
 @pytest.mark.parametrize("data_type", ["array", "tiff"])
 @pytest.mark.parametrize(
@@ -134,7 +148,7 @@ def _microsplit_data_from_mode(
     [("multiplexed", 0), ("multiplexed", 1), ("separate", 1), ("paired", 0)],
 )
 @pytest.mark.parametrize("multiscale_count", [1, 2, 3])
-def test_microsplit_factory_dataset_outputs_all_indices(
+def test_train_dataset_all_indices(
     tmp_path: Path,
     data_type: Literal["array", "tiff"],
     uncorrelated_channel_prob: float,
@@ -148,7 +162,7 @@ def test_microsplit_factory_dataset_outputs_all_indices(
         mode="training",
         data_type=data_type,
         axes="SCYX",
-        patching={"name": "random", "patch_size": patch_size, "seed": 13},
+        patching={"name": "stratified", "patch_size": patch_size, "seed": 42},
         normalization={"name": "none"},
         seed=42,
         multiscale_count=multiscale_count,
@@ -174,6 +188,164 @@ def test_microsplit_factory_dataset_outputs_all_indices(
         assert target_region.data.shape == (n_channels, *patch_size)
         assert is_uncorrelated_specs(input_region.region_spec) is expected_uncorrelated
         assert is_uncorrelated_specs(target_region.region_spec) is expected_uncorrelated
+
+
+@pytest.mark.parametrize("data_type", ["array", "tiff"])
+@pytest.mark.parametrize("multiscale_count", [1, 2, 3])
+def test_pred_dataset_all_indices(
+    tmp_path: Path,
+    data_type: Literal["array", "tiff"],
+    multiscale_count: int,
+) -> None:
+    """Test MicroSplit factory datasets can produce output for every index."""
+    data, _ = _dummy_pred_data(tmp_path, data_type)
+    patch_size = (16, 16)
+    config = MicroSplitDataConfig(
+        mode="predicting",
+        data_type=data_type,
+        axes="SCYX",
+        patching={"name": "tiled", "patch_size": patch_size, "overlaps": (8, 8)},
+        normalization={"name": "none"},
+        seed=42,
+        multiscale_count=multiscale_count,
+    )
+    dataset = create_microsplit_pred_dataset(
+        config=config,
+        input_data=data,
+    )
+    for index in range(len(dataset)):
+        (input_region,) = dataset[index]
+
+        assert input_region.data.shape == (multiscale_count, *patch_size)
+
+
+def test_train_factory_rejects_predict_config() -> None:
+    """Test training factory rejects prediction configs."""
+    config = MicroSplitDataConfig(
+        mode="predicting",
+        data_type="array",
+        axes="SCYX",
+        patching={"name": "tiled", "patch_size": (16, 16), "overlaps": (8, 8)},
+        normalization={"name": "none"},
+    )
+    data = [np.zeros((1, 1, 32, 32), dtype=np.float32)]
+
+    with pytest.raises(
+        ValueError,
+        match="Use `create_microsplit_pred_dataset` to create prediction datasets",
+    ):
+        create_microsplit_dataset(
+            config=config,
+            data=MultiChannelTarget(data),
+        )
+
+
+def test_pred_factory_rejects_train_config() -> None:
+    """Test prediction factory rejects training configs."""
+    config = MicroSplitDataConfig(
+        mode="training",
+        data_type="array",
+        axes="SCYX",
+        patching={"name": "stratified", "patch_size": (16, 16), "seed": 42},
+        normalization={"name": "none"},
+    )
+    data = [np.zeros((1, 1, 32, 32), dtype=np.float32)]
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "`create_microsplit_pred_dataset` requires a config with mode='predicting'"
+        ),
+    ):
+        create_microsplit_pred_dataset(config=config, input_data=data)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        IndependentTargets([]),
+        IndependentTargets([np.ones((128, 128))]),
+    ],
+)
+def test_less_than_two_separate_channels_error(
+    data: IndependentTargets,
+) -> None:
+    """Test training factory rejects unsupported MicroSplit data inputs."""
+    config = MicroSplitDataConfig(
+        mode="training",
+        data_type="array",
+        axes="YX",
+        patching={"name": "stratified", "patch_size": (16, 16), "seed": 42},
+        normalization={"name": "none"},
+    )
+
+    with pytest.raises((TypeError, ValueError), match="two target channel sources"):
+        create_microsplit_dataset(config=config, data=data)
+
+
+def test_pred_factory_rejects_non_sequence() -> None:
+    """Test prediction factory requires sequences for standard loading."""
+    config = MicroSplitDataConfig(
+        mode="predicting",
+        data_type="array",
+        axes="SCYX",
+        patching={"name": "tiled", "patch_size": (16, 16), "overlaps": (8, 8)},
+        normalization={"name": "none"},
+    )
+
+    with pytest.raises(TypeError, match="Prediction input must be a sequence"):
+        create_microsplit_pred_dataset(
+            config=config,
+            input_data=np.zeros((1, 1, 32, 32), dtype=np.float32),
+        )
+
+
+@pytest.mark.parametrize(
+    ("mode", "config_kwargs", "warning_field"),
+    [
+        ("separate", {"channels": [0]}, "channels"),
+        ("separate", {"uncorrelated_channel_prob": 1.0}, "uncorrelated_channel_prob"),
+        (
+            "paired",
+            {"alpha_ranges": [(0.5, 0.5), (0.5, 0.5)]},
+            "alpha_ranges",
+        ),
+        ("paired", {"channels": [0]}, "channels"),
+        ("paired", {"uncorrelated_channel_prob": 1.0}, "uncorrelated_channel_prob"),
+    ],
+)
+def test_factory_warns_unused_fields(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: Literal["separate", "paired"],
+    config_kwargs: dict[str, Any],
+    warning_field: str,
+) -> None:
+    """Test factory warns when explicitly set config fields are unused."""
+    warnings: list[str] = []
+    monkeypatch.setattr(
+        "careamics.dataset.factory.microsplit_factory.logger.warning",
+        lambda message, *args: warnings.append(message % args),
+    )
+    data, _ = _microsplit_data_from_mode(mode, "array", tmp_path)
+    config = MicroSplitDataConfig(
+        mode="training",
+        data_type="array",
+        axes="SCYX",
+        patching={"name": "stratified", "patch_size": (16, 16), "seed": 42},
+        normalization={"name": "none"},
+        **config_kwargs,
+    )
+
+    create_microsplit_dataset(
+        config=config,
+        data=data,
+        loading=None,
+        rng=np.random.default_rng(23),
+    )
+
+    assert len(warnings) == 1
+    assert warning_field in warnings[0]
 
 
 # ---------------------------------------------------------------------------
@@ -312,7 +484,7 @@ def test_ms_pred_patch_constructor_rejects_non_tile_specs_patching():
     whole_patching = WholeSamplePatching(data_shapes=[image.shape])
 
     with pytest.raises(TypeError, match="TileSpecs"):
-        MsPredPatchConstructor(
+        PredMsPatchConstr(
             patching_strategy=whole_patching,
             input_extractor=extractor,
             multiscale_count=1,

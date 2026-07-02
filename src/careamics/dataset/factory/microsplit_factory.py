@@ -10,19 +10,19 @@ from numpy.typing import NDArray
 
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
 from careamics.config.support import SupportedData
+from careamics.dataset.dataset import CareamicsDataset
+from careamics.dataset.image_stack import ImageStack
+from careamics.dataset.patch_constructor import PatchConstr
+from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
+    IndependentTargetsMsPatchConstr,
+    MultiChannelTargetMsPatchConstr,
+    PairedInputTargetMsPatchConstr,
+    PredMsPatchConstr,
+)
+from careamics.dataset.patching import create_patching
 from careamics.models.constraints import ModelConstraints
 from careamics.utils import get_logger
 
-from ..dataset import CareamicsDataset
-from ..image_stack import ImageStack
-from ..patch_constructor import PatchConstructor
-from ..patch_constructor.microsplit_patch_constructors import (
-    MsPredPatchConstructor,
-    MsT1PatchConstructor,
-    MsT2PatchConstructor,
-    MsT3PatchConstructor,
-)
-from ..patching import create_patching
 from .factory import (
     ImageStackLoading,
     Loading,
@@ -91,44 +91,43 @@ def _warn_unused_training_config_fields(
 
 
 @dataclass
-class MicroSplitMultiplexedTargetData(Generic[T]):
-    """MicroSplit data with target channels acquired together."""
+class MultiChannelTarget(Generic[T]):
+    """MicroSplit data with target channels acquired together.
+
+    The input will be a synthetically generated superposition of the target channels.
+    """
 
     target_data: T
 
 
 @dataclass
-class MicroSplitSeparateTargetData(Generic[T]):
-    """MicroSplit data with target channels acquired separately.
+class IndependentTargets(Generic[T]):
+    """MicroSplit data with independent target structures.
 
-    The data for different channels may have a different shape.
+    The data for different target structures may have a different shape.
+
+    The input will be a synthetically generated superposition of the target structures.
     """
 
     target_channel_data: Sequence[T]
 
 
 @dataclass
-class MicroSplitPairedData(Generic[T]):
-    """MicroSplit data with real input and multiplexed target sources."""
+class PairedInputTarget(Generic[T]):
+    """MicroSplit data with paired inputs and multi-channel targets."""
 
     input_data: T
     target_data: T
 
 
 MicroSplitTrainingData = (
-    MicroSplitMultiplexedTargetData[Any]
-    | MicroSplitSeparateTargetData[Any]
-    | MicroSplitPairedData[Any]
+    MultiChannelTarget[Any] | IndependentTargets[Any] | PairedInputTarget[Any]
 )
 
 
 def create_microsplit_dataset(
     config: MicroSplitDataConfig,
-    data: (
-        MicroSplitMultiplexedTargetData[Any]
-        | MicroSplitSeparateTargetData[Any]
-        | MicroSplitPairedData[Any]
-    ),
+    data: MultiChannelTarget[Any] | IndependentTargets[Any] | PairedInputTarget[Any],
     loading: Loading = None,
     model_constraints: ModelConstraints | None = None,
     rng: np.random.Generator | None = None,
@@ -181,9 +180,9 @@ def create_microsplit_dataset(
     )
     rng = rng if rng is not None else np.random.default_rng(config.seed)
 
-    patch_constructor: PatchConstructor
+    patch_constructor: PatchConstr
     match data:
-        case MicroSplitMultiplexedTargetData(target_data):
+        case MultiChannelTarget(target_data):
             _warn_unused_training_config_fields(config, "multiplexed-target mode")
             target_extractor = init_patch_extractor(
                 patch_extractor_type, image_stack_loader, target_data, config.axes
@@ -191,7 +190,7 @@ def create_microsplit_dataset(
             patching_strategy = create_patching(
                 target_extractor.shapes, config.patching
             )
-            patch_constructor = MsT1PatchConstructor(
+            patch_constructor = MultiChannelTargetMsPatchConstr(
                 patching_strategy=patching_strategy,
                 target_extractor=target_extractor,
                 multiscale_count=config.multiscale_count,
@@ -201,14 +200,16 @@ def create_microsplit_dataset(
                 channels=config.channels,
                 rng=rng,
             )
-        case MicroSplitSeparateTargetData(target_channel_data):
+        case IndependentTargets(target_channel_data):
             _warn_unused_training_config_fields(
                 config,
                 "separate-target mode",
                 unused_fields=("channels", "uncorrelated_channel_prob"),
             )
-            if len(target_channel_data) == 0:
-                raise ValueError("At least one target channel source must be provided.")
+            if len(target_channel_data) < 2:
+                raise ValueError(
+                    "At least two target channel sources must be provided."
+                )
             target_extractors = [
                 init_patch_extractor(
                     patch_extractor_type, image_stack_loader, source, config.axes
@@ -219,7 +220,7 @@ def create_microsplit_dataset(
                 create_patching(extractor.shapes, config.patching)
                 for extractor in target_extractors
             ]
-            patch_constructor = MsT2PatchConstructor(
+            patch_constructor = IndependentTargetsMsPatchConstr(
                 patching_strategies=patching_strategies,
                 target_extractors=target_extractors,
                 multiscale_count=config.multiscale_count,
@@ -227,7 +228,7 @@ def create_microsplit_dataset(
                 alpha_ranges=config.alpha_ranges,
                 rng=rng,
             )
-        case MicroSplitPairedData(input_data, target_data):
+        case PairedInputTarget(input_data, target_data):
             # TODO: currently input data has to have singleton C dimension
             _warn_unused_training_config_fields(
                 config,
@@ -245,7 +246,7 @@ def create_microsplit_dataset(
                 patch_extractor_type, image_stack_loader, target_data, config.axes
             )
             patching_strategy = create_patching(input_extractor.shapes, config.patching)
-            patch_constructor = MsT3PatchConstructor(
+            patch_constructor = PairedInputTargetMsPatchConstr(
                 patching_strategy=patching_strategy,
                 input_extractor=input_extractor,
                 target_extractor=target_extractor,
@@ -334,7 +335,7 @@ def create_microsplit_pred_dataset(
     )
     patching_strategy = create_patching(input_extractor.shapes, config.patching)
 
-    patch_constructor = MsPredPatchConstructor(
+    patch_constructor = PredMsPatchConstr(
         patching_strategy=patching_strategy,
         input_extractor=input_extractor,
         multiscale_count=config.multiscale_count,

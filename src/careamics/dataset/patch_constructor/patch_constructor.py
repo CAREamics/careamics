@@ -10,7 +10,7 @@ from careamics.dataset.patching import PatchSpecs
 from .metadata_utils import ImageMetadata
 
 
-class PatchConstructor(Protocol):
+class PatchConstr(Protocol):
     """Module for extracting and constructing inputs and targets."""
 
     @property

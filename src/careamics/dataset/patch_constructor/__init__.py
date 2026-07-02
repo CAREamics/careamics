@@ -1,19 +1,19 @@
 """Patch constructor package. Patch constructors output a patch for a given index."""
 
 __all__ = [
-    "BasicPatchConstructor",
-    "MsPredPatchConstructor",
-    "MsT1PatchConstructor",
-    "MsT2PatchConstructor",
-    "MsT3PatchConstructor",
-    "PatchConstructor",
+    "BasicPatchConstr",
+    "IndependentTargetsMsPatchConstr",
+    "MultiChannelTargetMsPatchConstr",
+    "PairedInputTargetMsPatchConstr",
+    "PatchConstr",
+    "PredMsPatchConstr",
 ]
 
-from .basic_patch_constructor import BasicPatchConstructor
+from .basic_patch_constructor import BasicPatchConstr
 from .microsplit_patch_constructors import (
-    MsPredPatchConstructor,
-    MsT1PatchConstructor,
-    MsT2PatchConstructor,
-    MsT3PatchConstructor,
+    IndependentTargetsMsPatchConstr,
+    MultiChannelTargetMsPatchConstr,
+    PairedInputTargetMsPatchConstr,
+    PredMsPatchConstr,
 )
-from .patch_constructor import PatchConstructor
+from .patch_constructor import PatchConstr

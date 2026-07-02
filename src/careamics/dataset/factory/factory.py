@@ -9,17 +9,12 @@ from typing_extensions import ParamSpec
 
 from careamics.config.data.data_config import DataConfig
 from careamics.config.support import SupportedData
-from careamics.image_io.read import ReadFunc
-from careamics.models.constraints import (
-    ModelConstraints,
-)
-
-from ..dataset import CareamicsDataset
-from ..image_stack import (
+from careamics.dataset.dataset import CareamicsDataset
+from careamics.dataset.image_stack import (
     GenericImageStack,
     ImageStack,
 )
-from ..image_stack_loader import (
+from careamics.dataset.image_stack_loader import (
     ImageStackLoader,
     load_arrays,
     load_custom_file,
@@ -28,9 +23,14 @@ from ..image_stack_loader import (
     load_tiffs,
     load_zarrs,
 )
-from ..patch_constructor import BasicPatchConstructor
-from ..patch_extractor import LimitFilesPatchExtractor, PatchExtractor
-from ..patching import StratifiedPatching, create_patching
+from careamics.dataset.patch_constructor import BasicPatchConstr
+from careamics.dataset.patch_extractor import LimitFilesPatchExtractor, PatchExtractor
+from careamics.dataset.patching import StratifiedPatching, create_patching
+from careamics.image_io.read import ReadFunc
+from careamics.models.constraints import (
+    ModelConstraints,
+)
+
 from .filter_bg import filter_background, filter_background_with_mask
 from .val_split import create_val_split
 
@@ -155,7 +155,7 @@ def create_dataset(
 
     patching_strategy = create_patching(input_extractor.shapes, config.patching)
 
-    patch_constructor = BasicPatchConstructor(
+    patch_constructor = BasicPatchConstr(
         patching_strategy=patching_strategy,
         input_extractor=input_extractor,
         target_extractor=target_extractor,
@@ -257,7 +257,7 @@ def create_train_dataset(
             mask_extractor,
         )
 
-    patch_constructor = BasicPatchConstructor(
+    patch_constructor = BasicPatchConstr(
         patching_strategy=patching_strategy,
         input_extractor=input_extractor,
         target_extractor=target_extractor,
@@ -367,7 +367,7 @@ def create_val_split_datasets(
     train_dataset = create_train_dataset(config, data, loading, model_constraints)
 
     # NOTE: temporary guard before refactoring this further
-    if not isinstance(train_dataset.patch_constructor, BasicPatchConstructor):
+    if not isinstance(train_dataset.patch_constructor, BasicPatchConstr):
         raise NotImplementedError(
             "Validation splitting is currently only implemented for basic patch "
             "construction used by the algorithms `CARE`, `N2N` and `N2V`."
@@ -382,7 +382,7 @@ def create_val_split_datasets(
         train_patching, data.n_val_patches, rng=rng
     )
 
-    patch_constructor = BasicPatchConstructor(
+    patch_constructor = BasicPatchConstr(
         patching_strategy=val_patching,
         input_extractor=train_dataset.patch_constructor.input_extractor,
         target_extractor=train_dataset.patch_constructor.target_extractor,
