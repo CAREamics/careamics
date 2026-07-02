@@ -115,7 +115,6 @@ class LadderVAE(nn.Module):
         self.learn_top_prior = True
         self.res_block_type = "bacdbacd"  # TODO remove !
         self.mode_pred = False
-        self.logvar_lowerbound = -5
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
         self._enable_topdown_normalize_factor = True

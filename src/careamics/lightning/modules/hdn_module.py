@@ -36,10 +36,10 @@ class HDNModule(L.LightningModule):
 
     The reconstruction likelihood is selected automatically from the configuration:
 
-    - if a noise model is provided, the noise model likelihood is used (the HDN paper
-      setting; ``predict_logvar`` must be ``False``);
-    - otherwise a Gaussian likelihood with a learned per-pixel variance is used (the
-      DivNoising setting; ``predict_logvar`` must be ``True``).
+    - if a noise model is provided, the noise model likelihood is used
+      (``predict_logvar`` must be ``False``);
+    - otherwise a Gaussian likelihood with a learned per-pixel variance is used
+      (``predict_logvar`` must be ``True``).
 
     Parameters
     ----------
@@ -294,8 +294,8 @@ class HDNModule(L.LightningModule):
     ) -> ImageRegionData:
         """Prediction step for HDN.
 
-        The reconstruction is the MMSE estimate, i.e. the mean over ``mmse_count``
-        stochastic samples.
+        Runs a single forward pass and returns the denormalized reconstruction for
+        the input region.
 
         Parameters
         ----------
@@ -307,7 +307,7 @@ class HDNModule(L.LightningModule):
         Returns
         -------
         ImageRegionData
-            The output batch containing the MMSE prediction.
+            The output batch containing the reconstruction.
         """
         x = batch[0]
         x_data = cast(torch.Tensor, x.data)
@@ -315,16 +315,12 @@ class HDNModule(L.LightningModule):
         # reconfigure the model for the current input spatial size
         self.model.reset_for_inference(x_data.shape[-2:])
 
-        samples = torch.stack(
-            [
-                self._get_reconstruction(self.model(x_data))
-                for _ in range(self.config.mmse_count)
-            ]
-        )
-        mmse = samples.mean(dim=0)
+        prediction = self._get_reconstruction(self.model(x_data))
 
         normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
-        denormalized_output = normalization.denormalize(mmse).cpu().numpy()
+        denormalized_output = (
+            normalization.denormalize(prediction).detach().cpu().numpy()
+        )
 
         return ImageRegionData(
             data=denormalized_output,
