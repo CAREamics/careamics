@@ -200,7 +200,7 @@ class ZarrTileHandler:
         return self.transform.restore(self.crop)
 
 
-def _auto_chunks(axes: str, original_shape: Sequence[int]) -> tuple[int, ...]:
+def _auto_chunks(axes: str, shape: Sequence[int]) -> tuple[int, ...]:
     """Generate automatic chunk sizes based on axes and shape.
 
     X and Y dimensions will be chunked with a maximum size of 128, other dimensions
@@ -210,7 +210,7 @@ def _auto_chunks(axes: str, original_shape: Sequence[int]) -> tuple[int, ...]:
     ----------
     axes : str
         Axes string of the data.
-    original_shape : Sequence[int]
+    shape : Sequence[int]
         Shape of the original array.
 
     Returns
@@ -223,7 +223,7 @@ def _auto_chunks(axes: str, original_shape: Sequence[int]) -> tuple[int, ...]:
 
     for idx, ax in enumerate(axes):
         if ax in ("Y", "X"):
-            dim_size = original_shape[idx]
+            dim_size = shape[idx]
             chunk_sizes.append(
                 min(128, dim_size)
             )  # TODO arbitrary value, need benchmarking
