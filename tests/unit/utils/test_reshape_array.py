@@ -558,7 +558,6 @@ class TestRestoredAxesTransform:
         )
         new_axes = "".join(transform.restored_array_axes)
 
-        # test that if "C" is in the new axes and is singleton, then it was in
         match ("C" in axes, "C" in new_axes):
             case (True, True):
                 # C must be singleton in the target shape
@@ -566,6 +565,9 @@ class TestRestoredAxesTransform:
             case (False, True):
                 # C must have the target shape's C size
                 assert target_shape[1] > 1
+            case (True, False):
+                # C must be singleton in the target shape
+                assert target_shape[1] == 1
             case _:
                 # should not happen per parameters
                 raise ValueError("Unexpected combination of axes and new_axes")
@@ -739,3 +741,34 @@ class TestRestoredAxesTransform:
                 assert stitch_slices[i].stop == transform.current_c_size
             else:  # S, T indexed by an int
                 assert isinstance(stitch_slices[i], int)
+
+    @pytest.mark.parametrize(
+        "in_shape, axes, target_shape",
+        _ORDERED_TRANSFORMED
+        + _DISORDERED_TRANSFORMED
+        + _CHANNEL_MISMATCH
+        + _CHANNEL_MISMATCH_DISORDERED,
+    )
+    def test_adjust_shape(self, in_shape, axes, target_shape):
+        """Test that restoring shapes remove or add "C" dimension."""
+        default_val = 2
+        c_val = 5
+
+        shape = tuple(
+            default_val if ax != "C" else c_val for ax in axes
+        )  # arbitrary shape with C=5
+
+        transform = RestoredAxesTransform(axes, in_shape, target_shape, False)
+        new_shape = transform.adjust_shape(shape)
+
+        if transform.add_current_c:
+            # C should have been added
+            assert len(new_shape) == len(shape) + 1
+            assert set(new_shape) - set(shape) == {1}
+        elif transform.drop_current_c and "C" in axes:
+            # C should have been removed
+            assert len(new_shape) == len(shape) - 1
+            assert set(shape) - set(new_shape) == {shape[axes.index("C")]}
+        else:
+            # C should be unchanged
+            assert new_shape == shape

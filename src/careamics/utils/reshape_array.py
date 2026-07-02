@@ -235,10 +235,11 @@ class RestoredAxesTransform:
     The only difference between the current shape and the original shape is that the C
     dimension might have been added, removed or have different dimension.
 
-    If C was removed, then the restored shapes will have a singleton C dimension. If C
-    was added, a C dimension equal to the number of channels in the current array will
-    be added to the restored shape. If C was changed, then the restored shape will have
-    the same number of channels as the current array.
+    In pseudo code:
+    if C in original_axes and current_c_size == 1: remove C from restored axes
+    if C in original_axes and current_c_size > 1: keep C with current C size
+    if C not in original_axes and current_c_size == 1: remove C from restored axes
+    if C not in original_axes and current_c_size > 1: add C with current C size
     """
 
     original_axes: str
@@ -347,14 +348,27 @@ class RestoredAxesTransform:
             True if original data had no C and transformed data has a singleton C
             axis, False otherwise.
         """
-        return "C" not in self.original_axes and self.current_c_size == 1
+        return self.current_c_size == 1
+
+    @property
+    def add_current_c(self) -> bool:
+        """Whether a new C axis should be added.
+
+        Returns
+        -------
+        bool
+            True if original data had no C and transformed data has a non-singleton C
+            axis, False otherwise.
+        """
+        return "C" not in self.original_axes and self.current_c_size > 1
 
     @property
     def restored_array_axes(self) -> list[str]:
         """Restored axes order for complete arrays with sample dimensions.
 
-        Keeps original axes order, except that if original data had no C and transformed
-        data has a non-singleton C axis, then C is inserted just before spatial axes.
+        Keeps original axes order, except for C axis which may:
+        - be dropped if it is a singleton
+        - be added if it is not in the original axes and has size > 1
 
         Returns
         -------
@@ -363,10 +377,11 @@ class RestoredAxesTransform:
         """
         axes = list(self.original_axes)
 
-        if "C" in axes and self.drop_current_c:
+        if self.drop_current_c:
             # remove C dimension
-            axes.remove("C")
-        elif "C" not in axes and self.current_c_size > 1:
+            if "C" in axes:
+                axes.remove("C")
+        elif self.add_current_c:
             # insert C before the first spatial axis (Z, Y, or X)
             first_spatial_idx = next(i for i, axis in enumerate(axes) if axis in "ZYX")
             axes.insert(first_spatial_idx, "C")
@@ -564,11 +579,11 @@ class RestoredAxesTransform:
     def adjust_shape(self, shape: Sequence[int]) -> tuple[int, ...]:
         """Adjust shape to match the restored array shape.
 
-        This method adjusts the input shape to match the restored array shape, taking
-        into account any differences in the C dimension. If the original data had no C
-        and the transformed data has a non-singleton C axis, then the C dimension is
-        inserted just before spatial axes. If the original data had a C axis and the
-        transformed data has a singleton C axis, then the C dimension is removed.
+        This method is meant to adjust chunks and shapes from Zarr arrays.
+
+        Note that if C is absent and need to be added, then it is added as a singleton.
+        Otherwise, the C dimension is kept as is, even when current C size is different
+        from the original.
 
         Parameters
         ----------
@@ -589,10 +604,12 @@ class RestoredAxesTransform:
         axes = self.original_axes
         adjusted_shape = list(shape)
 
-        if "C" in axes and self.drop_current_c:
+        if self.drop_current_c:
             # remove C dimension
-            adjusted_shape.pop(axes.index("C"))
-        elif "C" not in axes and self.current_c_size > 1:
+            if "C" in axes:
+                adjusted_shape.pop(axes.index("C"))
+                axes = axes.replace("C", "")
+        elif self.add_current_c:
             # insert C before the first spatial axis (Z, Y, or X)
             first_spatial_idx = next(i for i, axis in enumerate(axes) if axis in "ZYX")
             adjusted_shape.insert(first_spatial_idx, 1)
