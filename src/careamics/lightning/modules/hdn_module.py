@@ -10,7 +10,7 @@ from torchmetrics import MetricCollection
 from careamics.config import VAEBasedAlgorithm
 from careamics.dataset import ImageRegionData
 from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
-from careamics.losses import lvae_loss_factory
+from careamics.losses.lvae import hdn_loss
 from careamics.metrics import SIPSNR
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
@@ -68,14 +68,15 @@ class HDNModule(L.LightningModule):
             raise TypeError("algorithm_config must be a VAEBasedAlgorithm")
 
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
-        self.config = config
+        self.config: VAEBasedAlgorithm = config
 
         self.model: nn.Module = model_factory(self.config.model)
-        self.loss_func = lvae_loss_factory(self.config.loss.loss_type)
+        self.loss_func = hdn_loss
 
         self.noise_model: MultiChannelNoiseModel | None = (
             multichannel_noise_model_factory(self.config.noise_model)
         )
+
         self.predict_logvar: bool = self.config.model.predict_logvar
         if self.noise_model is None and not self.predict_logvar:
             raise ValueError(
@@ -103,11 +104,7 @@ class HDNModule(L.LightningModule):
         )
 
     def on_fit_start(self) -> None:
-        """Cache the data statistics required by the noise model likelihood.
-
-        Only needed for the noise model pathway; the Gaussian pathway operates in
-        normalized space and needs no statistics.
-        """
+        """On fit start hook for HDN module."""
         if self.noise_model is None:
             return
         assert self._trainer is not None
@@ -182,7 +179,7 @@ class HDNModule(L.LightningModule):
         Raises
         ------
         RuntimeError
-            If the noise model pathway is used but its data statistics are not set.
+            If the noise model is used but its data statistics are not set.
         """
         if self.noise_model is not None and (
             self.data_mean is None or self.data_std is None
@@ -205,7 +202,7 @@ class HDNModule(L.LightningModule):
     ) -> torch.Tensor:
         """Extract the reconstructed mean from the model outputs.
 
-        On the Gaussian pathway the model predicts the log-variance, so the output
+        If noise model is not used, the model predicts the log-variance, so the output
         channels are split into mean and log-variance; only the mean is returned.
 
         Parameters
@@ -293,9 +290,6 @@ class HDNModule(L.LightningModule):
         batch_idx: int,
     ) -> ImageRegionData:
         """Prediction step for HDN.
-
-        Runs a single forward pass and returns the denormalized reconstruction for
-        the input region.
 
         Parameters
         ----------
