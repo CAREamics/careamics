@@ -226,3 +226,38 @@ def test_global_stats_pools_across_channels():
     sample, *_ = dataset[0]
     assert sample.data[0].mean() < 0.0
     assert sample.data[1].mean() > 0.0
+
+
+def test_denormalize_with_target_stats():
+    """denormalize() uses target stats instead of input stats when both differ."""
+    rng = np.random.default_rng(42)
+    input_data = rng.normal(loc=50, scale=10, size=(64, 64)).astype(np.float32)
+    target_data = rng.normal(loc=150, scale=30, size=(64, 64)).astype(np.float32)
+
+    config = DataConfig(
+        mode="training",
+        data_type="array",
+        axes="YX",
+        patching={"name": "random", "patch_size": (32, 32)},
+        normalization={
+            "name": "mean_std",
+            "input_means": [50.0],
+            "input_stds": [10.0],
+            "target_means": [150.0, 300.0],
+            "target_stds": [30.0, 50.0],
+        },
+    )
+    dataset = create_dataset(config=config, inputs=[input_data], targets=[target_data])
+
+    norm = dataset.normalization
+
+    # Simulate model output: batch=1, 2 channels (matches target, not input)
+    model_output = torch.ones((1, 2, 8, 8))
+    result = norm.denormalize(model_output)
+
+    assert result.shape == (1, 2, 8, 8)
+    # With model output all ones, denormalized result should equal
+    # target_mean + target_std exactly -- proves target stats were used,
+    # not input stats, and that std is actually applied (not just mean).
+    assert torch.allclose(result[0, 0], torch.tensor(180.0), atol=1e-3)
+    assert torch.allclose(result[0, 1], torch.tensor(350.0), atol=1e-3)

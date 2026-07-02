@@ -24,17 +24,6 @@ class RangeNormalization(Normalization):
         Target minimum value per channel.
     target_maxes : list of float, optional
         Target maximum value per channel.
-
-    Attributes
-    ----------
-    input_mins : list of float
-        Minimum value per channel.
-    input_maxes : list of float
-        Maximum value per channel.
-    target_mins : list of float, optional
-        Target minimum value per channel.
-    target_maxes : list of float, optional
-        Target maximum value per channel.
     """
 
     def __init__(
@@ -113,6 +102,10 @@ class RangeNormalization(Normalization):
     def denormalize(self, patch: torch.Tensor) -> torch.Tensor:
         """Reverse the normalization operation for a batch of patches.
 
+        The data is denormalized using the target range, when available. When no
+        target range is available, which is the case for self-supervised algorithms
+        such as N2V, the data is denormalized using the input range.
+
         Parameters
         ----------
         patch : torch.Tensor
@@ -124,13 +117,17 @@ class RangeNormalization(Normalization):
             Denormalized patch.
         """
         n_channels = patch.shape[1]
-        input_mins_list = broadcast_stats(self.input_mins, n_channels, "input_mins")
-        input_maxes_list = broadcast_stats(self.input_maxes, n_channels, "input_maxes")
+        if self.target_mins is not None and self.target_maxes is not None:
+            mins_list, maxes_list = self.target_mins, self.target_maxes
+        else:
+            mins_list, maxes_list = self.input_mins, self.input_maxes
+        mins_list = broadcast_stats(mins_list, n_channels, "mins")
+        maxes_list = broadcast_stats(maxes_list, n_channels, "maxes")
 
         patch = patch.to(dtype=torch.float32)
 
-        mins_arr = reshape_stats(input_mins_list, patch.ndim, channel_axis=1)
-        maxes_arr = reshape_stats(input_maxes_list, patch.ndim, channel_axis=1)
+        mins_arr = reshape_stats(mins_list, patch.ndim, channel_axis=1)
+        maxes_arr = reshape_stats(maxes_list, patch.ndim, channel_axis=1)
 
         input_mins = torch.from_numpy(mins_arr).to(patch.device)
         input_maxes = torch.from_numpy(maxes_arr).to(patch.device)

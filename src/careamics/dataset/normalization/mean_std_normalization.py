@@ -55,7 +55,6 @@ class MeanStdNormalization(Normalization):
         self.input_stds = input_stds
         self.target_means = target_means
         self.target_stds = target_stds
-
         self.eps = 1e-6
 
     def __call__(
@@ -87,6 +86,7 @@ class MeanStdNormalization(Normalization):
 
         means = reshape_stats(input_means, patch.ndim, channel_axis=0)
         stds = reshape_stats(input_stds, patch.ndim, channel_axis=0)
+
         norm_patch = self._apply_normalization(patch, means, stds)
 
         if target is None:
@@ -157,6 +157,11 @@ class MeanStdNormalization(Normalization):
     def denormalize(self, patch: torch.Tensor) -> torch.Tensor:
         """Reverse the normalization operation for a batch of patches.
 
+        The data is denormalized using the target statistics, when available.
+        When no target statistics are available, which is the case for
+        self-supervised algorithms such as N2V, the data is denormalized
+        using the input statistics.
+
         Parameters
         ----------
         patch : torch.Tensor
@@ -168,12 +173,15 @@ class MeanStdNormalization(Normalization):
             Transformed array.
         """
         n_channels = patch.shape[1]
-        input_means = broadcast_stats(self.input_means, n_channels, "input_means")
-        input_stds = broadcast_stats(self.input_stds, n_channels, "input_stds")
+        if self.target_means is not None and self.target_stds is not None:
+            means_list, stds_list = self.target_means, self.target_stds
+        else:
+            means_list, stds_list = self.input_means, self.input_stds
+        means_list = broadcast_stats(means_list, n_channels, "means")
+        stds_list = broadcast_stats(stds_list, n_channels, "stds")
 
         patch = patch.to(dtype=torch.float32)
 
-        means = reshape_stats(input_means, patch.ndim, channel_axis=1)
-        stds = reshape_stats(input_stds, patch.ndim, channel_axis=1)
-
+        means = reshape_stats(means_list, patch.ndim, channel_axis=1)
+        stds = reshape_stats(stds_list, patch.ndim, channel_axis=1)
         return self._apply_denormalization(patch, means, stds)
