@@ -23,7 +23,6 @@ OUTPUT_KEY = "_output"
 # TODO create a separate Zarr protocol to create store, groups and arrays, independently
 # from the strategy, will allow us to swap backend. Maybe even share it with the iamge
 # stack
-# TODO Raise error if order of axes not STC(Z)YX (which OME-NGFF will require)
 
 
 class ZarrTileHandler:
