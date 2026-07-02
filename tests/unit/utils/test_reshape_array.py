@@ -6,7 +6,6 @@ from careamics.utils.reshape_array import (
     RestoredAxesTransform,
     reshape_array,
     restore_array,
-    restore_tile,
 )
 
 # --- Test utilities
@@ -401,58 +400,6 @@ class TestRestoreArray:
     def test_restore_array_wrong_ndim(self):
         with pytest.raises(ValueError, match="Expected 4D"):
             restore_array(np.zeros((32, 32, 32)), "YX", (32, 32))
-
-
-# TODO currently testing the wrapper function rather than the underlying class
-class TestRestoreTile:
-    @pytest.mark.parametrize(
-        "original_shape, original_axes, tile_shape",
-        [
-            # 2D cases — tile is CYX
-            ((XY_S, XY_S), "YX", (1, XY_S, XY_S)),
-            ((C_S, XY_S, XY_S), "CYX", (C_S, XY_S, XY_S)),
-            ((XY_S, XY_S, C_S), "YXC", (C_S, XY_S, XY_S)),
-            ((S_S, XY_S, XY_S), "SYX", (1, XY_S, XY_S)),
-            ((T_S, XY_S, XY_S), "TYX", (1, XY_S, XY_S)),
-            ((S_S, C_S, XY_S, XY_S), "SCYX", (C_S, XY_S, XY_S)),
-            ((S_S, T_S, C_S, XY_S, XY_S), "STCYX", (C_S, XY_S, XY_S)),
-            # 3D cases — tile is CZYX
-            ((Z_S, XY_S, XY_S), "ZYX", (1, Z_S, XY_S, XY_S)),
-            ((C_S, Z_S, XY_S, XY_S), "CZYX", (C_S, Z_S, XY_S, XY_S)),
-            ((S_S, C_S, Z_S, XY_S, XY_S), "SCZYX", (C_S, Z_S, XY_S, XY_S)),
-            ((S_S, T_S, C_S, Z_S, XY_S, XY_S), "STCZYX", (C_S, Z_S, XY_S, XY_S)),
-        ],
-    )
-    def test_restore_tile(self, original_shape, original_axes, tile_shape):
-        tile = np.random.rand(*tile_shape)
-        restored = restore_tile(tile, original_axes, original_shape)
-
-        # expected tile axes: original without S and T
-        expected_axes = "".join(a for a in original_axes if a not in "ST")
-
-        assert restored.ndim == len(expected_axes)
-
-        # spatial dims should be preserved
-        for ax in "YX":
-            orig_idx = expected_axes.index(ax)
-            assert restored.shape[orig_idx] == original_shape[original_axes.index(ax)]
-
-    def test_restore_tile_reorder(self):
-        """Tile from YXC data should restore C to last position."""
-        tile = np.arange(C_S * XY_S * XY_S).reshape(C_S, XY_S, XY_S)  # CYX in DL space
-        restored = restore_tile(tile, "YXC", (XY_S, XY_S, C_S))
-        assert restored.shape == (XY_S, XY_S, C_S)
-        assert restored[2, 3, 1] == tile[1, 2, 3]
-
-    def test_restore_tile_singleton_c_removed(self):
-        """Tile from YX data (no C) should have C squeezed out."""
-        tile = np.random.rand(1, XY_S, XY_S)  # CYX with C=1
-        restored = restore_tile(tile, "YX", (XY_S, XY_S))
-        assert restored.shape == (XY_S, XY_S)
-
-    def test_restore_tile_wrong_ndim(self):
-        with pytest.raises(ValueError, match="Expected 3D"):
-            restore_tile(np.zeros((XY_S, XY_S)), "YX", (XY_S, XY_S))
 
 
 class TestRestoredAxesTransform:
