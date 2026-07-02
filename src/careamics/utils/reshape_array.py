@@ -13,6 +13,9 @@ _REF_ORDER = "STCZYX"
 _VALID_AXES = set(_REF_ORDER)
 
 
+# TODO to clarify the transformations call the transformed space "canonical".
+
+
 def _validate_axes_and_shape(axes: str, shape: Sequence[int]) -> None:
     """Validate axes and shape.
 
@@ -426,6 +429,23 @@ class RestoredAxesTransform:
             else:
                 sizes.append(original_sizes[axis])
         return tuple(sizes)
+
+    @property
+    def canonical_order(self) -> bool:
+        """Whether the new axis follows canonical order.
+
+        Canonical order is STCZYX.
+
+        Returns
+        -------
+        bool
+            True if it follows canonical order, False otherwise.
+        """
+        axes = self.original_axes
+        axis_idx = [axes.index(a) for a in _REF_ORDER if a in axes]
+        axis_idx_ordered = sorted(axis_idx)
+
+        return axis_idx == axis_idx_ordered
 
     def _transform_S_and_C(self, data: NDArray) -> tuple[NDArray, list[str]]:
         """Restore transformed axes by unflattening S and dropping singleton new C.

@@ -514,6 +514,20 @@ class TestRestoredAxesTransform:
             RestoredAxesTransform(axes, shape, target_shape, is_tile)
 
     @pytest.mark.parametrize(
+        "in_shape, axes, target_shape, canonical",
+        [t + (True,) for t in _CHANNEL_MISMATCH]
+        + [t + (False,) for t in _CHANNEL_MISMATCH_DISORDERED]
+        + [t + (True,) for t in _ORDERED_TRANSFORMED]
+        + [t + (False,) for t in _DISORDERED_TRANSFORMED],
+    )
+    def test_canonical_order(self, in_shape, axes, target_shape, canonical):
+        """Test that the canonical order is always SCZYX."""
+        transform = RestoredAxesTransform(
+            axes, in_shape, target_shape, current_is_tile=False
+        )
+        assert transform.canonical_order == canonical
+
+    @pytest.mark.parametrize(
         "in_shape, axes, target_shape",
         _ORDERED_TRANSFORMED + _DISORDERED_TRANSFORMED,
     )

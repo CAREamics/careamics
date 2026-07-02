@@ -17,7 +17,7 @@ from careamics.dataset.patching import (
     TiledPatching,
     TileSpecs,
 )
-from careamics.utils.reshape_array import AxesTransform, reshape_array, restore_array
+from careamics.utils.reshape_array import AxesTransform, reshape_array
 
 # to comply with ruff line length
 WriteTilesZarr = pd_writer.zarr_tile_write_strategy.ZarrTileWriteStrategy
@@ -183,6 +183,8 @@ def tiles(
     return np.stack(arrays, axis=0), tiles
 
 
+# TODO not testing addition of channels, ie tile with channels when origina data has not
+# channels
 @pytest.mark.parametrize("n_data", [1, 3])
 @pytest.mark.parametrize(
     "axes, shape, shards, chunks, channels",
@@ -190,19 +192,17 @@ def tiles(
         # ordered
         ("YX", (32, 32), (16, 16), (8, 8), None),
         ("CYX", (3, 32, 32), (1, 16, 16), (1, 8, 8), None),
-        ("CYX", (3, 32, 32), (16, 16), (8, 8), [1]),
         ("CYX", (3, 32, 32), (1, 16, 16), (1, 8, 8), [0, 2]),
         ("ZYX", (16, 32, 32), (8, 16, 16), (4, 8, 8), None),
         ("CZYX", (3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), None),
-        ("CZYX", (3, 16, 32, 32), (8, 16, 16), (4, 8, 8), [1]),
         ("CZYX", (3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), [0, 2]),
         ("SZYX", (5, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), None),
         ("SCZYX", (5, 3, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), None),
-        ("SCZYX", (5, 3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), [1]),
         ("SCZYX", (5, 3, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), [0, 2]),
-        # disordered
         # channels dropped
-        # channels added
+        ("CYX", (3, 32, 32), (1, 16, 16), (1, 8, 8), [1]),
+        ("CZYX", (3, 16, 32, 32), (1, 8, 16, 16), (1, 4, 8, 8), [1]),
+        ("SCZYX", (5, 3, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), [1]),
     ],
 )
 def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
@@ -228,10 +228,16 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
         g = zarr.open(zarr_path, mode="r")
 
         # check sharding and chunking
-        if shards is not None:
-            assert g[array_name].shards == shards
-        if chunks is not None:
-            assert g[array_name].chunks == chunks
+        if channels is not None and len(channels) == 1:  # channels were dropped
+            if shards is not None:
+                assert (1,) + g[array_name].shards == shards
+            if chunks is not None:
+                assert (1,) + g[array_name].chunks == chunks
+        else:
+            if shards is not None:
+                assert g[array_name].shards == shards
+            if chunks is not None:
+                assert g[array_name].chunks == chunks
 
         # pull array
         pred_array = g[array_name][:]
@@ -243,71 +249,10 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
             expected_array = expected_array[:, channels]
 
         # zarr file writer does not save singleton dims if not present in original data
-        if "C" not in axes:
+        if "C" not in axes or (channels is not None and len(channels)) == 1:
             expected_array = expected_array.squeeze(axis=1)
         if "S" not in axes:
             expected_array = expected_array.squeeze(axis=0)
-
-        np.testing.assert_allclose(pred_array, expected_array, rtol=1e-5, atol=0)
-
-
-@pytest.mark.parametrize("n_data", [1, 3])
-@pytest.mark.parametrize(
-    "axes, shape, shards, chunks, channels",
-    [
-        ("YXC", (32, 32, 3), (16, 16, 1), (8, 8, 1), None),
-        ("YXC", (32, 32, 3), (16, 16, 1), (8, 8, 1), [1]),
-        ("YXC", (32, 32, 3), (16, 16, 1), (8, 8, 1), [0, 2]),
-        ("YXZ", (32, 32, 16), (16, 16, 8), (8, 8, 4), None),
-        ("STZYX", (5, 4, 16, 32, 32), (1, 1, 8, 16, 16), (1, 1, 4, 8, 8), None),
-    ],
-)
-def test_write_tile_restore(tmp_path, tiles, axes, shape, shards, chunks, channels):
-    """Test that `write_tile` correctly restores data to original axes order."""
-    arrays, tiles_list = tiles
-
-    source_set = {tile.source for tile in tiles_list}
-
-    # use writer to write predictions
-    writer = WriteTilesZarr()
-    for region in tiles_list:
-        writer.write_tile(tmp_path, region)
-
-    for src in source_set:
-        filename = Path(src[len("file://") :]).parent.stem
-        array_name = Path(src[len("file://") :]).name
-
-        # check if zarr prediction exists
-        zarr_path = tmp_path / f"{filename}_output.zarr"
-        assert zarr_path.exists()
-
-        # load array and compare with original
-        g = zarr.open(zarr_path, mode="r")
-
-        # check that sharding and chunking are preserved
-        if shards is not None:
-            assert g[array_name].shards == shards
-        if chunks is not None:
-            assert g[array_name].chunks == chunks
-
-        # pull array
-        pred_array = g[array_name][:]
-        data_idx = int(array_name.split("_")[-1])
-
-        expected_array = arrays[data_idx]
-
-        # apply channel subsetting
-        if channels is not None:
-            expected_array = expected_array[:, channels]
-
-        # compute expected original shape (adjusted for channel subsetting)
-        expected_shape = list(shape)
-        if channels is not None and "C" in axes:
-            c_idx = axes.index("C")
-            expected_shape[c_idx] = len(channels)
-
-        # restore from SC(Z)YX to original axes order
-        expected_array = restore_array(expected_array, axes, tuple(expected_shape))
 
         np.testing.assert_allclose(pred_array, expected_array, rtol=1e-5, atol=0)
 

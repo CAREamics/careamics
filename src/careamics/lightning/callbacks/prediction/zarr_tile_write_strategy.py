@@ -26,7 +26,7 @@ OUTPUT_KEY = "_output"
 # TODO Raise error if order of axes not STC(Z)YX (which OME-NGFF will require)
 
 
-class TileHandler:
+class ZarrTileHandler:
     """A class handling metadata creation, cropping, restoring and stitching of a tile.
 
     Parameters
@@ -85,6 +85,13 @@ class TileHandler:
             current_shape=tile_shape,
             current_is_tile=True,
         )
+
+        if not self.transform.canonical_order:
+            raise ValueError(
+                f"Axes {original_axes} are not in canonical order, which is "
+                f"incompatible with writing Zarr tiles. Please ensure axes are in the "
+                f"expected order: (S)(T)(C)(Z)YX."
+            )
 
     @property
     def pred_array_shape(self) -> tuple[int, ...]:
@@ -436,7 +443,7 @@ class ZarrTileWriteStrategy(WriteStrategy):
 
         # create a TileHandler to manage the array and tile metadata, cropping,
         # restoring and stitching
-        handler = TileHandler(region)
+        handler = ZarrTileHandler(region)
 
         # create array
         if self.current_array is None or self.current_array.basename != array_name:
