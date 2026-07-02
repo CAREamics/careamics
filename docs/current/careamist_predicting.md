@@ -24,6 +24,12 @@ list:
 --8<-- "current/careamist_predicting.py:pred_empty_source"
 ```
 
+!!! note "Dimensions of the prediction"
+    
+    The returned predictions will have the same dimension order as the input data. The
+    only difference may be the channels dimension, which will depend on the algorithm
+    used (e.g. CARE can have different channel dimensions in input and output).
+
 !!! note "Checkpoint"
 
     By default, CAREamics uses a checkpoint callback that saves multiple checkpoints
@@ -156,7 +162,8 @@ number of files that may not fit in memory.
 
 !!! note "Zarr format"
 
-    Prediction directly to disk is with Zarr requires tiling to be enabled.
+    Prediction directly to disk is with Zarr requires tiling to be enabled, and the
+    original axes need to be in canonical order (S)(T)(C)(Z)YX.
 
 
 ### Change the write type
