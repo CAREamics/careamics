@@ -33,6 +33,10 @@ class LVAEConfig(ArchitectureConfig):
     decoder_n_filters: int = Field(default=64, ge=8, le=1024)
     encoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9)
     decoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9)
+    encoder_blocks_per_layer: int = Field(default=1, ge=1)
+    """Number of residual blocks per encoder layer."""
+    decoder_blocks_per_layer: int = Field(default=1, ge=1)
+    """Number of residual blocks per decoder layer."""
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = Field(
@@ -41,6 +45,31 @@ class LVAEConfig(ArchitectureConfig):
 
     predict_logvar: bool = True
     """Whether to predict log-variance (pixelwise uncertainty)."""
+
+    @model_validator(mode="after")
+    def validate_n_filters(self: Self) -> Self:
+        """Validate that encoder and decoder use the same number of filters.
+
+        The LVAE merges encoder (bottom-up) and decoder (top-down) features, which
+        requires matching channel counts.
+
+        Returns
+        -------
+        Self
+            The validated model.
+
+        Raises
+        ------
+        ValueError
+            If ``encoder_n_filters`` and ``decoder_n_filters`` differ.
+        """
+        if self.encoder_n_filters != self.decoder_n_filters:
+            raise ValueError(
+                "encoder_n_filters and decoder_n_filters must be equal "
+                f"(got {self.encoder_n_filters} and {self.decoder_n_filters}); "
+                "the LVAE merges encoder and decoder features."
+            )
+        return self
 
     @model_validator(mode="after")
     def validate_conv_strides(self: Self) -> Self:

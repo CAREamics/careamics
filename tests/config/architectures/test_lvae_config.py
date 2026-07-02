@@ -30,7 +30,11 @@ def test_architecture_missing():
 def test_encoder_n_filters(encoder_n_filters: int):
     """Test that LVAEModel accepts num_channels_init as an even number and
     minimum 8."""
-    model_params = {"architecture": "LVAE", "encoder_n_filters": encoder_n_filters}
+    model_params = {
+        "architecture": "LVAE",
+        "encoder_n_filters": encoder_n_filters,
+        "decoder_n_filters": encoder_n_filters,
+    }
 
     # instantiate model
     LVAEConfig(**model_params)
@@ -40,7 +44,11 @@ def test_encoder_n_filters(encoder_n_filters: int):
 def test_decoder_n_filters(decoder_n_filters: int):
     """Test that LVAEModel accepts num_channels_init as an even number and
     minimum 8."""
-    model_params = {"architecture": "LVAE", "decoder_n_filters": decoder_n_filters}
+    model_params = {
+        "architecture": "LVAE",
+        "encoder_n_filters": decoder_n_filters,
+        "decoder_n_filters": decoder_n_filters,
+    }
 
     # instantiate model
     LVAEConfig(**model_params)
@@ -101,6 +109,7 @@ def test_parameters_wrong_values_by_assigment():
         "z_dims": (128, 128, 128),
         "multiscale_count": 2,
         "encoder_n_filters": 32,
+        "decoder_n_filters": 32,
     }
     model = LVAEConfig(**model_params)
 

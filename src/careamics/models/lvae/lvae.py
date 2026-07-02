@@ -53,6 +53,10 @@ class LadderVAE(nn.Module):
         The nonlinearity function to use.
     predict_logvar : bool
         Whether to predict the log variance.
+    encoder_blocks_per_layer : int
+        The number of residual blocks per encoder layer.
+    decoder_blocks_per_layer : int
+        The number of residual blocks per decoder layer.
 
     Raises
     ------
@@ -74,6 +78,8 @@ class LadderVAE(nn.Module):
         decoder_dropout: float,
         nonlinearity: str,
         predict_logvar: bool,
+        encoder_blocks_per_layer: int = 1,
+        decoder_blocks_per_layer: int = 1,
     ):
         super().__init__()
 
@@ -99,8 +105,8 @@ class LadderVAE(nn.Module):
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
         self.model_type = ModelType.LadderVae  # TODO remove !
-        self.encoder_blocks_per_layer = 1
-        self.decoder_blocks_per_layer = 1
+        self.encoder_blocks_per_layer = encoder_blocks_per_layer
+        self.decoder_blocks_per_layer = decoder_blocks_per_layer
         self.bottomup_batchnorm = True
         self.topdown_batchnorm = True
         self.topdown_conv2d_bias = True

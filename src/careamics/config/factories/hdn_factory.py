@@ -1,26 +1,4 @@
-"""Convenience functions to create HDN configurations.
-
-SCAFFOLD — the default values below are placeholders marked ``TODO(defaults)`` and
-are meant to be reviewed together before this is considered final.
-
-Design (agreed):
-- Two likelihood pathways, selected automatically by the presence of a noise model.
-  ``predict_logvar`` is *derived* here (``noise_model is None``) and never exposed to
-  the user, matching the "auto, strict" coupling enforced by ``HDNModule``:
-    * noise model present -> noise model likelihood, ``predict_logvar=False`` (HDN);
-    * no noise model      -> Gaussian, learned variance, ``predict_logvar=True``
-      (DivNoising).
-- A minimal ``create_hdn_config`` for regular users delegating to a full
-  ``create_advanced_hdn_config`` for experts (same pattern as ``create_n2v_config`` /
-  ``create_advanced_n2v_config``).
-
-TODO(scope): decide the return type. N2V returns a full ``N2VConfiguration``
-(algorithm + data + training). The base ``Configuration`` is currently constrained to
-UNet algorithms (its ``TypeVar`` and validators call UNet-only model methods), so a
-proper ``HDNConfiguration(Configuration)`` bundling data + training is a follow-up.
-For now these factories return only the ``HDNAlgorithm``; the data config is built
-separately with ``create_ng_data_configuration``.
-"""
+"""Convenience functions to create HDN configurations."""
 
 from collections.abc import Sequence
 from typing import Any, Literal
@@ -42,8 +20,6 @@ def create_hdn_config(
     patch_size: Sequence[int],
     # optional noise model
     noise_model: MultiChannelNMConfig | None = None,
-    # common optional parameters
-    mmse_count: int = 20,
 ) -> HDNAlgorithm:
     """Create a configuration for training HDN.
 
@@ -62,8 +38,6 @@ def create_hdn_config(
         2D, length 3 for 3D. Minimum spatial size is 64.
     noise_model : MultiChannelNMConfig or None, default=None
         Trained noise model. If ``None``, the Gaussian (DivNoising) pathway is used.
-    mmse_count : int, default=20
-        Number of stochastic samples averaged into the MMSE estimate at prediction time.
 
     Returns
     -------
@@ -73,7 +47,6 @@ def create_hdn_config(
     return create_advanced_hdn_config(
         patch_size=patch_size,
         noise_model=noise_model,
-        mmse_count=mmse_count,
     )
 
 
@@ -82,23 +55,20 @@ def create_advanced_hdn_config(
     patch_size: Sequence[int],
     # optional noise model
     noise_model: MultiChannelNMConfig | None = None,
-    # prediction
-    mmse_count: int = 20,
     output_channels: int = 1,
-    # --- architecture (LVAE) -------------------------------------------------
-    z_dims: Sequence[int] = (128, 128, 128, 128),  # TODO: defaults
-    encoder_n_filters: int = 32,
-    decoder_n_filters: int = 32,
-    encoder_dropout: float = 0.1,
-    decoder_dropout: float = 0.1,
+    # architecture parameters
+    z_dims: Sequence[int] = (32, 32, 32, 32, 32, 32),
+    n_filters: int = 64,
+    blocks_per_layer: int = 5,
+    dropout: float = 0.2,
     nonlinearity: NonLinearity = "ELU",
     # --- posterior-collapse / loss knobs -------------------------------------
     reconstruction_weight: float = 1.0,
     kl_weight: float = 1.0,
-    logvar_lowerbound: float | None = -5.0,  # TODO(defaults): Gaussian-path var floor
+    logvar_lowerbound: float | None = -5.0,  # Gaussian-path variance floor
     # --- optimization --------------------------------------------------------
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adamax",
-    optimizer_params: dict[str, Any] | None = None,
+    optimizer_params: dict[str, Any] | None = None,  # None -> HDN default lr 3e-4
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
     lr_scheduler_params: dict[str, Any] | None = None,
     # --- supervision ---------------------------------------------------------
@@ -116,29 +86,32 @@ def create_advanced_hdn_config(
         ``input_shape``.
     noise_model : MultiChannelNMConfig or None, default=None
         Trained noise model. ``None`` selects the Gaussian (DivNoising) pathway.
-    mmse_count : int, default=1
-        Number of MMSE samples at prediction time.
     output_channels : int, default=1
         Number of target channels (HDN uses 1).
-    z_dims : Sequence[int], default=(128, 128, 128, 128)
-        Latent dimension per hierarchy level; its length sets the number of LVAE layers.
-    encoder_n_filters, decoder_n_filters : int, default=64
-        Convolution width for encoder/decoder.
-    encoder_dropout, decoder_dropout : float, default=0.1
-        Dropout rates.
-    nonlinearity : {"None","Sigmoid","Softmax","Tanh","ReLU","LeakyReLU","ELU"}
-        Activation function.
+    z_dims : Sequence[int], default=(32, 32, 32, 32, 32, 32)
+        Latent channels per hierarchy level; its length sets the number of LVAE layers
+        (HDN: 6 levels of 32).
+    n_filters : int, default=64
+        Convolution width, shared by encoder and decoder (they must match because the
+        LVAE merges their features).
+    blocks_per_layer : int, default=5
+        Number of residual blocks per hierarchy level (HDN uses 5).
+    dropout : float, default=0.2
+        Dropout rate, shared by encoder and decoder.
+    nonlinearity : str, default="ELU"
+        Activation function, one of "None", "Sigmoid", "Softmax", "Tanh", "ReLU",
+        "LeakyReLU", "ELU".
     reconstruction_weight : float, default=1.0
         Weight of the reconstruction term.
     kl_weight : float, default=1.0
         Weight of the KL term (beta). Annealing is not used.
     logvar_lowerbound : float or None, default=-5.0
-        Lower bound on the predicted log-variance (Gaussian pathway only); guards
-        against variance-explosion posterior collapse. Ignored on the noise model path.
+        Lower bound on the predicted log-variance (Gaussian pathway only); prevents the
+        predicted variance from collapsing toward zero. Ignored on the noise model path.
     optimizer : {"Adam","Adamax","SGD"}, default="Adamax"
         Optimizer name.
     optimizer_params : dict or None, default=None
-        Optimizer parameters (e.g. ``{"lr": ...}``).
+        Optimizer parameters. If ``None``, the HDN default ``{"lr": 3e-4}`` is used.
     lr_scheduler : {"ReduceLROnPlateau","StepLR"}, default="ReduceLROnPlateau"
         Learning rate scheduler.
     lr_scheduler_params : dict or None, default=None
@@ -170,12 +143,14 @@ def create_advanced_hdn_config(
         output_channels=output_channels,
         multiscale_count=1,
         z_dims=list(z_dims),
-        encoder_n_filters=encoder_n_filters,
-        decoder_n_filters=decoder_n_filters,
+        encoder_n_filters=n_filters,
+        decoder_n_filters=n_filters,
         encoder_conv_strides=conv_strides,
         decoder_conv_strides=conv_strides,
-        encoder_dropout=encoder_dropout,
-        decoder_dropout=decoder_dropout,
+        encoder_dropout=dropout,
+        decoder_dropout=dropout,
+        encoder_blocks_per_layer=blocks_per_layer,
+        decoder_blocks_per_layer=blocks_per_layer,
         nonlinearity=nonlinearity,
         predict_logvar=predict_logvar,
     )
@@ -185,11 +160,10 @@ def create_advanced_hdn_config(
         loss=loss,
         model=model,
         noise_model=noise_model,
-        mmse_count=mmse_count,
         is_supervised=is_supervised,
         optimizer=OptimizerConfig(
             name=optimizer,
-            parameters=optimizer_params or {},
+            parameters=optimizer_params or {"lr": 3e-4},
         ),
         lr_scheduler=LrSchedulerConfig(
             name=lr_scheduler,
