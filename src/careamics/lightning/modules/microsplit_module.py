@@ -13,7 +13,7 @@ from careamics.compat.transforms.normalize import Denormalize
 from careamics.config import VAEBasedAlgorithm
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
-from careamics.losses import lvae_loss_factory
+from careamics.losses.lvae import microsplit_loss
 from careamics.metrics import SIPSNR
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
@@ -72,7 +72,7 @@ class MicroSplitModule(L.LightningModule):
         self.config = config
 
         self.model: nn.Module = model_factory(self.config.model)
-        self.loss_func = lvae_loss_factory(self.config.loss.loss_type)
+        self.loss_func = microsplit_loss
 
         self.noise_model: MultiChannelNoiseModel | None = (
             multichannel_noise_model_factory(self.config.noise_model)
@@ -330,21 +330,15 @@ class MicroSplitModule(L.LightningModule):
         x = batch[0]
         x_data = cast(torch.Tensor, x.data)
 
-        # reconfigure the model for the current input spatial size; pass the full
-        # spatial shape (2D or 3D) so the LVAE latent shape matches the input
+        # reconfigure the model for the current input spatial size
         n_spatial_dims = x_data.dim() - 2
         self.model.reset_for_inference(tuple(x_data.shape[-n_spatial_dims:]))
 
         prediction = self._get_reconstruction(self.model(x_data))
 
-        # target-space denormalization (per output channel). `Normalization.denormalize`
-        # only supports input stats, so build a Denormalize transform manually.
-        # TODO: drop the compat import once target-space denormalization is available.
         denorm = Denormalize(image_means=self.target_means, image_stds=self.target_stds)
         denormalized_output = denorm(patch=prediction.detach().cpu().numpy())
 
-        # the input region carries the mixed-input channel count; the prediction has
-        # `output_channels` unmixed channels, so override the channel dim of data_shape
         output_channels = self.config.model.output_channels
         output_data_shape = list(x.data_shape)
         output_data_shape[1] = torch.full_like(
