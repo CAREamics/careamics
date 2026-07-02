@@ -33,6 +33,13 @@ read_func = None  # fake it
 
 careamist = CAREamist(config, work_dir=root)
 careamist.train(train_data=train_data)
+path_to_checkpoint = careamist.get_checkpoints()[0]
+
+
+# %%
+# --8<-- [start:pred_start]
+careamist = CAREamist(checkpoint_path=path_to_checkpoint)
+# --8<-- [end:pred_start]
 
 # %%
 # --8<-- [start:pred]
