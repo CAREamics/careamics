@@ -41,7 +41,6 @@ class LVAEConfig(ArchitectureConfig):
 
     predict_logvar: bool = True
     """Whether to predict log-variance (pixelwise uncertainty)."""
-    analytical_kl: bool = Field(default=False)
 
     @model_validator(mode="after")
     def validate_conv_strides(self: Self) -> Self:

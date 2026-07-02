@@ -1406,7 +1406,6 @@ def _create_vae_configuration(
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ],
     predict_logvar: bool,
-    analytical_kl: bool,
 ) -> LVAEConfig:
     """Create a dictionary with the parameters of the vae based algorithm model.
 
@@ -1436,8 +1435,6 @@ def _create_vae_configuration(
         Type of nonlinearity function to use.
     predict_logvar : Literal # TODO needs review
         _description_.
-    analytical_kl : bool # TODO needs clarification
-        _description_.
 
     Returns
     -------
@@ -1458,7 +1455,6 @@ def _create_vae_configuration(
         decoder_dropout=decoder_dropout,
         nonlinearity=nonlinearity,
         predict_logvar=predict_logvar,
-        analytical_kl=analytical_kl,
     )
 
 
@@ -1479,7 +1475,6 @@ def _create_vae_based_algorithm(
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ],
     predict_logvar: bool,
-    analytical_kl: bool,
 ) -> dict:
     """
     Create a dictionary with the parameters of the VAE-based algorithm model.
@@ -1514,8 +1509,6 @@ def _create_vae_based_algorithm(
         The nonlinearity function to use.
     predict_logvar : bool
         Whether to predict per-pixel log-variance.
-    analytical_kl : bool
-        Whether to use analytical KL divergence.
 
     Returns
     -------
@@ -1535,7 +1528,6 @@ def _create_vae_based_algorithm(
         decoder_dropout=decoder_dropout,
         nonlinearity=nonlinearity,
         predict_logvar=predict_logvar,
-        analytical_kl=analytical_kl,
     )
     return {
         "algorithm": algorithm,
@@ -1566,7 +1558,6 @@ def create_hdn_configuration(
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = "ReLU",
-    analytical_kl: bool = False,
     predict_logvar: Literal["pixelwise"] | None = None,
     logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
@@ -1637,8 +1628,6 @@ def create_hdn_configuration(
         Dropout rate for the decoder, by default 0.0.
     nonlinearity : Literal, optional
         Nonlinearity function to use, by default "ReLU".
-    analytical_kl : bool, optional
-        Whether to use analytical KL divergence, by default False.
     predict_logvar : Literal[None, "pixelwise"], optional
         Type of log variance prediction, by default None.
     logvar_lowerbound : Union[float, None], optional
@@ -1707,7 +1696,6 @@ def create_hdn_configuration(
         decoder_dropout=decoder_dropout,
         nonlinearity=nonlinearity,
         predict_logvar=predict_logvar == "pixelwise",
-        analytical_kl=analytical_kl,
     )
 
     # data
@@ -1765,7 +1753,6 @@ def create_microsplit_configuration(
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = "ELU",
-    analytical_kl: bool = False,
     predict_logvar: bool = True,
     logvar_lowerbound: float | None = -5.0,
     reconstruction_weight: float = 1.0,
@@ -1829,8 +1816,6 @@ def create_microsplit_configuration(
         Dropout rate for the decoder, by default 0.0.
     nonlinearity : Literal, optional
         Nonlinearity to use in the model, by default "ELU".
-    analytical_kl : bool, optional
-        Whether to use analytical KL divergence, by default False.
     predict_logvar : bool, optional
         Whether to predict per-pixel log-variance, by default True.
     logvar_lowerbound : float | None, optional
@@ -1916,7 +1901,6 @@ def create_microsplit_configuration(
         decoder_dropout=decoder_dropout,
         nonlinearity=nonlinearity,
         predict_logvar=predict_logvar,
-        analytical_kl=analytical_kl,
     )
 
     optimizer_config = OptimizerConfig(

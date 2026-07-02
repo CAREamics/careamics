@@ -961,7 +961,6 @@ class TopDownLayer(nn.Module):
         gated: Union[bool, None] = None,
         learn_top_prior: bool = False,
         top_prior_param_shape: Union[Iterable[int], None] = None,
-        analytical_kl: bool = False,
         retain_spatial_dims: bool = False,
         vanilla_latent_hw: Union[Iterable[int], None] = None,
         input_image_shape: Union[tuple[int, int], None] = None,
@@ -1022,10 +1021,6 @@ class TopDownLayer(nn.Module):
         top_prior_param_shape: Iterable[int], optional
             The size of the tensor which expresses the mean and the variance
             of the prior for the top most layer. Default is `None`.
-        analytical_kl: bool, optional
-            If True, KL divergence is calculated according to the analytical formula.
-            Otherwise, an MC approximation using sampled latents is calculated.
-            Default is `False`.
         retain_spatial_dims: bool, optional
             If `True`, the size of Encoder's latent space is kept to `input_image_shape` within the topdown layer.
             This implies that the oput spatial size equals the input spatial size.
@@ -1057,7 +1052,6 @@ class TopDownLayer(nn.Module):
         self.z_dim = z_dim
         self.stochastic_skip = stochastic_skip
         self.learn_top_prior = learn_top_prior
-        self.analytical_kl = analytical_kl
         self.retain_spatial_dims = retain_spatial_dims
         self.input_image_shape = (
             input_image_shape if len(conv_strides) == 3 else input_image_shape[1:]
@@ -1314,7 +1308,6 @@ class TopDownLayer(nn.Module):
             q_params=q_params,
             forced_latent=forced_latent,
             force_constant_output=force_constant_output,
-            analytical_kl=self.analytical_kl,
             mode_pred=mode_pred,
             use_uncond_mode=use_uncond_mode,
             var_clip_max=var_clip_max,
