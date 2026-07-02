@@ -38,7 +38,9 @@ from .io import list_files
 
 logger = logging.getLogger(__name__)
 
-_STATS_SCHEMA_VERSION = 1 # bump to invalidate all caches when the shape or meaning of the payload changes
+_STATS_SCHEMA_VERSION = (
+    1  # bump to invalidate all caches when the shape or meaning of the payload changes
+)
 _STATS_FILENAME = "stats.json"
 
 
@@ -79,9 +81,7 @@ def load_or_compute_stats(
             cached = json.loads(sidecar.read_text())
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning(
-                "Could not read cached stats at %s (%s) — recomputing.",
-                sidecar,
-                exc
+                "Could not read cached stats at %s (%s) — recomputing.", sidecar, exc
             )
         else:
             if (
@@ -196,7 +196,7 @@ class _PerChannelWelford:
             raise ValueError("No data accumulated.")
         means, stds = zip(*(s.finalize() for s in self._scalars), strict=True)
         return list(means), list(stds)
-    
+
 
 def _load_canonical(path: Path, *, is_3d: bool) -> np.ndarray:
     """Load a TIFF and reshape to `(S, C, [Z], Y, X)`.
@@ -235,9 +235,7 @@ def _hash_files(files: list[Path]) -> str:
     Hashes file metadata rather than contents — cheap and sufficient to detect
     train-set changes (renames, replacements, additions).
     """
-    parts = sorted(
-        f"{p.name}:{p.stat().st_size}:{p.stat().st_mtime_ns}" for p in files
-    )
+    parts = sorted(f"{p.name}:{p.stat().st_size}:{p.stat().st_mtime_ns}" for p in files)
     h = hashlib.sha1()
     for part in parts:
         h.update(part.encode("utf-8"))

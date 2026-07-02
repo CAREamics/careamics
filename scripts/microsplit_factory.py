@@ -103,9 +103,7 @@ def build_microsplit_module(
 
     module = MicroSplitModule(algorithm_config=algorithm_config)
 
-    ckpt = torch.load(
-        Path(ckpt_path), map_location="cpu", weights_only=False
-    )
+    ckpt = torch.load(Path(ckpt_path), map_location="cpu", weights_only=False)
     state_dict = convert_legacy_state_dict(ckpt["state_dict"])
     module.load_state_dict(state_dict, strict=True)
 

@@ -19,10 +19,9 @@ from typing import Any
 import numpy as np
 import torch
 from numpy.typing import NDArray
-from tqdm import tqdm
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
-from careamics.config import VAEBasedAlgorithm
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.patching import TileSpecs
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
@@ -80,8 +79,8 @@ def compute_stride_for_mmse_count(
     shared YX stride is searched. For 3D, the caller fixes ``stride_z``
     explicitly -- giving the caller control over the Z axis (where ``M`` is
     typically much smaller, e.g. ``depth3D = 5``) without making this helper
-    guess at Z behaviour. 
-    
+    guess at Z behaviour.
+
     NOTE: ``K_y`` and ``K_x`` may still differ if the YX margins differ.
 
     Parameters
@@ -110,14 +109,10 @@ def compute_stride_for_mmse_count(
         the dimensionality, or if `target_mmse_count < 1`.
     """
     if target_mmse_count < 1:
-        raise ValueError(
-            f"target_mmse_count must be >= 1, got {target_mmse_count}."
-        )
+        raise ValueError(f"target_mmse_count must be >= 1, got {target_mmse_count}.")
     d = len(patch_size)
     if d not in (2, 3):
-        raise ValueError(
-            f"patch_size must be length 2 (2D) or 3 (3D), got {d}."
-        )
+        raise ValueError(f"patch_size must be length 2 (2D) or 3 (3D), got {d}.")
     if (d == 3) and (stride_z is None):
         raise ValueError(
             "stride_z must be provided iff patch_size is 3D "
@@ -157,9 +152,7 @@ def compute_stride_for_mmse_count(
     return stride, achieved
 
 
-def _search_2d_strides(
-    margins: Sequence[int], target: int
-) -> tuple[list[int], int]:
+def _search_2d_strides(margins: Sequence[int], target: int) -> tuple[list[int], int]:
     """Brute-force search over the shared YX stride; see caller for docs.
 
     Constrains ``stride_y == stride_x`` (spatial symmetry on Y/X); picks the
@@ -185,7 +178,9 @@ def _search_2d_strides(
         logger.warning(
             "Requested MMSE count %d exceeds geometric ceiling %d "
             "(margins %s); clamping YX stride to 1.",
-            target, ceiling, list(margins),
+            target,
+            ceiling,
+            list(margins),
         )
         return [1, 1], ceiling
     (count, _), stride = best

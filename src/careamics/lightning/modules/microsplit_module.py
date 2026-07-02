@@ -389,9 +389,7 @@ class MicroSplitModule(L.LightningModule):
                 "running `predict_step`, or run via `Trainer.predict(...)` with "
                 "a data module whose predict_dataset.normalization exposes them."
             )
-        denorm = Denormalize(
-            image_means=self.target_means, image_stds=self.target_stds
-        )
+        denorm = Denormalize(image_means=self.target_means, image_stds=self.target_stds)
         mean_array = denorm(patch=mmse_imgs.numpy())
         std_array = std_imgs.numpy()
 
@@ -401,9 +399,7 @@ class MicroSplitModule(L.LightningModule):
         # allocate from `data_shape`) size things correctly.
         output_channels = int(self.algorithm_config.model.output_channels)
         output_data_shape = list(x.data_shape)
-        output_data_shape[1] = torch.full_like(
-            output_data_shape[1], output_channels
-        )
+        output_data_shape[1] = torch.full_like(output_data_shape[1], output_channels)
 
         mean_region = ImageRegionData(
             data=mean_array,

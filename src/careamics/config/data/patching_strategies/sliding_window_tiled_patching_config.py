@@ -65,9 +65,7 @@ class SlidingWindowTiledPatchingConfig(_OverlappingPatchedConfig):
         if any(s <= 0 for s in stride):
             raise ValueError(f"Stride must be strictly positive, got {stride}.")
 
-        effective_overlaps = (
-            overlaps if overlaps is not None else [0] * len(patch_size)
-        )
+        effective_overlaps = overlaps if overlaps is not None else [0] * len(patch_size)
         for i, (p, o, s) in enumerate(
             zip(patch_size, effective_overlaps, stride, strict=True)
         ):

@@ -64,7 +64,8 @@ def main(args: argparse.Namespace) -> Path:
     )
 
     device = torch.device(
-        "cuda" if (args.device == "auto" and torch.cuda.is_available())
+        "cuda"
+        if (args.device == "auto" and torch.cuda.is_available())
         else ("cuda" if args.device == "cuda" else "cpu")
     )
     print(f"device: {device}")
@@ -117,53 +118,71 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument(
-        "--dataset", required=True,
+        "--dataset",
+        required=True,
         help="dataset name; resolves <data_root>/<dataset>/ and "
-             "<ckpt_root>/<dataset>/",
+        "<ckpt_root>/<dataset>/",
     )
     p.add_argument(
-        "--split", default="test", choices=["train", "val", "test"],
+        "--split",
+        default="test",
+        choices=["train", "val", "test"],
         help="which on-disk split to predict on",
     )
     p.add_argument(
-        "--data-root", type=Path,
+        "--data-root",
+        type=Path,
         default=Path("/project/careamics/switi/data"),
         help="root of <dataset>/{inputs,targets}/{train,val,test}/*.tif",
     )
     p.add_argument(
-        "--ckpt-root", type=Path,
+        "--ckpt-root",
+        type=Path,
         default=Path("/project/careamics/switi/ckpts"),
         help="root of <dataset>/{BaselineVAECL_best.ckpt, config.pkl}",
     )
     p.add_argument(
-        "--out-root", type=Path,
+        "--out-root",
+        type=Path,
         default=Path("/project/careamics/switi/results"),
         help="root for predictions; output written to "
-             "<out_root>/<dataset>/predictions/inner_tiling/predictions.npz",
+        "<out_root>/<dataset>/predictions/inner_tiling/predictions.npz",
     )
     p.add_argument(
-        "--overlap", type=int, nargs="+", default=[32, 32],
+        "--overlap",
+        type=int,
+        nargs="+",
+        default=[32, 32],
         metavar="N",
         help="tile overlap per spatial axis (length 2 for 2D, 3 for 3D)",
     )
     p.add_argument(
-        "--mmse-count", type=int, default=64,
+        "--mmse-count",
+        type=int,
+        default=64,
         help="number of stochastic forward passes per tile",
     )
     p.add_argument(
-        "--batch-size", type=int, default=128,
+        "--batch-size",
+        type=int,
+        default=128,
         help="prediction batch size",
     )
     p.add_argument(
-        "--num-workers", type=int, default=0,
+        "--num-workers",
+        type=int,
+        default=0,
         help="DataLoader num_workers",
     )
     p.add_argument(
-        "--device", default="auto", choices=["auto", "cuda", "cpu"],
+        "--device",
+        default="auto",
+        choices=["auto", "cuda", "cpu"],
         help='"auto" picks cuda when available, falls back to cpu',
     )
     p.add_argument(
-        "--force-recompute-stats", action="store_true",
+        "--force-recompute-stats",
+        action="store_true",
         help="bypass the <data_dir>/stats.json cache",
     )
     return p.parse_args(argv)

@@ -34,7 +34,6 @@ from careamics.config.data.normalization_config import MeanStdConfig
 from careamics.config.losses.loss_config import KLLossConfig, LVAELossConfig
 from careamics.config.noise_model.likelihood_config import GaussianLikelihoodConfig
 
-
 # Legacy `nonlin` strings are lowercase; `LVAEConfig.nonlinearity` is a
 # capitalised Literal.
 _NONLIN_MAP: dict[str, str] = {
@@ -105,9 +104,7 @@ def get_predict_config(
             patch_size=patch_size, overlaps=overlap, stride=stride
         )
         if stride is not None
-        else TiledPatchingConfig(
-            patch_size=patch_size, overlaps=overlap
-        )
+        else TiledPatchingConfig(patch_size=patch_size, overlaps=overlap)
     )
 
     return MicroSplitDataConfig(

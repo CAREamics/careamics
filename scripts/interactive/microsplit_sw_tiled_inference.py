@@ -58,7 +58,9 @@ _is_3d = bool(_pkl_data.get("mode_3D", False))
 _img = int(_pkl_data["image_size"])
 _patch_size = [_pkl_data["depth3D"], _img, _img] if _is_3d else [_img, _img]
 STRIDE, _effective = compute_stride_for_mmse_count(
-    _patch_size, OVERLAP, MMSE_COUNT,
+    _patch_size,
+    OVERLAP,
+    MMSE_COUNT,
     stride_z=STRIDE_Z if _is_3d else None,
 )
 print(
@@ -100,7 +102,7 @@ print(
 )
 
 L = tuple(_first[0].data.shape)[1]
-fig, axes = plt.subplots(4, L, figsize=(5*L, 20))
+fig, axes = plt.subplots(4, L, figsize=(5 * L, 20))
 for i in range(4):
     for l in range(L):
         axes[i, l].imshow(_first[0].data[i, l], cmap="gray")

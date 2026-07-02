@@ -79,7 +79,7 @@ print(
 )
 
 L = tuple(_first[0].data.shape)[1]
-fig, axes = plt.subplots(4, L, figsize=(5*L, 20))
+fig, axes = plt.subplots(4, L, figsize=(5 * L, 20))
 for i in range(4):
     for l in range(L):
         axes[i, l].imshow(_first[0].data[i, l], cmap="gray")
@@ -111,14 +111,14 @@ model.set_target_stats(
 # regions).
 predictions: list[ImageRegionData] = []
 with torch.inference_mode():
-    for batch_idx, batch in tqdm(enumerate(loader), total=len(loader), desc="Predicting"):
+    for batch_idx, batch in tqdm(
+        enumerate(loader), total=len(loader), desc="Predicting"
+    ):
         batch = _move_input_to_device(batch, device)
         mean_region_batch, _std = model.predict_step(batch, batch_idx)
         predictions.append(mean_region_batch)
 
-preds_list, sources = convert_prediction(
-    predictions, tiled=True, restore_shape=False
-)
+preds_list, sources = convert_prediction(predictions, tiled=True, restore_shape=False)
 print(f"stitched {len(preds_list)} image(s)")
 
 # %% build results dict
