@@ -7,7 +7,7 @@ from careamics.lightning.callbacks.prediction import (
 
 def test_create_write_file_path():
     dirpath = Path("output_directory")
-    file_path = Path("input_directory/file_name.in_ext")
+    file_path = Path("input_directory/file_name.tif")
     write_extension = ".out_ext"
 
     write_file_path = create_write_file_path(
