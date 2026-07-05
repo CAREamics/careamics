@@ -1578,6 +1578,9 @@ def create_hdn_configuration(
     """
     Create a configuration for training HDN.
 
+    .. deprecated::
+        Use `careamics.config.create_hdn_config` instead.
+
     If "Z" is present in `axes`, then `patch_size` must be a list of length 3, otherwise
     2.
 
@@ -1785,6 +1788,9 @@ def create_microsplit_configuration(
 ) -> Configuration:
     """
     Create a configuration for training MicroSplit.
+
+    .. deprecated::
+        Use `careamics.config.create_microsplit_config` instead.
 
     Parameters
     ----------
