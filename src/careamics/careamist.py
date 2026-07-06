@@ -698,6 +698,12 @@ class CAREamist:
         if num_workers is not None:
             dataloader_params = {"num_workers": num_workers}
 
+        # do not let a stale training value carry over
+        if in_memory is None and (
+            (data_type or self.config.data_config.data_type) in ("zarr", "czi")
+        ):
+            in_memory = False
+
         pred_data_config = self.config.data_config.convert_mode(
             new_mode="predicting",
             new_patch_size=tile_size,
@@ -916,7 +922,7 @@ class CAREamist:
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
+        write_type: Literal["tiff", "zarr", "custom"] | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
@@ -942,7 +948,7 @@ class CAREamist:
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
+        write_type: Literal["tiff", "zarr", "custom"] | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
@@ -967,7 +973,7 @@ class CAREamist:
         loading: Loading = None,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
+        write_type: Literal["tiff", "zarr", "custom"] | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
@@ -1033,8 +1039,10 @@ class CAREamist:
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
-        write_type : {"tiff", "zarr", "custom"}, default="tiff"
-            The data type to save as, includes custom.
+        write_type : {"tiff", "zarr", "custom"}, optional
+            The data type to save as, includes custom. If None, defaults to "zarr"
+            when the (effective) prediction `data_type` is "zarr", and "tiff"
+            otherwise.
         write_extension : str, optional
             If a known `write_type` is selected this argument is ignored. For a custom
             `write_type` an extension to save the data with must be passed.
@@ -1053,6 +1061,11 @@ class CAREamist:
         """
         if write_func_kwargs is None:
             write_func_kwargs = {}
+
+        # default the write type from the prediction data type
+        if write_type is None:
+            effective_data_type = data_type or self.config.data_config.data_type
+            write_type = "zarr" if effective_data_type == "zarr" else "tiff"
 
         if Path(prediction_dir).is_absolute():
             write_dir = Path(prediction_dir)
