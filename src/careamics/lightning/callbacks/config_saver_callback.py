@@ -15,8 +15,8 @@ class ConfigSaverCallback(Callback):
 
     This callback automatically stores CAREamics version, experiment name,
     and training configuration in the checkpoint file for reproducibility.
-    It also persists the training data configuration into the checkpoint,
-    independently of the datamodule currently active on the trainer.
+    If a training data configuration is provided, it is also persisted into the
+    checkpoint independently of the datamodule currently active on the trainer.
 
     Parameters
     ----------
@@ -26,8 +26,11 @@ class ConfigSaverCallback(Callback):
         Name of the experiment.
     training_config : TrainingConfig
         Training configuration to store in checkpoint.
-    data_config : DataConfig
-        Training data configuration to store in checkpoint.
+    data_config : DataConfig | None, default=None
+        Training data configuration to store in checkpoint. If provided, it is
+        written into the checkpoint regardless of which datamodule is active on
+        the trainer, ensuring the checkpoint keeps the training data config even
+        when saved after prediction.
 
     Attributes
     ----------
@@ -37,7 +40,7 @@ class ConfigSaverCallback(Callback):
         Name of the experiment.
     training_config : TrainingConfig
         Training configuration to store in checkpoint.
-    data_config : DataConfig
+    data_config : DataConfig | None
         Training data configuration to store in checkpoint.
     """
 
@@ -46,7 +49,7 @@ class ConfigSaverCallback(Callback):
         careamics_version: str,
         experiment_name: str,
         training_config: TrainingConfig,
-        data_config: DataConfig,
+        data_config: DataConfig | None = None,
     ):
         """
         Initialize the callback.
@@ -59,8 +62,10 @@ class ConfigSaverCallback(Callback):
             Name of the experiment.
         training_config : TrainingConfig
             Training configuration to store in checkpoint.
-        data_config : DataConfig
-            Training data configuration to store in checkpoint.
+        data_config : DataConfig | None, default=None
+            Training data configuration to store in checkpoint. If provided, it is
+            written into the checkpoint regardless of which datamodule is active on
+            the trainer.
         """
         super().__init__()
         self.careamics_version = careamics_version
@@ -91,8 +96,9 @@ class ConfigSaverCallback(Callback):
             "training_config": self.training_config.model_dump(mode="json"),
         }
 
-        # Persist the training data config
-        checkpoint.setdefault("datamodule_hyper_parameters", {})
-        checkpoint["datamodule_hyper_parameters"]["data_config"] = (
-            self.data_config.model_dump(mode="json")
-        )
+        # Persist the training data config if provided
+        if self.data_config is not None:
+            checkpoint.setdefault("datamodule_hyper_parameters", {})
+            checkpoint["datamodule_hyper_parameters"]["data_config"] = (
+                self.data_config.model_dump(mode="json")
+            )
