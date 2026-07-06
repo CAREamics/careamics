@@ -385,6 +385,7 @@ class CAREamist:
                 config.version,
                 config.get_safe_experiment_name(),
                 config.training_config,
+                config.data_config,
             ),
         ]
 
