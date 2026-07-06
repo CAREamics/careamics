@@ -684,7 +684,7 @@ class CAREamist:
             the channels from the training configuration.
         in_memory : bool | None, default=None
             Whether to load data into memory during prediction. If None, uses training
-            configuration.
+            configuration, except for zarr/czi data which is never loaded in-memory.
         loading : Loading, default=None
             Loading strategy for prediction data if data type (either from training
             configuration or specified) is `"custom"`.
@@ -823,7 +823,8 @@ class CAREamist:
             channels.
         in_memory : bool, optional
             Whether to load all data into memory. If None, uses the training
-            configuration setting.
+            configuration setting, except for zarr/czi data which is never loaded
+            in-memory.
         loading : Loading, default=None
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
@@ -1029,7 +1030,8 @@ class CAREamist:
             channels.
         in_memory : bool, optional
             Whether to load all data into memory. If None, uses the training
-            configuration setting.
+            configuration setting, except for zarr/czi data which is never loaded
+            in-memory.
         loading : Loading, default=None
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
