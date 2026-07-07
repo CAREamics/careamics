@@ -103,7 +103,7 @@ def stitch_single_prediction(
     numpy.ndarray
         Full image, with dimensions SC(Z)YX.
     """
-    data_shape = tiles[0].data_shape
+    data_shape = tiles[0].canonical_data_shape
     predicted_image = np.zeros(data_shape, dtype=np.float32)
 
     # stitch each sample separately
@@ -148,7 +148,7 @@ def stitch_single_sample(
     numpy.ndarray
         Full sample, with dimensions C(Z)YX.
     """
-    data_shape = tiles[0].data_shape  # SC(Z)YX
+    data_shape = tiles[0].canonical_data_shape  # SC(Z)YX
     predicted_sample = np.zeros(data_shape[1:], dtype=np.float32)
 
     for tile in tiles:

@@ -26,8 +26,8 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     that case:
     - data: arrays are collated into NDArray of shape (B,C,Z,Y,X)
     - source: list of str, length B
-    - data_shape: list of tuples of int, each tuple being of length B and representing
-        the shape of the original images in the corresponding dimension
+    - canonical_data_shape: list of tuples of int, each tuple being of length B and
+        representing the shape of the original images in the corresponding dimension
     - dtype: list of str, length B
     - axes: list of str, length B
     - region_spec: dict of {str: sequence}, each sequence being of length B
@@ -42,18 +42,22 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     source: Union[str, Literal["array"]]
     """Source of the data, e.g. file path, zarr URI, or "array" for in-memory arrays."""
 
-    data_shape: Sequence[int]
+    canonical_data_shape: Sequence[int]
     """Shape of the image in SC(Z)YX format and order. If channels are
     subsetted, the channel dimension corresponds to the number of requested channels."""
 
-    dtype: str  # dtype should be str for collate
-    """Data type of the original image as a string."""
+    original_data_shape: Sequence[int]
+    """Original shape of the data before any restoring. In case of model output, this
+    shape may be updated to reflect changes in axes and dimensions (e.g. channels),
+    while conserving axes order."""
 
     axes: str
-    """Axes of the original data array. SCTZYX dimensions are allowed in any order."""
+    """Axes of the original data array. SCTZYX dimensions are allowed in any order. In
+    case of model output, this may be updated to reflect changes in axes (e.g.
+    channels), while conserving axes order."""
 
-    original_data_shape: Sequence[int]
-    """Original shape of the data before any reshaping."""
+    dtype: str  # dtype should be str for collate
+    """Data type of the original image as a string."""
 
     region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
     """Specifications of the region within the original image from where `data` is

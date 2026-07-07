@@ -94,3 +94,13 @@ def test_monitor_with_no_validation(metric, exp_error):
 
     with exp_error:
         instantiate_config(unet_config_dict)
+
+
+def test_target_axes_must_be_none():
+    """Test that N2V rejects target axes."""
+    unet_config_dict = n2v_dict_testing(
+        data_kwargs={"target_axes": "CYX"},
+    )
+
+    with pytest.raises(ValueError, match="N2V does not support"):
+        instantiate_config(unet_config_dict)

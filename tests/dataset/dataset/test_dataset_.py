@@ -58,6 +58,38 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
     assert target.data.shape == (1, *patch_size)
 
 
+def test_from_array_with_target_axes():
+    rng = np.random.default_rng(42)
+    patch_size = (16, 16)
+    example_input = rng.random((64, 64))
+    example_target = rng.random((2, 64, 64))
+
+    train_data_config = create_ng_data_configuration(
+        data_type="array",
+        axes="YX",
+        target_axes="CYX",
+        patch_size=patch_size,
+        batch_size=1,
+        augmentations=[],
+        normalization={"name": "none"},
+        in_memory=True,
+        seed=42,
+    )
+
+    train_dataset = create_dataset(
+        config=train_data_config,
+        inputs=[example_input],
+        targets=[example_target],
+    )
+
+    sample, target = train_dataset[0]
+    assert sample.axes == "YX"
+    assert target.axes == "CYX"
+    assert sample.data.shape == (1, *patch_size)
+    assert target.data.shape == (2, *patch_size)
+    assert target.original_data_shape == example_target.shape
+
+
 @pytest.mark.parametrize(
     "data_shape, patch_size, channels",
     [
@@ -113,7 +145,7 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
                 assert np.all((ch + 1) * 1000 >= target.data[i])
 
             # test that channels are properly adjusted in data_shape
-            assert sample.data_shape[1] == len(channels)
+            assert sample.canonical_data_shape[1] == len(channels)
 
 
 @pytest.mark.parametrize(

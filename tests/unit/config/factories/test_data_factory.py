@@ -97,6 +97,18 @@ class TestDataConfiguration:
 
         assert isinstance(config.patching, StratifiedPatchingConfig)
 
+    def test_target_axes(self):
+        """Test that target axes are passed to the data configuration."""
+        config: DataConfig = create_ng_data_configuration(
+            data_type="array",
+            axes="YX",
+            target_axes="CYX",
+            patch_size=(16, 16),
+            batch_size=1,
+        )
+
+        assert config.target_axes == "CYX"
+
     def test_num_workers_explicit(self):
         """Test that an explicit num_workers value is passed through unchanged."""
         config: DataConfig = create_ng_data_configuration(

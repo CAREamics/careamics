@@ -80,6 +80,7 @@ def create_ng_data_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
+    target_axes: str | None = None,
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
     normalization: dict | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
@@ -108,6 +109,8 @@ def create_ng_data_configuration(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
+    target_axes : str or None, default=None
+        Axes of target data. If `None`, targets use `axes`.
     augmentations : list of transforms or None, default=None
         List of transforms to apply. If `None`, default augmentations are applied
         (flip in X and Y, rotations by 90 degrees in the XY plane).
@@ -159,6 +162,7 @@ def create_ng_data_configuration(
         "mode": "training",
         "data_type": data_type,
         "axes": axes,
+        "target_axes": target_axes,
         "batch_size": batch_size,
         "channels": channels,
         "augmentations": augmentations,

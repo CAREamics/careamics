@@ -99,3 +99,17 @@ def test_convert_mode_preserves_ms_options(
     assert converted.padding_mode == config.padding_mode
     assert converted.alpha_ranges is None
     assert converted.uncorrelated_channel_prob == 0.0
+
+
+def test_convert_mode_preserves_target_axes() -> None:
+    """Test MicroSplit mode conversion preserves inherited target axes."""
+    config = MicroSplitDataConfig(
+        **_microsplit_config_dict(
+            axes="YX",
+            target_axes="CYX",
+        )
+    )
+
+    converted = config.convert_mode("validating")
+
+    assert converted.target_axes == "CYX"

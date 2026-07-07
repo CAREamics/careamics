@@ -34,6 +34,7 @@ def create_care_config(
     n_val_patches: int = 8,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
+    target_axes: str | None = None,
 ) -> Configuration[CAREAlgorithm]:
     """
     Create a configuration for training CARE.
@@ -80,6 +81,8 @@ def create_care_config(
         Number of input channels.
     n_channels_out : int or None, default=None
         Number of output channels.
+    target_axes : str or None, default=None
+        Axes of target data. Required when the output has more than one channel.
 
     Returns
     -------
@@ -104,6 +107,7 @@ def create_n2n_config(
     n_val_patches: int = 8,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
+    target_axes: str | None = None,
 ) -> Configuration[N2NAlgorithm]:
     """
     Create a configuration for training Noise2Noise.
@@ -150,6 +154,8 @@ def create_n2n_config(
         Number of input channels.
     n_channels_out : int or None, default=None
         Number of output channels.
+    target_axes : str or None, default=None
+        Axes of target data. Required when the output has more than one channel.
 
     Returns
     -------
@@ -171,6 +177,7 @@ def create_advanced_care_config(
     num_steps: int | None = None,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
+    target_axes: str | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     # advanced parameters
@@ -244,6 +251,8 @@ def create_advanced_care_config(
     n_channels_out : int | None, default=None
         Number of output channels. If not specified, but n_channels_in is specified,
         it will default to the same number as n_channels_in.
+    target_axes : str or None, default=None
+        Axes of target data. Required when the output has more than one channel.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
@@ -329,6 +338,7 @@ def create_advanced_n2n_config(
     num_steps: int | None = None,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
+    target_axes: str | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     # advanced parameters
@@ -401,6 +411,8 @@ def create_advanced_n2n_config(
     n_channels_out : int | None, default=None
         Number of output channels. If not specified, but n_channels_in is specified,
         it will default to the same number as n_channels_in.
+    target_axes : str or None, default=None
+        Axes of target data. Required when the output has more than one channel.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
@@ -485,6 +497,7 @@ def _create_advanced_supervised_config(
     num_steps: int | None = None,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
+    target_axes: str | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     # advanced parameters
@@ -560,6 +573,8 @@ def _create_advanced_supervised_config(
     n_channels_out : int | None, default=None
         Number of output channels. If not specified, but n_channels_in is specified,
         it will default to the same number as n_channels_in.
+    target_axes : str or None, default=None
+        Axes of target data. Required when the output has more than one channel.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
@@ -631,6 +646,7 @@ def _create_advanced_supervised_config(
     """
     # if there are channels, we need to specify their number
     channels_present = "C" in axes
+    target_channels_present = target_axes is not None and "C" in target_axes
 
     if channels_present and (n_channels_in is None and channels is None):
         raise ValueError(
@@ -640,12 +656,6 @@ def _create_advanced_supervised_config(
         raise ValueError(
             f"C is not present in the axes, but number of input channels is specified "
             f"(got {n_channels_in} channel)."
-        )
-
-    if not channels_present and (n_channels_out is not None and n_channels_out > 1):
-        raise ValueError(
-            f"C is not present in the axes, but number of output channels is specified "
-            f"(got {n_channels_out} channel)."
         )
 
     if n_channels_in is not None and channels is not None:
@@ -660,6 +670,18 @@ def _create_advanced_supervised_config(
 
     if n_channels_out is None:
         n_channels_out = n_channels_in
+
+    if n_channels_out > 1:
+        if target_axes is None:
+            raise ValueError(
+                "`target_axes` must be specified when the number of output channels "
+                f"is greater than 1 (got {n_channels_out})."
+            )
+        if not target_channels_present:
+            raise ValueError(
+                "`target_axes` must include 'C' when the number of output channels "
+                f"is greater than 1 (got {n_channels_out})."
+            )
 
     # normalization
     norm_config = {"name": normalization}
@@ -691,6 +713,7 @@ def _create_advanced_supervised_config(
     data_config = create_ng_data_configuration(
         data_type=data_type,
         axes=axes,
+        target_axes=target_axes,
         patch_size=patch_size,
         batch_size=batch_size,
         augmentations=spatial_transforms,

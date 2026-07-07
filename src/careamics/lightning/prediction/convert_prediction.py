@@ -89,8 +89,8 @@ def decollate_image_region_data(
         additional_metadata = _decollate_batch_dict(batch.additional_metadata, i)
 
         # data shape
-        assert isinstance(batch.data_shape, list)
-        data_shape = tuple(int(dim[i]) for dim in batch.data_shape)
+        assert isinstance(batch.canonical_data_shape, list)
+        data_shape = tuple(int(dim[i]) for dim in batch.canonical_data_shape)
 
         # original data shape
         assert isinstance(batch.original_data_shape, list)
@@ -100,7 +100,7 @@ def decollate_image_region_data(
             data=batch.data[i],  # discard batch dimension
             source=batch.source[i],
             dtype=batch.dtype[i],
-            data_shape=data_shape,
+            canonical_data_shape=data_shape,
             axes=batch.axes[i],
             region_spec=region_spec,  # type: ignore
             additional_metadata=additional_metadata,
