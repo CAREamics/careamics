@@ -74,7 +74,7 @@ def create_val_split(
         n_selected_image_patches[idx] += 1
         n_patches_per_image[idx] -= 1
 
-    for idx, n_patches in enumerate(n_selected_image_patches):
+    for idx, n_patches in enumerate(n_selected_image_patches):  # type: ignore
         data_idx, sample_idx = sample_ids[int(idx)]
         # randomly choose the validation patches in the image
         coord_indices = rng.choice(
