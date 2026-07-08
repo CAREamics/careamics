@@ -499,7 +499,7 @@ class _ImageStratifiedPatching:
             weights += probs / probs.sum() * remaining_prob
 
         # the region is sampled using these calculated weights.
-        selected_idx = self.rng.choice(np.arange(len(weights)), p=weights)
+        selected_idx = int(self.rng.choice(np.arange(len(weights)), p=weights))
         return self.regions[selected_idx]
 
     def exclude_patches(self, grid_coords: Sequence[tuple[int, ...]]):
