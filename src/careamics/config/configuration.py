@@ -72,7 +72,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
     )
 
     # version
-    version: Literal["0.2.0"] = "0.2.0"
+    version: Literal["0.3.0"] = "0.3.0"
     """CAREamics configuration version."""
 
     # required parameters
@@ -368,7 +368,4 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
         dict
             Dictionary containing the model parameters.
         """
-        if "exclude_none" not in kwargs:
-            kwargs["exclude_none"] = True
-
         return super().model_dump(**kwargs)

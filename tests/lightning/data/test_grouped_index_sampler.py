@@ -1,8 +1,11 @@
 import numpy as np
+import pytest
 
 from careamics.config import create_ng_data_configuration
-from careamics.dataset.factory import create_dataset
-from careamics.lightning.data.grouped_index_sampler import GroupedIndexSampler
+from careamics.config.data import MicroSplitDataConfig
+from careamics.dataset.factory import MultiChannelTarget, create_dataset
+from careamics.dataset.factory.microsplit_factory import create_microsplit_dataset
+from careamics.lightning.data import GroupedIndexSampler
 
 
 def _assert_indices_grouped(sampler: GroupedIndexSampler):
@@ -75,3 +78,37 @@ def test_from_dataset():
     sampler = GroupedIndexSampler.from_dataset(train_dataset, rng=rng)
 
     _assert_indices_grouped(sampler)
+
+
+@pytest.mark.parametrize(
+    ("uncorrelated_channel_prob", "expect_error"),
+    [(0.0, False), (1.0, True)],
+)
+def test_from_microsplit_dataset(
+    uncorrelated_channel_prob: float,
+    expect_error: bool,
+) -> None:
+    """Test grouped sampling follows MicroSplit constructor index support."""
+    config = MicroSplitDataConfig(
+        mode="training",
+        data_type="array",
+        axes="SCYX",
+        patching={"name": "stratified", "patch_size": (16, 16), "seed": 42},
+        normalization={"name": "none"},
+        uncorrelated_channel_prob=uncorrelated_channel_prob,
+    )
+    data = np.zeros((1, 2, 32, 32), dtype=np.float32)
+    dataset = create_microsplit_dataset(
+        config=config,
+        data=MultiChannelTarget([data]),
+        rng=np.random.default_rng(42),
+    )
+
+    if expect_error:
+        with pytest.raises(NotImplementedError):
+            GroupedIndexSampler.from_dataset(dataset, rng=np.random.default_rng(42))
+    else:
+        sampler = GroupedIndexSampler.from_dataset(
+            dataset, rng=np.random.default_rng(42)
+        )
+        assert sorted(sampler.grouped_indices[0]) == list(range(len(dataset)))

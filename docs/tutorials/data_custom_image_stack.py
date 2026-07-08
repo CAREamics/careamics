@@ -13,6 +13,7 @@ from careamics.utils.reshape_array import reshape_patch, get_patch_slices, AxesT
 from careamics.dataset.image_stack.image_utils import pad_patch
 
 DATA_PATH = Path("data")
+DATA_PATH.mkdir(exist_ok=True)
 
 # --- create toy data
 n_files = 5
@@ -41,6 +42,10 @@ config = create_n2v_config(
     num_epochs=10,
 )
 # --8<-- [end:data-config]
+
+# reduce epochs and training batches for CI to run quicker
+config.training_config.trainer_params["max_epochs"] = 1
+config.training_config.trainer_params["max_steps"] = 1
 
 
 # --8<-- [start:image-stack-loader]
@@ -158,3 +163,7 @@ sources  # inspect the sources of the predictions # (3)!
 # --8<-- [end:train-pred]
 
 # %%
+import shutil
+
+# delete data
+shutil.rmtree(DATA_PATH)

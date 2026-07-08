@@ -201,6 +201,19 @@ class MeanStdConfig(BaseModel):
         """
         return self.input_means is None or self.input_stds is None
 
+    def target_needs_computation(self) -> bool:
+        """
+        Check if target statistics need to be computed.
+
+        Returns
+        -------
+        bool
+            True if target statistics need to be computed, False otherwise.
+        """
+        return not self.skip_target and (
+            self.target_means is None or self.target_stds is None
+        )
+
     def set_input_stats(self, means: list[float], stds: list[float]) -> None:
         """
         Set input means and stds together to avoid validation errors.
@@ -269,7 +282,7 @@ class MeanStdConfig(BaseModel):
         """
         # we assume that means and stds are already validated against each other, and
         # against per-channel parameter
-        if self.per_channel:
+        if self.per_channel and not self.skip_target:
             if self.target_means is not None:
                 if len(self.target_means) != n_target_channels:
                     raise ValueError(
@@ -298,9 +311,7 @@ class MeanStdConfig(BaseModel):
             If any provided statistics list does not match the expected size.
         """
         self._validate_input_stats_size(n_input_channels)
-
-        if not self.skip_target:
-            self._validate_target_stats_size(n_output_channels)
+        self._validate_target_stats_size(n_output_channels)
 
 
 class QuantileConfig(BaseModel):
@@ -517,6 +528,19 @@ class QuantileConfig(BaseModel):
             or self.input_upper_quantile_values is None
         )
 
+    def target_needs_computation(self) -> bool:
+        """Check if target quantile values need to be computed.
+
+        Returns
+        -------
+        bool
+            True if target quantile values need to be computed.
+        """
+        return not self.skip_target and (
+            self.target_lower_quantile_values is None
+            or self.target_upper_quantile_values is None
+        )
+
     def set_input_quantile_values(self, lower: list[float], upper: list[float]) -> None:
         """
         Set input quantile values together to avoid validation errors.
@@ -591,7 +615,7 @@ class QuantileConfig(BaseModel):
         # we assume that if lower and upper quantile values are already validated
         # against each other, and
         # against per-channel
-        if self.per_channel:
+        if self.per_channel and not self.skip_target:
             if self.target_lower_quantile_values is not None:
                 if len(self.target_lower_quantile_values) != n_target_channels:
                     raise ValueError(
@@ -645,7 +669,7 @@ class QuantileConfig(BaseModel):
             If any provided statistics list does not match the expected size.
         """
         if self.per_channel:
-            if self.skip_target and (n_input_channels != n_output_channels):
+            if not self.skip_target and (n_input_channels != n_output_channels):
                 raise ValueError(
                     f"Quantile normalization per channel is only compatible with "
                     f"matching number of input and output channels. Got "
@@ -656,10 +680,7 @@ class QuantileConfig(BaseModel):
                 )
 
         self._validate_input_quantile_size(n_input_channels)
-        self._validate_input_quantile_size(n_input_channels)
-
-        if not self.skip_target:
-            self._validate_target_quantile_size(n_output_channels)
+        self._validate_target_quantile_size(n_output_channels)
 
 
 class MinMaxConfig(BaseModel):
@@ -807,6 +828,19 @@ class MinMaxConfig(BaseModel):
         """
         return self.input_mins is None or self.input_maxes is None
 
+    def target_needs_computation(self) -> bool:
+        """
+        Check if target min/max values need to be computed.
+
+        Returns
+        -------
+        bool
+            True if target statistics are missing, False otherwise.
+        """
+        return not self.skip_target and (
+            self.target_mins is None or self.target_maxes is None
+        )
+
     def set_input_range(self, mins: list[float], maxes: list[float]) -> None:
         """
         Set input mins and maxes together to avoid validation errors.
@@ -875,7 +909,7 @@ class MinMaxConfig(BaseModel):
         """
         # we assume that mins and maxes are already validated against each other, and
         # against per-channel parameter
-        if self.per_channel:
+        if self.per_channel and not self.skip_target:
             if self.target_mins is not None:
                 if len(self.target_mins) != n_target_channels:
                     raise ValueError(
@@ -904,9 +938,7 @@ class MinMaxConfig(BaseModel):
             If any provided statistics list does not match the expected size.
         """
         self._validate_input_stats_size(n_input_channels)
-
-        if not self.skip_target:
-            self._validate_target_stats_size(n_output_channels)
+        self._validate_target_stats_size(n_output_channels)
 
 
 class NoNormConfig(BaseModel):
@@ -925,6 +957,16 @@ class NoNormConfig(BaseModel):
 
     def needs_computation(self) -> bool:
         """Check if statistics need to be computed.
+
+        Returns
+        -------
+        bool
+            Always False, as no statistics are required.
+        """
+        return False
+
+    def target_needs_computation(self) -> bool:
+        """Check if target statistics need to be computed.
 
         Returns
         -------

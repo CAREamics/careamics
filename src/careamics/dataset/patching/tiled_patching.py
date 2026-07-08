@@ -4,7 +4,7 @@ import itertools
 from collections.abc import Sequence
 from math import prod
 
-from .patching import TileSpecs
+from .patch_specs import TileSpecs
 
 
 class TiledPatching:

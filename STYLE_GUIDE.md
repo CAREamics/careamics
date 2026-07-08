@@ -7,6 +7,10 @@ We use `numpydoc` style for docstrings. Please follow the conventions described 
 
 We write out third party types with the library name, e.g. `numpy.NDArray`.
 
+## Imports
+
+Absolute imports must always be used over relative imports unless the import is from a module a the same directory level, e.g. `from .foo import bar`.
+
 ## Protocols vs inheritance
 
 When defining a new class, prefer using Protocols over inheritance when possible.

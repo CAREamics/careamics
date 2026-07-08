@@ -66,9 +66,9 @@ class GroupedIndexSampler(Sampler):
         GroupedIndexSampler
             A sampler yielding indices grouped by the dataset's patching strategy.
         """
-        n_data_samples = len(dataset.input_extractor.shapes)
+        n_data_samples = len(dataset.patch_constructor.input_shapes)
         grouped_indices: list[Sequence[int]] = [
-            dataset.patching_strategy.get_patch_indices(i)
+            dataset.patch_constructor.get_patch_indices(i)
             for i in range(n_data_samples)
         ]
         return cls(grouped_indices=grouped_indices, rng=rng)
