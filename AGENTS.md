@@ -17,7 +17,7 @@ API using the core Lightning components directly.
 
 CAREamics is built around a modular architecture with the following key components:
 - Pydantic models for configuration (`careamics/config`)
-- `CAREamist` class as main entry point for users (`careamics/careamist_v2.py`)
+- `CAREamist` class as main entry point for users (`careamics/careamist.py`)
 - A flexible and modular dataset (`careamics/dataset`)
 - A set of algorithm-specific Lightning modules (`careamics/lightning/dataset/lightning_modules`)
 
@@ -27,7 +27,7 @@ CAREamics is built around a modular architecture with the following key componen
 - `careamics.config`: Module with all algorithm-specific configurations
 - `careamics.config.factories`: Convenience functions to create configurations
 
-**CAREamist (`careamics/careamist_v2.py`)**
+**CAREamist (`careamics/careamist.py`)**
 
 Main class that orchestrates the training and inference workflows, its API is not
 expected to change.

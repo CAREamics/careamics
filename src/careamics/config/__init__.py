@@ -10,6 +10,7 @@ __all__ = [
     "MaxPatchFilterConfig",
     "MeanStdPatchFilterConfig",
     "MicroSplitAlgorithm",
+    "MicroSplitDataConfig",
     "MultiChannelNMConfig",
     "N2NAlgorithm",
     "N2VAlgorithm",
@@ -45,6 +46,7 @@ from .data import (
     DataConfig,
     MaxPatchFilterConfig,
     MeanStdPatchFilterConfig,
+    MicroSplitDataConfig,
     ShannonPatchFilterConfig,
 )
 from .factories import (

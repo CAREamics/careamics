@@ -3,7 +3,8 @@
 # %%
 import numpy as np
 
-train_data = np.random.randint(0, 255, (512, 512)).astype(np.float32)
+# cannot be 1 patch because of n_val_patches
+train_data = np.random.randint(0, 255, (64 * 4, 64 * 8)).astype(np.float32)
 train_target = train_data
 val_data = train_data
 val_target = train_data
@@ -31,7 +32,7 @@ careamist = CAREamist(config)
 careamist.train(train_data=train_data)  # (2)!
 
 # once trained, predict
-prediction = careamist.predict(pred_data=pred_data)
+predictions, sources = careamist.predict(pred_data=pred_data)
 # --8<-- [end:quick_start_n2v]
 
 # --8<-- [start:quick_start_care]
@@ -60,5 +61,5 @@ careamist.train(
 )
 
 # once trained, predict
-prediction = careamist.predict(pred_data=pred_data)
+predictions, sources = careamist.predict(pred_data=pred_data)
 # --8<-- [end:quick_start_care]
