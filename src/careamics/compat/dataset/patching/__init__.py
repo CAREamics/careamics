@@ -1,1 +1,0 @@
-"""Patching and tiling functions."""

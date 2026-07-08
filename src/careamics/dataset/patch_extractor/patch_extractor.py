@@ -7,8 +7,6 @@ from numpy.typing import NDArray
 
 from careamics.dataset.image_stack import GenericImageStack
 
-from .patch_construction import PatchConstructor, default_patch_constr
-
 
 class PatchExtractor(Generic[GenericImageStack]):
     """
@@ -18,14 +16,11 @@ class PatchExtractor(Generic[GenericImageStack]):
     ----------
     image_stacks : sequence of ImageStack
         Image stacks to extract patches from.
-    patch_constructor : PatchConstructor, optional
-        Callable used to build a patch from an image stack.
     """
 
     def __init__(
         self,
         image_stacks: Sequence[GenericImageStack],
-        patch_constructor: PatchConstructor = default_patch_constr,
     ) -> None:
         """Constructor.
 
@@ -33,16 +28,12 @@ class PatchExtractor(Generic[GenericImageStack]):
         ----------
         image_stacks : sequence of ImageStack
             Image stacks to extract patches from.
-        patch_constructor : PatchConstructor, optional
-            Callable used to build a patch from an image stack (default constructor).
         """
-        self.patch_constructor = patch_constructor
         self.image_stacks: list[GenericImageStack] = list(image_stacks)
 
         # check all image stacks have the same number of dimensions
         # check all image stacks have the same number of channels
         self.n_spatial_dims = len(self.image_stacks[0].data_shape) - 2  # SC(Z)YX
-        self.n_channels = self.image_stacks[0].data_shape[1]
         for i, image_stack in enumerate(image_stacks):
             if (ndims := len(image_stack.data_shape) - 2) != self.n_spatial_dims:
                 raise ValueError(
@@ -123,8 +114,7 @@ class PatchExtractor(Generic[GenericImageStack]):
         numpy.ndarray
             The extracted patch.
         """
-        return self.patch_constructor(
-            self.image_stacks[data_idx],
+        return self.image_stacks[data_idx].extract_patch(
             sample_idx=sample_idx,
             channels=channels,
             coords=coords,
@@ -141,3 +131,14 @@ class PatchExtractor(Generic[GenericImageStack]):
             Shape of each stack.
         """
         return [stack.data_shape for stack in self.image_stacks]
+
+    @property
+    def n_channels(self) -> int:
+        """Return the number of channels that the data has.
+
+        Returns
+        -------
+        int
+            Number of channels.
+        """
+        return self.image_stacks[0].data_shape[1]

@@ -5,7 +5,6 @@ from collections.abc import Sequence
 from numpy.typing import NDArray
 
 from ..image_stack import FileImageStack
-from .patch_construction import PatchConstructor, default_patch_constr
 from .patch_extractor import PatchExtractor
 
 
@@ -19,14 +18,11 @@ class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
     ----------
     image_stacks : sequence of FileImageStack
         Image stacks to extract patches from.
-    patch_constructor : PatchConstructor, optional
-        Callable used to build patches from an image stack.
     """
 
     def __init__(
         self,
         image_stacks: Sequence[FileImageStack],
-        patch_constructor: PatchConstructor = default_patch_constr,
     ) -> None:
         """Constructor.
 
@@ -34,10 +30,8 @@ class LimitFilesPatchExtractor(PatchExtractor[FileImageStack]):
         ----------
         image_stacks : sequence of FileImageStack
             Image stacks to extract patches from; only a subset are loaded at a time.
-        patch_constructor : PatchConstructor, optional
-            Callable used to build patches from an image stack.
         """
-        super().__init__(image_stacks, patch_constructor)
+        super().__init__(image_stacks)
         self.loaded_stacks: list[int] = []
 
     def extract_channel_patch(

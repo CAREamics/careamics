@@ -17,14 +17,11 @@ from careamics.dataset.augmentation.compose import Compose
 from careamics.models.constraints import ModelConstraints
 
 from .image_region_data import ImageRegionData
-from .image_stack import GenericImageStack, ZarrImageStack
+from .image_stack import GenericImageStack
 from .normalization import create_normalization
 from .normalization.statistics import resolve_normalization_config
-from .patch_extractor import PatchExtractor
-from .patching import (
-    Patching,
-    PatchSpecs,
-)
+from .patch_constructor import PatchConstr
+from .patching import PatchSpecs, RegionSpecs
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
@@ -34,12 +31,12 @@ def _adjust_shape_for_channels(
     channels: Sequence[int] | None,
     value: int | Literal["channels"] = "channels",
 ) -> tuple[int, ...]:
-    """Adjust shape to account for channel subsetting.
+    """Adjust shape to account for selecting a subset of channels.
 
     Parameters
     ----------
     shape : Sequence[int]
-        The original data shape in SC(Z)YX format.
+        The transformed data shape in SC(Z)YX format.
     channels : Sequence[int] | None
         The list of channels to select. If None, no adjustment is made.
     value : int | Literal["channels"], default="channels"
@@ -56,6 +53,39 @@ def _adjust_shape_for_channels(
         adjusted_shape[1] = len(channels) if value == "channels" else value
         return tuple(adjusted_shape)
     return tuple(shape)
+
+
+def _adjust_original_shape_for_channels(
+    original_data_shape: Sequence[int],
+    channels: Sequence[int] | None,
+    axes: str,
+    value: int | Literal["channels"] = "channels",
+) -> Sequence[int]:
+    """Adjust original data shape to account for selecting a subset of channels.
+
+    Parameters
+    ----------
+    original_data_shape : Sequence[int]
+        Original source data shape.
+    channels : Sequence[int] or None
+        Selected channels. If None, no adjustment is made.
+    axes : str
+        Axes string describing `original_data_shape`.
+    value : int or "channels", default="channels"
+        The value to replace the channel dimension with. If "channels", the length
+        of the channels list is used, by default "channels".
+
+    Returns
+    -------
+    Sequence[int]
+        Adjusted original data shape.
+    """
+    if channels is not None and "C" in axes:
+        c_idx = axes.index("C")
+        adjusted_original_shape = list(original_data_shape)
+        adjusted_original_shape[c_idx] = len(channels) if value == "channels" else value
+        original_data_shape = tuple(adjusted_original_shape)
+    return original_data_shape
 
 
 def _patch_size_within_data_shapes(
@@ -196,12 +226,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     ----------
     data_config : DataConfig
         Dataset configuration.
-    patching_strategy : PatchingStrategy
-        Strategy for sampling patches.
-    input_extractor : PatchExtractor
-        Extractor for input patches.
-    target_extractor : PatchExtractor or None, default=None
-        Extractor for target patches.
+    patch_constructor : PatchConstructor
+        Constructor for input and target patches.
     model_constraints : ModelConstraints, default=None
         If provided, the dataset will validate that the input patch size is compatible
         with the model constraints. Only used for prediction datasets.
@@ -210,9 +236,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
         data_config: DataConfig,
-        patching_strategy: Patching,
-        input_extractor: PatchExtractor[GenericImageStack],
-        target_extractor: PatchExtractor[GenericImageStack] | None = None,
+        patch_constructor: PatchConstr,
         model_constraints: ModelConstraints | None = None,
     ) -> None:
         """Constructor.
@@ -221,42 +245,31 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         ----------
         data_config : DataConfig
             Dataset configuration.
-        patching_strategy : PatchingStrategy
-            Strategy for sampling patches.
-        input_extractor : PatchExtractor
-            Extractor for input patches.
-        target_extractor : PatchExtractor or None, default=None
-            Extractor for target patches.
+        patch_constructor : PatchConstructor
+            Constructor for input and target patches.
         model_constraints : ModelConstraints, default=None
             If provided, the dataset will validate that the input spatial shape is
             compatible with the model constraints.
         """
         # sanity checks on the input and output data
-        data_shapes = input_extractor.shapes
-        _validate_shapes_against_mode(data_config, data_shapes)
+        input_shapes = patch_constructor.input_shapes
+        target_shapes = patch_constructor.target_shapes
+        _validate_shapes_against_mode(data_config, patch_constructor.input_shapes)
 
         if model_constraints is not None:
-            target_data_shapes = (
-                target_extractor.shapes if target_extractor is not None else None
-            )
             _validate_shapes_against_model(
                 data_config=data_config,
                 model_constraints=model_constraints,
-                data_shapes=data_shapes,
-                target_data_shapes=target_data_shapes,
+                data_shapes=input_shapes,
+                target_data_shapes=target_shapes,
             )
 
         self.config = data_config
-        self.input_extractor = input_extractor
-        self.target_extractor = target_extractor
-        self.patching_strategy = patching_strategy
+        self.patch_constructor = patch_constructor
 
         resolve_normalization_config(
             norm_config=self.config.normalization,
-            patching_strategy=self.patching_strategy,
-            input_extractor=self.input_extractor,
-            target_extractor=self.target_extractor,
-            channels=self.config.channels,
+            patch_constructor=self.patch_constructor,
         )
         self.normalization = create_normalization(self.config.normalization)
 
@@ -276,102 +289,67 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         # TODO: add TTA
         return Compose([])
 
-    def _create_image_region(
-        self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
-    ) -> ImageRegionData:
-        """Wrap a patch and its spec into an ImageRegionData for the given extractor.
+    def _create_image_regions(
+        self,
+        input_patch: NDArray[Any],
+        target_patch: NDArray[Any] | None,
+        patch_spec: RegionSpecs,
+    ) -> tuple[ImageRegionData[RegionSpecs], ImageRegionData[RegionSpecs] | None]:
+        """Wrap patches and their spec into ImageRegionData objects.
 
         Parameters
         ----------
-        patch : np.ndarray
-            Patch data.
-        patch_spec : PatchSpecs
+        input_patch : NDArray
+            Input patch data.
+        target_patch : NDArray or None
+            Optional target patch data.
+        patch_spec : RegionSpecs
             Patch specification.
-        extractor : PatchExtractor
-            Extractor used (for metadata).
 
         Returns
         -------
-        ImageRegionData
-            Region data for the patch.
+        tuple of ImageRegionData and ImageRegionData or None
+            Region data for the input patch and optional target patch.
         """
-        data_idx = patch_spec["data_idx"]
-        image_stack: GenericImageStack = extractor.image_stacks[data_idx]
+        input_metadata = self.patch_constructor.get_input_image_metadata(patch_spec)
+        target_metadata = self.patch_constructor.get_target_image_metadata(patch_spec)
 
-        # adjust the number of channels in data_shape if needed
-        data_shape = _adjust_shape_for_channels(
-            shape=image_stack.data_shape,
-            channels=self.config.channels,
+        input_metadata["data_shape"] = _adjust_shape_for_channels(
+            input_metadata["data_shape"], self.config.channels
         )
-
-        # get original shape from image stack
-        original_data_shape = image_stack.original_data_shape
-
-        # adjust original_data_shape for channel subsetting if needed
-        if self.config.channels is not None and "C" in self.config.axes:
-            c_idx = self.config.axes.index("C")
-            adjusted_original_shape = list(original_data_shape)
-            adjusted_original_shape[c_idx] = len(self.config.channels)
-            original_data_shape = tuple(adjusted_original_shape)
-
-        # additional metadata for zarr image stacks
-        if isinstance(image_stack, ZarrImageStack):
-            additional_metadata = {
-                "chunks": image_stack.chunks,
-            }
-
-            if image_stack.shards is not None:
-                additional_metadata["shards"] = image_stack.shards
-        else:
-            additional_metadata = {}
-
-        return ImageRegionData(
-            data=patch,
-            source=str(image_stack.source),
-            dtype=str(image_stack.data_dtype),
-            data_shape=data_shape,
-            axes=self.config.axes,
-            original_data_shape=original_data_shape,
-            region_spec=patch_spec,
-            additional_metadata=additional_metadata,
+        input_metadata["original_data_shape"] = _adjust_original_shape_for_channels(
+            input_metadata["original_data_shape"],
+            self.config.channels,
+            self.config.axes,
         )
-
-    def _extract_patches(
-        self, patch_spec: PatchSpecs
-    ) -> tuple[NDArray, NDArray | None]:
-        """Extract input and target patches based on patch specifications.
-
-        Parameters
-        ----------
-        patch_spec : PatchSpecs
-            Patch specification (data_idx, sample_idx, coords, patch_size).
-
-        Returns
-        -------
-        tuple of (NDArray, NDArray or None)
-            Input patch and optional target patch.
-        """
-        input_patch = self.input_extractor.extract_channel_patch(
-            data_idx=patch_spec["data_idx"],
-            sample_idx=patch_spec["sample_idx"],
-            channels=self.config.channels,
-            coords=patch_spec["coords"],
-            patch_size=patch_spec["patch_size"],
-        )
-
-        target_patch = (
-            self.target_extractor.extract_channel_patch(
-                data_idx=patch_spec["data_idx"],
-                sample_idx=patch_spec["sample_idx"],
-                # TODO does not allow selecting different channels for target
-                channels=self.config.channels,
-                coords=patch_spec["coords"],
-                patch_size=patch_spec["patch_size"],
+        if target_metadata is not None:
+            target_metadata["data_shape"] = _adjust_shape_for_channels(
+                target_metadata["data_shape"], self.config.channels
             )
-            if self.target_extractor is not None
-            else None
+            target_metadata["original_data_shape"] = (
+                _adjust_original_shape_for_channels(
+                    target_metadata["original_data_shape"],
+                    self.config.channels,
+                    self.config.axes,
+                )
+            )
+
+        input_data = ImageRegionData(
+            data=input_patch,
+            axes=self.config.axes,
+            region_spec=patch_spec,
+            **input_metadata,
         )
-        return input_patch, target_patch
+        if target_patch is not None and target_metadata is not None:
+            target_data = ImageRegionData(
+                data=target_patch,
+                axes=self.config.axes,
+                region_spec=patch_spec,
+                **target_metadata,
+            )
+        else:
+            target_data = None
+        return input_data, target_data
 
     def __len__(self):
         """Return the number of patches (length of the dataset).
@@ -381,11 +359,14 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         int
             Number of patches.
         """
-        return self.patching_strategy.n_patches
+        return self.patch_constructor.n_patches
 
     def __getitem__(
         self, index: int
-    ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
+    ) -> (
+        tuple[ImageRegionData[PatchSpecs]]
+        | tuple[ImageRegionData[PatchSpecs], ImageRegionData[PatchSpecs]]
+    ):
         """Return a tuple of ImageRegionData for the given index.
 
         Parameters
@@ -398,15 +379,16 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         tuple of ImageRegionData
             (input_data,) or (input_data, target_data).
         """
-        patch_spec = self.patching_strategy.get_patch_spec(index)
-        input_patch, target_patch = self._extract_patches(patch_spec)
+        input_patch, target_patch, patch_spec = self.patch_constructor.construct_patch(
+            index
+        )
 
         # apply normalization
         input_patch, target_patch = self.normalization(input_patch, target_patch)
 
         # apply transforms
         if self.transforms is not None:
-            if self.target_extractor is not None:
+            if target_patch is not None:
                 input_patch, target_patch = self.transforms(input_patch, target_patch)
             else:
                 # TODO: compose doesn't return None for target patch anymore
@@ -414,16 +396,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 (input_patch,) = self.transforms(input_patch, target_patch)
                 target_patch = None
 
-        input_data = self._create_image_region(
-            patch=input_patch, patch_spec=patch_spec, extractor=self.input_extractor
+        input_data, target_data = self._create_image_regions(
+            input_patch, target_patch, patch_spec
         )
-
-        if target_patch is not None and self.target_extractor is not None:
-            target_data = self._create_image_region(
-                patch=target_patch,
-                patch_spec=patch_spec,
-                extractor=self.target_extractor,
-            )
-            return input_data, target_data
-        else:
+        if target_data is None:
             return (input_data,)
+        else:
+            return input_data, target_data

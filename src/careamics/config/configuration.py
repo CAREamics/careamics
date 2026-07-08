@@ -72,7 +72,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
     )
 
     # version
-    version: Literal["0.2.0"] = "0.2.0"
+    version: Literal["0.3.0"] = "0.3.0"
     """CAREamics configuration version."""
 
     # required parameters
