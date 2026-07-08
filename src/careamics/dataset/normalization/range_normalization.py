@@ -24,8 +24,6 @@ class RangeNormalization(Normalization):
         Target minimum value per channel.
     target_maxes : list of float, optional
         Target maximum value per channel.
-    skip_target : bool, default=False
-        When True, target normalization is skipped and the target is returned unchanged.
 
     Attributes
     ----------
@@ -37,8 +35,6 @@ class RangeNormalization(Normalization):
         Target minimum value per channel.
     target_maxes : list of float, optional
         Target maximum value per channel.
-    skip_target : bool
-        When True, target normalization is skipped and the target is returned unchanged.
     """
 
     def __init__(
@@ -47,7 +43,6 @@ class RangeNormalization(Normalization):
         input_maxes: list[float],
         target_mins: list[float] | None = None,
         target_maxes: list[float] | None = None,
-        skip_target: bool = False,
     ):
         """Initialize range normalization.
 
@@ -61,15 +56,11 @@ class RangeNormalization(Normalization):
             Target minimum per channel.
         target_maxes : list of float or None, optional
             Target maximum per channel.
-        skip_target : bool, optional
-            When True, target normalization is skipped and the target is
-            returned unchanged (as float32). Default is False.
         """
         self.input_mins = input_mins
         self.input_maxes = input_maxes
         self.target_mins = target_mins
         self.target_maxes = target_maxes
-        self.skip_target = skip_target
         self.eps = 1e-8
 
     def __call__(
@@ -104,23 +95,18 @@ class RangeNormalization(Normalization):
 
         norm_target = None
         if target is not None:
-            if self.skip_target:
-                norm_target = target
-            else:
-                if self.target_mins is None or self.target_maxes is None:
-                    raise ValueError(
-                        "Target mins and maxs must be provided if target is not None."
-                    )
-                n_target_ch = target.shape[0]
-                t_mins = broadcast_stats(self.target_mins, n_target_ch, "target_mins")
-                t_maxes = broadcast_stats(
-                    self.target_maxes, n_target_ch, "target_maxes"
+            if self.target_mins is None or self.target_maxes is None:
+                raise ValueError(
+                    "Target mins and maxs must be provided if target is not None."
                 )
-                target_mins_arr = reshape_stats(t_mins, target.ndim, channel_axis=0)
-                target_maxes_arr = reshape_stats(t_maxes, target.ndim, channel_axis=0)
-                norm_target = (target - target_mins_arr) / (
-                    target_maxes_arr - target_mins_arr + self.eps
-                )
+            n_target_ch = target.shape[0]
+            t_mins = broadcast_stats(self.target_mins, n_target_ch, "target_mins")
+            t_maxes = broadcast_stats(self.target_maxes, n_target_ch, "target_maxes")
+            target_mins_arr = reshape_stats(t_mins, target.ndim, channel_axis=0)
+            target_maxes_arr = reshape_stats(t_maxes, target.ndim, channel_axis=0)
+            norm_target = (target - target_mins_arr) / (
+                target_maxes_arr - target_mins_arr + self.eps
+            )
 
         return norm_patch, norm_target
 

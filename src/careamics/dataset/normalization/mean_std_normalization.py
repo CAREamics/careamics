@@ -26,9 +26,6 @@ class MeanStdNormalization(Normalization):
     target_stds : list[float] | None, optional
         Target standard deviation values (length 1 for global,
         multiple values for per channel), by default None.
-    skip_target : bool, defaut=False
-        When True, target normalization is skipped and the target is
-        returned unchanged.
     """
 
     def __init__(
@@ -37,7 +34,6 @@ class MeanStdNormalization(Normalization):
         input_stds: list[float],
         target_means: list[float] | None = None,
         target_stds: list[float] | None = None,
-        skip_target: bool = False,
     ) -> None:
         """Constructor.
 
@@ -54,15 +50,11 @@ class MeanStdNormalization(Normalization):
         target_stds : list[float] | None, optional
             Target standard deviation values (length 1 for global,
             multiple values for per channel), by default None.
-        skip_target : bool, defaut=False
-            When True, target normalization is skipped and the target is
-            returned unchanged.
         """
         self.input_means = input_means
         self.input_stds = input_stds
         self.target_means = target_means
         self.target_stds = target_stds
-        self.skip_target = skip_target
 
         self.eps = 1e-6
 
@@ -97,28 +89,22 @@ class MeanStdNormalization(Normalization):
         stds = reshape_stats(input_stds, patch.ndim, channel_axis=0)
         norm_patch = self._apply_normalization(patch, means, stds)
 
-        norm_target = None
-        if target is not None:
-            if self.skip_target:
-                norm_target = target
-            else:
-                if self.target_means is None or self.target_stds is None:
-                    raise ValueError(
-                        "Target means and standard deviations must be provided "
-                        "if target is not None."
-                    )
-                n_target_channels = target.shape[0]
-                t_means = broadcast_stats(
-                    self.target_means, n_target_channels, "target_means"
+        if target is None:
+            norm_target = None
+        else:
+            if self.target_means is None or self.target_stds is None:
+                raise ValueError(
+                    "Target means and standard deviations must be provided "
+                    "if target is not None."
                 )
-                t_stds = broadcast_stats(
-                    self.target_stds, n_target_channels, "target_stds"
-                )
-                target_means = reshape_stats(t_means, target.ndim, channel_axis=0)
-                target_stds = reshape_stats(t_stds, target.ndim, channel_axis=0)
-                norm_target = self._apply_normalization(
-                    target, target_means, target_stds
-                )
+            n_target_channels = target.shape[0]
+            t_means = broadcast_stats(
+                self.target_means, n_target_channels, "target_means"
+            )
+            t_stds = broadcast_stats(self.target_stds, n_target_channels, "target_stds")
+            target_means = reshape_stats(t_means, target.ndim, channel_axis=0)
+            target_stds = reshape_stats(t_stds, target.ndim, channel_axis=0)
+            norm_target = self._apply_normalization(target, target_means, target_stds)
 
         return norm_patch, norm_target
 
