@@ -12,14 +12,14 @@ from careamics.utils.version import get_careamics_version
 pytestmark = pytest.mark.mps_gh_fail
 
 
-def test_state_dict_io(tmp_path, ordered_array, pre_trained_v2):
+def test_state_dict_io(tmp_path, ordered_array, pre_trained):
     """Test exporting and loading a state dict."""
     # training data
     train_array = ordered_array((32, 32))
     path = tmp_path / "model.pth"
 
     # instantiate CAREamist
-    careamist = CAREamist(checkpoint_path=pre_trained_v2, work_dir=tmp_path)
+    careamist = CAREamist(checkpoint_path=pre_trained, work_dir=tmp_path)
 
     # predict (no tiling and no tta)
     predicted_output, _ = careamist.predict(train_array)
@@ -37,13 +37,13 @@ def test_state_dict_io(tmp_path, ordered_array, pre_trained_v2):
     np.testing.assert_almost_equal(predicted_loaded[0], predicted, decimal=3)
 
 
-def test_bmz_io(tmp_path, ordered_array, pre_trained_v2):
+def test_bmz_io(tmp_path, ordered_array, pre_trained):
     """Test exporting and loading to the BMZ."""
     # training data
     train_array = ordered_array((32, 32))
 
     # instantiate CAREamist
-    careamist = CAREamist(checkpoint_path=pre_trained_v2, work_dir=tmp_path)
+    careamist = CAREamist(checkpoint_path=pre_trained, work_dir=tmp_path)
 
     # predict (no tiling and no tta)
     predicted_output, _ = careamist.predict(train_array)

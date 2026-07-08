@@ -408,7 +408,7 @@ requires-dist = [
     { name = "bioimageio-core", specifier = ">=0.9.0,<=0.10.4" },
     { name = "careamics-portfolio", marker = "extra == 'examples'" },
     { name = "jupyter", marker = "extra == 'examples'" },
-    { name = "matplotlib", specifier = "<=3.10.9" },
+    { name = "matplotlib", specifier = "<=3.11.0" },
     { name = "microssim", specifier = "<=0.0.4" },
     { name = "numpy", specifier = ">=1.21,<=2.4.6" },
     { name = "pillow", specifier = "<=12.2.0" },
