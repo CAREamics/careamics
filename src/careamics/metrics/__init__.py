@@ -5,7 +5,12 @@ __all__ = [
     "SampleSIPSNR",
     "lpips",
     "range_invariant_multiscale_ssim",
+    "scale_invariant_psnr"
 ]
 
-from .metrics import lpips, range_invariant_multiscale_ssim
+from .metrics import (
+    lpips,
+    range_invariant_multiscale_ssim,
+    scale_invariant_psnr,
+)
 from .psnr import SIPSNR, SampleSIPSNR

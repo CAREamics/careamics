@@ -33,7 +33,7 @@ for TILING in "${TILING_LIST[@]}"; do
         continue
     fi
     echo "[run] computing metrics for $PRED_DIR"
-    uv run python -u -m scripts.microsplit_compute_metrics \
+    python -u -m scripts.microsplit_compute_metrics \
         --pred-dir "$PRED_DIR" \
         --split test
 done
