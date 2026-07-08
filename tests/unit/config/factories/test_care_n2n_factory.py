@@ -1,78 +1,129 @@
-import itertools
-from contextlib import nullcontext as does_not_raise
-
 import pytest
 
 from careamics.config.factories.care_n2n_factory import _validate_channel_dim
 
-# test early stopping for care
-# channel for both
+# --- List of test parameters
 
-# if input_channels>1 or channels is not none, need C in input axes
+VALID_CASES = [
+    # axes, target_axes, channels, in_channels, out_channels, expected
+    # no channels
+    ("YX", None, None, None, None, (1, 1)),
+    ("YX", None, None, 1, None, (1, 1)),
+    ("YX", None, None, 1, 1, (1, 1)),
+    ("YX", None, None, None, 1, (1, 1)),
+    # with channels
+    ("CYX", None, [0], None, None, (1, 1)),
+    ("CYX", None, [0, 2], None, None, (2, 2)),
+    ("CYX", None, None, 3, None, (3, 3)),
+    ("CYX", "CYX", [0, 2], 2, 4, (2, 4)),
+    ("YX", "CYX", None, 1, 2, (1, 2)),
+    ("YX", "CYX", None, None, 2, (1, 2)),
+]
 
-# if C in axes, channels need to be specified
-# if output channel not specified, assume equal to input channel
-# if target axes not specified, assume equal to input axes
-# if C not in axes but output channel specified, need target axes
+INVALID_CASES = [
+    # axes, target_axes, channels, in_channels, out_channels, error_match
+    (
+        "CYX",
+        None,
+        None,
+        None,
+        None,
+        "`n_channels_in` or `channels` must be specified",
+    ),
+    (
+        "YX",
+        None,
+        [0],
+        None,
+        None,
+        "`channels` can only be specified when `axes` includes 'C'",
+    ),
+    (
+        "CYX",
+        None,
+        [],
+        None,
+        None,
+        "`channels` cannot not be empty",
+    ),
+    (
+        "YX",
+        None,
+        None,
+        2,
+        None,
+        "C is not present in the axes",
+    ),
+    (
+        "CYX",
+        None,
+        [0, 2],
+        3,
+        None,
+        "does not match length of `channels`",
+    ),
+    (
+        "YX",
+        None,
+        None,
+        1,
+        2,
+        "`target_axes` must be specified",
+    ),
+    (
+        "YX",
+        "YX",
+        None,
+        1,
+        2,
+        "`target_axes` must include 'C'",
+    ),
+]
 
-
-# -- Utility function
-
-
-def expected_outcome(axes, target_axes, channels, in_channels, out_channels):
-    # target_is_none = target_axes is None
-    # target_has_c = not target_is_none and "C" in target_axes
-    # axes_has_c = "C" in axes
-    # channels_is_none = channels is None
-    # out_larger_1 = out_channels is not None and out_channels > 1
-    # in_larger_1 = in_channels is not None and in_channels > 1
-
-    # if out_larger_1 and (target_is_none or not target_has_c):
-    #     # must specify target axes with C
-    #     return pytest.raises(ValueError)
-
-    return does_not_raise(0)
-
-
-# -- List of test parameters
-
-AXES = ["YX", "CYX"]
-
-TARGET_AXES = ["YX", "CYX"]
-
-CHANNELS = [None, [1], [0, 2]]
-
-IN_CHANNELS = [None, 1, 3]
-
-OUT_CHANNELS = IN_CHANNELS
-
-# -- Unit tests
+# --- Unit tests
 
 
 @pytest.mark.parametrize(
-    "axes, target_axes, channels, in_channels, out_channels",
-    list(itertools.product(AXES, TARGET_AXES, CHANNELS, IN_CHANNELS, OUT_CHANNELS)),
+    "axes, target_axes, channels, n_channels_in, n_channels_out, expected",
+    VALID_CASES,
 )
-def test_validate_channel_dim(axes, target_axes, channels, in_channels, out_channels):
-    """Test channel dimension validation.
-
-    While the utility function reimplements almost exactly the logic of the validation
-    function, this test is useful because it covers all possible values and can catch
-    errors being thrown that are not expected (and therefore not caught by the utility
-    function).
-    """
-    exp_outcome = expected_outcome(
-        axes, target_axes, channels, in_channels, out_channels
+def test_validate_channel_dim_valid_cases(
+    axes: str,
+    target_axes: str | None,
+    channels: list[int] | None,
+    n_channels_in: int | None,
+    n_channels_out: int | None,
+    expected: tuple[int, int],
+) -> None:
+    assert (
+        _validate_channel_dim(
+            axes=axes,
+            target_axes=target_axes,
+            channels=channels,
+            n_channels_in=n_channels_in,
+            n_channels_out=n_channels_out,
+        )
+        == expected
     )
 
-    with exp_outcome:
-        n_in, n_out = _validate_channel_dim(
-            axes, target_axes, channels, in_channels, out_channels
-        )
 
-        # test model input/output channel size
-        assert n_in == in_channels if in_channels is not None else 1
-        if out_channels is None:
-            assert n_out == in_channels if in_channels is not None else 1
-        else:
-            assert n_out == out_channels
+@pytest.mark.parametrize(
+    "axes, target_axes, channels, n_channels_in, n_channels_out, error_match",
+    INVALID_CASES,
+)
+def test_validate_channel_dim_invalid_cases(
+    axes: str,
+    target_axes: str | None,
+    channels: list[int] | None,
+    n_channels_in: int | None,
+    n_channels_out: int | None,
+    error_match: str,
+) -> None:
+    with pytest.raises(ValueError, match=error_match):
+        _validate_channel_dim(
+            axes=axes,
+            target_axes=target_axes,
+            channels=channels,
+            n_channels_in=n_channels_in,
+            n_channels_out=n_channels_out,
+        )

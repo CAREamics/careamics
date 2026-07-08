@@ -182,16 +182,16 @@ need to be set. These parameters vary from algorithm to algorithm.
 
     1. Channels are considered to be present as soon as `C` is in `axes`.
     2. For CARE/N2N, the number of input and output channels can be different, so we
-    need to set `n_channels_in` and optionally `n_channels_out`.
-
-    Note that if `n_channels_out` is not set, it will be set to the same value as
-    `n_channels_in`.
+    need to set `n_channels_in`.
 
 !!! note "Advanced channels parameters"
 
     The advanced CAREamics configuration gives access to more channel related parameters,
     such as sub-setting or channel independence during training. Refer to the
     [advanced configuration](#advanced-configuration) section for more details.
+
+
+For CARE and Noise2Noise, the number of output channels can be set using `n_channels_out`. 
 
 
 ### Number of validation patches

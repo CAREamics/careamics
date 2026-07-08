@@ -1,3 +1,5 @@
+"""Shared tests between CARE, N2N and N2V factories."""
+
 import itertools
 
 import pytest
@@ -110,6 +112,7 @@ def test_orthogonal_params(
     optimizer_params = {"lr": 0.01}
     scheduler = SupportedScheduler.STEP_LR.value
     scheduler_params = {"step_size": 10}
+    num_workers = 4
     train_dataloader_params = {"pin_memory": True}
     val_dataloader_params = {"drop_last": True}
     checkpoint_params = {"save_top_k": 8}
@@ -135,6 +138,7 @@ def test_orthogonal_params(
         optimizer_params=optimizer_params,
         lr_scheduler=scheduler,
         lr_scheduler_params=scheduler_params,
+        num_workers=num_workers,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
         checkpoint_params=checkpoint_params,
@@ -152,6 +156,7 @@ def test_orthogonal_params(
     assert config.training_config.trainer_params["limit_train_batches"] == num_steps
     assert config.data_config.n_val_patches == n_val
     assert config.data_config.in_memory == in_memory
+    assert config.data_config.num_workers == num_workers
 
     assert config.data_config.patch_filter == patch_filter
     assert config.data_config.normalization.name == norm
@@ -174,3 +179,17 @@ def test_orthogonal_params(
     assert is_subdict(val_dataloader_params, config.data_config.val_dataloader_params)
     assert config.training_config.logger == logger
     assert config.data_config.seed == seed
+
+
+@pytest.mark.parametrize("factory", FACTORIES)
+def test_no_augmentation(factory):
+    """Test that no augmentation is correctly passed to the configuration."""
+    config: Configuration = factory(
+        experiment_name="test_no_aug",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[32, 32],
+        batch_size=8,
+        augmentations=[],
+    )
+    assert len(config.data_config.augmentations) == 0

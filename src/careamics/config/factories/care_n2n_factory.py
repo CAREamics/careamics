@@ -47,6 +47,12 @@ def _validate_channel_dim(
     channels_present = "C" in axes
     target_channels_present = target_axes is not None and "C" in target_axes
 
+    if channels is not None and len(channels) == 0:
+        raise ValueError("`channels` cannot not be empty.")
+
+    if channels is not None and not channels_present:
+        raise ValueError("`channels` can only be specified when `axes` includes 'C'.")
+
     if channels_present and (n_channels_in is None and channels is None):
         raise ValueError(
             "`n_channels_in` or `channels` must be specified when using channels."
@@ -64,27 +70,37 @@ def _validate_channel_dim(
                 f"`channels` ({len(channels)}). Only specify `channels`."
             )
 
-    if n_channels_in is None:
-        n_channels_in = 1 if channels is None else len(channels)
+    # resolve number of input channels
+    if n_channels_in is None and channels is None:
+        resolved_n_channels_in = 1
+    elif n_channels_in is not None:
+        resolved_n_channels_in = n_channels_in
+    else:
+        assert channels is not None
+        resolved_n_channels_in = len(channels)
 
-    if n_channels_out is None:
-        n_channels_out = n_channels_in
+    resolved_n_channels_out = (
+        n_channels_out if n_channels_out is not None else resolved_n_channels_in
+    )
 
-    if n_channels_out > 1 and n_channels_in != n_channels_out:
+    if (
+        resolved_n_channels_out > 1
+        and resolved_n_channels_in != resolved_n_channels_out
+    ):
         if target_axes is None:
             raise ValueError(
                 "`target_axes` must be specified when the number of output channels "
-                f"is greater than 1 (got {n_channels_out}) and different from the "
-                f"number of input channels ({n_channels_in})."
+                f"is greater than 1 (got {resolved_n_channels_out}) and different "
+                f"from the number of input channels ({resolved_n_channels_in})."
             )
         if not target_channels_present:
             raise ValueError(
                 "`target_axes` must include 'C' when the number of output channels "
-                f"is greater than 1 (got {n_channels_out}) and different from the "
-                f"number of input channels ({n_channels_in})."
+                f"is greater than 1 (got {resolved_n_channels_out}) and different "
+                f"from the number of input channels ({resolved_n_channels_in})."
             )
 
-    return n_channels_in, n_channels_out
+    return resolved_n_channels_in, resolved_n_channels_out
 
 
 def create_care_config(
