@@ -29,7 +29,7 @@ from careamics.dev.sliding_window_tiled_pred import _move_input_to_device
 from careamics.lightning.prediction.convert_prediction import convert_prediction
 
 from scripts.dataset_factory import build_pred_dataset
-from scripts.io import npz_key, save_predictions_npz
+from scripts.io import npz_key, save_inference_params, save_predictions_npz
 from scripts.microsplit_factory import build_microsplit_module
 
 
@@ -41,7 +41,7 @@ def main(args: argparse.Namespace) -> Path:
     data_dir = args.data_root / args.dataset
     ckpt_path = args.ckpt_root / args.dataset / "BaselineVAECL_best.ckpt"
     pkl_path = args.ckpt_root / args.dataset / "config.pkl"
-    save_dir = args.out_root / args.dataset / "predictions" / "inner_tiling"
+    save_dir = args.out_root / args.dataset / f"predictions_MMSE{args.mmse_count}" / "inner_tiling"
 
     dataset = build_pred_dataset(
         data_dir=data_dir,
@@ -104,6 +104,18 @@ def main(args: argparse.Namespace) -> Path:
 
     out_path = save_predictions_npz(results, save_dir)
     print(f"wrote {len(results)} prediction(s) to {out_path}")
+
+    params_path = save_inference_params(
+        {
+            "tile_size": dataset.config.patching.patch_size,
+            "overlap": args.overlap,
+            "mmse_count": args.mmse_count,
+            "ckpt_path": ckpt_path,
+            "data_dir": data_dir,
+        },
+        save_dir,
+    )
+    print(f"wrote inference params to {params_path}")
     return out_path
 
 
