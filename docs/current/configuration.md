@@ -191,7 +191,16 @@ need to be set. These parameters vary from algorithm to algorithm.
     [advanced configuration](#advanced-configuration) section for more details.
 
 
-For CARE and Noise2Noise, the number of output channels can be set using `n_channels_out`. 
+For CARE and Noise2Noise, the number of output channels can be set using
+`n_channels_out` and specifying `target_axes`, which obey the same rules as `axes`.
+
+```python title="Setting output channels parameters"
+--8<-- "current/configuration_simple.py:config_care_out_channels"
+```
+
+1. In this example the target have a different axes order to illustrate that it is a
+possibility.
+2. The number of output channels can be different from the number of input channels.
 
 
 ### Number of validation patches
@@ -501,6 +510,18 @@ Setting a seed allows fixing the series of random choices happening during train
     --8<-- "current/configuration_advanced.py:adv_config_care_seed"
     ```
 
+## CARE and Noise2Noise: different target axes
+
+It may be that your target has different axes than your input (typically one has channels
+and the other one does not). In this case, you can set the `target_axes` parameter to specify the axes of the target.
+It obeys the same rules as the `axes` parameter.
+
+```python title="Target axes"
+--8<-- "current/configuration_n2v.py:target_axes"
+```
+
+1. In this example, the target for CARE does not have a channel dimension.
+2. We still need to set the number of input channels.
 
 ## Noise2Void flavours and parameters
 

@@ -11,6 +11,7 @@ VALID_CASES = [
     ("YX", None, None, 1, None, (1, 1)),
     ("YX", None, None, 1, 1, (1, 1)),
     ("YX", None, None, None, 1, (1, 1)),
+    ("YX", "ZYX", None, None, None, (1, 1)),
     # with channels
     ("CYX", None, [0], None, None, (1, 1)),
     ("CYX", None, [0, 2], None, None, (2, 2)),
@@ -18,6 +19,7 @@ VALID_CASES = [
     ("CYX", "CYX", [0, 2], 2, 4, (2, 4)),
     ("YX", "CYX", None, 1, 2, (1, 2)),
     ("YX", "CYX", None, None, 2, (1, 2)),
+    ("CYX", "YX", None, 2, 1, (2, 1)),
 ]
 
 INVALID_CASES = [
