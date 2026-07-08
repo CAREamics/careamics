@@ -261,6 +261,7 @@ def create_advanced_seg_config(
         norm_config.update(normalization_params)
 
     # augmentations
+    # TODO refactor after target_axes PR will be merged
     augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
     if augmentations is not None:
         augs = []

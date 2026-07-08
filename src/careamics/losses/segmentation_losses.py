@@ -96,7 +96,7 @@ class DiceLoss(Module):
                 weight = self.weight[start_idx:].to(dice_per_class.device)
                 dice_per_class = dice_per_class * weight
 
-            # Average across classes and batch
+            # average across classes and batch
             dice = dice_per_class.mean()
             return 1 - dice
 
