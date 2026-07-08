@@ -135,8 +135,7 @@ def create_advanced_seg_config(
     of input channels.
 
     By default, the transformations applied are a random flip along X or Y, and a random
-    90 degrees rotation in the XY plane. Normalization is always applied, as well as the
-    N2V manipulation.
+    90 degrees rotation in the XY plane. Normalization is always applied.
 
     The parameters of the UNet can be specified in the `model_params` (passed as a
     parameter-value dictionary).
