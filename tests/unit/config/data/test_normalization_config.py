@@ -107,7 +107,7 @@ def create_pruned_dicts(norm: dict[str, Any]) -> list[dict[str, Any]]:
         raise ValueError("NoNorm is not compatible with this function.")
 
     # no need to prune those
-    protected_keys = {"name", "per_channel"}
+    protected_keys = {"name", "per_channel", "skip_target"}
 
     if norm["name"] == "quantile":
         # these cannot be `None``
