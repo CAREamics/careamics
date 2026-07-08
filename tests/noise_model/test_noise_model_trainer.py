@@ -659,10 +659,10 @@ def microsplit_module(tmp_path):
     import warnings
 
     import numpy as np
+    from careamics.lightning.modules.vae_lightning_module import VAEModule
 
     from careamics.config.noise_model import GaussianMixtureNMConfig
     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-    from careamics.lightning.modules.vae_lightning_module import VAEModule
 
     weights = np.random.randn(3, 2).astype(np.float32)
     nm_cfg = GaussianMixtureNMConfig(
@@ -845,9 +845,10 @@ def test_set_noise_model_rejects_when_no_noise_model_required() -> None:
     from careamics.compat.config.configuration_factories import (
         create_microsplit_configuration,
     )
+    from careamics.lightning.modules.vae_lightning_module import VAEModule
+
     from careamics.config.noise_model import GaussianMixtureNMConfig
     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-    from careamics.lightning.modules.vae_lightning_module import VAEModule
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
