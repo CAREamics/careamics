@@ -5,10 +5,6 @@ from typing import Any, Literal
 
 from careamics.config.algorithms import N2VAlgorithm
 from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
-from careamics.config.augmentations import (
-    XYFlipConfig,
-    XYRandomRotate90Config,
-)
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
@@ -19,9 +15,9 @@ from careamics.config.utils.random import generate_random_seed
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import (
     SupportedPatchFilterConfig,
-    create_ng_data_configuration,
-    list_spatial_augmentations,
+    create_data_configuration,
 )
+from .factory_utils import assemble_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
 
 
@@ -412,34 +408,13 @@ def create_advanced_n2v_config(
     if normalization_params is not None:
         norm_config.update(normalization_params)
 
-    # augmentations
-    augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
-    if augmentations is not None:
-        augs = []
-
-        x_flip_present = "x_flip" in augmentations
-        y_flip_present = "y_flip" in augmentations
-        rotate_90_present = "rotate_90" in augmentations
-
-        if x_flip_present or y_flip_present:
-            augs.append(
-                XYFlipConfig(
-                    flip_x=x_flip_present,
-                    flip_y=y_flip_present,
-                    seed=seed,
-                )
-            )
-        if rotate_90_present:
-            augs.append(XYRandomRotate90Config(seed=seed))
-    spatial_transforms = list_spatial_augmentations(augs)
-
     # data
-    data_config = create_ng_data_configuration(
+    data_config = create_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        augmentations=spatial_transforms,
+        augmentations=assemble_augmentations(augmentations=augmentations, seed=seed),
         normalization=norm_config,
         patch_filter_config=patch_filter_config,
         channels=channels,

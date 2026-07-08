@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import create_ng_data_configuration
+from careamics.config import create_data_configuration
 from careamics.config.data import DataConfig
 from careamics.config.factories.data_factory import (
     list_spatial_augmentations,
@@ -25,7 +25,7 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
     example_input = rng.random(data_shape)
     example_target = rng.random(data_shape)
 
-    train_data_config = create_ng_data_configuration(
+    train_data_config = create_data_configuration(
         data_type="array",
         axes="YX",
         patch_size=patch_size,
@@ -64,7 +64,7 @@ def test_from_array_with_target_axes():
     example_input = rng.random((64, 64))
     example_target = rng.random((2, 64, 64))
 
-    train_data_config = create_ng_data_configuration(
+    train_data_config = create_data_configuration(
         data_type="array",
         axes="YX",
         target_axes="CYX",
@@ -106,7 +106,7 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
     for i in range(data_shape[0]):
         data[i] = (data[i] + i) * 1000
 
-    train_data_config = create_ng_data_configuration(
+    train_data_config = create_data_configuration(
         data_type="array",
         axes="CYX",
         patch_size=patch_size,
@@ -167,7 +167,7 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
     tifffile.imwrite(input_file_path, example_input)
     tifffile.imwrite(target_file_path, example_target)
 
-    train_data_config = create_ng_data_configuration(
+    train_data_config = create_data_configuration(
         data_type="tiff",
         axes="YX",
         patch_size=patch_size,
@@ -258,7 +258,7 @@ def test_from_custom_data_type(patch_size, data_shape):
     example_data = rng.random(data_shape)
     example_target = rng.random(data_shape)
 
-    train_data_config = create_ng_data_configuration(
+    train_data_config = create_data_configuration(
         data_type="custom",
         axes="YX",
         patch_size=patch_size,
@@ -312,7 +312,7 @@ def test_array_patch_filtering():
     coords = (slice(8, 24), slice(8, 24))
     img[coords] = 255
 
-    train_data_config = create_ng_data_configuration(
+    train_data_config = create_data_configuration(
         data_type="array",
         axes="YX",
         patch_size=(8, 8),
@@ -356,7 +356,7 @@ def test_error_data_smaller_than_patch():
     example_input = rng.random(data_shape)
     example_target = rng.random(data_shape)
 
-    train_data_config = create_ng_data_configuration(
+    train_data_config = create_data_configuration(
         data_type="array",
         axes="YX",
         patch_size=patch_size,

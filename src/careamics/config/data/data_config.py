@@ -482,7 +482,7 @@ class DataConfig(BaseModel):
         if info.data["data_type"] == "czi":
             if not check_czi_axes_validity(axes):
                 raise ValueError(
-                    f"Invalid axes '{axes}'. Axes must be in the "
+                    f"Invalid axes '{axes}' for CZI format. Axes must be in the "
                     f"`SC(Z/T)YX` format, where Z or T are optional, and S and C can be"
                     f" singleton dimensions, but must be provided."
                 )
