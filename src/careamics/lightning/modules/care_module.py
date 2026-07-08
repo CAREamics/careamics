@@ -196,7 +196,7 @@ class CAREModule(L.LightningModule):
         output_batch = ImageRegionData(
             data=denormalized_output,
             source=x.source,
-            canonical_data_shape=x.canonical_data_shape,
+            data_shape=x.data_shape,
             dtype=x.dtype,
             axes=x.axes,
             region_spec=x.region_spec,

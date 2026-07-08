@@ -110,7 +110,7 @@ class ImageWriteStrategy(WriteStrategy):
         """
         if "S" in prediction.axes:
             s_idx = prediction.axes.index("S")
-            return prediction.canonical_data_shape[s_idx]
+            return prediction.data_shape[s_idx]
         return 1
 
     def _get_complete_images(self) -> list[int]:

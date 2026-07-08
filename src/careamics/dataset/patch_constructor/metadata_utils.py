@@ -15,7 +15,7 @@ class ImageMetadata(TypedDict):
         Source path or identifier for the image stack.
     dtype : str
         Data type of the image stack.
-    canonical_data_shape : Sequence[int]
+    data_shape : Sequence[int]
         Loaded data shape.
     original_data_shape : Sequence[int]
         Original source data shape.
@@ -25,7 +25,7 @@ class ImageMetadata(TypedDict):
 
     source: str
     dtype: str
-    canonical_data_shape: Sequence[int]
+    data_shape: Sequence[int]
     original_data_shape: Sequence[int]
     additional_metadata: dict[str, Any]
 
@@ -58,7 +58,7 @@ def get_image_metadata(image_stack: ImageStack) -> ImageMetadata:
     return {
         "source": str(image_stack.source),
         "dtype": str(image_stack.data_dtype),
-        "canonical_data_shape": image_stack.data_shape,
+        "data_shape": image_stack.data_shape,
         "original_data_shape": image_stack.original_data_shape,
         "additional_metadata": additional_metadata,
     }

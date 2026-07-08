@@ -315,8 +315,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         target_metadata = self.patch_constructor.get_target_image_metadata(patch_spec)
         target_axes = self.config.target_axes or self.config.axes
 
-        input_metadata["canonical_data_shape"] = _adjust_shape_for_channels(
-            input_metadata["canonical_data_shape"], self.config.channels
+        input_metadata["data_shape"] = _adjust_shape_for_channels(
+            input_metadata["data_shape"], self.config.channels
         )
         input_metadata["original_data_shape"] = _adjust_original_shape_for_channels(
             input_metadata["original_data_shape"],

@@ -145,7 +145,7 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
                 assert np.all((ch + 1) * 1000 >= target.data[i])
 
             # test that channels are properly adjusted in data_shape
-            assert sample.canonical_data_shape[1] == len(channels)
+            assert sample.data_shape[1] == len(channels)
 
 
 @pytest.mark.parametrize(
