@@ -224,6 +224,60 @@ class CAREamist:
             return self._from_bmz(bmz_path)
 
     @staticmethod
+    def _default_write_type(
+        write_type: Literal["tiff", "zarr", "custom"] | None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    ) -> Literal["tiff", "zarr", "custom"]:
+        """Default the write type from the prediction data type.
+
+        Parameters
+        ----------
+        write_type : {"tiff", "zarr", "custom"} or None
+            The write type requested by the user, or None to infer it.
+        data_type : {"array", "tiff", "zarr", "czi", "custom"}
+            The (effective) prediction data type.
+
+        Returns
+        -------
+        {"tiff", "zarr", "custom"}
+            The resolved write type.
+        """
+        if write_type is not None:
+            return write_type
+
+        # config data type can be custom or czi, we support only zarr and tiff
+        # writing if no writing function is passed
+        return "zarr" if data_type == "zarr" else "tiff"
+
+    @staticmethod
+    def _predict_in_memory(
+        in_memory: bool | None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    ) -> bool | None:
+        """Resolve the `in_memory` setting for prediction.
+
+        An explicit user value is always respected, so the incompatibility of an
+        explicit `in_memory=True` with zarr/czi is still surfaced by configuration
+        validation.
+
+        Parameters
+        ----------
+        in_memory : bool or None
+            The `in_memory` value requested by the user, or None to infer it.
+        data_type : {"array", "tiff", "zarr", "czi", "custom"}
+            The (effective) prediction data type.
+
+        Returns
+        -------
+        bool or None
+            The resolved `in_memory` value. None defers to the training configuration.
+        """
+        # overwrite data cfg in_memory with `False` if czi or zarr
+        if in_memory is None and data_type in ("zarr", "czi"):
+            return False
+        return in_memory
+
+    @staticmethod
     def _from_config(
         config: ConfigurationType | Path | str,
     ) -> tuple[ConfigurationType, CAREamicsModule]:
@@ -698,11 +752,8 @@ class CAREamist:
         if num_workers is not None:
             dataloader_params = {"num_workers": num_workers}
 
-        # overwrite data cfg in_memory with `False` if czi or zarr
-        if in_memory is None and (
-            (data_type or self.config.data_config.data_type) in ("zarr", "czi")
-        ):
-            in_memory = False
+        effective_data_type = data_type or self.config.data_config.data_type
+        in_memory = self._predict_in_memory(in_memory, effective_data_type)
 
         pred_data_config = self.config.data_config.convert_mode(
             new_mode="predicting",
@@ -1065,12 +1116,8 @@ class CAREamist:
             write_func_kwargs = {}
 
         # default the write type from the prediction data type
-        if write_type is None:
-            effective_data_type = data_type or self.config.data_config.data_type
-
-            # config data type can be custom or czi, we support only zarr and tiff
-            # writing if no writing function is passed
-            write_type = "zarr" if effective_data_type == "zarr" else "tiff"
+        effective_data_type = data_type or self.config.data_config.data_type
+        write_type = self._default_write_type(write_type, effective_data_type)
 
         if Path(prediction_dir).is_absolute():
             write_dir = Path(prediction_dir)
