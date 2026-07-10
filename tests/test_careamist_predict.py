@@ -386,7 +386,7 @@ def test_predict_to_disk_zarr_input_defaults_to_zarr(tmp_path: Path):
 
 
 def test_predict_to_disk_zarr_explicit_in_memory_raises(tmp_path: Path):
-    """An explicit `in_memory=True` with zarr data still raises."""
+    """Test that an explicit `in_memory=True` with zarr data raises an error."""
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="tiff",
