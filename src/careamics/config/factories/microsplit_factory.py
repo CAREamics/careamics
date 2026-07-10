@@ -43,9 +43,6 @@ def create_microsplit_config(
 ) -> MicroSplitConfiguration:
     """Create a configuration for training MicroSplit.
 
-    A noise model is required for denoiSplit training; if omitted while
-    `denoisplit_weight > 0`, a warning is raised and the noise model must be attached
-    before training.
 
     See `create_advanced_microsplit_config` for more parameters.
 
