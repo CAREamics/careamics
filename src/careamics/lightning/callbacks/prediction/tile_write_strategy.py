@@ -74,6 +74,9 @@ class TileWriteStrategy(WriteStrategy):
         # where tiles will be cached until a whole image has been predicted
         self.tile_cache: dict[int, list[ImageRegionData]] = defaultdict(list)
 
+        # common parent of the sources, used to preserve their directory structure
+        self.source_base: Path | None = None
+
     def write_batch(
         self,
         dirpath: Path,
@@ -150,7 +153,9 @@ class TileWriteStrategy(WriteStrategy):
             file_path=source,
             write_extension=self.write_extension,
             postfix=postfix,
+            source_base=self.source_base,
         )
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         self.write_func(
             file_path=file_path, img=prediction_image, **self.write_func_kwargs
         )
