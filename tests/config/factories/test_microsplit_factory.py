@@ -21,6 +21,7 @@ class TestMicroSplitConfig:
                 axes="YX",
                 patch_size=[64, 64],
                 batch_size=8,
+                output_channels=2,
             )
         assert isinstance(config, MicroSplitConfiguration)
         assert isinstance(config.algorithm_config, MicroSplitAlgorithm)
@@ -35,6 +36,7 @@ class TestMicroSplitConfig:
                 axes="YX",
                 patch_size=[64, 64],
                 batch_size=8,
+                output_channels=2,
                 multiscale_count=2,
             )
         assert config.algorithm_config.model.multiscale_count == 2
@@ -49,6 +51,7 @@ class TestMicroSplitConfig:
                 axes="YX",
                 patch_size=[64, 64],
                 batch_size=8,
+                output_channels=2,
                 musplit_weight=0.3,
                 denoisplit_weight=0.7,
             )
@@ -64,6 +67,7 @@ class TestMicroSplitConfig:
                 axes="YX",
                 patch_size=[64, 64],
                 batch_size=8,
+                output_channels=2,
                 predict_logvar=False,
             )
         assert config.algorithm_config.model.predict_logvar is False
@@ -78,6 +82,7 @@ class TestMicroSplitConfig:
                 axes="YX",
                 patch_size=[64, 64],
                 batch_size=8,
+                output_channels=2,
             )
         assert config.training_config.early_stopping_params == {
             "monitor": "val_loss",
@@ -94,6 +99,7 @@ class TestMicroSplitConfig:
                 axes="YX",
                 patch_size=[64, 64],
                 batch_size=8,
+                output_channels=2,
                 num_epochs=25,
                 num_steps=500,
             )

@@ -1,7 +1,6 @@
 """Convenience functions to create HDN configurations."""
 
 from collections.abc import Sequence
-from dataclasses import asdict
 from typing import Any, Literal
 
 from careamics.config.algorithms import HDNAlgorithm
@@ -12,15 +11,11 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.lightning.training_configuration import (
-    SelfSupervisedCheckpointing,
-    TrainingConfig,
-)
 from careamics.config.losses.loss_config import LVAELossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
 from .data_factory import create_ng_data_configuration, list_spatial_augmentations
-from .training_factory import update_trainer_params
+from .training_factory import create_training_configuration, update_trainer_params
 
 NonLinearity = Literal["None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"]
 
@@ -257,6 +252,7 @@ def create_advanced_hdn_config(
     if normalization_params is not None:
         norm_config.update(normalization_params)
 
+    # TODO refactor when #1005 will be merged
     augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
     if augmentations is not None:
         augs = []
@@ -287,18 +283,15 @@ def create_advanced_hdn_config(
         seed=seed,
     )
 
-    training_config = TrainingConfig(
+    training_config = create_training_configuration(
+        algorithm="hdn",
         trainer_params=update_trainer_params(
             trainer_params=trainer_params,
             num_epochs=num_epochs,
             num_steps=num_steps,
         ),
-        logger=None if logger == "none" else logger,
-        checkpoint_params=(
-            checkpoint_params
-            if checkpoint_params is not None
-            else asdict(SelfSupervisedCheckpointing())
-        ),
+        logger=logger,
+        checkpoint_params=checkpoint_params,
         early_stopping_params=early_stopping_params,
     )
 

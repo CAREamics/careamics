@@ -1,7 +1,6 @@
 """Convenience functions to create MicroSplit configurations."""
 
 from collections.abc import Sequence
-from dataclasses import asdict
 from typing import Any, Literal
 
 from careamics.config.algorithms import MicroSplitAlgorithm
@@ -12,18 +11,12 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.lightning.training_configuration import (
-    SupervisedCheckpointing,
-    TrainingConfig,
-)
 from careamics.config.losses.loss_config import LVAELossConfig
 from careamics.config.microsplit_configuration import MicroSplitConfiguration
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
 from .data_factory import create_ng_data_configuration, list_spatial_augmentations
-from .training_factory import update_trainer_params
-
-NonLinearity = Literal["None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"]
+from .training_factory import create_training_configuration, update_trainer_params
 
 
 def create_microsplit_config(
@@ -33,19 +26,15 @@ def create_microsplit_config(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
+    output_channels: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
-    output_channels: int = 1,
     multiscale_count: int = 3,
     noise_model: MultiChannelNMConfig | None = None,
 ) -> MicroSplitConfiguration:
     """Create a configuration for training MicroSplit.
-
-    A noise model is required for denoiSplit training; if omitted while
-    `denoisplit_weight > 0`, a warning is raised and the noise model must be attached
-    before training.
 
     See `create_advanced_microsplit_config` for more parameters.
 
@@ -61,6 +50,8 @@ def create_microsplit_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    output_channels : int
+        Number of target channels to split into.
     num_epochs : int, default=100
         Number of epochs to train for.
     num_steps : int or None, default=None
@@ -69,8 +60,6 @@ def create_microsplit_config(
         List of augmentations to apply. If `None`, all augmentations are applied.
     n_val_patches : int, default=8
         Number of patches to set aside for validation during training.
-    output_channels : int, default=1
-        Number of target channels to split into.
     multiscale_count : int, default=3
         Number of lateral-context scales.
     noise_model : MultiChannelNMConfig or None, default=None
@@ -91,6 +80,7 @@ def create_advanced_microsplit_config(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
+    output_channels: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
@@ -105,13 +95,11 @@ def create_advanced_microsplit_config(
     alpha_ranges: Sequence[tuple[float, float]] | None = None,
     uncorrelated_channel_prob: float = 0.0,
     # model parameters
-    output_channels: int = 1,
     z_dims: Sequence[int] = (128, 128),
     encoder_n_filters: int = 32,
     decoder_n_filters: int = 32,
     encoder_dropout: float = 0.1,
     decoder_dropout: float = 0.1,
-    nonlinearity: NonLinearity = "ELU",
     analytical_kl: bool = False,
     predict_logvar: bool = True,
     logvar_lowerbound: float | None = -5.0,
@@ -127,8 +115,9 @@ def create_advanced_microsplit_config(
     num_workers: int = -1,
     trainer_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adamax",
-    lr: float = 1e-3,
-    lr_scheduler_patience: int = 30,
+    optimizer_params: dict[str, Any] | None = None,
+    lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
+    lr_scheduler_params: dict[str, Any] | None = None,
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
@@ -150,6 +139,8 @@ def create_advanced_microsplit_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    output_channels : int
+        Number of target channels to split into.
     num_epochs : int, default=100
         Number of epochs to train for.
     num_steps : int or None, default=None
@@ -174,8 +165,6 @@ def create_advanced_microsplit_config(
         Ranges used to sample channel mixing weights for synthetic inputs.
     uncorrelated_channel_prob : float, default=0.0
         Probability of sampling uncorrelated channels for synthetic inputs.
-    output_channels : int, default=1
-        Number of target channels to split into.
     z_dims : sequence of int, default=(128, 128)
         Latent channels per hierarchy level; its length sets the number of LVAE layers.
     encoder_n_filters : int, default=32
@@ -186,8 +175,6 @@ def create_advanced_microsplit_config(
         Encoder dropout rate.
     decoder_dropout : float, default=0.1
         Decoder dropout rate.
-    nonlinearity : str, default="ELU"
-        Activation function.
     analytical_kl : bool, default=False
         Whether to use the analytical KL divergence.
     predict_logvar : bool, default=True
@@ -212,10 +199,13 @@ def create_advanced_microsplit_config(
         Parameters for the PyTorch Lightning Trainer.
     optimizer : {"Adam", "Adamax", "SGD"}, default="Adamax"
         Optimizer name.
-    lr : float, default=1e-3
-        Learning rate.
-    lr_scheduler_patience : int, default=30
-        Patience of the ReduceLROnPlateau scheduler.
+    optimizer_params : dict or None, default=None
+        Optimizer parameters. If `None`, `{"lr": 1e-3, "weight_decay": 0}` is used.
+    lr_scheduler : {"ReduceLROnPlateau", "StepLR"}, default="ReduceLROnPlateau"
+        Learning rate scheduler.
+    lr_scheduler_params : dict or None, default=None
+        Learning rate scheduler parameters. If `None`, a `ReduceLROnPlateau` preset
+        (`mode="min"`, `factor=0.5`, `patience=30`, `min_lr=1e-12`) is used.
     train_dataloader_params : dict or None, default=None
         Parameters for the training dataloader.
     val_dataloader_params : dict or None, default=None
@@ -236,6 +226,8 @@ def create_advanced_microsplit_config(
     """
     conv_strides = [2] * len(patch_size)
 
+    # TODO consider accepting an LVAELossConfig directly instead of individual weights
+    # (see PR #1007 discussion); to be addressed in a follow-up PR.
     loss = LVAELossConfig(
         loss_type="microsplit",
         reconstruction_weight=reconstruction_weight,
@@ -258,7 +250,6 @@ def create_advanced_microsplit_config(
         decoder_conv_strides=conv_strides,
         encoder_dropout=encoder_dropout,
         decoder_dropout=decoder_dropout,
-        nonlinearity=nonlinearity,
         analytical_kl=analytical_kl,
         predict_logvar=predict_logvar,
     )
@@ -271,16 +262,12 @@ def create_advanced_microsplit_config(
         mmse_count=mmse_count,
         optimizer=OptimizerConfig(
             name=optimizer,
-            parameters={"lr": lr, "weight_decay": 0},
+            parameters=optimizer_params or {"lr": 1e-3, "weight_decay": 0},
         ),
         lr_scheduler=LrSchedulerConfig(
-            name="ReduceLROnPlateau",
-            parameters={
-                "mode": "min",
-                "factor": 0.5,
-                "patience": lr_scheduler_patience,
-                "min_lr": 1e-12,
-            },
+            name=lr_scheduler,
+            parameters=lr_scheduler_params
+            or {"mode": "min", "factor": 0.5, "patience": 30, "min_lr": 1e-12},
         ),
     )
 
@@ -288,6 +275,7 @@ def create_advanced_microsplit_config(
     if normalization_params is not None:
         norm_config.update(normalization_params)
 
+    # TODO refactor when #1005 will be merged
     augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
     if augmentations is not None:
         augs = []
@@ -325,23 +313,16 @@ def create_advanced_microsplit_config(
         uncorrelated_channel_prob=uncorrelated_channel_prob,
     )
 
-    training_config = TrainingConfig(
+    training_config = create_training_configuration(
+        algorithm="microsplit",
         trainer_params=update_trainer_params(
             trainer_params=trainer_params,
             num_epochs=num_epochs,
             num_steps=num_steps,
         ),
-        logger=None if logger == "none" else logger,
-        checkpoint_params=(
-            checkpoint_params
-            if checkpoint_params is not None
-            else asdict(SupervisedCheckpointing())
-        ),
-        early_stopping_params=(
-            early_stopping_params
-            if early_stopping_params is not None
-            else {"monitor": "val_loss", "mode": "min"}
-        ),
+        logger=logger,
+        checkpoint_params=checkpoint_params,
+        early_stopping_params=early_stopping_params,
     )
 
     return MicroSplitConfiguration(
