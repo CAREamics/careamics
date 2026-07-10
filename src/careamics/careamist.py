@@ -1067,6 +1067,9 @@ class CAREamist:
         # default the write type from the prediction data type
         if write_type is None:
             effective_data_type = data_type or self.config.data_config.data_type
+            
+            # config data type can be custom or czi, we support only zarr and tiff
+            # writing if no writing function is passed
             write_type = "zarr" if effective_data_type == "zarr" else "tiff"
 
         if Path(prediction_dir).is_absolute():
