@@ -6,7 +6,7 @@ from careamics.config.factories import (
     create_hdn_config,
 )
 from careamics.config.hdn_configuration import HDNConfiguration
-
+# TODO refactor similarly to https://github.com/CAREamics/careamics/pull/1005 once it is merged
 
 class TestHDNConfig:
     """Test the HDN configuration factory."""

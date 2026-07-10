@@ -8,6 +8,8 @@ from careamics.config.factories import (
 )
 from careamics.config.microsplit_configuration import MicroSplitConfiguration
 
+# TODO refactor similarly to https://github.com/CAREamics/careamics/pull/1005
+
 
 class TestMicroSplitConfig:
     """Test the MicroSplit configuration factory."""
