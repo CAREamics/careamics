@@ -698,7 +698,7 @@ class CAREamist:
         if num_workers is not None:
             dataloader_params = {"num_workers": num_workers}
 
-        # do not let a stale training value carry over
+        # overwrite data cfg in_memory with `False` if czi or zarr
         if in_memory is None and (
             (data_type or self.config.data_config.data_type) in ("zarr", "czi")
         ):
