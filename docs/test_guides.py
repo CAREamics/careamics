@@ -11,7 +11,9 @@ scripts = path_to_guides.rglob("*.py")
 # exclude all scripts that end with "errors" to keep a reference of failing examples
 # used in the documentation
 # TODO: is there a better way to show errors to not have to exclude these scripts?
-exclude = ["_errors.py"]
+# "_noexec.py" scripts are excluded because they are too heavy to run on every test
+# pass (e.g. BioImage Model Zoo export runs a full model validation).
+exclude = ["_errors.py", "_noexec.py"]
 scripts = [
     script
     for script in scripts
