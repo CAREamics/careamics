@@ -69,6 +69,7 @@ class ImageWriteStrategy(WriteStrategy):
         self.image_cache: dict[int, list[ImageRegionData]] = defaultdict(list)
 
         # common parent of the sources, used to preserve their directory structure
+        # modified by the prediction writer callback
         self.source_base: Path | None = None
 
     def write_batch(
