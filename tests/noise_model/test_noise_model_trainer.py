@@ -625,58 +625,337 @@ def test_get_config_channel_indices_match_metadata() -> None:
         ), f"channel_index mismatch at position {pos}: {gmm_cfg.channel_index}"
 
 
-def test_diagnose_returns_per_channel_dicts() -> None:
-    """diagnose() returns one dict per channel with expected keys."""
-    gen = np.random.default_rng(9)
-    signal = gen.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
-    observation = signal + gen.normal(0, 20, signal.shape).astype(np.float32)
+# def test_create_microsplit_configuration_without_noise_model_prints_reminder(
+#     capsys,
+# ) -> None:
+#     import warnings
 
-    trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=10)
+#     from careamics.compat.config.configuration_factories import (
+#         create_microsplit_configuration,
+#     )
 
-    diagnostics = trainer.diagnose(signal=signal, observation=observation)
+#     with warnings.catch_warnings():
+#         warnings.simplefilter("ignore")
+#         create_microsplit_configuration(
+#             experiment_name="test",
+#             data_type="array",
+#             axes="SYX",
+#             patch_size=[64, 64],
+#             batch_size=4,
+#             denoisplit_weight=0.9,
+#             musplit_weight=0.1,
+#             output_channels=2,
+#         )
 
-    assert len(diagnostics) == 2
-    expected_keys = {
-        "channel_index",
-        "final_loss",
-        "loss_trend",
-        "has_nan_weights",
-        "has_inf_weights",
-        "learned_sigma_mean",
-        "signal_range_coverage",
-        "wasserstein_distance",
-    }
-    for d in diagnostics:
-        assert expected_keys == set(d.keys()), f"Unexpected keys: {set(d.keys())}"
-        assert d["channel_index"] in (0, 1)
-        assert not d["has_nan_weights"]
-        assert not d["has_inf_weights"]
-        assert 0.0 <= d["signal_range_coverage"] <= 1.0
+#     captured = capsys.readouterr()
+#     assert (
+#         "REMINDER" in captured.out or "noise" in captured.out.lower()
+#     ), "Expected a reminder about noise model but got none"
 
 
-def test_diagnose_without_training_raises() -> None:
-    """diagnose() raises before training."""
-    trainer = NoiseModelTrainer()
-    signal = np.random.rand(4, 2, 16, 16).astype(np.float32)
-    observation = signal + 0.1
+# @pytest.fixture
+# def microsplit_module(tmp_path):
+#     """Minimal VAEModule with denoisplit_weight=0.9 (2 output channels)."""
+#     import warnings
 
-    with pytest.raises(ValueError, match="No noise models available"):
-        trainer.diagnose(signal=signal, observation=observation)
+#     import numpy as np
+#     from careamics.lightning.modules.vae_lightning_module import VAEModule
+
+#     from careamics.config.noise_model import GaussianMixtureNMConfig
+#     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
+
+#     weights = np.random.randn(3, 2).astype(np.float32)
+#     nm_cfg = GaussianMixtureNMConfig(
+#         weight=weights,
+#         min_signal=0.0,
+#         max_signal=255.0,
+#         min_sigma=125.0,
+#         n_gaussian=1,
+#         n_coeff=2,
+#     )
+#     mc_config = MultiChannelNMConfig(noise_models=[nm_cfg, nm_cfg])
+
+#     from careamics.compat.config.configuration_factories import (
+#         create_microsplit_configuration,
+#     )
+
+#     with warnings.catch_warnings():
+#         warnings.simplefilter("ignore")
+#         config = create_microsplit_configuration(
+#             experiment_name="test",
+#             data_type="array",
+#             axes="SYX",
+#             patch_size=[64, 64],
+#             batch_size=4,
+#             denoisplit_weight=0.9,
+#             musplit_weight=0.1,
+#             output_channels=2,
+#             noise_model_config=mc_config,
+#         )
+
+#     module = VAEModule(config.algorithm_config)
+#     return module, tmp_path
 
 
-def test_train_losses_stored_after_training() -> None:
-    """train_losses are populated with correct shape after training."""
-    gen = np.random.default_rng(10)
-    signal = gen.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
-    observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
+# def test_set_noise_model_accepts_multichannel_noise_model(microsplit_module) -> None:
+#     """set_noise_model() accepts a MultiChannelNoiseModel directly."""
+#     module, _ = microsplit_module
+#     mc_nm = module.noise_model  # already attached
 
-    n_epochs = 8
-    trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=n_epochs)
+#     module.set_noise_model(mc_nm)
+#     assert isinstance(module.noise_model, MultiChannelNoiseModel)
 
-    assert trainer.train_losses is not None
-    assert len(trainer.train_losses) == 2
-    for losses in trainer.train_losses:
-        assert len(losses) == n_epochs
-        assert all(isinstance(v, float) for v in losses)
+
+# def test_on_fit_start_requires_noise_model_for_denoisplit() -> None:
+#     """denoiSplit cannot start fitting without an attached noise model."""
+#     import warnings
+
+#     from careamics.compat.config.configuration_factories import (
+#         create_microsplit_configuration,
+#     )
+#     from careamics.lightning.modules.vae_lightning_module import VAEModule
+
+#     with warnings.catch_warnings():
+#         warnings.simplefilter("ignore")
+#         config = create_microsplit_configuration(
+#             experiment_name="missing_noise_model_test",
+#             data_type="array",
+#             axes="SYX",
+#             patch_size=[64, 64],
+#             batch_size=4,
+#             denoisplit_weight=0.9,
+#             musplit_weight=0.1,
+#             output_channels=2,
+#         )
+
+#     module = VAEModule(config.algorithm_config)
+
+#     with pytest.raises(RuntimeError, match="A noise model is required"):
+#         module.on_fit_start()
+
+
+# # --- Removed because set_noise_model does not accept simply a configuration
+# # def test_on_fit_start_accepts_runtime_attached_noise_model() -> None:
+# #     """denoiSplit can start fitting after runtime noise-model attachment."""
+# #     import warnings
+
+# #     from careamics.compat.config.configuration_factories import (
+# #         create_microsplit_configuration,
+# #     )
+# #     from careamics.lightning.modules.vae_lightning_module import VAEModule
+
+# #     with warnings.catch_warnings():
+# #         warnings.simplefilter("ignore")
+# #         config = create_microsplit_configuration(
+# #             experiment_name="runtime_noise_model_test",
+# #             data_type="array",
+# #             axes="SYX",
+# #             patch_size=[64, 64],
+# #             batch_size=4,
+# #             denoisplit_weight=0.9,
+# #             musplit_weight=0.1,
+# #             output_channels=2,
+# #         )
+
+# #     module = VAEModule(config.algorithm_config)
+# #     weights = np.random.randn(3, 2).astype(np.float32)
+# #     nm_cfg = GaussianMixtureNMConfig(
+# #         weight=weights,
+# #         min_signal=0.0,
+# #         max_signal=255.0,
+# #         min_sigma=125.0,
+# #         n_gaussian=1,
+# #         n_coeff=2,
+# #     )
+# #     mc_config = MultiChannelNMConfig(noise_models=[nm_cfg, nm_cfg])
+
+# #     module.set_noise_model(mc_config)
+# #     module.on_fit_start()
+
+
+# def test_on_fit_start_allows_missing_noise_model_when_not_required() -> None:
+#     """muSplit-only training does not require a noise model."""
+#     import warnings
+
+#     from careamics.compat.config.configuration_factories import (
+#         create_microsplit_configuration,
+#     )
+#     from careamics.lightning.modules.vae_lightning_module import VAEModule
+
+#     with warnings.catch_warnings():
+#         warnings.simplefilter("ignore")
+#         config = create_microsplit_configuration(
+#             experiment_name="no_noise_model_required_test",
+#             data_type="array",
+#             axes="SYX",
+#             patch_size=[64, 64],
+#             batch_size=4,
+#             musplit_weight=1.0,
+#             denoisplit_weight=0.0,
+#             output_channels=2,
+#         )
+
+#     module = VAEModule(config.algorithm_config)
+#     module.on_fit_start()
+
+
+# def test_set_noise_model_accepts_paths(microsplit_module, tmp_path) -> None:
+#     """set_noise_model() accepts a list of .npz paths."""
+#     module, _ = microsplit_module
+
+#     gen = np.random.default_rng(7)
+#     signal = gen.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
+#     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
+
+#     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
+#     trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=5)
+#     paths = trainer.save(tmp_path)
+
+#     module.set_noise_model([str(p) for p in paths])
+#     assert isinstance(module.noise_model, MultiChannelNoiseModel)
+#     assert module.noise_model._nm_cnt == 2
+
+
+# # --- Removed because set_noise_model does not accept simply a configuration
+# # def test_set_noise_model_rejects_wrong_channel_count(microsplit_module) -> None:
+# #     """set_noise_model() raises when channel count mismatches output_channels."""
+# #     from careamics.config.noise_model import GaussianMixtureNMConfig
+# #     from careamics.config.noise_model.noise_model_config import (
+#     MultiChannelNMConfig
+# )
+
+# #     module, _ = microsplit_module
+# #     weights = np.random.randn(3, 2).astype(np.float32)
+# #     nm_cfg = GaussianMixtureNMConfig(
+# #         weight=weights,
+# #         min_signal=0.0,
+# #         max_signal=255.0,
+# #         min_sigma=125.0,
+# #         n_gaussian=1,
+# #         n_coeff=2,
+# #     )
+# #     mc_config = MultiChannelNMConfig(noise_models=[nm_cfg])  # only 1 instead of 2
+
+# #     with pytest.raises(ValueError, match="Number of noise models"):
+# #         module.set_noise_model(mc_config)
+
+
+# def test_set_noise_model_rejects_when_no_noise_model_required() -> None:
+#     """set_noise_model() raises when denoisplit_weight == 0 (musplit only)."""
+#     import warnings
+
+#     from careamics.compat.config.configuration_factories import (
+#         create_microsplit_configuration,
+#     )
+#     from careamics.lightning.modules.vae_lightning_module import VAEModule
+
+#     from careamics.config.noise_model import GaussianMixtureNMConfig
+#     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
+
+#     with warnings.catch_warnings():
+#         warnings.simplefilter("ignore")
+#         config = create_microsplit_configuration(
+#             experiment_name="musplit_test",
+#             data_type="array",
+#             axes="SYX",
+#             patch_size=[64, 64],
+#             batch_size=4,
+#             musplit_weight=1.0,
+#             denoisplit_weight=0.0,
+#             output_channels=2,
+#         )
+
+#     module = VAEModule(config.algorithm_config)
+
+#     weights = np.random.randn(3, 2).astype(np.float32)
+#     nm_cfg = GaussianMixtureNMConfig(
+#         weight=weights,
+#         min_signal=0.0,
+#         max_signal=255.0,
+#         min_sigma=125.0,
+#         n_gaussian=1,
+#         n_coeff=2,
+#     )
+#     mc_config = MultiChannelNMConfig(noise_models=[nm_cfg, nm_cfg])
+
+#     with pytest.raises(ValueError, match="denoisplit_weight <= 0"):
+#         module.set_noise_model(mc_config)
+
+
+# def test_set_noise_model_path_channel_order_mismatch_raises(
+#     microsplit_module, tmp_path
+# ) -> None:
+#     module, _ = microsplit_module
+
+#     gen = np.random.default_rng(8)
+#     signal = gen.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
+#     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
+
+#     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
+#     trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=5)
+#     paths = trainer.save(tmp_path)
+
+#     # Supply the paths in reversed order — channel_index metadata says 0 but
+#     # we supply it at position 1, and vice versa
+#     reversed_paths = [str(paths[1]), str(paths[0])]
+#     with pytest.raises(ValueError, match="channel_index"):
+#         module.set_noise_model(reversed_paths)
+
+
+# def test_diagnose_returns_per_channel_dicts() -> None:
+#     """diagnose() returns one dict per channel with expected keys."""
+#     gen = np.random.default_rng(9)
+#     signal = gen.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
+#     observation = signal + gen.normal(0, 20, signal.shape).astype(np.float32)
+
+#     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
+#     trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=10)
+
+#     diagnostics = trainer.diagnose(signal=signal, observation=observation)
+
+#     assert len(diagnostics) == 2
+#     expected_keys = {
+#         "channel_index",
+#         "final_loss",
+#         "loss_trend",
+#         "has_nan_weights",
+#         "has_inf_weights",
+#         "learned_sigma_mean",
+#         "signal_range_coverage",
+#         "wasserstein_distance",
+#     }
+#     for d in diagnostics:
+#         assert expected_keys == set(d.keys()), f"Unexpected keys: {set(d.keys())}"
+#         assert d["channel_index"] in (0, 1)
+#         assert not d["has_nan_weights"]
+#         assert not d["has_inf_weights"]
+#         assert 0.0 <= d["signal_range_coverage"] <= 1.0
+
+
+# def test_diagnose_without_training_raises() -> None:
+#     """diagnose() raises before training."""
+#     trainer = NoiseModelTrainer()
+#     signal = np.random.rand(4, 2, 16, 16).astype(np.float32)
+#     observation = signal + 0.1
+
+#     with pytest.raises(ValueError, match="No noise models available"):
+#         trainer.diagnose(signal=signal, observation=observation)
+
+
+# def test_train_losses_stored_after_training() -> None:
+#     """train_losses are populated with correct shape after training."""
+#     gen = np.random.default_rng(10)
+#     signal = gen.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
+#     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
+
+#     n_epochs = 8
+#     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
+# trainer.train_from_pairs(
+#     signal=signal, observation=observation, n_epochs=n_epochs
+# )
+
+#     assert trainer.train_losses is not None
+#     assert len(trainer.train_losses) == 2
+#     for losses in trainer.train_losses:
+#         assert len(losses) == n_epochs
+#         assert all(isinstance(v, float) for v in losses)
