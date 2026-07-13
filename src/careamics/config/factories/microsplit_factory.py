@@ -95,12 +95,7 @@ def create_advanced_microsplit_config(
     alpha_ranges: Sequence[tuple[float, float]] | None = None,
     uncorrelated_channel_prob: float = 0.0,
     # model parameters
-    z_dims: Sequence[int] = (128, 128),
-    encoder_n_filters: int = 32,
-    decoder_n_filters: int = 32,
-    encoder_dropout: float = 0.1,
-    decoder_dropout: float = 0.1,
-    analytical_kl: bool = False,
+    model_params: dict[str, Any] | None = None,
     predict_logvar: bool = True,
     logvar_lowerbound: float | None = -5.0,
     # loss parameters
@@ -165,18 +160,13 @@ def create_advanced_microsplit_config(
         Ranges used to sample channel mixing weights for synthetic inputs.
     uncorrelated_channel_prob : float, default=0.0
         Probability of sampling uncorrelated channels for synthetic inputs.
-    z_dims : sequence of int, default=(128, 128)
-        Latent channels per hierarchy level; its length sets the number of LVAE layers.
-    encoder_n_filters : int, default=32
-        Number of encoder convolution filters.
-    decoder_n_filters : int, default=32
-        Number of decoder convolution filters.
-    encoder_dropout : float, default=0.1
-        Encoder dropout rate.
-    decoder_dropout : float, default=0.1
-        Decoder dropout rate.
-    analytical_kl : bool, default=False
-        Whether to use the analytical KL divergence.
+    model_params : dict or None, default=None
+        LVAE model parameters overriding the MicroSplit defaults (`z_dims=[128, 128]`,
+        `encoder_n_filters=32`, `decoder_n_filters=32`, `encoder_dropout=0.1`,
+        `decoder_dropout=0.1`, `analytical_kl=False`). Structural parameters
+        (`architecture`, `input_shape`, `output_channels`, `multiscale_count`,
+        `encoder_conv_strides`, `decoder_conv_strides`, `predict_logvar`) are set from
+        the dedicated arguments and cannot be overridden here.
     predict_logvar : bool, default=True
         Whether to predict the pixelwise log-variance.
     logvar_lowerbound : float or None, default=-5.0
@@ -238,21 +228,25 @@ def create_advanced_microsplit_config(
         logvar_lowerbound=logvar_lowerbound,
     )
 
-    model = LVAEConfig(
-        architecture="LVAE",
-        input_shape=tuple(patch_size),
-        output_channels=output_channels,
-        multiscale_count=multiscale_count,
-        z_dims=list(z_dims),
-        encoder_n_filters=encoder_n_filters,
-        decoder_n_filters=decoder_n_filters,
-        encoder_conv_strides=conv_strides,
-        decoder_conv_strides=conv_strides,
-        encoder_dropout=encoder_dropout,
-        decoder_dropout=decoder_dropout,
-        analytical_kl=analytical_kl,
-        predict_logvar=predict_logvar,
-    )
+    # MicroSplit-specific LVAE defaults; user-supplied `model_params` override these,
+    # while structural parameters (set below) always take precedence.
+    lvae_params: dict[str, Any] = {
+        "z_dims": [128, 128],
+        "encoder_n_filters": 32,
+        "decoder_n_filters": 32,
+        "encoder_dropout": 0.1,
+        "decoder_dropout": 0.1,
+        "analytical_kl": False,
+        **(model_params or {}),
+        "architecture": "LVAE",
+        "input_shape": tuple(patch_size),
+        "output_channels": output_channels,
+        "multiscale_count": multiscale_count,
+        "encoder_conv_strides": conv_strides,
+        "decoder_conv_strides": conv_strides,
+        "predict_logvar": predict_logvar,
+    }
+    model = LVAEConfig(**lvae_params)
 
     algorithm_config = MicroSplitAlgorithm(
         algorithm="microsplit",

@@ -17,8 +17,6 @@ from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from .data_factory import create_ng_data_configuration, list_spatial_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
 
-NonLinearity = Literal["None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"]
-
 
 def create_hdn_config(
     *,
@@ -90,13 +88,7 @@ def create_advanced_hdn_config(
     in_memory: bool | None = None,
     # model parameters
     output_channels: int = 1,
-    z_dims: Sequence[int] = (128, 128),
-    encoder_n_filters: int = 32,
-    decoder_n_filters: int = 32,
-    encoder_dropout: float = 0.0,
-    decoder_dropout: float = 0.0,
-    nonlinearity: NonLinearity = "ReLU",
-    analytical_kl: bool = False,
+    model_params: dict[str, Any] | None = None,
     # loss parameters
     reconstruction_weight: float = 1.0,
     kl_weight: float = 1.0,
@@ -152,20 +144,14 @@ def create_advanced_hdn_config(
         Whether to load all data into memory.
     output_channels : int, default=1
         Number of target channels (HDN uses 1).
-    z_dims : sequence of int, default=(128, 128)
-        Latent channels per hierarchy level; its length sets the number of LVAE layers.
-    encoder_n_filters : int, default=32
-        Number of encoder convolution filters.
-    decoder_n_filters : int, default=32
-        Number of decoder convolution filters.
-    encoder_dropout : float, default=0.0
-        Encoder dropout rate.
-    decoder_dropout : float, default=0.0
-        Decoder dropout rate.
-    nonlinearity : str, default="ReLU"
-        Activation function.
-    analytical_kl : bool, default=False
-        Whether to use the analytical KL divergence.
+    model_params : dict or None, default=None
+        LVAE model parameters overriding the HDN defaults (`z_dims=[128, 128]`,
+        `encoder_n_filters=32`, `decoder_n_filters=32`, `encoder_dropout=0.0`,
+        `decoder_dropout=0.0`, `nonlinearity="ReLU"`, `analytical_kl=False`). Structural
+        parameters (`architecture`, `input_shape`, `output_channels`,
+        `multiscale_count`, `encoder_conv_strides`, `decoder_conv_strides`,
+        `predict_logvar`) are set from the dedicated arguments and cannot be overridden
+        here.
     reconstruction_weight : float, default=1.0
         Weight of the reconstruction term.
     kl_weight : float, default=1.0
@@ -215,22 +201,26 @@ def create_advanced_hdn_config(
         logvar_lowerbound=logvar_lowerbound,
     )
 
-    model = LVAEConfig(
-        architecture="LVAE",
-        input_shape=tuple(patch_size),
-        output_channels=output_channels,
-        multiscale_count=1,
-        z_dims=list(z_dims),
-        encoder_n_filters=encoder_n_filters,
-        decoder_n_filters=decoder_n_filters,
-        encoder_conv_strides=conv_strides,
-        decoder_conv_strides=conv_strides,
-        encoder_dropout=encoder_dropout,
-        decoder_dropout=decoder_dropout,
-        nonlinearity=nonlinearity,
-        analytical_kl=analytical_kl,
-        predict_logvar=predict_logvar,
-    )
+    # HDN-specific LVAE defaults; user-supplied `model_params` override these, while
+    # structural parameters (set below) always take precedence.
+    lvae_params: dict[str, Any] = {
+        "z_dims": [128, 128],
+        "encoder_n_filters": 32,
+        "decoder_n_filters": 32,
+        "encoder_dropout": 0.0,
+        "decoder_dropout": 0.0,
+        "nonlinearity": "ReLU",
+        "analytical_kl": False,
+        **(model_params or {}),
+        "architecture": "LVAE",
+        "input_shape": tuple(patch_size),
+        "output_channels": output_channels,
+        "multiscale_count": 1,
+        "encoder_conv_strides": conv_strides,
+        "decoder_conv_strides": conv_strides,
+        "predict_logvar": predict_logvar,
+    }
+    model = LVAEConfig(**lvae_params)
 
     algorithm_config = HDNAlgorithm(
         algorithm="hdn",

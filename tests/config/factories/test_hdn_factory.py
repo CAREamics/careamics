@@ -7,7 +7,8 @@ from careamics.config.factories import (
 )
 from careamics.config.hdn_configuration import HDNConfiguration
 
-# TODO refactor similarly to https://github.com/CAREamics/careamics/pull/1005 once it is merged
+# TODO refactor similarly to PR #1005 once it is merged
+# https://github.com/CAREamics/careamics/pull/1005
 
 
 class TestHDNConfig:
@@ -111,3 +112,31 @@ class TestHDNConfig:
         )
         assert config.algorithm_config.model.is_3D()
         assert config.data_config.is_3D()
+
+    def test_model_params_defaults(self):
+        """Test that the HDN LVAE defaults are applied to the model."""
+        config = create_advanced_hdn_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+        )
+        model = config.algorithm_config.model
+        assert model.nonlinearity == "ReLU"
+        assert model.encoder_dropout == 0.0
+        assert model.encoder_n_filters == 32
+
+    def test_model_params_override(self):
+        """Test that model_params overrides the HDN defaults."""
+        config = create_advanced_hdn_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            model_params={"nonlinearity": "ELU", "encoder_n_filters": 64},
+        )
+        model = config.algorithm_config.model
+        assert model.nonlinearity == "ELU"
+        assert model.encoder_n_filters == 64
