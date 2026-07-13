@@ -12,7 +12,7 @@ def common_source_base(sources: Sequence[Path | str]) -> Path | None:
     Parameters
     ----------
     sources : sequence of pathlib.Path or str
-        Source paths of the predictions. Array sources (``"array"``) are ignored.
+        Source paths of the predictions. Array sources (`"array"`) are ignored.
 
     Returns
     -------
