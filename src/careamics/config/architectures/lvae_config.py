@@ -47,31 +47,6 @@ class LVAEConfig(ArchitectureConfig):
     """Whether to predict log-variance (pixelwise uncertainty)."""
 
     @model_validator(mode="after")
-    def validate_n_filters(self: Self) -> Self:
-        """Validate that encoder and decoder use the same number of filters.
-
-        The LVAE merges encoder (bottom-up) and decoder (top-down) features, which
-        requires matching channel counts.
-
-        Returns
-        -------
-        Self
-            The validated model.
-
-        Raises
-        ------
-        ValueError
-            If ``encoder_n_filters`` and ``decoder_n_filters`` differ.
-        """
-        if self.encoder_n_filters != self.decoder_n_filters:
-            raise ValueError(
-                "encoder_n_filters and decoder_n_filters must be equal "
-                f"(got {self.encoder_n_filters} and {self.decoder_n_filters}); "
-                "the LVAE merges encoder and decoder features."
-            )
-        return self
-
-    @model_validator(mode="after")
     def validate_conv_strides(self: Self) -> Self:
         """
         Validate the convolutional strides.
