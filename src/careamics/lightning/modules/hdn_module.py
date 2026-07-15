@@ -37,14 +37,14 @@ class HDNModule(L.LightningModule):
     The reconstruction likelihood is selected automatically from the configuration:
 
     - if a noise model is provided, the noise model likelihood is used
-      (``predict_logvar`` must be ``False``);
+      (`predict_logvar` must be `False`);
     - otherwise a Gaussian likelihood with a learned per-pixel variance is used
-      (``predict_logvar`` must be ``True``).
+      (`predict_logvar` must be `True`).
 
     Parameters
     ----------
     algorithm_config : VAEBasedAlgorithm or dict
-        Configuration for the HDN algorithm, either as a ``VAEBasedAlgorithm`` instance
+        Configuration for the HDN algorithm, either as a `VAEBasedAlgorithm` instance
         or a dictionary.
     """
 
@@ -54,7 +54,7 @@ class HDNModule(L.LightningModule):
         Parameters
         ----------
         algorithm_config : VAEBasedAlgorithm or dict
-            Configuration for the HDN algorithm, either as a ``VAEBasedAlgorithm``
+            Configuration for the HDN algorithm, either as a `VAEBasedAlgorithm`
             instance or a dictionary.
         """
         super().__init__()
@@ -173,8 +173,8 @@ class HDNModule(L.LightningModule):
         Returns
         -------
         dict of str to torch.Tensor or None
-            Dictionary with ``loss``, ``reconstruction_loss`` and ``kl_loss``, or
-            ``None`` if the loss is NaN (so the caller can skip the batch).
+            Dictionary with `loss`, `reconstruction_loss` and `kl_loss`, or
+            `None` if the loss is NaN (so the caller can skip the batch).
 
         Raises
         ------
@@ -237,7 +237,7 @@ class HDNModule(L.LightningModule):
         Returns
         -------
         torch.Tensor or None
-            The loss value for the current training step, or ``None`` to skip the
+            The loss value for the current training step, or `None` to skip the
             batch when the loss is NaN.
         """
         x_data = cast(torch.Tensor, batch[0].data)

@@ -37,15 +37,15 @@ class MicroSplitModule(L.LightningModule):
     channel into several target channels, built on the LVAE model. The reconstruction
     likelihood is the weighted combination configured by the loss:
 
-    - ``musplit_weight`` weights a Gaussian likelihood with a learned per-pixel
-      variance (requires ``predict_logvar=True``);
-    - ``denoisplit_weight`` weights a noise model likelihood (requires a noise model
-      and the data statistics set via ``set_data_stats``).
+    - `musplit_weight` weights a Gaussian likelihood with a learned per-pixel
+      variance (requires `predict_logvar=True`);
+    - `denoisplit_weight` weights a noise model likelihood (requires a noise model
+      and the data statistics set via `set_data_stats`).
 
     Parameters
     ----------
     algorithm_config : VAEBasedAlgorithm or dict
-        Configuration for the MicroSplit algorithm, either as a ``VAEBasedAlgorithm``
+        Configuration for the MicroSplit algorithm, either as a `VAEBasedAlgorithm`
         instance or a dictionary.
     """
 
@@ -56,7 +56,7 @@ class MicroSplitModule(L.LightningModule):
         ----------
         algorithm_config : VAEBasedAlgorithm or dict
             Configuration for the MicroSplit algorithm, either as a
-            ``VAEBasedAlgorithm`` instance or a dictionary.
+            `VAEBasedAlgorithm` instance or a dictionary.
         """
         super().__init__()
 
@@ -118,8 +118,8 @@ class MicroSplitModule(L.LightningModule):
     ) -> None:
         """Set the per-target-channel statistics used to denormalize predictions.
 
-        Required for standalone calls to ``predict_step`` outside a Lightning trainer;
-        when running through ``Trainer.predict``, ``on_predict_start`` auto-populates
+        Required for standalone calls to `predict_step` outside a Lightning trainer;
+        when running through `Trainer.predict`, `on_predict_start` auto-populates
         these from the prediction dataset if still unset.
 
         Parameters
@@ -194,8 +194,8 @@ class MicroSplitModule(L.LightningModule):
         Returns
         -------
         dict of str to torch.Tensor or None
-            Dictionary with ``loss``, ``reconstruction_loss`` and ``kl_loss``, or
-            ``None`` if the loss is NaN (so the caller can skip the batch).
+            Dictionary with `loss`, `reconstruction_loss` and `kl_loss`, or
+            `None` if the loss is NaN (so the caller can skip the batch).
         """
         return self.loss_func(
             model_outputs=model_outputs,
@@ -244,7 +244,7 @@ class MicroSplitModule(L.LightningModule):
         Returns
         -------
         torch.Tensor or None
-            The loss value, or ``None`` to skip the batch when the loss is NaN.
+            The loss value, or `None` to skip the batch when the loss is NaN.
         """
         x_data = cast(torch.Tensor, batch[0].data)
         target = cast(torch.Tensor, batch[1].data)
@@ -319,7 +319,7 @@ class MicroSplitModule(L.LightningModule):
         -------
         ImageRegionData
             The output batch containing the reconstruction, with the channel
-            dimension of ``data_shape`` set to the number of output channels.
+            dimension of `data_shape` set to the number of output channels.
         """
         if self.target_means is None or self.target_stds is None:
             raise RuntimeError(
