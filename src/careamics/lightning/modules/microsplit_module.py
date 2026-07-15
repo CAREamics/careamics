@@ -9,10 +9,10 @@ import torch
 from torch import nn
 from torchmetrics import MetricCollection
 
-from careamics.compat.transforms.normalize import Denormalize
 from careamics.config import VAEBasedAlgorithm
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
+from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
 from careamics.losses.lvae import microsplit_loss
 from careamics.metrics import SIPSNR
 from careamics.models.lvae.noise_models import (
@@ -336,8 +336,13 @@ class MicroSplitModule(L.LightningModule):
 
         prediction = self._get_reconstruction(self.model(x_data))
 
-        denorm = Denormalize(image_means=self.target_means, image_stds=self.target_stds)
-        denormalized_output = denorm(patch=prediction.detach().cpu().numpy())
+        denorm = MeanStdNormalization(
+            input_means=self.target_means,
+            input_stds=self.target_stds,
+            target_means=self.target_means,
+            target_stds=self.target_stds,
+        )
+        denormalized_output = denorm.denormalize(prediction).detach().cpu().numpy()
 
         output_channels = self.config.model.output_channels
         output_data_shape = list(x.data_shape)

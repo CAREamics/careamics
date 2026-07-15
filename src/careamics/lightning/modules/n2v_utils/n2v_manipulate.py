@@ -5,14 +5,13 @@ from typing import Any
 import torch
 
 from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
-from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
+from careamics.config.support import SupportedPixelManipulation
 from careamics.utils.get_device import get_device
 
 from .pixel_manipulation import (
     median_manipulate,
     uniform_manipulate,
 )
-from .struct_mask_parameters import StructMaskParameters
 
 
 class N2VManipulate:
@@ -61,19 +60,7 @@ class N2VManipulate:
         self.masked_pixel_percentage = n2v_manipulate_config.masked_pixel_percentage
         self.roi_size = n2v_manipulate_config.roi_size
         self.strategy = n2v_manipulate_config.strategy
-
-        if n2v_manipulate_config.struct_mask_axis == SupportedStructAxis.NONE:
-            self.struct_mask: StructMaskParameters | None = None
-        else:
-            self.struct_mask = StructMaskParameters(
-                axis=(
-                    0
-                    if n2v_manipulate_config.struct_mask_axis
-                    == SupportedStructAxis.HORIZONTAL
-                    else 1
-                ),
-                span=n2v_manipulate_config.struct_mask_span,
-            )
+        self.struct_mask = n2v_manipulate_config.struct_mask
 
         # PyTorch random generator
         if device is None:
