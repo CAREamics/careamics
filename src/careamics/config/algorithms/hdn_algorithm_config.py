@@ -38,6 +38,7 @@ class HDNAlgorithm(VAEBasedAlgorithm):
 
     is_supervised: bool = False
 
+    # overwrite VAE config default optimizer
     optimizer: OptimizerConfig = OptimizerConfig(name="Adamax")
 
     def get_algorithm_friendly_name(self) -> str:
