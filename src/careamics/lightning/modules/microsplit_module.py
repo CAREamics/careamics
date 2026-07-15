@@ -246,8 +246,11 @@ class MicroSplitModule(L.LightningModule):
         torch.Tensor or None
             The loss value, or `None` to skip the batch when the loss is NaN.
         """
-        x_data = cast(torch.Tensor, batch[0].data)
-        target = cast(torch.Tensor, batch[1].data)
+        x_data = batch[0].data
+        target = batch[1].data
+        # batch data has been collated into tensors by the DataLoader
+        assert isinstance(x_data, torch.Tensor)
+        assert isinstance(target, torch.Tensor)
 
         model_outputs = self.model(x_data)
         loss = self._compute_loss(model_outputs, target)
@@ -276,8 +279,11 @@ class MicroSplitModule(L.LightningModule):
         batch_idx : int
             The index of the current batch in the validation loop.
         """
-        x_data = cast(torch.Tensor, batch[0].data)
-        target = cast(torch.Tensor, batch[1].data)
+        x_data = batch[0].data
+        target = batch[1].data
+        # batch data has been collated into tensors by the DataLoader
+        assert isinstance(x_data, torch.Tensor)
+        assert isinstance(target, torch.Tensor)
 
         model_outputs = self.model(x_data)
         val_loss = self._compute_loss(model_outputs, target)
@@ -328,7 +334,9 @@ class MicroSplitModule(L.LightningModule):
                 "dataset that exposes target statistics."
             )
         x = batch[0]
-        x_data = cast(torch.Tensor, x.data)
+        x_data = x.data
+        # batch data has been collated into a tensor by the DataLoader
+        assert isinstance(x_data, torch.Tensor)
 
         # reconfigure the model for the current input spatial size
         n_spatial_dims = x_data.dim() - 2

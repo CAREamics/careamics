@@ -168,7 +168,10 @@ class HDNModule(L.LightningModule):
         if not self.config.is_supervised:
             return x_data
         supervised_batch = cast("tuple[ImageRegionData, ImageRegionData]", batch)
-        return cast(torch.Tensor, supervised_batch[1].data)
+        target_data = supervised_batch[1].data
+        # batch data has been collated into a tensor by the DataLoader
+        assert isinstance(target_data, torch.Tensor)
+        return target_data
 
     def _compute_loss(
         self, model_outputs: tuple[torch.Tensor, dict[str, Any]], target: torch.Tensor
@@ -252,7 +255,9 @@ class HDNModule(L.LightningModule):
             The loss value for the current training step, or `None` to skip the
             batch when the loss is NaN.
         """
-        x_data = cast(torch.Tensor, batch[0].data)
+        x_data = batch[0].data
+        # batch data has been collated into a tensor by the DataLoader
+        assert isinstance(x_data, torch.Tensor)
         target = self._get_target(batch, x_data)
 
         model_outputs = self.model(x_data)
@@ -283,7 +288,9 @@ class HDNModule(L.LightningModule):
         batch_idx : int
             The index of the current batch in the validation loop.
         """
-        x_data = cast(torch.Tensor, batch[0].data)
+        x_data = batch[0].data
+        # batch data has been collated into a tensor by the DataLoader
+        assert isinstance(x_data, torch.Tensor)
         target = self._get_target(batch, x_data)
 
         model_outputs = self.model(x_data)
@@ -316,7 +323,9 @@ class HDNModule(L.LightningModule):
             The output batch containing the reconstruction.
         """
         x = batch[0]
-        x_data = cast(torch.Tensor, x.data)
+        x_data = x.data
+        # batch data has been collated into a tensor by the DataLoader
+        assert isinstance(x_data, torch.Tensor)
 
         # reconfigure the model for the current input spatial size
         self.model.reset_for_inference(x_data.shape[-2:])
