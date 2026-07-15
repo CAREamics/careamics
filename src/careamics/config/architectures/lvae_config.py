@@ -261,3 +261,16 @@ class LVAEConfig(ArchitectureConfig):
             Whether the model is 3D or not.
         """
         return len(self.input_shape) == 3
+
+    def uses_batch_norm(self) -> bool:
+        """
+        Return whether the model uses batch normalization.
+
+        LVAE models do not use batch normalization.
+
+        Returns
+        -------
+        bool
+            Always ``False``.
+        """
+        return False
