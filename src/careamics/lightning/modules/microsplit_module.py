@@ -1,9 +1,7 @@
 """MicroSplit Lightning module."""
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
-import numpy as np
 import pytorch_lightning as L
 import torch
 from torch import nn
@@ -12,7 +10,6 @@ from torchmetrics import MetricCollection
 from careamics.config import VAEBasedAlgorithm
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
-from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
 from careamics.losses.lvae import microsplit_loss
 from careamics.metrics import SIPSNR
 from careamics.models.lvae.noise_models import (
@@ -84,11 +81,6 @@ class MicroSplitModule(L.LightningModule):
         self.data_mean: Any = None
         self.data_std: Any = None
 
-        # per-target-channel statistics used to denormalize predictions, set via
-        # `set_target_stats` or auto-populated in `on_predict_start`
-        self.target_means: list[float] | None = None
-        self.target_stds: list[float] | None = None
-
         self.metrics: MetricCollection = MetricCollection(
             {
                 f"SIPSNR_{i}": SIPSNR(
@@ -112,25 +104,6 @@ class MicroSplitModule(L.LightningModule):
         """
         self.data_mean = data_mean
         self.data_std = data_std
-
-    def set_target_stats(
-        self, target_means: Sequence[float], target_stds: Sequence[float]
-    ) -> None:
-        """Set the per-target-channel statistics used to denormalize predictions.
-
-        Required for standalone calls to `predict_step` outside a Lightning trainer;
-        when running through `Trainer.predict`, `on_predict_start` auto-populates
-        these from the prediction dataset if still unset.
-
-        Parameters
-        ----------
-        target_means : Sequence[float]
-            Per-target-channel means in target space.
-        target_stds : Sequence[float]
-            Per-target-channel standard deviations in target space.
-        """
-        self.target_means = np.atleast_1d(np.asarray(target_means)).tolist()
-        self.target_stds = np.atleast_1d(np.asarray(target_stds)).tolist()
 
     def on_fit_start(self) -> None:
         """Validate the supervised-training and noise model requirements.
@@ -296,16 +269,6 @@ class MicroSplitModule(L.LightningModule):
             self, val_loss["loss"], batch_size=x_data.shape[0], metrics=self.metrics
         )
 
-    def on_predict_start(self) -> None:
-        """Auto-populate target denormalization stats from the trainer if unset."""
-        if self.target_means is not None and self.target_stds is not None:
-            return
-        assert self._trainer is not None
-        predict_dataset = self._trainer.datamodule.predict_dataset  # type: ignore[union-attr]
-        normalization = predict_dataset.normalization
-        if normalization.target_means is not None:
-            self.set_target_stats(normalization.target_means, normalization.target_stds)
-
     def predict_step(
         self, batch: tuple[ImageRegionData, ...], batch_idx: int
     ) -> ImageRegionData:
@@ -327,12 +290,6 @@ class MicroSplitModule(L.LightningModule):
             The output batch containing the reconstruction, with the channel
             dimension of `data_shape` set to the number of output channels.
         """
-        if self.target_means is None or self.target_stds is None:
-            raise RuntimeError(
-                "Target denormalization statistics are not set. Call "
-                "`set_target_stats` or run via `Trainer.predict` with a prediction "
-                "dataset that exposes target statistics."
-            )
         x = batch[0]
         x_data = x.data
         # batch data has been collated into a tensor by the DataLoader
@@ -344,13 +301,12 @@ class MicroSplitModule(L.LightningModule):
 
         prediction = self._get_reconstruction(self.model(x_data))
 
-        denorm = MeanStdNormalization(
-            input_means=self.target_means,
-            input_stds=self.target_stds,
-            target_means=self.target_means,
-            target_stds=self.target_stds,
+        # denormalize into target space using the prediction dataset's normalization
+        # (uses target statistics when available), consistent with the other modules
+        normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
+        denormalized_output = (
+            normalization.denormalize(prediction).detach().cpu().numpy()
         )
-        denormalized_output = denorm.denormalize(prediction).detach().cpu().numpy()
 
         output_channels = self.config.model.output_channels
         output_data_shape = list(x.data_shape)
