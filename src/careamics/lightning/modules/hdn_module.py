@@ -104,15 +104,27 @@ class HDNModule(L.LightningModule):
         )
 
     def on_fit_start(self) -> None:
-        """On fit start hook for HDN module."""
+        """On fit start hook for HDN module.
+
+        Raises
+        ------
+        TypeError
+            If a noise model is used with a normalization other than
+            `MeanStdNormalization`.
+        """
         if self.noise_model is None:
             return
         assert self._trainer is not None
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
-        normalization = cast(
-            MeanStdNormalization,
-            datamodule.train_dataset.normalization,  # type: ignore[union-attr]
-        )
+        # The noise model likelihood is parameterized in mean/std space, so the noise
+        # model path requires zero-mean/unit-variance normalization to recover the
+        # data statistics; other normalizations do not expose input means/stds.
+        normalization = datamodule.train_dataset.normalization  # type: ignore[union-attr]
+        if not isinstance(normalization, MeanStdNormalization):
+            raise TypeError(
+                "HDN with a noise model requires MeanStdNormalization to recover the "
+                f"data statistics, but got {type(normalization).__name__}."
+            )
         self.data_mean = float(normalization.input_means[0])
         self.data_std = float(normalization.input_stds[0])
 
