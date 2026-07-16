@@ -163,7 +163,7 @@ def create_advanced_microsplit_config(
     model_params : dict or None, default=None
         LVAE model parameters overriding the MicroSplit defaults (`z_dims=[128, 128]`,
         `encoder_n_filters=32`, `decoder_n_filters=32`, `encoder_dropout=0.1`,
-        `decoder_dropout=0.1`, `analytical_kl=False`). Structural parameters
+        `decoder_dropout=0.1`). Structural parameters
         (`architecture`, `input_shape`, `output_channels`, `multiscale_count`,
         `encoder_conv_strides`, `decoder_conv_strides`, `predict_logvar`) are set from
         the dedicated arguments and cannot be overridden here.
@@ -236,7 +236,6 @@ def create_advanced_microsplit_config(
         "decoder_n_filters": 32,
         "encoder_dropout": 0.1,
         "decoder_dropout": 0.1,
-        "analytical_kl": False,
         **(model_params or {}),
         "architecture": "LVAE",
         "input_shape": tuple(patch_size),
