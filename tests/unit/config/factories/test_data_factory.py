@@ -87,7 +87,7 @@ class TestDataConfiguration:
         assert config.train_dataloader_params["shuffle"]
 
     def test_default_patching(self):
-        """Test that the default patching strategy is random."""
+        """Test that the default patching strategy is stratified."""
         config: DataConfig = create_data_configuration(
             data_type="array",
             axes="YX",
