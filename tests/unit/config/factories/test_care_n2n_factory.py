@@ -20,6 +20,9 @@ VALID_CASES = [
     ("YX", "CYX", None, 1, 2, (1, 2)),
     ("YX", "CYX", None, None, 2, (1, 2)),
     ("CYX", "YX", None, 2, 1, (2, 1)),
+    ("CYX", "YXC", None, 2, 1, (2, 1)),
+    ("CYX", "YXC", None, 1, 2, (1, 2)),
+    ("CYX", "YXC", None, 2, 3, (2, 3)),
 ]
 
 INVALID_CASES = [
@@ -66,6 +69,14 @@ INVALID_CASES = [
     ),
     (
         "YX",
+        None,
+        None,
+        1,
+        2,
+        "`target_axes` must be specified",
+    ),
+    (
+        "CYX",
         None,
         None,
         1,
