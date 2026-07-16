@@ -89,6 +89,20 @@ class ZarrTileWriteStrategy(WriteStrategy):
         self.current_group: zarr.Group | None = None
         self.current_array: zarr.Array | None = None
 
+    def set_source_base(self, source_base: Path | None) -> None:
+        """
+        Set the common parent directory of the sources (no-op for zarr output).
+
+        This strategy writes all predictions into a single zarr store rather than as
+        individual files, so there is no per-source directory structure to preserve
+        and `source_base` is ignored.
+
+        Parameters
+        ----------
+        source_base : pathlib.Path or None
+            Common parent of all prediction sources; ignored by this strategy.
+        """
+
     def _create_zarr(self, store: str | Path) -> None:
         """Create a new zarr storage.
 
