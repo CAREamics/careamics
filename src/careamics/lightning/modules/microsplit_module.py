@@ -10,6 +10,7 @@ from torchmetrics import MetricCollection
 from careamics.config import VAEBasedAlgorithm
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
+from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
 from careamics.losses.lvae import microsplit_loss
 from careamics.metrics import SIPSNR
 from careamics.models.lvae.noise_models import (
@@ -37,7 +38,7 @@ class MicroSplitModule(L.LightningModule):
     - `musplit_weight` weights a Gaussian likelihood with a learned per-pixel
       variance (requires `predict_logvar=True`);
     - `denoisplit_weight` weights a noise model likelihood (requires a noise model
-      and the data statistics set via `set_data_stats`).
+      and `MeanStdNormalization`, whose statistics parameterize the likelihood).
 
     Parameters
     ----------
@@ -76,8 +77,8 @@ class MicroSplitModule(L.LightningModule):
         )
         self.predict_logvar: bool = self.config.model.predict_logvar
 
-        # data statistics used by the noise model likelihood, set via `set_data_stats`
-        # (e.g. by `DataStatsCallback`) before training
+        # data statistics used by the noise model likelihood, read from the training
+        # dataset normalization in `on_fit_start`
         self.data_mean: Any = None
         self.data_std: Any = None
 
@@ -92,27 +93,21 @@ class MicroSplitModule(L.LightningModule):
             }
         )
 
-    def set_data_stats(self, data_mean: Any, data_std: Any) -> None:
-        """Set the data statistics used by the noise model likelihood.
-
-        Parameters
-        ----------
-        data_mean : Any
-            Mean of the data (scalar or per-channel).
-        data_std : Any
-            Standard deviation of the data (scalar or per-channel).
-        """
-        self.data_mean = data_mean
-        self.data_std = data_std
-
     def on_fit_start(self) -> None:
         """Validate the supervised-training and noise model requirements.
+
+        When the noise model likelihood is used, the data statistics parameterizing
+        it are read from the training dataset normalization, which must therefore be
+        `MeanStdNormalization`.
 
         Raises
         ------
         ValueError
             If target data is missing (MicroSplit is supervised), or if the noise
-            model likelihood is used without a noise model or its data statistics.
+            model likelihood is used without a noise model.
+        TypeError
+            If the noise model likelihood is used with a normalization other than
+            `MeanStdNormalization`.
         """
         assert self._trainer is not None
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
@@ -128,14 +123,26 @@ class MicroSplitModule(L.LightningModule):
             raise ValueError(
                 "MicroSplit is supervised: `val_data_target` must be provided."
             )
-        if self.config.loss.denoisplit_weight > 0 and (
-            self.noise_model is None or self.data_mean is None or self.data_std is None
-        ):
-            raise ValueError(
-                "The noise model likelihood (denoisplit_weight > 0) requires a noise "
-                "model and data statistics. Provide a noise model in the config and "
-                "call `set_data_stats` (e.g. via `DataStatsCallback`) before training."
-            )
+        if self.config.loss.denoisplit_weight > 0:
+            if self.noise_model is None:
+                raise ValueError(
+                    "The noise model likelihood (denoisplit_weight > 0) requires a "
+                    "noise model. Provide one in the configuration."
+                )
+            # the noise model likelihood is parameterized in target mean/std space, so
+            # the data statistics are recovered from the training normalization
+            normalization = datamodule.train_dataset.normalization  # type: ignore[union-attr]
+            if not isinstance(normalization, MeanStdNormalization):
+                raise TypeError(
+                    "MicroSplit with a noise model requires MeanStdNormalization to "
+                    f"recover the data statistics, but got "
+                    f"{type(normalization).__name__}."
+                )
+            # target statistics when supervised, input statistics otherwise
+            means = normalization.target_means or normalization.input_means
+            stds = normalization.target_stds or normalization.input_stds
+            self.data_mean = float(means[0])
+            self.data_std = float(stds[0])
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.
