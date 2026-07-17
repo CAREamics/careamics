@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm
 from careamics.config.configuration import Configuration
+from careamics.utils import get_logger
 
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import (
@@ -13,6 +14,8 @@ from .data_factory import (
 )
 from .factory_utils import assemble_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
+
+logger = get_logger("CARE/N2N configuration factory")
 
 
 def _validate_channel_dim(
@@ -29,7 +32,9 @@ def _validate_channel_dim(
     axes : str
         Axes of the data (e.g. SYX).
     target_axes : str or None
-        Axes of the target data. Required when the output has more than one channel.
+        Axes of the target data. If unspecified, it will be made equal to `axes`. It
+        must be specified when the number of output channels is greater than 1 and
+        `axes` does not include 'C'.
     channels : Sequence[int] or None
         Indices of the channels to use.
     n_channels_in : int or None
@@ -45,7 +50,8 @@ def _validate_channel_dim(
         Adjusted number of output channels.
     """
     channels_present = "C" in axes
-    target_channels_present = target_axes is not None and "C" in target_axes
+    resolved_target_axes = target_axes if target_axes is not None else axes
+    target_channels_present = "C" in resolved_target_axes
 
     if channels is not None and len(channels) == 0:
         raise ValueError("`channels` cannot not be empty.")
@@ -83,22 +89,20 @@ def _validate_channel_dim(
         n_channels_out if n_channels_out is not None else resolved_n_channels_in
     )
 
-    if (
-        resolved_n_channels_out > 1
-        and resolved_n_channels_in != resolved_n_channels_out
-    ):
-        if target_axes is None:
-            raise ValueError(
-                "`target_axes` must be specified when the number of output channels "
-                f"is greater than 1 (got {resolved_n_channels_out}) and different "
-                f"from the number of input channels ({resolved_n_channels_in})."
-            )
-        if not target_channels_present:
-            raise ValueError(
-                "`target_axes` must include 'C' when the number of output channels "
-                f"is greater than 1 (got {resolved_n_channels_out}) and different "
-                f"from the number of input channels ({resolved_n_channels_in})."
-            )
+    if not target_channels_present and resolved_n_channels_out > 1:
+        raise ValueError(
+            f"Number of output channels is greater than 1 (got "
+            f"{resolved_n_channels_out}), but `target_axes` does not include 'C' "
+            f"(got {target_axes}). Please specify `target_axes` with 'C' to indicate "
+            f"the channel dimension in the target data."
+        )
+
+    if target_axes is None and target_channels_present:
+        logger.warning(
+            "Target axes have been inferred from input `axes`. Make sure that the "
+            "target data has the axes in the same order as the input, otherwise "
+            "silent failure may occur (e.g. empty target patches during training)."
+        )
 
     return resolved_n_channels_in, resolved_n_channels_out
 
