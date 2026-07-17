@@ -60,6 +60,9 @@ def test_setup_prediction_directory_creation(
     Test prediction directory is created when `setup` is called at `stage="predict"`.
     """
     trainer = mocker.Mock(spec=Trainer)
+    # `setup` reads `trainer.datamodule` to preserve the source directory structure;
+    # None mimics predicting from raw dataloaders (no datamodule provided)
+    trainer.datamodule = None
     pl_module = mocker.Mock(spec=LightningModule)
     stage = "predict"
 
