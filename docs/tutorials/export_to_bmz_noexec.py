@@ -50,8 +50,13 @@ careamist.export_to_bmz(
 # %%
 # --8<-- [start:authors]
 authors = [
-    {"name": "Jane Doe", "affiliation": "My Institute", "github_user": "janedoe"},
-    {"name": "John Smith", "affiliation": "My Institute"},
+    {
+        "name": "Harry Potter",
+        "affiliation": "Hogwarts",
+        "github_user": "theboywholived",
+        "orcid": "0000-0002-1825-0097",  # (1)!
+    },
+    {"name": "Albus Dumbledore", "affiliation": "Hogwarts"},
 ]
 # --8<-- [end:authors]
 

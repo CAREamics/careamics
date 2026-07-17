@@ -28,12 +28,16 @@ underscores and parentheses.
 
 ## Describing the authors
 
-Authors are provided as a list of dictionaries. Only `name` is required; `affiliation`
-and `github_user` are optional but recommended when publishing to the Zoo.
+Authors are provided as a list of dictionaries. Only `name` is required; `affiliation`,
+`email`, `github_user` and `orcid` are all optional, but are recommended when publishing
+to the Zoo.
 
 ```python title="Authors"
 --8<-- "tutorials/export_to_bmz_noexec.py:authors"
 ```
+
+1. The ORCID must be a valid [ORCID](https://orcid.org/) identifier, it is validated on
+   export.
 
 ## A complete export
 
@@ -62,10 +66,11 @@ The generated `.zip` bundles everything needed to reproduce and run the model:
 
 ## Model validation
 
-Before writing the archive, CAREamics validates the model description by running the
-example input through the exported weights and checking the output against the stored
-example. If this test fails, `export_to_bmz` raises a `ValueError` and no archive is
-written. A passing export prints `Model description test passed.`
+Before writing the archive, CAREamics validates the model description by running
+`test_model` from `bioimageio.core`, which runs the example input through the exported
+weights and checks the output against the stored example. If this test fails,
+`export_to_bmz` raises a `ValueError` and no archive is written. A passing export prints
+`Model description test passed.`
 
 !!! note "Dependencies"
 
