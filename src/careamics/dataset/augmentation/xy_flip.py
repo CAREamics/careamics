@@ -13,17 +13,6 @@ class XYFlip(Transform):
 
     This transform expects C(Z)YX dimensions.
 
-    Attributes
-    ----------
-    axis_indices : List[int]
-        Indices of the axes that can be flipped.
-    rng : np.random.Generator
-        Random number generator.
-    p : float
-        Probability of applying the transform.
-    seed : Optional[int]
-        Random seed.
-
     Parameters
     ----------
     flip_x : bool, optional
@@ -34,6 +23,17 @@ class XYFlip(Transform):
         Probability of applying the transform, by default 0.5.
     seed : Optional[int], optional
         Random seed, by default None.
+
+    Attributes
+    ----------
+    axis_indices : List[int]
+        Indices of the axes that can be flipped.
+    rng : np.random.Generator
+        Random number generator.
+    p : float
+        Probability of applying the transform.
+    seed : Optional[int]
+        Random seed.
     """
 
     def __init__(

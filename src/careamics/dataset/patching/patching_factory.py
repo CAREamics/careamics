@@ -31,7 +31,13 @@ def create_patching(
     Patching
         An instance of the specified patching.
     """
-    patch_class = None
+    patch_class: type[
+        RandomPatching
+        | StratifiedPatching
+        | FixedRandomPatching
+        | TiledPatching
+        | WholeSamplePatching
+    ]
     match patching_config.name:
         case SupportedPatching.RANDOM:
             patch_class = RandomPatching

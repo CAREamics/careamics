@@ -70,9 +70,9 @@ def create_val_split(
     n_selected_image_patches = np.zeros_like(n_patches_per_image)
     for _ in range(n_val_patches):
         probs = n_patches_per_image / n_patches_per_image.sum()
-        idx = rng.choice(np.arange(len(n_patches_per_image)), p=probs)
-        n_selected_image_patches[idx] += 1
-        n_patches_per_image[idx] -= 1
+        sampled_idx = rng.choice(np.arange(len(n_patches_per_image)), p=probs)
+        n_selected_image_patches[sampled_idx] += 1
+        n_patches_per_image[sampled_idx] -= 1
 
     for idx, n_patches in enumerate(n_selected_image_patches):
         data_idx, sample_idx = sample_ids[idx]
