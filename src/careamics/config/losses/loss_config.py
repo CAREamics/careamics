@@ -5,21 +5,6 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 
-class KLLossConfig(BaseModel):
-    """KL loss configuration.
-
-    Note: KL annealing (epoch-dependent kl_weight ramping) was intentionally
-    removed in the microsplit refactor. The kl_weight in LVAELossConfig is now
-    applied directly without epoch-dependent scaling. With the legacy default
-    annealing=False this is behaviorally identical.
-    """
-
-    model_config = ConfigDict(validate_assignment=True, validate_default=True)
-
-    current_epoch: int = 0
-    """Current epoch in the training loop."""
-
-
 class LVAELossConfig(BaseModel):
     """LVAE loss configuration."""
 
@@ -47,5 +32,3 @@ class LVAELossConfig(BaseModel):
     """Whether to predict log-variance (pixelwise uncertainty)."""
     logvar_lowerbound: float | None = -5.0
     """Lower bound for predicted log-variance. None means no bound."""
-    kl_params: KLLossConfig = KLLossConfig()
-    """KL loss configuration."""

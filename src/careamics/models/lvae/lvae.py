@@ -53,8 +53,10 @@ class LadderVAE(nn.Module):
         The nonlinearity function to use.
     predict_logvar : bool
         Whether to predict the log variance.
-    analytical_kl : bool
-        Whether to use analytical KL divergence.
+    encoder_blocks_per_layer : int
+        The number of residual blocks per encoder layer.
+    decoder_blocks_per_layer : int
+        The number of residual blocks per decoder layer.
 
     Raises
     ------
@@ -76,7 +78,8 @@ class LadderVAE(nn.Module):
         decoder_dropout: float,
         nonlinearity: str,
         predict_logvar: bool,
-        analytical_kl: bool,
+        encoder_blocks_per_layer: int = 1,
+        decoder_blocks_per_layer: int = 1,
     ):
         super().__init__()
 
@@ -97,14 +100,13 @@ class LadderVAE(nn.Module):
         self.decoder_dropout = decoder_dropout
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
-        self.analytical_kl = analytical_kl
         # -------------------------------------------------------
 
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
         self.model_type = ModelType.LadderVae  # TODO remove !
-        self.encoder_blocks_per_layer = 1
-        self.decoder_blocks_per_layer = 1
+        self.encoder_blocks_per_layer = encoder_blocks_per_layer
+        self.decoder_blocks_per_layer = decoder_blocks_per_layer
         self.bottomup_batchnorm = True
         self.topdown_batchnorm = True
         self.topdown_conv2d_bias = True
@@ -115,12 +117,10 @@ class LadderVAE(nn.Module):
         self.decoder_res_block_skip_padding = False
         self.merge_type = "residual"
         self.no_initial_downscaling = True
-        self.skip_bottomk_buvalues = 0
         self.stochastic_skip = True
         self.learn_top_prior = True
         self.res_block_type = "bacdbacd"  # TODO remove !
         self.mode_pred = False
-        self.logvar_lowerbound = -5
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
         self._enable_topdown_normalize_factor = True
@@ -136,33 +136,12 @@ class LadderVAE(nn.Module):
         # Derived attributes
         self.n_layers = len(self.z_dims)
 
-        # Others...
-        self._tethered_to_input = False
-        self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
-        if self._tethered_to_input:
-            target_ch = 1
-            requires_grad = False
-            self._tethered_ch1_scalar = nn.Parameter(
-                torch.ones(1) * 0.5, requires_grad=requires_grad
-            )
-            self._tethered_ch2_scalar = nn.Parameter(
-                torch.ones(1) * 2.0, requires_grad=requires_grad
-            )
-        # -------------------------------------------------------
-
         # -------------------------------------------------------
         # Data attributes
         self.color_ch = 1  # TODO for now we only support 1 channel
         self.normalized_input = True
         # -------------------------------------------------------
 
-        # -------------------------------------------------------
-        # Loss attributes
-        # enabling reconstruction loss on mixed input
-        self.mixed_rec_w = 0
-        self.nbr_consistency_w = 0
-
-        # -------------------------------------------------------
         # 3D related stuff
         self._mode_3D = len(self.image_size) == 3  # TODO refac
         self._model_3D_depth = self.image_size[0] if self._mode_3D else 1
@@ -189,18 +168,6 @@ class LadderVAE(nn.Module):
         # TODO: this bit is in the Ashesh's confusing-hacky style... Can we do better?
 
         # -------------------------------------------------------
-        # # Training attributes
-        # # can be used to tile the validation predictions
-        # self._val_idx_manager = val_idx_manager
-        # self._val_frame_creator = None
-        # # initialize the learning rate scheduler params.
-        # self.lr_scheduler_monitor = self.lr_scheduler_mode = None
-        # self._init_lr_scheduler_params(config)
-        # self._global_step = 0
-        # -------------------------------------------------------
-
-        # -------------------------------------------------------
-
         # Calculate the downsampling happening in the network
         self.downsample = [1] * self.n_layers
         self.overall_downscale_factor = np.power(2, sum(self.downsample))
@@ -257,11 +224,6 @@ class LadderVAE(nn.Module):
         # PSNR computation on validation.
         # self.label1_psnr = RunningPSNR()
         # self.label2_psnr = RunningPSNR()
-        # TODO: did you add this?
-
-        # msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
-        # msg += f' TargetCh: {self.target_ch}'
-        # print(msg)
 
     ### SET OF METHODS TO CREATE MODEL BLOCKS
     def create_first_bottom_up(
@@ -436,7 +398,6 @@ class LadderVAE(nn.Module):
                     res_block_type=self.res_block_type,
                     res_block_kernel=self.decoder_res_block_kernel,
                     gated=self.gated,
-                    analytical_kl=self.analytical_kl,
                     vanilla_latent_hw=self.get_latent_spatial_size(i),
                     retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
                     input_image_shape=self.image_size,
@@ -759,8 +720,6 @@ class LadderVAE(nn.Module):
 
         # Bottom-up inference: return list of length n_layers (bottom to top)
         bu_values = self.bottomup_pass(x)
-        for i in range(0, self.skip_bottomk_buvalues):
-            bu_values[i] = None
 
         if self._squish3d:
             bu_values = [

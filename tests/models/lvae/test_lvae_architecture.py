@@ -17,7 +17,6 @@ def create_LVAE_model(
     decoder_conv_strides=(2, 2),
     multiscale_count: int = 0,
     output_channels: int = 1,
-    analytical_kl: bool = False,
     predict_logvar: bool = True,
 ) -> nn.Module:
     lvae_model_config = LVAEConfig(
@@ -29,7 +28,6 @@ def create_LVAE_model(
         multiscale_count=multiscale_count,
         output_channels=output_channels,
         predict_logvar=predict_logvar,
-        analytical_kl=analytical_kl,
     )
     return model_factory(lvae_model_config)
 
@@ -378,12 +376,10 @@ def test_top_down_pass(
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("multiscale_count", [1, 3, 5])
-@pytest.mark.parametrize("analytical_kl", [False, True])
 @pytest.mark.parametrize("batch_size", [1, 8])
 def test_KL_shape(
     img_size: int,
     multiscale_count: int,
-    analytical_kl: bool,
     batch_size: int,
     tmp_path,
     create_dummy_noise_model,
@@ -393,7 +389,6 @@ def test_KL_shape(
         create_dummy_noise_model=create_dummy_noise_model,
         input_shape=img_size,
         multiscale_count=multiscale_count,
-        analytical_kl=analytical_kl,
     )
     top_down_layers = model.top_down_layers
     final_top_down = model.final_top_down
