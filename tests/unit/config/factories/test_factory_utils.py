@@ -1,9 +1,69 @@
+from contextlib import nullcontext as does_not_raise
+
 import pytest
 
-from careamics.config.factories.factory_utils import assemble_augmentations
+from careamics.config.factories.factory_utils import (
+    assemble_augmentations,
+    validate_input_channels,
+)
 from careamics.config.support import SupportedAugmentation
 
 # --- List of parameters re-used in tests
+
+
+# --- List of test parameters
+
+VALID_CASES = [
+    # axes, channels, in_channels, error_match
+    # no channels
+    ("YX", None, None, does_not_raise()),
+    ("YX", None, 1, does_not_raise()),
+    ("YX", None, 1, does_not_raise()),
+    # with channels
+    ("CYX", [0], None, does_not_raise()),
+    ("CYX", [0], 1, does_not_raise()),
+    ("CYX", [0, 2], None, does_not_raise()),
+    ("CYX", [0, 2], 2, does_not_raise()),
+    ("CYX", None, 3, does_not_raise()),
+    ("CYX", None, 1, does_not_raise()),
+]
+
+INVALID_CASES = [
+    # axes, channels, in_channels, error_match
+    (
+        "CYX",
+        None,
+        None,
+        pytest.raises(ValueError, match="`n_channels` or `channels` must be specified"),
+    ),
+    (
+        "YX",
+        [0],
+        None,
+        pytest.raises(
+            ValueError,
+            match=("`channels` can only be specified when `axes` includes 'C'"),
+        ),
+    ),
+    (
+        "CYX",
+        [],
+        None,
+        pytest.raises(ValueError, match="`channels` cannot not be empty"),
+    ),
+    (
+        "YX",
+        None,
+        2,
+        pytest.raises(ValueError, match="C is not present in the axes"),
+    ),
+    (
+        "CYX",
+        [0, 2],
+        3,
+        pytest.raises(ValueError, match="does not match length of `channels`"),
+    ),
+]
 
 AUGS = [
     [],
@@ -20,6 +80,24 @@ SEED = [None, 42]
 
 
 # --- Unit tests
+
+
+@pytest.mark.parametrize(
+    "axes, channels, n_channels, exp_error",
+    VALID_CASES + INVALID_CASES,
+)
+def test_validate_channel_dim_invalid_cases(
+    axes: str,
+    channels: list[int] | None,
+    n_channels: int | None,
+    exp_error,
+) -> None:
+    with exp_error:
+        validate_input_channels(
+            axes=axes,
+            channels=channels,
+            n_channels=n_channels,
+        )
 
 
 @pytest.mark.parametrize("augs", AUGS)

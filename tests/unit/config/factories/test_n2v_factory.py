@@ -23,40 +23,6 @@ VALID_CH_CASES = [
     ("CYX", [0, 2], 2, 2),
 ]
 
-INVALID_CH_CASES = [
-    # axes, channels, n_channels, error_match
-    (
-        "CYX",
-        None,
-        None,
-        "`n_channels` or `channels` must be specified",
-    ),
-    (
-        "YX",
-        [0],
-        None,
-        "`channels` can only be specified when `axes` includes 'C'",
-    ),
-    (
-        "CYX",
-        [],
-        None,
-        "`channels` cannot not be empty",
-    ),
-    (
-        "YX",
-        None,
-        2,
-        "C is not present in the axes",
-    ),
-    (
-        "CYX",
-        [0, 2],
-        3,
-        "does not match length of `channels`",
-    ),
-]
-
 USE_N2V2 = [True, False]
 
 STRUCT_AXES = [a.value for a in SupportedStructAxis] + ["none"]
@@ -77,20 +43,6 @@ def test_validate_n2v_channel_dim_valid_cases(
     expected: int,
 ) -> None:
     assert _validate_n2v_channel_dim(axes, channels, n_channels) == expected
-
-
-@pytest.mark.parametrize(
-    "axes,channels,n_channels,error_match",
-    INVALID_CH_CASES,
-)
-def test_validate_n2v_channel_dim_invalid_cases(
-    axes: str,
-    channels: list[int] | None,
-    n_channels: int | None,
-    error_match: str,
-) -> None:
-    with pytest.raises(ValueError, match=error_match):
-        _validate_n2v_channel_dim(axes, channels, n_channels)
 
 
 @pytest.mark.parametrize(

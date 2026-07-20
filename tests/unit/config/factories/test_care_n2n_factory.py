@@ -30,46 +30,6 @@ VALID_CASES = [
 INVALID_CASES = [
     # axes, target_axes, channels, in_channels, out_channels, error_match
     (
-        "CYX",
-        None,
-        None,
-        None,
-        None,
-        "`n_channels_in` or `channels` must be specified",
-    ),
-    (
-        "YX",
-        None,
-        [0],
-        None,
-        None,
-        "`channels` can only be specified when `axes` includes 'C'",
-    ),
-    (
-        "CYX",
-        None,
-        [],
-        None,
-        None,
-        "`channels` cannot not be empty",
-    ),
-    (
-        "YX",
-        None,
-        None,
-        2,
-        None,
-        "C is not present in the axes",
-    ),
-    (
-        "CYX",
-        None,
-        [0, 2],
-        3,
-        None,
-        "does not match length of `channels`",
-    ),
-    (
         "YX",
         None,
         None,

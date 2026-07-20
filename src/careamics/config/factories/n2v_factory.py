@@ -17,7 +17,7 @@ from .data_factory import (
     SupportedPatchFilterConfig,
     create_data_configuration,
 )
-from .factory_utils import assemble_augmentations
+from .factory_utils import assemble_augmentations, validate_input_channels
 from .training_factory import create_training_configuration, update_trainer_params
 
 
@@ -43,30 +43,9 @@ def _validate_n2v_channel_dim(
     int
         Number of channels (in and out) to use for the model.
     """
-    channels_present = "C" in axes
-
-    if channels is not None and len(channels) == 0:
-        raise ValueError("`channels` cannot not be empty.")
-
-    if channels is not None and not channels_present:
-        raise ValueError("`channels` can only be specified when `axes` includes 'C'.")
-
-    if channels_present and (n_channels is None and channels is None):
-        raise ValueError(
-            "`n_channels` or `channels` must be specified when using channels."
-        )
-
-    if not channels_present and n_channels is not None and n_channels > 1:
-        raise ValueError(
-            f"C is not present in the axes, but number of channels is specified "
-            f"(got {n_channels} channel)."
-        )
-
-    if n_channels is not None and channels is not None and n_channels != len(channels):
-        raise ValueError(
-            f"Number of channels ({n_channels}) does not match length of "
-            f"`channels` ({len(channels)}). Only specify `channels`."
-        )
+    validate_input_channels(
+        axes=axes, channels=channels, n_channels=n_channels, attr_name="n_channels"
+    )
 
     if n_channels is None and channels is None:
         resolved_n_channels = 1

@@ -12,7 +12,7 @@ from .data_factory import (
     SupportedPatchFilterConfig,
     create_data_configuration,
 )
-from .factory_utils import assemble_augmentations
+from .factory_utils import assemble_augmentations, validate_input_channels
 from .training_factory import create_training_configuration, update_trainer_params
 
 logger = get_logger("CARE/N2N configuration factory")
@@ -51,32 +51,12 @@ def _validate_channel_dim(
     str
         Adjusted target axes.
     """
-    channels_present = "C" in axes
     resolved_target_axes = target_axes if target_axes is not None else axes
     target_channels_present = "C" in resolved_target_axes
 
-    if channels is not None and len(channels) == 0:
-        raise ValueError("`channels` cannot not be empty.")
-
-    if channels is not None and not channels_present:
-        raise ValueError("`channels` can only be specified when `axes` includes 'C'.")
-
-    if channels_present and (n_channels_in is None and channels is None):
-        raise ValueError(
-            "`n_channels_in` or `channels` must be specified when using channels."
-        )
-    elif not channels_present and (n_channels_in is not None and n_channels_in > 1):
-        raise ValueError(
-            f"C is not present in the axes, but number of input channels is specified "
-            f"(got {n_channels_in} channel)."
-        )
-
-    if n_channels_in is not None and channels is not None:
-        if n_channels_in != len(channels):
-            raise ValueError(
-                f"Number of input channels ({n_channels_in}) does not match length of "
-                f"`channels` ({len(channels)}). Only specify `channels`."
-            )
+    validate_input_channels(
+        axes=axes, channels=channels, n_channels=n_channels_in, attr_name="n_channels"
+    )
 
     # resolve number of input channels
     if n_channels_in is None and channels is None:
