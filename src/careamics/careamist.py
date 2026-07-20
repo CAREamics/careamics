@@ -976,10 +976,10 @@ class CAREamist:
         Make predictions on the provided data and save outputs to files.
 
         Predictions are saved to `prediction_dir` (absolute paths are used as-is,
-        relative paths are relative to `work_dir`). The directory structure matches
-        the source directory.
+        relative paths are relative to `work_dir`).
 
-        The file names of the predictions will match those of the source. If there is
+        The file names of the predictions will match those of the source, keeping the
+        source directory structure so identically named files do not clash. If there is
         more than one sample within a file, the samples will be stacked along the sample
         dimension in the output file.
 
