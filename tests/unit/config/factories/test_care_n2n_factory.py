@@ -7,23 +7,24 @@ from careamics.config.factories.care_n2n_factory import _validate_channel_dim
 VALID_CASES = [
     # axes, target_axes, channels, in_channels, out_channels, expected
     # no channels
-    ("YX", None, None, None, None, (1, 1)),
-    ("YX", None, None, 1, None, (1, 1)),
-    ("YX", None, None, 1, 1, (1, 1)),
-    ("YX", None, None, None, 1, (1, 1)),
-    ("YX", "ZYX", None, None, None, (1, 1)),
+    ("YX", None, None, None, None, (1, 1, "YX")),
+    ("YX", None, None, 1, None, (1, 1, "YX")),
+    ("YX", None, None, 1, 1, (1, 1, "YX")),
+    ("YX", None, None, None, 1, (1, 1, "YX")),
+    ("YX", "ZYX", None, None, None, (1, 1, "ZYX")),
     # with channels
-    ("CYX", None, [0], None, None, (1, 1)),
-    ("CYX", None, [0, 2], None, None, (2, 2)),
-    ("CYX", None, None, 3, None, (3, 3)),
-    ("CYX", "CYX", [0, 2], 2, 4, (2, 4)),
-    ("YX", "CYX", None, 1, 2, (1, 2)),
-    ("YX", "CYX", None, None, 2, (1, 2)),
-    ("CYX", "YX", None, 2, 1, (2, 1)),
-    ("CYX", "YXC", None, 2, 1, (2, 1)),
-    ("CYX", "YXC", None, 1, 2, (1, 2)),
-    ("CYX", "YXC", None, 2, 3, (2, 3)),
-    ("CYX", None, None, 2, 3, (2, 3)),
+    ("CYX", None, [0], None, None, (1, 1, "CYX")),
+    ("CYX", None, [0, 2], None, None, (2, 2, "CYX")),
+    ("CYX", None, None, 3, None, (3, 3, "CYX")),
+    ("CYX", "CYX", [0, 2], 2, 4, (2, 4, "CYX")),
+    ("YX", "CYX", None, 1, 2, (1, 2, "CYX")),
+    ("YX", "CYX", None, None, 2, (1, 2, "CYX")),
+    ("CYX", "YX", None, 2, 1, (2, 1, "YX")),
+    ("CYX", "YX", None, 2, None, (2, 1, "YX")),
+    ("CYX", "YXC", None, 2, 1, (2, 1, "YXC")),
+    ("CYX", "YXC", None, 1, 2, (1, 2, "YXC")),
+    ("CYX", "YXC", None, 2, 3, (2, 3, "YXC")),
+    ("CYX", None, None, 2, 3, (2, 3, "CYX")),
 ]
 
 INVALID_CASES = [

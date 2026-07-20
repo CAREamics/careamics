@@ -24,7 +24,7 @@ def _validate_channel_dim(
     channels: Sequence[int] | None,
     n_channels_in: int | None,
     n_channels_out: int | None,
-) -> tuple[int, int]:
+) -> tuple[int, int, str]:
     """Validate channel dimensions and adjust model input and output channel numbers.
 
     Parameters
@@ -48,6 +48,8 @@ def _validate_channel_dim(
         Adjusted number of input channels.
     int
         Adjusted number of output channels.
+    str
+        Adjusted target axes.
     """
     channels_present = "C" in axes
     resolved_target_axes = target_axes if target_axes is not None else axes
@@ -86,7 +88,14 @@ def _validate_channel_dim(
         resolved_n_channels_in = len(channels)
 
     resolved_n_channels_out = (
-        n_channels_out if n_channels_out is not None else resolved_n_channels_in
+        n_channels_out
+        if n_channels_out is not None
+        else (
+            # if target axes has channels, default to input channels, otherwise 1
+            resolved_n_channels_in
+            if target_channels_present
+            else 1
+        )
     )
 
     if not target_channels_present and resolved_n_channels_out > 1:
@@ -99,12 +108,13 @@ def _validate_channel_dim(
 
     if target_axes is None and target_channels_present:
         logger.warning(
+            "Warning, in CARE/N2N configuration: "
             "Target axes have been inferred from input `axes`. Make sure that the "
             "target data has the axes in the same order as the input, otherwise "
             "silent failure may occur (e.g. empty target patches during training)."
         )
 
-    return resolved_n_channels_in, resolved_n_channels_out
+    return resolved_n_channels_in, resolved_n_channels_out, resolved_target_axes
 
 
 def create_care_config(
@@ -167,10 +177,16 @@ def create_care_config(
         parameter will be ignored if separate validation data is specified for training.
     n_channels_in : int or None, default=None
         Number of input channels.
-    n_channels_out : int or None, default=None
-        Number of output channels.
+    n_channels_out : int | None, default=None
+        Number of output channels. If not specified, it will default to `n_channels_in`
+        if the latter is specified and `target_axes` includes "C" (note that if
+        `target_axes` is not specified, it is assumed to be equal to `axes`), then
+        `n_channels_out` will be set to `n_channels_in`. Otherwise, it will be set to
+        1.
     target_axes : str or None, default=None
-        Axes of target data. Required when the output has more than one channel.
+        Axes of target data. Required when the output has more than one channel, unless
+        `axes` includes "C", in which case `target_axes` is assumed to be equal to
+        `axes`.
 
     Returns
     -------
@@ -240,10 +256,16 @@ def create_n2n_config(
         parameter will be ignored if separate validation data is specified for training.
     n_channels_in : int or None, default=None
         Number of input channels.
-    n_channels_out : int or None, default=None
-        Number of output channels.
+    n_channels_out : int | None, default=None
+        Number of output channels. If not specified, it will default to `n_channels_in`
+        if the latter is specified and `target_axes` includes "C" (note that if
+        `target_axes` is not specified, it is assumed to be equal to `axes`), then
+        `n_channels_out` will be set to `n_channels_in`. Otherwise, it will be set to
+        1.
     target_axes : str or None, default=None
-        Axes of target data. Required when the output has more than one channel.
+        Axes of target data. Required when the output has more than one channel, unless
+        `axes` includes "C", in which case `target_axes` is assumed to be equal to
+        `axes`.
 
     Returns
     -------
@@ -337,10 +359,15 @@ def create_advanced_care_config(
         Number of input channels. If `channels` is specified, then the number of
         channels is inferred from its length and this parameter is ignored.
     n_channels_out : int | None, default=None
-        Number of output channels. If not specified, but n_channels_in is specified,
-        it will default to the same number as n_channels_in.
+        Number of output channels. If not specified, it will default to `n_channels_in`
+        if the latter is specified and `target_axes` includes "C" (note that if
+        `target_axes` is not specified, it is assumed to be equal to `axes`), then
+        `n_channels_out` will be set to `n_channels_in`. Otherwise, it will be set to
+        1.
     target_axes : str or None, default=None
-        Axes of target data. Required when the output has more than one channel.
+        Axes of target data. Required when the output has more than one channel, unless
+        `axes` includes "C", in which case `target_axes` is assumed to be equal to
+        `axes`.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
@@ -733,7 +760,7 @@ def _create_advanced_supervised_config(
         Parameters required to instantiate a CAREamics configuration.
     """
     # if there are channels, we need to specify their number
-    n_channels_in, n_channels_out = _validate_channel_dim(
+    n_channels_in, n_channels_out, target_axes = _validate_channel_dim(
         axes, target_axes, channels, n_channels_in, n_channels_out
     )
 
