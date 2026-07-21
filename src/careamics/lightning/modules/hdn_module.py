@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torchmetrics import MetricCollection
 
-from careamics.config import VAEBasedAlgorithm
+from careamics.config import HDNAlgorithm
 from careamics.dataset import ImageRegionData
 from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
 from careamics.losses.lvae import hdn_loss
@@ -43,32 +43,32 @@ class HDNModule(L.LightningModule):
 
     Parameters
     ----------
-    algorithm_config : VAEBasedAlgorithm or dict
-        Configuration for the HDN algorithm, either as a `VAEBasedAlgorithm` instance
+    algorithm_config : HDNAlgorithm or dict
+        Configuration for the HDN algorithm, either as an `HDNAlgorithm` instance
         or a dictionary.
     """
 
-    def __init__(self, algorithm_config: VAEBasedAlgorithm | dict[str, Any]) -> None:
+    def __init__(self, algorithm_config: HDNAlgorithm | dict[str, Any]) -> None:
         """Instantiate HDNModule.
 
         Parameters
         ----------
-        algorithm_config : VAEBasedAlgorithm or dict
-            Configuration for the HDN algorithm, either as a `VAEBasedAlgorithm`
+        algorithm_config : HDNAlgorithm or dict
+            Configuration for the HDN algorithm, either as an `HDNAlgorithm`
             instance or a dictionary.
         """
         super().__init__()
 
         if isinstance(algorithm_config, dict):
-            config = VAEBasedAlgorithm(**algorithm_config)
+            config = HDNAlgorithm(**algorithm_config)
         else:
             config = algorithm_config
 
-        if not isinstance(config, VAEBasedAlgorithm):
-            raise TypeError("algorithm_config must be a VAEBasedAlgorithm")
+        if not isinstance(config, HDNAlgorithm):
+            raise TypeError("algorithm_config must be an HDNAlgorithm")
 
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
-        self.config: VAEBasedAlgorithm = config
+        self.config: HDNAlgorithm = config
 
         self.model: nn.Module = model_factory(self.config.model)
         self.loss_func = hdn_loss

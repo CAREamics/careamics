@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torchmetrics import MetricCollection
 
-from careamics.config import VAEBasedAlgorithm
+from careamics.config import MicroSplitAlgorithm
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
@@ -42,29 +42,29 @@ class MicroSplitModule(L.LightningModule):
 
     Parameters
     ----------
-    algorithm_config : VAEBasedAlgorithm or dict
-        Configuration for the MicroSplit algorithm, either as a `VAEBasedAlgorithm`
+    algorithm_config : MicroSplitAlgorithm or dict
+        Configuration for the MicroSplit algorithm, either as a `MicroSplitAlgorithm`
         instance or a dictionary.
     """
 
-    def __init__(self, algorithm_config: VAEBasedAlgorithm | dict[str, Any]) -> None:
+    def __init__(self, algorithm_config: MicroSplitAlgorithm | dict[str, Any]) -> None:
         """Instantiate MicroSplitModule.
 
         Parameters
         ----------
-        algorithm_config : VAEBasedAlgorithm or dict
+        algorithm_config : MicroSplitAlgorithm or dict
             Configuration for the MicroSplit algorithm, either as a
-            `VAEBasedAlgorithm` instance or a dictionary.
+            `MicroSplitAlgorithm` instance or a dictionary.
         """
         super().__init__()
 
         if isinstance(algorithm_config, dict):
-            config = VAEBasedAlgorithm(**algorithm_config)
+            config = MicroSplitAlgorithm(**algorithm_config)
         else:
             config = algorithm_config
 
-        if not isinstance(config, VAEBasedAlgorithm):
-            raise TypeError("algorithm_config must be a VAEBasedAlgorithm")
+        if not isinstance(config, MicroSplitAlgorithm):
+            raise TypeError("algorithm_config must be a MicroSplitAlgorithm")
 
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
