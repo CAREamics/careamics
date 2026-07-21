@@ -337,15 +337,13 @@ def create_advanced_care_config(
         Number of input channels. If `channels` is specified, then the number of
         channels is inferred from its length and this parameter is ignored.
     n_channels_out : int | None, default=None
-        Number of output channels. If not specified, it will default to `n_channels_in`
-        if the latter is specified and `target_axes` includes "C" (note that if
-        `target_axes` is not specified, it is assumed to be equal to `axes`), then
-        `n_channels_out` will be set to `n_channels_in`. Otherwise, it will be set to
-        1.
+        Number of output channels. If `target_axes` contains `C` then it will default to
+        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is 
+        `None` it will default to `axes`.
     target_axes : str or None, default=None
-        Axes of target data. Required when the output has more than one channel, unless
-        `axes` includes "C", in which case `target_axes` is assumed to be equal to
-        `axes`.
+        Axes of target data. If not specified it will default to `axes`. Pay extra
+        attention if you are training a task that has a different number of input and 
+        output channels.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
