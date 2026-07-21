@@ -350,9 +350,9 @@ The various normalizations are the following:
 
 | Method | Optional parameters|
 |----------|----------|
-| `mean_std` | `per_channel=True`, `input_means`, `input_stds`,`target_means`, `target_stds`|
-| `quantile` | `per_channel=True`, `lower_quantile=[0.01]`, `upper_quantile=[0.99]` , `input_lower_quantile_values`, `input_upper_quantile_values`, `target_lower_quantile_values`, `target_upper_quantile_values`|
-| `minmax`    | `per_channel=True`, `input_mins`, `input_maxes` , `target_mins`, `target_maxes`|
+| `mean_std` | `per_channel=True`, `skip_target=False`, `input_means`, `input_stds`,`target_means`, `target_stds`|
+| `quantile` | `per_channel=True`, `skip_target=False`, `lower_quantile=[0.01]`, `upper_quantile=[0.99]` , `input_lower_quantile_values`, `input_upper_quantile_values`, `target_lower_quantile_values`, `target_upper_quantile_values`|
+| `minmax`    | `per_channel=True`, `skip_target=False`, `input_mins`, `input_maxes` , `target_mins`, `target_maxes`|
 | `none` | No parameters |
 
 !!! note "Noise2Void and targets"
