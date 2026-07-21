@@ -163,7 +163,7 @@ def create_care_config(
         `None` it will default to `axes`.
     target_axes : str or None, default=None
         Axes of target data. If not specified it will default to `axes`. Pay extra
-        attention if you are training a task that has a different number of input and 
+        attention if you are training a task that has a different number of input and
         output channels.
 
     Returns
@@ -336,11 +336,11 @@ def create_advanced_care_config(
         channels is inferred from its length and this parameter is ignored.
     n_channels_out : int | None, default=None
         Number of output channels. If `target_axes` contains `C` then it will default to
-        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is 
+        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is
         `None` it will default to `axes`.
     target_axes : str or None, default=None
         Axes of target data. If not specified it will default to `axes`. Pay extra
-        attention if you are training a task that has a different number of input and 
+        attention if you are training a task that has a different number of input and
         output channels.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
@@ -499,11 +499,11 @@ def create_advanced_n2n_config(
         channels is inferred from its length and this parameter is ignored.
     n_channels_out : int | None, default=None
         Number of output channels. If `target_axes` contains `C` then it will default to
-        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is 
+        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is
         `None` it will default to `axes`.
     target_axes : str or None, default=None
         Axes of target data. If not specified it will default to `axes`. Pay extra
-        attention if you are training a task that has a different number of input and 
+        attention if you are training a task that has a different number of input and
         output channels.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
