@@ -35,6 +35,7 @@ def create_patching(
     Patching
         An instance of the specified patching.
     """
+    parameters = patching_config.model_dump(exclude={"name"})
     # from PEP 634, Class patterns
     # if no arguments are present, the pattern succeeds if
     # the isinstance() check succeeds.
@@ -42,27 +43,27 @@ def create_patching(
         case RandomPatchingConfig():
             return RandomPatching(
                 data_shapes=data_shapes,
-                **patching_config.model_dump(exclude={"name"}),
+                **parameters,
             )
         case StratifiedPatchingConfig():
             return StratifiedPatching(
                 data_shapes=data_shapes,
-                **patching_config.model_dump(exclude={"name"}),
+                **parameters,
             )
         case FixedRandomPatchingConfig():
             return FixedRandomPatching(
                 data_shapes=data_shapes,
-                **patching_config.model_dump(exclude={"name"}),
+                **parameters,
             )
         case TiledPatchingConfig():
             return TiledPatching(
                 data_shapes=data_shapes,
-                **patching_config.model_dump(exclude={"name"}),
+                **parameters,
             )
         case WholePatchingConfig():
             return WholeSamplePatching(
                 data_shapes=data_shapes,
-                **patching_config.model_dump(exclude={"name"}),
+                **parameters,
             )
         case _:
             raise ValueError(f"Unsupported patching: {patching_config.name}")
