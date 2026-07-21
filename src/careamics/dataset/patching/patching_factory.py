@@ -35,8 +35,6 @@ def create_patching(
     Patching
         An instance of the specified patching.
     """
-    # `name` is removed to match the class signatures; tiling requires `tile_size`
-    # instead of `patch_size`, hence the aliasing handled by the config `model_dump`.
     # from PEP 634, Class patterns
     # if no arguments are present, the pattern succeeds if
     # the isinstance() check succeeds.
