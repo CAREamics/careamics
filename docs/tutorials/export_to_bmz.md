@@ -15,7 +15,7 @@ an example input array and some metadata describing the model and the data it wa
 on.
 
 ```python title="Minimal BMZ export"
---8<-- "tutorials/export_to_bmz_noexec.py:export_min"
+--8<-- "tutorials/export_to_bmz.py:export_min"
 ```
 
 1. The input array must have the same axes as recorded in the `CAREamist` configuration
@@ -33,7 +33,7 @@ Authors are provided as a list of dictionaries. Only `name` is required; `affili
 to the Zoo.
 
 ```python title="Authors"
---8<-- "tutorials/export_to_bmz_noexec.py:authors"
+--8<-- "tutorials/export_to_bmz.py:authors"
 ```
 
 1. The ORCID must be a valid [ORCID](https://orcid.org/) identifier, it is validated on
@@ -48,7 +48,7 @@ Two further optional arguments let you control how the model is presented:
 - `channel_names`: names for the model's channels.
 
 ```python title="Full BMZ export"
---8<-- "tutorials/export_to_bmz_noexec.py:export_full"
+--8<-- "tutorials/export_to_bmz.py:export_full"
 ```
 
 1. Cover images displayed on the BioImage Model Zoo website.
@@ -84,5 +84,5 @@ returns the configuration and the Lightning module. The path may also be an HTTP
 pointing to a downloadable archive.
 
 ```python title="Loading from a BMZ archive"
---8<-- "tutorials/export_to_bmz_noexec.py:load"
+--8<-- "tutorials/export_to_bmz.py:load"
 ```

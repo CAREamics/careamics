@@ -8,12 +8,7 @@ import pytest
 path_to_guides = Path(__file__).parent
 scripts = path_to_guides.rglob("*.py")
 
-# exclude all scripts that end with "errors" to keep a reference of failing examples
-# used in the documentation
-# TODO: is there a better way to show errors to not have to exclude these scripts?
-# "_noexec.py" scripts are excluded because they are too heavy to run on every test
-# pass (e.g. BioImage Model Zoo export runs a full model validation).
-exclude = ["_errors.py", "_noexec.py"]
+exclude = []  # add names to exclude, e.g. "_no_exec"
 scripts = [
     script
     for script in scripts
