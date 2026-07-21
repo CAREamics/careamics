@@ -3,8 +3,12 @@
 from collections.abc import Sequence
 
 from careamics.config.data.data_config import PatchingConfig
-from careamics.config.support.supported_patching import (
-    SupportedPatching,
+from careamics.config.data.patching_strategies import (
+    FixedRandomPatchingConfig,
+    RandomPatchingConfig,
+    StratifiedPatchingConfig,
+    TiledPatchingConfig,
+    WholePatchingConfig,
 )
 
 from .patching import Patching
@@ -31,29 +35,23 @@ def create_patching(
     Patching
         An instance of the specified patching.
     """
-    patch_class: type[
-        RandomPatching
-        | StratifiedPatching
-        | FixedRandomPatching
-        | TiledPatching
-        | WholeSamplePatching
-    ]
-    match patching_config.name:
-        case SupportedPatching.RANDOM:
-            patch_class = RandomPatching
-        case SupportedPatching.STRATIFIED:
-            patch_class = StratifiedPatching
-        case SupportedPatching.FIXED_RANDOM:
-            patch_class = FixedRandomPatching
-        case SupportedPatching.TILED:
-            patch_class = TiledPatching
-        case SupportedPatching.WHOLE:
-            patch_class = WholeSamplePatching
+    # `name` is removed to match the class signatures; tiling requires `tile_size`
+    # instead of `patch_size`, hence the aliasing handled by the config `model_dump`.
+    params = patching_config.model_dump(exclude={"name"})
+
+    # from PEP 634, Class patterns
+    # if no arguments are present, the pattern succeeds if
+    # the isinstance() check succeeds.
+    match patching_config:
+        case RandomPatchingConfig():
+            return RandomPatching(data_shapes=data_shapes, **params)
+        case StratifiedPatchingConfig():
+            return StratifiedPatching(data_shapes=data_shapes, **params)
+        case FixedRandomPatchingConfig():
+            return FixedRandomPatching(data_shapes=data_shapes, **params)
+        case TiledPatchingConfig():
+            return TiledPatching(data_shapes=data_shapes, **params)
+        case WholePatchingConfig():
+            return WholeSamplePatching(data_shapes=data_shapes, **params)
         case _:
             raise ValueError(f"Unsupported patching: {patching_config.name}")
-
-    # remove `name` to match the class signatures
-    # tiling requires `tile_size` instead of `patch_size`, hence the aliasing
-    return patch_class(
-        data_shapes=data_shapes, **patching_config.model_dump(exclude={"name"})
-    )
