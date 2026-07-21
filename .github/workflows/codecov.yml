@@ -44,7 +44,6 @@ jobs:
         run: uv run pytest --color=yes --cov --cov-config=pyproject.toml --cov-report=xml --cov-report=term-missing 
 
       - name: Coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          version: v0.7.3
