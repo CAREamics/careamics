@@ -162,9 +162,9 @@ def create_care_config(
         `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is 
         `None` it will default to `axes`.
     target_axes : str or None, default=None
-        Axes of target data. Required when the output has more than one channel, unless
-        `axes` includes "C", in which case `target_axes` is assumed to be equal to
-        `axes`.
+        Axes of target data. If not specified it will default to `axes`. Pay extra
+        attention if you are training a task that has a different number of input and 
+        output channels.
 
     Returns
     -------
