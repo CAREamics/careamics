@@ -1,5 +1,6 @@
 """Pydantic models for normalization strategies."""
 
+import warnings
 from typing import Annotated, Any, Literal, Self, Union
 
 from pydantic import (
@@ -84,6 +85,12 @@ class MeanStdConfig(BaseModel):
     ----------
     name : Literal["mean_std"]
         Identifier for the mean-std normalization scheme.
+    per_channel : bool
+        When True (default), statistics are computed independently for each
+        channel. When False, a single statistic is computed across all channels.
+    skip_target : bool
+        When True, target normalization is skipped and target statistics are
+        not computed. Default is False.
     input_means : float | list[float] | None
         Means for input normalization. None for automatic computation.
     input_stds : float | list[float] | None
@@ -94,15 +101,13 @@ class MeanStdConfig(BaseModel):
     target_stds : float | list[float] | None
         Standard deviations for target normalization. None for automatic
         computation.
-    per_channel : bool
-        When True (default), statistics are computed independently for each
-        channel. When False, a single statistic is computed across all channels.
     """
 
     model_config = ConfigDict(validate_assignment=True)
 
     name: Literal["mean_std"] = "mean_std"
     per_channel: bool = True
+    skip_target: bool = False
     input_means: OptionalFloatStats = None
     input_stds: OptionalFloatStats = None
     target_means: OptionalFloatStats = None
@@ -166,6 +171,25 @@ class MeanStdConfig(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def warn_targets_not_applicable(self: Self) -> Self:
+        """Warn users when target statistics are provided but skip_target is True.
+
+        Returns
+        -------
+        Self
+            The validated model instance.
+        """
+        if self.skip_target:
+            if self.target_means is not None or self.target_stds is not None:
+                warnings.warn(
+                    "Target statistics are provided but `skip_target` is `True`. "
+                    "Target statistics will be ignored.",
+                    stacklevel=2,
+                )
+
+        return self
+
     def needs_computation(self) -> bool:
         """
         Check if statistics need to be computed.
@@ -184,9 +208,11 @@ class MeanStdConfig(BaseModel):
         Returns
         -------
         bool
-            True if target statistics are missing, False otherwise.
+            True if target statistics need to be computed, False otherwise.
         """
-        return self.target_means is None or self.target_stds is None
+        return not self.skip_target and (
+            self.target_means is None or self.target_stds is None
+        )
 
     def set_input_stats(self, means: list[float], stds: list[float]) -> None:
         """
@@ -256,7 +282,7 @@ class MeanStdConfig(BaseModel):
         """
         # we assume that means and stds are already validated against each other, and
         # against per-channel parameter
-        if self.per_channel:
+        if self.per_channel and not self.skip_target:
             if self.target_means is not None:
                 if len(self.target_means) != n_target_channels:
                     raise ValueError(
@@ -268,6 +294,9 @@ class MeanStdConfig(BaseModel):
         self: Self, n_input_channels: int, n_output_channels: int
     ) -> None:
         """Validate that statistics sizes match the number of channels.
+
+        If target normalization is skipped, only input statistics are validated against
+        the number of input channels, and target statistics are not validated.
 
         Parameters
         ----------
@@ -297,6 +326,13 @@ class QuantileConfig(BaseModel):
     ----------
     name : Literal["quantile"]
         Identifier for quantile normalization.
+    per_channel : bool, default=True
+        When `True`, quantile values are computed independently for
+        each channel. When `False`, a single quantile is computed across all
+        channels.
+    skip_target : bool, default=False
+        When `True`, target normalization is skipped and target quantile values
+        are not computed.
     lower_quantiles : float | list[float]
         Lower quantile level(s). Values must be in [0, 1).
     upper_quantiles : float | list[float]
@@ -309,16 +345,13 @@ class QuantileConfig(BaseModel):
         Computed lower quantile values for target.
     target_upper_quantile_values : float | list[float] | None
         Computed upper quantile values for target.
-    per_channel : bool
-        When True (default), quantile values are computed independently for
-        each channel. When False, a single quantile is computed across all
-        channels.
     """
 
     model_config = ConfigDict(validate_assignment=True)
 
     name: Literal["quantile"] = "quantile"
     per_channel: bool = True
+    skip_target: bool = False
     lower_quantiles: FloatStats = [0.01]
     upper_quantiles: FloatStats = [0.99]
     input_lower_quantile_values: OptionalFloatStats = None
@@ -460,6 +493,28 @@ class QuantileConfig(BaseModel):
                     )
         return self
 
+    @model_validator(mode="after")
+    def warn_targets_not_applicable(self: Self) -> Self:
+        """Warn users when target quantiles are provided but skip_target is True.
+
+        Returns
+        -------
+        Self
+            The validated model instance.
+        """
+        if self.skip_target:
+            if (
+                self.target_lower_quantile_values is not None
+                or self.target_upper_quantile_values is not None
+            ):
+                warnings.warn(
+                    "Target quantiles are provided but `skip_target` is `True`. "
+                    "Target quantiles will be ignored.",
+                    stacklevel=2,
+                )
+
+        return self
+
     def needs_computation(self) -> bool:
         """Check if quantile values need to be computed.
 
@@ -481,7 +536,7 @@ class QuantileConfig(BaseModel):
         bool
             True if target quantile values need to be computed.
         """
-        return (
+        return not self.skip_target and (
             self.target_lower_quantile_values is None
             or self.target_upper_quantile_values is None
         )
@@ -560,7 +615,7 @@ class QuantileConfig(BaseModel):
         # we assume that if lower and upper quantile values are already validated
         # against each other, and
         # against per-channel
-        if self.per_channel:
+        if self.per_channel and not self.skip_target:
             if self.target_lower_quantile_values is not None:
                 if len(self.target_lower_quantile_values) != n_target_channels:
                     raise ValueError(
@@ -598,6 +653,9 @@ class QuantileConfig(BaseModel):
     ) -> None:
         """Validate that statistics sizes match the number of channels.
 
+        If target normalization is skipped, only input statistics are validated against
+        the number of input channels, and target statistics are not validated.
+
         Parameters
         ----------
         n_input_channels : int
@@ -611,15 +669,16 @@ class QuantileConfig(BaseModel):
             If any provided statistics list does not match the expected size.
         """
         if self.per_channel:
-            if n_input_channels != n_output_channels:
+            if not self.skip_target and (n_input_channels != n_output_channels):
                 raise ValueError(
                     f"Quantile normalization per channel is only compatible with "
                     f"matching number of input and output channels. Got "
                     f"{n_input_channels} input channels and {n_output_channels} output "
-                    f"channels."
+                    f"channels. Set `per_channel` to `False` to a single statistics "
+                    f"for all channels, or set `skip_target` to `True` to skip target "
+                    f"normalization."
                 )
 
-        self._validate_input_quantile_size(n_input_channels)
         self._validate_input_quantile_size(n_input_channels)
         self._validate_target_quantile_size(n_output_channels)
 
@@ -637,6 +696,12 @@ class MinMaxConfig(BaseModel):
     ----------
     name : Literal["min_max"]
         Identifier for min-max normalization.
+    per_channel : bool, default=True
+        When `True`, statistics are computed independently for each
+        channel. When `False`, a single statistic is computed across all channels.
+    skip_target : bool, default=False
+        When `True`, target normalization is skipped and target statistics are
+        not computed.
     input_mins : float | list[float] | None
         Minimum values for input normalization. None for automatic computation.
     input_maxes : float | list[float] | None
@@ -645,15 +710,13 @@ class MinMaxConfig(BaseModel):
         Minimum values for target normalization. None for automatic computation.
     target_maxes : float | list[float] | None
         Maximum values for target normalization. None for automatic computation.
-    per_channel : bool
-        When True (default), statistics are computed independently for each
-        channel. When False, a single statistic is computed across all channels.
     """
 
     model_config = ConfigDict(validate_assignment=True)
 
     name: Literal["min_max"] = "min_max"
     per_channel: bool = True
+    skip_target: bool = False
     input_mins: OptionalFloatStats = None
     input_maxes: OptionalFloatStats = None
     target_mins: OptionalFloatStats = None
@@ -735,6 +798,25 @@ class MinMaxConfig(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def warn_targets_not_applicable(self: Self) -> Self:
+        """Warn users when target mins/maxes are provided but skip_target is True.
+
+        Returns
+        -------
+        Self
+            The validated model instance.
+        """
+        if self.skip_target:
+            if self.target_mins is not None or self.target_maxes is not None:
+                warnings.warn(
+                    "Target mins/maxes are provided but `skip_target` is `True`. "
+                    "Target mins/maxes will be ignored.",
+                    stacklevel=2,
+                )
+
+        return self
+
     def needs_computation(self) -> bool:
         """
         Check if min/max values need to be computed.
@@ -755,7 +837,9 @@ class MinMaxConfig(BaseModel):
         bool
             True if target statistics are missing, False otherwise.
         """
-        return self.target_mins is None or self.target_maxes is None
+        return not self.skip_target and (
+            self.target_mins is None or self.target_maxes is None
+        )
 
     def set_input_range(self, mins: list[float], maxes: list[float]) -> None:
         """
@@ -825,7 +909,7 @@ class MinMaxConfig(BaseModel):
         """
         # we assume that mins and maxes are already validated against each other, and
         # against per-channel parameter
-        if self.per_channel:
+        if self.per_channel and not self.skip_target:
             if self.target_mins is not None:
                 if len(self.target_mins) != n_target_channels:
                     raise ValueError(
@@ -837,6 +921,9 @@ class MinMaxConfig(BaseModel):
         self: Self, n_input_channels: int, n_output_channels: int
     ) -> None:
         """Validate that statistics sizes match the number of channels.
+
+        If target normalization is skipped, only input statistics are validated against
+        the number of input channels, and target statistics are not validated.
 
         Parameters
         ----------
