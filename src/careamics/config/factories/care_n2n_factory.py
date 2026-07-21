@@ -502,10 +502,13 @@ def create_advanced_n2n_config(
         Number of input channels. If `channels` is specified, then the number of
         channels is inferred from its length and this parameter is ignored.
     n_channels_out : int | None, default=None
-        Number of output channels. If not specified, but n_channels_in is specified,
-        it will default to the same number as n_channels_in.
+        Number of output channels. If `target_axes` contains `C` then it will default to
+        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is 
+        `None` it will default to `axes`.
     target_axes : str or None, default=None
-        Axes of target data. Required when the output has more than one channel.
+        Axes of target data. If not specified it will default to `axes`. Pay extra
+        attention if you are training a task that has a different number of input and 
+        output channels.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
