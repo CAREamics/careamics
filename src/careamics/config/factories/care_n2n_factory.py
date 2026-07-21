@@ -67,16 +67,13 @@ def _validate_channel_dim(
         assert channels is not None
         resolved_n_channels_in = len(channels)
 
-    resolved_n_channels_out = (
-        n_channels_out
-        if n_channels_out is not None
-        else (
-            # if target axes has channels, default to input channels, otherwise 1
-            resolved_n_channels_in
-            if target_channels_present
-            else 1
+    if n_channels_out is not None:
+        resolved_n_channels_out = n_channels_out
+    else:
+        # if target axes has channels, default to input channels, otherwise 1
+        resolved_n_channels_out = (
+            resolved_n_channels_in if target_channels_present else 1
         )
-    )
 
     if not target_channels_present and resolved_n_channels_out > 1:
         raise ValueError(
