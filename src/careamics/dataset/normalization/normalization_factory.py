@@ -28,6 +28,9 @@ def create_normalization(norm_model: NormalizationConfig) -> Normalization:
     NormalizationProtocol
         The normalization transform.
     """
+    # from PEP 634, Class patterns
+    # if no arguments are present, the pattern succeeds if
+    # the isinstance() check succeeds.
     match norm_model:
         case MeanStdConfig():
             return MeanStdNormalization(
