@@ -97,57 +97,23 @@ def minimum_algorithm_supervised() -> dict:
     return algorithm
 
 
-# TODO: wrong! need to update/remove this fixture
 @pytest.fixture
-def minimum_algorithm_musplit() -> dict:
-    """Create a minimum algorithm dictionary.
+def minimum_algorithm_hdn() -> dict:
+    """Create a minimum HDN algorithm dictionary.
 
     Returns
     -------
     dict
-        A minimum algorithm example.
+        A minimum HDN algorithm example.
     """
     # create dictionary
     algorithm = {
-        "algorithm_type": "vae",
-        "algorithm": "musplit",  # TODO temporary
-        "loss": "musplit",
+        "algorithm": "hdn",
+        "loss": {"loss_type": "hdn"},
         "model": {
             "architecture": "LVAE",
             "z_dims": (128, 128, 128),
-            "multiscale_count": 2,
-            "predict_logvar": "pixelwise",
         },
-        "likelihood": {
-            "type": "GaussianLikelihoodConfig",
-        },
-    }
-
-    return algorithm
-
-
-# TODO: wrong! need to update/remove this fixture
-@pytest.fixture
-def minimum_algorithm_denoisplit() -> dict:
-    """Create a minimum algorithm dictionary.
-
-    Returns
-    -------
-    dict
-        A minimum algorithm example.
-    """
-    # create dictionary
-    algorithm = {
-        "algorithm_type": "vae",
-        "algorithm": "denoisplit",
-        "loss": "denoisplit",
-        "model": {
-            "architecture": "LVAE",
-            "z_dims": (128, 128, 128),
-            "multiscale_count": 2,
-        },
-        "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
-        "noise_model": "MultiChannelNMConfig",
     }
 
     return algorithm
@@ -165,15 +131,12 @@ def minimum_algorithm_microsplit() -> dict:
     # create dictionary
     algorithm = {
         "algorithm": "microsplit",
-        "loss": "microsplit",
+        "loss": {"loss_type": "microsplit"},
         "model": {
             "architecture": "LVAE",
             "z_dims": (128, 128, 128),
             "multiscale_count": 2,
             "predict_logvar": True,
-        },
-        "likelihood": {
-            "type": "GaussianLikelihoodConfig",
         },
     }
 

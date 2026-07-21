@@ -98,7 +98,7 @@ pytestmark = pytest.mark.lvae
 #         predict_logvar=False,
 #     )
 
-#     vae_config = VAEBasedAlgorithm(
+#     vae_config = MicroSplitAlgorithm(
 #         algorithm="microsplit",
 #         loss=loss_config,
 #         model=lvae_config,
@@ -179,7 +179,7 @@ pytestmark = pytest.mark.lvae
 #         predict_logvar=False,
 #     )
 
-#     vae_config = VAEBasedAlgorithm(
+#     vae_config = MicroSplitAlgorithm(
 #         algorithm="microsplit",
 #         loss=loss_config,
 #         model=lvae_config,
@@ -239,7 +239,7 @@ pytestmark = pytest.mark.lvae
 #         predict_logvar=False,
 #     )
 
-#     vae_config = VAEBasedAlgorithm(
+#     vae_config = MicroSplitAlgorithm(
 #         algorithm="microsplit",
 #         loss=loss_config,
 #         model=lvae_config,
@@ -326,7 +326,7 @@ pytestmark = pytest.mark.lvae
 #         predict_logvar=False,
 #     )
 
-#     vae_config = VAEBasedAlgorithm(
+#     vae_config = MicroSplitAlgorithm(
 #         algorithm="microsplit",
 #         loss=loss_config,
 #         model=lvae_config,
@@ -443,7 +443,7 @@ pytestmark = pytest.mark.lvae
 #             if denoisplit_weight > 0 else None
 #         )
 #
-#         vae_config = VAEBasedAlgorithm(
+#         vae_config = MicroSplitAlgorithm(
 #             algorithm="microsplit",
 #             loss=loss_config,
 #             model=lvae_config,
