@@ -37,21 +37,34 @@ def create_patching(
     """
     # `name` is removed to match the class signatures; tiling requires `tile_size`
     # instead of `patch_size`, hence the aliasing handled by the config `model_dump`.
-    params = patching_config.model_dump(exclude={"name"})
-
     # from PEP 634, Class patterns
     # if no arguments are present, the pattern succeeds if
     # the isinstance() check succeeds.
     match patching_config:
         case RandomPatchingConfig():
-            return RandomPatching(data_shapes=data_shapes, **params)
+            return RandomPatching(
+                data_shapes=data_shapes,
+                **patching_config.model_dump(exclude={"name"}),
+            )
         case StratifiedPatchingConfig():
-            return StratifiedPatching(data_shapes=data_shapes, **params)
+            return StratifiedPatching(
+                data_shapes=data_shapes,
+                **patching_config.model_dump(exclude={"name"}),
+            )
         case FixedRandomPatchingConfig():
-            return FixedRandomPatching(data_shapes=data_shapes, **params)
+            return FixedRandomPatching(
+                data_shapes=data_shapes,
+                **patching_config.model_dump(exclude={"name"}),
+            )
         case TiledPatchingConfig():
-            return TiledPatching(data_shapes=data_shapes, **params)
+            return TiledPatching(
+                data_shapes=data_shapes,
+                **patching_config.model_dump(exclude={"name"}),
+            )
         case WholePatchingConfig():
-            return WholeSamplePatching(data_shapes=data_shapes, **params)
+            return WholeSamplePatching(
+                data_shapes=data_shapes,
+                **patching_config.model_dump(exclude={"name"}),
+            )
         case _:
             raise ValueError(f"Unsupported patching: {patching_config.name}")
