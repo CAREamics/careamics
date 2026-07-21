@@ -2,9 +2,12 @@
 
 # image and data
 **/*.zarr
+**/*.tif*
+**/*.png
 **/*.jpg
 **/*.jpeg
 **/*.unzip
+**/*.zip
 
 .vscode
 *.DS_Store
