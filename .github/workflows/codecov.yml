@@ -24,7 +24,10 @@ jobs:
           access_token: ${{ github.token }}
 
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
+        with:
+          fetch-tags: true
+          fetch-depth: 0
   
       - name: Install uv
         uses: astral-sh/setup-uv@v6
