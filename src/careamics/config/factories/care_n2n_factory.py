@@ -159,7 +159,7 @@ def create_care_config(
         Number of input channels.
     n_channels_out : int | None, default=None
         Number of output channels. If `target_axes` contains `C` then it will default to
-        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is 
+        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is
         `None` it will default to `axes`.
     target_axes : str or None, default=None
         Axes of target data. If not specified it will default to `axes`. Pay extra
