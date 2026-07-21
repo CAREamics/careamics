@@ -7,10 +7,16 @@ __all__ = [
     "model_no_c_ind_for_mismatching_channels",
     "model_without_final_activation",
     "model_without_n2v2",
+    "noise_models_match_output_channels",
     "patch_size_ge_than_8_power_of_2",
+    "predict_logvar_consistent",
 ]
 
 from .axes_validators import check_axes_validity, check_czi_axes_validity
+from .lvae_validators import (
+    noise_models_match_output_channels,
+    predict_logvar_consistent,
+)
 from .model_validators import (
     model_matching_in_out_channels,
     model_no_c_ind_for_mismatching_channels,

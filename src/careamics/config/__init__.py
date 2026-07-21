@@ -18,7 +18,6 @@ __all__ = [
     "ShannonPatchFilterConfig",
     "UNetBasedAlgorithm",
     "UNetConfig",
-    "VAEBasedAlgorithm",
     "create_advanced_care_config",
     "create_advanced_hdn_config",
     "create_advanced_microsplit_config",
@@ -41,7 +40,6 @@ from .algorithms import (
     N2VAlgorithm,
     PN2VAlgorithm,
     UNetBasedAlgorithm,
-    VAEBasedAlgorithm,
 )
 from .architectures import LVAEConfig, UNetConfig
 from .data import (
