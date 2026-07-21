@@ -1,7 +1,12 @@
 """Normalization factory."""
 
-from careamics.config.data.normalization_config import NormalizationConfig
-from careamics.config.support import SupportedNormalization
+from careamics.config.data.normalization_config import (
+    MeanStdConfig,
+    MinMaxConfig,
+    NoNormConfig,
+    NormalizationConfig,
+    QuantileConfig,
+)
 
 from .mean_std_normalization import MeanStdNormalization
 from .no_normalization import NoNormalization
@@ -23,12 +28,23 @@ def create_normalization(norm_model: NormalizationConfig) -> Normalization:
     NormalizationProtocol
         The normalization transform.
     """
-    match norm_model.name:
-        case SupportedNormalization.MEAN_STD:
+    # from PEP 634, Class patterns
+    # if no arguments are present, the pattern succeeds if
+    # the isinstance() check succeeds.
+    match norm_model:
+        case MeanStdConfig():
             return MeanStdNormalization(
                 **norm_model.model_dump(exclude={"name", "per_channel"}),
             )
-        case SupportedNormalization.QUANTILE:
+        case QuantileConfig():
+            if (
+                norm_model.input_lower_quantile_values is None
+                or norm_model.input_upper_quantile_values is None
+            ):
+                raise ValueError(
+                    "Quantile values must be computed before creating the "
+                    "normalization transform."
+                )
             return RangeNormalization(
                 input_mins=norm_model.input_lower_quantile_values,
                 input_maxes=norm_model.input_upper_quantile_values,
@@ -36,11 +52,11 @@ def create_normalization(norm_model: NormalizationConfig) -> Normalization:
                 target_maxes=norm_model.target_upper_quantile_values,
                 skip_target=norm_model.skip_target,
             )
-        case SupportedNormalization.MINMAX:
+        case MinMaxConfig():
             return RangeNormalization(
                 **norm_model.model_dump(exclude={"name", "per_channel"}),
             )
-        case SupportedNormalization.NONE:
+        case NoNormConfig():
             return NoNormalization()
         case _:
             raise ValueError(f"Unknown normalization strategy: {norm_model.name}")

@@ -54,25 +54,6 @@ ConfigurationType = (
 class CAREamist:
     """Main interface for training and predicting with CAREamics.
 
-    Attributes
-    ----------
-    workdir : Path
-        Working directory in which to save training outputs.
-    config : Configuration[AlgorithmConfig]
-        CAREamics configuration.
-    model : CAREamicsModule
-        The PyTorch Lightning module to be trained and used for prediction.
-    checkpoint_path : Path | None
-        Path to a checkpoint file from which model and configuration may be loaded.
-    trainer : Trainer
-        The PyTorch Lightning Trainer used for training and prediction.
-    callbacks : list[Callback]
-        List of callbacks used during training.
-    prediction_writer : PredictionWriterCallback
-        Callback used to write predictions to disk during prediction.
-    train_datamodule : CareamicsDataModule | None
-        The datamodule used for training, set after calling `train()`.
-
     Parameters
     ----------
     config : Configuration | Path | str, default=None
@@ -93,6 +74,25 @@ class CAREamist:
         training configuration (see Configuration and TrainingConfig).
     enable_progress_bar : bool, default=True
         Whether to show the progress bar during training.
+
+    Attributes
+    ----------
+    workdir : Path
+        Working directory in which to save training outputs.
+    config : Configuration[AlgorithmConfig]
+        CAREamics configuration.
+    model : CAREamicsModule
+        The PyTorch Lightning module to be trained and used for prediction.
+    checkpoint_path : Path | None
+        Path to a checkpoint file from which model and configuration may be loaded.
+    trainer : Trainer
+        The PyTorch Lightning Trainer used for training and prediction.
+    callbacks : list[Callback]
+        List of callbacks used during training.
+    prediction_writer : PredictionWriterCallback
+        Callback used to write predictions to disk during prediction.
+    train_datamodule : CareamicsDataModule | None
+        The datamodule used for training, set after calling `train()`.
     """
 
     def __init__(
