@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.config import create_ng_data_configuration
+from careamics.config import create_data_configuration
 from careamics.config.data import MicroSplitDataConfig
 from careamics.dataset.factory import MultiChannelTarget, create_dataset
 from careamics.dataset.factory.microsplit_factory import create_microsplit_dataset
@@ -59,7 +59,7 @@ def test_from_dataset():
     patch_size = (16, 16)
     data_shapes = [(64, 48), (55, 54), (71, 65)]
     input_data = [np.arange(np.prod(shape)).reshape(shape) for shape in data_shapes]
-    train_data_config = create_ng_data_configuration(
+    train_data_config = create_data_configuration(
         data_type="array",
         axes="YX",
         patch_size=patch_size,
