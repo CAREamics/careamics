@@ -76,7 +76,7 @@ class HDNAlgorithm(BaseModel):
             with the HDN algorithm.
         """
         if self.loss.loss_type != SupportedLoss.HDN:
-            raise ValueError(f"HDN only supports loss `hdn`.")
+            raise ValueError("HDN only supports loss `hdn`.")
 
         if self.model.multiscale_count > 1:
             raise ValueError("Algorithm `hdn` does not support multiscale models.")
