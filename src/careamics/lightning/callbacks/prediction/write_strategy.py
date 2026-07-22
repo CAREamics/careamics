@@ -25,3 +25,19 @@ class WriteStrategy(Protocol):
             Decollated predictions.
         """
         ...
+
+    def set_source_base(self, source_base: Path | None) -> None:
+        """
+        Set the common parent directory of the prediction sources.
+
+        Called by the prediction writer callback. Strategies that write individual
+        files may use it to preserve the sources' directory structure in the output;
+        strategies that do not (e.g. writing to a single store) may ignore it.
+
+        Parameters
+        ----------
+        source_base : pathlib.Path or None
+            Common parent of all prediction sources, or None if it cannot be
+            determined.
+        """
+        ...

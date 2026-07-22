@@ -322,3 +322,29 @@ def test_predict_invalid_spatial_dims_no_tiling_raises(tmp_path: Path):
 
     with pytest.raises(ValueError, match="tiling"):
         careamist.predict_to_disk(pred_data=pred_array)
+
+
+@pytest.mark.parametrize(
+    "write_type, data_type, expected",
+    [
+        (None, "zarr", "zarr"),
+        (None, "czi", "tiff"),
+        ("tiff", "zarr", "tiff"),
+    ],
+)
+def test_default_write_type(write_type, data_type, expected):
+    """Test that the write type is defaulted from the prediction data type."""
+    assert CAREamist._default_write_type(write_type, data_type) == expected
+
+
+@pytest.mark.parametrize(
+    "in_memory, data_type, expected",
+    [
+        (None, "zarr", False),
+        (None, "tiff", None),
+        (True, "zarr", True),
+    ],
+)
+def test_predict_in_memory(in_memory, data_type, expected):
+    """Test that in_memory is overwritten with False only for czi/zarr data."""
+    assert CAREamist._predict_in_memory(in_memory, data_type) is expected

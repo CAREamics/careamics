@@ -409,6 +409,30 @@ class CareamicsDataModule(L.LightningDataModule):
             **self.config.pred_dataloader_params,
         )
 
+    @property
+    def predict_source_paths(self) -> list[Path]:
+        """
+        Source paths of the prediction inputs, excluding in-memory arrays.
+
+        Returns
+        -------
+        list of pathlib.Path
+            Source paths, empty if the dataset is not set up or the inputs are arrays.
+        """
+        if self.predict_dataset is None:
+            return []
+        # only prediction patch constructors expose an input extractor
+        extractor = getattr(
+            self.predict_dataset.patch_constructor, "input_extractor", None
+        )
+        if extractor is None:
+            return []
+        return [
+            Path(stack.source)
+            for stack in extractor.image_stacks
+            if str(stack.source) != "array"
+        ]
+
 
 def _validate_data(
     data_type: SupportedData,

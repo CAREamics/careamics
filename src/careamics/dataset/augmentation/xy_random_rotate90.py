@@ -11,6 +11,13 @@ class XYRandomRotate90(Transform):
 
     This transform expects C(Z)YX dimensions.
 
+    Parameters
+    ----------
+    p : float
+        Probability of applying the transform, by default 0.5.
+    seed : Optional[int]
+        Random seed, by default None.
+
     Attributes
     ----------
     rng : np.random.Generator
@@ -19,13 +26,6 @@ class XYRandomRotate90(Transform):
         Probability of applying the transform.
     seed : Optional[int]
         Random seed.
-
-    Parameters
-    ----------
-    p : float
-        Probability of applying the transform, by default 0.5.
-    seed : Optional[int]
-        Random seed, by default None.
     """
 
     def __init__(self, p: float = 0.5, seed: int | None = None):
