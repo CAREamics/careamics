@@ -51,8 +51,8 @@ class AxesTransform:
         """Validate original axes and shape."""
         if len(self.original_axes) != len(self.original_shape):
             raise ValueError(
-                f"Axes '{self.original_axes}' length ({len(self.original_axes)}) "
-                f"does not match shape {self.original_shape} length "
+                f"Axes '{self.original_axes}' of length ({len(self.original_axes)}) "
+                f"does not match shape {self.original_shape} of length "
                 f"({len(self.original_shape)})."
             )
 

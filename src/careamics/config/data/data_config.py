@@ -368,6 +368,9 @@ class DataConfig(BaseModel):
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
+    target_axes: str | None = None
+    """Optional axes of target data. If `None`, targets use `axes`."""
+
     # TODO: update docs for stratified patching
     patching: PatchingConfig = Field(..., discriminator="name")
     """Patching strategy to use. Note that `random` is the only supported strategy for
@@ -436,9 +439,9 @@ class DataConfig(BaseModel):
     seed: int = Field(default_factory=generate_random_seed, gt=0)
     """Random seed for reproducibility. If not specified, a random seed is generated."""
 
-    @field_validator("axes")
+    @field_validator("axes", "target_axes")
     @classmethod
-    def axes_valid(cls, axes: str, info: ValidationInfo) -> str:
+    def axes_valid(cls, axes: str | None, info: ValidationInfo) -> str | None:
         """
         Validate axes.
 
@@ -451,14 +454,14 @@ class DataConfig(BaseModel):
 
         Parameters
         ----------
-        axes : str
+        axes : str or None
             Axes to validate.
         info : ValidationInfo
             Validation information.
 
         Returns
         -------
-        str
+        str or None
             Validated axes.
 
         Raises
@@ -466,6 +469,9 @@ class DataConfig(BaseModel):
         ValueError
             If axes are not valid.
         """
+        if axes is None:
+            return None
+
         if "data_type" not in info.data:
             raise ValueError(
                 "Validation for `data_type` may have failed. Check for typos or "
@@ -476,7 +482,7 @@ class DataConfig(BaseModel):
         if info.data["data_type"] == "czi":
             if not check_czi_axes_validity(axes):
                 raise ValueError(
-                    f"Invalid axes '{axes}'. Axes must be in the "
+                    f"Invalid axes '{axes}' for CZI format. Axes must be in the "
                     f"`SC(Z/T)YX` format, where Z or T are optional, and S and C can be"
                     f" singleton dimensions, but must be provided."
                 )
@@ -484,6 +490,36 @@ class DataConfig(BaseModel):
             check_axes_validity(axes)
 
         return axes
+
+    @model_validator(mode="after")
+    def validate_target_axes_compatible(self: Self) -> Self:
+        """Validate that target axes have the same spatial dimensionality.
+
+        Returns
+        -------
+        Self
+            Validated data model.
+
+        Raises
+        ------
+        ValueError
+            If target axes are spatially incompatible with input axes.
+        """
+        if self.target_axes is None:
+            return self
+
+        if not _are_spatial_dims_maintained(
+            SupportedData(self.data_type),
+            self.axes,
+            SupportedData(self.data_type),
+            self.target_axes,
+        ):
+            raise ValueError(
+                "`target_axes` must have the same spatial dimensionality as `axes`. "
+                f"Got target_axes {self.target_axes} and axes {self.axes}."
+            )
+
+        return self
 
     @field_validator("in_memory")
     @classmethod
@@ -992,7 +1028,7 @@ class DataConfig(BaseModel):
         field depending on the new mode.
 
         To create a new training configuration, please use
-        `careamics.config.create_ng_data_configuration`.
+        `careamics.config.create_data_configuration`.
 
         This method compares the new parameters with the current ones and raises
         errors if incompatible changes are requested, such as switching between 2D and
@@ -1042,7 +1078,7 @@ class DataConfig(BaseModel):
             raise ValueError(
                 "Conversion to 'training' mode is not supported. Create a new "
                 "DataConfig instead, for instance using "
-                "`create_ng_data_configuration`."
+                "`create_data_configuration`."
             )
 
         # sanity checks

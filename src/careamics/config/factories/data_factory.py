@@ -31,23 +31,23 @@ def list_spatial_augmentations(
 
     Parameters
     ----------
-    augmentations : list of transforms, optional
-        List of transforms to apply, either both or one of XYFlipConfig and
+    augmentations : list of augmentations, optional
+        List of augmentations to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config.
     seed : int, optional
         Random seed for reproducibility.
 
     Returns
     -------
-    list of transforms
-        List of transforms to apply.
+    list of augmentations
+        List of augmentations to apply.
 
     Raises
     ------
     ValueError
-        If the transforms are not XYFlipConfig or XYRandomRotate90Config.
+        If the augmentations are not XYFlipConfig or XYRandomRotate90Config.
     ValueError
-        If there are duplicate transforms.
+        If there are duplicate augmentations.
     """
     if augmentations is None:
         transform_list: list[SPATIAL_TRANSFORMS_UNION] = [
@@ -55,31 +55,32 @@ def list_spatial_augmentations(
             XYRandomRotate90Config(seed=seed),
         ]
     else:
-        # throw error if not all transforms are pydantic models
+        # throw error if not all augmentations are pydantic models
         if not all(
             isinstance(t, XYFlipConfig) or isinstance(t, XYRandomRotate90Config)
             for t in augmentations
         ):
             raise ValueError(
-                "Accepted transforms are either XYFlipConfig or "
+                "Accepted augmentations are either XYFlipConfig or "
                 "XYRandomRotate90Config."
             )
 
         # check that there is no duplication
         aug_types = [t.__class__ for t in augmentations]
         if len(set(aug_types)) != len(aug_types):
-            raise ValueError("Duplicate transforms are not allowed.")
+            raise ValueError("Duplicate augmentations are not allowed.")
 
         transform_list = augmentations
 
     return transform_list
 
 
-def create_ng_data_configuration(
+def create_data_configuration(
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
+    target_axes: str | None = None,
     augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
     normalization: dict | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
@@ -93,7 +94,7 @@ def create_ng_data_configuration(
     seed: int | None = None,
 ) -> DataConfig:
     """
-    Create a training NGDatasetConfig.
+    Create a training DataConfig.
 
     Note that `num_workers` is applied to all dataloaders unless explicitly overridden
     in the respective dataloader parameters.
@@ -108,8 +109,10 @@ def create_ng_data_configuration(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
-    augmentations : list of transforms or None, default=None
-        List of transforms to apply. If `None`, default augmentations are applied
+    target_axes : str or None, default=None
+        Axes of target data. If `None`, targets use `axes`.
+    augmentations : list of augmentations or None, default=None
+        List of augmentations to apply. If `None`, default augmentations are applied
         (flip in X and Y, rotations by 90 degrees in the XY plane).
     normalization : dict, default=None
         Normalization configuration dictionary. If None, defaults to mean_std
@@ -131,9 +134,6 @@ def create_ng_data_configuration(
     num_workers : int, default=-1
         Number of workers for data loading. Use ``-1`` to automatically choose based
         on the number of available CPUs (calls :func:`get_default_num_workers`).
-    augmentations : list of transforms or None, default=None
-        List of transforms to apply. If `None`, default augmentations are applied
-        (flip in X and Y, rotations by 90 degrees in the XY plane).
     train_dataloader_params : dict
         Parameters for the training dataloader, see PyTorch notes, by default None.
     val_dataloader_params : dict
@@ -159,6 +159,7 @@ def create_ng_data_configuration(
         "mode": "training",
         "data_type": data_type,
         "axes": axes,
+        "target_axes": target_axes,
         "batch_size": batch_size,
         "channels": channels,
         "augmentations": augmentations,

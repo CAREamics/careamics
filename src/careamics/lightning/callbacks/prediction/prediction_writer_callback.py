@@ -14,6 +14,7 @@ from careamics.image_io.write.get_func import SupportedWriteType, WriteFunc
 from careamics.lightning.prediction import decollate_image_region_data
 from careamics.utils import get_logger
 
+from .file_path_utils import common_source_base
 from .write_strategy import WriteStrategy
 from .write_strategy_factory import create_write_strategy
 
@@ -139,6 +140,12 @@ class PredictionWriterCallback(BasePredictionWriter):
                 # make prediction output directory
                 logger.info(f"Creating prediction output directory: '{self.dirpath}'")
                 self.dirpath.mkdir(parents=True, exist_ok=True)
+
+            # preserve the source directory structure in the output, so that
+            # identically named files in different directories do not collide
+            if self.is_enabled and self.write_strategy is not None:
+                source_paths = getattr(trainer.datamodule, "predict_source_paths", [])
+                self.write_strategy.set_source_base(common_source_base(source_paths))
 
     def set_writing_strategy(
         self,

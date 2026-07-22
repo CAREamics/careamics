@@ -14,7 +14,7 @@ from careamics.config.lightning.optimizer_configs import (
 from careamics.config.losses.loss_config import LVAELossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
-from .data_factory import create_ng_data_configuration, list_spatial_augmentations
+from .data_factory import create_data_configuration, list_spatial_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
 
 
@@ -256,7 +256,7 @@ def create_advanced_hdn_config(
         if "rotate_90" in augmentations:
             augs.append(XYRandomRotate90Config(seed=seed))
 
-    data_config = create_ng_data_configuration(
+    data_config = create_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,

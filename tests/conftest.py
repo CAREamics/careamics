@@ -6,6 +6,7 @@ import pytest
 from pytorch_lightning import Callback, Trainer
 
 from careamics.config.configuration import Configuration
+from careamics.config.data.data_config import DataConfig
 from careamics.config.factories import (
     create_advanced_care_config,
     create_advanced_n2v_config,
@@ -388,6 +389,7 @@ def _checkpoint_trainer(request):
 
     def _get_trainer_and_info(
         algorithm: str,
+        data_config: DataConfig,
     ) -> tuple[Trainer, ConfigSaverCallback | None]:
         if request.param:
             info_callback = ConfigSaverCallback(
@@ -396,6 +398,7 @@ def _checkpoint_trainer(request):
                 training_config=TrainingConfig(
                     **default_training_dict(algorithm=algorithm)
                 ),
+                data_config=data_config,
             )
             callbacks: list[Callback] = [info_callback]
         else:
@@ -473,7 +476,7 @@ def checkpoint(
 
     module = module_cls(config.algorithm_config)
     dmodule = CareamicsDataModule(data_config=config.data_config, **data)
-    trainer, info_callback = _checkpoint_trainer(request.param)
+    trainer, info_callback = _checkpoint_trainer(request.param, config.data_config)
     trainer.fit(model=module, datamodule=dmodule)
     ckpt_path = tmp_path / "checkpoint_test_fixture.ckpt"
     trainer.save_checkpoint(ckpt_path)
