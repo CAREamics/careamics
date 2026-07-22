@@ -1028,7 +1028,7 @@ class DataConfig(BaseModel):
         field depending on the new mode.
 
         To create a new training configuration, please use
-        `careamics.config.create_ng_data_configuration`.
+        `careamics.config.create_data_configuration`.
 
         This method compares the new parameters with the current ones and raises
         errors if incompatible changes are requested, such as switching between 2D and
@@ -1078,7 +1078,7 @@ class DataConfig(BaseModel):
             raise ValueError(
                 "Conversion to 'training' mode is not supported. Create a new "
                 "DataConfig instead, for instance using "
-                "`create_ng_data_configuration`."
+                "`create_data_configuration`."
             )
 
         # sanity checks
