@@ -1,3 +1,4 @@
+# TODO - revisit: tests do not follow the new test organization and style
 import pytest
 
 from careamics.config.algorithms import HDNAlgorithm
