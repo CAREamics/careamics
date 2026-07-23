@@ -3,23 +3,68 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
-from careamics.config.augmentations import (
-    XYFlipConfig,
-    XYRandomRotate90Config,
-)
 from careamics.config.configuration import Configuration
 
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import (
     SupportedPatchFilterConfig,
     create_data_configuration,
-    list_spatial_augmentations,
 )
-
-# TODO
+from .factory_utils import assemble_augmentations, validate_input_channels
 from .training_factory import create_training_configuration, update_trainer_params
 
-# TODO compare with updated care factories
+
+def _validate_channel_dim(
+    axes: str,
+    target_axes: str,
+    channels: Sequence[int] | None,
+    n_channels_in: int | None,
+    n_channels_out: int,
+) -> int:
+    """Validate channel dimensions and adjust model input and output channel numbers.
+
+    Parameters
+    ----------
+    axes : str
+        Axes of the data (e.g. YX).
+    target_axes : str
+        Axes of the target data (e.g. CYX).
+    channels : Sequence[int] or None
+        Indices of the channels to use.
+    n_channels_in : int or None
+        Number of input channels.
+    n_channels_out : int or None
+        Number of output channels.
+
+    Returns
+    -------
+    int
+        Adjusted number of input channels.
+    """
+    target_channels_present = "C" in target_axes
+
+    validate_input_channels(
+        axes=axes, channels=channels, n_channels=n_channels_in, attr_name="n_channels"
+    )
+
+    # resolve number of input channels
+    if n_channels_in is None and channels is None:
+        resolved_n_channels_in = 1
+    elif n_channels_in is not None:
+        resolved_n_channels_in = n_channels_in
+    else:
+        assert channels is not None
+        resolved_n_channels_in = len(channels)
+
+    if not target_channels_present and n_channels_out > 1:
+        raise ValueError(
+            f"Number of output channels is greater than 1 (got "
+            f"{n_channels_out}), but `target_axes` does not include 'C' "
+            f"(got {target_axes}). Please specify `target_axes` with 'C' to indicate "
+            f"the channel dimension in the target data."
+        )
+
+    return resolved_n_channels_in
 
 
 def create_seg_config(
@@ -27,6 +72,7 @@ def create_seg_config(
     experiment_name: str,
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
+    target_axes: str,
     patch_size: Sequence[int],
     batch_size: int,
     n_classes: int,
@@ -64,7 +110,9 @@ def create_seg_config(
     data_type : Literal["array", "tiff", "zarr", "czi", "custom"]
         Type of the data.
     axes : str
-        Axes of the data (e.g. SYX).
+        Axes of the data (e.g. YX).
+    target_axes : str
+        Axes of the target data (e.g. CYX).
     patch_size : Sequence[int]
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
@@ -95,6 +143,7 @@ def create_advanced_seg_config(
     experiment_name: str,
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
+    target_axes: str,
     patch_size: Sequence[int],
     batch_size: int,
     n_classes: int,
@@ -151,6 +200,8 @@ def create_advanced_seg_config(
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
+    target_axes : str
+        Axes of the target data (e.g. CYX).
     patch_size : Sequence[int]
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
@@ -234,55 +285,18 @@ def create_advanced_seg_config(
     Configuration
         Configuration for training a segmentation model.
     """
-    # if there are channels, we need to specify their number
-    channels_present = "C" in axes
-
-    if channels_present and (n_channels_in is None and channels is None):
-        raise ValueError(
-            "`n_channels_in` or `channels` must be specified when using channels."
-        )
-    elif not channels_present and (n_channels_in is not None and n_channels_in > 1):
-        raise ValueError(
-            f"C is not present in the axes, but number of input channels is specified "
-            f"(got {n_channels_in} channel)."
-        )
-
-    if n_channels_in is not None and channels is not None:
-        if n_channels_in != len(channels):
-            raise ValueError(
-                f"Number of input channels ({n_channels_in}) does not match length of "
-                f"`channels` ({len(channels)}). Only specify `channels`."
-            )
-
-    if n_channels_in is None:
-        n_channels_in = 1 if channels is None else len(channels)
+    n_channels_in = _validate_channel_dim(
+        axes=axes,
+        target_axes=target_axes,
+        channels=channels,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_classes,
+    )
 
     # normalization
     norm_config = {"name": normalization, "skip_target": True}
     if normalization_params is not None:
         norm_config.update(normalization_params)
-
-    # augmentations
-    # TODO refactor after target_axes PR will be merged
-    augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
-    if augmentations is not None:
-        augs = []
-
-        x_flip_present = "x_flip" in augmentations
-        y_flip_present = "y_flip" in augmentations
-        rotate_90_present = "rotate_90" in augmentations
-
-        if x_flip_present or y_flip_present:
-            augs.append(
-                XYFlipConfig(
-                    flip_x=x_flip_present,
-                    flip_y=y_flip_present,
-                    seed=seed,
-                )
-            )
-        if rotate_90_present:
-            augs.append(XYRandomRotate90Config(seed=seed))
-    spatial_transforms = list_spatial_augmentations(augs)
 
     # data
     data_config = create_data_configuration(
@@ -290,7 +304,8 @@ def create_advanced_seg_config(
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        augmentations=spatial_transforms,
+        target_axes=target_axes,
+        augmentations=assemble_augmentations(augmentations, seed),
         n_val_patches=n_val_patches,
         normalization=norm_config,
         patch_filter_config=patch_filter_config,
