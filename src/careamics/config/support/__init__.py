@@ -8,6 +8,7 @@ __all__ = [
     "SupportedActivation",
     "SupportedAlgorithm",
     "SupportedArchitecture",
+    "SupportedAugmentation",
     "SupportedData",
     "SupportedLogger",
     "SupportedLoss",
@@ -30,4 +31,4 @@ from .supported_normalization import SupportedNormalization
 from .supported_optimizers import SupportedOptimizer, SupportedScheduler
 from .supported_pixel_manipulations import SupportedPixelManipulation
 from .supported_struct_axis import SupportedStructAxis
-from .supported_transforms import SupportedTransform
+from .supported_transforms import SupportedAugmentation, SupportedTransform

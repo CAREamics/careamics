@@ -54,25 +54,6 @@ ConfigurationType = (
 class CAREamist:
     """Main interface for training and predicting with CAREamics.
 
-    Attributes
-    ----------
-    workdir : Path
-        Working directory in which to save training outputs.
-    config : Configuration[AlgorithmConfig]
-        CAREamics configuration.
-    model : CAREamicsModule
-        The PyTorch Lightning module to be trained and used for prediction.
-    checkpoint_path : Path | None
-        Path to a checkpoint file from which model and configuration may be loaded.
-    trainer : Trainer
-        The PyTorch Lightning Trainer used for training and prediction.
-    callbacks : list[Callback]
-        List of callbacks used during training.
-    prediction_writer : PredictionWriterCallback
-        Callback used to write predictions to disk during prediction.
-    train_datamodule : CareamicsDataModule | None
-        The datamodule used for training, set after calling `train()`.
-
     Parameters
     ----------
     config : Configuration | Path | str, default=None
@@ -93,6 +74,25 @@ class CAREamist:
         training configuration (see Configuration and TrainingConfig).
     enable_progress_bar : bool, default=True
         Whether to show the progress bar during training.
+
+    Attributes
+    ----------
+    workdir : Path
+        Working directory in which to save training outputs.
+    config : Configuration[AlgorithmConfig]
+        CAREamics configuration.
+    model : CAREamicsModule
+        The PyTorch Lightning module to be trained and used for prediction.
+    checkpoint_path : Path | None
+        Path to a checkpoint file from which model and configuration may be loaded.
+    trainer : Trainer
+        The PyTorch Lightning Trainer used for training and prediction.
+    callbacks : list[Callback]
+        List of callbacks used during training.
+    prediction_writer : PredictionWriterCallback
+        Callback used to write predictions to disk during prediction.
+    train_datamodule : CareamicsDataModule | None
+        The datamodule used for training, set after calling `train()`.
     """
 
     def __init__(
@@ -222,6 +222,60 @@ class CAREamist:
         else:
             assert bmz_path is not None
             return self._from_bmz(bmz_path)
+
+    @staticmethod
+    def _default_write_type(
+        write_type: Literal["tiff", "zarr", "custom"] | None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    ) -> Literal["tiff", "zarr", "custom"]:
+        """Default the write type from the prediction data type.
+
+        Parameters
+        ----------
+        write_type : {"tiff", "zarr", "custom"} or None
+            The write type requested by the user, or None to infer it.
+        data_type : {"array", "tiff", "zarr", "czi", "custom"}
+            The (effective) prediction data type.
+
+        Returns
+        -------
+        {"tiff", "zarr", "custom"}
+            The resolved write type.
+        """
+        if write_type is not None:
+            return write_type
+
+        # config data type can be custom or czi, we support only zarr and tiff
+        # writing if no writing function is passed
+        return "zarr" if data_type == "zarr" else "tiff"
+
+    @staticmethod
+    def _predict_in_memory(
+        in_memory: bool | None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+    ) -> bool | None:
+        """Resolve the `in_memory` setting for prediction.
+
+        An explicit user value is always respected, so the incompatibility of an
+        explicit `in_memory=True` with zarr/czi is still surfaced by configuration
+        validation.
+
+        Parameters
+        ----------
+        in_memory : bool or None
+            The `in_memory` value requested by the user, or None to infer it.
+        data_type : {"array", "tiff", "zarr", "czi", "custom"}
+            The (effective) prediction data type.
+
+        Returns
+        -------
+        bool or None
+            The resolved `in_memory` value. None defers to the training configuration.
+        """
+        # overwrite data cfg in_memory with `False` if czi or zarr
+        if in_memory is None and data_type in ("zarr", "czi"):
+            return False
+        return in_memory
 
     @staticmethod
     def _from_config(
@@ -385,6 +439,7 @@ class CAREamist:
                 config.version,
                 config.get_safe_experiment_name(),
                 config.training_config,
+                config.data_config,
             ),
         ]
 
@@ -684,7 +739,7 @@ class CAREamist:
             the channels from the training configuration.
         in_memory : bool | None, default=None
             Whether to load data into memory during prediction. If None, uses training
-            configuration.
+            configuration, except for zarr/czi data which is never loaded in-memory.
         loading : Loading, default=None
             Loading strategy for prediction data if data type (either from training
             configuration or specified) is `"custom"`.
@@ -697,6 +752,9 @@ class CAREamist:
         dataloader_params: dict[str, Any] | None = None
         if num_workers is not None:
             dataloader_params = {"num_workers": num_workers}
+
+        effective_data_type = data_type or self.config.data_config.data_type
+        in_memory = self._predict_in_memory(in_memory, effective_data_type)
 
         pred_data_config = self.config.data_config.convert_mode(
             new_mode="predicting",
@@ -817,7 +875,8 @@ class CAREamist:
             channels.
         in_memory : bool, optional
             Whether to load all data into memory. If None, uses the training
-            configuration setting.
+            configuration setting, except for zarr/czi data which is never loaded
+            in-memory.
         loading : Loading, default=None
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
@@ -916,7 +975,7 @@ class CAREamist:
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
+        write_type: Literal["tiff", "zarr", "custom"] | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
@@ -942,7 +1001,7 @@ class CAREamist:
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
+        write_type: Literal["tiff", "zarr", "custom"] | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
@@ -967,7 +1026,7 @@ class CAREamist:
         loading: Loading = None,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] = "tiff",
+        write_type: Literal["tiff", "zarr", "custom"] | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
@@ -976,10 +1035,10 @@ class CAREamist:
         Make predictions on the provided data and save outputs to files.
 
         Predictions are saved to `prediction_dir` (absolute paths are used as-is,
-        relative paths are relative to `work_dir`). The directory structure matches
-        the source directory.
+        relative paths are relative to `work_dir`).
 
-        The file names of the predictions will match those of the source. If there is
+        The file names of the predictions will match those of the source, keeping the
+        source directory structure so identically named files do not clash. If there is
         more than one sample within a file, the samples will be stacked along the sample
         dimension in the output file.
 
@@ -1023,7 +1082,8 @@ class CAREamist:
             channels.
         in_memory : bool, optional
             Whether to load all data into memory. If None, uses the training
-            configuration setting.
+            configuration setting, except for zarr/czi data which is never loaded
+            in-memory.
         loading : Loading, default=None
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
@@ -1033,8 +1093,10 @@ class CAREamist:
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
-        write_type : {"tiff", "zarr", "custom"}, default="tiff"
-            The data type to save as, includes custom.
+        write_type : {"tiff", "zarr", "custom"}, optional
+            The data type to save as, includes custom. If None, defaults to "zarr"
+            when the (effective) prediction `data_type` is "zarr", and "tiff"
+            otherwise.
         write_extension : str, optional
             If a known `write_type` is selected this argument is ignored. For a custom
             `write_type` an extension to save the data with must be passed.
@@ -1053,6 +1115,10 @@ class CAREamist:
         """
         if write_func_kwargs is None:
             write_func_kwargs = {}
+
+        # default the write type from the prediction data type
+        effective_data_type = data_type or self.config.data_config.data_type
+        write_type = self._default_write_type(write_type, effective_data_type)
 
         if Path(prediction_dir).is_absolute():
             write_dir = Path(prediction_dir)

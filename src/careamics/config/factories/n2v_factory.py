@@ -5,10 +5,6 @@ from typing import Any, Literal
 
 from careamics.config.algorithms import N2VAlgorithm
 from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
-from careamics.config.augmentations import (
-    XYFlipConfig,
-    XYRandomRotate90Config,
-)
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
@@ -19,10 +15,99 @@ from careamics.config.utils.random import generate_random_seed
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import (
     SupportedPatchFilterConfig,
-    create_ng_data_configuration,
-    list_spatial_augmentations,
+    create_data_configuration,
 )
+from .factory_utils import assemble_augmentations, validate_input_channels
 from .training_factory import create_training_configuration, update_trainer_params
+
+
+def _validate_n2v_channel_dim(
+    axes: str,
+    channels: Sequence[int] | None,
+    n_channels: int | None,
+) -> int:
+    """Validate channel dimensions and resolve the model channel count for N2V.
+
+    Parameters
+    ----------
+    axes : str
+        Axes of the data (e.g. SYX).
+    channels : Sequence[int] | None
+        List of channels to use. If `None`, all channels are used.
+    n_channels : int | None
+        Number of channels (in and out). If `channels` is specified, then the number
+        of channels is inferred from its length and this parameter is ignored.
+
+    Returns
+    -------
+    int
+        Number of channels (in and out) to use for the model.
+    """
+    validate_input_channels(
+        axes=axes, channels=channels, n_channels=n_channels, attr_name="n_channels"
+    )
+
+    if n_channels is None and channels is None:
+        resolved_n_channels = 1
+    elif n_channels is not None:
+        resolved_n_channels = n_channels
+    else:
+        assert channels is not None
+        resolved_n_channels = len(channels)
+
+    return resolved_n_channels
+
+
+def _create_n2v_transform(
+    roi_size: int,
+    masked_pixel_percentage: float,
+    use_n2v2: bool,
+    struct_n2v_axes: Literal["horizontal", "vertical", "cross", "square", "none"],
+    struct_n2v_span: int,
+    seed: int,
+) -> N2VManipulateConfig:
+    """Create the N2VManipulate transform using the supplied parameters.
+
+    Parameters
+    ----------
+    roi_size : int
+        Size of the area around each pixel that will be manipulated by N2V.
+    masked_pixel_percentage : float
+        Percentage of pixels per patch that will be manipulated.
+    use_n2v2 : bool
+        Whether to use N2V2.
+    struct_n2v_axes : Literal["horizontal", "vertical", "cross", "square", "none"]
+        Axis or axes along which to apply structN2V mask.
+    struct_n2v_span : int
+        Span of the structN2V mask.
+    seed : int
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    N2VManipulateConfig
+        Configuration for the N2VManipulate transform.
+    """
+    n2v_transform = N2VManipulateConfig(
+        name=SupportedTransform.N2V_MANIPULATE.value,
+        strategy=(
+            SupportedPixelManipulation.MEDIAN.value
+            if use_n2v2
+            else SupportedPixelManipulation.UNIFORM.value
+        ),
+        roi_size=roi_size,
+        masked_pixel_percentage=masked_pixel_percentage,
+        struct_mask=(
+            {
+                "axes": struct_n2v_axes,
+                "span": struct_n2v_span,
+            }
+            if struct_n2v_axes != "none"
+            else None
+        ),
+        seed=seed,
+    )
+    return n2v_transform
 
 
 def create_n2v_config(
@@ -115,7 +200,7 @@ def create_structn2v_config(
     patch_size: Sequence[int],
     batch_size: int,
     # struct n2v
-    struct_n2v_axes: Literal["horizontal", "vertical", "cross"],
+    struct_n2v_axes: Literal["horizontal", "vertical", "cross", "square"],
     struct_n2v_span: int = 5,
     # optional parameters
     num_epochs: int = 30,
@@ -160,7 +245,7 @@ def create_structn2v_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    struct_n2v_axes : Literal["horizontal", "vertical", "cross"]
+    struct_n2v_axes : Literal["horizontal", "vertical", "cross", "square"]
         Axis or axes along which to apply structN2V mask.
     struct_n2v_span : int, default=5
         Span of the structN2V mask.
@@ -218,14 +303,16 @@ def create_advanced_n2v_config(
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
-    # - N2V specific
+    # n2v specific
     use_n2v2: bool = False,
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
-    # - structN2V specific
-    struct_n2v_axes: Literal["horizontal", "vertical", "cross", "none"] = "none",
+    # structN2V specific
+    struct_n2v_axes: Literal[
+        "horizontal", "vertical", "cross", "square", "none"
+    ] = "none",
     struct_n2v_span: int = 5,
-    # - Lightning parameters
+    # lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
@@ -238,7 +325,7 @@ def create_advanced_n2v_config(
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    # - reproducibility
+    # reproducibility
     seed: int | None = None,
 ) -> N2VConfiguration:
     """
@@ -339,8 +426,8 @@ def create_advanced_n2v_config(
         N2V pixel manipulation area.
     masked_pixel_percentage : float, default=0.2
         Percentage of pixels masked in each patch.
-    struct_n2v_axes : Literal["horizontal", "vertical", "cross", "none"], default="none"
-        Axis or axes along which to apply structN2V mask.
+    struct_n2v_axes : {"horizontal", "vertical", "cross", "square", "none"}
+        Axis or axes along which to apply structN2V mask, default="none".
     struct_n2v_span : int, default=5
         Span of the structN2V mask.
     num_workers : int, default=-1
@@ -381,65 +468,24 @@ def create_advanced_n2v_config(
     N2VConfiguration
         Configuration for training N2V.
     """
+    # we need a seed for N2VManipulate
     if seed is None:
         seed = generate_random_seed()
 
-    # if there are channels, we need to specify their number
-    channels_present = "C" in axes
-
-    if channels_present and (n_channels is None and channels is None):
-        raise ValueError(
-            "`n_channels` or `channels` must be specified when using channels."
-        )
-    elif not channels_present and (n_channels is not None and n_channels > 1):
-        raise ValueError(
-            f"C is not present in the axes, but number of channels is specified "
-            f"(got {n_channels} channel)."
-        )
-
-    if n_channels is not None and channels is not None:
-        if n_channels != len(channels):
-            raise ValueError(
-                f"Number of channels ({n_channels}) does not match length of "
-                f"`channels` ({len(channels)}). Only specify `channels`."
-            )
-
-    if n_channels is None:
-        n_channels = 1 if channels is None else len(channels)
+    n_channels = _validate_n2v_channel_dim(axes, channels, n_channels)
 
     # normalization
     norm_config = {"name": normalization}
     if normalization_params is not None:
         norm_config.update(normalization_params)
 
-    # augmentations
-    augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
-    if augmentations is not None:
-        augs = []
-
-        x_flip_present = "x_flip" in augmentations
-        y_flip_present = "y_flip" in augmentations
-        rotate_90_present = "rotate_90" in augmentations
-
-        if x_flip_present or y_flip_present:
-            augs.append(
-                XYFlipConfig(
-                    flip_x=x_flip_present,
-                    flip_y=y_flip_present,
-                    seed=seed,
-                )
-            )
-        if rotate_90_present:
-            augs.append(XYRandomRotate90Config(seed=seed))
-    spatial_transforms = list_spatial_augmentations(augs)
-
     # data
-    data_config = create_ng_data_configuration(
+    data_config = create_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        augmentations=spatial_transforms,
+        augmentations=assemble_augmentations(augmentations=augmentations, seed=seed),
         normalization=norm_config,
         patch_filter_config=patch_filter_config,
         channels=channels,
@@ -467,24 +513,12 @@ def create_advanced_n2v_config(
         lr_scheduler_params=lr_scheduler_params,
     )
 
-    # create the N2VManipulate transform using the supplied parameters
-    n2v_transform = N2VManipulateConfig(
-        name=SupportedTransform.N2V_MANIPULATE.value,
-        strategy=(
-            SupportedPixelManipulation.MEDIAN.value
-            if use_n2v2
-            else SupportedPixelManipulation.UNIFORM.value
-        ),
+    n2v_transform = _create_n2v_transform(
         roi_size=roi_size,
         masked_pixel_percentage=masked_pixel_percentage,
-        struct_mask=(
-            {
-                "axes": struct_n2v_axes,
-                "span": struct_n2v_span,
-            }
-            if struct_n2v_axes != "none"
-            else None
-        ),
+        use_n2v2=use_n2v2,
+        struct_n2v_axes=struct_n2v_axes,
+        struct_n2v_span=struct_n2v_span,
         seed=seed,
     )
     algorithm_params["n2v_config"] = n2v_transform
@@ -501,7 +535,6 @@ def create_advanced_n2v_config(
         trainer_params=final_trainer_params,
         logger=logger,
         checkpoint_params=checkpoint_params,
-        monitor_metric=monitor_metric,
     )
 
     algorithm_config = N2VAlgorithm(**algorithm_params)

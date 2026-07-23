@@ -179,13 +179,14 @@ def create_microsplit_dataset(
         data_type=SupportedData(config.data_type), in_memory=config.in_memory
     )
     rng = rng if rng is not None else np.random.default_rng(config.seed)
+    target_axes = config.target_axes or config.axes
 
     patch_constructor: PatchConstr
     match data:
         case MultiChannelTarget(target_data):
             _warn_unused_training_config_fields(config, "multiplexed-target mode")
             target_extractor = init_patch_extractor(
-                patch_extractor_type, image_stack_loader, target_data, config.axes
+                patch_extractor_type, image_stack_loader, target_data, target_axes
             )
             patching_strategy = create_patching(
                 target_extractor.shapes, config.patching
@@ -212,7 +213,7 @@ def create_microsplit_dataset(
                 )
             target_extractors = [
                 init_patch_extractor(
-                    patch_extractor_type, image_stack_loader, source, config.axes
+                    patch_extractor_type, image_stack_loader, source, target_axes
                 )
                 for source in target_channel_data
             ]
@@ -243,7 +244,7 @@ def create_microsplit_dataset(
                 patch_extractor_type, image_stack_loader, input_data, config.axes
             )
             target_extractor = init_patch_extractor(
-                patch_extractor_type, image_stack_loader, target_data, config.axes
+                patch_extractor_type, image_stack_loader, target_data, target_axes
             )
             patching_strategy = create_patching(input_extractor.shapes, config.patching)
             patch_constructor = PairedInputTargetMsPatchConstr(

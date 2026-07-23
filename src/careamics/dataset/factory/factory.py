@@ -146,9 +146,10 @@ def create_dataset(
     input_extractor = init_patch_extractor(
         patch_extractor_type, image_stack_loader, inputs, config.axes
     )
+    target_axes = config.target_axes or config.axes
     if targets is not None:
         target_extractor = init_patch_extractor(
-            patch_extractor_type, image_stack_loader, targets, config.axes
+            patch_extractor_type, image_stack_loader, targets, target_axes
         )
     else:
         target_extractor = None
@@ -215,9 +216,10 @@ def create_train_dataset(
     input_extractor = init_patch_extractor(
         patch_extractor_type, image_stack_loader, inputs, config.axes
     )
+    target_axes = config.target_axes or config.axes
     if targets is not None:
         target_extractor = init_patch_extractor(
-            patch_extractor_type, image_stack_loader, targets, config.axes
+            patch_extractor_type, image_stack_loader, targets, target_axes
         )
     else:
         target_extractor = None

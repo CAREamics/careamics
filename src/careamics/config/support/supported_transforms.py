@@ -3,9 +3,14 @@
 from enum import StrEnum
 
 
-class SupportedTransform(StrEnum):
-    """Transforms officially supported by CAREamics."""
+class SupportedAugmentation(StrEnum):
+    """Augmentations supported by CAREamics."""
 
     XY_FLIP = "XYFlip"
     XY_RANDOM_ROTATE90 = "XYRandomRotate90"
+
+
+class SupportedTransform(StrEnum):
+    """Transforms supported by CAREamics."""
+
     N2V_MANIPULATE = "N2VManipulate"
