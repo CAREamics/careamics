@@ -460,7 +460,7 @@ class RestoredAxesTransform:
         """
         sizes: list[int] = []
         original_sizes = self.original_dim_sizes
-        for axis in self.restored_axes:
+        for axis in self.target_axes:
             if axis == "C":
                 sizes.append(self.current_c_size)
             else:

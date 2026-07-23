@@ -229,16 +229,10 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
         g = zarr.open(zarr_path, mode="r")
 
         # check sharding and chunking
-        if channels is not None and len(channels) == 1:  # channels were dropped
-            if shards is not None:
-                assert (1,) + g[array_name].shards == shards
-            if chunks is not None:
-                assert (1,) + g[array_name].chunks == chunks
-        else:
-            if shards is not None:
-                assert g[array_name].shards == shards
-            if chunks is not None:
-                assert g[array_name].chunks == chunks
+        if shards is not None:
+            assert g[array_name].shards == shards
+        if chunks is not None:
+            assert g[array_name].chunks == chunks
 
         # pull array
         pred_array = g[array_name][:]
@@ -249,8 +243,7 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
         if channels is not None:
             expected_array = expected_array[:, channels]
 
-        # zarr file writer does not save singleton dims if not present in original data
-        if "C" not in axes or (channels is not None and len(channels)) == 1:
+        if "C" not in axes:
             expected_array = expected_array.squeeze(axis=1)
         if "S" not in axes:
             expected_array = expected_array.squeeze(axis=0)
