@@ -14,10 +14,16 @@ from careamics.config.lightning.optimizer_configs import (
 )
 from careamics.config.losses.loss_config import LVAELossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
+from careamics.config.support import SupportedLoss
 from careamics.config.validators import (
-    loss_type_is_microsplit,
+    at_least_one_likelihood,
+    lvae_conv_strides_valid,
+    lvae_depth_valid,
+    lvae_multiscale_count_valid,
+    lvae_spatial_shape_valid,
     noise_models_match_output_channels,
     predict_logvar_consistent,
+    predict_logvar_required_for_musplit,
 )
 
 MICROSPLIT = "MicroSplit"
@@ -44,15 +50,25 @@ class MicroSplitAlgorithm(BaseModel):
 
     algorithm: Literal["microsplit"] = "microsplit"
 
-    loss: Annotated[LVAELossConfig, AfterValidator(loss_type_is_microsplit)] = (
-        LVAELossConfig(loss_type="microsplit")
-    )
+    loss: Annotated[
+        LVAELossConfig,
+        AfterValidator(at_least_one_likelihood),
+        AfterValidator(predict_logvar_required_for_musplit),
+    ] = LVAELossConfig(loss_type="microsplit")
 
-    model: LVAEConfig
+    model: Annotated[
+        LVAEConfig,
+        AfterValidator(lvae_conv_strides_valid),
+        AfterValidator(lvae_multiscale_count_valid),
+        AfterValidator(lvae_spatial_shape_valid),
+        AfterValidator(lvae_depth_valid),
+    ]
 
     noise_model: MultiChannelNMConfig | None = None
 
     mmse_count: int = Field(default=1, ge=1)
+
+    is_supervised: bool = True
 
     optimizer: OptimizerConfig = OptimizerConfig()
     """Optimizer to use, defined in SupportedOptimizer."""
@@ -60,19 +76,26 @@ class MicroSplitAlgorithm(BaseModel):
     lr_scheduler: LrSchedulerConfig = LrSchedulerConfig()
 
     @model_validator(mode="after")
-    def warn_denoisplit_without_noise_model(self: Self) -> Self:
-        """Remind users to attach a noise model when using denoiSplit.
+    def validate_constraints(self: Self) -> Self:
+        """Validate the algorithm-specific constraints.
 
         Returns
         -------
         Self
             The validated model.
 
-        Warns
-        -----
-        UserWarning
-            If `denoisplit_weight` is greater than 0 and no noise model is provided.
+        Raises
+        ------
+        ValueError
+            If the loss, model or noise model configurations are not compatible
+            with the MicroSplit algorithm.
         """
+        if self.loss.loss_type != SupportedLoss.MICROSPLIT:
+            raise ValueError(
+                f"Algorithm {self.algorithm} only supports loss `microsplit`."
+            )
+
+        # Remind users to attach a noise model when using denoiSplit
         if self.loss.denoisplit_weight > 0 and self.noise_model is None:
             warnings.warn(
                 "denoisplit_weight > 0 but no noise_model is provided in the "
@@ -83,41 +106,19 @@ class MicroSplitAlgorithm(BaseModel):
                 UserWarning,
                 stacklevel=2,
             )
-        return self
 
-    @model_validator(mode="after")
-    def validate_predict_logvar(self: Self) -> Self:
-        """Validate the consistency of `predict_logvar` between model and loss.
+        # Warn about a noise model that will never be used
+        if self.noise_model is not None and self.loss.denoisplit_weight == 0:
+            warnings.warn(
+                "A noise_model is provided but denoisplit_weight is 0, so the noise "
+                "model likelihood is disabled and the noise model will not be used.",
+                UserWarning,
+                stacklevel=2,
+            )
 
-        Returns
-        -------
-        Self
-            The validated model.
-
-        Raises
-        ------
-        ValueError
-            If the model and loss `predict_logvar` do not match.
-        """
         predict_logvar_consistent(self.model, self.loss)
-        return self
-
-    @model_validator(mode="after")
-    def validate_noise_model_channels(self: Self) -> Self:
-        """Validate that the number of noise models matches the output channels.
-
-        Returns
-        -------
-        Self
-            The validated model.
-
-        Raises
-        ------
-        ValueError
-            If the number of output channels does not match the number of noise
-            models.
-        """
         noise_models_match_output_channels(self.model, self.noise_model)
+
         return self
 
     def __str__(self) -> str:
@@ -195,15 +196,3 @@ class MicroSplitAlgorithm(BaseModel):
             Algorithm description.
         """
         return MICROSPLIT_DESCRIPTION
-
-    @classmethod
-    def is_supervised(cls) -> bool:
-        """
-        Return whether the algorithm is supervised.
-
-        Returns
-        -------
-        bool
-            Whether the algorithm is supervised.
-        """
-        return True

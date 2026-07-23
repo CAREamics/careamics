@@ -1,8 +1,8 @@
 """LVAE Pydantic model."""
 
-from typing import Literal, Self
+from typing import Literal
 
-from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from .architecture_config import ArchitectureConfig
 
@@ -45,55 +45,6 @@ class LVAEConfig(ArchitectureConfig):
 
     predict_logvar: bool = True
     """Whether to predict log-variance (pixelwise uncertainty)."""
-
-    @model_validator(mode="after")
-    def validate_conv_strides(self: Self) -> Self:
-        """
-        Validate the convolutional strides.
-
-        Returns
-        -------
-        list
-            Validated strides.
-
-        Raises
-        ------
-        ValueError
-            If the number of strides is not 2.
-        """
-        if len(self.encoder_conv_strides) < 2 or len(self.encoder_conv_strides) > 3:
-            raise ValueError(
-                f"Strides must be 2 or 3 (got {len(self.encoder_conv_strides)})."
-            )
-
-        if len(self.decoder_conv_strides) < 2 or len(self.decoder_conv_strides) > 3:
-            raise ValueError(
-                f"Strides must be 2 or 3 (got {len(self.decoder_conv_strides)})."
-            )
-
-        # adding 1 to encoder strides for the number of input channels
-        if len(self.input_shape) != len(self.encoder_conv_strides):
-            raise ValueError(
-                f"Input dimensions must be equal to the number of encoder conv strides"
-                f" (got {len(self.input_shape)} and {len(self.encoder_conv_strides)})."
-            )
-
-        if len(self.encoder_conv_strides) < len(self.decoder_conv_strides):
-            raise ValueError(
-                f"Decoder can't be 3D when encoder is 2D (got"
-                f" {len(self.encoder_conv_strides)} and"
-                f"{len(self.decoder_conv_strides)})."
-            )
-
-        if any(s < 1 for s in self.encoder_conv_strides) or any(
-            s < 1 for s in self.decoder_conv_strides
-        ):
-            raise ValueError(
-                f"All strides must be greater or equal to 1"
-                f"(got {self.encoder_conv_strides} and {self.decoder_conv_strides})."
-            )
-        # TODO: validate max stride size ?
-        return self
 
     @field_validator("input_shape")
     @classmethod
@@ -222,23 +173,6 @@ class LVAEConfig(ArchitectureConfig):
             )
 
         return z_dims
-
-    @model_validator(mode="after")
-    def validate_multiscale_count(self: Self) -> Self:
-        """
-        Validate the multiscale count.
-
-        Returns
-        -------
-        Self
-            The validated model.
-        """
-        if self.multiscale_count < 1 or self.multiscale_count > len(self.z_dims) + 1:
-            raise ValueError(
-                f"Multiscale count must be 1 for LC off or less or equal to the number"
-                f" of Z dims + 1 (got {self.multiscale_count} and {len(self.z_dims)})."
-            )
-        return self
 
     def set_3D(self, is_3D: bool) -> None:
         """
