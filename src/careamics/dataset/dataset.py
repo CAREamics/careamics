@@ -326,7 +326,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         input_data = ImageRegionData(
             data=input_patch,
             axes=self.config.axes,
-            target_axes=self.config.target_axes,
+            target_axes=target_axes,
             region_spec=patch_spec,
             **input_metadata,
         )
@@ -334,7 +334,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             target_data = ImageRegionData(
                 data=target_patch,
                 axes=target_axes,
-                target_axes=None,
+                target_axes=target_axes,
                 region_spec=patch_spec,
                 **target_metadata,
             )

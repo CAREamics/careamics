@@ -35,6 +35,7 @@ def tile(
         data_shape=tile_shape,
         dtype="float32",
         axes=original_axes,
+        target_axes=original_axes,
         original_data_shape=original_shape,
         region_spec=TileSpecs(
             data_idx=2,

@@ -48,12 +48,13 @@ def create_image_region(
         dtype=str(extractor.image_stacks[data_idx].data_dtype),
         data_shape=extractor.image_stacks[data_idx].data_shape,
         axes=axes,
+        target_axes=axes,
+        original_data_shape=extractor.image_stacks[data_idx].original_data_shape,
         region_spec=patch_spec,
         additional_metadata={
             "shards": shards,
             "chunks": chunks,
         },
-        original_data_shape=extractor.image_stacks[data_idx].original_data_shape,
     )
 
 

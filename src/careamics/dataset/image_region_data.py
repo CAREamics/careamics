@@ -52,9 +52,9 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     axes: str
     """Axes of the original data array. SCTZYX dimensions are allowed in any order."""
 
-    target_axes: str | None
-    """Axes of the target data array. If None, the target axes are assumed to be the
-    same as the original axes. These axes are used to restore the shape of predictions.
+    target_axes: str
+    """Axes of the target data array. If no target was used during training, this should
+    be set to axes.
     """
 
     original_data_shape: Sequence[int]
