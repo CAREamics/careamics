@@ -11,15 +11,20 @@ from careamics.utils.reshape_array import (
 # --- Test utilities
 
 
-def _array_to_tile(input_shape, axes, target_shape):
+def _array_to_tile(input_shape, axes, target_shape, target_axes, output_shape):
     """Create the input to restore_tile tests from the restore_array test inputs."""
-    return input_shape, axes, target_shape[1:]
+    tile_output = tuple(
+        dim
+        for axis, dim in zip(target_axes, output_shape, strict=True)
+        if axis not in "ST"
+    )
+    return input_shape, axes, target_shape[1:], target_axes, tile_output
 
 
-def _transformed_shape(input_shape, axes):
+def _transformed_shape(input_shape, axes, target_axes, output_shape):
     """Get the transformed shape from the restore_array test inputs."""
     transform = AxesTransform(axes, input_shape)
-    return input_shape, axes, transform.transformed_shape
+    return input_shape, axes, transform.transformed_shape, target_axes, output_shape
 
 
 # default axes shapes
@@ -62,78 +67,327 @@ _DISORDERED_CASES = [
 
 # Ordered and disorded with transformed shape
 _ORDERED_TRANSFORMED = [
-    _transformed_shape(shape, axes) for shape, axes in _ORDERED_CASES
+    _transformed_shape(in_sh, axes, tar_axes, out_sh)
+    for in_sh, axes, tar_axes, out_sh in [
+        # shape, axes, target_axes, expected output_shape
+        ((XY_S, XY_S), "YX", "XY", (XY_S, XY_S)),
+        ((C_S, XY_S, XY_S), "CYX", "YXC", (XY_S, XY_S, C_S)),
+        ((S_S, XY_S, XY_S), "SYX", "YXS", (XY_S, XY_S, S_S)),
+        ((T_S, XY_S, XY_S), "TYX", "XYT", (XY_S, XY_S, T_S)),
+        ((S_S, C_S, XY_S, XY_S), "SCYX", "SYXC", (S_S, XY_S, XY_S, C_S)),
+        ((T_S, C_S, XY_S, XY_S), "TCYX", "TYXC", (T_S, XY_S, XY_S, C_S)),
+        ((S_S, T_S, C_S, XY_S, XY_S), "STCYX", "TSYXC", (T_S, S_S, XY_S, XY_S, C_S)),
+        ((Z_S, XY_S, XY_S), "ZYX", "XZY", (XY_S, Z_S, XY_S)),
+        ((C_S, Z_S, XY_S, XY_S), "CZYX", "ZYXC", (Z_S, XY_S, XY_S, C_S)),
+        ((S_S, Z_S, XY_S, XY_S), "SZYX", "ZYXS", (Z_S, XY_S, XY_S, S_S)),
+        ((T_S, Z_S, XY_S, XY_S), "TZYX", "ZYXT", (Z_S, XY_S, XY_S, T_S)),
+        ((S_S, C_S, Z_S, XY_S, XY_S), "SCZYX", "SZYXC", (S_S, Z_S, XY_S, XY_S, C_S)),
+        ((T_S, C_S, Z_S, XY_S, XY_S), "TCZYX", "TZYXC", (T_S, Z_S, XY_S, XY_S, C_S)),
+        (
+            (S_S, T_S, C_S, Z_S, XY_S, XY_S),
+            "STCZYX",
+            "TSZYXC",
+            (T_S, S_S, Z_S, XY_S, XY_S, C_S),
+        ),
+    ]
 ]
 
 _DISORDERED_TRANSFORMED = [
-    _transformed_shape(shape, axes) for shape, axes in _DISORDERED_CASES
+    _transformed_shape(in_sh, axes, tar_axes, out_sh)
+    for in_sh, axes, tar_axes, out_sh in [
+        # shape, axes, target_axes, expected output_shape
+        ((XY_S, XY_S, C_S), "YXC", "CXY", (C_S, XY_S, XY_S)),
+        ((XY_S, XY_S, Z_S), "YXZ", "XZY", (XY_S, Z_S, XY_S)),
+        ((XY_S, XY_S, T_S, Z_S), "YXTZ", "TZYX", (T_S, Z_S, XY_S, XY_S)),
+        ((XY_S, XY_S, Z_S, C_S), "YXZC", "CZYX", (C_S, Z_S, XY_S, XY_S)),
+        ((XY_S, XY_S, S_S), "YXS", "SYX", (S_S, XY_S, XY_S)),
+        (
+            (C_S, XY_S, XY_S, T_S, Z_S, S_S),
+            "CYXTZS",
+            "TSZYXC",
+            (T_S, S_S, Z_S, XY_S, XY_S, C_S),
+        ),
+    ]
 ]
 
 _ORDERED_TRANSFORMED_TILE = [
-    _array_to_tile(in_sh, axes, tar_sh) for in_sh, axes, tar_sh in _ORDERED_TRANSFORMED
+    _array_to_tile(in_sh, axes, tar_sh, tar_axes, out_sh)
+    for in_sh, axes, tar_sh, tar_axes, out_sh in _ORDERED_TRANSFORMED
 ]
 
 _DISORDERED_TRANSFORMED_TILE = [
-    _array_to_tile(in_sh, axes, tar_sh)
-    for in_sh, axes, tar_sh in _DISORDERED_TRANSFORMED
+    _array_to_tile(in_sh, axes, tar_sh, tar_axes, out_sh)
+    for in_sh, axes, tar_sh, tar_axes, out_sh in _DISORDERED_TRANSFORMED
 ]
 
-# TODO test when input has singleton C
 # Input-target with different C dimensions
-_CHANNEL_REMOVED = [
-    ((C_S, XY_S, XY_S), "CYX", (1, 1, XY_S, XY_S)),
-    ((C_S, Z_S, XY_S, XY_S), "CZYX", (1, 1, Z_S, XY_S, XY_S)),
-    ((S_S, C_S, XY_S, XY_S), "SCYX", (S_S, 1, XY_S, XY_S)),
-    ((S_S, C_S, Z_S, XY_S, XY_S), "SCZYX", (S_S, 1, Z_S, XY_S, XY_S)),
-    ((T_S, C_S, XY_S, XY_S), "TCYX", (T_S, 1, XY_S, XY_S)),
-    ((T_S, C_S, Z_S, XY_S, XY_S), "TCZYX", (T_S, 1, Z_S, XY_S, XY_S)),
-    ((S_S, T_S, C_S, XY_S, XY_S), "STCYX", (S_S * T_S, 1, XY_S, XY_S)),
-    ((S_S, T_S, C_S, Z_S, XY_S, XY_S), "STCZYX", (S_S * T_S, 1, Z_S, XY_S, XY_S)),
+_CHANNEL_REMOVED_CANONICAL = [
+    # shape, axes, target_shape, target_axes, expected output_shape
+    ((C_S, XY_S, XY_S), "CYX", (1, 1, XY_S, XY_S), "CYX", (1, XY_S, XY_S)),
+    ((C_S, XY_S, XY_S), "CYX", (1, 1, XY_S, XY_S), "YX", (XY_S, XY_S)),
+    (
+        (S_S, C_S, Z_S, XY_S, XY_S),
+        "SCZYX",
+        (S_S, 1, Z_S, XY_S, XY_S),
+        "SCZYX",
+        (S_S, 1, Z_S, XY_S, XY_S),
+    ),
+    ((T_S, C_S, XY_S, XY_S), "TCYX", (T_S, 1, XY_S, XY_S), "TYX", (T_S, XY_S, XY_S)),
+    (
+        (T_S, C_S, XY_S, XY_S),
+        "TCYX",
+        (T_S, 1, XY_S, XY_S),
+        "TCYX",
+        (T_S, 1, XY_S, XY_S),
+    ),
+    (
+        (S_S, T_S, C_S, XY_S, XY_S),
+        "STCYX",
+        (S_S * T_S, 1, XY_S, XY_S),
+        "STCYX",
+        (S_S, T_S, 1, XY_S, XY_S),
+    ),
+    (
+        (S_S, T_S, C_S, XY_S, XY_S),
+        "STCYX",
+        (S_S * T_S, 1, XY_S, XY_S),
+        "STYX",
+        (S_S, T_S, XY_S, XY_S),
+    ),
 ]
+
+_CHANNEL_REMOVED_NON_CANONICAL = [
+    ((C_S, XY_S, XY_S), "CYX", (1, 1, XY_S, XY_S), "YXC", (XY_S, XY_S, 1)),
+    (
+        (C_S, Z_S, XY_S, XY_S),
+        "CZYX",
+        (1, 1, Z_S, XY_S, XY_S),
+        "ZYXC",
+        (Z_S, XY_S, XY_S, 1),
+    ),
+    (
+        (S_S, C_S, XY_S, XY_S),
+        "SCYX",
+        (S_S, 1, XY_S, XY_S),
+        "SYXC",
+        (S_S, XY_S, XY_S, 1),
+    ),
+    (
+        (S_S, C_S, Z_S, XY_S, XY_S),
+        "SCZYX",
+        (S_S, 1, Z_S, XY_S, XY_S),
+        "SZYXC",
+        (S_S, Z_S, XY_S, XY_S, 1),
+    ),
+    (
+        (T_S, C_S, XY_S, XY_S),
+        "TCYX",
+        (T_S, 1, XY_S, XY_S),
+        "TYXC",
+        (T_S, XY_S, XY_S, 1),
+    ),
+    (
+        (T_S, C_S, Z_S, XY_S, XY_S),
+        "TCZYX",
+        (T_S, 1, Z_S, XY_S, XY_S),
+        "TZYXC",
+        (T_S, Z_S, XY_S, XY_S, 1),
+    ),
+    (
+        (S_S, T_S, C_S, XY_S, XY_S),
+        "STCYX",
+        (S_S * T_S, 1, XY_S, XY_S),
+        "TSYXC",
+        (T_S, S_S, XY_S, XY_S, 1),
+    ),
+    (
+        (S_S, T_S, C_S, Z_S, XY_S, XY_S),
+        "STCZYX",
+        (S_S * T_S, 1, Z_S, XY_S, XY_S),
+        "TSZYXC",
+        (T_S, S_S, Z_S, XY_S, XY_S, 1),
+    ),
+]
+
+_CHANNEL_REMOVED = _CHANNEL_REMOVED_CANONICAL + _CHANNEL_REMOVED_NON_CANONICAL
 
 _CHANNEL_ADDED = [
-    ((XY_S, XY_S), "YX", (1, C_S, XY_S, XY_S)),
-    ((Z_S, XY_S, XY_S), "ZYX", (1, C_S, Z_S, XY_S, XY_S)),
-    ((S_S, XY_S, XY_S), "SYX", (S_S, C_S, XY_S, XY_S)),
-    ((S_S, Z_S, XY_S, XY_S), "SZYX", (S_S, C_S, Z_S, XY_S, XY_S)),
-    ((T_S, XY_S, XY_S), "TYX", (T_S, C_S, XY_S, XY_S)),
-    ((T_S, Z_S, XY_S, XY_S), "TZYX", (T_S, C_S, Z_S, XY_S, XY_S)),
-    ((S_S, T_S, XY_S, XY_S), "STYX", (S_S * T_S, C_S, XY_S, XY_S)),
-    ((S_S, T_S, Z_S, XY_S, XY_S), "STZYX", (S_S * T_S, C_S, Z_S, XY_S, XY_S)),
+    # shape, axes, target_shape, target_axes, expected output_shape
+    ((XY_S, XY_S), "YX", (1, C_S, XY_S, XY_S), "YXC", (XY_S, XY_S, C_S)),
+    (
+        (Z_S, XY_S, XY_S),
+        "ZYX",
+        (1, C_S, Z_S, XY_S, XY_S),
+        "ZYXC",
+        (Z_S, XY_S, XY_S, C_S),
+    ),
+    ((S_S, XY_S, XY_S), "SYX", (S_S, C_S, XY_S, XY_S), "SYXC", (S_S, XY_S, XY_S, C_S)),
+    (
+        (S_S, Z_S, XY_S, XY_S),
+        "SZYX",
+        (S_S, C_S, Z_S, XY_S, XY_S),
+        "SZYXC",
+        (S_S, Z_S, XY_S, XY_S, C_S),
+    ),
+    ((T_S, XY_S, XY_S), "TYX", (T_S, C_S, XY_S, XY_S), "TYXC", (T_S, XY_S, XY_S, C_S)),
+    (
+        (T_S, Z_S, XY_S, XY_S),
+        "TZYX",
+        (T_S, C_S, Z_S, XY_S, XY_S),
+        "TZYXC",
+        (T_S, Z_S, XY_S, XY_S, C_S),
+    ),
+    (
+        (S_S, T_S, XY_S, XY_S),
+        "STYX",
+        (S_S * T_S, C_S, XY_S, XY_S),
+        "TSYXC",
+        (T_S, S_S, XY_S, XY_S, C_S),
+    ),
+    (
+        (S_S, T_S, Z_S, XY_S, XY_S),
+        "STZYX",
+        (S_S * T_S, C_S, Z_S, XY_S, XY_S),
+        "TSZYXC",
+        (T_S, S_S, Z_S, XY_S, XY_S, C_S),
+    ),
 ]
 
 _CHANNEL_CHANGED = [
-    ((C_S, XY_S, XY_S), "CYX", (1, OUT_C_S, XY_S, XY_S)),
-    ((C_S, Z_S, XY_S, XY_S), "CZYX", (1, OUT_C_S, Z_S, XY_S, XY_S)),
-    ((S_S, C_S, XY_S, XY_S), "SCYX", (S_S, OUT_C_S, XY_S, XY_S)),
-    ((S_S, C_S, Z_S, XY_S, XY_S), "SCZYX", (S_S, OUT_C_S, Z_S, XY_S, XY_S)),
-    ((T_S, C_S, XY_S, XY_S), "TCYX", (T_S, OUT_C_S, XY_S, XY_S)),
-    ((S_S, T_S, C_S, XY_S, XY_S), "STCYX", (S_S * T_S, OUT_C_S, XY_S, XY_S)),
+    # shape, axes, target_shape, target_axes, expected output_shape
+    ((C_S, XY_S, XY_S), "CYX", (1, OUT_C_S, XY_S, XY_S), "YXC", (XY_S, XY_S, OUT_C_S)),
+    (
+        (C_S, Z_S, XY_S, XY_S),
+        "CZYX",
+        (1, OUT_C_S, Z_S, XY_S, XY_S),
+        "ZYXC",
+        (Z_S, XY_S, XY_S, OUT_C_S),
+    ),
+    (
+        (S_S, C_S, XY_S, XY_S),
+        "SCYX",
+        (S_S, OUT_C_S, XY_S, XY_S),
+        "SYXC",
+        (S_S, XY_S, XY_S, OUT_C_S),
+    ),
+    (
+        (S_S, C_S, Z_S, XY_S, XY_S),
+        "SCZYX",
+        (S_S, OUT_C_S, Z_S, XY_S, XY_S),
+        "SZYXC",
+        (S_S, Z_S, XY_S, XY_S, OUT_C_S),
+    ),
+    (
+        (T_S, C_S, XY_S, XY_S),
+        "TCYX",
+        (T_S, OUT_C_S, XY_S, XY_S),
+        "TYXC",
+        (T_S, XY_S, XY_S, OUT_C_S),
+    ),
+    (
+        (S_S, T_S, C_S, XY_S, XY_S),
+        "STCYX",
+        (S_S * T_S, OUT_C_S, XY_S, XY_S),
+        "TSYXC",
+        (T_S, S_S, XY_S, XY_S, OUT_C_S),
+    ),
+    ((1, XY_S, XY_S), "CYX", (1, OUT_C_S, XY_S, XY_S), "YXC", (XY_S, XY_S, OUT_C_S)),
+    (
+        (S_S, 1, XY_S, XY_S),
+        "SCYX",
+        (S_S, OUT_C_S, XY_S, XY_S),
+        "SYXC",
+        (S_S, XY_S, XY_S, OUT_C_S),
+    ),
 ]
 
 _CHANNEL_MISMATCH = _CHANNEL_REMOVED + _CHANNEL_ADDED + _CHANNEL_CHANGED
 
 _CHANNEL_REMOVED_DISORDERED = [
-    ((XY_S, XY_S, C_S), "YXC", (1, 1, XY_S, XY_S)),
-    ((XY_S, XY_S, C_S, Z_S), "YXCZ", (1, 1, Z_S, XY_S, XY_S)),
-    ((XY_S, XY_S, C_S, T_S), "YXCT", (T_S, 1, XY_S, XY_S)),
-    ((XY_S, XY_S, T_S, C_S, Z_S), "YXTCZ", (T_S, 1, Z_S, XY_S, XY_S)),
-    ((XY_S, XY_S, T_S, C_S, S_S, Z_S), "YXTCSZ", (S_S * T_S, 1, Z_S, XY_S, XY_S)),
+    # shape, axes, target_shape, target_axes, expected output_shape
+    ((XY_S, XY_S, C_S), "YXC", (1, 1, XY_S, XY_S), "YXC", (XY_S, XY_S, 1)),
+    (
+        (XY_S, XY_S, C_S, Z_S),
+        "YXCZ",
+        (1, 1, Z_S, XY_S, XY_S),
+        "YXZC",
+        (XY_S, XY_S, Z_S, 1),
+    ),
+    (
+        (XY_S, XY_S, C_S, T_S),
+        "YXCT",
+        (T_S, 1, XY_S, XY_S),
+        "TYXC",
+        (T_S, XY_S, XY_S, 1),
+    ),
+    (
+        (XY_S, XY_S, T_S, C_S, Z_S),
+        "YXTCZ",
+        (T_S, 1, Z_S, XY_S, XY_S),
+        "TYXZC",
+        (T_S, XY_S, XY_S, Z_S, 1),
+    ),
+    (
+        (XY_S, XY_S, T_S, C_S, S_S, Z_S),
+        "YXTCSZ",
+        (S_S * T_S, 1, Z_S, XY_S, XY_S),
+        "TSYXZC",
+        (T_S, S_S, XY_S, XY_S, Z_S, 1),
+    ),
 ]
 
 _CHANNEL_ADDED_DISORDERED = [
-    ((XY_S, XY_S, Z_S), "YXZ", (1, C_S, Z_S, XY_S, XY_S)),
-    ((XY_S, XY_S, T_S), "YXT", (T_S, C_S, XY_S, XY_S)),
-    ((XY_S, XY_S, T_S, Z_S), "YXTZ", (T_S, C_S, Z_S, XY_S, XY_S)),
-    ((XY_S, XY_S, T_S, S_S, Z_S), "YXTSZ", (S_S * T_S, C_S, Z_S, XY_S, XY_S)),
+    # shape, axes, target_shape, target_axes, expected output_shape
+    (
+        (XY_S, XY_S, Z_S),
+        "YXZ",
+        (1, C_S, Z_S, XY_S, XY_S),
+        "YXCZ",
+        (XY_S, XY_S, C_S, Z_S),
+    ),
+    ((XY_S, XY_S, T_S), "YXT", (T_S, C_S, XY_S, XY_S), "TYXC", (T_S, XY_S, XY_S, C_S)),
+    (
+        (XY_S, XY_S, T_S, Z_S),
+        "YXTZ",
+        (T_S, C_S, Z_S, XY_S, XY_S),
+        "TYXZC",
+        (T_S, XY_S, XY_S, Z_S, C_S),
+    ),
+    (
+        (XY_S, XY_S, T_S, S_S, Z_S),
+        "YXTSZ",
+        (S_S * T_S, C_S, Z_S, XY_S, XY_S),
+        "TSYXZC",
+        (T_S, S_S, XY_S, XY_S, Z_S, C_S),
+    ),
 ]
 
 
 _CHANNEL_CHANGED_DISORDERED = [
-    ((XY_S, XY_S, C_S), "YXC", (1, OUT_C_S, XY_S, XY_S)),
-    ((XY_S, XY_S, C_S, Z_S), "YXCZ", (1, OUT_C_S, Z_S, XY_S, XY_S)),
-    ((C_S, XY_S, XY_S, T_S, S_S), "CYXTS", (S_S * T_S, OUT_C_S, XY_S, XY_S)),
-    ((C_S, XY_S, XY_S, T_S, Z_S, S_S), "CYXTZS", (S_S * T_S, OUT_C_S, Z_S, XY_S, XY_S)),
+    # shape, axes, target_shape, target_axes, expected output_shape
+    ((XY_S, XY_S, C_S), "YXC", (1, OUT_C_S, XY_S, XY_S), "YXC", (XY_S, XY_S, OUT_C_S)),
+    (
+        (XY_S, XY_S, C_S, Z_S),
+        "YXCZ",
+        (1, OUT_C_S, Z_S, XY_S, XY_S),
+        "YXZC",
+        (XY_S, XY_S, Z_S, OUT_C_S),
+    ),
+    (
+        (C_S, XY_S, XY_S, T_S, S_S),
+        "CYXTS",
+        (S_S * T_S, OUT_C_S, XY_S, XY_S),
+        "TSYXC",
+        (T_S, S_S, XY_S, XY_S, OUT_C_S),
+    ),
+    (
+        (C_S, XY_S, XY_S, T_S, Z_S, S_S),
+        "CYXTZS",
+        (S_S * T_S, OUT_C_S, Z_S, XY_S, XY_S),
+        "TSYXZC",
+        (T_S, S_S, XY_S, XY_S, Z_S, OUT_C_S),
+    ),
+    ((XY_S, XY_S, 1), "YXC", (1, OUT_C_S, XY_S, XY_S), "YXC", (XY_S, XY_S, OUT_C_S)),
 ]
 
 _CHANNEL_MISMATCH_DISORDERED = (
@@ -142,15 +396,16 @@ _CHANNEL_MISMATCH_DISORDERED = (
     + _CHANNEL_CHANGED_DISORDERED
 )
 
+
 _CHANNEL_MISMATCH_TILE = [
-    _array_to_tile(in_sh, axes, tar_sh) for in_sh, axes, tar_sh in _CHANNEL_MISMATCH
+    _array_to_tile(in_sh, axes, tar_sh, tar_axes, out_sh)
+    for in_sh, axes, tar_sh, tar_axes, out_sh in _CHANNEL_MISMATCH
 ]
 
 _CHANNEL_MISMATCH_TILE_DISORDERED = [
-    _array_to_tile(in_sh, axes, tar_sh)
-    for in_sh, axes, tar_sh in _CHANNEL_MISMATCH_DISORDERED
+    _array_to_tile(in_sh, axes, tar_sh, tar_axes, out_sh)
+    for in_sh, axes, tar_sh, tar_axes, out_sh in _CHANNEL_MISMATCH_DISORDERED
 ]
-
 
 # --- Unit tests
 
@@ -337,69 +592,9 @@ class TestReshape:
                     )
 
 
-# TODO currently testing the wrapper function rather than the underlying class
-class TestRestoreArray:
-    """Test that restore_array specifically put the values in the right dimensions."""
-
-    def test_identity(self) -> None:
-        """Test that `restore_array` returns the same array if already in
-        original shape."""
-        original_shape = (5, 3, 32, 32)
-        prediction = np.arange(np.prod(original_shape)).reshape(original_shape)
-        restored = restore_array(prediction, "SCYX", original_shape)
-        assert np.array_equal(restored, prediction)
-
-    def test_singleton_s(self) -> None:
-        """Test that `restore_array` removes singleton S axis."""
-        prediction = np.arange(3 * 32 * 32).reshape((1, 3, 32, 32))
-        restored = restore_array(prediction, "CYX", (3, 32, 32))
-        assert np.array_equal(restored, prediction[0])
-
-    def test_singleton_c(self) -> None:
-        """Test that `restore_array` removes singleton C axis."""
-        prediction = np.arange(5 * 32 * 32).reshape((5, 1, 32, 32))
-        restored = restore_array(prediction, "SYX", (5, 32, 32))
-        assert np.array_equal(restored, prediction[:, 0])
-
-    def test_unflatten_s_and_t(self) -> None:
-        """Test that `restore_array` unflattens S axis to S and T."""
-        prediction = np.arange(5 * 3 * 16 * 32 * 32).reshape((15, 1, 16, 32, 32))
-        restored = restore_array(prediction, "STZYX", (3, 5, 16, 32, 32))
-
-        shape = restored.shape
-        for s in range(shape[0]):
-            for t in range(shape[1]):
-                np.testing.assert_array_equal(
-                    restored[s, t], prediction[s * shape[1] + t, 0]
-                )
-
-    def test_s_to_t(self) -> None:
-        """Test that `restore_array` converts S axis to T."""
-        prediction = np.arange(5 * 32 * 32).reshape((5, 1, 32, 32))
-        restored = restore_array(prediction, "TYX", (5, 32, 32))
-
-        shape = restored.shape
-        for t in range(shape[0]):
-            np.testing.assert_array_equal(restored[t], prediction[t, 0])
-
-    def test_reorder_axes(self) -> None:
-        """Test that `restore_array` reorders axes to match original."""
-        prediction = np.arange(5 * 3 * 16 * 32 * 32).reshape((5, 3, 16, 32, 32))
-        restored = restore_array(prediction, "CYXZS", (3, 32, 32, 16, 5))
-
-        shape = restored.shape
-        for c in range(shape[0]):
-            for y in range(shape[1]):
-                for x in range(shape[2]):
-                    for z in range(shape[3]):
-                        for s in range(shape[4]):
-                            np.testing.assert_array_equal(
-                                restored[c, y, x, z, s], prediction[s, c, z, y, x]
-                            )
-
-    def test_restore_array_wrong_ndim(self):
-        with pytest.raises(ValueError, match="Expected 4D"):
-            restore_array(np.zeros((32, 32, 32)), "YX", (32, 32))
+def test_restore_array_wrong_ndim():
+    with pytest.raises(ValueError, match="Expected 4D"):
+        restore_array(np.zeros((32, 32, 32)), "YX", (32, 32))
 
 
 class TestRestoredAxesTransform:
@@ -431,7 +626,7 @@ class TestRestoredAxesTransform:
         """Test that a mismatch between the length of the current shape and whether the
         array is a tile raises an error."""
         with exp_error:
-            RestoredAxesTransform(axes, shape, target_shape, is_tile)
+            RestoredAxesTransform(axes, shape, axes, target_shape, is_tile)
 
     @pytest.mark.parametrize(
         "axes, shape, target_shape, is_tile, exp_error",
@@ -458,223 +653,121 @@ class TestRestoredAxesTransform:
         """Test that a mismatch between the spatial dimensions of the current shape and
         the original shape raises an error."""
         with exp_error:
-            RestoredAxesTransform(axes, shape, target_shape, is_tile)
+            RestoredAxesTransform(axes, shape, axes, target_shape, is_tile)
 
     @pytest.mark.parametrize(
-        "in_shape, axes, target_shape, canonical",
-        [t + (True,) for t in _CHANNEL_MISMATCH]
-        + [t + (False,) for t in _CHANNEL_MISMATCH_DISORDERED]
-        + [t + (True,) for t in _ORDERED_TRANSFORMED]
-        + [t + (False,) for t in _DISORDERED_TRANSFORMED],
+        "in_shape, axes, target_shape, target_axes, output_shape, canonical",
+        [t + (True,) for t in _CHANNEL_REMOVED_CANONICAL]
+        + [t + (False,) for t in _CHANNEL_REMOVED_NON_CANONICAL],
     )
-    def test_canonical_order(self, in_shape, axes, target_shape, canonical):
+    def test_canonical_order(
+        self, in_shape, axes, target_shape, target_axes, output_shape, canonical
+    ):
         """Test that the canonical order is always SCZYX."""
         transform = RestoredAxesTransform(
-            axes, in_shape, target_shape, current_is_tile=False
+            axes, in_shape, target_axes, target_shape, current_is_tile=False
         )
         assert transform.canonical_order == canonical
 
     @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
+        "in_shape, axes, target_shape, target_axes, output_shape",
         _ORDERED_TRANSFORMED + _DISORDERED_TRANSFORMED,
     )
-    def test_restored_array_shape(self, in_shape, axes, target_shape):
-        """Test that the restored array shape is the original shape in the absence of
+    def test_restored_array_shape(
+        self, in_shape, axes, target_shape, target_axes, output_shape
+    ):
+        """Test that the restored array shape is the target shape in the absence of
         channel mismatch."""
         transform = RestoredAxesTransform(
-            axes, in_shape, target_shape, current_is_tile=False
+            axes, in_shape, target_axes, target_shape, current_is_tile=False
         )
-        # test that the restored array shape is the original shape
-        assert transform.restored_array_shape == in_shape
+        # test that the restored array shape is the output shape
+        assert transform.restored_array_shape == output_shape
 
     @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
+        "in_shape, axes, target_shape, target_axes, output_shape",
         _ORDERED_TRANSFORMED
         + _DISORDERED_TRANSFORMED
         + _CHANNEL_CHANGED
         + _CHANNEL_CHANGED_DISORDERED,
     )
-    def test_restored_array_axes(self, in_shape, axes, target_shape):
+    def test_restored_axes(
+        self, in_shape, axes, target_shape, target_axes, output_shape
+    ):
         """Test that the restored array axes are the original axes in the absence of
         channel mismatch."""
         transform = RestoredAxesTransform(
-            axes, in_shape, target_shape, current_is_tile=False
+            axes, in_shape, target_axes, target_shape, current_is_tile=False
         )
         # test that the restored array axes are the original axes
-        assert "".join(transform.restored_array_axes) == axes
-
-    # TODO should this property kick out singleton C if they were present in input?
-    @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
-        _CHANNEL_REMOVED
-        + _CHANNEL_ADDED
-        + _CHANNEL_REMOVED_DISORDERED
-        + _CHANNEL_ADDED_DISORDERED,
-    )
-    def test_restored_array_axes_channel_mismatch(self, in_shape, axes, target_shape):
-        """Test that the restored array axes include C when it is not singleton in the
-        target shape when there is a channel mismatch."""
-        transform = RestoredAxesTransform(
-            axes, in_shape, target_shape, current_is_tile=False
-        )
-        new_axes = "".join(transform.restored_array_axes)
-
-        match ("C" in axes, "C" in new_axes):
-            case (True, True):
-                # C must be singleton in the target shape
-                assert target_shape[1] == 1
-            case (False, True):
-                # C must have the target shape's C size
-                assert target_shape[1] > 1
-            case (True, False):
-                # C must be singleton in the target shape
-                assert target_shape[1] == 1
-            case _:
-                # should not happen per parameters
-                raise ValueError("Unexpected combination of axes and new_axes")
-
-        # remove C from either and test that they are the same
-        purged_axes = "".join(ax for ax in new_axes if ax != "C")
-        purged_target_axes = "".join(ax for ax in axes if ax != "C")
-        assert purged_axes == purged_target_axes
+        assert "".join(transform.restored_axes) == target_axes
 
     @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
+        "in_shape, axes, target_shape, target_axes, output_shape",
         _ORDERED_TRANSFORMED
         + _DISORDERED_TRANSFORMED
         + _CHANNEL_MISMATCH
         + _CHANNEL_MISMATCH_DISORDERED,
     )
-    def test_current_c_size(self, in_shape, axes, target_shape):
+    def test_current_c_size(
+        self, in_shape, axes, target_shape, target_axes, output_shape
+    ):
         """Test that the current channel is correct."""
         transform = RestoredAxesTransform(
-            axes, in_shape, target_shape, current_is_tile=False
+            axes, in_shape, target_axes, target_shape, current_is_tile=False
         )
         assert transform.current_c_size == target_shape[1]
 
-    # TODO combine with previous test
+    # TODO
     @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
+        "in_shape, axes, target_shape, target_axes, output_shape",
+        _ORDERED_TRANSFORMED
+        + _DISORDERED_TRANSFORMED
+        + _CHANNEL_MISMATCH
+        + _CHANNEL_MISMATCH_DISORDERED,
+    )
+    def test_restore_array(
+        self, in_shape, axes, target_shape, target_axes, output_shape
+    ):
+        """Test that the restored array shape is the original shape in the absence of
+        channel mismatch."""
+        transform = RestoredAxesTransform(
+            axes, in_shape, target_axes, target_shape, current_is_tile=False
+        )
+        restored = transform.restore(np.zeros(target_shape))
+
+        # test that the restored array shape is the original shape
+        assert restored.shape == output_shape
+
+    @pytest.mark.parametrize(
+        "in_shape, axes, target_shape, target_axes, output_shape",
         _ORDERED_TRANSFORMED_TILE
         + _DISORDERED_TRANSFORMED_TILE
         + _CHANNEL_MISMATCH_TILE
         + _CHANNEL_MISMATCH_TILE_DISORDERED,
     )
-    def test_current_c_size_tile(self, in_shape, axes, target_shape):
-        """Test that the current channel is correct."""
-        transform = RestoredAxesTransform(
-            axes, in_shape, target_shape, current_is_tile=True
-        )
-        assert transform.current_c_size == target_shape[0]
-
-    @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
-        _ORDERED_TRANSFORMED + _DISORDERED_TRANSFORMED,
-    )
-    def test_restore_array(self, in_shape, axes, target_shape):
+    def test_restore_tile(
+        self, in_shape, axes, target_shape, target_axes, output_shape
+    ):
         """Test that the restored array shape is the original shape in the absence of
         channel mismatch."""
         transform = RestoredAxesTransform(
-            axes, in_shape, target_shape, current_is_tile=False
+            axes, in_shape, target_axes, target_shape, current_is_tile=True
         )
         restored = transform.restore(np.zeros(target_shape))
 
-        # test that the restored array shape is the original shape
-        assert restored.shape == in_shape
-
-    # TODO combine with previous test
-    @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
-        _ORDERED_TRANSFORMED_TILE + _DISORDERED_TRANSFORMED_TILE,
-    )
-    def test_restore_tile(self, in_shape, axes, target_shape):
-        """Test that the restored array shape is the original shape in the absence of
-        channel mismatch."""
-        transform = RestoredAxesTransform(
-            axes, in_shape, target_shape, current_is_tile=True
-        )
-        restored = transform.restore(np.zeros(target_shape))
-
-        # test that the restored array shape is the original shape
-        tile_shape = tuple(
-            in_shape[axes.index(ax)] for ax in axes if ax not in ("S", "T")
-        )
-        assert restored.shape == tile_shape
+        assert restored.shape == output_shape
 
     @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
-        _CHANNEL_MISMATCH + _CHANNEL_MISMATCH_DISORDERED,
-    )
-    def test_restore_array_channel_mismatch(self, in_shape, axes, target_shape):
-        """Test that the restored array shape is correct in the presence of channel
-        mismatch."""
-        transform = RestoredAxesTransform(
-            axes, in_shape, target_shape, current_is_tile=False
-        )
-        restored = transform.restore(np.zeros(target_shape))
-
-        # test that the only difference between in_shape and restored.shape is the
-        # channel dimension
-        same_dims = len(in_shape) == len(restored.shape)
-        if same_dims:
-            # C dim is that of target_shape
-            assert restored.shape[axes.index("C")] == target_shape[1]
-        else:
-            c_removed = len(in_shape) == len(restored.shape) + 1
-            set_in_shape = set(in_shape)
-            set_restored_shape = set(restored.shape)
-
-            if c_removed:
-                # C dim is removed from restored.shape, difference should be original C
-                assert set_in_shape - set_restored_shape == {in_shape[axes.index("C")]}
-            else:
-                # C dim is added to restored.shape, difference should be target C
-                assert set_restored_shape - set_in_shape == {target_shape[1]}
-
-    # TODO combine with previous test
-    @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
-        _CHANNEL_MISMATCH_TILE + _CHANNEL_MISMATCH_TILE_DISORDERED,
-    )
-    def test_restore_tile_channel_mismatch(self, in_shape, axes, target_shape):
-        """Test that the restored array shape is correct in the presence of channel
-        mismatch."""
-        transform = RestoredAxesTransform(
-            axes, in_shape, target_shape, current_is_tile=True
-        )
-        restored = transform.restore(np.zeros(target_shape))
-
-        # test that the only difference between in_shape and restored.shape is the
-        # channel dimension
-        in_shape_tile = tuple(
-            in_shape[axes.index(ax)] for ax in axes if ax not in ("S", "T")
-        )
-        new_axes = [ax for ax in axes if ax not in ("S", "T")]
-        same_dims = len(in_shape_tile) == len(restored.shape)
-
-        if same_dims:
-            # C dim is that of target_shape
-            assert restored.shape[new_axes.index("C")] == target_shape[0]
-        else:
-            c_removed = len(in_shape_tile) == len(restored.shape) + 1
-            set_in_shape = set(in_shape_tile)
-            set_restored_shape = set(restored.shape)
-
-            if c_removed:
-                # C dim is removed from restored.shape, difference should be original C
-                assert set_in_shape - set_restored_shape == {in_shape[axes.index("C")]}
-            else:
-                # C dim is added to restored.shape, difference should be target C
-                assert set_restored_shape - set_in_shape == {target_shape[0]}
-
-    @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
+        "in_shape, axes, target_shape, target_axes, output_shape",
         _ORDERED_TRANSFORMED
         + _DISORDERED_TRANSFORMED
         + _CHANNEL_MISMATCH
         + _CHANNEL_MISMATCH_DISORDERED,
     )
-    def test_stitch_slices_channel_mismatch(self, in_shape, axes, target_shape):
+    def test_stitch_slices_channel_mismatch(
+        self, in_shape, axes, target_shape, target_axes, output_shape
+    ):
         """Test stitch slices when channel dimensions differ."""
         stitch = 2
         crop = 8
@@ -690,10 +783,12 @@ class TestRestoredAxesTransform:
         else:
             s_idx = 0
 
-        transform = RestoredAxesTransform(axes, in_shape, target_shape, False)
+        transform = RestoredAxesTransform(
+            axes, in_shape, target_axes, target_shape, current_is_tile=False
+        )
         stitch_slices = transform.stitch_slices(s_idx, stitch_coords, crop_size)
 
-        for i, ax in enumerate(transform.restored_array_axes):
+        for i, ax in enumerate(target_axes):
             if ax in "ZYX":
                 assert stitch_slices[i].start == stitch
                 assert stitch_slices[i].stop == stitch + crop
@@ -704,32 +799,23 @@ class TestRestoredAxesTransform:
                 assert isinstance(stitch_slices[i], int)
 
     @pytest.mark.parametrize(
-        "in_shape, axes, target_shape",
-        _ORDERED_TRANSFORMED
-        + _DISORDERED_TRANSFORMED
-        + _CHANNEL_MISMATCH
-        + _CHANNEL_MISMATCH_DISORDERED,
+        "in_shape, axes, target_axes, shape, expected_shape",
+        [
+            ((32, 32), "YX", "YX", (8, 8), (8, 8)),
+            ((32, 32), "YX", "YXC", (8, 8), (8, 8, 1)),
+            ((32, 32), "YX", "CYX", (8, 8), (1, 8, 8)),
+            ((3, 32, 32), "CYX", "CYX", (5, 8, 8), (5, 8, 8)),
+            ((3, 32, 32), "CYX", "YXC", (5, 8, 8), (8, 8, 5)),
+            ((3, 32, 32), "CYX", "YX", (5, 8, 8), (8, 8)),
+        ],
     )
-    def test_adjust_shape(self, in_shape, axes, target_shape):
+    def test_adjust_shape(self, in_shape, axes, target_axes, shape, expected_shape):
         """Test that restoring shapes remove or add "C" dimension."""
-        default_val = 2
-        c_val = 5
-
-        shape = tuple(
-            default_val if ax != "C" else c_val for ax in axes
-        )  # arbitrary shape with C=5
-
-        transform = RestoredAxesTransform(axes, in_shape, target_shape, False)
-        new_shape = transform.adjust_shape(shape)
-
-        if transform.add_current_c:
-            # C should have been added
-            assert len(new_shape) == len(shape) + 1
-            assert set(new_shape) - set(shape) == {1}
-        elif transform.drop_current_c and "C" in axes:
-            # C should have been removed
-            assert len(new_shape) == len(shape) - 1
-            assert set(shape) - set(new_shape) == {shape[axes.index("C")]}
-        else:
-            # C should be unchanged
-            assert new_shape == shape
+        transform = RestoredAxesTransform(
+            axes,
+            in_shape,
+            target_axes,
+            AxesTransform(axes, in_shape).transformed_shape,
+            False,
+        )
+        assert transform.adjust_shape(shape) == expected_shape

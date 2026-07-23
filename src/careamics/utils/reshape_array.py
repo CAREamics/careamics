@@ -16,6 +16,31 @@ _VALID_AXES = set(_REF_ORDER)
 # TODO to clarify the transformations call the transformed space "canonical".
 
 
+# TODO reuse the validators from configuration? or simply drop the validation from here
+def _validate_axes(axes: str) -> None:
+    """Validate axes.
+
+    Parameters
+    ----------
+    axes : str
+        Axes string of the input data (e.g. "YXC", "STCZYX").
+
+    Raises
+    ------
+    ValueError
+        If axes are not valid.
+    """
+    invalid = set(axes) - _VALID_AXES
+    if invalid:
+        raise ValueError(f"Invalid axis names: {invalid}. Must be from {_VALID_AXES}.")
+
+    if len(set(axes)) != len(axes):
+        raise ValueError(f"Duplicate axes in '{axes}'.")
+
+    if "Y" not in axes or "X" not in axes:
+        raise ValueError("Axes must contain Y and X.")
+
+
 def _validate_axes_and_shape(axes: str, shape: Sequence[int]) -> None:
     """Validate axes and shape.
 
@@ -31,21 +56,47 @@ def _validate_axes_and_shape(axes: str, shape: Sequence[int]) -> None:
     ValueError
         If axes and shape are not compatible.
     """
+    _validate_axes(axes)
+
     if len(axes) != len(shape):
         raise ValueError(
             f"Axes '{axes}' length ({len(axes)}) does not match shape {shape} length "
             f"({len(shape)})."
         )
 
-    invalid = set(axes) - _VALID_AXES
-    if invalid:
-        raise ValueError(f"Invalid axis names: {invalid}. Must be from {_VALID_AXES}.")
 
-    if len(set(axes)) != len(axes):
-        raise ValueError(f"Duplicate axes in '{axes}'.")
+def _validate_axes_and_target(original_axes: str, target_axes: str) -> None:
+    """Validate axes against target axes.
 
-    if "Y" not in axes or "X" not in axes:
-        raise ValueError("Axes must contain Y and X.")
+    Parameters
+    ----------
+    original_axes : str
+        Axes string of the input data (e.g. "YXC", "STCZYX").
+    target_axes : str
+        Target axes string of the output data (e.g. "SCZYX").
+
+    Raises
+    ------
+    ValueError
+        If axes and target axes are not compatible.
+    """
+    original_sample_axes = {axis for axis in original_axes if axis in "ST"}
+    target_sample_axes = {axis for axis in target_axes if axis in "ST"}
+    if target_sample_axes != original_sample_axes:
+        raise ValueError(
+            "`target_axes` must contain the same sample axes as "
+            f"`original_axes`. Got target_axes {target_axes} and "
+            f"original_axes {original_axes}."
+        )
+
+    original_spatial_axes = {axis for axis in original_axes if axis in "ZYX"}
+    target_spatial_axes = {axis for axis in target_axes if axis in "ZYX"}
+    if target_spatial_axes != original_spatial_axes:
+        raise ValueError(
+            "`target_axes` must contain the same spatial axes as "
+            f"`original_axes`. Got target_axes {target_axes} and "
+            f"original_axes {original_axes}."
+        )
 
 
 @dataclass(frozen=True)
@@ -238,11 +289,8 @@ class RestoredAxesTransform:
     The only difference between the current shape and the original shape is that the C
     dimension might have been added, removed or have different dimension.
 
-    In pseudo code:
-    if C in original_axes and current_c_size == 1: remove C from restored axes
-    if C in original_axes and current_c_size > 1: keep C with current C size
-    if C not in original_axes and current_c_size == 1: remove C from restored axes
-    if C not in original_axes and current_c_size > 1: add C with current C size
+    We assume that if the model output has multiple channels, but there is no C in axes,
+    then that C is in `target_axes`.
     """
 
     original_axes: str
@@ -251,6 +299,10 @@ class RestoredAxesTransform:
     original_shape: Sequence[int]
     """Original shape of the full data."""
 
+    target_axes: str
+    """Target axes order for the restored output. It should have the same sample axes
+    as `original_axes`, although these can be in a different order."""
+
     current_shape: tuple[int, ...]
     """Current transformed shape, either SC(Z)YX or C(Z)YX."""
 
@@ -258,8 +310,11 @@ class RestoredAxesTransform:
     """Whether current_shape is a tile shape (C(Z)YX). This is used to identify the axes
     order in `current_shape`."""
 
+    # TODO axes validation could be skipped here since it is ensured by the config
     def __post_init__(self) -> None:
         """Validate current shape and axes."""
+        _validate_axes(self.target_axes)
+        _validate_axes_and_target(self.original_axes, self.target_axes)
         _validate_axes_and_shape(self.original_axes, self.original_shape)
 
         if self.current_is_tile and len(self.current_shape) not in (3, 4):
@@ -279,6 +334,19 @@ class RestoredAxesTransform:
                 f"Original axes {self.original_axes} and current axes "
                 f"{self.current_axes} must both contain Z or neither contain Z."
             )
+
+    @property
+    def original_c_size(self) -> int | None:
+        """Original C dimension size if present.
+
+        Returns
+        -------
+        int or None
+            Original C size, or None if original axes do not contain C.
+        """
+        if "C" not in self.original_axes:
+            return None
+        return self.original_dim_sizes["C"]
 
     @property
     def original_dim_sizes(self) -> dict[str, int]:
@@ -348,48 +416,9 @@ class RestoredAxesTransform:
         Returns
         -------
         bool
-            True if original data had no C and transformed data has a singleton C
-            axis, False otherwise.
+            True if C in `target_axes`.
         """
-        return self.current_c_size == 1
-
-    @property
-    def add_current_c(self) -> bool:
-        """Whether a new C axis should be added.
-
-        Returns
-        -------
-        bool
-            True if original data had no C and transformed data has a non-singleton C
-            axis, False otherwise.
-        """
-        return "C" not in self.original_axes and self.current_c_size > 1
-
-    @property
-    def restored_array_axes(self) -> list[str]:
-        """Restored axes order for complete arrays with sample dimensions.
-
-        Keeps original axes order, except for C axis which may:
-        - be dropped if it is a singleton
-        - be added if it is not in the original axes and has size > 1
-
-        Returns
-        -------
-        list[str]
-            List of axes in the restored data output, following `restored_array_axes`.
-        """
-        axes = list(self.original_axes)
-
-        if self.drop_current_c:
-            # remove C dimension
-            if "C" in axes:
-                axes.remove("C")
-        elif self.add_current_c:
-            # insert C before the first spatial axis (Z, Y, or X)
-            first_spatial_idx = next(i for i, axis in enumerate(axes) if axis in "ZYX")
-            axes.insert(first_spatial_idx, "C")
-
-        return axes
+        return "C" not in self.target_axes
 
     @property
     def restored_axes(self) -> list[str]:
@@ -403,27 +432,27 @@ class RestoredAxesTransform:
         list[str]
             List of axes in the restored data output, following `restored_array_axes`.
         """
-        axes = self.restored_array_axes
+        axes = self.target_axes
         if self.current_is_tile:
             return [axis for axis in axes if axis not in "ST"]
-        return axes
+        return list(axes)
 
     @property
     def restored_array_shape(self) -> tuple[int, ...]:
         """Shape of the destination array indexed by stitch slices.
 
-        This shape follows `restored_array_axes` and matches original shape except for
+        This shape follows `restored_axes` and matches original shape except for
         C, which keeps transformed-space channel dimension.
 
         Returns
         -------
         tuple[int, ...]
             Shape of the destination array indexed by stitch slices, following
-            `restored_array_axes`.
+            `restored_axes`.
         """
         sizes: list[int] = []
         original_sizes = self.original_dim_sizes
-        for axis in self.restored_array_axes:
+        for axis in self.restored_axes:
             if axis == "C":
                 sizes.append(self.current_c_size)
             else:
@@ -441,14 +470,14 @@ class RestoredAxesTransform:
         bool
             True if it follows canonical order, False otherwise.
         """
-        axes = self.original_axes
+        axes = self.target_axes
         axis_idx = [axes.index(a) for a in _REF_ORDER if a in axes]
         axis_idx_ordered = sorted(axis_idx)
 
         return axis_idx == axis_idx_ordered
 
     def _transform_S_and_C(self, data: NDArray) -> tuple[NDArray, list[str]]:
-        """Restore transformed axes by unflattening S and dropping singleton new C.
+        """Restore transformed axes by unflattening S and applying C retention rules.
 
         Parameters
         ----------
@@ -458,7 +487,7 @@ class RestoredAxesTransform:
         Returns
         -------
         numpy.ndarray
-            Data array with S unflattened and singleton new C dropped.
+            Data array with S unflattened and any dropped C removed.
         list[str]
             List of axes in the current transformed array after S unflattening and C
             dropping.
@@ -477,6 +506,13 @@ class RestoredAxesTransform:
 
         if self.drop_current_c:
             c_idx = current_axes.index("C")
+
+            if data.shape[c_idx] != 1:
+                raise ValueError(
+                    f"Cannot drop C dimension from shape {data.shape} (index {c_idx}). "
+                    f"C can only be dropped if it is a singleton dimension."
+                )
+
             data = np.squeeze(data, axis=c_idx)
             current_axes.pop(c_idx)
 
@@ -487,7 +523,7 @@ class RestoredAxesTransform:
         data: NDArray,
         current_axes: list[str],
     ) -> NDArray:
-        """Reorder data axes to match original order while keeping new axes leading.
+        """Reorder data axes to match the restored output order.
 
         Parameters
         ----------
@@ -499,14 +535,13 @@ class RestoredAxesTransform:
         Returns
         -------
         numpy.ndarray
-            Data array reordered to match original axes order, with any new axes
-            leading.
+            Data array reordered to match the restored output axes order.
         """
-        target_axes = self.restored_axes
-        if current_axes == target_axes:
+        output_axes = self.restored_axes  # may be a tile without sample dims
+        if current_axes == output_axes:
             return data
 
-        permutation = [current_axes.index(axis) for axis in target_axes]
+        permutation = [current_axes.index(axis) for axis in output_axes]
         return np.transpose(data, permutation)
 
     def restore(self, data: NDArray) -> NDArray:
@@ -520,7 +555,7 @@ class RestoredAxesTransform:
         Returns
         -------
         numpy.ndarray
-            Data array restored to the original axes order.
+            Data array restored to the target axes order.
         """
         data, axes = self._transform_S_and_C(data)
         return self._reorder_to_original_axes(data, axes)
@@ -566,11 +601,8 @@ class RestoredAxesTransform:
             for axis, index in zip(sample_dims, sample_indices, strict=True):
                 slice_by_axis[axis] = index
 
-        # get full array axes order
-        restored_array_axes = self.restored_array_axes
-
         # add C slice if C is present in the final array
-        if "C" in restored_array_axes:
+        if "C" in self.target_axes:
             slice_by_axis["C"] = slice(0, self.current_c_size)
 
         # coordinates are provided in transformed-space spatial order
@@ -587,13 +619,14 @@ class RestoredAxesTransform:
         ):
             transformed_spatial_slices[axis] = slice(start, start + length)
 
-        for axis in restored_array_axes:
+        # reorder slices according to target axes order
+        for axis in self.target_axes:
             if axis in transformed_spatial_slices:
                 slice_by_axis[axis] = transformed_spatial_slices[axis]
 
         # return slices ordered by restored_axes
         return tuple(
-            slice_by_axis[axis] for axis in restored_array_axes if axis in slice_by_axis
+            slice_by_axis[axis] for axis in self.target_axes if axis in slice_by_axis
         )
 
     def adjust_shape(self, shape: Sequence[int]) -> tuple[int, ...]:
@@ -621,18 +654,14 @@ class RestoredAxesTransform:
                 f"{self.original_shape} length."
             )
 
-        axes = self.original_axes
-        adjusted_shape = list(shape)
+        input_sizes = dict(zip(self.original_axes, shape, strict=True))
 
-        if self.drop_current_c:
-            # remove C dimension
-            if "C" in axes:
-                adjusted_shape.pop(axes.index("C"))
-                axes = axes.replace("C", "")
-        elif self.add_current_c:
-            # insert C before the first spatial axis (Z, Y, or X)
-            first_spatial_idx = next(i for i, axis in enumerate(axes) if axis in "ZYX")
-            adjusted_shape.insert(first_spatial_idx, 1)
+        adjusted_shape: list[int] = []
+        for axis in self.target_axes:
+            if axis == "C" and "C" not in input_sizes:
+                adjusted_shape.append(1)
+            else:
+                adjusted_shape.append(input_sizes[axis])
 
         return tuple(adjusted_shape)
 
@@ -704,12 +733,13 @@ def restore_array(
     array: NDArray,
     original_axes: str,
     original_shape: Sequence[int],
+    target_axes: str | None = None,
 ) -> NDArray:
     """Restore array from `SC(Z)YX` space back to original axes and shape.
 
     If `array` has different spatial dimensions or number of channels than the original
     array, then the restored array will have the same shape as `array` in those
-    dimensions, but will still be reordered to match the original axes order.
+    dimensions, but will still be reordered to match the target axes.
 
     Parameters
     ----------
@@ -718,7 +748,10 @@ def restore_array(
     original_axes : str
         Original axes string (e.g. `YXC`).
     original_shape : Sequence[int]
-        Original shape of the data.
+        Original shape of the data, used to determine sample dimensions size.
+    target_axes : str
+        Target axes order to which the array should be restored. Can be set to
+        original_axes to restore the original axes order.
 
     Returns
     -------
@@ -743,6 +776,7 @@ def restore_array(
     transform = RestoredAxesTransform(
         original_axes=original_axes,
         original_shape=original_shape,
+        target_axes=target_axes or original_axes,
         current_shape=array.shape,
         current_is_tile=False,
     )
@@ -753,6 +787,7 @@ def restore_tile(
     tile: NDArray,
     original_axes: str,
     original_shape: Sequence[int],
+    target_axes: str | None = None,
 ) -> NDArray:
     """Restore single tile from `C(Z)YX` space back to original axes and shape.
 
@@ -764,6 +799,9 @@ def restore_tile(
         Original axes string of the full data.
     original_shape : Sequence[int]
         Original shape of the full data.
+    target_axes : str | None
+        Target axes order to which the tile should be restored. Can be set to
+        `None` to restore the original axes order.
 
     Returns
     -------
@@ -776,6 +814,7 @@ def restore_tile(
     transform = RestoredAxesTransform(
         original_axes=original_axes,
         original_shape=original_shape,
+        target_axes=target_axes or original_axes,
         current_shape=tile.shape,
         current_is_tile=True,
     )

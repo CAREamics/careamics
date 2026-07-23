@@ -67,6 +67,7 @@ class ZarrTileHandler:
         tile_shape = region.data.shape
         original_shape = region.original_data_shape
         original_axes = region.axes
+        target_axes = region.target_axes
         self.original_chunks = region.additional_metadata.get("chunks", None)
         self.original_shards = region.additional_metadata.get("shards", None)
 
@@ -81,6 +82,7 @@ class ZarrTileHandler:
         self.transform = RestoredAxesTransform(
             original_axes=original_axes,
             original_shape=original_shape,
+            target_axes=target_axes,
             current_shape=tile_shape,
             current_is_tile=True,
         )
@@ -112,7 +114,7 @@ class ZarrTileHandler:
         str
             Axes of the prediction array after restoring axes.
         """
-        return "".join(self.transform.restored_array_axes)
+        return self.transform.target_axes
 
     @property
     def pred_chunks(self) -> tuple[int, ...]:

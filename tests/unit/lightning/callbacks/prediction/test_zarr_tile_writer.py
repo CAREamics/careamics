@@ -10,11 +10,16 @@ from careamics.lightning.callbacks.prediction.zarr_tile_write_strategy import (
     _auto_chunks,
 )
 from tests.unit.utils.test_reshape_array import (
-    _CHANNEL_MISMATCH_TILE_DISORDERED,
-    _DISORDERED_TRANSFORMED_TILE,
+    _CHANNEL_REMOVED_NON_CANONICAL,
+    _array_to_tile,
 )
 
 # TODO add tests for TileHandler methods
+
+_CHANNEL_REMOVED_NON_CANONICAL_TILE = [
+    _array_to_tile(in_sh, axes, tar_sh, tar_axes, out_sh)
+    for in_sh, axes, tar_sh, tar_axes, out_sh in _CHANNEL_REMOVED_NON_CANONICAL
+]
 
 
 @pytest.fixture
@@ -22,6 +27,8 @@ def tile(
     original_shape: Sequence[int],
     original_axes: str,
     tile_shape: Sequence[int],
+    target_axes: str,
+    output_shape: Sequence[int],
     chunks: Sequence[int] | None = None,
     shards: Sequence[int] | None = None,
 ) -> ImageRegionData:
@@ -35,7 +42,7 @@ def tile(
         data_shape=tile_shape,
         dtype="float32",
         axes=original_axes,
-        target_axes=original_axes,
+        target_axes=target_axes,
         original_data_shape=original_shape,
         region_spec=TileSpecs(
             data_idx=2,
@@ -49,6 +56,9 @@ def tile(
         ),
         additional_metadata={"chunks": chunks, "shards": shards},
     )
+
+
+# --- Unit Tests
 
 
 @pytest.mark.parametrize(
@@ -87,8 +97,8 @@ def test_auto_chunks(axes, data_shape, expected_chunks):
 class TestZarrTileHandler:
 
     @pytest.mark.parametrize(
-        "original_shape, original_axes, tile_shape",
-        _DISORDERED_TRANSFORMED_TILE + _CHANNEL_MISMATCH_TILE_DISORDERED,
+        "original_shape, original_axes, tile_shape, target_axes, output_shape",
+        _CHANNEL_REMOVED_NON_CANONICAL_TILE,
     )
     def test_non_canonical_order_error(self, tile):
         """Test that a non canonical order of axes raises a ValueError when initializing
