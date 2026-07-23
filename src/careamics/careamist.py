@@ -571,6 +571,7 @@ class CAREamist:
     # Two overloads:
     # - 1st for supported data types & using ReadFuncLoading
     # - 2nd for ImageStackLoading
+    #
     # Why:
     #   ImageStackLoading supports any type as input, but we want to tell most users
     #   that they are only allowed Path, str, ndarray or a sequence of these.
