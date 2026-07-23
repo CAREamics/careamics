@@ -69,9 +69,9 @@ def test_lvae_loss_config_denoisplit_weight(weight: float) -> None:
 
 @pytest.mark.parametrize("weight", [-1.0, -0.5])
 def test_lvae_loss_config_negative_weights(weight: float) -> None:
-    """Test that negative weight values are accepted (no constraint enforced)."""
-    config = LVAELossConfig(loss_type="microsplit", reconstruction_weight=weight)
-    assert config.reconstruction_weight == weight
+    """Test that negative weight values are rejected."""
+    with pytest.raises(ValidationError):
+        LVAELossConfig(loss_type="microsplit", reconstruction_weight=weight)
 
 
 def test_lvae_loss_config_weight_combinations() -> None:

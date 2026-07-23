@@ -48,6 +48,28 @@ def test_predict_rejects_train_options(
         )
 
 
+@pytest.mark.parametrize(
+    "bad_ranges",
+    [
+        [(0.8, 0.2)],  # low > high
+        [(-0.1, 0.5)],  # negative low
+        [(0.2, 0.8), (0.9, 0.1)],  # second range malformed
+    ],
+)
+def test_alpha_ranges_malformed_rejected(bad_ranges: list[tuple[float, float]]) -> None:
+    """Test that each alpha range must satisfy 0 <= low <= high."""
+    with pytest.raises(ValueError, match="alpha range must satisfy"):
+        MicroSplitDataConfig(**_microsplit_config_dict(alpha_ranges=bad_ranges))
+
+
+def test_alpha_ranges_wellformed_accepted() -> None:
+    """Test that well-formed alpha ranges are accepted."""
+    config = MicroSplitDataConfig(
+        **_microsplit_config_dict(alpha_ranges=[(0.0, 1.0), (0.2, 0.8)])
+    )
+    assert config.alpha_ranges == [(0.0, 1.0), (0.2, 0.8)]
+
+
 def test_patch_filter_is_not_supported() -> None:
     """Test MicroSplit data config rejects patch filtering."""
     with pytest.raises(
