@@ -23,7 +23,6 @@ repos:
     rev: 26.5.1
     hooks:
       - id: black
-        # exclude: "^src/careamics/careamist.py"
         args: [--target-version=py313]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
