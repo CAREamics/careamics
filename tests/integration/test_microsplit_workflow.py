@@ -103,7 +103,6 @@ pytestmark = pytest.mark.lvae
 #         loss=loss_config,
 #         model=lvae_config,
 #         noise_model=noise_model_config,
-#         is_supervised=True,
 #     )
 
 #     lightning_model = VAEModule(algorithm_config=vae_config)
@@ -184,7 +183,6 @@ pytestmark = pytest.mark.lvae
 #         loss=loss_config,
 #         model=lvae_config,
 #         noise_model=noise_model_config,
-#         is_supervised=True,
 #     )
 
 #     lightning_model = VAEModule(algorithm_config=vae_config)
@@ -244,7 +242,6 @@ pytestmark = pytest.mark.lvae
 #         loss=loss_config,
 #         model=lvae_config,
 #         noise_model=noise_model_config,
-#         is_supervised=True,
 #     )
 
 #     lightning_model = VAEModule(algorithm_config=vae_config)
@@ -331,7 +328,6 @@ pytestmark = pytest.mark.lvae
 #         loss=loss_config,
 #         model=lvae_config,
 #         noise_model=noise_model_config,
-#         is_supervised=True,
 #     )
 
 #     lightning_model = VAEModule(algorithm_config=vae_config)
@@ -448,7 +444,6 @@ pytestmark = pytest.mark.lvae
 #             loss=loss_config,
 #             model=lvae_config,
 #             noise_model=noise_model_config,
-#             is_supervised=True,
 #         )
 
 #         lightning_model = VAEModule(algorithm_config=vae_config)

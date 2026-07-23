@@ -1,10 +1,10 @@
 """HDN algorithm configuration."""
 
 from pprint import pformat
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
 from careamics.config.architectures import LVAEConfig
 from careamics.config.lightning.optimizer_configs import (
@@ -13,8 +13,10 @@ from careamics.config.lightning.optimizer_configs import (
 )
 from careamics.config.losses.loss_config import LVAELossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-from careamics.config.support import SupportedLoss
 from careamics.config.validators import (
+    loss_type_is_hdn,
+    model_with_single_output_channel,
+    model_without_multiscale,
     noise_models_match_output_channels,
     predict_logvar_consistent,
 )
@@ -44,15 +46,19 @@ class HDNAlgorithm(BaseModel):
 
     algorithm: Literal["hdn"] = "hdn"
 
-    loss: LVAELossConfig = LVAELossConfig(loss_type="hdn")
+    loss: Annotated[LVAELossConfig, AfterValidator(loss_type_is_hdn)] = LVAELossConfig(
+        loss_type="hdn"
+    )
 
-    model: LVAEConfig
+    model: Annotated[
+        LVAEConfig,
+        AfterValidator(model_without_multiscale),
+        AfterValidator(model_with_single_output_channel),
+    ]
 
     noise_model: MultiChannelNMConfig | None = None
 
-    mmse_count: int = 1
-
-    is_supervised: bool = False
+    mmse_count: int = Field(default=1, ge=1)
 
     # overwrite default optimizer
     optimizer: OptimizerConfig = OptimizerConfig(name="Adamax")
@@ -61,8 +67,8 @@ class HDNAlgorithm(BaseModel):
     lr_scheduler: LrSchedulerConfig = LrSchedulerConfig()
 
     @model_validator(mode="after")
-    def validate_constraints(self: Self) -> Self:
-        """Validate the algorithm-specific constraints.
+    def validate_predict_logvar(self: Self) -> Self:
+        """Validate the consistency of `predict_logvar` between model and loss.
 
         Returns
         -------
@@ -72,24 +78,27 @@ class HDNAlgorithm(BaseModel):
         Raises
         ------
         ValueError
-            If the loss, model or noise model configurations are not compatible
-            with the HDN algorithm.
+            If the model and loss `predict_logvar` do not match.
         """
-        if self.loss.loss_type != SupportedLoss.HDN:
-            raise ValueError("HDN only supports loss `hdn`.")
-
-        if self.model.multiscale_count > 1:
-            raise ValueError("Algorithm `hdn` does not support multiscale models.")
-
-        if self.model.output_channels != 1:
-            raise ValueError(
-                f"Number of output channels ({self.model.output_channels}) must be 1 "
-                "for algorithm `hdn`."
-            )
-
         predict_logvar_consistent(self.model, self.loss)
-        noise_models_match_output_channels(self.model, self.noise_model)
+        return self
 
+    @model_validator(mode="after")
+    def validate_noise_model_channels(self: Self) -> Self:
+        """Validate that the number of noise models matches the output channels.
+
+        Returns
+        -------
+        Self
+            The validated model.
+
+        Raises
+        ------
+        ValueError
+            If the number of output channels does not match the number of noise
+            models.
+        """
+        noise_models_match_output_channels(self.model, self.noise_model)
         return self
 
     def __str__(self) -> str:
@@ -166,3 +175,15 @@ class HDNAlgorithm(BaseModel):
             Algorithm description.
         """
         return HDN_DESCRIPTION
+
+    @classmethod
+    def is_supervised(cls) -> bool:
+        """
+        Return whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return False

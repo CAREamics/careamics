@@ -39,7 +39,7 @@ def test_instantiation(tmp_path: Path, create_dummy_noise_model):
     assert config.algorithm == "microsplit"
     assert config.model.architecture == "LVAE"
     assert config.noise_model is not None
-    assert config.is_supervised
+    assert config.is_supervised()
 
 
 def test_wrong_algorithm(tmp_path: Path, create_dummy_noise_model):
@@ -79,6 +79,12 @@ def test_no_warning_without_denoisplit():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         MicroSplitAlgorithm(loss=loss, model=LVAEConfig(architecture="LVAE"))
+
+
+def test_mmse_count_lower_bound():
+    """Test that `mmse_count` must be at least 1."""
+    with pytest.raises(ValueError):
+        MicroSplitAlgorithm(model=LVAEConfig(architecture="LVAE"), mmse_count=0)
 
 
 def test_noise_model_count_mismatch(tmp_path: Path, create_dummy_noise_model):

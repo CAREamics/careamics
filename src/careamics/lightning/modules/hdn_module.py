@@ -165,7 +165,7 @@ class HDNModule(L.LightningModule):
         torch.Tensor
             Target tensor.
         """
-        if not self.config.is_supervised:
+        if not self.config.is_supervised():
             return x_data
         supervised_batch = cast("tuple[ImageRegionData, ImageRegionData]", batch)
         target_data = supervised_batch[1].data

@@ -226,7 +226,6 @@ def create_advanced_hdn_config(
         loss=loss,
         model=model,
         noise_model=noise_model,
-        is_supervised=False,
         optimizer=OptimizerConfig(
             name=optimizer,
             parameters=optimizer_params or {"lr": 3e-4},
