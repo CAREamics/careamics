@@ -50,7 +50,10 @@ callbacks = [
         **config.training_config.checkpoint_params,
     ),
     ConfigSaverCallback(
-        config.version, config.experiment_name, config.training_config
+        config.version,
+        config.experiment_name,
+        config.training_config,
+        config.data_config,
     ),  # (6)!
 ]
 
@@ -100,7 +103,12 @@ callbacks = [
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
         **config.training_config.checkpoint_params,
     ),
-    ConfigSaverCallback(config.version, config.experiment_name, config.training_config),
+    ConfigSaverCallback(
+        config.version,
+        config.experiment_name,
+        config.training_config,
+        config.data_config,
+    ),
     pred_writer,  # (2)!
 ]
 

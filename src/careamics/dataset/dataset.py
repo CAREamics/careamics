@@ -313,6 +313,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         """
         input_metadata = self.patch_constructor.get_input_image_metadata(patch_spec)
         target_metadata = self.patch_constructor.get_target_image_metadata(patch_spec)
+        target_axes = self.config.target_axes or self.config.axes
 
         input_metadata["data_shape"] = _adjust_shape_for_channels(
             input_metadata["data_shape"], self.config.channels
@@ -322,18 +323,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             self.config.channels,
             self.config.axes,
         )
-        if target_metadata is not None:
-            target_metadata["data_shape"] = _adjust_shape_for_channels(
-                target_metadata["data_shape"], self.config.channels
-            )
-            target_metadata["original_data_shape"] = (
-                _adjust_original_shape_for_channels(
-                    target_metadata["original_data_shape"],
-                    self.config.channels,
-                    self.config.axes,
-                )
-            )
-
         input_data = ImageRegionData(
             data=input_patch,
             axes=self.config.axes,
@@ -343,7 +332,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         if target_patch is not None and target_metadata is not None:
             target_data = ImageRegionData(
                 data=target_patch,
-                axes=self.config.axes,
+                axes=target_axes,
                 region_spec=patch_spec,
                 **target_metadata,
             )

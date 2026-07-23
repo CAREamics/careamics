@@ -40,6 +40,9 @@ class ImageWriteStrategy(WriteStrategy):
         Extra kwargs to pass to `write_func`.
     image_cache : dict of {int: list of ImageRegionData}
         Cache for predictions across batches, keyed by data_idx.
+    source_base : pathlib.Path or None
+        Common parent of the sources, used to preserve their directory structure.
+        Set via `set_source_base`.
     """
 
     def __init__(
@@ -67,6 +70,25 @@ class ImageWriteStrategy(WriteStrategy):
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
 
         self.image_cache: dict[int, list[ImageRegionData]] = defaultdict(list)
+
+        # common parent of the sources, used to preserve their directory structure;
+        # set via `set_source_base` by the prediction writer callback
+        self.source_base: Path | None = None
+
+    def set_source_base(self, source_base: Path | None) -> None:
+        """
+        Set the common parent directory of the sources.
+
+        Called by the prediction writer callback so that the directory structure of
+        the sources can be preserved in the output.
+
+        Parameters
+        ----------
+        source_base : pathlib.Path or None
+            Common parent of all prediction sources. If None, outputs are written
+            directly under the output directory without preserving structure.
+        """
+        self.source_base = source_base
 
     def write_batch(
         self,
@@ -165,7 +187,9 @@ class ImageWriteStrategy(WriteStrategy):
                     file_path=source_path,
                     write_extension=self.write_extension,
                     postfix=postfix,
+                    source_base=self.source_base,
                 )
+                file_path.parent.mkdir(parents=True, exist_ok=True)
                 self.write_func(
                     file_path=file_path, img=image, **self.write_func_kwargs
                 )

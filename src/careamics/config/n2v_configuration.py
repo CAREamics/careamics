@@ -18,6 +18,24 @@ class N2VConfiguration(Configuration):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
+    @model_validator(mode="after")
+    def target_axes_must_be_none(self: Self) -> Self:
+        """Ensure N2V does not use separate target axes.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+
+        Raises
+        ------
+        ValueError
+            If `target_axes` is not `None`.
+        """
+        if self.data_config.target_axes is not None:
+            raise ValueError("N2V does not support non-None `target_axes`.")
+        return self
+
     # TODO note that only patch sizes 4 and 8 may lead to less than 1 expected masked
     # pixel per patch given a minimum masked pixel percentage of 0.05%. This validation
     # could be removed in the future.

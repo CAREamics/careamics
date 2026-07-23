@@ -89,6 +89,17 @@ class ZarrTileWriteStrategy(WriteStrategy):
         self.current_group: zarr.Group | None = None
         self.current_array: zarr.Array | None = None
 
+    def set_source_base(self, source_base: Path | None) -> None:
+        """
+        No-op.
+
+        Parameters
+        ----------
+        source_base : pathlib.Path or None
+            Ignored.
+        """
+        pass
+
     def _create_zarr(self, store: str | Path) -> None:
         """Create a new zarr storage.
 

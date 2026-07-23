@@ -17,7 +17,7 @@ from careamics.config.factories.data_factory import (
     create_data_configuration,
     list_spatial_augmentations,
 )
-from careamics.config.support import SupportedTransform
+from careamics.config.support import SupportedAugmentation
 
 PATCH_FILTER_CONFIGS = (
     MeanStdPatchFilterConfig(mean_threshold=0.5),
@@ -32,8 +32,8 @@ class TestSpatialAugmentations:
         list_aug = list_spatial_augmentations(augmentations=None)
 
         assert len(list_aug) == 2
-        assert list_aug[0].name == SupportedTransform.XY_FLIP.value
-        assert list_aug[1].name == SupportedTransform.XY_RANDOM_ROTATE90.value
+        assert list_aug[0].name == SupportedAugmentation.XY_FLIP.value
+        assert list_aug[1].name == SupportedAugmentation.XY_RANDOM_ROTATE90.value
 
     def test_list_aug_no_aug(self):
         """Test that disabling augmentation results in empty transform list."""
@@ -87,7 +87,7 @@ class TestDataConfiguration:
         assert config.train_dataloader_params["shuffle"]
 
     def test_default_patching(self):
-        """Test that the default patching strategy is random."""
+        """Test that the default patching strategy is stratified."""
         config: DataConfig = create_data_configuration(
             data_type="array",
             axes="YX",
@@ -96,6 +96,18 @@ class TestDataConfiguration:
         )
 
         assert isinstance(config.patching, StratifiedPatchingConfig)
+
+    def test_target_axes(self):
+        """Test that target axes are passed to the data configuration."""
+        config: DataConfig = create_data_configuration(
+            data_type="array",
+            axes="YX",
+            target_axes="CYX",
+            patch_size=(16, 16),
+            batch_size=1,
+        )
+
+        assert config.target_axes == "CYX"
 
     def test_num_workers_explicit(self):
         """Test that an explicit num_workers value is passed through unchanged."""

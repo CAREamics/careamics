@@ -58,6 +58,39 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
     assert target.data.shape == (1, *patch_size)
 
 
+def test_from_array_with_target_axes():
+    rng = np.random.default_rng(42)
+    patch_size = (16, 16)
+    example_input = rng.random((64, 64))
+    example_target = rng.random((2, 64, 64))
+
+    train_data_config = create_data_configuration(
+        data_type="array",
+        axes="YX",
+        target_axes="CYX",
+        patch_size=patch_size,
+        batch_size=1,
+        augmentations=[],
+        normalization={"name": "none"},
+        in_memory=True,
+        seed=42,
+    )
+
+    train_dataset = create_dataset(
+        config=train_data_config,
+        inputs=[example_input],
+        targets=[example_target],
+    )
+
+    sample, target = train_dataset[0]
+    assert sample.axes == "YX"
+    assert target.axes == "CYX"
+    assert sample.data.shape == (1, *patch_size)
+    assert target.data.shape == (2, *patch_size)
+    assert target.original_data_shape == example_target.shape
+
+
+# TODO revisit these tests
 @pytest.mark.parametrize(
     "data_shape, patch_size, channels",
     [
@@ -84,13 +117,14 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
     )
 
     n_channels = len(channels) if channels is not None else data_shape[0]
+    n_channels_tar = data_shape[0]  # targets always have all channels
     train_data_config.normalization.set_input_stats(
         means=[0 for _ in range(n_channels)],
         stds=[1 for _ in range(n_channels)],
     )
     train_data_config.normalization.set_target_stats(
-        means=[0 for _ in range(n_channels)],
-        stds=[1 for _ in range(n_channels)],
+        means=[0 for _ in range(n_channels_tar)],
+        stds=[1 for _ in range(n_channels_tar)],
     )
 
     train_dataset = create_dataset(
@@ -101,16 +135,14 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
 
     sample, target = train_dataset[0]
     assert sample.data.shape[0] == data_shape[0] if channels is None else len(channels)
-    assert target.data.shape[0] == data_shape[0] if channels is None else len(channels)
+    assert target.data.shape[0] == data_shape[0]  # `channels` does not apply to targets
 
     if channels is not None:
-        for sample, target in train_dataset:
+        for sample, _ in train_dataset:
             for i, ch in enumerate(channels):
                 # ensure channels match by checking data ranges
                 assert np.all(ch * 1000 <= sample.data[i])
                 assert np.all((ch + 1) * 1000 >= sample.data[i])
-                assert np.all(ch * 1000 <= target.data[i])
-                assert np.all((ch + 1) * 1000 >= target.data[i])
 
             # test that channels are properly adjusted in data_shape
             assert sample.data_shape[1] == len(channels)
