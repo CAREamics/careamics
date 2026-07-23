@@ -289,8 +289,16 @@ class RestoredAxesTransform:
     The only difference between the current shape and the original shape is that the C
     dimension might have been added, removed or have different dimension.
 
-    We assume that if the model output has multiple channels, but there is no C in axes,
-    then that C is in `target_axes`.
+    `current_is_tile` is used to determine whether the current shape is a tile shape
+    (C(Z)YX) or a full array shape (SC(Z)YX).
+
+    This class is used in the following cases:
+    - Restoring a full array from SC(Z)YX to original axes order, after prediction.
+    - Restoring a tile from C(Z)YX to original axes order, before writing it in a Zarr.
+    - Generate slices in a fully restored array to index a restored tile (Zarr).
+    - Adjust shape based on channel difference between original and current shape, used
+    to ensure that Zarr shard and chunk sizes are compatible with the restored array
+    shape.
     """
 
     original_axes: str
