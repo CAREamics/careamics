@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from careamics.config.architectures import LVAEConfig
@@ -331,13 +332,13 @@ def at_least_one_likelihood(loss: LVAELossConfig) -> LVAELossConfig:
     return loss
 
 
-def predict_logvar_matches_likelihood(loss: LVAELossConfig) -> LVAELossConfig:
-    """Validate `predict_logvar` against the active likelihood for MicroSplit.
+def predict_logvar_required_for_musplit(loss: LVAELossConfig) -> LVAELossConfig:
+    """Validate that `predict_logvar` is enabled when the muSplit likelihood is active.
 
-    The pixelwise log-variance is only used by the Gaussian (muSplit) likelihood.
-    MicroSplit therefore requires `predict_logvar` to be ``True`` exactly when the
-    Gaussian likelihood is active (`musplit_weight` > 0), and ``False`` for pure
-    denoiSplit (`musplit_weight` == 0).
+    The Gaussian (muSplit) likelihood consumes the pixelwise predicted log-variance,
+    so `predict_logvar` must be ``True`` whenever `musplit_weight` > 0. This mirrors the
+    runtime check in the LVAE loss, surfaced here at configuration time. Pure denoiSplit
+    (`musplit_weight` == 0) may use either value.
 
     Parameters
     ----------
@@ -352,14 +353,12 @@ def predict_logvar_matches_likelihood(loss: LVAELossConfig) -> LVAELossConfig:
     Raises
     ------
     ValueError
-        If `predict_logvar` is inconsistent with `musplit_weight`.
+        If `musplit_weight` > 0 but `predict_logvar` is False.
     """
-    gaussian_active = loss.musplit_weight > 0
-    if loss.predict_logvar != gaussian_active:
+    if loss.musplit_weight > 0 and not loss.predict_logvar:
         raise ValueError(
-            f"`predict_logvar` ({loss.predict_logvar}) must be True when the muSplit "
-            f"Gaussian likelihood is active (`musplit_weight` > 0) and False otherwise "
-            f"(got `musplit_weight`={loss.musplit_weight})."
+            "`predict_logvar` must be True when the muSplit Gaussian likelihood is "
+            f"active (`musplit_weight` > 0, got {loss.musplit_weight})."
         )
     return loss
 
@@ -439,7 +438,7 @@ def alpha_ranges_match_output_channels(
         )
 
 
-def normalization_supported(data: DataConfig) -> None:
+def normalization_supported(data: MicroSplitDataConfig) -> MicroSplitDataConfig:
     """Validate that the normalization is compatible with MicroSplit.
 
     MicroSplit assumes standardized inputs (the LVAE runs on normalized data and the
@@ -448,8 +447,13 @@ def normalization_supported(data: DataConfig) -> None:
 
     Parameters
     ----------
-    data : DataConfig
+    data : MicroSplitDataConfig
         Data configuration.
+
+    Returns
+    -------
+    MicroSplitDataConfig
+        The validated data configuration.
 
     Raises
     ------
@@ -461,3 +465,35 @@ def normalization_supported(data: DataConfig) -> None:
             "MicroSplit requires normalized inputs; `normalization='none'` is not "
             "supported. Use 'mean_std' (recommended)."
         )
+    return data
+
+
+def alpha_ranges_wellformed(
+    alpha_ranges: Sequence[tuple[float, float]] | None,
+) -> Sequence[tuple[float, float]] | None:
+    """Validate that each channel-mixing range is a well-formed ``(low, high)`` pair.
+
+    Parameters
+    ----------
+    alpha_ranges : sequence of tuple of float, or None
+        Ranges used to sample channel mixing weights.
+
+    Returns
+    -------
+    sequence of tuple of float, or None
+        The validated alpha ranges.
+
+    Raises
+    ------
+    ValueError
+        If any range does not satisfy ``0 <= low <= high``.
+    """
+    if alpha_ranges is not None:
+        for alpha_range in alpha_ranges:
+            low, high = alpha_range
+            if not 0.0 <= low <= high:
+                raise ValueError(
+                    f"Each alpha range must satisfy 0 <= low <= high, got "
+                    f"{tuple(alpha_range)}."
+                )
+    return alpha_ranges
