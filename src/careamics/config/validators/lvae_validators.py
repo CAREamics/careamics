@@ -105,6 +105,7 @@ def model_with_single_output_channel(model: LVAEConfig) -> LVAEConfig:
         )
     return model
 
+
 if TYPE_CHECKING:
     from careamics.config.data import DataConfig, MicroSplitDataConfig
 
