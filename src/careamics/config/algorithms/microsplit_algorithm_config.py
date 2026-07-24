@@ -68,8 +68,6 @@ class MicroSplitAlgorithm(BaseModel):
 
     mmse_count: int = Field(default=1, ge=1)
 
-    is_supervised: bool = True
-
     optimizer: OptimizerConfig = OptimizerConfig()
     """Optimizer to use, defined in SupportedOptimizer."""
 
@@ -196,3 +194,15 @@ class MicroSplitAlgorithm(BaseModel):
             Algorithm description.
         """
         return MICROSPLIT_DESCRIPTION
+
+    @classmethod
+    def is_supervised(cls) -> bool:
+        """
+        Return whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return True
