@@ -98,12 +98,11 @@ pytestmark = pytest.mark.lvae
 #         predict_logvar=False,
 #     )
 
-#     vae_config = VAEBasedAlgorithm(
+#     vae_config = MicroSplitAlgorithm(
 #         algorithm="microsplit",
 #         loss=loss_config,
 #         model=lvae_config,
 #         noise_model=noise_model_config,
-#         is_supervised=True,
 #     )
 
 #     lightning_model = VAEModule(algorithm_config=vae_config)
@@ -179,12 +178,11 @@ pytestmark = pytest.mark.lvae
 #         predict_logvar=False,
 #     )
 
-#     vae_config = VAEBasedAlgorithm(
+#     vae_config = MicroSplitAlgorithm(
 #         algorithm="microsplit",
 #         loss=loss_config,
 #         model=lvae_config,
 #         noise_model=noise_model_config,
-#         is_supervised=True,
 #     )
 
 #     lightning_model = VAEModule(algorithm_config=vae_config)
@@ -239,12 +237,11 @@ pytestmark = pytest.mark.lvae
 #         predict_logvar=False,
 #     )
 
-#     vae_config = VAEBasedAlgorithm(
+#     vae_config = MicroSplitAlgorithm(
 #         algorithm="microsplit",
 #         loss=loss_config,
 #         model=lvae_config,
 #         noise_model=noise_model_config,
-#         is_supervised=True,
 #     )
 
 #     lightning_model = VAEModule(algorithm_config=vae_config)
@@ -326,12 +323,11 @@ pytestmark = pytest.mark.lvae
 #         predict_logvar=False,
 #     )
 
-#     vae_config = VAEBasedAlgorithm(
+#     vae_config = MicroSplitAlgorithm(
 #         algorithm="microsplit",
 #         loss=loss_config,
 #         model=lvae_config,
 #         noise_model=noise_model_config,
-#         is_supervised=True,
 #     )
 
 #     lightning_model = VAEModule(algorithm_config=vae_config)
@@ -443,12 +439,11 @@ pytestmark = pytest.mark.lvae
 #             if denoisplit_weight > 0 else None
 #         )
 #
-#         vae_config = VAEBasedAlgorithm(
+#         vae_config = MicroSplitAlgorithm(
 #             algorithm="microsplit",
 #             loss=loss_config,
 #             model=lvae_config,
 #             noise_model=noise_model_config,
-#             is_supervised=True,
 #         )
 
 #         lightning_model = VAEModule(algorithm_config=vae_config)
