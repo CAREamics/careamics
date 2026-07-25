@@ -1,3 +1,5 @@
+"""Noise models for LVAE-based algorithms."""
+
 from __future__ import annotations
 
 import copy
@@ -23,7 +25,7 @@ def create_histogram(
     bins: int, min_val: float, max_val: float, observation: NDArray, signal: NDArray
 ) -> NDArray:
     """
-    Creates a 2D histogram from 'observation' and 'signal'.
+    Create a 2D histogram from 'observation' and 'signal'.
 
     Parameters
     ----------
@@ -42,12 +44,13 @@ def create_histogram(
 
     Returns
     -------
-    histogram : np.ndarray
+    np.ndarray
         A 3D array:
         - histogram[0]: Normalized 2D counts.
         - histogram[1]: Lower boundaries of bins along y.
         - histogram[2]: Upper boundaries of bins along y.
-    The values for x can be obtained by transposing 'histogram[1]' and 'histogram[2]'.
+        The values for x can be obtained by transposing 'histogram[1]' and
+        'histogram[2]'.
     """
     histogram = np.zeros((3, bins, bins))
 
@@ -187,6 +190,13 @@ class MultiChannelNoiseModel(nn.Module):
     """
 
     def __init__(self, nmodels: list[GaussianMixtureNoiseModel]):
+        """Constructor.
+
+        Parameters
+        ----------
+        nmodels : list[GaussianMixtureNoiseModel]
+            List of noise models, one for each output channel.
+        """
         super().__init__()
         self.device = get_device()
 
@@ -231,6 +241,12 @@ class MultiChannelNoiseModel(nn.Module):
             Underlying signals, i.e., the (clean) output of the model. Specifically, the
             denoised image for HDN, or the unmixed images for denoiSplit.
             Shape: (B, C, [Z], Y, X), where C is the number of unmixed channels.
+
+        Returns
+        -------
+        torch.Tensor
+            Concatenation of the per-channel likelihoods, with the same shape
+            as the inputs.
         """
         # Case 1: obs and signal have a single channel (e.g., denoising)
         if obs.shape[1] == 1:
@@ -402,6 +418,13 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     # TODO training a NM relies on getting a clean data(N2V e.g,)
     def __init__(self, config: GaussianMixtureNMConfig) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        config : GaussianMixtureNMConfig
+            A `pydantic` model that defines the configuration of the GMM noise model.
+        """
         super().__init__()
         self.device = torch.device("cpu")
 
@@ -505,7 +528,24 @@ class GaussianMixtureNoiseModel(nn.Module):
         max_signal: torch.Tensor,
         min_signal: torch.Tensor,
     ) -> torch.Tensor:
-        """Create random weight initialization."""
+        """Create random weight initialization.
+
+        Parameters
+        ----------
+        n_gaussian : int
+            Number of gaussians in the mixture.
+        n_coeff : int
+            Number of polynomial coefficients per gaussian parameter.
+        max_signal : torch.Tensor
+            Maximum signal intensity expected in the image.
+        min_signal : torch.Tensor
+            Minimum signal intensity expected in the image.
+
+        Returns
+        -------
+        torch.Tensor
+            Randomly initialized weights of shape [3 * n_gaussian, n_coeff].
+        """
         weight = torch.randn(n_gaussian * 3, n_coeff)
         weight[n_gaussian : 2 * n_gaussian, 1] = torch.log(
             max_signal - min_signal
@@ -524,7 +564,13 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.to(device)
 
     def _set_model_mode(self, mode: str) -> None:
-        """Move params to the device and set requires_grad depending on the mode."""
+        """Set `requires_grad` on the weights depending on the mode.
+
+        Parameters
+        ----------
+        mode : str
+            Either "train" or "prediction".
+        """
         if mode == "train":
             self.weight.requires_grad = True
         else:
@@ -533,20 +579,19 @@ class GaussianMixtureNoiseModel(nn.Module):
     def polynomial_regressor(
         self, weight_params: torch.Tensor, signals: torch.Tensor
     ) -> torch.Tensor:
-        """Combines `weight_params` and `signals` to regress for the gaussian params.
+        """Combine `weight_params` and `signals` to regress for the gaussian params.
 
         Parameters
         ----------
-        weight_params : Tensor
-            Corresponds to specific rows of the `self.weight`
-
-        signals : Tensor
-            Signals
+        weight_params : torch.Tensor
+            Corresponds to specific rows of `self.weight`.
+        signals : torch.Tensor
+            Signals.
 
         Returns
         -------
-        value : Tensor
-            Corresponds to either of mean, std or weight, evaluated at `signals`
+        torch.Tensor
+            Corresponds to either of mean, std or weight, evaluated at `signals`.
         """
         value = torch.zeros_like(signals)
         device = (
@@ -565,21 +610,21 @@ class GaussianMixtureNoiseModel(nn.Module):
         self, x: torch.Tensor, mean: torch.Tensor, std: torch.Tensor
     ) -> torch.Tensor:
         """
-        Evaluates the normal probability density at `x` given the `mean` and `std`.
+        Evaluate the normal probability density at `x` given the `mean` and `std`.
 
         Parameters
         ----------
-        x: torch.Tensor
+        x : torch.Tensor
             The ground-truth tensor. Shape is (batch, 1, dim1, dim2).
-        mean: torch.Tensor
+        mean : torch.Tensor
             The inferred mean of distribution. Shape is (batch, 1, dim1, dim2).
-        std: torch.Tensor
+        std : torch.Tensor
             The inferred std of distribution. Shape is (batch, 1, dim1, dim2).
 
         Returns
         -------
-        tmp: torch.Tensor
-            Normal probability density of `x` given `mean` and `std`
+        torch.Tensor
+            Normal probability density of `x` given `mean` and `std`.
         """
         tmp = -((x - mean) ** 2)
         tmp = tmp / (2.0 * std * std)
@@ -591,22 +636,22 @@ class GaussianMixtureNoiseModel(nn.Module):
         self, observations: torch.Tensor, signals: torch.Tensor
     ) -> torch.Tensor:
         """
-        Evaluates the likelihood.
+        Evaluate the likelihood.
 
         Evaluates the likelihood of observations given the signals and the
         corresponding gaussian parameters.
 
         Parameters
         ----------
-        observations : Tensor
+        observations : torch.Tensor
             Noisy observations. Shape is (batch, 1, dim1, dim2).
-        signals : Tensor
+        signals : torch.Tensor
             Underlying signals. Shape is (batch, 1, dim1, dim2).
 
         Returns
         -------
-        value: torch.Tensor:
-            Likelihood of observations given the signals and the GMM noise model
+        torch.Tensor
+            Likelihood of observations given the signals and the GMM noise model.
         """
         observations = observations.float()
         signals = signals.float()
@@ -631,17 +676,17 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     def get_gaussian_parameters(self, signals: torch.Tensor) -> list[torch.Tensor]:
         """
-        Returns the noise model for given signals.
+        Return the noise model for given signals.
 
         Parameters
         ----------
-        signals : Tensor
-            Underlying signals
+        signals : torch.Tensor
+            Underlying signals.
 
         Returns
         -------
-        noise_model: list of Tensor
-            Contains a list of `mu`, `sigma` and `alpha` for the `signals`
+        list[torch.Tensor]
+            Contains a list of `mu`, `sigma` and `alpha` for the `signals`.
         """
         noise_model = []
         mu = []
@@ -696,7 +741,20 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     @staticmethod
     def _fast_shuffle(series: torch.Tensor, num: int) -> torch.Tensor:
-        """Shuffle the inputs randomly `num` times."""
+        """Shuffle the inputs randomly `num` times.
+
+        Parameters
+        ----------
+        series : torch.Tensor
+            Input tensor to shuffle along the first dimension.
+        num : int
+            Number of times to shuffle.
+
+        Returns
+        -------
+        torch.Tensor
+            The shuffled tensor.
+        """
         length = series.shape[0]
         for _ in range(num):
             idx = torch.randperm(length)
@@ -710,23 +768,23 @@ class GaussianMixtureNoiseModel(nn.Module):
         lower_clip: float,
         upper_clip: float,
     ) -> torch.Tensor:
-        """Returns the Signal-Observation pixel intensities as a two-column array.
+        """Return the signal-observation pixel intensities as a two-column tensor.
 
         Parameters
         ----------
-        signal : numpy array
-            Clean Signal Data
-        observation: numpy array
-            Noisy observation Data
-        lower_clip: float
+        signal : NDArray
+            Clean signal data.
+        observation : NDArray
+            Noisy observation data.
+        lower_clip : float
             Lower percentile bound for clipping.
-        upper_clip: float
+        upper_clip : float
             Upper percentile bound for clipping.
 
         Returns
         -------
-        noise_model: list of torch floats
-            Contains a list of `mu`, `sigma` and `alpha` for the `signals`
+        torch.Tensor
+            Shuffled two-column tensor of (signal, observation) pixel intensities.
         """
         lb = np.percentile(signal, lower_clip)
         ub = np.percentile(signal, upper_clip)
@@ -756,24 +814,29 @@ class GaussianMixtureNoiseModel(nn.Module):
         lower_clip: float = 0.0,
         upper_clip: float = 100.0,
     ) -> list[float]:
-        """Training to learn the noise model from signal - observation pairs.
+        """Train the noise model on signal-observation pairs.
 
         Parameters
         ----------
-        signal: numpy array
-            Clean Signal Data
-        observation: numpy array
-            Noisy Observation Data
-        learning_rate: float
+        signal : NDArray
+            Clean signal data.
+        observation : NDArray
+            Noisy observation data.
+        learning_rate : float
             Learning rate. Default = 1e-1.
-        batch_size: int
-            Nini-batch size. Default = 250000.
-        n_epochs: int
+        batch_size : int
+            Mini-batch size. Default = 250000.
+        n_epochs : int
             Number of epochs. Default = 2000.
-        lower_clip : int
+        lower_clip : float
             Lower percentile for clipping. Default is 0.
-        upper_clip : int
+        upper_clip : float
             Upper percentile for clipping. Default is 100.
+
+        Returns
+        -------
+        list[float]
+            Training loss for each epoch.
         """
         self._set_model_mode(mode="train")
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
