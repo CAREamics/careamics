@@ -38,7 +38,8 @@ class MicroSplitModule(L.LightningModule):
     - `musplit_weight` weights a Gaussian likelihood with a learned per-pixel
       variance (requires `predict_logvar=True`);
     - `denoisplit_weight` weights a noise model likelihood (requires a noise model
-      and `MeanStdNormalization`, whose statistics parameterize the likelihood).
+      and `MeanStdNormalization`; the noise model is transformed into normalized
+      data space at the start of training).
 
     Parameters
     ----------
@@ -77,11 +78,6 @@ class MicroSplitModule(L.LightningModule):
         )
         self.predict_logvar: bool = self.config.model.predict_logvar
 
-        # data statistics used by the noise model likelihood, read from the training
-        # dataset normalization in `on_fit_start`
-        self.data_mean: Any = None
-        self.data_std: Any = None
-
         self.metrics: MetricCollection = MetricCollection(
             {
                 f"SIPSNR_{i}": SIPSNR(
@@ -96,9 +92,11 @@ class MicroSplitModule(L.LightningModule):
     def on_fit_start(self) -> None:
         """Validate the supervised-training and noise model requirements.
 
-        When the noise model likelihood is used, the data statistics parameterizing
-        it are read from the training dataset normalization, which must therefore be
-        `MeanStdNormalization`.
+        When the noise model likelihood is used, the noise model is rebuilt from the
+        (raw-space) configuration and transformed into normalized data space using
+        each channel's statistics from the training dataset normalization, which must
+        therefore be `MeanStdNormalization`. Rebuilding from the configuration keeps
+        this hook idempotent (e.g. when resuming from a checkpoint).
 
         Raises
         ------
@@ -129,8 +127,8 @@ class MicroSplitModule(L.LightningModule):
                     "The noise model likelihood (denoisplit_weight > 0) requires a "
                     "noise model. Provide one in the configuration."
                 )
-            # the noise model likelihood is parameterized in target mean/std space, so
-            # the data statistics are recovered from the training normalization
+            # the noise model likelihood operates in normalized data space, so the
+            # per-channel statistics are recovered from the training normalization
             normalization = datamodule.train_dataset.normalization  # type: ignore[union-attr]
             if not isinstance(normalization, MeanStdNormalization):
                 raise TypeError(
@@ -141,8 +139,13 @@ class MicroSplitModule(L.LightningModule):
             # target statistics when supervised, input statistics otherwise
             means = normalization.target_means or normalization.input_means
             stds = normalization.target_stds or normalization.input_stds
-            self.data_mean = float(means[0])
-            self.data_std = float(stds[0])
+            # rebuild the raw-space model from the config, then normalize each
+            # channel's model with that channel's statistics
+            raw_noise_model = multichannel_noise_model_factory(self.config.noise_model)
+            assert raw_noise_model is not None
+            self.noise_model = raw_noise_model.get_normalized_copy(
+                [float(m) for m in means], [float(s) for s in stds]
+            )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.
@@ -182,8 +185,6 @@ class MicroSplitModule(L.LightningModule):
             targets=target,
             config=self.config.loss,
             noise_model=self.noise_model,
-            data_mean=self.data_mean,
-            data_std=self.data_std,
         )
 
     def _get_reconstruction(
