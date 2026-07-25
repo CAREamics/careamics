@@ -56,6 +56,15 @@ def init_noise_model(tmp_path, target_ch, n_gaussians=3, n_coeffs=3):
     return multichannel_noise_model_factory(noise_model_config)
 
 
+def _target_stats(target):
+    """Per-channel data statistics as (tensor mean, tensor std, float lists)."""
+    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
+    data_std = target.std(dim=(0, 2, 3), keepdim=True) + 1e-6
+    means = data_mean.flatten().tolist()
+    stds = data_std.flatten().tolist()
+    return data_mean, data_std, means, stds
+
+
 def _make_td_data(batch_size, n_layers, img_size, enable_lc):
     if enable_lc:
         z = [torch.rand(batch_size, 128, img_size, img_size) for _ in range(n_layers)]
@@ -111,14 +120,12 @@ def test_noise_model_log_likelihood(tmp_path, batch_size, target_ch):
     reconstruction = torch.rand(batch_size, target_ch, img_size, img_size)
     target = torch.rand(batch_size, target_ch, img_size, img_size)
     nm = init_noise_model(tmp_path, target_ch)
-    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
-    data_std = target.std(dim=(0, 2, 3), keepdim=True) + 1e-6
+    _, _, means, stds = _target_stats(target)
+    nm_norm = nm.get_normalized_copy(means, stds)
     loss = _compute_noise_model_log_likelihood(
         reconstruction=reconstruction,
         target=target,
-        noise_model=nm,
-        data_mean=data_mean,
-        data_std=data_std,
+        noise_model=nm_norm,
     )
     assert isinstance(loss, torch.Tensor)
     assert loss.ndim == 0
@@ -204,8 +211,8 @@ def test_microsplit_loss_denoisplit_mode(
     target = torch.rand(batch_size, target_ch, img_size, img_size)
     td_data = _make_td_data(batch_size, n_layers, img_size, enable_lc=False)
     nm = init_noise_model(tmp_path, target_ch)
-    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
-    data_std = target.std(dim=(0, 2, 3), keepdim=True) + 1e-6
+    _, _, means, stds = _target_stats(target)
+    nm_norm = nm.get_normalized_copy(means, stds)
     config = LVAELossConfig(
         loss_type="microsplit",
         musplit_weight=0.0,
@@ -216,9 +223,7 @@ def test_microsplit_loss_denoisplit_mode(
         model_outputs=(reconstruction, td_data),
         targets=target,
         config=config,
-        noise_model=nm,
-        data_mean=data_mean,
-        data_std=data_std,
+        noise_model=nm_norm,
     )
     assert output is not None
     assert set(output.keys()) == {"loss", "reconstruction_loss", "kl_loss"}
@@ -233,8 +238,8 @@ def test_microsplit_loss_combined_mode(tmp_path, musplit_weight):
     target = torch.rand(batch_size, target_ch, img_size, img_size)
     td_data = _make_td_data(batch_size, n_layers=2, img_size=img_size, enable_lc=False)
     nm = init_noise_model(tmp_path, target_ch)
-    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
-    data_std = target.std(dim=(0, 2, 3), keepdim=True) + 1e-6
+    _, _, means, stds = _target_stats(target)
+    nm_norm = nm.get_normalized_copy(means, stds)
     config = LVAELossConfig(
         loss_type="microsplit",
         musplit_weight=musplit_weight,
@@ -245,9 +250,7 @@ def test_microsplit_loss_combined_mode(tmp_path, musplit_weight):
         model_outputs=(reconstruction, td_data),
         targets=target,
         config=config,
-        noise_model=nm,
-        data_mean=data_mean,
-        data_std=data_std,
+        noise_model=nm_norm,
     )
     assert output is not None
     assert set(output.keys()) == {"loss", "reconstruction_loss", "kl_loss"}
@@ -290,21 +293,23 @@ def test_equiv_gaussian_log_likelihood(predict_logvar, logvar_lowerbound):
 
 
 def test_equiv_noise_model_log_likelihood(tmp_path):
-    """Test B: noise-model log-likelihood matches legacy implementation."""
+    """Test B: normalized noise model matches the legacy denormalize-in-loss path.
+
+    The normalized-space NLL equals the raw-space NLL shifted by the constant
+    -ln(data_std) per channel, so `new + mean(log(data_std)) == legacy`.
+    """
     torch.manual_seed(42)
     target_ch, img_size = 2, 16
     nm = init_noise_model(tmp_path, target_ch)
     reconstruction = torch.rand(4, target_ch, img_size, img_size)
     target = torch.rand(4, target_ch, img_size, img_size)
-    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
-    data_std = target.std(dim=(0, 2, 3), keepdim=True) + 1e-6
+    data_mean, data_std, means, stds = _target_stats(target)
 
+    nm_norm = nm.get_normalized_copy(means, stds)
     new_loss = -_compute_noise_model_log_likelihood(
         reconstruction=reconstruction,
         target=target,
-        noise_model=nm,
-        data_mean=data_mean,
-        data_std=data_std,
+        noise_model=nm_norm,
     )
     dm = torch.as_tensor(data_mean, dtype=torch.float32)
     ds = torch.as_tensor(data_std, dtype=torch.float32)
@@ -312,9 +317,38 @@ def test_equiv_noise_model_log_likelihood(tmp_path):
     target_denorm = target * ds + dm
     legacy_loss = -torch.log(nm.likelihood(target_denorm, pred_denorm)).mean()
 
-    assert torch.isclose(
-        new_loss, legacy_loss, rtol=1e-5, atol=1e-6
-    ), f"NM LL mismatch: new={new_loss.item():.6f} legacy={legacy_loss.item():.6f}"
+    shifted_loss = new_loss + torch.log(ds).mean()
+    assert torch.isclose(shifted_loss, legacy_loss, rtol=1e-4, atol=1e-5), (
+        "NM LL mismatch: "
+        f"new(shifted)={shifted_loss.item():.6f} legacy={legacy_loss.item():.6f}"
+    )
+
+
+def test_equiv_noise_model_log_likelihood_gradients(tmp_path):
+    """Gradients w.r.t. the reconstruction match the legacy denorm-in-loss path."""
+    torch.manual_seed(42)
+    target_ch, img_size = 2, 16
+    nm = init_noise_model(tmp_path, target_ch)
+    reconstruction = torch.rand(4, target_ch, img_size, img_size)
+    target = torch.rand(4, target_ch, img_size, img_size)
+    data_mean, data_std, means, stds = _target_stats(target)
+    nm_norm = nm.get_normalized_copy(means, stds)
+
+    rec_new = reconstruction.clone().requires_grad_()
+    new_loss = -_compute_noise_model_log_likelihood(
+        reconstruction=rec_new, target=target, noise_model=nm_norm
+    )
+    (grad_new,) = torch.autograd.grad(new_loss, rec_new)
+
+    rec_legacy = reconstruction.clone().requires_grad_()
+    dm = torch.as_tensor(data_mean, dtype=torch.float32)
+    ds = torch.as_tensor(data_std, dtype=torch.float32)
+    legacy_loss = -torch.log(
+        nm.likelihood(target * ds + dm, rec_legacy * ds + dm)
+    ).mean()
+    (grad_legacy,) = torch.autograd.grad(legacy_loss, rec_legacy)
+
+    torch.testing.assert_close(grad_new, grad_legacy, rtol=1e-3, atol=1e-6)
 
 
 @pytest.mark.parametrize("kl_weight", [0.5, 1.0])
@@ -381,8 +415,8 @@ def test_equiv_denoisplit_loss(tmp_path):
     reconstruction = torch.rand(4, target_ch * 2, img_size, img_size)
     target = torch.rand(4, target_ch, img_size, img_size)
     td_data = _make_td_data(4, n_layers, img_size, enable_lc=False)
-    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
-    data_std = target.std(dim=(0, 2, 3), keepdim=True) + 1e-6
+    data_mean, data_std, means, stds = _target_stats(target)
+    nm_norm = nm.get_normalized_copy(means, stds)
 
     config = LVAELossConfig(
         loss_type="microsplit",
@@ -396,9 +430,7 @@ def test_equiv_denoisplit_loss(tmp_path):
         model_outputs=(reconstruction, td_data),
         targets=target,
         config=config,
-        noise_model=nm,
-        data_mean=data_mean,
-        data_std=data_std,
+        noise_model=nm_norm,
     )
     assert new_output is not None
 
@@ -418,9 +450,11 @@ def test_equiv_denoisplit_loss(tmp_path):
     )
     legacy_net = legacy_recons + legacy_kl
 
-    assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
+    # normalized-space NLL is shifted by the per-channel constant -ln(data_std)
+    shifted_loss = new_output["loss"] + torch.log(ds).mean()
+    assert torch.isclose(shifted_loss, legacy_net, rtol=1e-4, atol=1e-5), (
         "denoisplit mismatch: "
-        f"new={new_output['loss'].item():.6f} "
+        f"new(shifted)={shifted_loss.item():.6f} "
         f"legacy={legacy_net.item():.6f}"
     )
 
@@ -438,8 +472,8 @@ def test_equiv_denoisplit_musplit_loss(tmp_path):
     reconstruction = torch.rand(4, target_ch * 2, img_size, img_size)
     target = torch.rand(4, target_ch, img_size, img_size)
     td_data = _make_td_data(4, n_layers, img_size, enable_lc=False)
-    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
-    data_std = target.std(dim=(0, 2, 3), keepdim=True) + 1e-6
+    data_mean, data_std, means, stds = _target_stats(target)
+    nm_norm = nm.get_normalized_copy(means, stds)
 
     config = LVAELossConfig(
         loss_type="microsplit",
@@ -454,9 +488,7 @@ def test_equiv_denoisplit_musplit_loss(tmp_path):
         model_outputs=(reconstruction, td_data),
         targets=target,
         config=config,
-        noise_model=nm,
-        data_mean=data_mean,
-        data_std=data_std,
+        noise_model=nm_norm,
     )
     assert new_output is not None
 
@@ -491,8 +523,11 @@ def test_equiv_denoisplit_musplit_loss(tmp_path):
     legacy_kl = denoisplit_w * denoisplit_kl + musplit_w * musplit_kl
     legacy_net = legacy_recons + legacy_kl
 
-    assert torch.isclose(new_output["loss"], legacy_net, rtol=1e-4, atol=1e-5), (
+    # only the noise-model term is shifted by the normalization constant, and it
+    # is weighted by denoisplit_w in the combined reconstruction loss
+    shifted_loss = new_output["loss"] + denoisplit_w * torch.log(ds).mean()
+    assert torch.isclose(shifted_loss, legacy_net, rtol=1e-4, atol=1e-5), (
         "combined mismatch: "
-        f"new={new_output['loss'].item():.6f} "
+        f"new(shifted)={shifted_loss.item():.6f} "
         f"legacy={legacy_net.item():.6f}"
     )
