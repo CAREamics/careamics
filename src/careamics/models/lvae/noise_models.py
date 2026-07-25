@@ -4,7 +4,7 @@ import copy
 import math
 import os
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -77,18 +77,18 @@ def create_histogram(
 
 
 def noise_model_factory(
-    model_config: Optional[GaussianMixtureNMConfig],
-) -> Optional[GaussianMixtureNoiseModel]:
+    model_config: GaussianMixtureNMConfig | None,
+) -> GaussianMixtureNoiseModel | None:
     """Noise model factory for single-channel noise models.
 
     Parameters
     ----------
-    model_config : Optional[GaussianMixtureNMConfig]
+    model_config : GaussianMixtureNMConfig | None
         Noise model configuration for a single Gaussian mixture noise model.
 
     Returns
     -------
-    Optional[GaussianMixtureNoiseModel]
+    GaussianMixtureNoiseModel | None
         A single noise model instance, or None if no config is provided.
 
     Raises
@@ -108,20 +108,20 @@ def noise_model_factory(
 
 
 def multichannel_noise_model_factory(
-    model_config: Optional[MultiChannelNMConfig],
-) -> Optional[MultiChannelNoiseModel]:
+    model_config: MultiChannelNMConfig | None,
+) -> MultiChannelNoiseModel | None:
     """Multi-channel noise model factory.
 
     Parameters
     ----------
-    model_config : Optional[MultiChannelNMConfig]
+    model_config : MultiChannelNMConfig | None
         Noise model configuration, a `MultiChannelNMConfig` config that defines
         noise models for the different output channels.
 
     Returns
     -------
-    Optional[MultiChannelNoiseModel]
-        A noise model instance.
+    MultiChannelNoiseModel | None
+        A noise model instance, or None if no config is provided.
 
     Raises
     ------
@@ -149,12 +149,17 @@ def train_gm_noise_model(
 
     Parameters
     ----------
-    model_config : GaussianMixtureNoiseModel
-        _description_
+    model_config : GaussianMixtureNMConfig
+        Configuration of the Gaussian mixture noise model to train.
+    signal : np.ndarray
+        Clean signal data.
+    observation : np.ndarray
+        Noisy observation data.
 
     Returns
     -------
-    _description_
+    GaussianMixtureNoiseModel
+        The trained noise model.
     """
     # TODO where to put train params?
     # TODO any training params ? Different channels ?
@@ -165,22 +170,23 @@ def train_gm_noise_model(
 
 
 class MultiChannelNoiseModel(nn.Module):
+    """Noise model that wraps one noise model per output channel.
+
+    To handle noise models and the relative likelihood computation for multiple
+    output channels (e.g., muSplit, denoiseSplit).
+
+    This class:
+    - receives as input a variable number of noise models, one for each channel.
+    - computes the likelihood of observations given signals for each channel.
+    - returns the concatenation of these likelihoods.
+
+    Parameters
+    ----------
+    nmodels : list[GaussianMixtureNoiseModel]
+        List of noise models, one for each output channel.
+    """
+
     def __init__(self, nmodels: list[GaussianMixtureNoiseModel]):
-        """Constructor.
-
-        To handle noise models and the relative likelihood computation for multiple
-        output channels (e.g., muSplit, denoiseSplit).
-
-        This class:
-        - receives as input a variable number of noise models, one for each channel.
-        - computes the likelihood of observations given signals for each channel.
-        - returns the concatenation of these likelihoods.
-
-        Parameters
-        ----------
-        nmodels : list[GaussianMixtureNoiseModel]
-            List of noise models, one for each output channel.
-        """
         super().__init__()
         self.device = get_device()
 
@@ -197,7 +203,14 @@ class MultiChannelNoiseModel(nn.Module):
 
         print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_cnt}")
 
-    def to_device(self, device: torch.device):
+    def to_device(self, device: torch.device) -> None:
+        """Move this model and all per-channel noise models to `device`.
+
+        Parameters
+        ----------
+        device : torch.device
+            Device to move the model to.
+        """
         self.device = device
         self.to(device)
         for ch_idx in range(self._nm_cnt):
@@ -381,6 +394,12 @@ class GaussianMixtureNoiseModel(nn.Module):
         All values of `standard deviation` below this are clamped to this value.
     """
 
+    # buffers registered in __init__, annotated for mypy
+    min_signal: torch.Tensor
+    max_signal: torch.Tensor
+    min_sigma: torch.Tensor
+    tolerance: torch.Tensor
+
     # TODO training a NM relies on getting a clean data(N2V e.g,)
     def __init__(self, config: GaussianMixtureNMConfig) -> None:
         super().__init__()
@@ -493,7 +512,14 @@ class GaussianMixtureNoiseModel(nn.Module):
         ).float()
         return weight
 
-    def to_device(self, device: torch.device):
+    def to_device(self, device: torch.device) -> None:
+        """Move the model to `device`.
+
+        Parameters
+        ----------
+        device : torch.device
+            Device to move the model to.
+        """
         self.device = device
         self.to(device)
 
@@ -605,7 +631,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     def get_gaussian_parameters(self, signals: torch.Tensor) -> list[torch.Tensor]:
         """
-        Returns the noise model for given signals
+        Returns the noise model for given signals.
 
         Parameters
         ----------
@@ -670,7 +696,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     @staticmethod
     def _fast_shuffle(series: torch.Tensor, num: int) -> torch.Tensor:
-        """Shuffle the inputs randomly num times"""
+        """Shuffle the inputs randomly `num` times."""
         length = series.shape[0]
         for _ in range(num):
             idx = torch.randperm(length)
