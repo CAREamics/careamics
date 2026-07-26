@@ -108,17 +108,17 @@ class InMemoryImageStack:
 
         patch_data = self._data[
             (
-                sample_idx,  # type: ignore
+                sample_idx,
                 # use channel slice so that channel dimension is kept
-                channel_slice(channels),  # type: ignore
+                channel_slice(channels),
                 *[
                     slice(
                         np.clip(c, 0, self.data_shape[2 + i]),
                         np.clip(c + ps, 0, self.data_shape[2 + i]),
                     )
                     for i, (c, ps) in enumerate(zip(coords, patch_size, strict=False))
-                ],  # type: ignore
-            )  # type: ignore
+                ],
+            )
         ]
         patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
 

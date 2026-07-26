@@ -80,7 +80,7 @@ def create_filter_map(
                         for x, c, ps in zip(
                             orth_coords, region_coords, patch_size, strict=True
                         )
-                    ],  # type: ignore
+                    ],
                 ] = value
 
     if direction == "greater":

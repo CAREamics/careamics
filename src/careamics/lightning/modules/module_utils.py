@@ -158,12 +158,10 @@ def configure_optimizers(
         A dictionary containing the optimizer and learning rate scheduler configuration.
     """
     optimizer_func = get_optimizer(optimizer_name)
-    optimizer = optimizer_func(  # type: ignore[operator]
-        model.parameters(), **optimizer_parameters
-    )
+    optimizer = optimizer_func(model.parameters(), **optimizer_parameters)
 
     scheduler_func = get_scheduler(lr_scheduler_name)
-    scheduler = scheduler_func(optimizer, **lr_scheduler_parameters)  # type: ignore[operator]
+    scheduler = scheduler_func(optimizer, **lr_scheduler_parameters)
 
     return {
         "optimizer": optimizer,

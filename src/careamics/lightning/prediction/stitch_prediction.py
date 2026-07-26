@@ -153,7 +153,7 @@ def stitch_single_sample(
 
     for tile in tiles:
         # compute crop coordinates and stitiching coordinates
-        tile_spec: TileSpecs = tile.region_spec  # type: ignore
+        tile_spec: TileSpecs = tile.region_spec
         crop_coords = tile_spec["crop_coords"]
         crop_size = tile_spec["crop_size"]
         stitch_coords = tile_spec["stitch_coords"]
