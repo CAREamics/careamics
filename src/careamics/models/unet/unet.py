@@ -87,7 +87,7 @@ class UnetEncoder(nn.Module):
             else MaxBlurPool(dim=conv_dim, kernel_size=3, max_pool_size=pool_kernel)
         )
 
-        encoder_blocks = []
+        encoder_blocks: list[nn.Module] = []
 
         for n in range(depth):
             out_channels = num_channels_init * (2**n) * groups

@@ -76,7 +76,7 @@ class HDNAlgorithm(VAEBasedAlgorithm):
         str
             Algorithm references.
         """
-        return HDN_REF.text + " doi: " + HDN_REF.doi
+        return HDN_REF.text + " doi: " + (HDN_REF.doi or "")
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """

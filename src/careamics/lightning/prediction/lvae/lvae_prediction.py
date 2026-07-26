@@ -56,8 +56,8 @@ def lvae_predict_single_sample(
 def lvae_predict_tiled_batch(
     model: LVAE,
     likelihood_obj: LikelihoodModule,
-    input: tuple[Any],
-) -> tuple[tuple[Any], tuple[Any] | None]:
+    input: tuple[Any, ...],
+) -> tuple[tuple[Any, ...], tuple[Any, ...] | None]:
     # TODO: fix docstring return types, ... too many output options
     """
     Generate a single sample prediction from an LVAE model, for a given input.
@@ -96,9 +96,9 @@ def lvae_predict_tiled_batch(
 def lvae_predict_mmse_tiled_batch(
     model: LVAE,
     likelihood_obj: LikelihoodModule,
-    input: tuple[Any],
+    input: tuple[Any, ...],
     mmse_count: int,
-) -> tuple[tuple[Any], tuple[Any], tuple[Any] | None]:
+) -> tuple[tuple[Any, ...], tuple[Any, ...], tuple[Any, ...] | None]:
     # TODO: fix docstring return types, ... hard to make readable
     """
     Generate the MMSE (minimum mean squared error) prediction, for a given input.

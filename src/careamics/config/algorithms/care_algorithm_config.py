@@ -112,8 +112,7 @@ class CAREAlgorithm(UNetBasedAlgorithm):
         """
         return CARE_DESCRIPTION
 
-    @classmethod
-    def is_supervised(cls) -> bool:
+    def is_supervised(self) -> bool:
         """
         Return whether the algorithm is supervised.
 

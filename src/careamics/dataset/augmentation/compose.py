@@ -1,13 +1,13 @@
 """A class chaining transforms together."""
 
-from typing import Union, cast
+from typing import cast
 
 from numpy.typing import NDArray
 
 from careamics.config.augmentations import SPATIAL_TRANSFORMS_UNION
 from careamics.dataset.augmentation import Transform, XYFlip, XYRandomRotate90
 
-ALL_TRANSFORMS = {
+ALL_TRANSFORMS: dict[str, type[Transform]] = {
     "XYFlip": XYFlip,
     "XYRandomRotate90": XYRandomRotate90,
 }
@@ -63,10 +63,11 @@ class Compose:
         tuple[np.ndarray, Optional[np.ndarray]]
             The output of the transformations.
         """
-        params: Union[tuple[NDArray, NDArray | None],] = (patch, target)
+        params: tuple[NDArray | None, ...] = (patch, target)
 
         for t in self.transforms:
-            *params, _ = t(*params)  # ignore additional_arrays dict
+            *outputs, _ = t(*params)  # ignore additional_arrays dict
+            params = tuple(outputs)
 
         # avoid None values that create problems for collating
         # TODO: removing None should be handled in dataset, not here

@@ -4,7 +4,6 @@ __all__ = [
     "ReadFunc",
     "get_read_func",
     "read_tiff",
-    "read_zarr",
 ]
 
 from .get_func import ReadFunc, get_read_func

@@ -331,7 +331,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 case "predict":
                     ds = self.predict_dataset
                 case _:
-                    raise (
+                    raise ValueError(
                         f"Unrecognized dataset '{dataset}', should be one of 'train', "
                         "'val' or 'predict'."
                     )

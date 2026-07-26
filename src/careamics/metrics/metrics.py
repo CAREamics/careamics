@@ -128,7 +128,7 @@ def _fix(
 
 def scale_invariant_psnr(
     gt: np.ndarray, pred: np.ndarray
-) -> Union[float, torch.tensor]:
+) -> Union[float, torch.Tensor]:
     """
     Scale invariant PSNR.
 
