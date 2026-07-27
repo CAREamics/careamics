@@ -88,6 +88,7 @@ class HDNModule(L.LightningModule):
                 "With a noise model, HDN uses the noise model likelihood and "
                 "requires `predict_logvar=False`."
             )
+        self.mmse_count: int = self.config.mmse_count
 
         self.data_mean: float | None = None
         self.data_std: float | None = None
@@ -235,6 +236,42 @@ class HDNModule(L.LightningModule):
             predictions = predictions.chunk(2, dim=1)[0]
         return predictions
 
+    def _predict_mmse(self, x_data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Compute the MMSE prediction by averaging several samples.
+
+        The LVAE draws a fresh latent sample on every forward pass, so the minimum
+        mean squared error (MMSE) estimate is the mean of ``mmse_count`` sampled
+        reconstructions. The per-pixel std across those samples is
+        returned as an uncertainty estimate.
+
+        Parameters
+        ----------
+        x_data : torch.Tensor
+            Input tensor, shape (B, C, [Z], Y, X).
+
+        Returns
+        -------
+        tuple of (torch.Tensor, torch.Tensor)
+            The MMSE prediction and the sample std, both of shape
+            (B, output_channels, [Z], Y, X). The std is all-zeros
+            when ``mmse_count == 1``.
+        """
+        samples = torch.stack(
+            [
+                self._get_reconstruction(self.model(x_data))
+                for _ in range(self.mmse_count)
+            ],
+            dim=0,
+        )
+        mmse_prediction = samples.mean(dim=0)
+        # unbiased std is undefined for a single sample; report zero uncertainty
+        mmse_std = (
+            samples.std(dim=0)
+            if self.mmse_count > 1
+            else torch.zeros_like(mmse_prediction)
+        )
+        return mmse_prediction, mmse_std
+
     def training_step(
         self,
         batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
@@ -310,6 +347,9 @@ class HDNModule(L.LightningModule):
     ) -> ImageRegionData:
         """Prediction step for HDN.
 
+        Returns the MMSE reconstruction (mean of `mmse_count` stochastic samples).
+        With `mmse_count == 1` this reduces to a single forward pass.
+
         Parameters
         ----------
         batch : ImageRegionData or (ImageRegionData, ImageRegionData)
@@ -330,7 +370,7 @@ class HDNModule(L.LightningModule):
         # reconfigure the model for the current input spatial size
         self.model.reset_for_inference(x_data.shape[-2:])
 
-        prediction = self._get_reconstruction(self.model(x_data))
+        prediction, _ = self._predict_mmse(x_data)
 
         normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
         denormalized_output = (
