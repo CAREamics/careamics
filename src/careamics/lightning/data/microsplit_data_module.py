@@ -469,12 +469,14 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
         self.dataloader_params = dataloader_params
         self.predict_dataset = LCMultiChDloader(
             self.pred_config,
-            self.pred_data,
+            self.pred_data,  # pyrefly: ignore[bad-argument-type]
             load_data_fn=self.read_source_func,
             val_fraction=0.0,  # No validation split for prediction
             test_fraction=1.0,  # No test split for prediction
         )
-        self.predict_dataset.set_mean_std(*self.pred_config.data_stats)
+        self.predict_dataset.set_mean_std(
+            *self.pred_config.data_stats  # pyrefly: ignore[missing-attribute]
+        )
 
     def predict_dataloader(self) -> DataLoader:
         """
@@ -489,7 +491,7 @@ class MicroSplitPredictDataModule(L.LightningDataModule):
         params["shuffle"] = False
         return DataLoader(
             self.predict_dataset,
-            batch_size=self.pred_config.batch_size,
+            batch_size=self.pred_config.batch_size,  # pyrefly: ignore[missing-attribute]
             **params,
         )
 

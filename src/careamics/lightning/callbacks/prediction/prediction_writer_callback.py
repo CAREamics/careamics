@@ -144,7 +144,8 @@ class PredictionWriterCallback(BasePredictionWriter):
             # preserve the source directory structure in the output, so that
             # identically named files in different directories do not collide
             if self.is_enabled and self.write_strategy is not None:
-                source_paths = getattr(trainer.datamodule, "predict_source_paths", [])
+                datamodule = getattr(trainer, "datamodule", None)
+                source_paths = getattr(datamodule, "predict_source_paths", [])
                 self.write_strategy.set_source_base(common_source_base(source_paths))
 
     def set_writing_strategy(

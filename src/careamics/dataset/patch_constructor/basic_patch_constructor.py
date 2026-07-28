@@ -1,7 +1,7 @@
 """Basic patch constructor implementation."""
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Generic
 
 from numpy.typing import NDArray
 
@@ -13,7 +13,7 @@ from .metadata_utils import ImageMetadata, get_image_metadata
 from .patch_constructor import PatchConstr
 
 
-class BasicPatchConstr(PatchConstr):
+class BasicPatchConstr(PatchConstr, Generic[GenericImageStack]):
     """Construct standard CAREamics input and optional target patches.
 
     This constructor can be used for both training and prediction pipelines.

@@ -54,7 +54,7 @@ class UNetConfig(ArchitectureConfig):
     # TODO we are not using this, so why make it a choice?
     final_activation: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU"
-    ] = Field(default="None", validate_default=True)
+    ] = "None"
     """Final activation function."""
 
     n2v2: bool = Field(default=False, validate_default=True)
