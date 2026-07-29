@@ -321,8 +321,7 @@ class NoiseModelTrainer:
         -------
         MultiChannelNMConfig
             Configuration object ready to pass to
-            ``create_microsplit_configuration`` or
-            ``VAEModule.set_noise_model``.
+            ``create_microsplit_config``.
 
         Raises
         ------
