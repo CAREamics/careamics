@@ -231,7 +231,7 @@ class GateLayer(nn.Module):
         """
         x = self.conv(x)
         x, gate = torch.chunk(x, 2, dim=1)
-        x = self.nonlin(x)  # TODO remove this?
+        x = self.nonlin(x)
         gate = torch.sigmoid(gate)
         return x * gate
 
@@ -271,7 +271,6 @@ class ResBlockWithResampling(nn.Module):
         dropout: Union[float, None] = None,
         gated: Union[bool, None] = None,
         conv2d_bias: bool = True,
-        # lowres_input: bool = False,
     ):
         """
         Constructor.
@@ -551,11 +550,6 @@ class BottomUpLayer(nn.Module):
                 dropout=dropout,
                 res_block_type=res_block_type,
             )
-
-        # msg = f'[{self.__class__.__name__}] McEnabled:{int(enable_multiscale)} '
-        # if enable_multiscale:
-        #     msg += f'McParallelBeam:{int(multiscale_retain_spatial_dims)} McFactor{multiscale_lowres_size_factor}'
-        # print(msg)
 
     def _init_multiscale(
         self,

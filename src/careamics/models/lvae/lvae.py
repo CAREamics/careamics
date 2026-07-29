@@ -20,7 +20,7 @@ from .layers import (
     TopDownDeterministicResBlock,
     TopDownLayer,
 )
-from .utils import Interpolate, ModelType, crop_img_tensor
+from .utils import Interpolate, crop_img_tensor
 
 
 class LadderVAE(nn.Module):
@@ -104,7 +104,6 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
-        self.model_type = ModelType.LadderVae  # TODO remove !
         self.encoder_blocks_per_layer = encoder_blocks_per_layer
         self.decoder_blocks_per_layer = decoder_blocks_per_layer
         self.bottomup_batchnorm = True
@@ -205,25 +204,15 @@ class LadderVAE(nn.Module):
             not self.no_initial_downscaling
         )
 
-        # Likelihood module
-        # self.likelihood = self.create_likelihood_module()
-
         # Output layer --> Project to target_ch many channels
         logvar_ch_needed = self.predict_logvar
-        self.output_layer = self.parameter_net = self.decoder_conv_op(
+        self.output_layer = self.decoder_conv_op(
             self.decoder_n_filters,
             self.target_ch * (1 + logvar_ch_needed),
             kernel_size=3,
             padding=1,
             bias=self.topdown_conv2d_bias,
         )
-
-        # # gradient norms. updated while training. this is also logged.
-        # self.grad_norm_bottom_up = 0.0
-        # self.grad_norm_top_down = 0.0
-        # PSNR computation on validation.
-        # self.label1_psnr = RunningPSNR()
-        # self.label2_psnr = RunningPSNR()
 
     ### SET OF METHODS TO CREATE MODEL BLOCKS
     def create_first_bottom_up(
@@ -300,9 +289,6 @@ class LadderVAE(nn.Module):
 
         bottom_up_layers = nn.ModuleList([])
         for i in range(self.n_layers):
-            # Whether this is the top layer
-            is_top = i == self.n_layers - 1
-
             # LC is applied only to the first (_multiscale_count - 1) bottom-up layers
             layer_enable_multiscale = (
                 self.enable_multiscale and self._multiscale_count > i + 1
@@ -476,12 +462,6 @@ class LadderVAE(nn.Module):
             self._multiscale_count <= 1 or self._multiscale_count <= 1 + self.n_layers
         ), msg  # TODO how ?
 
-        msg = (
-            "Multiscale approach only supports monocrome images. "
-            f"Found instead color_ch={self.color_ch}."
-        )
-        # assert self._multiscale_count == 1 or self.color_ch == 1, msg
-
         lowres_first_bottom_ups = []
         for _ in range(1, self._multiscale_count):
             first_bottom_up = nn.Sequential(
@@ -514,22 +494,6 @@ class LadderVAE(nn.Module):
 
     ### SET OF FORWARD-LIKE METHODS
     def bottomup_pass(self, inp: torch.Tensor) -> list[torch.Tensor]:
-        """Wrapper of _bottomup_pass()."""
-        # TODO Remove wrapper
-        return self._bottomup_pass(
-            inp,
-            self.first_bottom_up,
-            self.lowres_first_bottom_ups,
-            self.bottom_up_layers,
-        )
-
-    def _bottomup_pass(
-        self,
-        inp: torch.Tensor,
-        first_bottom_up: nn.Sequential,
-        lowres_first_bottom_ups: nn.ModuleList,
-        bottom_up_layers: nn.ModuleList,
-    ) -> list[torch.Tensor]:
         """
         Method defines the forward pass through the LVAE Encoder, the so-called.
 
@@ -542,17 +506,11 @@ class LadderVAE(nn.Module):
             is the number of lateral low-res inputs used in the LC approach.
             In particular, the first channel corresponds to the input patch, while the
             remaining ones are associated to the lateral low-res inputs.
-        first_bottom_up: nn.Sequential
-            The module defining the first bottom-up layer of the Encoder.
-        lowres_first_bottom_ups: nn.ModuleList
-            The list of modules defining Lateral Contextualization.
-        bottom_up_layers: nn.ModuleList
-            The list of modules defining the stack of bottom-up layers of the Encoder.
         """
         if self._multiscale_count > 1:
-            x = first_bottom_up(inp[:, :1])
+            x = self.first_bottom_up(inp[:, :1])
         else:
-            x = first_bottom_up(inp)
+            x = self.first_bottom_up(inp)
 
         # Loop from bottom to top layer, store all deterministic nodes we
         # need for the top-down pass in bu_values list
@@ -560,8 +518,8 @@ class LadderVAE(nn.Module):
         for i in range(self.n_layers):
             lowres_x = None
             if self._multiscale_count > 1 and i + 1 < inp.shape[1]:
-                lowres_x = lowres_first_bottom_ups[i](inp[:, i + 1 : i + 2])
-            x, bu_value = bottom_up_layers[i](x, lowres_x=lowres_x)
+                lowres_x = self.lowres_first_bottom_ups[i](inp[:, i + 1 : i + 2])
+            x, bu_value = self.bottom_up_layers[i](x, lowres_x=lowres_x)
             bu_values.append(bu_value)
 
         return bu_values
@@ -685,10 +643,6 @@ class LadderVAE(nn.Module):
 
             kl_channelwise[i] = aux["kl_channelwise"]
             debug_qvar_max[i] = aux["qvar_max"]
-            # if self.mode_pred is False:
-            #     logprob_p += aux['logprob_p'].mean()  # mean over batch
-            # else:
-            #     logprob_p = None
 
         # Final top-down layer
         out = final_top_down_layer(out)
@@ -700,7 +654,6 @@ class LadderVAE(nn.Module):
             "kl_restricted": kl_restricted,  # list of tensors with shape (batch, )
             "kl_spatial": kl_spatial,  # list of tensors w shape (batch, h[i], w[i])
             "kl_channelwise": kl_channelwise,  # list of tensors with shape (batch, ch[i])
-            # 'logprob_p': logprob_p,  # scalar, mean over batch
             "q_mu": q_mu,
             "q_lv": q_lv,
             "debug_qvar_max": debug_qvar_max,
@@ -747,7 +700,6 @@ class LadderVAE(nn.Module):
         :return: 2-tuple (H, W)
         """
         # Make size argument into (heigth, width)
-        # assert len(size) in [2, 4, 5] # TODO commented out cuz it's weird
         # We're only interested in the Y,X dimensions
         size = size[-2:]
 
