@@ -106,19 +106,10 @@ class LadderVAE(nn.Module):
         # Model attributes -> Hardcoded
         self.encoder_blocks_per_layer = encoder_blocks_per_layer
         self.decoder_blocks_per_layer = decoder_blocks_per_layer
-        self.bottomup_batchnorm = True
-        self.topdown_batchnorm = True
-        self.topdown_conv2d_bias = True
-        self.gated = True
         self.encoder_res_block_kernel = 3
-        self.decoder_res_block_kernel = 3
-        self.encoder_res_block_skip_padding = False
-        self.decoder_res_block_skip_padding = False
-        self.merge_type = "residual"
         self.no_initial_downscaling = True
         self.stochastic_skip = True
         self.learn_top_prior = True
-        self.res_block_type = "bacdbacd"  # TODO remove !
         self.mode_pred = False
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
@@ -211,7 +202,6 @@ class LadderVAE(nn.Module):
             self.target_ch * (1 + logvar_ch_needed),
             kernel_size=3,
             padding=1,
-            bias=self.topdown_conv2d_bias,
         )
 
     ### SET OF METHODS TO CREATE MODEL BLOCKS
@@ -240,11 +230,7 @@ class LadderVAE(nn.Module):
             in_channels=self.color_ch,
             out_channels=self.encoder_n_filters,
             kernel_size=self.encoder_res_block_kernel,
-            padding=(
-                0
-                if self.encoder_res_block_skip_padding
-                else self.encoder_res_block_kernel // 2
-            ),
+            padding=self.encoder_res_block_kernel // 2,
             stride=init_stride,
         )
 
@@ -258,10 +244,7 @@ class LadderVAE(nn.Module):
                     c_out=self.encoder_n_filters,
                     nonlin=nonlin,
                     downsample=False,
-                    batchnorm=self.bottomup_batchnorm,
                     dropout=self.encoder_dropout,
-                    res_block_type=self.res_block_type,
-                    res_block_kernel=self.encoder_res_block_kernel,
                 )
             )
 
@@ -313,11 +296,7 @@ class LadderVAE(nn.Module):
                     downsampling_steps=self.downsample[i],
                     nonlin=nonlin,
                     conv_strides=self.encoder_conv_strides,
-                    batchnorm=self.bottomup_batchnorm,
                     dropout=self.encoder_dropout,
-                    res_block_type=self.res_block_type,
-                    res_block_kernel=self.encoder_res_block_kernel,
-                    gated=self.gated,
                     lowres_separate_branch=lowres_separate_branch,
                     enable_multiscale=self.enable_multiscale,  # TODO: shouldn't the arg be `layer_enable_multiscale` here?
                     multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
@@ -375,20 +354,14 @@ class LadderVAE(nn.Module):
                     conv_strides=self.decoder_conv_strides,
                     upsampling_steps=self.downsample[i],
                     nonlin=nonlin,
-                    merge_type=self.merge_type,
-                    batchnorm=self.topdown_batchnorm,
                     dropout=self.decoder_dropout,
                     stochastic_skip=self.stochastic_skip,
                     learn_top_prior=self.learn_top_prior,
                     top_prior_param_shape=self.get_top_prior_param_shape(),
-                    res_block_type=self.res_block_type,
-                    res_block_kernel=self.decoder_res_block_kernel,
-                    gated=self.gated,
                     vanilla_latent_hw=self.get_latent_spatial_size(i),
                     retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
                     input_image_shape=self.image_size,
                     normalize_latent_factor=normalize_latent_factor,
-                    conv2d_bias=self.topdown_conv2d_bias,
                     stochastic_use_naive_exponential=self._stochastic_use_naive_exponential,
                 )
             )
@@ -419,12 +392,8 @@ class LadderVAE(nn.Module):
                     c_out=self.decoder_n_filters,
                     nonlin=get_activation(self.nonlin),
                     conv_strides=self.decoder_conv_strides,
-                    batchnorm=self.topdown_batchnorm,
                     dropout=self.decoder_dropout,
-                    res_block_type=self.res_block_type,
-                    res_block_kernel=self.decoder_res_block_kernel,
-                    gated=self.gated,
-                    conv2d_bias=self.topdown_conv2d_bias,
+                    gated=True,
                 )
             )
         return nn.Sequential(*modules)
@@ -479,9 +448,7 @@ class LadderVAE(nn.Module):
                     conv_strides=self.encoder_conv_strides,
                     nonlin=nonlin,
                     downsample=False,
-                    batchnorm=self.bottomup_batchnorm,
                     dropout=self.encoder_dropout,
-                    res_block_type=self.res_block_type,
                 ),
             )
             lowres_first_bottom_ups.append(first_bottom_up)
