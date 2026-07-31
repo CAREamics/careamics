@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Sequence, Union
+from typing import Literal, Optional, Sequence, Union
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -330,3 +330,272 @@ def plot_multichannel_image_comparison(
         print(f"Saving plot to {save_path}")
         ext = save_path.split('.')[-1]
         plt.savefig(save_path, format=ext)
+
+
+def plot_multichannel_image_multicomparison(
+    imgs: Sequence[NDArray],
+    titles: Optional[Sequence[Optional[str]]] = None,
+    contrast_lims: Optional[Sequence[Optional[Sequence[Optional[tuple[float, float]]]]]] = None,
+    clip_vals: Optional[Sequence[Optional[Union[float, Sequence[float]]]]] = None,
+    suptitle: Optional[str] = None,
+    annotations: Optional[Sequence[Sequence[Optional[str]]]] = None,
+    annot_pos: Literal["topleft", "topright"] = "topright",
+    z_idx: Optional[int] = None,
+    x_ROI: Optional[tuple[int, int]] = None,
+    y_ROI: Optional[tuple[int, int]] = None,
+    cmaps: Optional[Union[ColormapRepo, Sequence[ColormapRepo]]] = None,
+    multicolor_cmaps: bool = False,
+    diverging_cmaps: bool = False,
+    diverging_colors: Optional[Sequence[ColorRepo]] = None,
+    diverging_midvalues: Optional[Sequence[Optional[Sequence[Optional[float]]]]] = None,
+    diverging_symmetric_norm: bool = True,
+    show_cbars: bool = False,
+    show_hist: bool = True,
+    save_path: Optional[str] = None,
+    dpi: int = 600,
+    transparent: bool = False,
+) -> None:
+    """Plot multiple multichannel images for comparison.
+
+    This function allows plotting an arbitrary number of multichannel images in rows,
+    with each channel displayed in a separate column. Supports custom colormaps,
+    intensity histograms, and per-image contrast/clipping controls.
+
+    Parameters
+    ----------
+    imgs : Sequence[NDArray]
+        Sequence of multichannel images. Each image shape is (C, [Z], Y, X),
+        where C is the number of channels. All images must have the same shape.
+    titles : Optional[Sequence[Optional[str]]]
+        Titles for each image (one per row). Default is None.
+    contrast_lims : Optional[Sequence[Optional[Sequence[Optional[tuple[float, float]]]]]]
+        Contrast limits for each image and each channel. Structure is a sequence where
+        each entry corresponds to an image, containing a sequence of contrast limits
+        for each channel. Set to None for an image or channel to use default limits.
+        Example: [[(0, 100), None], None, [(0, 50), (0, 200)]] for 3 images with 2 channels.
+        Default is None.
+    clip_vals : Optional[Sequence[Optional[Union[float, Sequence[float]]]]]
+        Clip lower bounds for each image. Can be a single float (applied to all channels)
+        or a sequence of floats (one per channel). Default is None.
+    suptitle : Optional[str]
+        Overall title for the entire figure. Default is None.
+    annotations : Optional[Sequence[Sequence[Optional[str]]]]
+        Per-image, per-channel text labels. Outer sequence has one entry per row
+        (image); inner sequence has one entry per column (channel). Set an inner
+        entry to ``None`` to skip labelling a particular subplot.
+        Example: ``[["GT", "GT"], ["Pred", "Pred"]]`` for 2 images with 2 channels.
+        Default is None.
+    annot_pos : Literal["topleft", "topright"]
+        Corner position for all text overlays. Default is ``"topright"``.
+    z_idx : Optional[int]
+        Z-slice index to plot in 3D images. Required for 3D images. Default is None.
+    x_ROI : Optional[tuple[int, int]]
+        X-axis ROI as (start, end). Default is None.
+    y_ROI : Optional[tuple[int, int]]
+        Y-axis ROI as (start, end). Default is None.
+    cmaps : Optional[Union[ColormapRepo, Sequence[ColormapRepo]]]
+        Explicit colormap(s). A single entry is broadcast to all channels. If provided
+        it overrides ``diverging_cmaps`` and ``multicolor_cmaps``. Default is None.
+    multicolor_cmaps : bool
+        Use a distinct colormap per channel (cycles through ``ColormapRepo``).
+        Set to ``False`` for grayscale when ``diverging_cmaps`` is also ``False``.
+        Default is ``False``.
+    diverging_cmaps : bool
+        Use diverging colormaps. Default is ``False``.
+    diverging_colors : Optional[Sequence[ColorRepo]]
+        Explicit positive colors for diverging colormaps. Default is None.
+    diverging_midvalues : Optional[Sequence[Optional[Sequence[Optional[float]]]]]
+        Per-image, per-channel midvalues for diverging colormaps. Outer sequence has
+        one entry per image; inner sequence has one entry per channel. Set an outer
+        entry to ``None`` to use the default midvalue (0) for all channels of that image,
+        or set an inner entry to ``None`` to use the default for a specific channel.
+        Example: ``[[0.0, None], None, [1.0, 2.0]]`` for 3 images with 2 channels.
+        Default is None.
+    diverging_symmetric_norm : bool
+        When ``True`` (default), symmetric normalization is used for each image.
+        When ``False``, a per-image per-channel ``vmin`` is derived independently
+        from ``contrast_lims`` or image minima, enabling asymmetric normalization.
+    show_cbars : bool
+        Whether to show colorbars. Default is True.
+    show_hist : bool
+        Whether to show intensity histograms. Default is True.
+    save_path : Optional[str]
+        Path to file where to save the plot. Default is None.
+    dpi : int
+        Dots per inch for saved figure. Default is 600.
+    transparent : bool
+        Whether to save the figure with a transparent background. Default is False.
+    """
+    # Validate inputs
+    assert len(imgs) > 0, "At least one image must be provided."
+
+    # Check all images have the same shape
+    first_shape = imgs[0].shape
+    assert all(img.shape == first_shape for img in imgs), (
+        "All images must have the same shape."
+    )
+
+    C = first_shape[0]
+    is_3d = len(first_shape) == 4
+
+    if is_3d:
+        assert z_idx is not None, "`z_idx` must be provided for 3D images."
+
+    # Validate optional sequences
+    if titles is not None:
+        assert len(titles) == len(imgs), (
+            f"Length of `titles` ({len(titles)}) must match number of images ({len(imgs)})."
+        )
+
+    if contrast_lims is not None:
+        assert len(contrast_lims) == len(imgs), (
+            f"Length of `contrast_lims` ({len(contrast_lims)}) must match number of images ({len(imgs)})."
+        )
+        # Validate each non-None contrast_lims entry has correct channel count
+        for i, clims in enumerate(contrast_lims):
+            if clims is not None:
+                assert len(clims) == C, (
+                    f"Length of `contrast_lims[{i}]` ({len(clims)}) must match "
+                    f"number of channels ({C})."
+                )
+
+    if clip_vals is not None:
+        assert len(clip_vals) == len(imgs), (
+            f"Length of `clip_vals` ({len(clip_vals)}) must match number of images ({len(imgs)})."
+        )
+
+    if annotations is not None:
+        assert len(annotations) == len(imgs), (
+            f"Length of `annotations` ({len(annotations)}) must match number of images ({len(imgs)})."
+        )
+        for i, row_annots in enumerate(annotations):
+            if row_annots is not None:
+                assert len(row_annots) == C, (
+                    f"Length of `annotations[{i}]` ({len(row_annots)}) must match "
+                    f"number of channels ({C})."
+                )
+
+    if diverging_midvalues is not None:
+        assert len(diverging_midvalues) == len(imgs), (
+            f"Length of `diverging_midvalues` ({len(diverging_midvalues)}) must match "
+            f"number of images ({len(imgs)})."
+        )
+        for i, mvals in enumerate(diverging_midvalues):
+            if mvals is not None:
+                assert len(mvals) == C, (
+                    f"Length of `diverging_midvalues[{i}]` ({len(mvals)}) must match "
+                    f"number of channels ({C})."
+                )
+
+    # Preprocess images: crop and clip
+    processed_imgs = []
+    for i, img in enumerate(imgs):
+        # Crop image
+        img = _crop_image(img, z_idx, x_ROI, y_ROI)
+
+        # Apply clipping if provided
+        if clip_vals is not None and clip_vals[i] is not None:
+            clip_val = clip_vals[i]
+            if isinstance(clip_val, (float, int)):
+                img = img.clip(min=clip_val)
+            elif len(clip_val) == C:
+                for c in range(C):
+                    if clip_val[c] is not None:
+                        img[c] = img[c].clip(min=clip_val[c])
+
+        processed_imgs.append(img)
+
+    # Build per-image cmap lists using per-image vmaxs/vmins/midvalues
+    per_img_cmap_lists = []
+    for i, img in enumerate(processed_imgs):
+        img_contrast_lims = contrast_lims[i] if contrast_lims is not None else None
+        img_vmaxs = _derive_vmaxs(img, img_contrast_lims)
+        img_vmins = (
+            _derive_vmins(img, img_contrast_lims)
+            if not diverging_symmetric_norm
+            else None
+        )
+        img_midvalues = diverging_midvalues[i] if diverging_midvalues is not None else None
+        cmap_list_i = _get_multichannel_cmap(
+            n_channels=C,
+            cmaps=cmaps,
+            multicolor_cmaps=multicolor_cmaps,
+            diverging_cmaps=diverging_cmaps,
+            diverging_colors=diverging_colors,
+            vmaxs=img_vmaxs,
+            vmins=img_vmins,
+            midvalues=img_midvalues,
+        )
+        per_img_cmap_lists.append(list(zip(*cmap_list_i)))
+
+    # Create subplot grid
+    nrows = len(imgs)
+    ncols = C
+    fig, axes = plt.subplots(
+        nrows, ncols,
+        figsize=(6 * ncols + 1, 6 * nrows + 1),
+        constrained_layout=True
+    )
+
+    # Handle single image or single channel cases
+    if nrows == 1 and ncols == 1:
+        axes = np.array([[axes]])
+    elif nrows == 1:
+        axes = axes.reshape(1, -1)
+    elif ncols == 1:
+        axes = axes.reshape(-1, 1)
+
+    # Set figure styling
+    fig.patch.set_facecolor('black')
+    if suptitle:
+        fig.suptitle(suptitle, fontsize=32, color="white")
+
+    # Plot each image-channel combination
+    for i in range(nrows):
+        img = processed_imgs[i]
+        cmap_list_i, norms_i = per_img_cmap_lists[i]
+
+        for c in range(ncols):
+            ax = axes[i, c]
+
+            # Determine title (only on first channel)
+            title = None
+            if c == 0 and titles is not None and titles[i] is not None:
+                title = titles[i]
+
+            # Determine contrast limits for this channel
+            vlims = None
+            if contrast_lims is not None and contrast_lims[i] is not None:
+                vlims = contrast_lims[i][c]
+
+            # Determine corner text for this channel subplot
+            corner_annot = None
+            if annotations is not None and annotations[i] is not None and annotations[i][c] is not None:
+                corner_annot = annotations[i][c]
+
+            # Plot the channel
+            _add_channel_image(
+                img[c], ax, fig,
+                cmap=cmap_list_i[c],
+                norm=norms_i[c] if norms_i[c] is not None else None,
+                title=title,
+                vlims=vlims,
+                add_colorbar=show_cbars,
+                add_histogram=show_hist,
+                text=corner_annot,
+                text_loc=annot_pos,
+            )
+    
+    # Save plot if requested
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        print(f"Saving plot to {save_path}")
+        ext = save_path.split('.')[-1]
+        plt.savefig(
+            save_path,
+            format=ext,
+            dpi=dpi,
+            transparent=transparent,
+            bbox_inches="tight",
+            pad_inches=0.02
+        )
