@@ -1,8 +1,8 @@
 """Script containing the common basic blocks (nn.Module) reused by the LadderVAE."""
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Sequence
 from copy import deepcopy
-from typing import Callable, Literal, Optional, Union
+from typing import Literal, Union
 
 import numpy as np
 import torch
@@ -17,6 +17,9 @@ from .utils import (
 ConvType = Union[nn.Conv2d, nn.Conv3d]
 NormType = Union[nn.BatchNorm2d, nn.BatchNorm3d]
 DropoutType = Union[nn.Dropout2d, nn.Dropout3d]
+
+# Module-level default non-linearity (stateless), used as a shared default argument.
+_DEFAULT_NONLIN = nn.LeakyReLU()
 
 
 class ResidualBlock(nn.Module):
@@ -33,6 +36,21 @@ class ResidualBlock(nn.Module):
         - The 2 convolutional layers have the same groups,
         - No stride allowed,
         - Kernel size is fixed to 3.
+
+    Parameters
+    ----------
+    channels : int
+        The number of input and output channels (they are the same).
+    nonlin : Callable
+        The non-linearity function used in the block (e.g., `nn.ReLU`).
+    conv_strides : Sequence[int], optional
+        The convolution strides, used to infer the convolution dimensionality.
+    groups : int, optional
+        The number of groups to consider in the convolutions. Default is 1.
+    dropout : float, optional
+        The dropout probability in dropout layers. Default is `None`.
+    gated : bool, optional
+        Whether to append a gating layer at the end of the block. Default is `False`.
     """
 
     default_kernel_size = (3, 3)
@@ -41,9 +59,9 @@ class ResidualBlock(nn.Module):
         self,
         channels: int,
         nonlin: Callable,
-        conv_strides: tuple[int] = (2, 2),
+        conv_strides: Sequence[int] = (2, 2),
         groups: int = 1,
-        dropout: float = None,
+        dropout: float | None = None,
         gated: bool = False,
     ):
         """
@@ -51,19 +69,20 @@ class ResidualBlock(nn.Module):
 
         Parameters
         ----------
-        channels: int
+        channels : int
             The number of input and output channels (they are the same).
-        nonlin: Callable
+        nonlin : Callable
             The non-linearity function used in the block (e.g., `nn.ReLU`).
-        conv_strides: tuple of int, optional
+        conv_strides : tuple of int, optional
             The convolution strides, used to infer the convolution dimensionality.
             Default is `(2, 2)`.
-        groups: int, optional
+        groups : int, optional
             The number of groups to consider in the convolutions. Default is 1.
-        dropout: float, optional
+        dropout : float, optional
             The dropout probability in dropout layers. Default is `None`.
-        gated: bool, optional
-            Whether to append a gating layer at the end of the block. Default is `False`.
+        gated : bool, optional
+            Whether to append a gating layer at the end of the block. Default is
+            `False`.
         """
         super().__init__()
 
@@ -128,15 +147,41 @@ class GateLayer(nn.Module):
 
     Double the number of channels through a convolutional layer, then use
     half the channels as gate for the other half.
+
+    Parameters
+    ----------
+    channels : int
+        The number of input (and output) channels.
+    conv_strides : Sequence[int], optional
+        The convolution strides, used to infer the convolution dimensionality.
+        Default is `(2, 2)`.
+    kernel_size : int, optional
+        The size of the convolution kernel. Default is 3.
+    nonlin : Callable, optional
+        The non-linearity applied to the non-gate half. Default is `nn.LeakyReLU`.
     """
 
     def __init__(
         self,
         channels: int,
-        conv_strides: tuple[int] = (2, 2),
+        conv_strides: Sequence[int] = (2, 2),
         kernel_size: int = 3,
-        nonlin: Callable = nn.LeakyReLU(),
+        nonlin: Callable = _DEFAULT_NONLIN,
     ):
+        """Constructor.
+
+        Parameters
+        ----------
+        channels : int
+            The number of input (and output) channels.
+        conv_strides : Sequence[int], optional
+            The convolution strides, used to infer the convolution dimensionality.
+            Default is `(2, 2)`.
+        kernel_size : int, optional
+            The size of the convolution kernel. Default is 3.
+        nonlin : Callable, optional
+            The non-linearity applied to the non-gate half. Default is `nn.LeakyReLU`.
+        """
         super().__init__()
         assert kernel_size % 2 == 1
         pad = kernel_size // 2
@@ -150,12 +195,12 @@ class GateLayer(nn.Module):
         Parameters
         ----------
         x : torch.Tensor
-            input # TODO add shape
+            Input tensor of shape (B, C, [Z], Y, X).
 
         Returns
         -------
         torch.Tensor
-            output # TODO add shape
+            The gated output tensor of shape (B, C, [Z], Y, X).
         """
         x = self.conv(x)
         x, gate = torch.chunk(x, 2, dim=1)
@@ -168,7 +213,7 @@ def _make_pre_conv(
     direction: Literal["top-down", "bottom-up"],
     c_in: int,
     c_out: int,
-    conv_strides: tuple[int],
+    conv_strides: Sequence[int],
     resample: bool,
     groups: int,
 ) -> Union[nn.Module, None]:
@@ -200,7 +245,8 @@ def _make_pre_conv(
     Returns
     -------
     torch.nn.Module or None
-        The input convolution, or `None` if no channel change nor resampling is required.
+        The input convolution, or `None` if no channel change nor resampling is
+        required.
     """
     conv_layer: ConvType = getattr(nn, f"Conv{len(conv_strides)}d")
 
@@ -236,14 +282,33 @@ class BottomUpDeterministicResBlock(nn.Module):
 
     It is structured as an (optional) downsampling `pre_conv` strided convolution
     followed by a `ResidualBlock`.
+
+    Parameters
+    ----------
+    c_in : int
+        The number of input channels.
+    c_out : int
+        The number of output channels.
+    conv_strides : Sequence[int]
+        The convolution strides, used to infer the convolution dimensionality.
+    nonlin : Callable, optional
+        The non-linearity function used in the block. Default is `nn.LeakyReLU`.
+    downsample : bool, optional
+        Whether to downsample by a factor 2 in `pre_conv`. Default is `False`.
+    groups : int, optional
+        The number of groups to consider in the convolutions. Default is 1.
+    dropout : float, optional
+        The dropout probability in dropout layers. Default is `None`.
+    gated : bool, optional
+        Whether to use a gated residual block. Default is `False`.
     """
 
     def __init__(
         self,
         c_in: int,
         c_out: int,
-        conv_strides: tuple[int],
-        nonlin: Callable = nn.LeakyReLU(),
+        conv_strides: Sequence[int],
+        nonlin: Callable = _DEFAULT_NONLIN,
         downsample: bool = False,
         groups: int = 1,
         dropout: Union[float, None] = None,
@@ -254,21 +319,22 @@ class BottomUpDeterministicResBlock(nn.Module):
 
         Parameters
         ----------
-        c_in: int
+        c_in : int
             The number of input channels.
-        c_out: int
+        c_out : int
             The number of output channels.
-        conv_strides: tuple of int
+        conv_strides : tuple of int
             The convolution strides, used to infer the convolution dimensionality.
-        nonlin: Callable, optional
+        nonlin : Callable, optional
             The non-linearity function used in the block. Default is `nn.LeakyReLU`.
-        downsample: bool, optional
-            Whether to downsample by a factor 2 in the input convolution. Default is `False`.
-        groups: int, optional
+        downsample : bool, optional
+            Whether to downsample by a factor 2 in the input convolution. Default is
+            `False`.
+        groups : int, optional
             The number of groups to consider in the convolutions. Default is 1.
-        dropout: float, optional
+        dropout : float, optional
             The dropout probability in dropout layers. Default is `None`.
-        gated: bool, optional
+        gated : bool, optional
             Whether to use a gated residual block. Default is `False`.
         """
         super().__init__()
@@ -308,14 +374,33 @@ class TopDownDeterministicResBlock(nn.Module):
 
     It is structured as an (optional) upsampling `pre_conv` transposed convolution
     followed by a `ResidualBlock`.
+
+    Parameters
+    ----------
+    c_in : int
+        The number of input channels.
+    c_out : int
+        The number of output channels.
+    conv_strides : Sequence[int]
+        The convolution strides, used to infer the convolution dimensionality.
+    nonlin : Callable, optional
+        The non-linearity function used in the block. Default is `nn.LeakyReLU`.
+    upsample : bool, optional
+        Whether to upsample by a factor 2 in `pre_conv`. Default is `False`.
+    groups : int, optional
+        The number of groups to consider in the convolutions. Default is 1.
+    dropout : float, optional
+        The dropout probability in dropout layers. Default is `None`.
+    gated : bool, optional
+        Whether to use a gated residual block. Default is `False`.
     """
 
     def __init__(
         self,
         c_in: int,
         c_out: int,
-        conv_strides: tuple[int],
-        nonlin: Callable = nn.LeakyReLU(),
+        conv_strides: Sequence[int],
+        nonlin: Callable = _DEFAULT_NONLIN,
         upsample: bool = False,
         groups: int = 1,
         dropout: Union[float, None] = None,
@@ -326,21 +411,22 @@ class TopDownDeterministicResBlock(nn.Module):
 
         Parameters
         ----------
-        c_in: int
+        c_in : int
             The number of input channels.
-        c_out: int
+        c_out : int
             The number of output channels.
-        conv_strides: tuple of int
+        conv_strides : tuple of int
             The convolution strides, used to infer the convolution dimensionality.
-        nonlin: Callable, optional
+        nonlin : Callable, optional
             The non-linearity function used in the block. Default is `nn.LeakyReLU`.
-        upsample: bool, optional
-            Whether to upsample by a factor 2 in the input convolution. Default is `False`.
-        groups: int, optional
+        upsample : bool, optional
+            Whether to upsample by a factor 2 in the input convolution. Default is
+            `False`.
+        groups : int, optional
             The number of groups to consider in the convolutions. Default is 1.
-        dropout: float, optional
+        dropout : float, optional
             The dropout probability in dropout layers. Default is `None`.
-        gated: bool, optional
+        gated : bool, optional
             Whether to use a gated residual block. Default is `False`.
         """
         super().__init__()
@@ -379,67 +465,114 @@ class BottomUpLayer(nn.Module):
     Bottom-up deterministic layer.
 
     It consists of one or a stack of `BottomUpDeterministicResBlock`'s.
-    The outputs are the so-called `bu_values` that are later used in the Decoder to update the
+    The outputs are the so-called `bu_values` that are later used in the Decoder to
+    update the
     generative distributions.
 
     NOTE: When Lateral Contextualization is Enabled (i.e., `enable_multiscale=True`),
     the low-res lateral input is first fed through a BottomUpDeterministicBlock (BUDB)
-    (without downsampling), and then merged to the latent tensor produced by the primary flow
-    of the `BottomUpLayer` through the `MergeLowRes` layer. It is meaningful to remark that
+    (without downsampling), and then merged to the latent tensor produced by the primary
+    flow
+    of the `BottomUpLayer` through the `MergeLowRes` layer. It is meaningful to remark
+    that
     the BUDB that takes care of encoding the low-res input can be either shared with the
-    primary flow (and in that case it is the "same_size" BUDB (or stack of BUDBs) -> see `self.net`),
+    primary flow (and in that case it is the "same_size" BUDB (or stack of BUDBs) -> see
+    `self.net`),
     or can be a deep-copy of the primary flow's BUDB.
     This behaviour is controlled by `lowres_separate_branch` parameter.
+
+    Parameters
+    ----------
+    n_res_blocks : int
+        Number of `BottomUpDeterministicResBlock` modules stacked in this layer.
+    n_filters : int
+        Number of channels present throughout the layers of this block.
+    conv_strides : Sequence[int], optional
+        The convolution strides, used to infer the convolution dimensionality.
+    downsampling_steps : int, optional
+        Number of downsampling steps done in this layer (typically 1). Default is 0.
+    nonlin : Callable, optional
+        The non-linearity function used in the block. Default is `nn.LeakyReLU`.
+    dropout : float, optional
+        The dropout probability in dropout layers. Default is `None`.
+    enable_multiscale : bool, optional
+        Whether to enable multiscale (Lateral Contextualization). Default is `False`.
+    multiscale_lowres_size_factor : int, optional
+        Factor expressing the relative size of the primary-flow tensor with respect to
+        the lower-resolution lateral input tensor. Default is `None`.
+    lowres_separate_branch : bool, optional
+        Whether the low-res residual block(s) are shared (`False`) or not (`True`) with
+        the primary-flow "same-size" residual block(s). Default is `False`.
+    multiscale_retain_spatial_dims : bool, optional
+        Whether to pad the primary-flow latent to match the low-res input size.
+        Default is `False`.
+    decoder_retain_spatial_dims : bool, optional
+        Whether the corresponding top-down layer retains the spatial dims. Default
+        is `False`.
+    output_expected_shape : Iterable[int], optional
+        The expected output shape (only used if `enable_multiscale == True`).
+        Default is `None`.
     """
 
     def __init__(
         self,
         n_res_blocks: int,
         n_filters: int,
-        conv_strides: tuple[int] = (2, 2),
+        conv_strides: Sequence[int] = (2, 2),
         downsampling_steps: int = 0,
-        nonlin: Optional[Callable] = None,
-        dropout: Optional[float] = None,
+        nonlin: Callable = _DEFAULT_NONLIN,
+        dropout: float | None = None,
         enable_multiscale: bool = False,
-        multiscale_lowres_size_factor: Optional[int] = None,
+        multiscale_lowres_size_factor: int | None = None,
         lowres_separate_branch: bool = False,
         multiscale_retain_spatial_dims: bool = False,
         decoder_retain_spatial_dims: bool = False,
-        output_expected_shape: Optional[Iterable[int]] = None,
+        output_expected_shape: Iterable[int] | None = None,
     ):
         """
         Constructor.
 
         Parameters
         ----------
-        n_res_blocks: int
+        n_res_blocks : int
             Number of `BottomUpDeterministicResBlock` modules stacked in this layer.
-        n_filters: int
+        n_filters : int
             Number of channels present through out the layers of this block.
-        downsampling_steps: int, optional
-            Number of downsampling steps that has to be done in this layer (typically 1).
+        conv_strides : Sequence[int], optional
+            The convolution strides, used to infer the convolution dimensionality.
+            Default is `(2, 2)`.
+        downsampling_steps : int, optional
+            Number of downsampling steps that has to be done in this layer (typically
+            1).
             Default is 0.
-        nonlin: Callable, optional
+        nonlin : Callable, optional
             The non-linearity function used in the block. Default is `None`.
-        dropout: float, optional
+        dropout : float, optional
             The dropout probability in dropout layers. If `None` dropout is not used.
             Default is `None`.
-        enable_multiscale: bool, optional
-            Whether to enable multiscale (Lateral Contextualization) or not. Default is `False`.
-        multiscale_lowres_size_factor: int, optional
-            A factor the expresses the relative size of the primary flow tensor with respect to the
+        enable_multiscale : bool, optional
+            Whether to enable multiscale (Lateral Contextualization) or not. Default is
+            `False`.
+        multiscale_lowres_size_factor : int, optional
+            A factor the expresses the relative size of the primary flow tensor with
+            respect to the
             lower-resolution lateral input tensor. Default in `None`.
-        lowres_separate_branch: bool, optional
-            Whether the residual block(s) encoding the low-res input should be shared (`False`) or
-            not (`True`) with the primary flow "same-size" residual block(s). Default is `False`.
-        multiscale_retain_spatial_dims: bool, optional
-            Whether to pad the latent tensor resulting from the bottom-up layer's primary flow
+        lowres_separate_branch : bool, optional
+            Whether the residual block(s) encoding the low-res input should be shared
+            (`False`) or
+            not (`True`) with the primary flow "same-size" residual block(s). Default is
+            `False`.
+        multiscale_retain_spatial_dims : bool, optional
+            Whether to pad the latent tensor resulting from the bottom-up layer's
+            primary flow
             to match the size of the low-res input. Default is `False`.
-        decoder_retain_spatial_dims: bool, optional
-            Whether in the corresponding top-down layer the shape of tensor is retained between
+        decoder_retain_spatial_dims : bool, optional
+            Whether in the corresponding top-down layer the shape of tensor is retained
+            between
             input and output. Default is `False`.
-        output_expected_shape: Iterable[int], optional
-            The expected shape of the layer output (only used if `enable_multiscale == True`).
+        output_expected_shape : Iterable[int], optional
+            The expected shape of the layer output (only used if `enable_multiscale ==
+            True`).
             Default is `None`.
         """
         super().__init__()
@@ -478,7 +611,8 @@ class BottomUpLayer(nn.Module):
         self.net = nn.Sequential(*bu_blocks_samesize)
 
         # Using the same net for the low resolution (and larger sized image)
-        self.lowres_net = self.lowres_merge = None
+        self.lowres_net: nn.Module | None = None
+        self.lowres_merge: nn.Module | None = None
         if self.enable_multiscale:
             self._init_multiscale(
                 n_filters=n_filters,
@@ -489,10 +623,10 @@ class BottomUpLayer(nn.Module):
 
     def _init_multiscale(
         self,
-        nonlin: Callable = None,
-        n_filters: int = None,
-        conv_strides: tuple[int] = (2, 2),
-        dropout: float = None,
+        nonlin: Callable = _DEFAULT_NONLIN,
+        n_filters: int | None = None,
+        conv_strides: Sequence[int] = (2, 2),
+        dropout: float | None = None,
     ) -> None:
         """
         Bottom-up layer's method that initializes the LC modules.
@@ -510,11 +644,14 @@ class BottomUpLayer(nn.Module):
 
         Parameters
         ----------
-        nonlin: Callable, optional
+        nonlin : Callable, optional
             The non-linearity function used in the block. Default is `None`.
-        n_filters: int
+        n_filters : int
             Number of channels present through out the layers of this block.
-        dropout: float, optional
+        conv_strides : Sequence[int], optional
+            The convolution strides, used to infer the convolution dimensionality.
+            Default is `(2, 2)`.
+        dropout : float, optional
             The dropout probability in dropout layers. If `None` dropout is not used.
             Default is `None`.
         """
@@ -538,14 +675,18 @@ class BottomUpLayer(nn.Module):
 
         Parameters
         ----------
-        x: torch.Tensor
+        x : torch.Tensor
             The input of the `BottomUpLayer`, i.e., the input image or the output of the
             previous layer.
-        lowres_x: torch.Tensor, optional
-            The low-res input used for Lateral Contextualization (LC). Default is `None`.
+        lowres_x : torch.Tensor, optional
+            The low-res input used for Lateral Contextualization (LC). Default is
+            `None`.
 
-        NOTE: first returned tensor is used as input for the next BU layer, while the second
-        tensor is the bu_value passed to the top-down layer.
+        Returns
+        -------
+        tuple of (torch.Tensor, torch.Tensor)
+            The first tensor is used as input for the next BU layer, while the second
+            is the `bu_value` passed to the top-down layer.
         """
         # The input is fed through the residual downsampling block(s)
         primary_flow = self.net_downsized(x)
@@ -558,6 +699,7 @@ class BottomUpLayer(nn.Module):
             return primary_flow, primary_flow
 
         if lowres_x is not None:
+            assert self.lowres_net is not None and self.lowres_merge is not None
             # First encode the low-res lateral input
             lowres_flow = self.lowres_net(lowres_x)
             # Then pass the result through the MergeLowRes layer
@@ -566,24 +708,34 @@ class BottomUpLayer(nn.Module):
             merged = primary_flow
 
         # NOTE: Explanation of possible cases for the conditionals:
-        # - if both are `True` -> `merged` has the same spatial dims as the input (`x`) since
-        #   spatial dims are retained by padding `primary_flow` in `MergeLowRes`. This is
+        # - if both are `True` -> `merged` has the same spatial dims as the input (`x`)
+        # since
+        #   spatial dims are retained by padding `primary_flow` in `MergeLowRes`. This
+        # is
         #   OK for the corresp TopDown layer, as it also retains spatial dims.
-        # - if both are `False` -> `merged`'s spatial dims are equal to `self.net_downsized(x)`,
-        #   since no padding is done in `MergeLowRes` and, instead, the lowres input is cropped.
-        #   This is OK for the corresp TopDown layer, as it also halves the spatial dims.
+        # - if both are `False` -> `merged`'s spatial dims are equal to
+        # `self.net_downsized(x)`,
+        #   since no padding is done in `MergeLowRes` and, instead, the lowres input is
+        # cropped.
+        #   This is OK for the corresp TopDown layer, as it also halves the spatial
+        # dims.
         # - if 1st is `False` and 2nd is `True` -> not a concern, it cannot happen
-        #   (see lvae.py, line 111, intialization of `multiscale_decoder_retain_spatial_dims`).
+        #   (see lvae.py, line 111, intialization of
+        # `multiscale_decoder_retain_spatial_dims`).
         if (
             self.multiscale_retain_spatial_dims is False
             or self.decoder_retain_spatial_dims is True
         ):
             return merged, merged
 
-        # NOTE: if we reach here, it means that `multiscale_retain_spatial_dims` is `True`,
-        # but `decoder_retain_spatial_dims` is `False`, meaning that merging LC preserves
-        # the spatial dimensions, but at the same time we don't want to retain the spatial
-        # dims in the corresponding top-down layer. Therefore, we need to crop the tensor.
+        # NOTE: if we reach here, it means that `multiscale_retain_spatial_dims` is
+        # `True`,
+        # but `decoder_retain_spatial_dims` is `False`, meaning that merging LC
+        # preserves
+        # the spatial dimensions, but at the same time we don't want to retain the
+        # spatial
+        # dims in the corresponding top-down layer. Therefore, we need to crop the
+        # tensor.
         if self.output_expected_shape is not None:
             expected_shape = self.output_expected_shape
         else:
@@ -603,21 +755,33 @@ class MergeLayer(nn.Module):
     Merges two or more (B, C, [Z], Y, X) input tensors by concatenating them along
     dim=1 and passing the result through a 1x1 convolution followed by a gated
     `ResidualBlock`.
+
+    Parameters
+    ----------
+    channels : Union[int, Iterable[int]]
+        The number of channels used in the convolutional blocks of this layer.
+    conv_strides : Sequence[int], optional
+        The convolution strides, used to infer the convolution dimensionality.
+        Default is `(2, 2)`.
+    nonlin : Callable, optional
+        The non-linearity function used in the block. Default is `nn.LeakyReLU`.
+    dropout : float, optional
+        The dropout probability in dropout layers. Default is `None`.
     """
 
     def __init__(
         self,
         channels: Union[int, Iterable[int]],
-        conv_strides: tuple[int] = (2, 2),
-        nonlin: Callable = nn.LeakyReLU(),
-        dropout: Optional[float] = None,
+        conv_strides: Sequence[int] = (2, 2),
+        nonlin: Callable = _DEFAULT_NONLIN,
+        dropout: float | None = None,
     ):
         """
         Constructor.
 
         Parameters
         ----------
-        channels: Union[int, Iterable[int]]
+        channels : Union[int, Iterable[int]]
             The number of channels used in the convolutional blocks of this layer.
             If it is an `int`:
                 - 1st 1x1 Conv2d: in_channels=2*channels, out_channels=channels
@@ -626,30 +790,29 @@ class MergeLayer(nn.Module):
                 - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]),
                 out_channels=channels[-1]
                 - ResBlock: in_channels=channels[-1], out_channels=channels[-1]
-        conv_strides: tuple, optional
+        conv_strides : tuple, optional
             The strides used in the convolutions. Default is `(2, 2)`.
-        nonlin: Callable, optional
+        nonlin : Callable, optional
             The non-linearity function used in the block. Default is `nn.LeakyReLU`.
-        dropout: float, optional
+        dropout : float, optional
             The dropout probability in dropout layers. If `None` dropout is not used.
             Default is `None`.
         """
         super().__init__()
-        try:
-            iter(channels)
-        except TypeError:  # it is not iterable
-            channels = [channels] * 3
-        else:  # it is iterable
-            if len(channels) == 1:
-                channels = [channels[0]] * 3
+        if isinstance(channels, int):
+            channels_list = [channels] * 3
+        else:
+            channels_list = list(channels)
+            if len(channels_list) == 1:
+                channels_list = [channels_list[0]] * 3
 
         self.conv_layer: ConvType = getattr(nn, f"Conv{len(conv_strides)}d")
 
         self.layer = nn.Sequential(
-            self.conv_layer(sum(channels[:-1]), channels[-1], 1, padding=0),
+            self.conv_layer(sum(channels_list[:-1]), channels_list[-1], 1, padding=0),
             ResidualBlock(
                 conv_strides=conv_strides,
-                channels=channels[-1],
+                channels=channels_list[-1],
                 nonlin=nonlin,
                 dropout=dropout,
                 gated=True,
@@ -657,7 +820,18 @@ class MergeLayer(nn.Module):
         )
 
     def forward(self, *args) -> torch.Tensor:
+        """Concatenate the inputs along dim=1 and merge them.
 
+        Parameters
+        ----------
+        *args : torch.Tensor
+            The tensors to merge (concatenated along the channel dimension).
+
+        Returns
+        -------
+        torch.Tensor
+            The merged tensor.
+        """
         # Concatenate the input tensors along dim=1
         x = torch.cat(args, dim=1)
 
@@ -673,9 +847,27 @@ class MergeLowRes(MergeLayer):
 
     Specifically designed to merge the low-resolution patches
     that are used in Lateral Contextualization approach.
+
+    Parameters
+    ----------
+    *args : Any
+        Positional arguments forwarded to `MergeLayer`.
+    **kwargs : Any
+        Keyword arguments forwarded to `MergeLayer`, plus the LC-specific
+        `multiscale_retain_spatial_dims` and `multiscale_lowres_size_factor`.
     """
 
     def __init__(self, *args, **kwargs):
+        """Constructor.
+
+        Parameters
+        ----------
+        *args : Any
+            Positional arguments forwarded to `MergeLayer`.
+        **kwargs : Any
+            Keyword arguments forwarded to `MergeLayer`, plus the LC-specific
+            `multiscale_retain_spatial_dims` and `multiscale_lowres_size_factor`.
+        """
         self.retain_spatial_dims = kwargs.pop("multiscale_retain_spatial_dims")
         self.multiscale_lowres_size_factor = kwargs.pop("multiscale_lowres_size_factor")
         super().__init__(*args, **kwargs)
@@ -685,10 +877,15 @@ class MergeLowRes(MergeLayer):
 
         Parameters
         ----------
-        latent: torch.Tensor
+        latent : torch.Tensor
             The output latent tensor from previous layer in the LVAE hierarchy.
-        lowres: torch.Tensor
+        lowres : torch.Tensor
             The low-res patch image to be merged to increase the context.
+
+        Returns
+        -------
+        torch.Tensor
+            The merged tensor.
         """
         # TODO: treat (X, Y) and Z differently (e.g., line 762)
         if self.retain_spatial_dims:
@@ -730,12 +927,18 @@ class TopDownLayer(nn.Module):
     NOTE 2:
         The Top-Down layer can work in two modes: inference and prediction/generative.
         Depending on the particular mode, it follows distinct behaviours:
-        - In inference mode, parameters of q(z_i|z_i+1) are obtained from the inference path,
-        by merging outcomes of bottom-up and top-down passes. The exception is the top layer,
-        in which the parameters of q(z_L|x) are set as the output of the topmost bottom-up layer.
-        - On the contrary in predicition/generative mode, parameters of q(z_i|z_i+1) can be obtained
-        once again by merging bottom-up and top-down outputs (CONDITIONAL GENERATION), or it is
-        possible to directly sample from the prior p(z_i|z_i+1) (UNCONDITIONAL GENERATION).
+        - In inference mode, parameters of q(z_i|z_i+1) are obtained from the inference
+        path,
+        by merging outcomes of bottom-up and top-down passes. The exception is the top
+        layer,
+        in which the parameters of q(z_L|x) are set as the output of the topmost
+        bottom-up layer.
+        - On the contrary in predicition/generative mode, parameters of q(z_i|z_i+1) can
+        be obtained
+        once again by merging bottom-up and top-down outputs (CONDITIONAL GENERATION),
+        or it is
+        possible to directly sample from the prior p(z_i|z_i+1) (UNCONDITIONAL
+        GENERATION).
 
     NOTE 3:
         When doing unconditional generation, bu_value is not available. Hence the
@@ -745,6 +948,43 @@ class TopDownLayer(nn.Module):
         If this is the top layer, at inference time, the uppermost bottom-up value
         is used directly as q_params, and p_params are defined in this layer
         (while they are usually taken from the previous layer), and can be learned.
+
+    Parameters
+    ----------
+    z_dim : int
+        The size of the latent space.
+    n_res_blocks : int
+        The number of TopDownDeterministicResBlock blocks.
+    n_filters : int
+        The number of channels present through out the layers of this block.
+    conv_strides : Sequence[int]
+        The convolution strides, used to infer the convolution dimensionality.
+    is_top_layer : bool, optional
+        Whether the current layer is at the top of the Decoder hierarchy.
+        Default is `False`.
+    upsampling_steps : int, optional
+        The number of upsampling steps done in this layer (typically 1). Default is
+        `None`.
+    nonlin : Callable, optional
+        The non-linearity function used in the block. Default is `nn.LeakyReLU`.
+    dropout : float, optional
+        The dropout probability in dropout layers. Default is `None`.
+    stochastic_skip : bool, optional
+        Whether to use a skip connection around the stochastic block. Default `False`.
+    learn_top_prior : bool, optional
+        Whether the top prior is learnable. Default is `False`.
+    top_prior_param_shape : Iterable[int], optional
+        The shape of the top-most prior parameter tensor. Default is `None`.
+    retain_spatial_dims : bool, optional
+        Whether the layer output keeps the input spatial size. Default is `False`.
+    vanilla_latent_hw : Iterable[int], optional
+        The spatial size of the latent used for prediction. Default is `None`.
+    input_image_shape : tuple[int, int], optional
+        The shape of the input image tensor. Default is `None`.
+    normalize_latent_factor : float, optional
+        A factor used to normalize the latent tensors. Default is 1.0.
+    stochastic_use_naive_exponential : bool, optional
+        Whether to use the naive (non-stable) exponential. Default is `False`.
     """
 
     def __init__(
@@ -752,10 +992,10 @@ class TopDownLayer(nn.Module):
         z_dim: int,
         n_res_blocks: int,
         n_filters: int,
-        conv_strides: tuple[int],
+        conv_strides: Sequence[int],
         is_top_layer: bool = False,
         upsampling_steps: Union[int, None] = None,
-        nonlin: Union[Callable, None] = None,
+        nonlin: Callable = _DEFAULT_NONLIN,
         dropout: Union[float, None] = None,
         stochastic_skip: bool = False,
         learn_top_prior: bool = False,
@@ -771,54 +1011,66 @@ class TopDownLayer(nn.Module):
 
         Parameters
         ----------
-        z_dim: int
+        z_dim : int
             The size of the latent space.
-        n_res_blocks: int
-            The number of TopDownDeterministicResBlock blocks
-        n_filters: int
+        n_res_blocks : int
+            The number of TopDownDeterministicResBlock blocks.
+        n_filters : int
             The number of channels present through out the layers of this block.
-        conv_strides: tuple, optional
+        conv_strides : tuple, optional
             The strides used in the convolutions. Default is `(2, 2)`.
-        is_top_layer: bool, optional
-            Whether the current layer is at the top of the Decoder hierarchy. Default is `False`.
-        upsampling_steps: int, optional
-            The number of upsampling steps that has to be done in this layer (typically 1).
+        is_top_layer : bool, optional
+            Whether the current layer is at the top of the Decoder hierarchy. Default is
+            `False`.
+        upsampling_steps : int, optional
+            The number of upsampling steps that has to be done in this layer (typically
+            1).
             Default is `None`.
-        nonlin: Callable, optional
-            The non-linearity function used in the block (e.g., `nn.ReLU`). Default is `None`.
-        dropout: float, optional
+        nonlin : Callable, optional
+            The non-linearity function used in the block (e.g., `nn.ReLU`). Default is
+            `None`.
+        dropout : float, optional
             The dropout probability in dropout layers. If `None` dropout is not used.
             Default is `None`.
-        stochastic_skip: bool, optional
-            Whether to use skip connections between previous top-down layer's output and this layer's stochastic output.
-            Stochastic skip connection allows the previous layer's output has a way to directly reach this hierarchical
-            level, hence facilitating the gradient flow during backpropagation. Default is `False`.
-        learn_top_prior:
+        stochastic_skip : bool, optional
+            Whether to use skip connections between previous top-down layer's output and
+            this layer's stochastic output.
+            Stochastic skip connection allows the previous layer's output has a way to
+            directly reach this hierarchical
+            level, hence facilitating the gradient flow during backpropagation. Default
+            is `False`.
+        learn_top_prior : bool
             Whether to set the top prior as learnable.
             If this is set to `False`, in the top-most layer the prior will be N(0,1).
-            Otherwise, we will still have a normal distribution whose parameters will be learnt.
+            Otherwise, we will still have a normal distribution whose parameters will be
+            learnt.
             Default is `False`.
-        top_prior_param_shape: Iterable[int], optional
+        top_prior_param_shape : Iterable[int], optional
             The size of the tensor which expresses the mean and the variance
             of the prior for the top most layer. Default is `None`.
-        retain_spatial_dims: bool, optional
-            If `True`, the size of Encoder's latent space is kept to `input_image_shape` within the topdown layer.
+        retain_spatial_dims : bool, optional
+            If `True`, the size of Encoder's latent space is kept to `input_image_shape`
+            within the topdown layer.
             This implies that the oput spatial size equals the input spatial size.
             To achieve this, we centercrop the intermediate representation.
             Default is `False`.
-        vanilla_latent_hw: Iterable[int], optional
-            The shape of the latent tensor used for prediction (i.e., it influences the computation of restricted KL).
+        vanilla_latent_hw : Iterable[int], optional
+            The shape of the latent tensor used for prediction (i.e., it influences the
+            computation of restricted KL).
             Default is `None`.
-        input_image_shape: Tuple[int, int], optionalut
+        input_image_shape : Tuple[int, int], optionalut
             The shape of the input image tensor.
-            When `retain_spatial_dims` is set to `True`, this is used to ensure that the shape of this layer
+            When `retain_spatial_dims` is set to `True`, this is used to ensure that the
+            shape of this layer
             output has the same shape as the input. Default is `None`.
-        normalize_latent_factor: float, optional
+        normalize_latent_factor : float, optional
             A factor used to normalize the latent tensors `q_params`.
-            Specifically, normalization is done by dividing the latent tensor by this factor.
+            Specifically, normalization is done by dividing the latent tensor by this
+            factor.
             Default is 1.0.
-        stochastic_use_naive_exponential: bool, optional
-            If `False`, in the NormalStochasticBlock2d exponentials are computed according
+        stochastic_use_naive_exponential : bool, optional
+            If `False`, in the NormalStochasticBlock2d exponentials are computed
+            according
             to the alternative definition provided by `StableExponential` class.
             This should improve numerical stability in the training process.
             Default is `False`.
@@ -830,6 +1082,7 @@ class TopDownLayer(nn.Module):
         self.stochastic_skip = stochastic_skip
         self.learn_top_prior = learn_top_prior
         self.retain_spatial_dims = retain_spatial_dims
+        assert input_image_shape is not None
         self.input_image_shape = (
             input_image_shape if len(conv_strides) == 3 else input_image_shape[1:]
         )
@@ -844,7 +1097,7 @@ class TopDownLayer(nn.Module):
             )
 
         # Upsampling steps left to do in this layer
-        ups_left = upsampling_steps
+        ups_left = upsampling_steps or 0
 
         # Define deterministic top-down block, which is a sequence of deterministic
         # residual blocks with (optional) upsampling.
@@ -902,7 +1155,7 @@ class TopDownLayer(nn.Module):
         self,
         input_: torch.Tensor,
         bu_value: torch.Tensor,
-        var_clip_max: Optional[float] = None,
+        var_clip_max: float | None = None,
         mask: torch.Tensor = None,
     ) -> torch.Tensor:
         """
@@ -912,21 +1165,27 @@ class TopDownLayer(nn.Module):
 
         Parameters
         ----------
-        input_: torch.Tensor
+        input_ : torch.Tensor
             The input tensor to the layer, which is the output of the top-down layer.
-        bu_value: torch.Tensor
+        bu_value : torch.Tensor
             The tensor defining the parameters /mu_q and /sigma_q computed during the
             bottom-up deterministic pass at the correspondent hierarchical layer.
-        var_clip_max: float, optional
+        var_clip_max : float, optional
             The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped. Default is `None`.
-        mask: Union[None, torch.Tensor], optional
+        mask : Union[None, torch.Tensor], optional
             A tensor that is used to mask the sampled latent tensor. Default is `None`.
+
+        Returns
+        -------
+        torch.Tensor
+            The latent tensor sampled from q(z_i|z_{i+1}).
         """
         if self.is_top_layer:  # In top layer, we don't merge bu_value with p_params
             q_params = bu_value
         else:
-            # NOTE: Here the assumption is that the vampprior is only applied on the top layer.
+            # NOTE: Here the assumption is that the vampprior is only applied on the top
+            # layer.
             n_img_prior = None
             p_params = self.get_p_params(input_, n_img_prior)
             q_params = self.merge(bu_value, p_params)
@@ -940,8 +1199,8 @@ class TopDownLayer(nn.Module):
 
     def get_p_params(
         self,
-        input_: torch.Tensor,
-        n_img_prior: int,
+        input_: torch.Tensor | None,
+        n_img_prior: int | None,
     ) -> torch.Tensor:
         """Return the parameters of the prior distribution p(z_i|z_{i+1}).
 
@@ -951,13 +1210,18 @@ class TopDownLayer(nn.Module):
 
         Parameters
         ----------
-        input_: torch.Tensor
-            The input tensor to the layer, which is the output of the top-down layer above.
-        n_img_prior: int
-            The number of images to be generated from the unconditional prior distribution p(z_L).
-        """
-        p_params = None
+        input_ : torch.Tensor or None
+            The input tensor to the layer, which is the output of the top-down layer
+            above.
+        n_img_prior : int or None
+            The number of images to be generated from the unconditional prior
+            distribution p(z_L).
 
+        Returns
+        -------
+        torch.Tensor
+            The parameters of the prior distribution p(z_i|z_{i+1}).
+        """
         # If top layer, define p_params as the ones of the prior p(z_L)
         if self.is_top_layer:
             p_params = self.top_prior_params
@@ -968,6 +1232,7 @@ class TopDownLayer(nn.Module):
 
         # Else the input from the layer above is p_params itself
         else:
+            assert input_ is not None
             p_params = input_
 
         return p_params
@@ -989,42 +1254,48 @@ class TopDownLayer(nn.Module):
 
         Parameters
         ----------
-        input_: torch.Tensor, optional
+        input_ : torch.Tensor, optional
             The input tensor to the layer, which is the output of the top-down layer.
             Default is `None`.
-        skip_connection_input: torch.Tensor, optional
+        skip_connection_input : torch.Tensor, optional
             The tensor brought by the skip connection between the current and the
             previous top-down layer.
             Default is `None`.
-        inference_mode: bool, optional
+        inference_mode : bool, optional
             Whether the layer is in inference mode. See NOTE 2 in class description
             for more info.
             Default is `False`.
-        bu_value: torch.Tensor, optional
+        bu_value : torch.Tensor, optional
             The tensor defining the parameters /mu_q and /sigma_q computed during the
             bottom-up deterministic pass
             at the correspondent hierarchical layer. Default is `None`.
-        n_img_prior: int, optional
+        n_img_prior : int, optional
             The number of images to be generated from the unconditional prior
             distribution p(z_L).
             Default is `None`.
-        forced_latent: torch.Tensor, optional
+        forced_latent : torch.Tensor, optional
             A pre-defined latent tensor. If it is not `None`, than it is used as the
             actual latent tensor and,
             hence, sampling does not happen. Default is `None`.
-        force_constant_output: bool, optional
+        force_constant_output : bool, optional
             Whether to copy the first sample (and rel. distrib parameters) over the
             whole batch.
             This is used when doing experiment from the prior - q is not used.
             Default is `False`.
-        mode_pred: bool, optional
+        mode_pred : bool, optional
             Whether the model is in prediction mode. Default is `False`.
-        use_uncond_mode: bool, optional
+        use_uncond_mode : bool, optional
             Whether to use the uncoditional distribution p(z) to sample latents in
             prediction mode.
-        var_clip_max: float
+        var_clip_max : float
             The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped.
+
+        Returns
+        -------
+        tuple of (torch.Tensor, dict[str, torch.Tensor])
+            The output tensor of the top-down layer and a dictionary of auxiliary
+            quantities returned by the stochastic block.
         """
         # Check consistency of arguments
         inputs_none = input_ is None and skip_connection_input is None
@@ -1035,6 +1306,7 @@ class TopDownLayer(nn.Module):
 
         # Get the parameters for the latent distribution to sample from
         if inference_mode:  # TODO What's this ? reuse Fede's code?
+            assert bu_value is not None
             if self.is_top_layer:
                 q_params = bu_value
                 if mode_pred is False:
@@ -1057,11 +1329,12 @@ class TopDownLayer(nn.Module):
             q_params = None
 
         # NOTE: Sampling is done either from q(z_i | z_{i+1}, x) or p(z_i | z_{i+1})
-        # depending on the mode (hence, in practice, by checking whether q_params is None).
+        # depending on the mode (hence, in practice, by checking whether q_params is
+        # None).
 
         # Normalization of latent space parameters for stablity.
         # See Very deep VAEs generalize autoregressive models.
-        if self.normalize_latent_factor:
+        if self.normalize_latent_factor and q_params is not None:
             q_params = q_params / self.normalize_latent_factor
 
         # Sample (and process) a latent tensor in the stochastic layer
@@ -1078,7 +1351,8 @@ class TopDownLayer(nn.Module):
         if self.stochastic_skip and not self.is_top_layer:
             x = self.skip_connection_merger(x, skip_connection_input)
         if self.retain_spatial_dims:
-            # NOTE: we assume that one topdown layer will have exactly one upscaling layer.
+            # NOTE: we assume that one topdown layer will have exactly one upscaling
+            # layer.
 
             # NOTE: in case, in the Bottom-Up layer, LC retains spatial dimensions,
             # we have the following (see `MergeLowRes`):
@@ -1094,6 +1368,7 @@ class TopDownLayer(nn.Module):
             # because that's the only case in which we need to retain the shape.
             # Here, it must be strictly greater than half the input shape, which is
             # the case if and only if `x.shape == self.latent_shape`.
+            assert self.latent_shape is not None
             rescale = (
                 np.array((1, 2, 2)) if len(self.latent_shape) == 3 else np.array((2, 2))
             )  # TODO better way?
