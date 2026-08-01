@@ -347,18 +347,17 @@ class LadderVAE(nn.Module):
                     # NOTE: the global `enable_multiscale` flag is passed to every layer
                     # (not the per-layer `layer_enable_multiscale`). As a result, layers
                     # above index `_multiscale_count - 1` build
-                    # `lowres_net`/`lowres_merge`
-                    # modules that are never exercised (they only ever receive
-                    # `lowres_x=None` and return the primary flow unchanged, so the
-                    # output
-                    # is identical either way). Passing `layer_enable_multiscale` would
-                    # drop those unused parameters but change the `state_dict` and thus
-                    # break existing checkpoints, so it is left as-is intentionally.
+                    # `lowres_net`/`lowres_merge` modules that are never exercised
+                    # (they only ever receive `lowres_x=None` and return the primary
+                    # flow unchanged, so the output is identical either way). Passing
+                    # `layer_enable_multiscale` would drop those unused parameters but
+                    # change the `state_dict` and thus break existing checkpoints, so it
+                    # is left as-is intentionally.
                     enable_multiscale=self.enable_multiscale,
                     multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
-                    multiscale_lowres_size_factor=multiscale_lowres_size_factor,
+                    multiscale_lowres_size_factor=multiscale_lowres_size_factor,  # type: ignore[arg-type]
                     decoder_retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
-                    output_expected_shape=output_expected_shape,
+                    output_expected_shape=output_expected_shape,  # type: ignore[arg-type]
                 )
             )
 
