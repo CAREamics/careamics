@@ -15,18 +15,6 @@ def torch_nanmean(inp):
     return torch.mean(inp[~inp.isnan()])
 
 
-def power_of_2(self, x):
-    assert isinstance(x, int)
-    if x == 1:
-        return True
-    if x == 0:
-        # happens with validation
-        return False
-    if x % 2 == 1:
-        return False
-    return self.power_of_2(x // 2)
-
-
 class Enum:
     @classmethod
     def name(cls, enum_type):
@@ -46,7 +34,7 @@ class Enum:
         for key, value in cls.__dict__.items():
             if key == enum_type_str:
                 return value
-        assert f"{cls.__name__}:{enum_type_str} doesnot exist."
+        raise ValueError(f"{cls.__name__}:{enum_type_str} does not exist.")
 
 
 class LossType(Enum):

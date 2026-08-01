@@ -5,7 +5,7 @@ The current implementation is based on "Interpretable Unsupervised Diversity Den
 and Artefact Removal, Prakash et al."
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Union
 
 import numpy as np
@@ -29,8 +29,8 @@ class LadderVAE(nn.Module):
 
     Parameters
     ----------
-    input_shape : int
-        The size of the input image.
+    input_shape : Sequence[int]
+        The spatial shape of the input patch, (Z, Y, X) for 3D data or (Y, X) for 2D.
     output_channels : int
         The number of output channels.
     multiscale_count : int
@@ -66,7 +66,7 @@ class LadderVAE(nn.Module):
 
     def __init__(
         self,
-        input_shape: int,
+        input_shape: Sequence[int],
         output_channels: int,
         multiscale_count: int,
         z_dims: list[int],
@@ -87,8 +87,6 @@ class LadderVAE(nn.Module):
         # Customizable attributes
         self.image_size = input_shape
         """Input image size. (Z, Y, X) or (Y, X) if the data is 2D."""
-        # TODO: we need to be careful with this since used to be an int.
-        # the tuple of shapes used to be `self.input_shape`.
         self.target_ch = output_channels
         self.encoder_conv_strides = encoder_conv_strides
         self.decoder_conv_strides = decoder_conv_strides
@@ -298,7 +296,15 @@ class LadderVAE(nn.Module):
                     conv_strides=self.encoder_conv_strides,
                     dropout=self.encoder_dropout,
                     lowres_separate_branch=lowres_separate_branch,
-                    enable_multiscale=self.enable_multiscale,  # TODO: shouldn't the arg be `layer_enable_multiscale` here?
+                    # NOTE: the global `enable_multiscale` flag is passed to every layer
+                    # (not the per-layer `layer_enable_multiscale`). As a result, layers
+                    # above index `_multiscale_count - 1` build `lowres_net`/`lowres_merge`
+                    # modules that are never exercised (they only ever receive
+                    # `lowres_x=None` and return the primary flow unchanged, so the output
+                    # is identical either way). Passing `layer_enable_multiscale` would
+                    # drop those unused parameters but change the `state_dict` and thus
+                    # break existing checkpoints, so it is left as-is intentionally.
+                    enable_multiscale=self.enable_multiscale,
                     multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
                     multiscale_lowres_size_factor=multiscale_lowres_size_factor,
                     decoder_retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
@@ -398,7 +404,7 @@ class LadderVAE(nn.Module):
             )
         return nn.Sequential(*modules)
 
-    def _init_multires(self, config=None) -> nn.ModuleList:
+    def _init_multires(self) -> None:
         """
         Method defines the input block/branch to encode/compress low-res lateral inputs.
 
@@ -720,7 +726,7 @@ class LadderVAE(nn.Module):
             tile_size = self.image_size
         self.image_size = tile_size
         for i in range(self.n_layers):
-            self.bottom_up_layers[i].output_expected_shape = (
+            self.bottom_up_layers[i].output_expected_shape = tuple(
                 ts // 2 ** (i + 1) for ts in tile_size
             )
             self.top_down_layers[i].latent_shape = tile_size
