@@ -710,44 +710,6 @@ class MergeLowRes(MergeLayer):
         return super().forward(latent, lowres)
 
 
-class SkipConnectionMerger(MergeLayer):
-    """Specialized `MergeLayer` module, handles skip connections in the model."""
-
-    def __init__(
-        self,
-        nonlin: Callable,
-        channels: Union[int, Iterable[int]],
-        dropout: float,
-        conv_strides: tuple[int] = (2, 2),
-    ):
-        """
-        Constructor.
-
-        Parameters
-        ----------
-        nonlin: Callable
-            The non-linearity function used in the block.
-        channels: Union[int, Iterable[int]]
-            The number of channels used in the convolutional blocks of this layer.
-            If it is an `int`:
-                - 1st 1x1 Conv2d: in_channels=2*channels, out_channels=channels
-                - ResBlock: in_channels=channels, out_channels=channels
-            If it is an Iterable (must have `len(channels)==3`):
-                - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]), out_channels=channels[-1]
-                - ResBlock: in_channels=channels[-1], out_channels=channels[-1]
-        dropout: float
-            The dropout probability in dropout layers. If `None` dropout is not used.
-        conv_strides: tuple, optional
-            The strides used in the convolutions. Default is `(2, 2)`.
-        """
-        super().__init__(
-            conv_strides=conv_strides,
-            channels=channels,
-            nonlin=nonlin,
-            dropout=dropout,
-        )
-
-
 class TopDownLayer(nn.Module):
     """Top-down inference layer.
 
@@ -929,7 +891,7 @@ class TopDownLayer(nn.Module):
 
             # Skip connection that goes around the stochastic top-down layer
             if stochastic_skip:
-                self.skip_connection_merger = SkipConnectionMerger(
+                self.skip_connection_merger = MergeLayer(
                     channels=n_filters,
                     conv_strides=conv_strides,
                     nonlin=nonlin,
