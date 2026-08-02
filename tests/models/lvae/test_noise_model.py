@@ -237,13 +237,12 @@ def test_noise_model_in_likelihood_call():
     test_target = torch.rand(1, 1, 64, 64)
     data_mean = test_input.mean().item()
     data_std = test_input.std().item()
+    normalized_noise_model = noise_model.get_normalized_copy([data_mean], [data_std])
 
     log_likelihood = _compute_noise_model_log_likelihood(
         reconstruction=test_input,
         target=test_target,
-        noise_model=noise_model,
-        data_mean=data_mean,
-        data_std=data_std,
+        noise_model=normalized_noise_model,
     )
     assert log_likelihood is not None
     assert isinstance(log_likelihood, torch.Tensor)
