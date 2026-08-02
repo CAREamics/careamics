@@ -527,7 +527,7 @@ class BottomUpLayer(nn.Module):
         lowres_separate_branch: bool = False,
         multiscale_retain_spatial_dims: bool = False,
         decoder_retain_spatial_dims: bool = False,
-        output_expected_shape: Iterable[int] | None = None,
+        output_expected_shape: Sequence[int] | None = None,
     ):
         """
         Constructor.
@@ -1001,8 +1001,8 @@ class TopDownLayer(nn.Module):
         learn_top_prior: bool = False,
         top_prior_param_shape: Union[Iterable[int], None] = None,
         retain_spatial_dims: bool = False,
-        vanilla_latent_hw: Union[Iterable[int], None] = None,
-        input_image_shape: Union[tuple[int, int], None] = None,
+        vanilla_latent_hw: int | None = None,
+        input_image_shape: Sequence[int] | None = None,
         normalize_latent_factor: float = 1.0,
         stochastic_use_naive_exponential: bool = False,
     ):
