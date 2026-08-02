@@ -57,10 +57,11 @@ def _compute_noise_model_log_likelihood(
     reconstruction: torch.Tensor,
     target: torch.Tensor,
     noise_model: MultiChannelNoiseModel,
-    data_mean: float,
-    data_std: float,
 ) -> torch.Tensor:
     """Compute noise model log-likelihood.
+
+    The noise model must already operate in the network's (normalized) data
+    space — see `MultiChannelNoiseModel.get_normalized_copy`.
 
     Parameters
     ----------
@@ -70,34 +71,17 @@ def _compute_noise_model_log_likelihood(
         The target image (normalized). Shape is (B, C, [Z], Y, X).
     noise_model : MultiChannelNoiseModel
         The noise model to use for computing likelihood.
-    data_mean : float
-        Mean used for normalization (for denormalization).
-    data_std : float
-        Standard deviation used for normalization (for denormalization).
 
     Returns
     -------
     torch.Tensor
         The log-likelihood value (scalar).
     """
-    # Convert to tensors and move to correct device
-    data_mean_tensor = torch.as_tensor(
-        data_mean, dtype=torch.float32, device=reconstruction.device
-    )
-    data_std_tensor = torch.as_tensor(
-        data_std, dtype=torch.float32, device=reconstruction.device
-    )
-
     # Move noise model to correct device if needed
     if reconstruction.device != noise_model.device:
         noise_model.to_device(reconstruction.device)
 
-    # Denormalize predictions and targets
-    reconstruction_denorm = reconstruction * data_std_tensor + data_mean_tensor
-    target_denorm = target * data_std_tensor + data_mean_tensor
-
-    # Compute likelihood using noise model
-    likelihoods = noise_model.likelihood(target_denorm, reconstruction_denorm)
+    likelihoods = noise_model.likelihood(target, reconstruction)
     log_prob = torch.log(likelihoods)
 
     return log_prob.mean()
@@ -238,8 +222,6 @@ def hdn_loss(
     targets: torch.Tensor,
     config: LVAELossConfig,
     noise_model: MultiChannelNoiseModel | None = None,
-    data_mean: float | None = None,
-    data_std: float | None = None,
 ) -> dict[str, torch.Tensor] | None:
     """Loss function for HDN.
 
@@ -254,11 +236,9 @@ def hdn_loss(
     config : LVAELossConfig
         The config for loss function containing all loss hyperparameters.
     noise_model : MultiChannelNoiseModel | None, optional
-        The noise model. Required if using noise model likelihood.
-    data_mean : float | None, optional
-        Data mean for denormalization. Required if using noise model.
-    data_std : float | None, optional
-        Data std for denormalization. Required if using noise model.
+        The noise model, already normalized into the network's data space (see
+        `MultiChannelNoiseModel.get_normalized_copy`). Required if using noise
+        model likelihood.
 
     Returns
     -------
@@ -270,15 +250,13 @@ def hdn_loss(
 
     # Reconstruction loss computation
     # HDN can use either Gaussian or noise model likelihood
-    if noise_model is not None and data_mean is not None and data_std is not None:
+    if noise_model is not None:
         recons_loss = (
             config.reconstruction_weight
             * -_compute_noise_model_log_likelihood(
                 reconstruction=predictions,
                 target=targets,
                 noise_model=noise_model,
-                data_mean=data_mean,
-                data_std=data_std,
             )
         )
     else:
@@ -327,8 +305,6 @@ def microsplit_loss(
     targets: torch.Tensor,
     config: LVAELossConfig,
     noise_model: MultiChannelNoiseModel | None = None,
-    data_mean: float | None = None,
-    data_std: float | None = None,
 ) -> dict[str, torch.Tensor] | None:
     """Unified loss function for MicroSplit (musplit, denoisplit, musplit_denoisplit).
 
@@ -349,11 +325,9 @@ def microsplit_loss(
         The config for loss function containing all loss hyperparameters.
         Uses `musplit_weight` as gaussian_weight and `denoisplit_weight` as nm_weight.
     noise_model : MultiChannelNoiseModel | None, optional
-        The noise model. Required if denoisplit_weight > 0.
-    data_mean : float | None, optional
-        Data mean for denormalization. Required if denoisplit_weight > 0.
-    data_std : float | None, optional
-        Data std for denormalization. Required if denoisplit_weight > 0.
+        The noise model, already normalized into the network's data space (see
+        `MultiChannelNoiseModel.get_normalized_copy`). Required if
+        denoisplit_weight > 0.
 
     Returns
     -------
@@ -372,10 +346,8 @@ def microsplit_loss(
         raise ValueError(
             "predict_logvar must be True in config when musplit_weight > 0"
         )
-    if nm_weight > 0 and (noise_model is None or data_mean is None or data_std is None):
-        raise ValueError(
-            "noise_model, data_mean, and data_std required when denoisplit_weight > 0"
-        )
+    if nm_weight > 0 and noise_model is None:
+        raise ValueError("noise_model required when denoisplit_weight > 0")
     recons_loss: torch.Tensor | float = 0.0
     if nm_weight > 0 and gaussian_weight > 0:
         if predictions.shape[1] == 2 * targets.shape[1]:
@@ -387,8 +359,6 @@ def microsplit_loss(
             reconstruction=pred_mean,
             target=targets,
             noise_model=noise_model,
-            data_mean=data_mean,
-            data_std=data_std,
         )
         recons_loss_gm = -_compute_gaussian_log_likelihood(
             reconstruction=predictions,
@@ -408,8 +378,6 @@ def microsplit_loss(
             reconstruction=pred_mean,
             target=targets,
             noise_model=noise_model,
-            data_mean=data_mean,
-            data_std=data_std,
         )
 
     elif gaussian_weight > 0:

@@ -89,9 +89,6 @@ class HDNModule(L.LightningModule):
                 "requires `predict_logvar=False`."
             )
 
-        self.data_mean: float | None = None
-        self.data_std: float | None = None
-
         self.metrics: MetricCollection = MetricCollection(
             {
                 f"SIPSNR_{i}": SIPSNR(
@@ -106,6 +103,11 @@ class HDNModule(L.LightningModule):
     def on_fit_start(self) -> None:
         """On fit start hook for HDN module.
 
+        When a noise model is used, it is rebuilt from the (raw-space) configuration
+        and transformed into normalized data space using the input statistics from
+        the training dataset normalization. Rebuilding from the configuration keeps
+        this hook idempotent (e.g. when resuming from a checkpoint).
+
         Raises
         ------
         TypeError
@@ -116,7 +118,7 @@ class HDNModule(L.LightningModule):
             return
         assert self._trainer is not None
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
-        # The noise model likelihood is parameterized in mean/std space, so the noise
+        # The noise model likelihood operates in normalized data space, so the noise
         # model path requires zero-mean/unit-variance normalization to recover the
         # data statistics; other normalizations do not expose input means/stds.
         normalization = datamodule.train_dataset.normalization  # type: ignore[union-attr]
@@ -125,8 +127,12 @@ class HDNModule(L.LightningModule):
                 "HDN with a noise model requires MeanStdNormalization to recover the "
                 f"data statistics, but got {type(normalization).__name__}."
             )
-        self.data_mean = float(normalization.input_means[0])
-        self.data_std = float(normalization.input_stds[0])
+        raw_noise_model = multichannel_noise_model_factory(self.config.noise_model)
+        assert raw_noise_model is not None
+        self.noise_model = raw_noise_model.get_normalized_copy(
+            [float(normalization.input_means[0])],
+            [float(normalization.input_stds[0])],
+        )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.
@@ -194,22 +200,19 @@ class HDNModule(L.LightningModule):
         Raises
         ------
         RuntimeError
-            If the noise model is used but its data statistics are not set.
+            If the noise model is used but has not been normalized yet.
         """
-        if self.noise_model is not None and (
-            self.data_mean is None or self.data_std is None
-        ):
+        if self.noise_model is not None and not self.noise_model.is_normalized:
             raise RuntimeError(
-                "Data statistics are missing; they are set in `on_fit_start`. "
-                "Call `trainer.fit` before computing the loss."
+                "The noise model has not been normalized into the data space; "
+                "this happens in `on_fit_start`. Call `trainer.fit` before "
+                "computing the loss."
             )
         return self.loss_func(
             model_outputs=model_outputs,
             targets=target,
             config=self.config.loss,
             noise_model=self.noise_model,
-            data_mean=self.data_mean,
-            data_std=self.data_std,
         )
 
     def _get_reconstruction(

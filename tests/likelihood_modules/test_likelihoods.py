@@ -67,13 +67,12 @@ def test_noise_model_log_likelihood(
     target = torch.rand(inp_shape)
     data_mean = target.mean().item()
     data_std = max(target.std().item(), 1e-6)
+    nm_norm = nm.get_normalized_copy([data_mean], [data_std])
 
     log_likelihood = _compute_noise_model_log_likelihood(
         reconstruction=reconstruction,
         target=target,
-        noise_model=nm,
-        data_mean=data_mean,
-        data_std=data_std,
+        noise_model=nm_norm,
     )
 
     assert log_likelihood is not None
