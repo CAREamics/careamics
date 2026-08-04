@@ -257,9 +257,7 @@ def _add_output_key(dirpath: Path, path: str | Path) -> Path:
     return dirpath / new_name
 
 
-def _decipher_destination(
-    region: ImageRegionData, dirpath: Path
-) -> tuple[str, Path, str]:
+def _get_destination(region: ImageRegionData, dirpath: Path) -> tuple[str, Path, str]:
     """Generate the destination for the zarr array based on the source of the data.
 
     Parameters
@@ -441,9 +439,7 @@ class ZarrTileWriteStrategy(WriteStrategy):
         region : ImageRegionData
             Image region data containing tile information.
         """
-        array_name, output_store_path, parent_path = _decipher_destination(
-            region, dirpath
-        )
+        array_name, output_store_path, parent_path = _get_destination(region, dirpath)
 
         if (
             self.current_group is None
