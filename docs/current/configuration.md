@@ -206,8 +206,7 @@ possibility.
 !!! note "Assumptions parameters are not passed"
 
     If `target_axes` is not set, it is assumed to be the same as `axes`. If
-    `n_channels_out` is not set, then it is set to the same value as `n_channels_in` if
-    `target_axes` has a "C" channel, otherwise 1.
+    `n_channels_out` is not set and `target_axes` has a "C" dimension, then it is set to the same value as `n_channels_in`, otherwise it is set to 1.
 
 
 
