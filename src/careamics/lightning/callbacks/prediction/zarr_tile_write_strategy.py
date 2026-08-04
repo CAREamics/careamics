@@ -32,28 +32,30 @@ class ZarrTileHandler:
     ----------
     region : ImageRegionData
         The image region data containing the tile information.
+
+    Attributes
+    ----------
+    original_chunks : Sequence[int] | None
+        Original chunks of the array, if available.
+
+    original_shards : Sequence[int] | None
+        Original shards of the array, if available.
+
+    crop_size : Sequence[int]
+        Size of the tile to crop.
+
+    crop_coords : Sequence[int]
+        Coordinates where to crop the tile.
+
+    stitch_coords : Sequence[int]
+        Coordinates in the array for stitching the tile.
+
+    sample_idx : int
+        Sample index of the tile.
+
+    tile : NDArray
+        Tile data.
     """
-
-    original_chunks: Sequence[int] | None
-    """Original chunks of the array, if available."""
-
-    original_shards: Sequence[int] | None
-    """Original shards of the array, if available."""
-
-    crop_size: Sequence[int]
-    """Size of the tile to crop."""
-
-    crop_coords: Sequence[int]
-    """Coordinates where to crop the tile."""
-
-    stitch_coords: Sequence[int]
-    """Coordinates in the array for stitching the tile."""
-
-    sample_idx: int
-    """Sample index of the tile."""
-
-    tile: NDArray
-    """Tile data."""
 
     def __init__(self, region: ImageRegionData) -> None:
         """Initialize the TileHandler with the given ImageRegionData.
