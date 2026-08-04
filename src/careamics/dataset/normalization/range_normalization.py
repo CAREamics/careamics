@@ -131,6 +131,8 @@ class RangeNormalization(Normalization):
         target range is available, which is the case for self-supervised algorithms
         such as N2V, the data is denormalized using the input range.
 
+        If `self.skip_target` is `True`, then this method returns `patch`.
+
         Parameters
         ----------
         patch : torch.Tensor
@@ -141,6 +143,9 @@ class RangeNormalization(Normalization):
         torch.Tensor
             Denormalized patch.
         """
+        if self.skip_target:
+            return patch
+
         n_channels = patch.shape[1]
         if self.target_mins is not None and self.target_maxes is not None:
             mins_list, maxes_list = self.target_mins, self.target_maxes
