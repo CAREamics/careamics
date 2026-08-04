@@ -16,7 +16,7 @@ repos:
       - id: validate-pyproject
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.20
+    rev: v0.16.1
     hooks:
       - id: ruff
         exclude: "^(docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/.*|scripts/.*|demos/.*)"
@@ -33,7 +33,7 @@ repos:
       - id: pyrefly-check
         name: Pyrefly (type checking)
         language: system  # use the installed pyrefly
-        pass_filenames: false  # full-repo check 
+        pass_filenames: false  # full-repo check
 
   # check docstrings
   - repo: https://github.com/numpy/numpydoc
