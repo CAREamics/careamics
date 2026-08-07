@@ -41,7 +41,7 @@ from careamics.dev.sliding_window_tiled_pred import (
 
 from scripts.config_factory import pkl_load
 from scripts.dataset_factory import build_pred_dataset
-from scripts.io import npz_key, save_predictions_npz
+from scripts.io import npz_key, save_inference_params, save_predictions_npz
 from scripts.microsplit_factory import build_microsplit_module
 
 
@@ -53,7 +53,12 @@ def main(args: argparse.Namespace) -> Path:
     data_dir = args.data_root / args.dataset
     ckpt_path = args.ckpt_root / args.dataset / "BaselineVAECL_best.ckpt"
     pkl_path = args.ckpt_root / args.dataset / "config.pkl"
-    save_dir = args.out_root / args.dataset / "predictions" / "sw_inner_tiling"
+    save_dir = (
+        args.out_root
+        / args.dataset
+        / f"predictions_MMSE{args.mmse_count}"
+        / "sw_inner_tiling"
+    )
 
     # Derive STRIDE from target MMSE count + patch size (pkl) + overlap.
     pkl_data = pkl_load(pkl_path)["data"]
@@ -125,6 +130,20 @@ def main(args: argparse.Namespace) -> Path:
 
     out_path = save_predictions_npz(results, save_dir)
     print(f"wrote {len(results)} prediction(s) to {out_path}")
+
+    params_path = save_inference_params(
+        {
+            "tile_size": patch_size,
+            "overlap": args.overlap,
+            "stride": stride,
+            "mmse_count": args.mmse_count,
+            "achieved_mmse_count": achieved,
+            "ckpt_path": ckpt_path,
+            "data_dir": data_dir,
+        },
+        save_dir,
+    )
+    print(f"wrote inference params to {params_path}")
     return out_path
 
 

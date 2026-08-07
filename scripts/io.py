@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -71,4 +72,34 @@ def save_predictions_npz(
     save_dir.mkdir(parents=True, exist_ok=True)
     out_path = save_dir / filename
     np.savez_compressed(out_path, **results)
+    return out_path
+
+
+def save_inference_params(
+    params: dict[str, Any],
+    save_dir: str | Path,
+    filename: str = "inference_params.json",
+) -> Path:
+    """Write the main inference parameters as a JSON sidecar.
+
+    Parameters
+    ----------
+    params : dict of {str: Any}
+        Inference parameters (e.g. tile size, overlap, mmse_count, checkpoint
+        and data paths). `Path` values are serialized as strings.
+    save_dir : str or Path
+        Output directory. Created if missing.
+    filename : str, default="inference_params.json"
+        JSON filename inside `save_dir`.
+
+    Returns
+    -------
+    Path
+        Absolute path to the written file.
+    """
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    out_path = save_dir / filename
+    with out_path.open("w") as f:
+        json.dump(params, f, indent=2, default=str)
     return out_path
