@@ -4,8 +4,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Union
 
+import lightning.pytorch as L
 import numpy as np
-import pytorch_lightning as L
 import tifffile
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader

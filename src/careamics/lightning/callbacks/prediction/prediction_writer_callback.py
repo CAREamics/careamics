@@ -6,8 +6,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks import BasePredictionWriter
+from lightning.pytorch import LightningModule, Trainer
+from lightning.pytorch.callbacks import BasePredictionWriter
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.image_io.write.get_func import SupportedWriteType, WriteFunc

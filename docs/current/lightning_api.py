@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # %%
 # --8<-- [start:lightning_api]
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint
 import pooch
 
 from careamics.config.factories import create_advanced_n2v_config
