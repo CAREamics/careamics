@@ -20,6 +20,7 @@ from careamics.lightning.callbacks.config_saver_callback import (
     ConfigSaverCallback,
 )
 from careamics.lightning.data.data_module import CareamicsDataModule
+from careamics.lightning.logger import CoLogger
 from careamics.lightning.modules import CAREModule, N2VModule
 from careamics.lightning.utils.load_checkpoint import _create_loaded_exp_name
 
@@ -442,7 +443,7 @@ def _checkpoint_trainer(request):
         else:
             info_callback = None
             callbacks = []
-        return Trainer(max_epochs=1, callbacks=callbacks), info_callback
+        return Trainer(max_epochs=1, callbacks=callbacks, logger=False), info_callback
 
     return _get_trainer_and_info
 
@@ -515,6 +516,12 @@ def checkpoint(
     module = module_cls(config.algorithm_config)
     dmodule = CareamicsDataModule(data_config=config.data_config, **data)
     trainer, info_callback = _checkpoint_trainer(request.param, config.data_config)
+    logger = CoLogger(
+        experiment_name="testing",
+        work_dir=tmp_path,
+        config=config,
+    )
+    trainer.loggers.append(logger)
     trainer.fit(model=module, datamodule=dmodule)
     ckpt_path = tmp_path / "checkpoint_test_fixture.ckpt"
     trainer.save_checkpoint(ckpt_path)

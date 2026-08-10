@@ -6,12 +6,11 @@ from typing import Any, Literal, overload
 
 from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
-from lightning.pytorch.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from numpy.typing import NDArray
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
-from .config.support import SupportedAlgorithm, SupportedLogger
+from .config.support import SupportedAlgorithm
 from .config.utils.configuration_io import load_configuration
 from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .dataset.image_region_data import ImageRegionData
@@ -22,6 +21,7 @@ from .lightning.callbacks import (
     ProgressBarCallback,
 )
 from .lightning.data import CareamicsDataModule, InputVar
+from .lightning.logger import CoLogger
 from .lightning.modules import (
     CAREamicsModule,
     create_module,
@@ -159,18 +159,20 @@ class CAREamist:
             self.work_dir, enable_writing=False
         )
 
-        experiment_loggers = self._create_loggers(
-            self.config.training_config.logger,
+        experiment_logger = self._create_loggers(
             self.config.get_safe_experiment_name(),
             self.work_dir,
+            self.config.training_config.use_tensorboard,
+            self.config.training_config.use_wandb,
             self.config,
             self.run_version,
         )
+        print(type(experiment_logger))
 
         self.trainer = Trainer(
             callbacks=[self.prediction_writer, *self.callbacks],
             default_root_dir=self.work_dir,
-            logger=experiment_loggers,
+            logger=experiment_logger,
             **self.config.training_config.trainer_params or {},
         )
 
@@ -458,23 +460,25 @@ class CAREamist:
 
     @staticmethod
     def _create_loggers(
-        logger: str | None,
         experiment_name: str,
         work_dir: Path,
+        use_tensorboard: bool,
+        use_wandb: bool,
         config: Configuration,
         version: int = 0,
-    ) -> list[TensorBoardLogger | WandbLogger | CSVLogger]:
+    ) -> CoLogger:
         """Create loggers for the experiment.
 
         Parameters
         ----------
-        logger : str | None
-            Logger to use during training. If None, no logger will be used. Available
-            loggers are defined in SupportedLogger.
         experiment_name : str
             Name of the experiment, used as a parameter to the loggers.
         work_dir : Path
             The working directory, used as a parameter to the loggers.
+        use_tensorboard : bool
+            Whether to use TensorBoard for logging, by default False.
+        use_wandb : bool
+            Whether to use WandB for logging, by default False.
         config : NGConfiguration
             Full CAREamics config logged to Wandb at run initialization.
         version : int, default=0
@@ -485,33 +489,14 @@ class CAREamist:
         list[TensorBoardLogger | WandbLogger | CSVLogger]
             The list of loggers to use during training.
         """
-        csv_logger = CSVLogger(
-            name=experiment_name,
-            save_dir=work_dir / "csv_logs",
-            version=version,
+        return CoLogger(
+            experiment_name=experiment_name,
+            work_dir=work_dir,
+            config=config,
+            use_tensorboard=use_tensorboard,
+            use_wandb=use_wandb,
+            log_version=version
         )
-
-        if logger is not None:
-            logger = SupportedLogger(logger)
-
-        match logger:
-            case SupportedLogger.WANDB:
-                return [
-                    WandbLogger(
-                        name=experiment_name,
-                        save_dir=work_dir / "wandb_logs",
-                        config=config.model_dump(),
-                        version=version,
-                    ),
-                    csv_logger,
-                ]
-            case SupportedLogger.TENSORBOARD:
-                return [
-                    TensorBoardLogger(save_dir=work_dir / "tb_logs", version=version),
-                    csv_logger,
-                ]
-            case _:
-                return [csv_logger]
 
     def _get_checkpoint_root(self) -> Path:
         """Get the root directory for checkpoints.
@@ -686,16 +671,11 @@ class CAREamist:
         self.trainer.fit(
             self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
         )
-        for lgr in self.trainer.loggers:
-            if isinstance(lgr, WandbLogger):
-                import wandb
 
-                norm_stats = self.train_datamodule.config.normalization.model_dump()
-                wandb.run.config.update(
-                    {"normalization": norm_stats}, allow_val_change=True
-                )
-                wandb.finish()
-                break
+        # log normalization statistics
+        norm_stats = self.train_datamodule.config.normalization.model_dump()
+        self.trainer.loggers[0].log_hyperparams({"normalization": norm_stats})
+        self.trainer.loggers[0].finalize("success")
 
     def _build_predict_datamodule(
         self,

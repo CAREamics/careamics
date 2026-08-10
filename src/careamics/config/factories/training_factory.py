@@ -11,6 +11,8 @@ from careamics.config.lightning.training_configuration import (
 def create_training_configuration(
     algorithm: Literal["care", "n2n", "n2v"],
     trainer_params: dict,
+    use_tensorboard: bool,
+    use_wandb: bool,
     logger: Literal["wandb", "tensorboard", "none"],
     checkpoint_params: dict[str, Any] | None = None,
     early_stopping_params: dict[str, Any] | None = None,
@@ -25,8 +27,12 @@ def create_training_configuration(
         Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict
         Parameters for Lightning Trainer class, see PyTorch Lightning documentation.
-    logger : {"wandb", "tensorboard", "none"}
-        Logger to use.
+    use_tensorboard : bool
+        Whether to use TensorBoard for logging.
+    use_wandb : bool
+        Whether to use Weights & Biases for logging.
+    logger : Literal["wandb", "tensorboard", "none"]
+        Logger to use (deprecated).
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters. If `None`, then
@@ -47,6 +53,8 @@ def create_training_configuration(
         **default_training_dict(
             algorithm=algorithm,
             trainer_params=trainer_params,
+            use_tensorboard=use_tensorboard,
+            use_wandb=use_wandb,
             logger=logger,
             checkpoint_params=checkpoint_params,
             early_stopping_params=early_stopping_params,

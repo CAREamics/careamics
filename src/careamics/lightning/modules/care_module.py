@@ -166,6 +166,20 @@ class CAREModule(L.LightningModule):
         log_validation_stats(
             self, val_loss, batch_size=x.data.shape[0], metrics=self.metrics
         )
+        # log predicted images
+        n_samples = 5
+        self.loggers[0].log_images(  # type: ignore
+            key="Target",
+            images=target.data[:n_samples],
+            step=self.global_step,
+            captions=["Target images"] * n_samples,
+        )
+        self.loggers[0].log_images(  # type: ignore
+            key="Prediction",
+            images=prediction[:n_samples],
+            step=self.global_step,
+            captions=["Predicted images"] * n_samples,
+        )
 
     def predict_step(
         self,
