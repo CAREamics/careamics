@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import pytest
-from pytorch_lightning import Callback, Trainer
+from lightning.pytorch import Callback, Trainer
 
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.factories import create_advanced_n2v_config

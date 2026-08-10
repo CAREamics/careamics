@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-import pytorch_lightning as L
+import lightning as L
 import torch
 from torch import nn
 from torch.nn import L1Loss, MSELoss

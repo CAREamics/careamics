@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 import tifffile
 import zarr
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics.config import N2VAlgorithm, create_data_configuration
 from careamics.lightning.callbacks.prediction import (
