@@ -179,7 +179,7 @@ def _validate_shapes_against_model(
                 model_constraints.validate_target_channels(shape[1])
 
 
-def _validate_shapes_against_mode(
+def _validate_shapes_against_patching(
     data_config: DataConfig,
     data_shapes: Sequence[Sequence[int]],
 ) -> None:
@@ -254,7 +254,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         # sanity checks on the input and output data
         input_shapes = patch_constructor.input_shapes
         target_shapes = patch_constructor.target_shapes
-        _validate_shapes_against_mode(data_config, patch_constructor.input_shapes)
+        _validate_shapes_against_patching(data_config, patch_constructor.input_shapes)
 
         if model_constraints is not None:
             _validate_shapes_against_model(
