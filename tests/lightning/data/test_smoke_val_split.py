@@ -7,7 +7,6 @@ from lightning.pytorch import Callback, Trainer
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.factories import create_advanced_n2v_config
 from careamics.lightning.data import CareamicsDataModule
-from careamics.lightning.logger import CoLogger
 from careamics.lightning.modules import N2VModule
 
 
@@ -114,15 +113,11 @@ def test_smoke_val_split(
     )
     tracking_callback = _PatchTrackerCallback(data_shapes)
 
-    # logger
-    logger = CoLogger(experiment_name="testing", work_dir=tmp_path, config=config)
-
     # create trainer
     trainer = Trainer(
         max_epochs=1,
         default_root_dir=tmp_path,
         callbacks=[tracking_callback],
-        logger=logger,
     )
 
     # train
