@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Any, cast
 
-import pytorch_lightning as L
+import lightning as L
 import torch
 from torch import nn
 from torchmetrics import MetricCollection

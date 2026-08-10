@@ -2,7 +2,7 @@
 
 from typing import Any
 
-import pytorch_lightning as L
+import lightning.pytorch as L
 import torch
 from torch import nn
 from torchmetrics import MetricCollection

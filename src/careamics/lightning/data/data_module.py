@@ -5,8 +5,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, TypeVar, overload
 
+import lightning.pytorch as L
 import numpy as np
-import pytorch_lightning as L
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, Sampler
 from torch.utils.data._utils.collate import default_collate

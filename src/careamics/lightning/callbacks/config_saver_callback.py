@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks import Callback
+from lightning.pytorch import LightningModule, Trainer
+from lightning.pytorch.callbacks import Callback
 
 from careamics.config.data.data_config import DataConfig
 from careamics.config.lightning.training_configuration import TrainingConfig

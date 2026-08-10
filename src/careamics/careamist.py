@@ -4,10 +4,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, cast, overload
 
+from lightning.pytorch import Callback, Trainer, seed_everything
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
+from lightning.pytorch.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from numpy.typing import NDArray
-from pytorch_lightning import Callback, Trainer, seed_everything
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration

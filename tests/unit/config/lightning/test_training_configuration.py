@@ -3,7 +3,7 @@ from dataclasses import asdict
 from types import SimpleNamespace
 
 import pytest
-from pytorch_lightning.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics.config.lightning.training_configuration import (
     SelfSupervisedCheckpointing,

@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 import ml_collections
 import numpy as np
-import pytorch_lightning as L
+import lightning.pytorch as L
 import torch
 import torchvision.transforms.functional as F
 
