@@ -1293,7 +1293,8 @@ class CAREamist:
             Dictionary containing losses for each epoch.
         """
         return read_csv_logger(
-            self.config.get_safe_experiment_name(), self.work_dir / "csv_logs"
+            self.config.get_safe_experiment_name(),
+            self.work_dir / "logs" / "csv_logs"
         )
 
     def stop_training(self) -> None:
