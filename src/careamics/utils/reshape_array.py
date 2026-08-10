@@ -765,21 +765,16 @@ def restore_array(
     -------
     numpy.ndarray
         Array with original axes order and shape restored.
-
-    Raises
-    ------
-    ValueError
-        If input array is not 4D (SCYX) or 5D (SCZYX), or if restoring shape is not
-        supported for the given original axes (e.g. T as Z with CZI format).
     """
     if len(array.shape) not in (4, 5):
         raise ValueError(f"Expected 4D (SCYX) or 5D (SCZYX), got {len(array.shape)}D.")
 
     if len(array.shape) == 5 and original_axes == "SCTYX":
-        raise ValueError(
-            "Restoring shape is currently not supported for CZI format (T used as "
-            "depth axis)."
-        )
+        # czi with T, change axes to use T as Z
+        original_axes = "SCZYX"
+
+        if target_axes is not None and target_axes == "SCTYX":
+            target_axes = original_axes
 
     transform = RestoredAxesTransform(
         original_axes=original_axes,
