@@ -8,12 +8,18 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics.config import N2VAlgorithm, create_data_configuration
+from careamics.config.configuration import Configuration
+from careamics.config.lightning.training_configuration import (
+    TrainingConfig,
+    default_training_dict,
+)
 from careamics.lightning.callbacks.prediction import (
     PredictionWriterCallback,
 )
 from careamics.lightning.data import (
     CareamicsDataModule,
 )
+from careamics.lightning.logger import CoLogger
 from careamics.lightning.modules import N2VModule
 from careamics.lightning.prediction import convert_prediction
 
@@ -101,6 +107,20 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
     dirpath = tmp_path / "predictions"
     predict_writer = PredictionWriterCallback(dirpath=dirpath)
 
+    # logger
+    logger = CoLogger(
+        experiment_name="testing",
+        work_dir=tmp_path,
+        config=Configuration(
+            experiment_name="testing",
+            algorithm_config=algorithm_config,
+            data_config=dataset_cfg,
+            training_config=TrainingConfig(
+                **default_training_dict(algorithm=algorithm_config.algorithm)
+            ),
+        ),
+    )
+
     # create trainer
     trainer = Trainer(
         max_epochs=1,
@@ -112,6 +132,7 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
             ),
             predict_writer,
         ],
+        logger=logger,
     )
 
     # train
@@ -222,6 +243,20 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     dirpath = tmp_path / "predictions"
     predict_writer = PredictionWriterCallback(dirpath=dirpath)
 
+    # logger
+    logger = CoLogger(
+        experiment_name="testing",
+        work_dir=tmp_path,
+        config=Configuration(
+            experiment_name="testing",
+            algorithm_config=algorithm_config,
+            data_config=dataset_cfg,
+            training_config=TrainingConfig(
+                **default_training_dict(algorithm=algorithm_config.algorithm)
+            ),
+        ),
+    )
+
     # create trainer
     trainer = Trainer(
         max_epochs=1,
@@ -233,6 +268,7 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
             ),
             predict_writer,
         ],
+        logger=logger,
     )
 
     # train
