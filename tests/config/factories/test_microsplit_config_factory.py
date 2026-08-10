@@ -61,7 +61,11 @@ class TestMicroSplitConfig:
         assert config.algorithm_config.loss.denoisplit_weight == 0.7
 
     def test_predict_logvar_consistency(self):
-        """Test that model and loss agree on predict_logvar."""
+        """Test that model and loss agree on predict_logvar.
+
+        `predict_logvar=False` is only valid without the muSplit Gaussian likelihood
+        (`musplit_weight=0`), i.e. for pure denoiSplit.
+        """
         with pytest.warns(UserWarning):
             config = create_advanced_microsplit_config(
                 experiment_name="test",
@@ -71,6 +75,8 @@ class TestMicroSplitConfig:
                 batch_size=8,
                 output_channels=2,
                 predict_logvar=False,
+                musplit_weight=0.0,
+                denoisplit_weight=1.0,
             )
         assert config.algorithm_config.model.predict_logvar is False
         assert config.algorithm_config.loss.predict_logvar is False
@@ -144,3 +150,80 @@ class TestMicroSplitConfig:
         # structural params still come from the dedicated arguments
         assert model.output_channels == 2
         assert model.multiscale_count == 3
+
+
+def _base_config() -> MicroSplitConfiguration:
+    """Build a valid MicroSplit configuration for cross-validation tests."""
+    with pytest.warns(UserWarning):
+        return create_advanced_microsplit_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            output_channels=2,
+            multiscale_count=1,
+        )
+
+
+def test_normalization_none_rejected():
+    """Test that MicroSplit rejects disabled normalization (issue #1015)."""
+    with pytest.raises(ValueError, match="requires normalized inputs"):
+        create_advanced_microsplit_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            output_channels=2,
+            multiscale_count=1,
+            musplit_weight=1.0,
+            denoisplit_weight=0.0,
+            normalization="none",
+        )
+
+
+def test_alpha_ranges_must_match_output_channels():
+    """Test that one alpha range per output channel is required."""
+    with pytest.raises(ValueError, match="must match the number of"):
+        create_advanced_microsplit_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            output_channels=2,
+            multiscale_count=1,
+            musplit_weight=1.0,
+            denoisplit_weight=0.0,
+            alpha_ranges=[(0.0, 1.0)],
+        )
+
+
+def test_multiscale_mismatch_rejected():
+    """Test that the model and data multiscale_count must agree."""
+    base = _base_config()
+    mismatched_data = base.data_config.model_copy(update={"multiscale_count": 3})
+    with pytest.raises(ValueError, match="multiscale_count"):
+        MicroSplitConfiguration(
+            experiment_name="test",
+            algorithm_config=base.algorithm_config,
+            data_config=mismatched_data,
+            training_config=base.training_config,
+        )
+
+
+def test_input_shape_must_match_patch_size():
+    """Test that the model input_shape must equal the data patch size."""
+    base = _base_config()
+    mismatched_model = base.algorithm_config.model.model_copy(
+        update={"input_shape": (128, 128)}
+    )
+    algo = base.algorithm_config.model_copy(update={"model": mismatched_model})
+    with pytest.raises(ValueError, match="must match the data"):
+        MicroSplitConfiguration(
+            experiment_name="test",
+            algorithm_config=algo,
+            data_config=base.data_config,
+            training_config=base.training_config,
+        )

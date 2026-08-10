@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from pytorch_lightning import LightningModule, Trainer
+from lightning.pytorch import LightningModule, Trainer
 
 from careamics.lightning.callbacks.prediction import (
     PredictionWriterCallback,

@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LVAELossConfig(BaseModel):
@@ -18,15 +18,15 @@ class LVAELossConfig(BaseModel):
     ]
     """Type of loss to use for LVAE"""
 
-    reconstruction_weight: float = 1.0
+    reconstruction_weight: float = Field(default=1.0, ge=0.0)
     """Weight for the reconstruction loss in the total net loss
     (i.e., `net_loss = reconstruction_weight * rec_loss + kl_weight * kl_loss`)."""
-    kl_weight: float = 1.0
+    kl_weight: float = Field(default=1.0, ge=0.0)
     """Weight for the KL loss in the total net loss.
     (i.e., `net_loss = reconstruction_weight * rec_loss + kl_weight * kl_loss`)."""
-    musplit_weight: float = 0.1
+    musplit_weight: float = Field(default=0.1, ge=0.0)
     """Weight for the Gaussian likelihood (muSplit). Set to 0 to disable."""
-    denoisplit_weight: float = 0.9
+    denoisplit_weight: float = Field(default=0.9, ge=0.0)
     """Weight for the noise model likelihood (denoiSplit). Set to 0 to disable."""
     predict_logvar: bool = True
     """Whether to predict log-variance (pixelwise uncertainty)."""

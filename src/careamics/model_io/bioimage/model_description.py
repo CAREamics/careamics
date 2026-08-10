@@ -292,7 +292,7 @@ def create_model_description(
         name=name,
         authors=author_list,
         description=general_description,
-        documentation=doc,
+        documentation=FileDescr(source=doc),
         inputs=[input_descr],
         outputs=[output_descr],
         tags=config.get_algorithm_keywords(),
@@ -315,7 +315,7 @@ def create_model_description(
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
         cite=config.get_algorithm_citations(),
-        covers=covers,
+        covers=[FileDescr(source=Path(c)) for c in covers],
     )
 
     return model
