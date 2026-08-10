@@ -6,9 +6,9 @@ from dataclasses import asdict, dataclass
 from pprint import pformat
 from typing import Any, Literal
 
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from .parameters_filter import get_unknown_parameters
 
