@@ -424,7 +424,7 @@ def test_sample_psnr(shape, batch_size):
     if len(shape) == 4 and shape[1] == 1:
         expected_psnr_torchmetrics_lst = []
         for i in range(gts.shape[0]):
-            psnr_metric = PeakSignalNoiseRatio(data_range=data_range[i].numpy())
+            psnr_metric = PeakSignalNoiseRatio(data_range=data_range[i].item())
             psnr_metric.update(preds[i].unsqueeze(0), gts[i].unsqueeze(0))
             expected_psnr_torchmetrics_lst.append(psnr_metric.compute().numpy())
         expected_psnr_torchmetrics = np.mean(expected_psnr_torchmetrics_lst, axis=0)
