@@ -56,9 +56,9 @@ def get_logger(
     formatter = logging.Formatter("%(message)s")
 
     for handler in handlers:
-        handler.setFormatter(formatter)  # type: ignore
-        handler.setLevel(log_level)  # type: ignore
-        logger.addHandler(handler)  # type: ignore
+        handler.setFormatter(formatter)
+        handler.setLevel(log_level)
+        logger.addHandler(handler)
 
     logger.setLevel(log_level)
     LOGGERS[name] = True

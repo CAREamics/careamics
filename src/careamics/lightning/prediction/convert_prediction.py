@@ -1,11 +1,12 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from numpy.typing import NDArray
 
 from careamics.dataset.image_region_data import ImageRegionData
+from careamics.dataset.patching import PatchSpecs
 from careamics.utils.reshape_array import restore_array
 
 from .stitch_prediction import group_tiles_by_key, stitch_prediction
@@ -90,11 +91,15 @@ def decollate_image_region_data(
 
         # data shape
         assert isinstance(batch.data_shape, list)
-        data_shape = tuple(int(dim[i]) for dim in batch.data_shape)
+        data_shape = tuple(
+            int(dim[i]) for dim in cast("list[Tensor]", batch.data_shape)
+        )
 
         # original data shape
         assert isinstance(batch.original_data_shape, list)
-        original_data_shape = tuple(int(dim[i]) for dim in batch.original_data_shape)
+        original_data_shape = tuple(
+            int(dim[i]) for dim in cast("list[Tensor]", batch.original_data_shape)
+        )
 
         image_region = ImageRegionData(
             data=batch.data[i],  # discard batch dimension
@@ -102,7 +107,7 @@ def decollate_image_region_data(
             dtype=batch.dtype[i],
             data_shape=data_shape,
             axes=batch.axes[i],
-            region_spec=region_spec,  # type: ignore
+            region_spec=cast("PatchSpecs", region_spec),
             additional_metadata=additional_metadata,
             original_data_shape=original_data_shape,
         )

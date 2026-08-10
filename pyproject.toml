@@ -58,7 +58,7 @@ dependencies = [
     'matplotlib<=3.11.1',
     'microssim<=0.0.4', # TODO absorb as careamics.metrics
 
-    # --- Used by LVAE code --- 
+    # --- Used by LVAE code ---
     'torchvision<=0.25.0', # TODO used in model and module, revisit
 
     # --- BMZ dependencies ---
@@ -94,6 +94,8 @@ dev = [
     'pylibCZIrw>=4.1.2,<7.0.0',  # czi files testing
     # example in docs
     "h5py>=3.15.1,<=3.16.0",
+    # type checker
+    "pyrefly>=1.1.1",
 ]
 
 [project.urls]
@@ -148,21 +150,20 @@ convention = "numpy"
 [tool.black]
 line-length = 88
 
-# https://mypy.readthedocs.io/en/stable/config_file.html
-[tool.mypy]
-# plugins = ["pydantic.mypy"]
-files = "src/**/"
-strict = false
-# allow_untyped_defs = false
-# allow_untyped_calls = false
-# disallow_any_generics = false
-# ignore_missing_imports = false
-
-# https://docs.pydantic.dev/latest/integrations/mypy/
-# [tool.pydantic-mypy]
-# init_forbid_extra = true
-# init_typed = true
-# warn_required_dynamic_aliases = true
+# https://pyrefly.org/en/docs/configuration/
+[tool.pyrefly]
+# "legacy" preset for smoother migration from mypy
+preset = "legacy"
+project-includes = ["src"]
+project-excludes = [
+    "**/lvae_training/",
+    "**/models/lvae/",
+    "**/losses/lvae/",
+    "**/losses/loss_factory.py",
+    "**/config/likelihood_model.py",
+]
+# Only the optional logger extras
+ignore-missing-imports = ["wandb", "tensorboard"]
 
 
 # https://docs.pytest.org/en/6.2.x/customize.html

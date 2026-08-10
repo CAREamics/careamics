@@ -1079,7 +1079,7 @@ def _extract_lc_patch(
         lc_end = lc_start + lc_patch_size
 
         spatial_slice = [slice(s, t) for s, t in zip(lc_start, lc_end, strict=True)]
-        lc_patch = final_lc_patch[..., *spatial_slice]  # type: ignore
+        lc_patch = final_lc_patch[..., *spatial_slice]
         # TODO: test different downscaling? skimage suggests downscale_local_mean
         lc_patch = resize(lc_patch, (n_channels, *patch_size))
         patch[:, scale, ...] = lc_patch

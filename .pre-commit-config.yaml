@@ -6,6 +6,8 @@ ci:
   autoupdate_schedule: monthly
   autofix_commit_msg: "style(pre-commit.ci): auto fixes [...]"
   autoupdate_commit_msg: "ci(pre-commit.ci): autoupdate"
+  # pyrefly needs the uv project env, skipping
+  skip: [pyrefly-check]
 
 repos:
   - repo: https://github.com/abravalheri/validate-pyproject
@@ -25,19 +27,13 @@ repos:
       - id: black
         exclude: "^src/careamics/careamist.py"
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.3.0
+  - repo: https://github.com/facebook/pyrefly-pre-commit
+    rev: 1.1.1
     hooks:
-      - id: mypy
-        files: "^src/"
-        exclude: "^(docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/.*|src/careamics/config/likelihood_model.py|src/careamics/losses/lvae/.*)"
-        args: ["--config-file", "mypy.ini"]
-        additional_dependencies:
-          - numpy
-          - pydantic
-          - types-PyYAML
-          - types-setuptools
-          - zarr
+      - id: pyrefly-check
+        name: Pyrefly (type checking)
+        language: system  # use the installed pyrefly
+        pass_filenames: false  # full-repo check
 
   # check docstrings
   - repo: https://github.com/numpy/numpydoc

@@ -2,7 +2,6 @@
 
 __all__ = [
     "SPATIAL_TRANSFORMS_UNION",
-    "N2VManipulateConfig",
     "XYFlipConfig",
     "XYRandomRotate90Config",
 ]

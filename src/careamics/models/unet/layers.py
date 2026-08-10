@@ -315,18 +315,21 @@ def _get_pascal_kernel_nd(
     """
     kernel_dims = _unpack_kernel_size(kernel_size, dim)
 
-    kernel = [
+    kernels_1d = [
         get_pascal_kernel_1d(kd, device=device, dtype=dtype) for kd in kernel_dims
     ]
 
     if dim == 2:
-        kernel = kernel[0][:, None] * kernel[1][None, :]
+        kernel = kernels_1d[0][:, None] * kernels_1d[1][None, :]
     elif dim == 3:
         kernel = (
-            kernel[0][:, None, None]
-            * kernel[1][None, :, None]
-            * kernel[2][None, None, :]
+            kernels_1d[0][:, None, None]
+            * kernels_1d[1][None, :, None]
+            * kernels_1d[2][None, None, :]
         )
+    else:
+        raise ValueError(f"Unsupported dim {dim}, only 2 and 3 are supported.")
+
     if norm:
         kernel = kernel / torch.sum(kernel)
     return kernel
@@ -430,6 +433,8 @@ class MaxBlurPool(nn.Module):
         Ceil mode, by default False. Set to True to match output size of conv2d.
     """
 
+    kernel: torch.Tensor
+
     def __init__(
         self,
         dim: int,
@@ -476,7 +481,7 @@ class MaxBlurPool(nn.Module):
             Output tensor.
         """
         kernel = self.kernel.to(dtype=x.dtype)
-        num_channels = int(x.size(1))
+        num_channels = x.size(1)
         if self.dim == 2:
             return _max_blur_pool_by_kernel2d(
                 x,

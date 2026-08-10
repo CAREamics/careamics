@@ -57,7 +57,7 @@ def _get_norm_slice(array: NDArray) -> NDArray:
     return array_slice.astype(np.uint8)
 
 
-def _four_channel_image(array: NDArray) -> Image:
+def _four_channel_image(array: NDArray) -> Image.Image:
     """Convert 4-channel array to Image.
 
     Parameters
@@ -76,7 +76,7 @@ def _four_channel_image(array: NDArray) -> Image:
     return Image.fromarray(four_c_array).convert("RGB")
 
 
-def _convert_to_image(original_shape: tuple[int, ...], array: NDArray) -> Image:
+def _convert_to_image(original_shape: tuple[int, ...], array: NDArray) -> Image.Image:
     """Convert to Image.
 
     Parameters

@@ -845,7 +845,15 @@ class DataConfig(BaseModel):
             Data model with propagated seed.
         """
         if self.seed is not None:
-            if hasattr(self.patching, "seed") and self.patching.seed is None:
+            seeded_patching = (
+                RandomPatchingConfig,
+                FixedRandomPatchingConfig,
+                StratifiedPatchingConfig,
+            )
+            if (
+                isinstance(self.patching, seeded_patching)
+                and self.patching.seed is None
+            ):
                 self.patching.seed = self.seed
         return self
 

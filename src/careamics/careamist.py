@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, overload
+from typing import Any, Literal, cast, overload
 
 from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
@@ -501,7 +501,7 @@ class CAREamist:
                         name=experiment_name,
                         save_dir=work_dir / "wandb_logs",
                         config=config.model_dump(),
-                        version=version,
+                        version=str(version),
                     ),
                     csv_logger,
                 ]
@@ -664,7 +664,7 @@ class CAREamist:
                 f"`val_data_target`."
             )
 
-        datamodule = CareamicsDataModule(  # type: ignore
+        datamodule = CareamicsDataModule(
             data_config=self.config.data_config,
             train_data=train_data,
             val_data=val_data,
@@ -672,7 +672,7 @@ class CAREamist:
             val_data_target=val_data_target,
             train_data_mask=filtering_mask,
             model_constraints=get_model_constraints(self.config.algorithm_config.model),
-            loading=loading,  # type: ignore
+            loading=loading,
         )
 
         self.train_datamodule = datamodule
@@ -691,9 +691,10 @@ class CAREamist:
                 import wandb
 
                 norm_stats = self.train_datamodule.config.normalization.model_dump()
-                wandb.run.config.update(
-                    {"normalization": norm_stats}, allow_val_change=True
-                )
+                if wandb.run is not None:
+                    wandb.run.config.update(
+                        {"normalization": norm_stats}, allow_val_change=True
+                    )
                 wandb.finish()
                 break
 
@@ -822,7 +823,7 @@ class CAREamist:
     def predict(
         self,
         # BASIC PARAMS
-        pred_data: InputVar,
+        pred_data: Any,
         *,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
@@ -913,9 +914,12 @@ class CAREamist:
         checkpoint = self._get_default_ckpt(checkpoint)
 
         try:
-            predictions: list[ImageRegionData] = self.trainer.predict(
-                model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-            )  # type: ignore[assignment]
+            predictions = cast(
+                "list[ImageRegionData]",
+                self.trainer.predict(
+                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
+                ),
+            )
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
                 tiled = tile_size is not None

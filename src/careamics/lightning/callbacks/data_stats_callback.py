@@ -25,9 +25,18 @@ class DataStatsCallback(Callback):
         """
         if stage == "fit":
             # Get data statistics from datamodule
-            (data_mean, data_std), _ = trainer.datamodule.get_data_stats()
+            datamodule = getattr(trainer, "datamodule", None)
+            if datamodule is None:
+                raise RuntimeError("Trainer has no datamodule attached.")
+            (data_mean, data_std), _ = datamodule.get_data_stats()
 
             # Set data statistics in the model's likelihood module
-            module.noise_model_likelihood.set_data_stats(
+            likelihood = getattr(module, "noise_model_likelihood", None)
+            if likelihood is None:
+                raise RuntimeError(
+                    "Lightning module has no `noise_model_likelihood`; "
+                    "DataStatsCallback only supports noise-model VAE modules."
+                )
+            likelihood.set_data_stats(
                 data_mean=data_mean["target"], data_std=data_std["target"]
             )

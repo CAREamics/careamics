@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import warnings
 from pprint import pformat
-from typing import Annotated, Any, Generic, Literal, Self, TypeVar
+from typing import Annotated, Any, Generic, Literal, Self, TypeVar, Union
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -24,7 +24,9 @@ from careamics.models import (
     get_model_constraints,
 )
 
-AlgorithmConfig = TypeVar("AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm)
+AlgorithmConfig = TypeVar(
+    "AlgorithmConfig", bound=Union[CAREAlgorithm, N2NAlgorithm, N2VAlgorithm]
+)
 
 
 class Configuration(BaseModel, Generic[AlgorithmConfig]):

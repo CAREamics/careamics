@@ -35,9 +35,7 @@ class LVAEConfig(ArchitectureConfig):
     decoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9)
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
-    ] = Field(
-        default="ELU",
-    )
+    ] = "ELU"
 
     predict_logvar: Literal[None, "pixelwise"] = "pixelwise"
     analytical_kl: bool = Field(default=False)

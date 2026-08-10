@@ -5,12 +5,14 @@ This module contains various metrics and a metrics tracking class.
 """
 
 from collections.abc import Callable
-from typing import Union
+from typing import TypeVar, Union
 
 import numpy as np
 import torch
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
+
+ArrayT = TypeVar("ArrayT", np.ndarray, torch.Tensor)
 
 
 # TODO clean up the metrics when we will be rebuilding all notebooks
@@ -35,7 +37,7 @@ def avg_range_invariant_psnr(
     psnr_arr = []
     for i in range(pred.shape[0]):
         psnr_arr.append(scale_invariant_psnr(pred[i], target[i]))
-    return np.mean(psnr_arr)
+    return float(np.mean(psnr_arr))
 
 
 def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
@@ -65,7 +67,7 @@ def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
     return peak_signal_noise_ratio(gt, pred, data_range=data_range)
 
 
-def _zero_mean(x: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
+def _zero_mean(x: ArrayT) -> ArrayT:
     """
     Zero the mean of an array.
 
@@ -82,9 +84,7 @@ def _zero_mean(x: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Te
     return x - x.mean()
 
 
-def _fix_range(
-    gt: Union[np.ndarray, torch.Tensor], x: Union[np.ndarray, torch.Tensor]
-) -> Union[np.ndarray, torch.Tensor]:
+def _fix_range(gt: ArrayT, x: ArrayT) -> ArrayT:
     """
     Adjust the range of an array based on a reference ground-truth array.
 
@@ -104,9 +104,7 @@ def _fix_range(
     return x * a
 
 
-def _fix(
-    gt: Union[np.ndarray, torch.Tensor], x: Union[np.ndarray, torch.Tensor]
-) -> Union[np.ndarray, torch.Tensor]:
+def _fix(gt: ArrayT, x: ArrayT) -> ArrayT:
     """
     Zero mean a groud truth array and adjust the range of the array.
 
@@ -126,9 +124,7 @@ def _fix(
     return _fix_range(gt_, _zero_mean(x))
 
 
-def scale_invariant_psnr(
-    gt: np.ndarray, pred: np.ndarray
-) -> Union[float, torch.tensor]:
+def scale_invariant_psnr(gt: np.ndarray, pred: np.ndarray) -> float:
     """
     Scale invariant PSNR.
 
@@ -141,7 +137,7 @@ def scale_invariant_psnr(
 
     Returns
     -------
-    Union[float, torch.tensor]
+    float
         Scale invariant PSNR value.
     """
     range_parameter = (np.max(gt) - np.min(gt)) / np.std(gt)
@@ -255,7 +251,7 @@ def _range_invariant_multiscale_ssim(
     gt_ = gt_.reshape(shape)
 
     ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(
-        data_range=gt_.max() - gt_.min()
+        data_range=float(gt_.max() - gt_.min())
     )
     return ms_ssim(torch.Tensor(pred_[:, None]), torch.Tensor(gt_[:, None])).item()
 
@@ -296,13 +292,13 @@ def multiscale_ssim(
             )
         else:
             ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(
-                data_range=tar_tmp.max() - tar_tmp.min()
+                data_range=float(tar_tmp.max() - tar_tmp.min())
             )
             ms_ssim_values[ch_idx] = ms_ssim(
                 torch.Tensor(pred_tmp[:, None]), torch.Tensor(tar_tmp[:, None])
             ).item()
 
-    return [ms_ssim_values[i] for i in range(gt_.shape[-1])]  # type: ignore
+    return [ms_ssim_values[i] for i in range(gt_.shape[-1])]
 
 
 def _avg_psnr(target: np.ndarray, prediction: np.ndarray, psnr_fn: Callable) -> float:

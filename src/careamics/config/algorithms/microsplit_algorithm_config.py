@@ -76,7 +76,7 @@ class MicroSplitAlgorithm(VAEBasedAlgorithm):
         str
             Algorithm references.
         """
-        return MICROSPLIT_REF.text + " doi: " + MICROSPLIT_REF.doi
+        return MICROSPLIT_REF.text + " doi: " + (MICROSPLIT_REF.doi or "")
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """

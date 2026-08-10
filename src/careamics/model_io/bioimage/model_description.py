@@ -1,7 +1,8 @@
 """Module use to build BMZ model description."""
 
 from pathlib import Path
-from typing import Union
+from typing import Union, cast
+from zipfile import ZipFile
 
 import numpy as np
 from bioimageio.spec._internal.io import extract
@@ -136,12 +137,13 @@ def _create_inputs_ouputs(
     tuple[InputTensorDescr, OutputTensorDescr]
         Input and output tensor descriptions.
     """
-    input_axes: list[InputAxis] = _create_axes(
-        input_array, data_config, channel_names
-    )  # type: ignore
-    output_axes: list[OutputAxis] = _create_axes(
-        output_array, data_config, channel_names, False
-    )  # type: ignore
+    input_axes = cast(
+        "list[InputAxis]", _create_axes(input_array, data_config, channel_names)
+    )
+    output_axes = cast(
+        "list[OutputAxis]",
+        _create_axes(output_array, data_config, channel_names, False),
+    )
 
     # mean and std
     if isinstance(data_config.normalization, MeanStdConfig):
@@ -300,8 +302,8 @@ def create_model_description(
             "https://github.com/CAREamics/careamics",
             "https://careamics.github.io/latest/",
         ],
-        license="BSD-3-Clause",  # type: ignore
-        config={  # type: ignore
+        license="BSD-3-Clause",
+        config={
             "bioimageio": {
                 "test_kwargs": {
                     "pytorch_state_dict": {
@@ -340,23 +342,40 @@ def extract_model_path(model_desc: AnyModelDescr) -> tuple[Path, Path]:
     # get the model directory
     if isinstance(model_desc.root, Path) and model_desc.root.is_dir():
         model_dir: DirectoryPath = model_desc.root
-    else:
+    elif isinstance(model_desc.root, (Path, ZipFile)):
         # extract the zip model
         model_dir = extract(model_desc.root)
+    else:
+        raise ValueError(
+            f"Unsupported model root '{model_desc.root}'; expected a local directory "
+            f"or zip file."
+        )
 
-    weights_path = model_dir.joinpath(model_desc.weights.pytorch_state_dict.source.path)
+    weights_source = model_desc.weights.pytorch_state_dict.source
+    weights_file = (
+        weights_source if isinstance(weights_source, Path) else weights_source.path
+    )
+    if weights_file is None:
+        raise ValueError("Model weights source has no file path.")
+    weights_path = model_dir.joinpath(weights_file)
 
     if model_desc.attachments is None:
         raise ValueError("No configuration file found in model attachments.")
 
+    attachments = model_desc.attachments
+    if isinstance(attachments, list):
+        sources = [file.source for file in attachments]
+    else:
+        sources = list(attachments.files)
+
     # find the configuration file
-    for file in model_desc.attachments:
-        file_path = file.source if isinstance(file.source, Path) else file.source.path
+    for source in sources:
+        file_path = source if isinstance(source, Path) else source.path
         if file_path is None:
             continue
         file_path = Path(file_path)
         if file_path.name == "careamics.yaml":
-            config_path = model_dir.joinpath(file.source.path)
+            config_path = model_dir.joinpath(file_path)
             break
     else:
         raise ValueError("Configuration file not found.")
