@@ -469,7 +469,7 @@ class DataConfig(BaseModel):
 
     @field_validator("axes", "target_axes")
     @classmethod
-    def axes_valid(cls, axes: str | None, info: ValidationInfo) -> str | None:
+    def validate_axes(cls, axes: str | None, info: ValidationInfo) -> str | None:
         """
         Validate axes.
 

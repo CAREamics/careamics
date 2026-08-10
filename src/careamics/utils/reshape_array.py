@@ -99,6 +99,7 @@ def _validate_axes_and_target(original_axes: str, target_axes: str) -> None:
         )
 
 
+# TODO can these classes be simplified for clarity?
 @dataclass(frozen=True)
 class AxesTransform:
     """Transformation between original and transformed space axes.

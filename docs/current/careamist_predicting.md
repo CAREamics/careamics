@@ -123,6 +123,12 @@ need to specify the new axes and `data_type`. Finally, we do not want to train i
     trained on single-channel data, then `channels=[1]` can be used to specify that
     only the second channel should be used for prediction.
 
+!!! note "New target axes"
+
+    `target_axes` are used to determine the axes order of the prediction. If you used
+    targets during training (e.g. CARE), and are changing the axes during prediction,
+    you may need to adjust the `target_axes` as well.
+
 ### Choosing the checkpoint
 
 Checkpoints can be specified by passing a `checkpoint` argument to the `predict` method.
