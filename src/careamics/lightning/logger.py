@@ -1,7 +1,7 @@
 """CoLogger module for CAREamics."""
 
 from pathlib import Path
-from typing import Any, override
+from typing import Any
 
 import numpy as np
 from lightning.fabric.utilities.logger import _flatten_dict
@@ -10,6 +10,7 @@ from lightning.pytorch.loggers import CSVLogger, Logger, TensorBoardLogger, Wand
 from lightning.pytorch.utilities import rank_zero_only
 from numpy.typing import NDArray
 from torch import Tensor
+from typing_extensions import override
 
 from careamics.config.configuration import Configuration
 from careamics.config.utils.configuration_io import save_configuration
