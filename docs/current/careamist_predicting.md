@@ -31,6 +31,12 @@ list:
 --8<-- "current/careamist_predicting.py:pred_empty_source"
 ```
 
+!!! note "Dimensions of the prediction"
+    
+    The returned predictions will have the same dimension order as the input data. The
+    only difference may be the channels dimension, which will depend on the algorithm
+    used (e.g. CARE can have different channel dimensions in input and output).
+
 !!! note "Checkpoint"
 
     By default, CAREamics uses a checkpoint callback that saves multiple checkpoints
@@ -117,6 +123,12 @@ need to specify the new axes and `data_type`. Finally, we do not want to train i
     trained on single-channel data, then `channels=[1]` can be used to specify that
     only the second channel should be used for prediction.
 
+!!! note "New target axes"
+
+    `target_axes` are used to determine the axes order of the prediction. If you used
+    targets during training (e.g. CARE), and are changing the axes during prediction,
+    you may need to adjust the `target_axes` as well.
+
 ### Choosing the checkpoint
 
 Checkpoints can be specified by passing a `checkpoint` argument to the `predict` method.
@@ -162,7 +174,8 @@ number of files that may not fit in memory.
 
 !!! note "Zarr format"
 
-    Prediction directly to disk is with Zarr requires tiling to be enabled.
+    Prediction directly to disk is with Zarr requires tiling to be enabled, and the
+    original axes need to be in canonical order (S)(T)(C)(Z)YX.
 
 
 ### Change the write type

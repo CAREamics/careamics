@@ -102,6 +102,7 @@ def decollate_image_region_data(
             dtype=batch.dtype[i],
             data_shape=data_shape,
             axes=batch.axes[i],
+            target_axes=batch.target_axes[i],
             region_spec=region_spec,  # type: ignore
             additional_metadata=additional_metadata,
             original_data_shape=original_data_shape,
@@ -157,9 +158,10 @@ def combine_samples(
         if restore_shape:
             # get original shape info from the first image region
             original_axes = image_regions[0].axes
+            target_axes = image_regions[0].target_axes
             original_data_shape = image_regions[0].original_data_shape
             combined_data = restore_array(
-                combined_data, original_axes, original_data_shape
+                combined_data, original_axes, original_data_shape, target_axes
             )
 
         combined_predictions.append(combined_data)

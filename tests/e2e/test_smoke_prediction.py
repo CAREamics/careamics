@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 import tifffile
 import zarr
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics.config import N2VAlgorithm, create_data_configuration
 from careamics.lightning.callbacks.prediction import (
@@ -160,15 +160,15 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
     [
         ((32, 32), "YX", None),
         ((3, 32, 32), "CYX", None),
-        ((3, 32, 32), "CYX", [1]),
+        ((3, 32, 32), "CYX", [1]),  #
         ((3, 32, 32), "CYX", [0, 2]),
         ((16, 32, 32), "ZYX", None),
         ((5, 16, 32, 32), "SZYX", None),
         ((3, 16, 32, 32), "CZYX", None),
-        ((3, 16, 32, 32), "CZYX", [1]),
+        ((3, 16, 32, 32), "CZYX", [1]),  #
         ((3, 16, 32, 32), "CZYX", [0, 2]),
         ((5, 3, 16, 32, 32), "SCZYX", None),
-        ((5, 3, 16, 32, 32), "SCZYX", [1]),
+        ((5, 3, 16, 32, 32), "SCZYX", [1]),  #
         ((5, 3, 16, 32, 32), "SCZYX", [0, 2]),
     ],
 )
@@ -256,7 +256,7 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
 
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
-    predicted_images, _ = convert_prediction(predicted, tiled=True)
+    predicted_images, _ = convert_prediction(predicted, tiled=True, restore_shape=True)
 
     # assert predicted file exists
     output_file = dirpath / f"{file_name[:-len('.zarr')]}_output.zarr"
@@ -264,11 +264,4 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     save_data = zarr.open_array(output_file, path="array")
 
     predicted_img = predicted_images[0]
-
-    # zarr writer removes singleton dims if not present in axes
-    if "C" not in axes:
-        predicted_img = predicted_img.squeeze(axis=1)
-    if "S" not in axes:
-        predicted_img = predicted_img.squeeze(axis=0)
-
     np.testing.assert_array_equal(save_data, predicted_img, verbose=True)

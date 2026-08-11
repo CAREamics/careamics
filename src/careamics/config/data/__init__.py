@@ -2,7 +2,6 @@
 
 __all__ = [
     "DataConfig",
-    "DataConfig",
     "MaskPatchFilterConfig",
     "MaxPatchFilterConfig",
     "MeanStdConfig",

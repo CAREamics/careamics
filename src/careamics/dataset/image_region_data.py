@@ -52,6 +52,11 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     axes: str
     """Axes of the original data array. SCTZYX dimensions are allowed in any order."""
 
+    target_axes: str
+    """Axes of the target data array. If no target was used during training, this should
+    be set to axes.
+    """
+
     original_data_shape: Sequence[int]
     """Original shape of the data before any reshaping."""
 
@@ -64,3 +69,34 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     additional_metadata: dict[str, Any]
     """Additional metadata to be stored with the image region. Currently used to store
     chunk and shard information for zarr image stacks."""
+
+    @classmethod
+    def from_model_output(
+        cls, input_region: "ImageRegionData", output_data: NDArray
+    ) -> "ImageRegionData":
+        """
+        Create an ImageRegionData from the model output and the input region.
+
+        Parameters
+        ----------
+        input_region : ImageRegionData
+            The input region that was passed to the model.
+        output_data : NDArray
+            The output data from the model.
+
+        Returns
+        -------
+        ImageRegionData
+            The output region containing the model predictions.
+        """
+        return cls(
+            data=output_data,
+            source=input_region.source,
+            data_shape=input_region.data_shape,
+            dtype=input_region.dtype,
+            axes=input_region.axes,
+            target_axes=input_region.target_axes,
+            original_data_shape=input_region.original_data_shape,
+            region_spec=input_region.region_spec,
+            additional_metadata=input_region.additional_metadata,
+        )
