@@ -18,7 +18,6 @@ ConvType = Union[nn.Conv2d, nn.Conv3d]
 NormType = Union[nn.BatchNorm2d, nn.BatchNorm3d]
 DropoutType = Union[nn.Dropout2d, nn.Dropout3d]
 
-# Module-level default non-linearity (stateless), used as a shared default argument.
 _DEFAULT_NONLIN = nn.LeakyReLU()
 
 
