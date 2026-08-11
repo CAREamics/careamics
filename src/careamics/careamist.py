@@ -495,7 +495,7 @@ class CAREamist:
             config=config,
             use_tensorboard=use_tensorboard,
             use_wandb=use_wandb,
-            log_version=version
+            log_version=version,
         )
 
     def _get_checkpoint_root(self) -> Path:
@@ -1293,8 +1293,7 @@ class CAREamist:
             Dictionary containing losses for each epoch.
         """
         return read_csv_logger(
-            self.config.get_safe_experiment_name(),
-            self.work_dir / "logs" / "csv_logs"
+            self.config.get_safe_experiment_name(), self.work_dir / "logs" / "csv_logs"
         )
 
     def stop_training(self) -> None:
