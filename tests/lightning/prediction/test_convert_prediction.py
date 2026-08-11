@@ -11,6 +11,8 @@ from careamics.lightning.prediction import (
     decollate_image_region_data,
 )
 
+# TODO test how None target_axes decollate
+
 
 @pytest.fixture
 def batches(source_name: str) -> list[ImageRegionData]:
@@ -38,6 +40,7 @@ def batches(source_name: str) -> list[ImageRegionData]:
                     dtype="float32",
                     # axes describes the full dataset shape
                     axes="SYX",
+                    target_axes="SYX",
                     # non-sense to check that they are properly decollated
                     region_spec={
                         "data_idx": data_idx,
@@ -115,6 +118,7 @@ class TestCombineSamples:
                         dtype="float32",
                         data_shape=(32, 32),
                         axes="TYXC",
+                        target_axes="TYXC",
                         region_spec={
                             "data_idx": data_idx,
                             "sample_idx": sample_idx,
@@ -155,6 +159,7 @@ def test_decollate_image_region_data(n_batch) -> None:
                 data_shape=(32, 32),
                 dtype=str(np.float32),
                 axes="YX",
+                target_axes="YX",
                 region_spec={
                     "data_idx": i,
                     "sample_idx": 0,

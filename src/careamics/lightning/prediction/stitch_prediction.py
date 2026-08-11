@@ -123,7 +123,10 @@ def stitch_single_prediction(
 
     if restore_shape:
         predicted_image = restore_array(
-            predicted_image, tiles[0].axes, tiles[0].original_data_shape
+            predicted_image,
+            tiles[0].axes,
+            tiles[0].original_data_shape,
+            tiles[0].target_axes,
         )
 
     return predicted_image
