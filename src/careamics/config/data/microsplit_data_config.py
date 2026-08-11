@@ -40,6 +40,7 @@ class MicroSplitDataConfig(DataConfig):
         new_batch_size: int | None = None,
         new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         new_axes: str | None = None,
+        new_target_axes: str | None = None,
         new_channels: Sequence[int] | Literal["all"] | None = None,
         new_in_memory: bool | None = None,
         new_dataloader_params: dict[str, Any] | None = None,
@@ -61,6 +62,8 @@ class MicroSplitDataConfig(DataConfig):
             New data type. If `None`, keeps the current data type.
         new_axes : str or None, default=None
             New axes. If `None`, keeps the current axes.
+        new_target_axes : str or None, default=None
+            New target axes. If `None`, keeps the current target axes.
         new_channels : Sequence[int], "all" or None, default=None
             New channel selection. If `None`, keeps the current channel selection. If
             "all", selects all channels.
@@ -81,6 +84,7 @@ class MicroSplitDataConfig(DataConfig):
             new_batch_size=new_batch_size,
             new_data_type=new_data_type,
             new_axes=new_axes,
+            new_target_axes=new_target_axes,
             new_channels=new_channels,
             new_in_memory=new_in_memory,
             new_dataloader_params=new_dataloader_params,

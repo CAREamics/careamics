@@ -18,6 +18,7 @@ T_EXPR = "does not contain a T axis"
 Z_EXPR = "does not contain a Z axis"
 
 
+# TODO not reusable because assumes that T is always the first axis of the given data
 def create_test_czi(file_path: Path, data: NDArray | list[NDArray]):
     if not isinstance(data, list):
         data = [data]
