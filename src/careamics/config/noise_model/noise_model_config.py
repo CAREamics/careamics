@@ -118,9 +118,9 @@ class GaussianMixtureNMConfig(BaseModel):
         )
         return cls(
             weight=params[weight_key],
-            min_signal=float(params["min_signal"]),
-            max_signal=float(params["max_signal"]),
-            min_sigma=float(params["min_sigma"]),
+            min_signal=params["min_signal"].item(),
+            max_signal=params["max_signal"].item(),
+            min_sigma=params["min_sigma"].item(),
             channel_index=channel_index,
         )
 

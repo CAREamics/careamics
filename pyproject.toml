@@ -44,10 +44,10 @@ dependencies = [
     # --- Core dependencies ---
     "numpy>=1.21,<=2.4.6",
     'pydantic>=2.11,<=2.13.3',
-    'pytorch_lightning>=2.2,!=2.6.2,!=2.6.3,<=2.6.5',
-    # lightning currently does not support torch 2.10.0
+    "lightning>=2.2,!=2.6.2,!=2.6.3,<=2.6.5",
+    # lightning currently does not support torch 2.13.0
     # see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
-    'torch>=2.1.0,<2.10.0',
+    'torch>=2.1.0,<2.13.0',
     'torchmetrics >0.7.0, <1.9.0',
 
     # --- Data, image processing and visualization ---
@@ -62,7 +62,7 @@ dependencies = [
     'torchvision<=0.25.0', # TODO used in model and module, revisit
 
     # --- BMZ dependencies ---
-    'bioimageio.core>=0.9.0,<=0.10.4',
+    'bioimageio.core>=0.9.0,<=0.11.0',
     'pillow<=12.3.0', # TODO used to create covers, revisit
 
     # --- Others ---

@@ -77,6 +77,7 @@ class MicroSplitModule(L.LightningModule):
             multichannel_noise_model_factory(self.config.noise_model)
         )
         self.predict_logvar: bool = self.config.model.predict_logvar
+        self.mmse_count: int = self.config.mmse_count
 
         self.metrics: MetricCollection = MetricCollection(
             {
@@ -210,6 +211,42 @@ class MicroSplitModule(L.LightningModule):
             predictions = predictions.chunk(2, dim=1)[0]
         return predictions
 
+    def _predict_mmse(self, x_data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Compute the MMSE prediction by averaging several samples.
+
+        The LVAE draws a fresh latent sample on every forward pass, so the minimum
+        mean squared error (MMSE) estimate is the mean of ``mmse_count`` sampled
+        reconstructions. The per-pixel std across those samples is
+        returned as an uncertainty estimate.
+
+        Parameters
+        ----------
+        x_data : torch.Tensor
+            Input tensor, shape (B, C, [Z], Y, X).
+
+        Returns
+        -------
+        tuple of (torch.Tensor, torch.Tensor)
+            The MMSE prediction and the sample std, both of shape
+            (B, output_channels, [Z], Y, X). The std is all-zeros
+            when ``mmse_count == 1``.
+        """
+        samples = torch.stack(
+            [
+                self._get_reconstruction(self.model(x_data))
+                for _ in range(self.mmse_count)
+            ],
+            dim=0,
+        )
+        mmse_prediction = samples.mean(dim=0)
+        # unbiased std is undefined for a single sample; report zero uncertainty
+        mmse_std = (
+            samples.std(dim=0)
+            if self.mmse_count > 1
+            else torch.zeros_like(mmse_prediction)
+        )
+        return mmse_prediction, mmse_std
+
     def training_step(
         self, batch: tuple[ImageRegionData, ImageRegionData], batch_idx: int
     ) -> torch.Tensor | None:
@@ -282,8 +319,9 @@ class MicroSplitModule(L.LightningModule):
     ) -> ImageRegionData:
         """Prediction step for MicroSplit.
 
-        Runs a single forward pass and returns the reconstruction denormalized into
-        target space.
+        Returns the MMSE reconstruction (mean of `mmse_count` stochastic samples)
+        denormalized into target space. With `mmse_count == 1` this reduces to a
+        single forward pass.
 
         Parameters
         ----------
@@ -307,7 +345,7 @@ class MicroSplitModule(L.LightningModule):
         n_spatial_dims = x_data.dim() - 2
         self.model.reset_for_inference(tuple(x_data.shape[-n_spatial_dims:]))
 
-        prediction = self._get_reconstruction(self.model(x_data))
+        prediction, _ = self._predict_mmse(x_data)
 
         # denormalize into target space using the prediction dataset's normalization
         # (uses target statistics when available), consistent with the other modules

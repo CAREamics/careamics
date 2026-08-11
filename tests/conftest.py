@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from pytorch_lightning import Callback, Trainer
+from lightning.pytorch import Callback, Trainer
 
 from careamics.config.configuration import Configuration
 from careamics.config.data.data_config import DataConfig

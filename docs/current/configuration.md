@@ -203,6 +203,13 @@ possibility.
 2. The number of output channels can be different from the number of input channels.
 
 
+!!! note "Assumptions parameters are not passed"
+
+    If `target_axes` is not set, it is assumed to be the same as `axes`. If
+    `n_channels_out` is not set and `target_axes` has a "C" dimension, then it is set to the same value as `n_channels_in`, otherwise it is set to 1.
+
+
+
 ### Number of validation patches
 
 When no validation data is provided, CAREamics will automatically split some patches
@@ -313,8 +320,7 @@ passing list of channel indices to the `channels` parameter.
     although they are required when `C` is in `axes`. The reason is that when `channels`
     is set, the number of channels is automatically inferred from `channels`. 
 
-    In the case of CARE/N2N, if `n_channels_out` is also set automatically to the size
-    of `channels`, but can also be set to a different value.
+    Note that `channels` only works on the input, not the target (for CARE/N2N).
 
 
 ### Channel independence
