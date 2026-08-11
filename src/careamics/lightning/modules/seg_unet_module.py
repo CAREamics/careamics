@@ -223,6 +223,7 @@ class SegModule(L.LightningModule):
             data_shape=x.data_shape,
             dtype=x.dtype,
             axes=x.axes,
+            target_axes=x.target_axes,
             original_data_shape=x.original_data_shape,
             region_spec=x.region_spec,
             additional_metadata=x.additional_metadata,
