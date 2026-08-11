@@ -48,9 +48,6 @@ from .patching_strategies import (
 #   - patches and overlaps sizes must also be checked against dimensionality
 #   - Should we have a UNet and a LVAE DataConfig subclass with specific validations?
 
-# TODO: is 3D updated anywhere in the code in CAREamist/downstream?
-#       - this will be important when swapping the data config in Configuration
-#       - `set_3D` currently not implemented here
 
 # TODO: this module is very long, can we split the validation somewhere else and
 #       leverage Pydantic to add validation directly to the declaration of each field?
@@ -976,21 +973,6 @@ class DataConfig(BaseModel):
             True if the data is 3D, False otherwise.
         """
         return _is_3D(self.axes, SupportedData(self.data_type))
-
-    def set_3D(self, axes: str, patch_size: list[int]) -> None:
-        """
-        Set 3D parameters.
-
-        Parameters
-        ----------
-        axes : str
-            Axes.
-        patch_size : list of int
-            Patch size.
-        """
-        if not isinstance(self.patching, WholePatchingConfig):
-            self.patching.patch_size = patch_size
-        self.axes = axes
 
     # TODO: if switching from a state in which in_memory=True to an incompatible state
     # an error will be raised. Should that automatically be set to False instead?

@@ -99,20 +99,6 @@ class UNetConfig(ArchitectureConfig):
 
         return num_channels_init
 
-    def set_3D(self, is_3D: bool) -> None:
-        """
-        Set 3D model by setting the `conv_dims` parameters.
-
-        Parameters
-        ----------
-        is_3D : bool
-            Whether the algorithm is 3D or not.
-        """
-        if is_3D:
-            self.conv_dims = 3
-        else:
-            self.conv_dims = 2
-
     def is_3D(self) -> bool:
         """
         Return whether the model is 3D or not.
