@@ -18,31 +18,10 @@ class HDNConfiguration(Configuration):
 
     algorithm_config: HDNAlgorithm
 
-    # TODO remove once LVAE model constraints have been implemented
-    @model_validator(mode="after")
-    def validate_patch_against_model(self: Self) -> Self:
-        """Skip UNet model-constraint validation for LVAE models.
+    # The base `validate_patch_against_model` and `validate_channels_against_inputs`
+    # validators are inherited: `get_model_constraints` now returns `LVAEConstraints`
+    # for LVAE models (spatial divisibility + no-op input-channel check).
 
-        Returns
-        -------
-        Self
-            Validated configuration.
-        """
-        return self
-
-    # TODO remove once LVAE model constraints have been implemented
-    @model_validator(mode="after")
-    def validate_channels_against_inputs(self: Self) -> Self:
-        """Skip UNet channel-constraint validation for LVAE models.
-
-        Returns
-        -------
-        Self
-            Validated configuration.
-        """
-        return self
-
-    # TODO remove once LVAE model constraints have been implemented
     @model_validator(mode="after")
     def validate_norm_against_channels(self: Self) -> Self:
         """Validate that normalization sizes match the LVAE channels.

@@ -44,19 +44,11 @@ class MicroSplitConfiguration(Configuration):
         input_shape_matches_patch_size(self.algorithm_config.model, self.data_config)
         return self
 
-    # TODO LVAE input/output channel constraints are not representable in the data
-    # config (the model takes a single mixed input channel and exposes only
-    # `output_channels`); channel consistency is only checked via normalization sizes.
-    @model_validator(mode="after")
-    def validate_channels_against_inputs(self: Self) -> Self:
-        """Skip UNet channel-constraint validation for LVAE models.
-
-        Returns
-        -------
-        Self
-            Validated configuration.
-        """
-        return self
+    # The base `validate_channels_against_inputs` validator is inherited: for LVAE
+    # models `get_model_constraints` returns `LVAEConstraints`, whose
+    # `validate_input_channels` is a no-op (the model takes a single mixed input
+    # channel and exposes only `output_channels`). Channel consistency is checked via
+    # normalization sizes below.
 
     @model_validator(mode="after")
     def validate_norm_against_channels(self: Self) -> Self:
