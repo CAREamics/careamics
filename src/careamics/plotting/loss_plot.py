@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import MaxNLocator
 
+from .utils import get_plot_file_path
+
 
 def plot_loss(
     loss_dict: dict[str, list],
@@ -42,11 +44,9 @@ def plot_loss(
     ax.set_title("Losses")
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-    # check for saving as an image
+    # check for saving the figure as an image
     if save_path is not None:
-        _save_file = Path(save_path)
-        if _save_file.is_dir():
-            _save_file = _save_file / "losses.png"
+        _save_file = get_plot_file_path(save_path, "losses.png")
         fig.savefig(_save_file, format="png", dpi=300)
         print(f"The figure was saved at {_save_file.resolve()}")
 
