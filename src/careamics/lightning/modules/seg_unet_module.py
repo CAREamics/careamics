@@ -2,8 +2,8 @@
 
 from typing import TYPE_CHECKING, Any
 
-import pytorch_lightning as L
 import torch
+from lightning.pytorch import LightningModule
 from torch import nn
 from torchmetrics import MetricCollection
 from torchmetrics.segmentation import GeneralizedDiceScore
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class SegModule(L.LightningModule):
+class SegModule(LightningModule):
     """CAREamics PyTorch Lightning module for UNet-based segmentation.
 
     Parameters
@@ -180,8 +180,12 @@ class SegModule(L.LightningModule):
         """Log per-class Dice scores at the end of each validation epoch."""
         scores = self.metrics.compute()
         dice_per_class = scores["GeneralizedDiceScore"]
-        for i, score in enumerate(dice_per_class):
-            self.log(f"val_dice_class_{i}", score, prog_bar=True, logger=True)
+
+        if dice_per_class.ndim == 0:
+            self.log("val_dice", dice_per_class, prog_bar=True, logger=True)
+        else:
+            for i, score in enumerate(dice_per_class):
+                self.log(f"val_dice_class_{i}", score, prog_bar=True, logger=True)
         self.metrics.reset()
 
     def predict_step(

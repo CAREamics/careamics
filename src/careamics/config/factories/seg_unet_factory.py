@@ -143,11 +143,11 @@ def create_advanced_seg_config(
     experiment_name: str,
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
-    target_axes: str,
     patch_size: Sequence[int],
     batch_size: int,
     n_classes: int,
     # optional parameters
+    target_axes: str | None = None,
     num_epochs: int = 30,
     num_steps: int | None = None,
     n_channels_in: int | None = None,
@@ -200,14 +200,14 @@ def create_advanced_seg_config(
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
-    target_axes : str
-        Axes of the target data (e.g. CYX).
     patch_size : Sequence[int]
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
     n_classes : int
         Number of segmentation classes.
+    target_axes : str
+        Axes of the target data (e.g. CYX).
     num_epochs : int, default=30
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
@@ -285,6 +285,10 @@ def create_advanced_seg_config(
     Configuration
         Configuration for training a segmentation model.
     """
+    # TODO does that make sense? revisit
+    if target_axes is None:
+        target_axes = axes
+
     n_channels_in = _validate_channel_dim(
         axes=axes,
         target_axes=target_axes,
