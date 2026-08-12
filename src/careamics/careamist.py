@@ -796,6 +796,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -815,6 +816,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -833,6 +835,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -871,6 +874,9 @@ class CAREamist:
             Overlap between tiles, can be None.
         axes : str, optional
             Axes of the input data, by default None.
+        target_axes : str | None, default=None
+            Axes for prediction target data. If None, uses target axes from the training
+            configuration.
         data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
         num_workers : int, optional
@@ -908,6 +914,7 @@ class CAREamist:
             tile_size=tile_size,
             tile_overlap=tile_overlap,
             axes=axes,
+            target_axes=target_axes,
             data_type=data_type,
             num_workers=num_workers,
             channels=channels,
@@ -972,6 +979,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -998,6 +1006,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1023,6 +1032,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1078,6 +1088,9 @@ class CAREamist:
             Overlap between tiles.
         axes : str, optional
             Axes of the input data, by default None.
+        target_axes : str | None, default=None
+            Axes for prediction target data. If None, uses target axes from the training
+            configuration.
         data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
         num_workers : int, optional
@@ -1166,6 +1179,7 @@ class CAREamist:
             tile_size=tile_size,
             tile_overlap=tile_overlap,
             axes=axes,
+            target_axes=target_axes,
             data_type=data_type,
             num_workers=num_workers,
             channels=channels,
