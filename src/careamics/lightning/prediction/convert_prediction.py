@@ -14,6 +14,49 @@ if TYPE_CHECKING:
     from torch import Tensor
 
 
+def prediction_region(
+    output: ImageRegionData | tuple[ImageRegionData, ImageRegionData | None],
+) -> ImageRegionData:
+    """
+    Select the prediction from a `predict_step` output.
+
+    Parameters
+    ----------
+    output : ImageRegionData or tuple of (ImageRegionData, ImageRegionData or None)
+        Output of a single `predict_step` call.
+
+    Returns
+    -------
+    ImageRegionData
+        The predicted batch.
+    """
+    if isinstance(output, ImageRegionData):
+        return output
+    return output[0]
+
+
+def uncertainty_region(
+    output: ImageRegionData | tuple[ImageRegionData, ImageRegionData | None],
+) -> ImageRegionData | None:
+    """
+    Select the uncertainty estimate from a `predict_step` output.
+
+    Parameters
+    ----------
+    output : ImageRegionData or tuple of (ImageRegionData, ImageRegionData or None)
+        Output of a single `predict_step` call.
+
+    Returns
+    -------
+    ImageRegionData or None
+        The uncertainty estimate, or None if the algorithm does not estimate one or
+        drew a single prediction.
+    """
+    if isinstance(output, ImageRegionData):
+        return None
+    return output[1]
+
+
 def _decollate_batch_dict(
     batched_dict: "dict[str, list | Tensor]",
     index: int,

@@ -348,3 +348,35 @@ def test_default_write_type(write_type, data_type, expected):
 def test_predict_in_memory(in_memory, data_type, expected):
     """Test that in_memory is overwritten with False only for czi/zarr data."""
     assert CAREamist._predict_in_memory(in_memory, data_type) is expected
+
+
+def _n2v_careamist(tmp_path: Path) -> CAREamist:
+    """Return an untrained CAREamist for a deterministic algorithm."""
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SYX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+    return CAREamist(config=config, work_dir=tmp_path)
+
+
+@pytest.mark.parametrize("n_predictions", [0, 1])
+def test_predict_rejects_too_few_predictions(tmp_path: Path, n_predictions: int):
+    """Uncertainty is undefined below two predictions, so it is refused."""
+    careamist = _n2v_careamist(tmp_path)
+
+    with pytest.raises(ValueError, match="at least 2"):
+        careamist.predict(random_array((1, 32, 32)), n_predictions=n_predictions)
+
+
+def test_predict_rejects_sampling_for_deterministic_algorithms(tmp_path: Path):
+    """A deterministic algorithm cannot draw several predictions per input."""
+    careamist = _n2v_careamist(tmp_path)
+
+    with pytest.raises(ValueError, match="not supported"):
+        careamist.predict(random_array((1, 32, 32)), n_predictions=5)
