@@ -11,6 +11,8 @@ from numpy.typing import NDArray
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
+from .config.hdn_configuration import HDNConfiguration
+from .config.microsplit_configuration import MicroSplitConfiguration
 from .config.support import SupportedAlgorithm, SupportedLogger
 from .config.utils.configuration_io import load_configuration
 from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
@@ -55,6 +57,8 @@ ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | HDNConfiguration
+    | MicroSplitConfiguration
 )
 
 
@@ -537,7 +541,7 @@ class CAREamist:
     def _get_default_ckpt(self, checkpoint: str | Path | None) -> str | Path:
         """Get default checkpoint to use for prediction based on the algorithm.
 
-        Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
+        The self-supervised algorithms do not have a well-defined "best" checkpoint
         based on validation loss, therefore this method returns "last" for these
         algorithms and "best" for others.
 
@@ -556,6 +560,7 @@ class CAREamist:
         if self.config.algorithm_config.algorithm in [
             SupportedAlgorithm.N2V,
             SupportedAlgorithm.N2N,
+            SupportedAlgorithm.HDN,
         ]:
             if checkpoint == "best":
                 raise ValueError(
@@ -777,7 +782,8 @@ class CAREamist:
 
         # validate new data config against the rest of the configuration by triggering
         # the model level validation
-        self.config.model_copy().data_config = pred_data_config
+        config_copy: Any = self.config.model_copy()
+        config_copy.data_config = pred_data_config
 
         return CareamicsDataModule(
             data_config=pred_data_config,
