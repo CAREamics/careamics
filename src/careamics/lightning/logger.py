@@ -122,6 +122,7 @@ class CoLogger(Logger):
                 version=str(self._version),
                 anonymous=not is_logged_in,
                 offline=not is_logged_in,
+                job_type="careamics_training",
             )
             # add it to the list of loggers
             self.loggers.append(self.wandb)
