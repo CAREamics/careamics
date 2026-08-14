@@ -53,6 +53,12 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
+      - name: W&B Login
+        shell: bash
+        env:
+          WANDB_API: ${{ secrets.WANDB_API_KEY }}
+        run: uv run wandb login "$WANDB_API"
+
       - name: 🧪 Run tests
         run: uv run pytest --color=yes -m "not lvae and not compat"
 
