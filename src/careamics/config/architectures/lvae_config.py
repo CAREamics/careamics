@@ -24,7 +24,6 @@ class LVAEConfig(ArchitectureConfig):
     """Dimensions (2D or 3D) of the convolutional layers."""
 
     multiscale_count: int = Field(default=1)
-    # TODO there should be a check for multiscale_count in dataset !!
 
     # 1 - off, len(z_dims) + 1 # TODO Consider starting from 0
     z_dims: list = Field(default=[128, 128, 128, 128])

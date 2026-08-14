@@ -27,9 +27,12 @@ class LVAEConstraints:
     def validate_input_channels(self, n_channels: int) -> None:
         """Validate the number of input channels against the model constraints.
 
-        LVAE models take a single, mixed input channel and do not expose a number of
-        input channels, so any input channel count is accepted. This is a no-op, kept
-        to satisfy the `ModelConstraints` protocol.
+        No-op for LVAE. Unlike UNet, `LVAEConfig` has no input-channel field to check
+        against: the model input is a single mixed image, and the input tensor's
+        channel dimension carries `multiscale_count` resolution scales of that image
+        (not a semantic channel count). The `multiscale_count` agreement between model
+        and data is validated separately by `multiscale_counts_match`, so there is
+        nothing for this method to enforce for now.
 
         Parameters
         ----------
