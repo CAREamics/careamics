@@ -53,6 +53,9 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
+      - name: Install wandb
+        run: uv pip install wandb
+
       - name: W&B Logging
         shell: bash
         env:
