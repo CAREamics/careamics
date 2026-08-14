@@ -496,6 +496,7 @@ class CAREamist:
             use_tensorboard=use_tensorboard,
             use_wandb=use_wandb,
             log_version=version,
+            finalize_after_fit=False,
         )
 
     def _get_checkpoint_root(self) -> Path:
@@ -666,6 +667,8 @@ class CAREamist:
         # which changes them in order to interrupt training gracefully
         self.trainer.should_stop = False
         self.trainer.limit_val_batches = 1.0  # equivalent to all validation batches
+        # enable auto-logging hparams
+        self.trainer.enable_autolog_hparams = True
 
         _ = seed_everything(self.config.data_config.seed, workers=True)
         self.trainer.fit(
@@ -675,7 +678,12 @@ class CAREamist:
         # log normalization statistics
         norm_stats = self.train_datamodule.config.normalization.model_dump()
         self.trainer.loggers[0].log_hyperparams({"normalization": norm_stats})
-        self.trainer.loggers[0].finalize("success")
+
+        # disable auto-logging hparams
+        self.trainer.enable_autolog_hparams = False
+        # finalize the logger
+        if isinstance(self.trainer.loggers[0], CoLogger):
+            self.trainer.loggers[0].finish("success")
 
     def _build_predict_datamodule(
         self,

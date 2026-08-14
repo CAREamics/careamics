@@ -1,9 +1,10 @@
 """CoLogger module for CAREamics."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
+import torch
 from lightning.fabric.utilities.logger import _flatten_dict
 from lightning.pytorch.core.saving import save_hparams_to_yaml
 from lightning.pytorch.loggers import CSVLogger, Logger, TensorBoardLogger, WandbLogger
@@ -44,6 +45,8 @@ class CoLogger(Logger):
         Whether to use WandB for logging, by default False.
     log_version : int, optional
         Version number for the logs, by default 0.
+    finalize_after_fit : bool, optional
+        Finalize and close loggers after `trainer.fit` finished, by default True.
     """
 
     def __init__(
@@ -54,6 +57,7 @@ class CoLogger(Logger):
         use_tensorboard: bool = False,
         use_wandb: bool = False,
         log_version: int = 0,
+        finalize_after_fit: bool = True,
     ) -> None:
         """Initialize the CoLogger.
 
@@ -71,6 +75,8 @@ class CoLogger(Logger):
             Whether to use WandB for logging, by default False.
         log_version : int, optional
             Version number for the logs, by default 0.
+        finalize_after_fit : bool, optional
+            Finalize and close loggers after `trainer.fit` finished, by default True.
         """
         super().__init__()
 
@@ -83,6 +89,7 @@ class CoLogger(Logger):
         self._wandb_log_dir = self._log_dir / "wandb_logs"
         # flag to check if log_hyperparams has been called for the first time
         self._log_hp_first_call = True
+        self.finalize_after_fit = finalize_after_fit
         self.loggers = []
 
         # save config as a yaml file
@@ -99,7 +106,7 @@ class CoLogger(Logger):
         self.tb: TensorBoardLogger | None = None
         if use_tensorboard:
             self.tb = TensorBoardLogger(
-                save_dir=self._tb_log_dir, version=self._version
+                name=self._name, save_dir=self._tb_log_dir, version=self._version
             )
             # add it to the list of loggers
             self.loggers.append(self.tb)
@@ -140,10 +147,10 @@ class CoLogger(Logger):
                 else:
                     # update hparams dict
                     logger.hparams.update(params)
-                    # re-save the hparams.yaml file
-                    self._save_tb_hparams(logger)
                     # update the hparams in tensorboard
                     self._update_tb_hparams(logger, step=step)
+                # save the hparams.yaml file
+                self._save_tb_hparams(logger)
             else:
                 # csv and wandb
                 logger.log_hyperparams(params)
@@ -177,6 +184,7 @@ class CoLogger(Logger):
         step: int | None = None,
         captions: list[str] | None = None,
         normalize: bool = True,
+        axes: Literal["NCHW", "NHWC", "CHW", "HWC", "HW", "WH"] = "NCHW",
     ) -> None:
         """Log images to Tensorboard and/or WANDB.
 
@@ -192,9 +200,19 @@ class CoLogger(Logger):
             A list of captions for the images, by default None.
         normalize : bool, optional
             Whether to normalize the images to [0, 255] range, by default True.
+        axes : Literal["NCHW", "NHWC", "CHW", "HWC", "HW", "WH"], optional
+            The axes of images to log, by default "NCHW".
         """
+        if images.ndim != len(axes):
+            raise ValueError(
+                f"The images dimensions ({images.ndim}) "
+                f"must represented in axes {axes}."
+            )
+
         if self.tb is not None:
-            self.tb.experiment.add_images(tag=key, img_tensor=images, global_step=step)
+            self.tb.experiment.add_images(
+                tag=key, img_tensor=images, global_step=step, dataformats=axes
+            )
 
         if self.wandb is not None:
             # image stack to image list
@@ -262,7 +280,9 @@ class CoLogger(Logger):
         """
         dirs = {"csv": self.csv.log_dir}
         if self.tb is not None:
-            dirs["tensorboard"] = self.tb.log_dir
+            dirs["tensorboard"] = str(self._tb_log_dir.resolve())
+        if self.wandb is not None:
+            dirs["wandb"] = str(self._wandb_log_dir.resolve())
 
         return dirs
 
@@ -288,15 +308,19 @@ class CoLogger(Logger):
 
     @rank_zero_only
     @override
-    def finalize(self, status) -> None:
+    def finalize(self, status: str) -> None:
         """Finalize all loggers.
 
         Parameters
         ----------
-        status : Any
+        status : str
             The status of the training process (e.g., "success", "failure").
         """
         super().finalize(status)
+        if not self.finalize_after_fit:
+            # do not finalize
+            return
+
         if self.tb is not None:
             self.tb.finalize(status)
         if self.wandb is not None:
@@ -304,6 +328,18 @@ class CoLogger(Logger):
 
             self.wandb.finalize(status)
             wandb.finish()
+
+    @rank_zero_only
+    def finish(self, status: str = "success") -> None:
+        """Finalize and close all logger when `finalize_after_fit` is False.
+
+        Parameters
+        ----------
+        status : str
+            The status of the training process (e.g., "success", "failure").
+        """
+        self.finalize_after_fit = True
+        self.finalize(status)
 
     def _save_tb_hparams(self, tb_logger: TensorBoardLogger):
         """Handle re-saving the hparams.yaml file for tensorboard logger.
@@ -342,7 +378,7 @@ class CoLogger(Logger):
             else:
                 raise ValueError("SummaryWriter `file_writer` is None!")
 
-    def _normalize_images(self, images: NDArray | Tensor) -> NDArray:
+    def _normalize_images(self, images: NDArray | Tensor) -> Tensor:
         """Normalize images to [0, 255] range and convert to uint8.
 
         Parameters
@@ -355,7 +391,7 @@ class CoLogger(Logger):
         NDArray
             The normalized images as a NumPy array of type uint8.
         """
-        if isinstance(images, Tensor):
-            images = images.cpu().numpy()
+        if isinstance(images, np.ndarray):
+            images = torch.from_numpy(images)
 
-        return (images * 255).astype(np.uint8)
+        return (images * 255).to(torch.uint8)
