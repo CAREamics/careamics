@@ -114,12 +114,14 @@ class CoLogger(Logger):
 
         self.wandb: WandbLogger | None = None
         if use_wandb:
+            is_logged_in = self._wandb_login()
             self.wandb = WandbLogger(
                 name=self._name,
                 save_dir=self._wandb_log_dir,
                 config=config.model_dump(),
                 version=str(self._version),
-                anonymous=True,
+                anonymous=not is_logged_in,
+                offline=not is_logged_in,
             )
             # add it to the list of loggers
             self.loggers.append(self.wandb)
@@ -398,3 +400,16 @@ class CoLogger(Logger):
             images = torch.from_numpy(images)
 
         return (images * 255).to(torch.uint8).to(torch.float32)
+
+    def _wandb_login(self) -> bool:
+        """Try login to wandb.
+
+        Returns
+        -------
+        bool
+            Whether login was successful or not.
+
+        """
+        import wandb
+
+        return wandb.login()
