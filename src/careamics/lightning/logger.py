@@ -413,9 +413,10 @@ class CoLogger(Logger):
         """
         import wandb
 
+        _logged_in = True
         try:
-            _log_in = wandb.login()
+            wandb.login()
         except Exception:
-            _log_in = False
+            _logged_in = False
 
-        return _log_in
+        return _logged_in
