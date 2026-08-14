@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Any, Literal
+from warnings import warn
 
 import numpy as np
 import torch
@@ -118,6 +119,7 @@ class CoLogger(Logger):
                 save_dir=self._wandb_log_dir,
                 config=config.model_dump(),
                 version=str(self._version),
+                anonymous=True,
             )
             # add it to the list of loggers
             self.loggers.append(self.wandb)
@@ -204,9 +206,10 @@ class CoLogger(Logger):
             The axes of images to log, by default "NCHW".
         """
         if images.ndim != len(axes):
-            raise ValueError(
+            warn(
                 f"The images dimensions ({images.ndim}) "
-                f"must represented in axes {axes}."
+                f"must represented in axes {axes}.",
+                stacklevel=2,
             )
 
         if self.tb is not None:
@@ -394,4 +397,4 @@ class CoLogger(Logger):
         if isinstance(images, np.ndarray):
             images = torch.from_numpy(images)
 
-        return (images * 255).to(torch.uint8)
+        return (images * 255).to(torch.uint8).to(torch.float32)
