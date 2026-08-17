@@ -18,13 +18,13 @@ from typing import Any
 
 import numpy as np
 import torch
+from careamics.lightning.modules.microsplit_module import MicroSplitModule
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.patching import TileSpecs
-from careamics.lightning.modules.microsplit_module import MicroSplitModule
 from careamics.lightning.prediction.convert_prediction import (
     decollate_image_region_data,
 )

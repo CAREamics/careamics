@@ -5,7 +5,7 @@ __all__ = [
     "SampleSIPSNR",
     "lpips",
     "range_invariant_multiscale_ssim",
-    "scale_invariant_psnr"
+    "scale_invariant_psnr",
 ]
 
 from .metrics import (
