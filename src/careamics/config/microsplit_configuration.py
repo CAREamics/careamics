@@ -48,6 +48,11 @@ class MicroSplitConfiguration(Configuration):
     def validate_norm_against_channels(self: Self) -> Self:
         """Validate that normalization sizes match the LVAE channels.
 
+        The MicroSplit LVAE architecture accepts a single channel only, but the
+        algorithm may load multiple channels to synthesize that input. Therefore this
+        validator only compares normalization with the number of channels loaded by the
+        dataset.
+
         Returns
         -------
         Self

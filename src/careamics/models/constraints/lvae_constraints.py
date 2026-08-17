@@ -6,7 +6,7 @@ from careamics.config.architectures import LVAEConfig
 
 
 class LVAEConstraints:
-    """LVAE model constraints on input tensors spatial shape and channels.
+    """LVAE model constraints on input/output tensors spatial shape and channels.
 
     Parameters
     ----------
@@ -27,12 +27,8 @@ class LVAEConstraints:
     def validate_input_channels(self, n_channels: int) -> None:
         """Validate the number of input channels against the model constraints.
 
-        No-op for LVAE. Unlike UNet, `LVAEConfig` has no input-channel field to check
-        against: the model input is a single mixed image, and the input tensor's
-        channel dimension carries `multiscale_count` resolution scales of that image
-        (not a semantic channel count). The `multiscale_count` agreement between model
-        and data is validated separately by `multiscale_counts_match`, so there is
-        nothing for this method to enforce for now.
+        No-op for LVAE, as the current implementation is not compatible with
+        multi-channel.
 
         Parameters
         ----------
@@ -67,8 +63,8 @@ class LVAEConstraints:
 
         Each spatial dimension is downsampled once per hierarchy level (there are
         ``len(z_dims)`` levels) by its convolutional stride, so it must be divisible by
-        ``stride ** len(z_dims)``. Dimensions with a stride of 1 (e.g. Z in a 2.5D
-        model) are unconstrained. Shape must be of length 2 (YX) or 3 (ZYX). To validate
+        ``stride ** len(z_dims)``. Dimensions with a stride of 1 are unconstrained.
+        Shape must be of length 2 (YX) or 3 (ZYX). To validate
         the channel dimension, use `validate_input_channels` or
         `validate_target_channels` instead.
 
