@@ -199,8 +199,7 @@ class BasicPatchConstr(PatchConstr):
             self.target_extractor.extract_channel_patch(
                 data_idx=patch_spec["data_idx"],
                 sample_idx=patch_spec["sample_idx"],
-                # TODO does not allow selecting different channels for target
-                channels=self.channels,
+                channels=None,  # always use all channels for target
                 coords=patch_spec["coords"],
                 patch_size=patch_spec["patch_size"],
             )

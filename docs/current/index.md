@@ -89,6 +89,15 @@ to as the [Lightning API](./lightning_api.md).
     [:octicons-arrow-right-24: Prediction](./careamist_predicting.md)
 
 
+-   :lucide-save:{ .lg .middle } __Saving models__
+
+    ---
+
+    Save checkpoints and export models to the BioImage Model Zoo.
+
+    [:octicons-arrow-right-24: Saving and exporting models](./saving_models.md)
+
+
 -   :lucide-zap:{ .lg .middle } __Lightning API__
 
     ---

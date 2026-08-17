@@ -4,19 +4,94 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm
-from careamics.config.augmentations import (
-    XYFlipConfig,
-    XYRandomRotate90Config,
-)
 from careamics.config.configuration import Configuration
+from careamics.utils import get_logger
 
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import (
     SupportedPatchFilterConfig,
-    create_ng_data_configuration,
-    list_spatial_augmentations,
+    create_data_configuration,
 )
+from .factory_utils import assemble_augmentations, validate_input_channels
 from .training_factory import create_training_configuration, update_trainer_params
+
+logger = get_logger("CARE/N2N configuration factory")
+
+
+def _validate_channel_dim(
+    axes: str,
+    target_axes: str | None,
+    channels: Sequence[int] | None,
+    n_channels_in: int | None,
+    n_channels_out: int | None,
+) -> tuple[int, int, str]:
+    """Validate channel dimensions and adjust model input and output channel numbers.
+
+    Parameters
+    ----------
+    axes : str
+        Axes of the data (e.g. SYX).
+    target_axes : str or None
+        Axes of the target data. If unspecified, it will be made equal to `axes`. It
+        must be specified when the number of output channels is greater than 1 and
+        `axes` does not include 'C'.
+    channels : Sequence[int] or None
+        Indices of the channels to use.
+    n_channels_in : int or None
+        Number of input channels.
+    n_channels_out : int or None
+        Number of output channels.
+
+    Returns
+    -------
+    int
+        Adjusted number of input channels.
+    int
+        Adjusted number of output channels.
+    str
+        Adjusted target axes.
+    """
+    resolved_target_axes = target_axes if target_axes is not None else axes
+    target_channels_present = "C" in resolved_target_axes
+
+    validate_input_channels(
+        axes=axes, channels=channels, n_channels=n_channels_in, attr_name="n_channels"
+    )
+
+    # resolve number of input channels
+    if n_channels_in is None and channels is None:
+        resolved_n_channels_in = 1
+    elif n_channels_in is not None:
+        resolved_n_channels_in = n_channels_in
+    else:
+        assert channels is not None
+        resolved_n_channels_in = len(channels)
+
+    if n_channels_out is not None:
+        resolved_n_channels_out = n_channels_out
+    else:
+        # if target axes has channels, default to input channels, otherwise 1
+        resolved_n_channels_out = (
+            resolved_n_channels_in if target_channels_present else 1
+        )
+
+    if not target_channels_present and resolved_n_channels_out > 1:
+        raise ValueError(
+            f"Number of output channels is greater than 1 (got "
+            f"{resolved_n_channels_out}), but `target_axes` does not include 'C' "
+            f"(got {target_axes}). Please specify `target_axes` with 'C' to indicate "
+            f"the channel dimension in the target data."
+        )
+
+    if target_axes is None and target_channels_present:
+        logger.warning(
+            "Warning, in CARE/N2N configuration: "
+            "Target axes have been inferred from input `axes`. Make sure that the "
+            "target data has the axes in the same order as the input, otherwise "
+            "silent failure may occur (e.g. empty target patches during training)."
+        )
+
+    return resolved_n_channels_in, resolved_n_channels_out, resolved_target_axes
 
 
 def create_care_config(
@@ -34,6 +109,7 @@ def create_care_config(
     n_val_patches: int = 8,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
+    target_axes: str | None = None,
 ) -> Configuration[CAREAlgorithm]:
     """
     Create a configuration for training CARE.
@@ -78,8 +154,14 @@ def create_care_config(
         parameter will be ignored if separate validation data is specified for training.
     n_channels_in : int or None, default=None
         Number of input channels.
-    n_channels_out : int or None, default=None
-        Number of output channels.
+    n_channels_out : int | None, default=None
+        Number of output channels. If `target_axes` contains `C` then it will default to
+        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is
+        `None` it will default to `axes`.
+    target_axes : str or None, default=None
+        Axes of target data. If not specified it will default to `axes`. Pay extra
+        attention if you are training a task that has a different number of input and
+        output channels.
 
     Returns
     -------
@@ -104,6 +186,7 @@ def create_n2n_config(
     n_val_patches: int = 8,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
+    target_axes: str | None = None,
 ) -> Configuration[N2NAlgorithm]:
     """
     Create a configuration for training Noise2Noise.
@@ -148,8 +231,14 @@ def create_n2n_config(
         parameter will be ignored if separate validation data is specified for training.
     n_channels_in : int or None, default=None
         Number of input channels.
-    n_channels_out : int or None, default=None
-        Number of output channels.
+    n_channels_out : int | None, default=None
+        Number of output channels. If `target_axes` contains `C` then it will default to
+        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is
+        `None` it will default to `axes`.
+    target_axes : str or None, default=None
+        Axes of target data. If not specified it will default to `axes`. Pay extra
+        attention if you are training a task that has a different number of input and
+        output channels.
 
     Returns
     -------
@@ -171,6 +260,7 @@ def create_advanced_care_config(
     num_steps: int | None = None,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
+    target_axes: str | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     # advanced parameters
@@ -180,7 +270,7 @@ def create_advanced_care_config(
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
-    # - Lightning parameters
+    # lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
@@ -193,7 +283,7 @@ def create_advanced_care_config(
     checkpoint_params: dict[str, Any] | None = None,
     early_stopping_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    # - reproducibility
+    # reproducibility
     seed: int | None = None,
 ) -> Configuration[CAREAlgorithm]:
     """
@@ -242,8 +332,13 @@ def create_advanced_care_config(
         Number of input channels. If `channels` is specified, then the number of
         channels is inferred from its length and this parameter is ignored.
     n_channels_out : int | None, default=None
-        Number of output channels. If not specified, but n_channels_in is specified,
-        it will default to the same number as n_channels_in.
+        Number of output channels. If `target_axes` contains `C` then it will default to
+        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is
+        `None` it will default to `axes`.
+    target_axes : str or None, default=None
+        Axes of target data. If not specified it will default to `axes`. Pay extra
+        attention if you are training a task that has a different number of input and
+        output channels.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
@@ -329,6 +424,7 @@ def create_advanced_n2n_config(
     num_steps: int | None = None,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
+    target_axes: str | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     # advanced parameters
@@ -399,8 +495,13 @@ def create_advanced_n2n_config(
         Number of input channels. If `channels` is specified, then the number of
         channels is inferred from its length and this parameter is ignored.
     n_channels_out : int | None, default=None
-        Number of output channels. If not specified, but n_channels_in is specified,
-        it will default to the same number as n_channels_in.
+        Number of output channels. If `target_axes` contains `C` then it will default to
+        `n_channels_in` otherwise it will default to 1. Note that if `target_axes` is
+        `None` it will default to `axes`.
+    target_axes : str or None, default=None
+        Axes of target data. If not specified it will default to `axes`. Pay extra
+        attention if you are training a task that has a different number of input and
+        output channels.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
@@ -485,6 +586,7 @@ def _create_advanced_supervised_config(
     num_steps: int | None = None,
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
+    target_axes: str | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     # advanced parameters
@@ -494,7 +596,7 @@ def _create_advanced_supervised_config(
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
-    # - Lightning parameters
+    # lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
@@ -507,7 +609,7 @@ def _create_advanced_supervised_config(
     checkpoint_params: dict[str, Any] | None = None,
     early_stopping_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    # - reproducibility
+    # reproducibility
     seed: int | None = None,
 ) -> dict[str, Any]:
     """
@@ -560,6 +662,8 @@ def _create_advanced_supervised_config(
     n_channels_out : int | None, default=None
         Number of output channels. If not specified, but n_channels_in is specified,
         it will default to the same number as n_channels_in.
+    target_axes : str or None, default=None
+        Axes of target data. Required when the output has more than one channel.
     augmentations : Sequence[{"x_flip", "y_flip", "rotate_90"}] | None, default=None
         List of transforms to apply, either both or one of XYFlipConfig and
         XYRandomRotate90Config. By default, it applies both XYFlip (on X and Y)
@@ -630,70 +734,23 @@ def _create_advanced_supervised_config(
         Parameters required to instantiate a CAREamics configuration.
     """
     # if there are channels, we need to specify their number
-    channels_present = "C" in axes
-
-    if channels_present and (n_channels_in is None and channels is None):
-        raise ValueError(
-            "`n_channels_in` or `channels` must be specified when using channels."
-        )
-    elif not channels_present and (n_channels_in is not None and n_channels_in > 1):
-        raise ValueError(
-            f"C is not present in the axes, but number of input channels is specified "
-            f"(got {n_channels_in} channel)."
-        )
-
-    if not channels_present and (n_channels_out is not None and n_channels_out > 1):
-        raise ValueError(
-            f"C is not present in the axes, but number of output channels is specified "
-            f"(got {n_channels_out} channel)."
-        )
-
-    if n_channels_in is not None and channels is not None:
-        if n_channels_in != len(channels):
-            raise ValueError(
-                f"Number of input channels ({n_channels_in}) does not match length of "
-                f"`channels` ({len(channels)}). Only specify `channels`."
-            )
-
-    if n_channels_in is None:
-        n_channels_in = 1 if channels is None else len(channels)
-
-    if n_channels_out is None:
-        n_channels_out = n_channels_in
+    n_channels_in, n_channels_out, target_axes = _validate_channel_dim(
+        axes, target_axes, channels, n_channels_in, n_channels_out
+    )
 
     # normalization
     norm_config = {"name": normalization}
     if normalization_params is not None:
         norm_config.update(normalization_params)
 
-    # augmentations
-    augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
-    if augmentations is not None:
-        augs = []
-
-        x_flip_present = "x_flip" in augmentations
-        y_flip_present = "y_flip" in augmentations
-        rotate_90_present = "rotate_90" in augmentations
-
-        if x_flip_present or y_flip_present:
-            augs.append(
-                XYFlipConfig(
-                    flip_x=x_flip_present,
-                    flip_y=y_flip_present,
-                    seed=seed,
-                )
-            )
-        if rotate_90_present:
-            augs.append(XYRandomRotate90Config(seed=seed))
-    spatial_transforms = list_spatial_augmentations(augs)
-
     # data
-    data_config = create_ng_data_configuration(
+    data_config = create_data_configuration(
         data_type=data_type,
         axes=axes,
+        target_axes=target_axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        augmentations=spatial_transforms,
+        augmentations=assemble_augmentations(augmentations, seed),
         n_val_patches=n_val_patches,
         normalization=norm_config,
         patch_filter_config=patch_filter_config,
