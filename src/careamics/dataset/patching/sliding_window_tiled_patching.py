@@ -8,29 +8,22 @@ from .patch_specs import TileSpecs
 
 
 class SwitiPatching:
-    """Sliding-window inner-tiled patching with uniform per-pixel coverage.
+    """Sliding-window inner-tiling patching strategy.
 
-    Iterates a single sliding-window grid of conceptual tile positions
-    `i ∈ { k·s : k ∈ ℤ }` whose inner kept region `[i + M, i + P − M)`
-    intersects the image. Here `P = patch_size`, `s = stride`, and
-    `M = overlap // 2` is the margin dropped from each side of each tile.
+    Each pixel will be covered by `M` inner cropped tile regions, each at a an
+    incrementally shifted tile location. These tiles are intended to be averaged
+    together to create a smoother output than the MMSE estimate of inner tiling for
+    posterior models.
 
-    Real positions (`0 ≤ i ≤ axis_size − P`) place the model input at
-    `actual_coord = i` and contribute the symmetric inner crop. Phantom
-    positions (`i < 0` or `i > axis_size − P`) snap their model input to the
-    nearest boundary (`actual_coord = 0` or `axis_size − P`) but use
-    progressively shifted crop windows so each phantom credits its sample to
-    a different sub-strip near the image edge. All phantoms at the same
-    boundary share their model input but are evaluated as separate forward
-    passes, so each phantom contributes one independent stochastic draw.
+    The number of border pixels (halo) to discard is controlled by the `overlaps`
+    parameter; `overlaps // 2` pixels will be discarded from each side of the patch.
 
-    Per-pixel coverage is **exactly** `K = (patch_size − overlap) // stride`
-    in 1D, and `K**d` for a `d`-axis pixel by the cartesian product in
-    `_generate_specs` — uniform across the image with no transition band.
+    The `stride` parameter controls by how many pixels each tile location is shifted by.
 
-    Intended to be used with posterior models configured with
-    `mmse_count = 1`: each forward pass is one stochastic draw, so the
-    per-pixel sample count is determined entirely by geometry.
+    Each pixel will be covered by the product of
+    `(patch_size[i] - overlaps[i]) // stride[i]` over the dimensions `i`.
+
+    See paper: https://arxiv.org/abs/2607.18990.
 
     Parameters
     ----------
@@ -39,8 +32,8 @@ class SwitiPatching:
     patch_size : sequence of int
         Tile size per spatial dimension (length 2 or 3).
     overlaps : sequence of int
-        Overlap per spatial dimension (= 2 * margin). Must be even and
-        strictly smaller than `patch_size[i]`.
+        A border of `overlaps[dim] // 2` is cropped from each side of the tile, in each
+        dimension `dim`.
     stride : sequence of int
         Tile stride per spatial dimension. Must satisfy
         `stride[i] <= patch_size[i] - overlaps[i]`.
@@ -53,6 +46,37 @@ class SwitiPatching:
         overlaps: Sequence[int],
         stride: Sequence[int],
     ):
+        """Sliding-window inner-tiling patching strategy.
+
+        Each pixel will be covered by `M` inner cropped tile regions, each at a an
+        incrementally shifted tile location. These tiles are intended to be averaged
+        together to create a smoother output than the MMSE estimate of inner tiling for
+        posterior models.
+
+        The number of border pixels (halo) to discard is controlled by the `overlaps`
+        parameter; `overlaps // 2` pixels will be discarded from each side of the patch.
+
+        The `stride` parameter controls by how many pixels each tile location is shifted
+        by.
+
+        Each pixel will be covered by the product of
+        `(patch_size[i] - overlaps[i]) // stride[i]` over the dimensions `i`.
+
+        See paper: https://arxiv.org/abs/2607.18990.
+
+        Parameters
+        ----------
+        data_shapes : sequence of (sequence of int)
+            Shapes of the underlying data (axes SC(Z)YX).
+        patch_size : sequence of int
+            Tile size per spatial dimension (length 2 or 3).
+        overlaps : sequence of int
+            A border of `overlaps[dim] // 2` is cropped from each side of the tile, in
+            each dimension `dim`.
+        stride : sequence of int
+            Tile stride per spatial dimension. Must satisfy
+            `stride[i] <= patch_size[i] - overlaps[i]`.
+        """
         self.data_shapes = data_shapes
         self.patch_size = patch_size
         self.stride = stride
@@ -61,7 +85,13 @@ class SwitiPatching:
 
     @property
     def n_patches(self) -> int:
-        """Total number of tile specs."""
+        """Total number of tile specs.
+
+        Returns
+        -------
+        int
+            Total number of patches.
+        """
         return len(self.tile_specs)
 
     def get_patch_spec(self, index: int) -> TileSpecs:
@@ -158,16 +188,11 @@ class SwitiPatching:
     ) -> tuple[list[int], list[int], list[int], list[int]]:
         """Compute uniform-coverage sliding-window tile positions along one axis.
 
-        Iterates all conceptual sliding-window positions `i = k * stride` whose
-        kept region `[i + M, i + P − M)` intersects `[0, axis_size)`. Each `i`
-        is snapped to a valid model coord by clipping into `[0, axis_size − P]`,
-        with `crop_coords` / `crop_size` set so the model output is pasted at
-        the correct location. Phantoms (with `i` outside the real range) share
-        their model input with the boundary tile but contribute via shifted
-        output crops — each is still a separate model evaluation, hence an
-        independent stochastic draw.
+        Generates tile locations over the extent of the image by incremented coordinates
+        by the `stride`. If a tile would theoretically partially lie outside the bounds
+        of the image it is snapped to the nearest valid tile position.
 
-        Yields uniform `K = (patch_size − overlap) // stride` coverage at every
+        Yields uniform `K = (patch_size - overlap) // stride` coverage at every
         pixel.
 
         Parameters
