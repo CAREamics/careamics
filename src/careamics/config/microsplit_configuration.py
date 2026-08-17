@@ -44,7 +44,6 @@ class MicroSplitConfiguration(Configuration):
         input_shape_matches_patch_size(self.algorithm_config.model, self.data_config)
         return self
 
-
     @model_validator(mode="after")
     def validate_norm_against_channels(self: Self) -> Self:
         """Validate that normalization sizes match the LVAE channels.
