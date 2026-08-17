@@ -18,10 +18,6 @@ class HDNConfiguration(Configuration):
 
     algorithm_config: HDNAlgorithm
 
-    # The base `validate_patch_against_model` and `validate_channels_against_inputs`
-    # validators are inherited: `get_model_constraints` now returns `LVAEConstraints`
-    # for LVAE models (spatial divisibility + no-op input-channel check).
-
     @model_validator(mode="after")
     def validate_norm_against_channels(self: Self) -> Self:
         """Validate that normalization sizes match the LVAE channels.
