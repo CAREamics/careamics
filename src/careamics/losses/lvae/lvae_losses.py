@@ -10,7 +10,7 @@ import torch
 from careamics.losses.lvae.loss_utils import free_bits_kl
 
 if TYPE_CHECKING:
-    from careamics.config import LVAELossConfig
+    from careamics.config import LVAELossConfig, MicroSplitLossConfig
     from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 
 
@@ -303,7 +303,7 @@ def hdn_loss(
 def microsplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
-    config: LVAELossConfig,
+    config: MicroSplitLossConfig,
     noise_model: MultiChannelNoiseModel | None = None,
 ) -> dict[str, torch.Tensor] | None:
     """Unified loss function for MicroSplit (musplit, denoisplit, musplit_denoisplit).
@@ -321,13 +321,14 @@ def microsplit_loss(
     targets : torch.Tensor
         The target image used to compute the reconstruction loss. Shape is
         (B, `target_ch`, [Z], Y, X).
-    config : LVAELossConfig
-        The config for loss function containing all loss hyperparameters.
-        Uses `musplit_weight` as gaussian_weight and `denoisplit_weight` as nm_weight.
+    config : MicroSplitLossConfig
+        The config for loss function containing all loss hyperparameters. Uses
+        `gaussian_likelihood_weight` as gaussian_weight and
+        `noise_model_likelihood_weight` as nm_weight.
     noise_model : MultiChannelNoiseModel | None, optional
         The noise model, already normalized into the network's data space (see
         `MultiChannelNoiseModel.get_normalized_copy`). Required if
-        denoisplit_weight > 0.
+        `noise_model_likelihood_weight` > 0.
 
     Returns
     -------
@@ -339,15 +340,16 @@ def microsplit_loss(
     predictions, td_data = model_outputs
     img_shape = targets.shape[2:]
 
-    gaussian_weight = config.musplit_weight
-    nm_weight = config.denoisplit_weight
+    gaussian_weight = config.gaussian_likelihood_weight
+    nm_weight = config.noise_model_likelihood_weight
 
     if gaussian_weight > 0 and not config.predict_logvar:
         raise ValueError(
-            "predict_logvar must be True in config when musplit_weight > 0"
+            "predict_logvar must be True in config when "
+            "gaussian_likelihood_weight > 0"
         )
     if nm_weight > 0 and noise_model is None:
-        raise ValueError("noise_model required when denoisplit_weight > 0")
+        raise ValueError("noise_model required when noise_model_likelihood_weight > 0")
     recons_loss: torch.Tensor | float = 0.0
     if nm_weight > 0 and gaussian_weight > 0:
         if predictions.shape[1] == 2 * targets.shape[1]:
