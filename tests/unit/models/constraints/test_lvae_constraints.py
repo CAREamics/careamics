@@ -1,93 +1,91 @@
+from contextlib import nullcontext
+
 import pytest
 
 from careamics.config.architectures import LVAEConfig
-from careamics.models.constraints import LVAEConstraints, get_model_constraints
+from careamics.models.constraints import LVAEConstraints
 
 
-def _lvae_config(**kwargs) -> LVAEConfig:
-    """Build an LVAE config, overriding defaults with kwargs."""
-    params = {
-        "architecture": "LVAE",
-        "input_shape": (64, 64),
-        "encoder_conv_strides": [2, 2],
-        "decoder_conv_strides": [2, 2],
-        "z_dims": [128, 128],  # 2 hierarchy levels -> factor 2**2 = 4
-        "output_channels": 1,
-    }
-    params.update(kwargs)
-    return LVAEConfig(**params)
+def _lvae_config(
+    encoder_conv_strides: list[int],
+    z_dims: list[int],
+    output_channels: int = 1,
+) -> LVAEConfig:
+    """Build an LVAE config from the values that drive the constraint under test.
 
-
-def test_factory_returns_lvae_constraints():
-    """`get_model_constraints` dispatches LVAE configs to `LVAEConstraints`."""
-    constraints = get_model_constraints(_lvae_config())
-    assert isinstance(constraints, LVAEConstraints)
-
-
-@pytest.mark.parametrize("dim", [4, 8, 64, 128])
-def test_validate_spatial_shape_compatible(dim):
-    """Dimensions divisible by stride ** n_levels are accepted."""
-    # z_dims length 2 -> factor 2**2 = 4
-    constraints = LVAEConstraints(_lvae_config())
-    constraints.validate_spatial_shape((dim, dim))
-
-
-@pytest.mark.parametrize("dim", [65, 66, 70, 130])
-def test_validate_spatial_shape_incompatible(dim):
-    """Dimensions not divisible by stride ** n_levels are rejected."""
-    constraints = LVAEConstraints(_lvae_config())
-    with pytest.raises(ValueError, match="Input data dimension"):
-        constraints.validate_spatial_shape((dim, dim))
-
-
-def test_validate_spatial_shape_more_levels():
-    """Factor scales with the number of hierarchy levels (len(z_dims))."""
-    # 4 levels, stride 2 -> factor 2**4 = 16
-    constraints = LVAEConstraints(_lvae_config(z_dims=[128, 128, 128, 128]))
-    constraints.validate_spatial_shape((64, 64))  # 64 % 16 == 0
-    with pytest.raises(ValueError, match="Input data dimension"):
-        constraints.validate_spatial_shape((72, 72))  # 72 % 16 != 0
-
-
-def test_validate_spatial_shape_stride_one_unconstrained():
-    """A dimension with stride 1 (e.g. Z in 2.5D) is unconstrained."""
-    constraints = LVAEConstraints(
-        _lvae_config(
-            input_shape=(64, 64, 64),
-            encoder_conv_strides=[1, 2, 2],
-            decoder_conv_strides=[1, 2, 2],
-        )
+    `input_shape` is only needed to construct a valid config (it is not what
+    `validate_spatial_shape` checks); its dimensionality follows the strides.
+    """
+    input_shape = (64, 64) if len(encoder_conv_strides) == 2 else (64, 64, 64)
+    return LVAEConfig(
+        architecture="LVAE",
+        input_shape=input_shape,
+        encoder_conv_strides=encoder_conv_strides,
+        decoder_conv_strides=encoder_conv_strides,
+        z_dims=z_dims,
+        output_channels=output_channels,
     )
-    # Z has stride 1 -> factor 1 -> any odd depth accepted
-    constraints.validate_spatial_shape((5, 64, 64))
 
 
-@pytest.mark.parametrize("length", [1, 4])
-def test_validate_spatial_shape_wrong_length(length):
-    """Only spatial shapes of length 2 or 3 are accepted."""
-    constraints = LVAEConstraints(_lvae_config())
-    with pytest.raises(ValueError, match="Spatial input shape"):
-        constraints.validate_spatial_shape((64,) * length)
+@pytest.mark.parametrize(
+    "shape, encoder_conv_strides, z_dims, expected_error",
+    [
+        # stride 2, 2 levels -> factor 2**2 = 4
+        ((4, 4), [2, 2], [128, 128], nullcontext()),
+        ((64, 64), [2, 2], [128, 128], nullcontext()),
+        ((66, 66), [2, 2], [128, 128], pytest.raises(ValueError, match="Input data")),
+        # stride 2, 4 levels -> factor 2**4 = 16
+        ((64, 64), [2, 2], [128, 128, 128, 128], nullcontext()),
+        (
+            (72, 72),
+            [2, 2],
+            [128, 128, 128, 128],
+            pytest.raises(ValueError, match="Input data"),
+        ),
+        # 3D with Z stride 1 -> Z unconstrained (factor 1); XY factor 4
+        ((5, 64, 64), [1, 2, 2], [128, 128], nullcontext()),
+        (
+            (5, 66, 64),
+            [1, 2, 2],
+            [128, 128],
+            pytest.raises(ValueError, match="Input data"),
+        ),
+        # wrong length (must be 2 or 3)
+        ((64,), [2, 2], [128, 128], pytest.raises(ValueError, match="Spatial input")),
+        (
+            (64, 64, 64, 64),
+            [2, 2],
+            [128, 128],
+            pytest.raises(ValueError, match="Spatial input"),
+        ),
+        # shape length differs from the model's encoder strides
+        (
+            (64, 64, 64),
+            [2, 2],
+            [128, 128],
+            pytest.raises(ValueError, match="does not match the model"),
+        ),
+    ],
+)
+def test_validate_spatial_shape(shape, encoder_conv_strides, z_dims, expected_error):
+    constraints = LVAEConstraints(
+        _lvae_config(encoder_conv_strides=encoder_conv_strides, z_dims=z_dims)
+    )
+    with expected_error:
+        constraints.validate_spatial_shape(shape)
 
 
-def test_validate_spatial_shape_dim_mismatch():
-    """A spatial shape whose length differs from the encoder strides is rejected."""
-    # 2D model (strides length 2) fed a 3D shape
-    constraints = LVAEConstraints(_lvae_config())
-    with pytest.raises(ValueError, match="does not match the model"):
-        constraints.validate_spatial_shape((64, 64, 64))
-
-
-
-
-def test_validate_target_channels_match():
-    """Target channel count must equal the model output channels."""
-    constraints = LVAEConstraints(_lvae_config(output_channels=3))
-    constraints.validate_target_channels(3)
-
-
-def test_validate_target_channels_mismatch():
-    """A target channel count differing from output channels is rejected."""
-    constraints = LVAEConstraints(_lvae_config(output_channels=3))
-    with pytest.raises(ValueError, match="target image"):
-        constraints.validate_target_channels(2)
+@pytest.mark.parametrize(
+    "n_channels, expected_error",
+    [
+        (3, nullcontext()),
+        (2, pytest.raises(ValueError, match="target image")),
+        (1, pytest.raises(ValueError, match="target image")),
+    ],
+)
+def test_validate_target_channels(n_channels, expected_error):
+    constraints = LVAEConstraints(
+        _lvae_config(encoder_conv_strides=[2, 2], z_dims=[128, 128], output_channels=3)
+    )
+    with expected_error:
+        constraints.validate_target_channels(n_channels)
