@@ -145,6 +145,20 @@ def test_conv_strides_dim_mismatch():
         )
 
 
+def test_z_stride_must_be_one():
+    """Test that the Z (depth) stride must be 1 for 3D LVAE models."""
+    with pytest.raises(ValueError, match=r"Z \(depth\) stride must be 1"):
+        MicroSplitAlgorithm(
+            model=LVAEConfig(
+                architecture="LVAE",
+                input_shape=(64, 64, 64),
+                encoder_conv_strides=[2, 2, 2],
+                decoder_conv_strides=[2, 2, 2],
+                z_dims=[128, 128],
+            )
+        )
+
+
 def test_multiscale_count_out_of_range():
     """Test that multiscale count cannot exceed len(z_dims) + 1."""
     with pytest.raises(ValueError, match="Multiscale count"):

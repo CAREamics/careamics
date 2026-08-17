@@ -63,10 +63,9 @@ class LVAEConstraints:
 
         Each spatial dimension is downsampled once per hierarchy level (there are
         ``len(z_dims)`` levels) by its convolutional stride, so it must be divisible by
-        ``stride ** len(z_dims)``. Dimensions with a stride of 1 are unconstrained.
-        Shape must be of length 2 (YX) or 3 (ZYX). To validate
-        the channel dimension, use `validate_input_channels` or
-        `validate_target_channels` instead.
+        ``stride ** len(z_dims)``. In 3D models the Z (depth) stride is always 1. Shape
+        must be of length 2 (YX) or 3 (ZYX). To validate the channel dimension,
+        use `validate_input_channels` or `validate_target_channels` instead.
 
         Parameters
         ----------
