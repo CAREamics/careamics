@@ -541,7 +541,7 @@ class CAREamist:
     def _get_default_ckpt(self, checkpoint: str | Path | None) -> str | Path:
         """Get default checkpoint to use for prediction based on the algorithm.
 
-        The self-supervised algorithms do not have a well-defined "best" checkpoint
+        Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
         based on validation loss, therefore this method returns "last" for these
         algorithms and "best" for others.
 
@@ -560,7 +560,6 @@ class CAREamist:
         if self.config.algorithm_config.algorithm in [
             SupportedAlgorithm.N2V,
             SupportedAlgorithm.N2N,
-            SupportedAlgorithm.HDN,
         ]:
             if checkpoint == "best":
                 raise ValueError(
