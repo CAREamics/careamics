@@ -396,8 +396,8 @@ class HDNModule(L.LightningModule):
         )
         if std is None:
             return prediction, None
-        std = prediction._replace(data=std.cpu().numpy(), dtype="float32")
-        return prediction, std
+        uncertainty = prediction._replace(data=std.cpu().numpy())
+        return prediction, uncertainty
 
     def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]
         """Configure optimizer and learning rate scheduler.

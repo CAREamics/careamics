@@ -366,7 +366,7 @@ class MicroSplitModule(L.LightningModule):
         )
         if std is None:
             return prediction, None
-        uncertainty = prediction._replace(data=std.cpu().numpy(), dtype="float32")
+        uncertainty = prediction._replace(data=std.cpu().numpy())
         return prediction, uncertainty
 
     def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]

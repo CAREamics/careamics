@@ -11,6 +11,7 @@ import torch
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.lightning.modules.hdn_module import HDNModule
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
+from careamics.lightning.prediction import decollate_image_region_data
 
 SAMPLING_MODULES = [HDNModule, MicroSplitModule]
 
@@ -49,21 +50,25 @@ def _module_stub(module_cls, n_samples: int, output_channels: int = 1):
     return stub
 
 
-def _input_region(channels: int = 1) -> ImageRegionData:
-    """Provide a collated input batch of two 8x8 uint16 images."""
+def _input_region(channels: int = 1, batch_size: int = 2) -> ImageRegionData:
+    """Provide a collated input batch of 8x8 uint16 images.
+
+    Collation gives every per-item field a length `batch_size` entry, which is what
+    `decollate_image_region_data` indexes back apart.
+    """
+    per_item = lambda value: torch.full((batch_size,), value)  # noqa: E731
     return ImageRegionData(
-        data=torch.rand(2, channels, 8, 8),
-        source=["array", "array"],
-        data_shape=[torch.tensor([2]), torch.tensor([channels])]
-        + [torch.tensor([8])] * 2,
-        dtype=["uint16", "uint16"],
-        axes=["YX", "YX"],
-        original_data_shape=[torch.tensor([2])] + [torch.tensor([8])] * 2,
+        data=torch.rand(batch_size, channels, 8, 8),
+        source=["array"] * batch_size,
+        data_shape=[per_item(batch_size), per_item(channels), per_item(8), per_item(8)],
+        dtype=["uint16"] * batch_size,
+        axes=["YX"] * batch_size,
+        original_data_shape=[per_item(batch_size), per_item(8), per_item(8)],
         region_spec={
-            "data_idx": torch.tensor([0, 0]),
-            "sample_idx": torch.tensor([0, 1]),
+            "data_idx": torch.zeros(batch_size, dtype=torch.int64),
+            "sample_idx": torch.arange(batch_size),
         },
-        additional_metadata=[{}, {}],
+        additional_metadata={},
     )
 
 
@@ -93,14 +98,17 @@ def test_predict_step_returns_uncertainty_for_several_samples(module_cls):
 
 
 @pytest.mark.parametrize("module_cls", SAMPLING_MODULES)
-def test_predict_step_uncertainty_is_float(module_cls):
-    """The uncertainty is a float quantity, whatever the dtype of the input."""
+@pytest.mark.parametrize("batch_size", [2, 8])
+def test_predict_step_uncertainty_decollates(module_cls, batch_size):
+    """The uncertainty carries per-item metadata, so it survives decollation."""
     stub = _module_stub(module_cls, n_samples=3)
+    batch = _input_region(batch_size=batch_size)
 
-    prediction, uncertainty = module_cls.predict_step(stub, (_input_region(),), 0)
+    _, uncertainty = module_cls.predict_step(stub, (batch,), 0)
+    regions = decollate_image_region_data(uncertainty)
 
-    assert prediction.dtype == ["uint16", "uint16"]
-    assert uncertainty.dtype == "float32"
+    assert len(regions) == batch_size
+    assert all(region.data.shape == (1, 8, 8) for region in regions)
 
 
 @pytest.mark.parametrize("module_cls", SAMPLING_MODULES)
@@ -108,7 +116,9 @@ def test_predict_step_data_shape_follows_the_output_channels(module_cls):
     """`data_shape` describes the prediction, not the multi-channel input."""
     stub = _module_stub(module_cls, n_samples=3, output_channels=1)
 
-    prediction, uncertainty = module_cls.predict_step(stub, (_input_region(3),), 0)
+    batch = _input_region(channels=3, batch_size=2)
 
-    assert prediction.data_shape[1] == torch.tensor([1])
-    assert uncertainty.data_shape[1] == torch.tensor([1])
+    prediction, uncertainty = module_cls.predict_step(stub, (batch,), 0)
+
+    assert prediction.data_shape[1].tolist() == [1, 1]
+    assert uncertainty.data_shape[1].tolist() == [1, 1]
