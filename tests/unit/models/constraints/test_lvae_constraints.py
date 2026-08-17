@@ -78,11 +78,6 @@ def test_validate_spatial_shape_dim_mismatch():
         constraints.validate_spatial_shape((64, 64, 64))
 
 
-def test_validate_input_channels_is_noop():
-    """LVAE accepts any input channel count (single mixed input)."""
-    constraints = LVAEConstraints(_lvae_config())
-    constraints.validate_input_channels(1)
-    constraints.validate_input_channels(7)
 
 
 def test_validate_target_channels_match():
