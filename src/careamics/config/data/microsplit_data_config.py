@@ -6,7 +6,7 @@ from typing import Any, Literal, Self
 from pydantic import Field, model_validator
 
 from .data_config import DataConfig
-from .patching_strategies import SlidingWindowTiledPatchingConfig
+from .patching_strategies import SwitiPatchingConfig
 
 
 class MicroSplitDataConfig(DataConfig):
@@ -114,7 +114,7 @@ class MicroSplitDataConfig(DataConfig):
             # Guard above ensures new_patch_size and overlap_size are non-None.
             assert new_patch_size is not None
             assert overlap_size is not None
-            model_dict["patching"] = SlidingWindowTiledPatchingConfig(
+            model_dict["patching"] = SwitiPatchingConfig(
                 patch_size=list(new_patch_size),
                 overlaps=list(overlap_size),
                 stride=list(stride),

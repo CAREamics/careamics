@@ -7,7 +7,7 @@ from math import prod
 from .patch_specs import TileSpecs
 
 
-class SlidingWindowTiledPatching:
+class SwitiPatching:
     """Sliding-window inner-tiled patching with uniform per-pixel coverage.
 
     Iterates a single sliding-window grid of conceptual tile positions

@@ -6,15 +6,15 @@ from careamics.config.data.data_config import PatchingConfig
 from careamics.config.data.patching_strategies import (
     FixedRandomPatchingConfig,
     RandomPatchingConfig,
-    SlidingWindowTiledPatchingConfig,
     StratifiedPatchingConfig,
+    SwitiPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
 )
 
 from .patching import Patching
 from .random_patching import FixedRandomPatching, RandomPatching
-from .sliding_window_tiled_patching import SlidingWindowTiledPatching
+from .sliding_window_tiled_patching import SwitiPatching
 from .stratified_patching import StratifiedPatching
 from .tiled_patching import TiledPatching
 from .whole_sample_patching import WholeSamplePatching
@@ -67,7 +67,7 @@ def create_patching(
                 data_shapes=data_shapes,
                 **parameters,
             )
-        case SlidingWindowTiledPatchingConfig():
-            return SlidingWindowTiledPatching(data_shapes=data_shapes, **parameters)
+        case SwitiPatchingConfig():
+            return SwitiPatching(data_shapes=data_shapes, **parameters)
         case _:
             raise ValueError(f"Unsupported patching: {patching_config.name}")

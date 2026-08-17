@@ -8,7 +8,7 @@ import pytest
 import tifffile
 from numpy.typing import NDArray
 
-from careamics.config.data import MicroSplitDataConfig, SlidingWindowTiledPatchingConfig
+from careamics.config.data import MicroSplitDataConfig, SwitiPatchingConfig
 from careamics.dataset.factory import (
     IndependentTargets,
     MultiChannelTarget,
@@ -20,7 +20,7 @@ from careamics.dataset.image_stack import InMemoryImageStack
 from careamics.dataset.patch_constructor import PredMsPatchConstr
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import (
-    SlidingWindowTiledPatching,
+    SwitiPatching,
     WholeSamplePatching,
     is_tile_specs,
     is_uncorrelated_specs,
@@ -364,7 +364,7 @@ def _pred_sliding_window_config(
         mode="predicting",
         data_type="array",
         axes="SCYX",
-        patching=SlidingWindowTiledPatchingConfig(
+        patching=SwitiPatchingConfig(
             patch_size=list(patch_size),
             overlaps=list(overlaps),
             stride=list(stride),
@@ -395,7 +395,7 @@ def test_microsplit_pred_factory_with_sliding_window_tiled(multiscale_count: int
     dataset = create_microsplit_pred_dataset(config=config, input_data=[image])
 
     # n_patches matches what SlidingWindowTiledPatching reports.
-    sw_patching = SlidingWindowTiledPatching(
+    sw_patching = SwitiPatching(
         data_shapes=[image.shape],
         patch_size=list(patch_size),
         overlaps=list(overlaps),
@@ -440,7 +440,7 @@ def test_microsplit_convert_mode_stride_builds_sliding_window_config():
 
     assert isinstance(pred_config, MicroSplitDataConfig)
     assert pred_config.mode == "predicting"
-    assert isinstance(pred_config.patching, SlidingWindowTiledPatchingConfig)
+    assert isinstance(pred_config.patching, SwitiPatchingConfig)
     assert list(pred_config.patching.stride) == [4, 4]
     assert list(pred_config.patching.patch_size) == [16, 16]
     assert list(pred_config.patching.overlaps) == [8, 8]
