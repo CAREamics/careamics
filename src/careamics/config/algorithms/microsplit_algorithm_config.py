@@ -12,9 +12,8 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.losses.loss_config import MicroSplitLossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-from careamics.config.support import SupportedLoss
 from careamics.config.validators import (
     at_least_one_likelihood,
     lvae_conv_strides_valid,
@@ -51,10 +50,10 @@ class MicroSplitAlgorithm(BaseModel):
     algorithm: Literal["microsplit"] = "microsplit"
 
     loss: Annotated[
-        LVAELossConfig,
+        MicroSplitLossConfig,
         AfterValidator(at_least_one_likelihood),
         AfterValidator(predict_logvar_required_for_musplit),
-    ] = LVAELossConfig(loss_type="microsplit")
+    ] = MicroSplitLossConfig()
 
     model: Annotated[
         LVAEConfig,
@@ -88,16 +87,11 @@ class MicroSplitAlgorithm(BaseModel):
             If the loss, model or noise model configurations are not compatible
             with the MicroSplit algorithm.
         """
-        if self.loss.loss_type != SupportedLoss.MICROSPLIT:
-            raise ValueError(
-                f"Algorithm {self.algorithm} only supports loss `microsplit`."
-            )
-
         # Remind users to attach a noise model when using denoiSplit
-        if self.loss.denoisplit_weight > 0 and self.noise_model is None:
+        if self.loss.noise_model_likelihood_weight > 0 and self.noise_model is None:
             warnings.warn(
-                "denoisplit_weight > 0 but no noise_model is provided in the "
-                "configuration. A noise model is required for denoiSplit training. "
+                "noise_model_likelihood_weight > 0 but no noise_model is provided in "
+                "the configuration. A noise model is required for denoiSplit training. "
                 "Train one with NoiseModelTrainer, then pass the result to "
                 "create_microsplit_config(noise_model=trainer.get_config()) "
                 "before training.",
@@ -106,10 +100,14 @@ class MicroSplitAlgorithm(BaseModel):
             )
 
         # Warn about a noise model that will never be used
-        if self.noise_model is not None and self.loss.denoisplit_weight == 0:
+        if (
+            self.noise_model is not None
+            and self.loss.noise_model_likelihood_weight == 0
+        ):
             warnings.warn(
-                "A noise_model is provided but denoisplit_weight is 0, so the noise "
-                "model likelihood is disabled and the noise model will not be used.",
+                "A noise_model is provided but noise_model_likelihood_weight is 0, so "
+                "the noise model likelihood is disabled and the noise model will not "
+                "be used.",
                 UserWarning,
                 stacklevel=2,
             )
