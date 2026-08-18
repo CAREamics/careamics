@@ -127,8 +127,7 @@ class TestMicroSplitConfig:
             )
         model = config.algorithm_config.model
         assert model.z_dims == [128, 128]
-        assert model.encoder_n_filters == 32
-        assert model.decoder_n_filters == 32
+        assert model.n_filters == 32
 
     def test_model_params_override(self):
         """Test that model_params overrides defaults but not structural params."""
@@ -141,11 +140,11 @@ class TestMicroSplitConfig:
                 batch_size=8,
                 output_channels=2,
                 multiscale_count=3,
-                model_params={"encoder_n_filters": 64, "encoder_dropout": 0.2},
+                model_params={"n_filters": 64, "encoder_dropout": 0.2},
             )
         model = config.algorithm_config.model
         # user override wins over the default
-        assert model.encoder_n_filters == 64
+        assert model.n_filters == 64
         assert model.encoder_dropout == 0.2
         # structural params still come from the dedicated arguments
         assert model.output_channels == 2

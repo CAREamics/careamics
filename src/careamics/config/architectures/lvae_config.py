@@ -29,8 +29,7 @@ class LVAEConfig(ArchitectureConfig):
     # 1 - off, len(z_dims) + 1 # TODO Consider starting from 0
     z_dims: list = Field(default=[128, 128, 128, 128])
     output_channels: int = Field(default=1, ge=1)
-    encoder_n_filters: int = Field(default=64, ge=8, le=1024)
-    decoder_n_filters: int = Field(default=64, ge=8, le=1024)
+    n_filters: int = Field(default=64, ge=8, le=1024)
     encoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9)
     decoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9)
     encoder_blocks_per_layer: int = Field(default=1, ge=1)
@@ -87,15 +86,15 @@ class LVAEConfig(ArchitectureConfig):
 
         return input_shape
 
-    @field_validator("encoder_n_filters")
+    @field_validator("n_filters")
     @classmethod
-    def validate_encoder_even(cls, encoder_n_filters: int) -> int:
+    def validate_n_filters_even(cls, n_filters: int) -> int:
         """
         Validate that num_channels_init is even.
 
         Parameters
         ----------
-        encoder_n_filters : int
+        n_filters : int
             Number of channels.
 
         Returns
@@ -109,43 +108,13 @@ class LVAEConfig(ArchitectureConfig):
             If the number of channels is odd.
         """
         # if odd
-        if encoder_n_filters % 2 != 0:
+        if n_filters % 2 != 0:
             raise ValueError(
                 f"Number of channels for the bottom layer must be even"
-                f" (got {encoder_n_filters})."
+                f" (got {n_filters})."
             )
 
-        return encoder_n_filters
-
-    @field_validator("decoder_n_filters")
-    @classmethod
-    def validate_decoder_even(cls, decoder_n_filters: int) -> int:
-        """
-        Validate that num_channels_init is even.
-
-        Parameters
-        ----------
-        decoder_n_filters : int
-            Number of channels.
-
-        Returns
-        -------
-        int
-            Validated number of channels.
-
-        Raises
-        ------
-        ValueError
-            If the number of channels is odd.
-        """
-        # if odd
-        if decoder_n_filters % 2 != 0:
-            raise ValueError(
-                f"Number of channels for the bottom layer must be even"
-                f" (got {decoder_n_filters})."
-            )
-
-        return decoder_n_filters
+        return n_filters
 
     @field_validator("z_dims")
     def validate_z_dims(cls, z_dims: tuple) -> tuple:
