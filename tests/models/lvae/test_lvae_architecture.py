@@ -60,7 +60,7 @@ def test_first_bottom_up(
     first_bottom_up = model.first_bottom_up
     inputs = torch.ones((1, *img_size))
     output = first_bottom_up(inputs)
-    assert output.shape == (1, model.encoder_n_filters, *img_size[1:])
+    assert output.shape == (1, model.n_filters, *img_size[1:])
 
 
 @pytest.mark.skip(reason="Needs to be updated")
@@ -105,7 +105,7 @@ def test_bottom_up_layers(
     )
     bottom_up_layers = model.bottom_up_layers
     assert len(bottom_up_layers) == len(z_dims)
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     downscale_factor = [2 for _ in model.image_size[-2:]]
     if len(model.image_size) == 4:
         downscale_factor.insert(0, 1)
@@ -199,7 +199,7 @@ def test_bottom_up_pass(
         assert bottom_up_layers[i].lowres_net is not None, "Missing lowres_net"
 
     img_size = model.image_size
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     inputs = torch.ones((1, *img_size))
     outputs = model.bottomup_pass(inputs)
     exp_img_size = img_size
@@ -222,7 +222,7 @@ def test_topmost_top_down_layer(
         multiscale_count=multiscale_count,
     )
     topmost_top_down = model.top_down_layers[-1]
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
 
     downscaling = 2 ** (model.n_layers + 1 - multiscale_count)
     downscaled_size = img_size // downscaling
@@ -271,7 +271,7 @@ def test_all_top_down_layers(
         decoder_conv_strides=decoder_conv_stride,
     )
     top_down_layers = model.top_down_layers
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     downscaling = 2 ** (model.n_layers + 1 - multiscale_count)
     downscaled_size = [img_sz // downscaling for img_sz in img_size[-2:]]
     if len(img_size) == 4:
@@ -317,7 +317,7 @@ def test_final_top_down(
         multiscale_count=multiscale_count,
     )
     final_top_down = model.final_top_down
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     final_upsampling = not model.no_initial_downscaling
     inp_size = img_size // 2 if final_upsampling else img_size
     inputs = torch.ones((1, n_filters, inp_size, inp_size))
@@ -340,7 +340,7 @@ def test_top_down_pass(
     )
     top_down_layers = model.top_down_layers
     final_top_down = model.final_top_down
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     n_layers = model.n_layers
 
     # Compute the bu_values for all the layers
@@ -385,7 +385,7 @@ def test_KL_shape(
     )
     top_down_layers = model.top_down_layers
     final_top_down = model.final_top_down
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     n_layers = model.n_layers
 
     # Compute the bu_values for all the layers
@@ -443,7 +443,7 @@ def test_output_layer(
         output_channels=output_channels,
     )
     out_layer = model.output_layer
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     input_ = torch.ones((1, n_filters, img_size, img_size))
     output = out_layer(input_)
 
