@@ -30,6 +30,7 @@ TIFF files in the directory will be used for training.
 
 The CZI format is used by Zeiss microscopes, and has constraints on the axes that should
 be specified:
+
 - `S`, `C`, `Y` and `X` are always present and in this order. Even in the absence of
 channels, the `C` axis should be present.
 - If `T` or `Z` is specified (`axes=SCTYX` or `axes=SCZYX`), then they will be used

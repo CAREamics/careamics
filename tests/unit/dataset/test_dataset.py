@@ -8,8 +8,8 @@ from careamics.dataset.dataset import (
     _adjust_shape_for_channels,
     _patch_size_within_data_shapes,
     _shapes_all_equal,
-    _validate_shapes_against_mode,
     _validate_shapes_against_model,
+    _validate_shapes_against_patching,
 )
 from tests.utils import data_config_dict_testing
 
@@ -231,4 +231,4 @@ def test_validate_shapes_against_mode(
 
     data_shapes = [(1, 1, 128, 128), (1, 1, 128, size)]
     with exp_error:
-        _validate_shapes_against_mode(config, data_shapes)
+        _validate_shapes_against_patching(config, data_shapes)

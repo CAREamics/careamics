@@ -717,6 +717,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -741,6 +742,9 @@ class CAREamist:
             Tile overlap for prediction. If None, defaults to (48, 48).
         axes : str | None, default=None
             Axes for prediction. If None, uses training configuration axes.
+        target_axes : str | None, default=None
+            Axes for prediction target data. If None, uses target axes from the training
+            configuration.
         data_type : {"array", "tiff", "zarr", "czi", "custom"} | None, default=None
             Data type for prediction. If None, uses training configuration data type.
         num_workers : int | None, default=None
@@ -775,6 +779,7 @@ class CAREamist:
             new_data_type=data_type,
             new_dataloader_params=dataloader_params,
             new_axes=axes,
+            new_target_axes=target_axes,
             new_channels=channels,
             new_in_memory=in_memory,
         )

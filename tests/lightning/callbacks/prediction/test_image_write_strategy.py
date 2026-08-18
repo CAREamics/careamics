@@ -68,6 +68,8 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
             data_shape=array.shape,
             dtype=np.float32,
             axes="SYX",  # axes describes the full dataset, not individual sample
+            target_axes="SYX",
+            original_data_shape=array.shape,
             region_spec={
                 "data_idx": 0,
                 "sample_idx": i,
@@ -75,7 +77,6 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
                 "patch_size": (8, 8),
             },
             additional_metadata={},
-            original_data_shape=array.shape,
         )
         for i in range(array.shape[0])
     ]
