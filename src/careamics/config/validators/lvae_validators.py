@@ -157,6 +157,12 @@ def lvae_conv_strides_valid(model: LVAEConfig) -> LVAEConfig:
             f"All strides must be greater or equal to 1 (got "
             f"{model.encoder_conv_strides} and {model.decoder_conv_strides})."
         )
+    # Z (depth) is never downsampled
+    if len(model.encoder_conv_strides) == 3 and model.encoder_conv_strides[0] != 1:
+        raise ValueError(
+            f"Z (depth) stride must be 1 for 3D LVAE models, got "
+            f"{model.encoder_conv_strides}."
+        )
     return model
 
 

@@ -5,7 +5,6 @@ from typing import Any, Literal
 
 from careamics.config.algorithms import MicroSplitAlgorithm
 from careamics.config.architectures import LVAEConfig
-from careamics.config.augmentations import XYFlipConfig, XYRandomRotate90Config
 from careamics.config.data import MicroSplitDataConfig
 from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
@@ -15,7 +14,8 @@ from careamics.config.losses.loss_config import MicroSplitLossConfig
 from careamics.config.microsplit_configuration import MicroSplitConfiguration
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
-from .data_factory import create_data_configuration, list_spatial_augmentations
+from .data_factory import create_data_configuration
+from .factory_utils import assemble_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
 
 
@@ -162,7 +162,7 @@ def create_advanced_microsplit_config(
         Probability of sampling uncorrelated channels for synthetic inputs.
     model_params : dict or None, default=None
         LVAE model parameters overriding the MicroSplit defaults (`z_dims=[128, 128]`,
-        `encoder_n_filters=32`, `decoder_n_filters=32`, `encoder_dropout=0.1`,
+        `n_filters=32`, `encoder_dropout=0.1`,
         `decoder_dropout=0.1`). Structural parameters
         (`architecture`, `input_shape`, `output_channels`, `multiscale_count`,
         `encoder_conv_strides`, `decoder_conv_strides`, `predict_logvar`) are set from
@@ -231,8 +231,7 @@ def create_advanced_microsplit_config(
     # while structural parameters (set below) always take precedence.
     lvae_params: dict[str, Any] = {
         "z_dims": [128, 128],
-        "encoder_n_filters": 32,
-        "decoder_n_filters": 32,
+        "n_filters": 32,
         "encoder_dropout": 0.1,
         "decoder_dropout": 0.1,
         **(model_params or {}),
@@ -267,27 +266,12 @@ def create_advanced_microsplit_config(
     if normalization_params is not None:
         norm_config.update(normalization_params)
 
-    # TODO refactor when #1005 will be merged
-    augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None
-    if augmentations is not None:
-        augs = []
-        if "x_flip" in augmentations or "y_flip" in augmentations:
-            augs.append(
-                XYFlipConfig(
-                    flip_x="x_flip" in augmentations,
-                    flip_y="y_flip" in augmentations,
-                    seed=seed,
-                )
-            )
-        if "rotate_90" in augmentations:
-            augs.append(XYRandomRotate90Config(seed=seed))
-
     base_data_config = create_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        augmentations=list_spatial_augmentations(augs),
+        augmentations=assemble_augmentations(augmentations, seed),
         normalization=norm_config,
         channels=channels,
         in_memory=in_memory,
