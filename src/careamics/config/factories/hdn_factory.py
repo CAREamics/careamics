@@ -146,7 +146,7 @@ def create_advanced_hdn_config(
         Number of target channels (HDN uses 1).
     model_params : dict or None, default=None
         LVAE model parameters overriding the HDN defaults (`z_dims=[128, 128]`,
-        `encoder_n_filters=32`, `decoder_n_filters=32`, `encoder_dropout=0.0`,
+        `n_filters=32`, `encoder_dropout=0.0`,
         `decoder_dropout=0.0`, `nonlinearity="ReLU"`). Structural
         parameters (`architecture`, `input_shape`, `output_channels`,
         `multiscale_count`, `encoder_conv_strides`, `decoder_conv_strides`,
@@ -205,8 +205,7 @@ def create_advanced_hdn_config(
     # structural parameters (set below) always take precedence.
     lvae_params: dict[str, Any] = {
         "z_dims": [128, 128],
-        "encoder_n_filters": 32,
-        "decoder_n_filters": 32,
+        "n_filters": 32,
         "encoder_dropout": 0.0,
         "decoder_dropout": 0.0,
         "nonlinearity": "ReLU",
