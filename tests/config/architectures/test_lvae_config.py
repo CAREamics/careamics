@@ -26,28 +26,13 @@ def test_architecture_missing():
         LVAEConfig(**model_params)
 
 
-@pytest.mark.parametrize("encoder_n_filters", [8, 16, 32, 96, 128])
-def test_encoder_n_filters(encoder_n_filters: int):
+@pytest.mark.parametrize("n_filters", [8, 16, 32, 96, 128])
+def test_n_filters(n_filters: int):
     """Test that LVAEModel accepts num_channels_init as an even number and
     minimum 8."""
     model_params = {
         "architecture": "LVAE",
-        "encoder_n_filters": encoder_n_filters,
-        "decoder_n_filters": encoder_n_filters,
-    }
-
-    # instantiate model
-    LVAEConfig(**model_params)
-
-
-@pytest.mark.parametrize("decoder_n_filters", [8, 16, 32, 96, 128])
-def test_decoder_n_filters(decoder_n_filters: int):
-    """Test that LVAEModel accepts num_channels_init as an even number and
-    minimum 8."""
-    model_params = {
-        "architecture": "LVAE",
-        "encoder_n_filters": decoder_n_filters,
-        "decoder_n_filters": decoder_n_filters,
+        "n_filters": n_filters,
     }
 
     # instantiate model
@@ -57,11 +42,7 @@ def test_decoder_n_filters(decoder_n_filters: int):
 @pytest.mark.parametrize("n_filters", [2, 17, 127])
 def test_wrong_num_filters(n_filters: int):
     """Test that wrong num_channels_init causes an error."""
-    model_params = {"architecture": "LVAE", "encoder_n_filters": n_filters}
-    with pytest.raises(ValueError):
-        LVAEConfig(**model_params)
-
-    model_params = {"architecture": "LVAE", "decoder_n_filters": n_filters}
+    model_params = {"architecture": "LVAE", "n_filters": n_filters}
     with pytest.raises(ValueError):
         LVAEConfig(**model_params)
 
@@ -108,8 +89,7 @@ def test_parameters_wrong_values_by_assigment():
         "architecture": "LVAE",
         "z_dims": (128, 128, 128),
         "multiscale_count": 2,
-        "encoder_n_filters": 32,
-        "decoder_n_filters": 32,
+        "n_filters": 32,
     }
     model = LVAEConfig(**model_params)
 
@@ -118,7 +98,7 @@ def test_parameters_wrong_values_by_assigment():
     with pytest.raises(ValueError):
         model.depth = -1
 
-    # number of channels in the encoder
-    model.encoder_n_filters = model_params["encoder_n_filters"]
+    # number of channels
+    model.n_filters = model_params["n_filters"]
     with pytest.raises(ValueError):
-        model.encoder_n_filters = 2
+        model.n_filters = 2
