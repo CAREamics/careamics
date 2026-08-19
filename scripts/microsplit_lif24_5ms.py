@@ -79,7 +79,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 # Fixed model / trainer knobs (never varied between experiments)
 Z_DIMS = [128] * 4
-N_FILTERS = 64   # post PR #1049: single field, applies to both encoder and decoder
+N_FILTERS = 64  # post PR #1049: single field, applies to both encoder and decoder
 MULTISCALE_COUNT = 3
 OUTPUT_CHANNELS = len(CH_IDX_LIST) - 1  # 2
 MMSE_COUNT = 1
@@ -657,8 +657,12 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--n2v-num-epochs", type=int, default=10)
-    parser.add_argument("--mmse-count", type=int, default=MMSE_COUNT,
-                        help="Number of posterior samples averaged at predict time (MMSE).")
+    parser.add_argument(
+        "--mmse-count",
+        type=int,
+        default=MMSE_COUNT,
+        help="Number of posterior samples averaged at predict time (MMSE).",
+    )
 
     # noise model
     parser.add_argument(

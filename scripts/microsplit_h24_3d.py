@@ -82,7 +82,7 @@ PATCH_SIZE = (9, 64, 64)
 ENCODER_CONV_STRIDES = [1, 2, 2]
 DECODER_CONV_STRIDES = [1, 2, 2]
 Z_DIMS = [128] * 4
-N_FILTERS = 64   # post PR #1049: single field, applies to both encoder and decoder
+N_FILTERS = 64  # post PR #1049: single field, applies to both encoder and decoder
 MULTISCALE_COUNT = 1
 OUTPUT_CHANNELS = len(CH_IDX_LIST)  # 2
 MMSE_COUNT = 1
@@ -340,8 +340,12 @@ def fit_noise_models(
 
 
 def build_microsplit_config(
-    experiment_name: str, nm_paths: Optional[list[Path]],
-    num_epochs: int, batch_size: int, num_workers: int, use_wandb: bool,
+    experiment_name: str,
+    nm_paths: Optional[list[Path]],
+    num_epochs: int,
+    batch_size: int,
+    num_workers: int,
+    use_wandb: bool,
     seed: int,
     mmse_count: int = MMSE_COUNT,
 ) -> Any:
@@ -359,7 +363,8 @@ def build_microsplit_config(
         patch_size=PATCH_SIZE,
         output_channels=OUTPUT_CHANNELS,
         multiscale_count=MULTISCALE_COUNT,
-        batch_size=batch_size, num_epochs=num_epochs,
+        batch_size=batch_size,
+        num_epochs=num_epochs,
         mmse_count=mmse_count,
         noise_model=nm_config,
         musplit_weight=musplit_w,
@@ -655,12 +660,26 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--n2v-num-epochs", type=int, default=10)
-    parser.add_argument("--mmse-count", type=int, default=MMSE_COUNT,
-                        help="Number of posterior samples averaged at predict time (MMSE).")
-    parser.add_argument("--n2v-predict-tile-size", nargs=3, type=int,
-                        default=list(N2V_PREDICT_TILE_SIZE), metavar=("Z", "Y", "X"))
-    parser.add_argument("--n2v-predict-tile-overlap", nargs=3, type=int,
-                        default=list(N2V_PREDICT_TILE_OVERLAP), metavar=("Z", "Y", "X"))
+    parser.add_argument(
+        "--mmse-count",
+        type=int,
+        default=MMSE_COUNT,
+        help="Number of posterior samples averaged at predict time (MMSE).",
+    )
+    parser.add_argument(
+        "--n2v-predict-tile-size",
+        nargs=3,
+        type=int,
+        default=list(N2V_PREDICT_TILE_SIZE),
+        metavar=("Z", "Y", "X"),
+    )
+    parser.add_argument(
+        "--n2v-predict-tile-overlap",
+        nargs=3,
+        type=int,
+        default=list(N2V_PREDICT_TILE_OVERLAP),
+        metavar=("Z", "Y", "X"),
+    )
 
     parser.add_argument(
         "--noise-model-paths",
