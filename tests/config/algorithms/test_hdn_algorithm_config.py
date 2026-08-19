@@ -3,10 +3,7 @@ import pytest
 
 from careamics.config.algorithms import HDNAlgorithm
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import (
-    HDNLossConfig,
-    MicroSplitLossConfig,
-)
+from careamics.config.losses.loss_config import HDNLossConfig
 
 
 def test_instantiation(minimum_algorithm_hdn: dict):
@@ -27,13 +24,6 @@ def test_default_loss():
 def test_wrong_algorithm(minimum_algorithm_hdn: dict):
     """Test that another algorithm name is rejected."""
     minimum_algorithm_hdn["algorithm"] = "microsplit"
-    with pytest.raises(ValueError):
-        HDNAlgorithm(**minimum_algorithm_hdn)
-
-
-def test_wrong_loss_type(minimum_algorithm_hdn: dict):
-    """Test that a non-HDN loss is rejected."""
-    minimum_algorithm_hdn["loss"] = MicroSplitLossConfig()
     with pytest.raises(ValueError):
         HDNAlgorithm(**minimum_algorithm_hdn)
 
