@@ -49,9 +49,9 @@ def train_noise_model(image_size, max_value, noise_scale):
 def test_plot_loss_empty_dict():
     """Test plotting an empty loss dict."""
     loss_dict = {}
-    with pytest.raises(AssertionError) as ex_info:
+    with pytest.raises(ValueError) as ex_info:
         plot_loss(loss_dict)
-    assert ex_info.type is AssertionError
+    assert ex_info.type is ValueError
 
 
 def test_plot_loss(tmp_path: Path):
