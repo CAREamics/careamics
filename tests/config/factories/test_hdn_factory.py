@@ -126,7 +126,7 @@ class TestHDNConfig:
         model = config.algorithm_config.model
         assert model.nonlinearity == "ReLU"
         assert model.encoder_dropout == 0.0
-        assert model.encoder_n_filters == 32
+        assert model.n_filters == 32
 
     def test_model_params_override(self):
         """Test that model_params overrides the HDN defaults."""
@@ -136,8 +136,8 @@ class TestHDNConfig:
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            model_params={"nonlinearity": "ELU", "encoder_n_filters": 64},
+            model_params={"nonlinearity": "ELU", "n_filters": 64},
         )
         model = config.algorithm_config.model
         assert model.nonlinearity == "ELU"
-        assert model.encoder_n_filters == 64
+        assert model.n_filters == 64

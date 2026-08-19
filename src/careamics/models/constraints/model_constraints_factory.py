@@ -7,7 +7,9 @@ from .model_constraints import ModelConstraints
 from .unet_constraints import UNetConstraints
 
 
-def get_model_constraints(model_config: UNetConfig | LVAEConfig) -> ModelConstraints:
+def get_model_constraints(
+    model_config: UNetConfig | LVAEConfig,
+) -> ModelConstraints:
     """Get the model constraints for the given model configuration.
 
     Parameters

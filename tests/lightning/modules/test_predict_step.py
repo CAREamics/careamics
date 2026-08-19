@@ -63,6 +63,7 @@ def _input_region(channels: int = 1, batch_size: int = 2) -> ImageRegionData:
         data_shape=[per_item(batch_size), per_item(channels), per_item(8), per_item(8)],
         dtype=["uint16"] * batch_size,
         axes=["YX"] * batch_size,
+        target_axes=["YX"] * batch_size,
         original_data_shape=[per_item(batch_size), per_item(8), per_item(8)],
         region_spec={
             "data_idx": torch.zeros(batch_size, dtype=torch.int64),
