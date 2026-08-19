@@ -10,7 +10,7 @@ import torch
 from careamics.losses.lvae.loss_utils import free_bits_kl
 
 if TYPE_CHECKING:
-    from careamics.config import LVAELossConfig, MicroSplitLossConfig
+    from careamics.config import HDNLossConfig, MicroSplitLossConfig
     from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 
 
@@ -220,7 +220,7 @@ def get_kl_divergence_loss(
 def hdn_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
-    config: LVAELossConfig,
+    config: HDNLossConfig,
     noise_model: MultiChannelNoiseModel | None = None,
 ) -> dict[str, torch.Tensor] | None:
     """Loss function for HDN.
@@ -233,7 +233,7 @@ def hdn_loss(
     targets : torch.Tensor
         The target image used to compute the reconstruction loss. In this case we use
         the input patch itself as target. Shape is (B, `target_ch`, [Z], Y, X).
-    config : LVAELossConfig
+    config : HDNLossConfig
         The config for loss function containing all loss hyperparameters.
     noise_model : MultiChannelNoiseModel | None, optional
         The noise model, already normalized into the network's data space (see
