@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import LVAELossConfig, MicroSplitLossConfig
+from careamics.config.losses.loss_config import LVAELossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
 
@@ -261,70 +261,6 @@ def lvae_depth_valid(model: LVAEConfig) -> LVAEConfig:
                 f"{model.input_shape[0]} in input shape {tuple(model.input_shape)}."
             )
     return model
-
-
-def at_least_one_likelihood(loss: MicroSplitLossConfig) -> MicroSplitLossConfig:
-    """Validate that at least one likelihood term is active.
-
-    The reconstruction likelihood is a weighted sum of the Gaussian (muSplit) and
-    noise-model (denoiSplit) terms; if both weights are 0 there is no data term.
-
-    Parameters
-    ----------
-    loss : MicroSplitLossConfig
-        Loss configuration.
-
-    Returns
-    -------
-    MicroSplitLossConfig
-        The validated loss configuration.
-
-    Raises
-    ------
-    ValueError
-        If both `gaussian_likelihood_weight` and `noise_model_likelihood_weight` are 0.
-    """
-    if loss.gaussian_likelihood_weight == 0 and loss.noise_model_likelihood_weight == 0:
-        raise ValueError(
-            "At least one of `gaussian_likelihood_weight` or "
-            "`noise_model_likelihood_weight` must be greater than 0; both are 0 so no "
-            "likelihood term is active."
-        )
-    return loss
-
-
-def predict_logvar_required_for_musplit(
-    loss: MicroSplitLossConfig,
-) -> MicroSplitLossConfig:
-    """Validate that `predict_logvar` is enabled when the muSplit likelihood is active.
-
-    The Gaussian (muSplit) likelihood consumes the pixelwise predicted log-variance, so
-    `predict_logvar` must be ``True`` whenever `gaussian_likelihood_weight` > 0. This
-    mirrors the runtime check in the LVAE loss, surfaced here at configuration time.
-    Pure denoiSplit (`gaussian_likelihood_weight` == 0) may use either value.
-
-    Parameters
-    ----------
-    loss : MicroSplitLossConfig
-        Loss configuration.
-
-    Returns
-    -------
-    MicroSplitLossConfig
-        The validated loss configuration.
-
-    Raises
-    ------
-    ValueError
-        If `gaussian_likelihood_weight` > 0 but `predict_logvar` is False.
-    """
-    if loss.gaussian_likelihood_weight > 0 and not loss.predict_logvar:
-        raise ValueError(
-            "`predict_logvar` must be True when the muSplit Gaussian likelihood is "
-            f"active (`gaussian_likelihood_weight` > 0, got "
-            f"{loss.gaussian_likelihood_weight})."
-        )
-    return loss
 
 
 def multiscale_counts_match(model: LVAEConfig, data: MicroSplitDataConfig) -> None:

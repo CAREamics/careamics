@@ -15,14 +15,12 @@ from careamics.config.lightning.optimizer_configs import (
 from careamics.config.losses.loss_config import MicroSplitLossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.config.validators import (
-    at_least_one_likelihood,
     lvae_conv_strides_valid,
     lvae_depth_valid,
     lvae_multiscale_count_valid,
     lvae_spatial_shape_valid,
     noise_models_match_output_channels,
     predict_logvar_consistent,
-    predict_logvar_required_for_musplit,
 )
 
 MICROSPLIT = "MicroSplit"
@@ -49,11 +47,7 @@ class MicroSplitAlgorithm(BaseModel):
 
     algorithm: Literal["microsplit"] = "microsplit"
 
-    loss: Annotated[
-        MicroSplitLossConfig,
-        AfterValidator(at_least_one_likelihood),
-        AfterValidator(predict_logvar_required_for_musplit),
-    ] = MicroSplitLossConfig()
+    loss: MicroSplitLossConfig = MicroSplitLossConfig()
 
     model: Annotated[
         LVAEConfig,

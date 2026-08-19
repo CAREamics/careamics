@@ -341,11 +341,7 @@ def microsplit_loss(
     gaussian_weight = config.gaussian_likelihood_weight
     nm_weight = config.noise_model_likelihood_weight
 
-    if gaussian_weight > 0 and not config.predict_logvar:
-        raise ValueError(
-            "predict_logvar must be True in config when "
-            "gaussian_likelihood_weight > 0"
-        )
+    # predict_logvar/gaussian_weight consistency is validated on MicroSplitLossConfig.
     if nm_weight > 0 and noise_model is None:
         raise ValueError("noise_model required when noise_model_likelihood_weight > 0")
     recons_loss: torch.Tensor | float = 0.0

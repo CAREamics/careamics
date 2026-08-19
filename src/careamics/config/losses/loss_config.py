@@ -1,8 +1,8 @@
 """Configuration classes for LVAE losses."""
 
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class LVAELossConfig(BaseModel):
@@ -54,3 +54,59 @@ class MicroSplitLossConfig(LVAELossConfig):
     """Weight for the Gaussian likelihood term. Set to 0 to disable."""
     noise_model_likelihood_weight: float = Field(default=0.9, ge=0.0)
     """Weight for the noise model likelihood term. Set to 0 to disable."""
+
+    @model_validator(mode="after")
+    def at_least_one_term(self: Self) -> Self:
+        """Validate that at least one likelihood term is active.
+
+        The reconstruction likelihood is a weighted sum of the Gaussian (muSplit) and
+        noise-model (denoiSplit) terms; if both weights are 0 there is no data term.
+
+        Returns
+        -------
+        Self
+            The validated loss configuration.
+
+        Raises
+        ------
+        ValueError
+            If both `gaussian_likelihood_weight` and `noise_model_likelihood_weight`
+            are 0.
+        """
+        if (
+            self.gaussian_likelihood_weight == 0
+            and self.noise_model_likelihood_weight == 0
+        ):
+            raise ValueError(
+                "At least one of `gaussian_likelihood_weight` or "
+                "`noise_model_likelihood_weight` must be greater than 0; both are 0 so "
+                "no likelihood term is active."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def predict_logvar_required_for_musplit(self: Self) -> Self:
+        """Validate that `predict_logvar` is on when the muSplit likelihood is active.
+
+        The Gaussian (muSplit) likelihood consumes the pixelwise predicted log-variance,
+        so `predict_logvar` must be ``True`` whenever `gaussian_likelihood_weight` > 0.
+        This mirrors the runtime check in the LVAE loss, surfaced here at configuration
+        time. Pure denoiSplit (`gaussian_likelihood_weight` == 0) may use either value.
+
+        Returns
+        -------
+        Self
+            The validated loss configuration.
+
+        Raises
+        ------
+        ValueError
+            If `gaussian_likelihood_weight` > 0 but `predict_logvar` is False.
+        """
+        if self.gaussian_likelihood_weight > 0 and not self.predict_logvar:
+            raise ValueError(
+                "`predict_logvar` must be True when the muSplit Gaussian likelihood is "
+                f"active (`gaussian_likelihood_weight` > 0, got "
+                f"{self.gaussian_likelihood_weight})."
+            )
+        return self
