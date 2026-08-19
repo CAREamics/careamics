@@ -27,7 +27,9 @@ def plot_loss(
     save_path : Path | str | None, optional
         Path to save the figure. If None, the figure will not be saved. Default is None.
     """
-    assert "train_loss" in loss_dict, "train_loss key is missing in losses_dict."
+    if "train_loss" not in loss_dict:
+        raise ValueError("train_loss key is missing in losses_dict.")
+
     train_loss = loss_dict["train_loss"]
     train_epoch = loss_dict.get("train_epoch", np.arange(len(train_loss)))
     val_loss = loss_dict.get("val_loss")
@@ -42,6 +44,8 @@ def plot_loss(
     ax.legend()
     ax.grid(alpha=0.35)
     ax.set_title("Losses")
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("loss")
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     # check for saving the figure as an image

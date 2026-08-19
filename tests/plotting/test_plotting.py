@@ -10,6 +10,7 @@ from careamics.models.lvae.noise_models import (
     create_histogram,
 )
 from careamics.plotting import (
+    plot_autocorrelation,
     plot_loss,
     plot_noise_model_distribution,
     plot_noise_residuals,
@@ -90,3 +91,14 @@ def test_plot_residuals(tmp_path: Path):
         plot_noise_residuals(image, noisy, save_path=tmp_path)
     assert show_patch.called
     assert (tmp_path / "noise_residuals.png").exists()
+
+
+def test_plot_autocorrelation(tmp_path: Path):
+    """Test plotting autocorrelation image."""
+    image = np.random.rand(64, 64)
+    noisy = image + np.random.randn(64, 64)
+
+    with patch("matplotlib.pyplot.show") as show_patch:
+        plot_autocorrelation(noisy, save_path=tmp_path)
+    assert show_patch.called
+    assert (tmp_path / "autocorrelation.png").exists()
