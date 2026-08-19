@@ -17,6 +17,8 @@ class LVAELossConfig(BaseModel):
         validate_assignment=True, validate_default=True, arbitrary_types_allowed=True
     )
 
+    loss_type: str
+    """Type of loss to use with the LVAE architecture."""
     reconstruction_weight: float = Field(default=1.0, ge=0.0)
     """Weight for the reconstruction loss in the total net loss
     (i.e., `net_loss = reconstruction_weight * rec_loss + kl_weight * kl_loss`)."""
