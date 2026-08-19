@@ -11,7 +11,6 @@ from numpy.typing import NDArray
 
 from .config.algorithms import (
     CAREAlgorithm,
-    MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
 )
