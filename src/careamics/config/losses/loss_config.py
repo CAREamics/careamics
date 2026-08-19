@@ -33,7 +33,7 @@ class HDNLossConfig(LVAELossConfig):
     """HDN loss configuration.
 
     HDN uses a reconstruction term (Gaussian or noise-model likelihood) plus a KL
-    term; it has no additional weights beyond the shared ones.
+    term. It has no additional weights beyond the shared ones.
     """
 
     loss_type: Literal["hdn"] = "hdn"
@@ -44,7 +44,7 @@ class MicroSplitLossConfig(LVAELossConfig):
     """MicroSplit loss configuration.
 
     The reconstruction likelihood is a weighted sum of a Gaussian likelihood term
-    (old muSplit) and a noise-model likelihood term (old denoiSplit).
+    (muSplit) and a noise-model likelihood term (denoiSplit).
     """
 
     loss_type: Literal["microsplit"] = "microsplit"

@@ -322,13 +322,11 @@ def microsplit_loss(
         The target image used to compute the reconstruction loss. Shape is
         (B, `target_ch`, [Z], Y, X).
     config : MicroSplitLossConfig
-        The config for loss function containing all loss hyperparameters. Uses
-        `gaussian_likelihood_weight` as gaussian_weight and
-        `noise_model_likelihood_weight` as nm_weight.
+        The config for loss function containing all loss hyperparameters.
     noise_model : MultiChannelNoiseModel | None, optional
         The noise model, already normalized into the network's data space (see
         `MultiChannelNoiseModel.get_normalized_copy`). Required if
-        `noise_model_likelihood_weight` > 0.
+        `config.noise_model_likelihood_weight` > 0.
 
     Returns
     -------

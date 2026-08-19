@@ -36,10 +36,9 @@ class MicroSplitModule(L.LightningModule):
     likelihood is the weighted combination configured by the loss:
 
     - `gaussian_likelihood_weight` weights a Gaussian likelihood with a learned
-      per-pixel variance (requires `predict_logvar=True`);
+      per-pixel variance (requires `predict_logvar=True`)
     - `noise_model_likelihood_weight` weights a noise model likelihood (requires a
-      noise model and `MeanStdNormalization`; the noise model is transformed into
-      normalized data space at the start of training).
+      noise model and `MeanStdNormalization`).
 
     Parameters
     ----------
