@@ -11,7 +11,7 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.losses.loss_config import HDNLossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
 from .data_factory import create_data_configuration, list_spatial_augmentations
@@ -191,12 +191,9 @@ def create_advanced_hdn_config(
     predict_logvar = noise_model is None
     conv_strides = [2] * len(patch_size)
 
-    loss = LVAELossConfig(
-        loss_type="hdn",
+    loss = HDNLossConfig(
         reconstruction_weight=reconstruction_weight,
         kl_weight=kl_weight,
-        musplit_weight=0.0,
-        denoisplit_weight=1.0,
         predict_logvar=predict_logvar,
         logvar_lowerbound=logvar_lowerbound,
     )
