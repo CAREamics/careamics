@@ -255,7 +255,7 @@ class NormalStochasticBlock(nn.Module):
         return p_mu, p_lv, p
 
     def process_q_params(
-        self, q_params: torch.Tensor, var_clip_max: float, allow_oddsizes: bool = False
+        self, q_params: torch.Tensor, var_clip_max: float
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.distributions.normal.Normal]:
         """
         Process the input parameters to get the inference distribution q(z_i|z_{i+1}) (or q(z|x)).
@@ -263,8 +263,8 @@ class NormalStochasticBlock(nn.Module):
         Processing consists in:
             - convolution on the input tensor to double the number of channels.
             - split the resulting tensor into 2 chunks, respectively mean and log-var.
+            - crop the resulting tensors so that each spatial dimension larger than 1 is even.
             - (optionally) clip the log-variance to an upper threshold.
-            - (optionally) crop the resulting tensors to ensure that the last spatial dimension is even.
             - define the normal distribution q(z) given the parameter tensors above.
 
         Parameters
@@ -281,10 +281,13 @@ class NormalStochasticBlock(nn.Module):
         if var_clip_max is not None:
             q_lv = torch.clip(q_lv, max=var_clip_max)
 
-        if q_mu.shape[-1] % 2 == 1 and allow_oddsizes is False:
-            q_mu = F.center_crop(q_mu, q_mu.shape[-1] - 1)
-            q_lv = F.center_crop(q_lv, q_lv.shape[-1] - 1)
-            # TODO revisit ?!
+        h, w = q_mu.shape[-2:]
+        new_h = h - (h % 2 if h > 1 else 0)
+        new_w = w - (w % 2 if w > 1 else 0)
+        if (new_h, new_w) != (h, w):
+            q_mu = F.center_crop(q_mu, [new_h, new_w])
+            q_lv = F.center_crop(q_lv, [new_h, new_w])
+
         q_mu = StableMean(q_mu)
         q_lv = StableLogVar(q_lv, enable_stable=not self._use_naive_exponential)
         q = Normal(q_mu.get(), q_lv.get_std())
