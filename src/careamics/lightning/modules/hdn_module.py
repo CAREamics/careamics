@@ -117,6 +117,7 @@ class HDNModule(L.LightningModule):
         """
         if self.noise_model is None:
             return
+        assert self.config.noise_model is not None
         assert self._trainer is not None
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
         # The noise model likelihood operates in normalized data space, so the noise
@@ -133,6 +134,10 @@ class HDNModule(L.LightningModule):
         self.noise_model = raw_noise_model.get_normalized_copy(
             [float(normalization.input_means[0])],
             [float(normalization.input_stds[0])],
+        )
+        logger.info(
+            f"Noise model loaded: {len(self.config.noise_model.noise_models)} "
+            f"channel noise model(s). HDN will use the noise model likelihood."
         )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:

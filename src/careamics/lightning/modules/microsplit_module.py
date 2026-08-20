@@ -127,6 +127,7 @@ class MicroSplitModule(L.LightningModule):
                     "The noise model likelihood (noise_model_likelihood_weight > 0) "
                     "requires a noise model. Provide one in the configuration."
                 )
+            assert self.config.noise_model is not None
             # the noise model likelihood operates in normalized data space, so the
             # per-channel statistics are recovered from the training normalization
             normalization = datamodule.train_dataset.normalization  # type: ignore[union-attr]
@@ -145,6 +146,12 @@ class MicroSplitModule(L.LightningModule):
             assert raw_noise_model is not None
             self.noise_model = raw_noise_model.get_normalized_copy(
                 [float(m) for m in means], [float(s) for s in stds]
+            )
+            logger.info(
+                f"Noise model loaded: {len(self.config.noise_model.noise_models)} "
+                f"channel noise model(s). "
+                f"MicroSplit will use the noise model likelihood with weight "
+                f"{self.config.loss.noise_model_likelihood_weight}."
             )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
