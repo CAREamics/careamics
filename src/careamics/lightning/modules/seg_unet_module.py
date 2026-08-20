@@ -153,7 +153,6 @@ class SegModule(LightningModule):
             The index of the current batch in the validation loop.
         """
         x, target = batch[0], batch[1]
-        assert isinstance(target, torch.Tensor)
 
         prediction = self.model(x.data)
         val_loss = self.loss_func(prediction, target.data)
@@ -162,6 +161,7 @@ class SegModule(LightningModule):
         pred_classes = prediction.argmax(dim=1, keepdim=True)
 
         # targets are singleton-channel class labels
+        assert isinstance(target.data, torch.Tensor)
         target_long = target.data.long()
         self.metrics(pred_classes, target_long)
 
