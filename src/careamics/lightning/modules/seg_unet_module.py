@@ -153,22 +153,16 @@ class SegModule(LightningModule):
             The index of the current batch in the validation loop.
         """
         x, target = batch[0], batch[1]
+        assert isinstance(target, torch.Tensor)
 
         prediction = self.model(x.data)
         val_loss = self.loss_func(prediction, target.data)
 
-        # convert predictions to class indices for metrics
-        # for binary (1 channel): apply sigmoid and threshold
-        # for multi-class (>1 channels): apply argmax
-        if prediction.shape[1] == 1:
-            pred_classes = (prediction.sigmoid() > 0.5).long()
-        else:
-            pred_classes = prediction.argmax(dim=1, keepdim=True)
+        # convert logits to predicted class indices
+        pred_classes = prediction.argmax(dim=1, keepdim=True)
 
-        # ensure targets are long type (torch.int64)
-        # torch.nn.functional.one_hot is only applicable to index LongTensor, see
-        # generalized_dice implementation in torchmetrics
-        target_long = target.data.long().argmax(dim=1, keepdim=True)  # type: ignore
+        # targets are singleton-channel class labels
+        target_long = target.data.long()
         self.metrics(pred_classes, target_long)
 
         # not passing metrics because GenerelizedDiceScore is a tensor of length
@@ -211,15 +205,12 @@ class SegModule(LightningModule):
         # TODO: add TTA
         prediction = self.model(x.data)
 
-        # apply appropriate activation function based on number of classes
-        # for binary (1 channel): apply sigmoid to get probabilities
-        # for multi-class (>1 channels): apply softmax to get class probabilities
-        if prediction.shape[1] == 1:
-            prediction = prediction.sigmoid()
-        else:
-            prediction = prediction.softmax(dim=1)
+        # apply softmax to obtain class probabilities over all classes
+        prediction = prediction.softmax(dim=1)
 
-        prediction = prediction.cpu().numpy()
+        # TODO we should return probabilities on demand, but this is currenty not
+        # permitted by the prediction conversion
+        prediction = prediction.argmax(dim=1, keepdim=True).cpu().numpy()
 
         output_batch = ImageRegionData(
             data=prediction,

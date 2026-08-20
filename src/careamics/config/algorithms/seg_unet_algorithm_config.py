@@ -13,6 +13,33 @@ from careamics.config.validators import (
 )
 
 
+def _model_at_least_2_classes(model: UNetConfig) -> UNetConfig:
+    """Validate that the Unet model has at least two classes.
+
+    Parameters
+    ----------
+    model : UNetConfig
+        Model to validate.
+
+    Returns
+    -------
+    UNetConfig
+        The validated model.
+
+    Raises
+    ------
+    ValueError
+        If the model has less than two classes.
+    """
+    if model.num_classes < 2:
+        raise ValueError(
+            f"U-Net model should have at least 2 classes, including background, "
+            f"got {model.num_classes} classes."
+        )
+
+    return model
+
+
 class SegAlgorithm(UNetBasedAlgorithm):
     """Configuration for segmentation algorithm."""
 
@@ -26,6 +53,7 @@ class SegAlgorithm(UNetBasedAlgorithm):
         UNetConfig,
         AfterValidator(model_without_n2v2),
         AfterValidator(model_without_final_activation),
+        AfterValidator(_model_at_least_2_classes),
     ]
     """UNet without a final activation function and without the `n2v2` modifications."""
 

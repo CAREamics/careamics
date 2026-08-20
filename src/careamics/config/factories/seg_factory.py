@@ -14,35 +14,43 @@ from .factory_utils import assemble_augmentations, validate_input_channels
 from .training_factory import create_training_configuration, update_trainer_params
 
 
-def _validate_channel_dim(
+def _get_expected_target_axes(axes: str) -> str:
+    """Return expected target axes from input axes.
+
+    Parameters
+    ----------
+    axes : str
+        Expected target axes.
+
+    Returns
+    -------
+    str
+        Expected target axes given inputs.
+    """
+    return "".join([ax for ax in axes if ax != "C"])
+
+
+def _get_input_size(
     axes: str,
-    target_axes: str,
     channels: Sequence[int] | None,
     n_channels_in: int | None,
-    n_channels_out: int,
 ) -> int:
-    """Validate channel dimensions and adjust model input and output channel numbers.
+    """Validate channel dimensions and return model input size.
 
     Parameters
     ----------
     axes : str
         Axes of the data (e.g. YX).
-    target_axes : str
-        Axes of the target data (e.g. CYX).
     channels : Sequence[int] or None
         Indices of the channels to use.
     n_channels_in : int or None
         Number of input channels.
-    n_channels_out : int or None
-        Number of output channels.
 
     Returns
     -------
     int
         Adjusted number of input channels.
     """
-    target_channels_present = "C" in target_axes
-
     validate_input_channels(
         axes=axes, channels=channels, n_channels=n_channels_in, attr_name="n_channels"
     )
@@ -56,14 +64,6 @@ def _validate_channel_dim(
         assert channels is not None
         resolved_n_channels_in = len(channels)
 
-    if not target_channels_present and n_channels_out > 1:
-        raise ValueError(
-            f"Number of output channels is greater than 1 (got "
-            f"{n_channels_out}), but `target_axes` does not include 'C' "
-            f"(got {target_axes}). Please specify `target_axes` with 'C' to indicate "
-            f"the channel dimension in the target data."
-        )
-
     return resolved_n_channels_in
 
 
@@ -72,7 +72,6 @@ def create_seg_config(
     experiment_name: str,
     data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
     axes: str,
-    target_axes: str,
     patch_size: Sequence[int],
     batch_size: int,
     n_classes: int,
@@ -111,14 +110,12 @@ def create_seg_config(
         Type of the data.
     axes : str
         Axes of the data (e.g. YX).
-    target_axes : str
-        Axes of the target data (e.g. CYX).
     patch_size : Sequence[int]
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
     n_classes : int
-        Number of segmentation classes.
+        Number of foreground segmentation classes.
     num_epochs : int, default=30
         Number of epochs to train for.
     num_steps : int, default=None
@@ -147,7 +144,6 @@ def create_advanced_seg_config(
     batch_size: int,
     n_classes: int,
     # optional parameters
-    target_axes: str | None = None,
     num_epochs: int = 30,
     num_steps: int | None = None,
     n_channels_in: int | None = None,
@@ -205,9 +201,7 @@ def create_advanced_seg_config(
     batch_size : int
         Batch size.
     n_classes : int
-        Number of segmentation classes.
-    target_axes : str
-        Axes of the target data (e.g. CYX).
+        Number of foreground segmentation classes.
     num_epochs : int, default=30
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
@@ -285,16 +279,10 @@ def create_advanced_seg_config(
     Configuration
         Configuration for training a segmentation model.
     """
-    # TODO does that make sense? revisit
-    if target_axes is None:
-        target_axes = axes
-
-    n_channels_in = _validate_channel_dim(
+    n_channels_in = _get_input_size(
         axes=axes,
-        target_axes=target_axes,
         channels=channels,
         n_channels_in=n_channels_in,
-        n_channels_out=n_classes,
     )
 
     # normalization
@@ -308,7 +296,7 @@ def create_advanced_seg_config(
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        target_axes=target_axes,
+        target_axes=_get_expected_target_axes(axes),
         augmentations=assemble_augmentations(augmentations, seed),
         n_val_patches=n_val_patches,
         normalization=norm_config,
@@ -328,7 +316,7 @@ def create_advanced_seg_config(
         loss=loss,
         independent_channels=False,
         n_channels_in=n_channels_in,
-        n_channels_out=n_classes,
+        n_channels_out=n_classes + 1,  # add background channel
         use_n2v2=False,
         model_params=model_params,
         optimizer=optimizer,

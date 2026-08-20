@@ -25,4 +25,4 @@ from .n2v_factory import (
     create_n2v_config,
     create_structn2v_config,
 )
-from .seg_unet_factory import create_advanced_seg_config, create_seg_config
+from .seg_factory import create_advanced_seg_config, create_seg_config

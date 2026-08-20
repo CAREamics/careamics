@@ -4,15 +4,70 @@ from collections.abc import Callable
 
 import torch
 import torch.nn.functional as F
-from torch.nn import CrossEntropyLoss, Module
+from torch.nn import Module
+
+
+def _targets_to_class_indices(targets: torch.Tensor, num_classes: int) -> torch.Tensor:
+    """Convert segmentation targets to class indices.
+
+    This method removes the C dimension, casts the labels to long for the loss
+    calculation, and performs validation.
+
+    Parameters
+    ----------
+    targets : torch.Tensor
+        Target representing class labels with a singleton C dimension.
+    num_classes : int
+        Number of classes.
+
+    Returns
+    -------
+    torch.Tensor
+        Target as class indices tensor.
+    """
+    if targets.shape[1] == 1:
+        class_indices = targets[:, 0].long()
+    else:
+        raise ValueError(
+            f"Target channel dimension must be of size 1 (class labels), got size "
+            f"{targets.shape[1]}."
+        )
+
+    if class_indices.min() < 0 or class_indices.max() >= num_classes:
+        raise ValueError(
+            f"Target class values must be in [0, {num_classes - 1}], got values in "
+            f"[{class_indices.min().item()}, {class_indices.max().item()}]."
+        )
+
+    return class_indices
+
+
+def _targets_to_one_hot(targets: torch.Tensor, num_classes: int) -> torch.Tensor:
+    """Convert singleton-channel class labels to one-hot encoding.
+
+    Parameters
+    ----------
+    targets : torch.Tensor
+        Target representing class labels with a singleton C dimension.
+    num_classes : int
+        Number of classes.
+
+    Returns
+    -------
+    torch.Tensor
+        Target as one-hot encoded tensor.
+    """
+    class_indices = _targets_to_class_indices(targets, num_classes)
+    one_hot = F.one_hot(class_indices, num_classes=num_classes).movedim(-1, 1)
+
+    return one_hot.float()
 
 
 class DiceLoss(Module):
     """Dice loss for binary and multi-class segmentation.
 
-    For binary segmentation (inputs with 1 channel), applies sigmoid activation.
-    For multi-class segmentation (inputs with >1 channels), applies softmax activation
-    and computes Dice coefficient per class, then averages across classes.
+    Applies softmax activation to the model logits and computes Dice coefficient per
+    class, then averages across classes.
 
     Parameters
     ----------
@@ -42,11 +97,10 @@ class DiceLoss(Module):
         Parameters
         ----------
         inputs : Tensor
-            Predicted logits of shape (B, C, H, W) or (B, C, D, H, W)
-            where C is the number of classes (C=1 for binary).
+            Predicted logits of shape (B, C, [Z], Y, X) where C is the number of
+            classes, including background (C=2 for binary).
         targets : Tensor
-            Ground truth of shape (B, H, W) or (B, D, H, W) with class indices,
-            or (B, C, H, W) or (B, C, D, H, W) with one-hot encoding.
+            Ground truth of shape (B, 1, [Z], Y, X) with class indices.
         smooth : float, default=1
             Smoothing constant to avoid division by zero.
 
@@ -57,55 +111,38 @@ class DiceLoss(Module):
         """
         num_classes = inputs.shape[1]
 
-        if num_classes == 1:
-            # binary segmentation
-            inputs = F.sigmoid(inputs)
-            inputs = inputs.view(-1)
-            targets = targets.view(-1)
+        probabilities = F.softmax(inputs, dim=1)
+        targets = _targets_to_one_hot(targets, num_classes).to(inputs.device)
 
-            intersection = (inputs * targets).sum()
-            dice = (2.0 * intersection + smooth) / (
-                inputs.sum() + targets.sum() + smooth
-            )
-            return 1 - dice
-        else:
-            # multi-class segmentation
-            inputs = F.softmax(inputs, dim=1)
+        if not self.include_background:
+            probabilities = probabilities[:, 1:]
+            targets = targets[:, 1:]
 
-            # convert targets to one-hot if necessary
-            if targets.ndim == inputs.ndim - 1:
-                targets = F.one_hot(targets.long(), num_classes=num_classes)
-                # Move channel dimension to position 1: (B, H, W, C) -> (B, C, H, W)
-                targets = targets.permute(0, -1, *range(1, targets.ndim - 1)).float()
+        probabilities = probabilities.flatten(2)
+        targets = targets.flatten(2)
 
-            # flatten spatial dimensions: (B, C, H, W) -> (B, C, H*W)
-            inputs = inputs.flatten(2)
-            targets = targets.flatten(2)
+        intersection = (probabilities * targets).sum(dim=2)
+        union = probabilities.sum(dim=2) + targets.sum(dim=2)
+        dice_per_class = (2.0 * intersection + smooth) / (union + smooth)
 
-            # compute Dice per class
-            intersection = (inputs * targets).sum(dim=2)  # (B, C)
-            union = inputs.sum(dim=2) + targets.sum(dim=2)  # (B, C)
-            dice_per_class = (2.0 * intersection + smooth) / (union + smooth)  # (B, C)
+        if self.weight is not None:
+            weight = self.weight
+            if weight.shape[0] != num_classes:
+                raise ValueError(
+                    f"Class weights must have length {num_classes}, got "
+                    f"{weight.shape[0]}."
+                )
 
-            # classes to include
-            start_idx = 0 if self.include_background else 1
-            dice_per_class = dice_per_class[:, start_idx:]
+            if not self.include_background:
+                weight = weight[1:]
 
-            # apply weights if provided
-            if self.weight is not None:
-                weight = self.weight[start_idx:].to(dice_per_class.device)
-                dice_per_class = dice_per_class * weight
+            dice_per_class = dice_per_class * weight.to(dice_per_class.device)
 
-            # average across classes and batch
-            dice = dice_per_class.mean()
-            return 1 - dice
+        return 1 - dice_per_class.mean()
 
 
 class DiceCELoss(Module):
     """Combined Dice and Cross-Entropy loss for binary and multi-class segmentation.
-
-    For binary segmentation (inputs with 1 channel), uses BCE + Dice.
-    For multi-class segmentation (inputs with >1 channels), uses CE + Dice.
 
     Parameters
     ----------
@@ -147,11 +184,10 @@ class DiceCELoss(Module):
         Parameters
         ----------
         inputs : Tensor
-            Predicted logits of shape (B, C, H, W) or (B, C, D, H, W)
-            where C is the number of classes (C=1 for binary).
+            Predicted logits of shape (B, C, [Z], Y, X) where C is the number of
+            classes, including background (C=2 for binary).
         targets : Tensor
-            Ground truth of shape (B, H, W) or (B, D, H, W) with class indices,
-            or (B, C, H, W) or (B, C, D, H, W) with one-hot encoding for binary case.
+            Ground truth of shape (B, 1, [Z], Y, X) with class indices.
         smooth : float, default=1
             Smoothing constant for Dice loss.
 
@@ -162,27 +198,66 @@ class DiceCELoss(Module):
         """
         num_classes = inputs.shape[1]
 
+        target_indices = _targets_to_class_indices(targets, num_classes).to(
+            inputs.device
+        )
+
         # compute Dice loss
         dice_loss = self.dice_loss(inputs, targets, smooth=smooth)
 
-        if num_classes == 1:
-            # binary segmentation
-            inputs_sigmoid = F.sigmoid(inputs)
-            ce_loss = F.binary_cross_entropy(
-                inputs_sigmoid, targets, weight=self.weight, reduction="mean"
-            )
-        else:
-            # multi-class segmentation: use CE
-            # ensure targets are class indices (not one-hot)
-            if targets.ndim == inputs.ndim:
-                # one-hot encoded targets -> class indices
-                targets = torch.argmax(targets, dim=1)
-
-            ce_loss = F.cross_entropy(
-                inputs, targets.long(), weight=self.weight, reduction="mean"
-            )
+        # compute cross entropy
+        ce_loss = F.cross_entropy(
+            inputs,
+            target_indices,
+            weight=self.weight,
+            reduction="mean",
+        )
 
         return self.ce_weight * ce_loss + self.dice_weight * dice_loss
+
+
+class CrossEntropyLoss(Module):
+    """Cross-entropy loss for segmentation targets with singleton label channels.
+
+    Parameters
+    ----------
+    weight : Tensor, default=None
+        A manual rescaling weight given to each class for both losses.
+    """
+
+    def __init__(self, weight=None) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        weight : Tensor, optional
+            A manual rescaling weight given to each class.
+        """
+        super().__init__()
+        self.weight = weight
+
+    def forward(self, inputs, targets) -> torch.Tensor:
+        """Compute cross-entropy loss from segmentation logits and targets.
+
+        Parameters
+        ----------
+        inputs : Tensor
+            Predicted logits of shape (B, C, [Z], Y, X) where C is the number of
+            classes, including background (C=2 for binary).
+        targets : Tensor
+            Ground truth of shape (B, 1, [Z], Y, X) with class indices.
+
+        Returns
+        -------
+        Tensor
+            Loss value.
+        """
+        target_indices = _targets_to_class_indices(targets, inputs.shape[1]).to(
+            inputs.device
+        )
+        return F.cross_entropy(
+            inputs, target_indices, weight=self.weight, reduction="mean"
+        )
 
 
 def get_seg_loss(loss: str) -> Callable:
