@@ -790,7 +790,7 @@ class LadderVAE(nn.Module):
             top_layer_shape = (n_imgs, mu_logvar, self._model_3D_depth, h, w)
         return top_layer_shape
 
-    def reset_for_inference(self, tile_size: tuple[int, int] | None = None):
+    def reset_for_inference(self, tile_size: tuple[int, ...] | None = None):
         """Should be called if we want to predict for a different input/output size."""
         self.mode_pred = True
         if tile_size is None:
