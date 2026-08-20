@@ -3,12 +3,9 @@
 __all__ = [
     "alpha_ranges_match_output_channels",
     "alpha_ranges_wellformed",
-    "at_least_one_likelihood",
     "check_axes_validity",
     "check_czi_axes_validity",
     "input_shape_matches_patch_size",
-    "loss_type_is_hdn",
-    "loss_type_is_microsplit",
     "lvae_conv_strides_valid",
     "lvae_depth_valid",
     "lvae_multiscale_count_valid",
@@ -24,17 +21,13 @@ __all__ = [
     "normalization_supported",
     "patch_size_ge_than_8_power_of_2",
     "predict_logvar_consistent",
-    "predict_logvar_required_for_musplit",
 ]
 
 from .axes_validators import check_axes_validity, check_czi_axes_validity
 from .lvae_validators import (
     alpha_ranges_match_output_channels,
     alpha_ranges_wellformed,
-    at_least_one_likelihood,
     input_shape_matches_patch_size,
-    loss_type_is_hdn,
-    loss_type_is_microsplit,
     lvae_conv_strides_valid,
     lvae_depth_valid,
     lvae_multiscale_count_valid,
@@ -45,7 +38,6 @@ from .lvae_validators import (
     noise_models_match_output_channels,
     normalization_supported,
     predict_logvar_consistent,
-    predict_logvar_required_for_musplit,
 )
 from .model_validators import (
     model_matching_in_out_channels,

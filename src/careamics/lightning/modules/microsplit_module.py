@@ -35,11 +35,10 @@ class MicroSplitModule(L.LightningModule):
     channel into several target channels, built on the LVAE model. The reconstruction
     likelihood is the weighted combination configured by the loss:
 
-    - `musplit_weight` weights a Gaussian likelihood with a learned per-pixel
-      variance (requires `predict_logvar=True`);
-    - `denoisplit_weight` weights a noise model likelihood (requires a noise model
-      and `MeanStdNormalization`; the noise model is transformed into normalized
-      data space at the start of training).
+    - `gaussian_likelihood_weight` weights a Gaussian likelihood with a learned
+      per-pixel variance (requires `predict_logvar=True`)
+    - `noise_model_likelihood_weight` weights a noise model likelihood (requires a
+      noise model and `MeanStdNormalization`).
 
     Parameters
     ----------
@@ -122,11 +121,11 @@ class MicroSplitModule(L.LightningModule):
             raise ValueError(
                 "MicroSplit is supervised: `val_data_target` must be provided."
             )
-        if self.config.loss.denoisplit_weight > 0:
+        if self.config.loss.noise_model_likelihood_weight > 0:
             if self.noise_model is None:
                 raise ValueError(
-                    "The noise model likelihood (denoisplit_weight > 0) requires a "
-                    "noise model. Provide one in the configuration."
+                    "The noise model likelihood (noise_model_likelihood_weight > 0) "
+                    "requires a noise model. Provide one in the configuration."
                 )
             # the noise model likelihood operates in normalized data space, so the
             # per-channel statistics are recovered from the training normalization

@@ -3,7 +3,7 @@ import pytest
 
 from careamics.config.algorithms import HDNAlgorithm
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.losses.loss_config import HDNLossConfig
 
 
 def test_instantiation(minimum_algorithm_hdn: dict):
@@ -28,13 +28,6 @@ def test_wrong_algorithm(minimum_algorithm_hdn: dict):
         HDNAlgorithm(**minimum_algorithm_hdn)
 
 
-def test_wrong_loss_type(minimum_algorithm_hdn: dict):
-    """Test that a non-HDN loss is rejected."""
-    minimum_algorithm_hdn["loss"] = LVAELossConfig(loss_type="microsplit")
-    with pytest.raises(ValueError):
-        HDNAlgorithm(**minimum_algorithm_hdn)
-
-
 def test_no_multiscale(minimum_algorithm_hdn: dict):
     """Test that multiscale models are rejected."""
     minimum_algorithm_hdn["model"]["multiscale_count"] = 2
@@ -52,7 +45,7 @@ def test_single_output_channel(minimum_algorithm_hdn: dict):
 def test_predict_logvar_mismatch(minimum_algorithm_hdn: dict):
     """Test that model and loss `predict_logvar` must match."""
     minimum_algorithm_hdn["model"]["predict_logvar"] = False
-    minimum_algorithm_hdn["loss"] = LVAELossConfig(loss_type="hdn", predict_logvar=True)
+    minimum_algorithm_hdn["loss"] = HDNLossConfig(predict_logvar=True)
     with pytest.raises(ValueError):
         HDNAlgorithm(**minimum_algorithm_hdn)
 
