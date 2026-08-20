@@ -16,7 +16,10 @@ from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
     create_histogram,
 )
+from careamics.utils.logging import get_logger
 from careamics.utils.reshape_array import reshape_array
+
+logger = get_logger(__name__)
 
 
 class NoiseModelTrainer:
@@ -180,7 +183,9 @@ class NoiseModelTrainer:
         self.train_losses = []
 
         for channel_idx in range(n_channels):
-            print(f"Training noise model for channel {channel_idx + 1}/{n_channels}")
+            logger.info(
+                f"Training noise model for channel {channel_idx + 1}/{n_channels}"
+            )
 
             channel_signal = signal[:, channel_idx]
             channel_obs = observation[:, channel_idx]

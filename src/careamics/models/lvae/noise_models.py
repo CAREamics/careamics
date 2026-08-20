@@ -13,10 +13,12 @@ import torch
 import torch.nn as nn
 from numpy.typing import NDArray
 
-from careamics.utils import get_device
+from careamics.utils import get_device, get_logger
 
 if TYPE_CHECKING:
     from careamics.config import GaussianMixtureNMConfig, MultiChannelNMConfig
+
+logger = get_logger(__name__)
 
 # TODO this module shouldn't be in lvae folder
 
@@ -210,8 +212,6 @@ class MultiChannelNoiseModel(nn.Module):
         for nmodel in nmodels:
             if nmodel is not None:
                 self._nm_cnt += 1
-
-        print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_cnt}")
 
     def to_device(self, device: torch.device) -> None:
         """Move this model and all per-channel noise models to `device`.
@@ -457,8 +457,6 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.is_normalized: bool = False
         self.normalization_mean: float | None = None
         self.normalization_std: float | None = None
-
-        print(f"[{self.__class__.__name__}] min_sigma: {self.min_sigma}")
 
     def get_normalized_copy(
         self, data_mean: float, data_std: float
@@ -866,15 +864,15 @@ class GaussianMixtureNoiseModel(nn.Module):
             train_losses.append(joint_loss.item())
 
             if self.weight.isnan().any() or self.weight.isinf().any():
-                print(
-                    "NaN or Inf detected in the weights. Aborting training at epoch: ",
-                    t,
+                logger.warning(
+                    f"NaN or Inf detected in the weights. "
+                    f"Aborting training at epoch: {t}."
                 )
                 break
 
             if t % 100 == 0:
                 last_losses = train_losses[-100:]
-                print(t, np.mean(last_losses))
+                logger.info(f"Epoch {t}: mean loss {np.mean(last_losses):.4f}")
 
             optimizer.zero_grad()
             joint_loss.backward()
@@ -883,7 +881,6 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         self._set_model_mode(mode="prediction")
         self.to_device(torch.device("cpu"))
-        print("===================\n")
         return train_losses
 
     def sample_observation_from_signal(self, signal: NDArray) -> NDArray:
@@ -996,4 +993,4 @@ class GaussianMixtureNoiseModel(nn.Module):
         if channel_index is not None:
             save_kwargs["channel_index"] = np.array(channel_index)
         np.savez(os.path.join(path, name), **save_kwargs)
-        print("The trained parameters (" + name + ") is saved at location: " + path)
+        logger.info(f"Noise model parameters ({name}) saved at location: {path}")
