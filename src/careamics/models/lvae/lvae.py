@@ -37,10 +37,8 @@ class LadderVAE(nn.Module):
         The number of scales for multiscale processing.
     z_dims : list[int]
         The dimensions of the latent space for each layer.
-    encoder_n_filters : int
-        The number of filters in the encoder.
-    decoder_n_filters : int
-        The number of filters in the decoder.
+    n_filters : int
+        The number of filters in the encoder and decoder.
     encoder_conv_strides : list[int]
         The strides for the conv layers encoder.
     decoder_conv_strides : list[int]
@@ -53,8 +51,10 @@ class LadderVAE(nn.Module):
         The nonlinearity function to use.
     predict_logvar : bool
         Whether to predict the log variance.
-    analytical_kl : bool
-        Whether to use analytical KL divergence.
+    encoder_blocks_per_layer : int
+        The number of residual blocks per encoder layer.
+    decoder_blocks_per_layer : int
+        The number of residual blocks per decoder layer.
 
     Raises
     ------
@@ -68,15 +68,15 @@ class LadderVAE(nn.Module):
         output_channels: int,
         multiscale_count: int,
         z_dims: list[int],
-        encoder_n_filters: int,
-        decoder_n_filters: int,
+        n_filters: int,
         encoder_conv_strides: list[int],
         decoder_conv_strides: list[int],
         encoder_dropout: float,
         decoder_dropout: float,
         nonlinearity: str,
         predict_logvar: bool,
-        analytical_kl: bool,
+        encoder_blocks_per_layer: int = 1,
+        decoder_blocks_per_layer: int = 1,
     ):
         super().__init__()
 
@@ -91,20 +91,18 @@ class LadderVAE(nn.Module):
         self.decoder_conv_strides = decoder_conv_strides
         self._multiscale_count = multiscale_count
         self.z_dims = z_dims
-        self.encoder_n_filters = encoder_n_filters
-        self.decoder_n_filters = decoder_n_filters
+        self.n_filters = n_filters
         self.encoder_dropout = encoder_dropout
         self.decoder_dropout = decoder_dropout
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
-        self.analytical_kl = analytical_kl
         # -------------------------------------------------------
 
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
         self.model_type = ModelType.LadderVae  # TODO remove !
-        self.encoder_blocks_per_layer = 1
-        self.decoder_blocks_per_layer = 1
+        self.encoder_blocks_per_layer = encoder_blocks_per_layer
+        self.decoder_blocks_per_layer = decoder_blocks_per_layer
         self.bottomup_batchnorm = True
         self.topdown_batchnorm = True
         self.topdown_conv2d_bias = True
@@ -115,12 +113,10 @@ class LadderVAE(nn.Module):
         self.decoder_res_block_skip_padding = False
         self.merge_type = "residual"
         self.no_initial_downscaling = True
-        self.skip_bottomk_buvalues = 0
         self.stochastic_skip = True
         self.learn_top_prior = True
         self.res_block_type = "bacdbacd"  # TODO remove !
         self.mode_pred = False
-        self.logvar_lowerbound = -5
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
         self._enable_topdown_normalize_factor = True
@@ -136,33 +132,12 @@ class LadderVAE(nn.Module):
         # Derived attributes
         self.n_layers = len(self.z_dims)
 
-        # Others...
-        self._tethered_to_input = False
-        self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
-        if self._tethered_to_input:
-            target_ch = 1
-            requires_grad = False
-            self._tethered_ch1_scalar = nn.Parameter(
-                torch.ones(1) * 0.5, requires_grad=requires_grad
-            )
-            self._tethered_ch2_scalar = nn.Parameter(
-                torch.ones(1) * 2.0, requires_grad=requires_grad
-            )
-        # -------------------------------------------------------
-
         # -------------------------------------------------------
         # Data attributes
         self.color_ch = 1  # TODO for now we only support 1 channel
         self.normalized_input = True
         # -------------------------------------------------------
 
-        # -------------------------------------------------------
-        # Loss attributes
-        # enabling reconstruction loss on mixed input
-        self.mixed_rec_w = 0
-        self.nbr_consistency_w = 0
-
-        # -------------------------------------------------------
         # 3D related stuff
         self._mode_3D = len(self.image_size) == 3  # TODO refac
         self._model_3D_depth = self.image_size[0] if self._mode_3D else 1
@@ -179,7 +154,7 @@ class LadderVAE(nn.Module):
             else nn.ModuleList(
                 [
                     GateLayer(
-                        channels=self.encoder_n_filters,
+                        channels=self.n_filters,
                         conv_strides=self.encoder_conv_strides,
                     )
                     for k in range(len(self.z_dims))
@@ -189,18 +164,6 @@ class LadderVAE(nn.Module):
         # TODO: this bit is in the Ashesh's confusing-hacky style... Can we do better?
 
         # -------------------------------------------------------
-        # # Training attributes
-        # # can be used to tile the validation predictions
-        # self._val_idx_manager = val_idx_manager
-        # self._val_frame_creator = None
-        # # initialize the learning rate scheduler params.
-        # self.lr_scheduler_monitor = self.lr_scheduler_mode = None
-        # self._init_lr_scheduler_params(config)
-        # self._global_step = 0
-        # -------------------------------------------------------
-
-        # -------------------------------------------------------
-
         # Calculate the downsampling happening in the network
         self.downsample = [1] * self.n_layers
         self.overall_downscale_factor = np.power(2, sum(self.downsample))
@@ -242,9 +205,9 @@ class LadderVAE(nn.Module):
         # self.likelihood = self.create_likelihood_module()
 
         # Output layer --> Project to target_ch many channels
-        logvar_ch_needed = self.predict_logvar is not None
+        logvar_ch_needed = self.predict_logvar
         self.output_layer = self.parameter_net = self.decoder_conv_op(
-            self.decoder_n_filters,
+            self.n_filters,
             self.target_ch * (1 + logvar_ch_needed),
             kernel_size=3,
             padding=1,
@@ -257,11 +220,6 @@ class LadderVAE(nn.Module):
         # PSNR computation on validation.
         # self.label1_psnr = RunningPSNR()
         # self.label2_psnr = RunningPSNR()
-        # TODO: did you add this?
-
-        # msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
-        # msg += f' TargetCh: {self.target_ch}'
-        # print(msg)
 
     ### SET OF METHODS TO CREATE MODEL BLOCKS
     def create_first_bottom_up(
@@ -287,7 +245,7 @@ class LadderVAE(nn.Module):
         nonlin = get_activation(self.nonlin)
         conv_block = self.encoder_conv_op(
             in_channels=self.color_ch,
-            out_channels=self.encoder_n_filters,
+            out_channels=self.n_filters,
             kernel_size=self.encoder_res_block_kernel,
             padding=(
                 0
@@ -303,8 +261,8 @@ class LadderVAE(nn.Module):
             modules.append(
                 BottomUpDeterministicResBlock(
                     conv_strides=self.encoder_conv_strides,
-                    c_in=self.encoder_n_filters,
-                    c_out=self.encoder_n_filters,
+                    c_in=self.n_filters,
+                    c_out=self.n_filters,
                     nonlin=nonlin,
                     downsample=False,
                     batchnorm=self.bottomup_batchnorm,
@@ -361,7 +319,7 @@ class LadderVAE(nn.Module):
             bottom_up_layers.append(
                 BottomUpLayer(
                     n_res_blocks=self.encoder_blocks_per_layer,
-                    n_filters=self.encoder_n_filters,
+                    n_filters=self.n_filters,
                     downsampling_steps=self.downsample[i],
                     nonlin=nonlin,
                     conv_strides=self.encoder_conv_strides,
@@ -422,7 +380,7 @@ class LadderVAE(nn.Module):
                 TopDownLayer(
                     z_dim=self.z_dims[i],
                     n_res_blocks=self.decoder_blocks_per_layer,
-                    n_filters=self.decoder_n_filters,
+                    n_filters=self.n_filters,
                     is_top_layer=is_top,
                     conv_strides=self.decoder_conv_strides,
                     upsampling_steps=self.downsample[i],
@@ -436,7 +394,6 @@ class LadderVAE(nn.Module):
                     res_block_type=self.res_block_type,
                     res_block_kernel=self.decoder_res_block_kernel,
                     gated=self.gated,
-                    analytical_kl=self.analytical_kl,
                     vanilla_latent_hw=self.get_latent_spatial_size(i),
                     retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
                     input_image_shape=self.image_size,
@@ -468,8 +425,8 @@ class LadderVAE(nn.Module):
         for i in range(self.decoder_blocks_per_layer):
             modules.append(
                 TopDownDeterministicResBlock(
-                    c_in=self.decoder_n_filters,
-                    c_out=self.decoder_n_filters,
+                    c_in=self.n_filters,
+                    c_out=self.n_filters,
                     nonlin=get_activation(self.nonlin),
                     conv_strides=self.decoder_conv_strides,
                     batchnorm=self.topdown_batchnorm,
@@ -526,15 +483,15 @@ class LadderVAE(nn.Module):
             first_bottom_up = nn.Sequential(
                 self.encoder_conv_op(
                     in_channels=self.color_ch,
-                    out_channels=self.encoder_n_filters,
+                    out_channels=self.n_filters,
                     kernel_size=5,
                     padding="same",
                     stride=stride,
                 ),
                 nonlin,
                 BottomUpDeterministicResBlock(
-                    c_in=self.encoder_n_filters,
-                    c_out=self.encoder_n_filters,
+                    c_in=self.n_filters,
+                    c_out=self.n_filters,
                     conv_strides=self.encoder_conv_strides,
                     nonlin=nonlin,
                     downsample=False,
@@ -759,8 +716,6 @@ class LadderVAE(nn.Module):
 
         # Bottom-up inference: return list of length n_layers (bottom to top)
         bu_values = self.bottomup_pass(x)
-        for i in range(0, self.skip_bottomk_buvalues):
-            bu_values[i] = None
 
         if self._squish3d:
             bu_values = [
