@@ -45,6 +45,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, TQDMProgressBar
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
+from torch.utils.data.distributed import DistributedSampler
 
 from careamics import CAREamist
 from careamics.config import (
@@ -211,20 +212,35 @@ class MicroSplitNgDataModule(L.LightningDataModule):
                 input_data=self.pred_input,
             )
 
+    def _maybe_distributed_sampler(self, dataset, shuffle: bool):
+        """Shard `dataset` across DDP ranks; return None outside DDP."""
+        if self.trainer is None or self.trainer.world_size <= 1:
+            return None
+        return DistributedSampler(
+            dataset,
+            num_replicas=self.trainer.world_size,
+            rank=self.trainer.global_rank,
+            shuffle=shuffle,
+        )
+
     def train_dataloader(self):
+        sampler = self._maybe_distributed_sampler(self.train_dataset, shuffle=True)
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            shuffle=True,
+            sampler=sampler,
+            shuffle=(sampler is None),
             collate_fn=default_collate,
         )
 
     def val_dataloader(self):
+        sampler = self._maybe_distributed_sampler(self.val_dataset, shuffle=False)
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
+            sampler=sampler,
             shuffle=False,
             collate_fn=default_collate,
         )
@@ -409,6 +425,8 @@ def create_trainer(
             strategy=strategy,
             sync_batchnorm=sync_batchnorm,
             num_nodes=1,
+            # Datamodule installs its own DistributedSampler; don't re-wrap.
+            use_distributed_sampler=False,
         )
     return Trainer(**kwargs)
 
