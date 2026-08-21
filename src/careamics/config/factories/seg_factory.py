@@ -3,7 +3,8 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
-from careamics.config.configuration import Configuration
+from careamics.config.seg_configuration import SegConfiguration
+from careamics.utils import get_logger
 
 from .algorithm_factory import create_algorithm_configuration
 from .data_factory import (
@@ -12,6 +13,8 @@ from .data_factory import (
 )
 from .factory_utils import assemble_augmentations, validate_input_channels
 from .training_factory import create_training_configuration, update_trainer_params
+
+logging = get_logger("Segmentation factory")
 
 
 def _get_expected_target_axes(axes: str) -> str:
@@ -81,7 +84,7 @@ def create_seg_config(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     n_channels_in: int | None = None,
-) -> Configuration:
+) -> SegConfiguration:
     """
     Create a configuration for training a UNet for semantic segmentation.
 
@@ -130,7 +133,7 @@ def create_seg_config(
 
     Returns
     -------
-    Configuration
+    SegConfiguration
         Configuration for training a UNet for semantic segmentation.
     """
     return create_advanced_seg_config(**locals())
@@ -171,7 +174,7 @@ def create_advanced_seg_config(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     # reproducibility
     seed: int | None = None,
-) -> Configuration:
+) -> SegConfiguration:
     """
     Create a configuration for training segmentation using a UNet model.
 
@@ -276,7 +279,7 @@ def create_advanced_seg_config(
 
     Returns
     -------
-    Configuration
+    SegConfiguration
         Configuration for training a segmentation model.
     """
     n_channels_in = _get_input_size(
@@ -288,6 +291,18 @@ def create_advanced_seg_config(
     # normalization
     norm_config = {"name": normalization, "skip_target": True}
     if normalization_params is not None:
+        if (
+            "skip_target" in normalization_params
+            and not normalization_params["skip_target"]
+        ):
+            logging.warning(
+                msg=(
+                    "Parameter `skip_target` in `normalization_params` must be `True`. "
+                    "Current value will be ignored."
+                ),
+                stacklevel=2,
+            )
+            del normalization_params["skip_target"]
         norm_config.update(normalization_params)
 
     # data
@@ -340,7 +355,7 @@ def create_advanced_seg_config(
         monitor_metric="val_loss",
     )
 
-    return Configuration(
+    return SegConfiguration(
         experiment_name=experiment_name,
         algorithm_config=algorithm_params,
         data_config=data_config,
