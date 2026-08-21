@@ -15,6 +15,7 @@ __all__ = [
     "N2NAlgorithm",
     "N2VAlgorithm",
     "PN2VAlgorithm",
+    "SegAlgorithm",
     "ShannonPatchFilterConfig",
     "UNetBasedAlgorithm",
     "UNetConfig",
@@ -36,6 +37,7 @@ from .algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
     PN2VAlgorithm,
+    SegAlgorithm,
     UNetBasedAlgorithm,
     VAEBasedAlgorithm,
 )
