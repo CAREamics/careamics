@@ -71,6 +71,7 @@ class SegModule(LightningModule):
             GeneralizedDiceScore(
                 num_classes=self.config.model.num_classes,
                 per_class=True,
+                input_format="index",
             )
         )
 
@@ -157,12 +158,12 @@ class SegModule(LightningModule):
         prediction = self.model(x.data)
         val_loss = self.loss_func(prediction, target.data)
 
-        # convert logits to predicted class indices
-        pred_classes = prediction.argmax(dim=1, keepdim=True)
+        # compute metrics on validation
+        # get index class, without C dimension
+        pred_classes = prediction.argmax(dim=1)  # (B, [Z], Y, X)
 
-        # targets are singleton-channel class labels
         assert isinstance(target.data, torch.Tensor)
-        target_long = target.data.long()
+        target_long = target.data.long().squeeze(1)  # (B, [Z], Y, X)
         self.metrics(pred_classes, target_long)
 
         # not passing metrics because GenerelizedDiceScore is a tensor of length
@@ -205,11 +206,12 @@ class SegModule(LightningModule):
         # TODO: add TTA
         prediction = self.model(x.data)
 
-        # apply softmax to obtain class probabilities over all classes
-        prediction = prediction.softmax(dim=1)
+        # TODO in the future, we will probably want to also return probability map
+        #   this is not currently not possible due to the prediction conversion
+        #   restoring the original target shape
 
-        # TODO we should return probabilities on demand, but this is currenty not
-        # permitted by the prediction conversion
+        # apply softmax to obtain class probabilities over all classes
+        # prediction = prediction.softmax(dim=1)
         prediction = prediction.argmax(dim=1, keepdim=True).cpu().numpy()
 
         output_batch = ImageRegionData(
