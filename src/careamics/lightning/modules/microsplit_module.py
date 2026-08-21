@@ -146,7 +146,7 @@ class MicroSplitModule(L.LightningModule):
             assert raw_noise_model is not None
             self.noise_model = raw_noise_model.get_normalized_copy(
                 [float(m) for m in means], [float(s) for s in stds]
-            )
+            ).to(self.device)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.

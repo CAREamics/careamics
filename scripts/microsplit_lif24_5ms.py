@@ -30,6 +30,7 @@ Predict-only from a checkpoint:
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 from pathlib import Path
@@ -400,9 +401,18 @@ def load_pretrained_model(model: MicroSplitModule, ckpt_path: str) -> None:
         )
 
 
-def create_trainer(config: Any, output_dir: Path, experiment_name: str) -> Trainer:
+def create_trainer(
+    config: Any,
+    output_dir: Path,
+    experiment_name: str,
+    *,
+    devices: int = 1,
+    strategy: str = "auto",
+    sync_batchnorm: bool = False,
+) -> Trainer:
+    """Build a Lightning Trainer. `devices=1` preserves single-GPU behavior."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    return Trainer(
+    kwargs: dict[str, Any] = dict(
         max_epochs=config.training_config.trainer_params["max_epochs"],
         precision=config.training_config.trainer_params["precision"],
         gradient_clip_algorithm=config.training_config.trainer_params[
@@ -424,6 +434,15 @@ def create_trainer(config: Any, output_dir: Path, experiment_name: str) -> Train
             else None
         ),
     )
+    if devices > 1:
+        kwargs.update(
+            accelerator="gpu",
+            devices=devices,
+            strategy=strategy,
+            sync_batchnorm=sync_batchnorm,
+            num_nodes=1,
+        )
+    return Trainer(**kwargs)
 
 
 def _train_val_cfgs(config: Any) -> tuple[MicroSplitDataConfig, MicroSplitDataConfig]:
@@ -547,6 +566,23 @@ def main(args) -> None:
         Path(args.preview_dir) if args.preview_dir else (output_dir / "previews")
     )
 
+    # ------- multi-GPU resolution -------
+    if args.global_batch_size is not None:
+        if args.global_batch_size % args.devices != 0:
+            raise ValueError(
+                f"--global-batch-size ({args.global_batch_size}) must be divisible "
+                f"by --devices ({args.devices})."
+            )
+        per_gpu_batch = args.global_batch_size // args.devices
+    else:
+        per_gpu_batch = args.batch_size
+    strategy = args.strategy if args.strategy != "auto" else (
+        "ddp" if args.devices > 1 else "auto"
+    )
+    sync_bn = (
+        args.sync_batchnorm if args.sync_batchnorm is not None else args.devices > 1
+    )
+
     # ------- noise model resolution -------
     if args.no_noise_model:
         nm_paths = None
@@ -556,6 +592,7 @@ def main(args) -> None:
         # Predict-only: NM is loss-side, not needed for forward pass
         nm_paths = None
     else:
+        # N2V + GMM fit is single-GPU (separate CAREamist Trainer inside).
         nm_input = prepare_noise_model_data(data_path, exposure)
         n2v_pred = train_n2v(
             nm_input,
@@ -563,7 +600,7 @@ def main(args) -> None:
             noise_model_dir,
             n2v_num_epochs=args.n2v_num_epochs,
             patch_size=tuple(args.patch_size),
-            batch_size=args.batch_size,
+            batch_size=per_gpu_batch,
             seed=args.seed,
         )
         nm_paths = fit_noise_models(n2v_pred, nm_input, noise_model_dir)
@@ -573,7 +610,7 @@ def main(args) -> None:
         experiment_name=args.experiment_name,
         nm_paths=nm_paths,
         num_epochs=args.num_epochs,
-        batch_size=args.batch_size,
+        batch_size=per_gpu_batch,
         num_workers=args.num_workers,
         patch_size=tuple(args.patch_size),
         use_wandb=not args.no_wandb,
@@ -593,13 +630,20 @@ def main(args) -> None:
         train_target=tr_tg,
         val_input=va_in,
         val_target=va_tg,
-        batch_size=args.batch_size,
+        batch_size=per_gpu_batch,
         num_workers=args.num_workers,
     )
 
     # ------- model + trainer -------
     model = MicroSplitModule(config.algorithm_config)
-    trainer = create_trainer(config, output_dir, args.experiment_name)
+    trainer = create_trainer(
+        config,
+        output_dir,
+        args.experiment_name,
+        devices=args.devices,
+        strategy=strategy,
+        sync_batchnorm=sync_bn,
+    )
 
     if args.skip_training:
         if args.pretrained_ckpt is None:
@@ -611,11 +655,34 @@ def main(args) -> None:
             load_pretrained_model(model, args.pretrained_ckpt)
         trainer.fit(model, datamodule=dm)
 
-    # ------- predict + eval -------
+    # Non-rank-0 DDP workers exit here; predict + eval runs single-GPU on rank 0.
+    if args.devices > 1:
+        trainer.strategy.barrier()
+    if not trainer.is_global_zero:
+        return
+
+    # Tear down the DDP process group before creating a fresh single-GPU Trainer:
+    # otherwise Lightning "auto" resolves to DDP from lingering env vars, and the
+    # first collective hangs against exited workers until the NCCL watchdog kills
+    # the run. Also drop the launcher env vars that make PL redetect DDP.
+    if args.devices > 1:
+        if torch.distributed.is_initialized():
+            torch.distributed.destroy_process_group()
+        for _k in (
+            "LOCAL_RANK", "NODE_RANK", "WORLD_SIZE", "RANK",
+            "MASTER_ADDR", "MASTER_PORT", "GROUP_RANK",
+        ):
+            os.environ.pop(_k, None)
+
     if not args.skip_predict:
+        predict_trainer = (
+            trainer
+            if args.devices == 1
+            else create_trainer(config, output_dir, args.experiment_name)
+        )
         predict_and_eval(
             model,
-            trainer,
+            predict_trainer,
             config,
             dm,
             exposure,
@@ -627,8 +694,6 @@ def main(args) -> None:
 
 
 if __name__ == "__main__":
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="MicroSplit K=2 training on LIF24 5ms TIFF."
     )
@@ -654,7 +719,13 @@ if __name__ == "__main__":
 
     # training knobs
     parser.add_argument("--num-epochs", type=int, default=40)
-    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=64,
+        help="Per-GPU batch size. Under DDP, global batch = batch_size × devices. "
+        "Use --global-batch-size to pin the global batch instead.",
+    )
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--n2v-num-epochs", type=int, default=10)
     parser.add_argument(
@@ -662,6 +733,36 @@ if __name__ == "__main__":
         type=int,
         default=MMSE_COUNT,
         help="Number of posterior samples averaged at predict time (MMSE).",
+    )
+
+    # multi-GPU
+    parser.add_argument(
+        "--devices",
+        type=int,
+        default=1,
+        help="Number of GPUs for Trainer.fit. 1 = current single-GPU behavior. "
+        ">1 enables DDP. Predict + eval always runs single-GPU on rank 0.",
+    )
+    parser.add_argument(
+        "--strategy",
+        type=str,
+        default="auto",
+        help="Lightning strategy. 'auto' resolves to 'ddp' when devices>1. "
+        "Escape hatch: 'ddp_find_unused_parameters_true'.",
+    )
+    parser.add_argument(
+        "--sync-batchnorm",
+        dest="sync_batchnorm",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Sync BN running stats across ranks. Default: on when devices>1, off otherwise.",
+    )
+    parser.add_argument(
+        "--global-batch-size",
+        type=int,
+        default=None,
+        help="If set, per-GPU batch = global_batch_size // devices (overrides --batch-size). "
+        "Use this to preserve the historical global batch of 64 across a DDP run.",
     )
 
     # noise model
