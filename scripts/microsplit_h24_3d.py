@@ -597,8 +597,10 @@ def main(args) -> None:
         per_gpu_batch = args.global_batch_size // args.devices
     else:
         per_gpu_batch = args.batch_size
-    strategy = args.strategy if args.strategy != "auto" else (
-        "ddp" if args.devices > 1 else "auto"
+    strategy = (
+        args.strategy
+        if args.strategy != "auto"
+        else ("ddp" if args.devices > 1 else "auto")
     )
     sync_bn = (
         args.sync_batchnorm if args.sync_batchnorm is not None else args.devices > 1
@@ -687,8 +689,13 @@ def main(args) -> None:
         if torch.distributed.is_initialized():
             torch.distributed.destroy_process_group()
         for _k in (
-            "LOCAL_RANK", "NODE_RANK", "WORLD_SIZE", "RANK",
-            "MASTER_ADDR", "MASTER_PORT", "GROUP_RANK",
+            "LOCAL_RANK",
+            "NODE_RANK",
+            "WORLD_SIZE",
+            "RANK",
+            "MASTER_ADDR",
+            "MASTER_PORT",
+            "GROUP_RANK",
         ):
             os.environ.pop(_k, None)
 
