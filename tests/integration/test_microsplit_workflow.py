@@ -74,7 +74,7 @@ pytestmark = pytest.mark.lvae
 #     # Step 2: Get multichannel model
 #     multichannel_nm = trainer.get_multichannel_model()
 #     assert isinstance(multichannel_nm, MultiChannelNoiseModel)
-#     assert multichannel_nm._nm_cnt == 2
+#     assert multichannel_nm._nm_count == 2
 
 #     # Step 3: Create VAEModule with noise model
 #     # Save trained noise models to get configs
@@ -300,7 +300,7 @@ pytestmark = pytest.mark.lvae
 
 #     # Step 2: Get multichannel model
 #     multichannel_nm = trainer.get_multichannel_model()
-#     assert multichannel_nm._nm_cnt == n_channels
+#     assert multichannel_nm._nm_count == n_channels
 
 #     # Step 3: Create VAEModule with multi-channel noise model
 #     saved_paths = trainer.save(tmp_path, prefix="nm_multichannel")

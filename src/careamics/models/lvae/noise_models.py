@@ -207,12 +207,12 @@ class MultiChannelNoiseModel(nn.Module):
                     f"nmodel_{i}", nmodel
                 )  # TODO: wouldn't be easier to use a list?
 
-        self._nm_cnt = 0
+        self._nm_count = 0
         for nmodel in nmodels:
             if nmodel is not None:
-                self._nm_cnt += 1
+                self._nm_count += 1
 
-        print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_cnt}")
+        print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_count}")
 
     def __len__(self) -> int:
         """Return the number of per-channel noise models.
@@ -222,7 +222,7 @@ class MultiChannelNoiseModel(nn.Module):
         int
             The number of channels the noise model covers.
         """
-        return self._nm_cnt
+        return self._nm_count
 
     @classmethod
     def from_npz(cls, paths: Sequence[str | Path]) -> MultiChannelNoiseModel:
@@ -273,7 +273,7 @@ class MultiChannelNoiseModel(nn.Module):
         """
         self.device = device
         self.to(device)
-        for ch_idx in range(self._nm_cnt):
+        for ch_idx in range(self._nm_count):
             nmodel = getattr(self, f"nmodel_{ch_idx}")
             nmodel.to_device(device)
 
@@ -304,9 +304,9 @@ class MultiChannelNoiseModel(nn.Module):
             return self.nmodel_0.likelihood(obs, signal)
 
         # Case 2: obs and signal have multiple channels (e.g., denoiSplit)
-        assert obs.shape[1] == self._nm_cnt, (
+        assert obs.shape[1] == self._nm_count, (
             "The number of channels in `obs` must match the number of noise models."
-            f" Got instead: obs={obs.shape[1]},  nm={self._nm_cnt}"
+            f" Got instead: obs={obs.shape[1]},  nm={self._nm_count}"
         )
         ll_list = []
         for ch_idx in range(obs.shape[1]):
@@ -341,10 +341,10 @@ class MultiChannelNoiseModel(nn.Module):
             )
 
         n_channels = signal.shape[-3]
-        if n_channels != self._nm_cnt:
+        if n_channels != self._nm_count:
             raise ValueError(
                 f"Number of channels ({n_channels}) must match number of "
-                f"noise models ({self._nm_cnt})"
+                f"noise models ({self._nm_count})"
             )
 
         samples_list = []
@@ -367,7 +367,7 @@ class MultiChannelNoiseModel(nn.Module):
         """
         return all(
             getattr(self, f"nmodel_{ch_idx}").is_normalized
-            for ch_idx in range(self._nm_cnt)
+            for ch_idx in range(self._nm_count)
         )
 
     def get_normalized_copy(
@@ -401,21 +401,21 @@ class MultiChannelNoiseModel(nn.Module):
         means = list(data_means)
         stds = list(data_stds)
         if len(means) == 1:
-            means = means * self._nm_cnt
+            means = means * self._nm_count
         if len(stds) == 1:
-            stds = stds * self._nm_cnt
-        if len(means) != self._nm_cnt or len(stds) != self._nm_cnt:
+            stds = stds * self._nm_count
+        if len(means) != self._nm_count or len(stds) != self._nm_count:
             raise ValueError(
                 f"Number of data means ({len(means)}) and stds ({len(stds)}) "
                 f"must be 1 or match the number of noise models "
-                f"({self._nm_cnt})."
+                f"({self._nm_count})."
             )
         return MultiChannelNoiseModel(
             [
                 getattr(self, f"nmodel_{ch_idx}").get_normalized_copy(
                     means[ch_idx], stds[ch_idx]
                 )
-                for ch_idx in range(self._nm_cnt)
+                for ch_idx in range(self._nm_count)
             ]
         )
 
