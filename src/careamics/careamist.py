@@ -44,6 +44,8 @@ from .lightning.utils import (
 )
 from .model_io.bmz_io import load_from_bmz
 from .models import get_model_constraints
+from .models.lvae.noise_models import MultiChannelNoiseModel
+from .noise_model import NoiseModelTrainer
 from .utils import get_logger, get_run_version
 from .utils.reshape_array import reshape_array
 
@@ -53,6 +55,7 @@ logger = get_logger(__name__)
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
+NoiseModelInput = MultiChannelNoiseModel | list[str | Path]
 OutputType = tuple[list[NDArray], list[str]]
 OutputTypeWithUncertainty = tuple[list[NDArray], list[NDArray], list[str]]
 PredictStepOutput = ImageRegionData | tuple[ImageRegionData, ImageRegionData | None]
@@ -603,6 +606,7 @@ class CAREamist:
         # ADVANCED PARAMS
         filtering_mask: InputVar | None = None,
         loading: ReadFuncLoading | None = None,
+        noise_model: NoiseModelInput | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -617,6 +621,7 @@ class CAREamist:
         # ADVANCED PARAMS
         filtering_mask: Any | None = None,
         loading: ImageStackLoading = ...,
+        noise_model: NoiseModelInput | None = None,
     ) -> None: ...
 
     def train(
@@ -630,6 +635,7 @@ class CAREamist:
         # ADVANCED PARAMS
         filtering_mask: Any | None = None,
         loading: Loading = None,
+        noise_model: NoiseModelInput | None = None,
     ) -> None:
         """Train the model on the provided data.
 
@@ -652,14 +658,30 @@ class CAREamist:
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
+        noise_model : MultiChannelNoiseModel or list of str or Path, optional
+            Trained noise model for the noise model likelihood (MicroSplit denoiSplit /
+            HDN noise model pathway), as a `MultiChannelNoiseModel` or the per-channel
+            `.npz` paths to load it from. Only used by MicroSplit and HDN; it is a
+            training-time, loss-side artifact and is not stored in the configuration.
+            Produce one with `NoiseModelTrainer` or `CAREamist.train_noise_model`.
 
         Raises
         ------
         ValueError
-            If train_data is not provided.
+            If train_data is not provided, or if a noise model is provided for an
+            algorithm that does not support one.
         """
         if train_data is None:
             raise ValueError("Training data must be provided. Provide `train_data`.")
+
+        if noise_model is not None:
+            if not hasattr(self.model, "set_noise_model"):
+                raise ValueError(
+                    "A noise model was provided but the "
+                    f"{self.config.get_algorithm_friendly_name()} algorithm does not "
+                    "support one (only MicroSplit and HDN do)."
+                )
+            self.model.set_noise_model(noise_model)
 
         if self.config.is_supervised() and train_data_target is None:
             raise ValueError(
@@ -711,6 +733,83 @@ class CAREamist:
                 )
                 wandb.finish()
                 break
+
+    def train_noise_model(
+        self,
+        signal: NDArray,
+        observation: NDArray,
+        *,
+        signal_axes: str | None = None,
+        observation_axes: str | None = None,
+        n_gaussian: int = 3,
+        n_coeff: int = 3,
+        min_sigma: float = 125.0,
+        n_epochs: int = 2000,
+        save: bool = True,
+    ) -> MultiChannelNoiseModel:
+        """Train a noise model and attach it for the noise model likelihood.
+
+        This is a thin convenience wrapper over `NoiseModelTrainer`: it fits one
+        Gaussian-mixture noise model per channel from `(signal, observation)` pairs,
+        optionally saves the trained models under `work_dir/noise_models`, attaches the
+        result to the underlying module (so a subsequent `train()` needs nothing else),
+        and returns it for inspection.
+
+        The `signal` is a clean/denoised estimate (typically an N2V prediction) and the
+        `observation` is the matching raw noisy data. Only MicroSplit and HDN use noise
+        models.
+
+        Parameters
+        ----------
+        signal : numpy.ndarray
+            Clean/denoised signal, shape `(S, C, [Z], Y, X)` or `(S, [Z], Y, X)`.
+        observation : numpy.ndarray
+            Noisy observation matching `signal`.
+        signal_axes : str, optional
+            Axes of `signal`; reshaped to canonical `SC(Z)YX` when provided.
+        observation_axes : str, optional
+            Axes of `observation`; reshaped to canonical `SC(Z)YX` when provided.
+        n_gaussian : int, default=3
+            Number of Gaussian components per channel.
+        n_coeff : int, default=3
+            Number of polynomial coefficients for signal-dependent parameters.
+        min_sigma : float, default=125.0
+            Minimum standard deviation for the Gaussian components.
+        n_epochs : int, default=2000
+            Number of training epochs.
+        save : bool, default=True
+            Whether to save the trained noise models under `work_dir/noise_models`.
+
+        Returns
+        -------
+        MultiChannelNoiseModel
+            The trained multi-channel noise model, also attached to the module.
+
+        Raises
+        ------
+        ValueError
+            If the current algorithm does not support a noise model.
+        """
+        if not hasattr(self.model, "set_noise_model"):
+            raise ValueError(
+                f"The {self.config.get_algorithm_friendly_name()} algorithm does not "
+                "support a noise model (only MicroSplit and HDN do)."
+            )
+        trainer = NoiseModelTrainer(
+            n_gaussian=n_gaussian, n_coeff=n_coeff, min_sigma=min_sigma
+        )
+        trainer.train_from_pairs(
+            signal=signal,
+            observation=observation,
+            signal_axes=signal_axes,
+            observation_axes=observation_axes,
+            n_epochs=n_epochs,
+        )
+        if save:
+            trainer.save(self.work_dir / "noise_models")
+        noise_model = trainer.get_multichannel_model()
+        self.model.set_noise_model(noise_model)
+        return noise_model
 
     def _build_predict_datamodule(
         self,
