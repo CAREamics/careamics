@@ -10,7 +10,6 @@ from careamics.config.losses.loss_config import (
     MicroSplitLossConfig,
 )
 
-
 # NOTE: the noise model is no longer part of the configuration; it is injected at
 # training time (`CAREamist.train(noise_model=...)` / `MicroSplitModule.set_noise_model`).
 # Noise-model presence / channel-count / unused-model checks are covered by the module
