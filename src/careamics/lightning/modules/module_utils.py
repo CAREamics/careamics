@@ -1,6 +1,7 @@
 """Utilities for Lightning modules."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Any
 
 import lightning.pytorch as L
@@ -9,9 +10,57 @@ from torch import nn
 from torchmetrics import MetricCollection
 
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
+from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def resolve_noise_model(
+    noise_model: MultiChannelNoiseModel | Sequence[str | Path],
+) -> MultiChannelNoiseModel:
+    """Resolve a noise model argument into a runtime ``MultiChannelNoiseModel``.
+
+    Accepts either an already-built ``MultiChannelNoiseModel`` (returned as-is) or a
+    sequence of per-channel ``.npz`` paths (loaded via ``MultiChannelNoiseModel.from_npz``).
+
+    Parameters
+    ----------
+    noise_model : MultiChannelNoiseModel or sequence of str or Path
+        The noise model object, or the per-channel ``.npz`` paths to load it from.
+
+    Returns
+    -------
+    MultiChannelNoiseModel
+        The resolved runtime noise model.
+    """
+    if isinstance(noise_model, MultiChannelNoiseModel):
+        return noise_model
+    return MultiChannelNoiseModel.from_npz(list(noise_model))
+
+
+def check_noise_model_channels(
+    noise_model: MultiChannelNoiseModel, output_channels: int
+) -> None:
+    """Validate that the noise model covers exactly ``output_channels`` channels.
+
+    Parameters
+    ----------
+    noise_model : MultiChannelNoiseModel
+        The runtime noise model.
+    output_channels : int
+        The number of output channels of the LVAE model.
+
+    Raises
+    ------
+    ValueError
+        If the noise model channel count does not match ``output_channels``.
+    """
+    if len(noise_model) != output_channels:
+        raise ValueError(
+            f"Noise model has {len(noise_model)} channel(s) but the model has "
+            f"{output_channels} output channel(s); they must match."
+        )
 
 
 def log_training_stats(module: L.LightningModule, loss: Any, batch_size: int) -> None:

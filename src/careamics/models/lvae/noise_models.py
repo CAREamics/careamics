@@ -6,6 +6,7 @@ import copy
 import math
 import os
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -212,6 +213,55 @@ class MultiChannelNoiseModel(nn.Module):
                 self._nm_cnt += 1
 
         print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_cnt}")
+
+    def __len__(self) -> int:
+        """Return the number of per-channel noise models.
+
+        Returns
+        -------
+        int
+            The number of channels the noise model covers.
+        """
+        return self._nm_cnt
+
+    @classmethod
+    def from_npz(cls, paths: Sequence[str | Path]) -> MultiChannelNoiseModel:
+        """Build a multi-channel noise model from per-channel ``.npz`` files.
+
+        Each file is a raw-space Gaussian-mixture noise model saved by
+        ``GaussianMixtureNoiseModel.save`` / ``NoiseModelTrainer.save``. The files are
+        loaded in the given order (one per output channel); when the files carry a
+        ``channel_index``, ordering consistency is validated by
+        ``MultiChannelNMConfig``.
+
+        Parameters
+        ----------
+        paths : Sequence[str or Path]
+            Paths to the per-channel ``.npz`` noise-model files.
+
+        Returns
+        -------
+        MultiChannelNoiseModel
+            The assembled multi-channel noise model.
+
+        Raises
+        ------
+        ValueError
+            If ``paths`` is empty.
+        """
+        from careamics.config.noise_model.noise_model_config import (
+            GaussianMixtureNMConfig,
+            MultiChannelNMConfig,
+        )
+
+        if len(paths) == 0:
+            raise ValueError("No noise model paths provided.")
+        configs = [GaussianMixtureNMConfig.from_npz(Path(p)) for p in paths]
+        # MultiChannelNMConfig validates channel-index ordering / count consistency
+        config = MultiChannelNMConfig(noise_models=configs)
+        model = multichannel_noise_model_factory(config)
+        assert model is not None
+        return model
 
     def to_device(self, device: torch.device) -> None:
         """Move this model and all per-channel noise models to `device`.

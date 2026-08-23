@@ -1,6 +1,9 @@
 """MicroSplit Lightning module."""
 
+import warnings
+from collections.abc import Sequence
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import lightning.pytorch as L
@@ -20,10 +23,12 @@ from careamics.models.model_factory import model_factory
 from careamics.utils.logging import get_logger
 
 from .module_utils import (
+    check_noise_model_channels,
     configure_optimizers,
     log_training_stats,
     log_validation_stats,
     mmse_and_sample_std,
+    resolve_noise_model,
 )
 
 logger = get_logger(__name__)
@@ -100,14 +105,47 @@ class MicroSplitModule(L.LightningModule):
 
         self.n_samples: int = 1
 
+    def set_noise_model(
+        self, noise_model: MultiChannelNoiseModel | Sequence[str | Path]
+    ) -> None:
+        """Attach a trained noise model for the noise model (denoiSplit) likelihood.
+
+        The noise model is a training-time, loss-side artifact and is not part of the
+        configuration. It is validated against the model here and normalized into data
+        space at `on_fit_start`. Provide it before `trainer.fit` (or via
+        `CAREamist.train(noise_model=...)`).
+
+        Parameters
+        ----------
+        noise_model : MultiChannelNoiseModel or sequence of str or Path
+            The trained (raw-space) noise model, or the per-channel ``.npz`` paths to
+            load it from.
+
+        Raises
+        ------
+        ValueError
+            If the noise model channel count does not match the model output channels.
+        """
+        nm = resolve_noise_model(noise_model)
+        check_noise_model_channels(nm, self.config.model.output_channels)
+        if self.config.loss.noise_model_likelihood_weight == 0:
+            warnings.warn(
+                "A noise model was set but noise_model_likelihood_weight is 0, so the "
+                "noise model likelihood is disabled and the noise model will not be "
+                "used.",
+                UserWarning,
+                stacklevel=2,
+            )
+        self._raw_noise_model = nm
+
     def on_fit_start(self) -> None:
         """Validate the supervised-training and noise model requirements.
 
-        When the noise model likelihood is used, the noise model is rebuilt from the
-        (raw-space) configuration and transformed into normalized data space using
-        each channel's statistics from the training dataset normalization, which must
-        therefore be `MeanStdNormalization`. Rebuilding from the configuration keeps
-        this hook idempotent (e.g. when resuming from a checkpoint).
+        When the noise model likelihood is used, the injected noise model is normalized
+        into data space using each channel's statistics from the training dataset
+        normalization, which must therefore be `MeanStdNormalization`. Rebuilding the
+        normalized copy from the raw model keeps this hook idempotent (e.g. when
+        resuming from a checkpoint).
 
         Raises
         ------
