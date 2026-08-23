@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 
 from careamics.careamist import CAREamist
 from careamics.config.factories import create_advanced_n2v_config
+from careamics.config.factories.hdn_factory import create_hdn_config
 
 
 def random_array(shape: tuple[int, ...], seed: int = 42) -> NDArray:
@@ -348,3 +349,86 @@ def test_default_write_type(write_type, data_type, expected):
 def test_predict_in_memory(in_memory, data_type, expected):
     """Test that in_memory is overwritten with False only for czi/zarr data."""
     assert CAREamist._predict_in_memory(in_memory, data_type) is expected
+
+
+def _n2v_careamist(tmp_path: Path) -> CAREamist:
+    """Return an untrained CAREamist for a deterministic algorithm."""
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SYX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+    return CAREamist(config=config, work_dir=tmp_path)
+
+
+@pytest.mark.parametrize("n_predictions", [0, 1])
+def test_predict_rejects_too_few_predictions(tmp_path: Path, n_predictions: int):
+    """Uncertainty is undefined below two predictions, so it is refused."""
+    careamist = _n2v_careamist(tmp_path)
+
+    with pytest.raises(ValueError, match="at least 2"):
+        careamist.predict(random_array((1, 32, 32)), n_predictions=n_predictions)
+
+
+def test_predict_rejects_sampling_for_deterministic_algorithms(tmp_path: Path):
+    """A deterministic algorithm cannot draw several predictions per input."""
+    careamist = _n2v_careamist(tmp_path)
+
+    with pytest.raises(ValueError, match="not supported"):
+        careamist.predict(random_array((1, 32, 32)), n_predictions=5)
+
+
+@pytest.mark.mps_gh_fail
+def test_predict_hdn_returns_uncertainty(tmp_path: Path):
+    """HDN averages several predictions and returns their spread."""
+    train_array = random_array((2, 64, 64), seed=42)
+
+    config = create_hdn_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SYX",
+        patch_size=(64, 64),
+        batch_size=2,
+        num_epochs=1,
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array, val_data=train_array)
+
+    predicted, _ = careamist.predict(train_array)
+    assert predicted[0].shape == (2, 64, 64)
+
+    predicted, uncertainty, _ = careamist.predict(train_array, n_predictions=3)
+    assert predicted[0].shape == (2, 64, 64)
+    assert uncertainty[0].shape == predicted[0].shape
+    # a stochastic model gives a different prediction on every draw
+    assert np.all(uncertainty[0] > 0)
+
+
+@pytest.mark.mps_gh_fail
+def test_predict_hdn_returns_uncertainty_tiled(tmp_path: Path):
+    """Tiled prediction stitches the uncertainty alongside the prediction."""
+    train_array = random_array((1, 128, 128), seed=42)
+
+    config = create_hdn_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SYX",
+        patch_size=(64, 64),
+        batch_size=2,
+        num_epochs=1,
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array, val_data=train_array)
+
+    predicted, uncertainty, _ = careamist.predict(
+        train_array, tile_size=(64, 64), tile_overlap=(16, 16), n_predictions=3
+    )
+
+    assert predicted[0].shape == (1, 128, 128)
+    assert uncertainty[0].shape == predicted[0].shape
+    assert np.all(uncertainty[0] > 0)

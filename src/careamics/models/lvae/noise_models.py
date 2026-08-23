@@ -6,6 +6,7 @@ import copy
 import math
 import os
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -206,12 +207,96 @@ class MultiChannelNoiseModel(nn.Module):
                     f"nmodel_{i}", nmodel
                 )  # TODO: wouldn't be easier to use a list?
 
-        self._nm_cnt = 0
+        self._nm_count = 0
         for nmodel in nmodels:
             if nmodel is not None:
-                self._nm_cnt += 1
+                self._nm_count += 1
 
-        print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_cnt}")
+        print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_count}")
+
+    def __len__(self) -> int:
+        """Return the number of per-channel noise models.
+
+        Returns
+        -------
+        int
+            The number of channels the noise model covers.
+        """
+        return self._nm_count
+
+    @classmethod
+    def from_npz(cls, paths: Sequence[str | Path]) -> MultiChannelNoiseModel:
+        """Build a multi-channel noise model from per-channel ``.npz`` files.
+
+        Each file is a raw-space Gaussian-mixture noise model saved by
+        ``GaussianMixtureNoiseModel.save`` / ``NoiseModelTrainer.save``. The files are
+        loaded in the given order (one per output channel); when the files carry a
+        ``channel_index``, ordering consistency is validated by
+        ``MultiChannelNMConfig``.
+
+        Parameters
+        ----------
+        paths : Sequence[str or Path]
+            Paths to the per-channel ``.npz`` noise-model files.
+
+        Returns
+        -------
+        MultiChannelNoiseModel
+            The assembled multi-channel noise model.
+
+        Raises
+        ------
+        ValueError
+            If ``paths`` is empty.
+        """
+        from careamics.config.noise_model.noise_model_config import (
+            GaussianMixtureNMConfig,
+            MultiChannelNMConfig,
+        )
+
+        if len(paths) == 0:
+            raise ValueError("No noise model paths provided.")
+        configs = [GaussianMixtureNMConfig.from_npz(Path(p)) for p in paths]
+        # MultiChannelNMConfig validates channel-index ordering / count consistency
+        config = MultiChannelNMConfig(noise_models=configs)
+        model = multichannel_noise_model_factory(config)
+        assert model is not None
+        return model
+
+    def to_config(self) -> MultiChannelNMConfig:
+        """Serialize the (raw-space) noise model into a ``MultiChannelNMConfig``.
+
+        Extracts the trained weights and signal bounds from each per-channel model, in
+        channel order. Used to persist the noise model in a checkpoint (separately from
+        the training ``Configuration``) so continued training can restore it.
+
+        Returns
+        -------
+        MultiChannelNMConfig
+            Configuration holding the per-channel trained weights.
+        """
+        from careamics.config.noise_model.noise_model_config import (
+            GaussianMixtureNMConfig,
+            MultiChannelNMConfig,
+        )
+
+        configs = []
+        for ch_idx in range(self._nm_count):
+            nm = getattr(self, f"nmodel_{ch_idx}")
+            configs.append(
+                GaussianMixtureNMConfig(
+                    weight=nm.weight.detach().cpu().numpy(),
+                    min_signal=float(nm.min_signal.item()),
+                    max_signal=float(nm.max_signal.item()),
+                    min_sigma=float(nm.min_sigma.item()),
+                    n_gaussian=nm.n_gaussian,
+                    n_coeff=nm.n_coeff,
+                    channel_index=ch_idx,
+                )
+            )
+        return MultiChannelNMConfig(
+            noise_models=configs, channel_indices=list(range(self._nm_count))
+        )
 
     def to_device(self, device: torch.device) -> None:
         """Move this model and all per-channel noise models to `device`.
@@ -223,7 +308,7 @@ class MultiChannelNoiseModel(nn.Module):
         """
         self.device = device
         self.to(device)
-        for ch_idx in range(self._nm_cnt):
+        for ch_idx in range(self._nm_count):
             nmodel = getattr(self, f"nmodel_{ch_idx}")
             nmodel.to_device(device)
 
@@ -254,9 +339,9 @@ class MultiChannelNoiseModel(nn.Module):
             return self.nmodel_0.likelihood(obs, signal)
 
         # Case 2: obs and signal have multiple channels (e.g., denoiSplit)
-        assert obs.shape[1] == self._nm_cnt, (
+        assert obs.shape[1] == self._nm_count, (
             "The number of channels in `obs` must match the number of noise models."
-            f" Got instead: obs={obs.shape[1]},  nm={self._nm_cnt}"
+            f" Got instead: obs={obs.shape[1]},  nm={self._nm_count}"
         )
         ll_list = []
         for ch_idx in range(obs.shape[1]):
@@ -291,10 +376,10 @@ class MultiChannelNoiseModel(nn.Module):
             )
 
         n_channels = signal.shape[-3]
-        if n_channels != self._nm_cnt:
+        if n_channels != self._nm_count:
             raise ValueError(
                 f"Number of channels ({n_channels}) must match number of "
-                f"noise models ({self._nm_cnt})"
+                f"noise models ({self._nm_count})"
             )
 
         samples_list = []
@@ -317,7 +402,7 @@ class MultiChannelNoiseModel(nn.Module):
         """
         return all(
             getattr(self, f"nmodel_{ch_idx}").is_normalized
-            for ch_idx in range(self._nm_cnt)
+            for ch_idx in range(self._nm_count)
         )
 
     def get_normalized_copy(
@@ -351,21 +436,21 @@ class MultiChannelNoiseModel(nn.Module):
         means = list(data_means)
         stds = list(data_stds)
         if len(means) == 1:
-            means = means * self._nm_cnt
+            means = means * self._nm_count
         if len(stds) == 1:
-            stds = stds * self._nm_cnt
-        if len(means) != self._nm_cnt or len(stds) != self._nm_cnt:
+            stds = stds * self._nm_count
+        if len(means) != self._nm_count or len(stds) != self._nm_count:
             raise ValueError(
                 f"Number of data means ({len(means)}) and stds ({len(stds)}) "
                 f"must be 1 or match the number of noise models "
-                f"({self._nm_cnt})."
+                f"({self._nm_count})."
             )
         return MultiChannelNoiseModel(
             [
                 getattr(self, f"nmodel_{ch_idx}").get_normalized_copy(
                     means[ch_idx], stds[ch_idx]
                 )
-                for ch_idx in range(self._nm_cnt)
+                for ch_idx in range(self._nm_count)
             ]
         )
 

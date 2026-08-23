@@ -1,24 +1,34 @@
 """Factory functions for lightning modules."""
 
-from careamics.config import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from careamics.config import (
+    CAREAlgorithm,
+    HDNAlgorithm,
+    MicroSplitAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+)
 from careamics.config.algorithms.unet_algorithm_config import UNetBasedAlgorithm
 from careamics.config.support import SupportedAlgorithm
 
 from .care_module import CAREModule
+from .hdn_module import HDNModule
+from .microsplit_module import MicroSplitModule
 from .n2v_module import N2VModule
 
-CAREamicsModuleCls = type[N2VModule] | type[CAREModule]
-CAREamicsModule = N2VModule | CAREModule
+CAREamicsModuleCls = (
+    type[N2VModule] | type[CAREModule] | type[HDNModule] | type[MicroSplitModule]
+)
+CAREamicsModule = N2VModule | CAREModule | HDNModule | MicroSplitModule
+CAREamicsAlgorithm = UNetBasedAlgorithm | HDNAlgorithm | MicroSplitAlgorithm
 
 
-# TODO: update to accept all algorithm configs
-def create_module(algorithm_config: UNetBasedAlgorithm) -> CAREamicsModule:
+def create_module(algorithm_config: CAREamicsAlgorithm) -> CAREamicsModule:
     """
     Initialize the correct Lightning module from an algorithm config.
 
     Parameters
     ----------
-    algorithm_config : UNetBasedAlgorithm
+    algorithm_config : UNetBasedAlgorithm, HDNAlgorithm or MicroSplitAlgorithm
         The pydantic model with algorithm specific parameters.
 
     Returns
@@ -35,6 +45,10 @@ def create_module(algorithm_config: UNetBasedAlgorithm) -> CAREamicsModule:
         return CAREModule(algorithm_config)
     elif isinstance(algorithm_config, N2VAlgorithm):
         return N2VModule(algorithm_config)
+    elif isinstance(algorithm_config, HDNAlgorithm):
+        return HDNModule(algorithm_config)
+    elif isinstance(algorithm_config, MicroSplitAlgorithm):
+        return MicroSplitModule(algorithm_config)
     else:
         algorithm = algorithm_config.algorithm
         raise NotImplementedError(
@@ -67,6 +81,10 @@ def get_module_cls(algorithm: SupportedAlgorithm) -> CAREamicsModuleCls:
             return CAREModule
         case SupportedAlgorithm.N2V:
             return N2VModule
+        case SupportedAlgorithm.HDN:
+            return HDNModule
+        case SupportedAlgorithm.MICROSPLIT:
+            return MicroSplitModule
         case _:
             raise NotImplementedError(
                 f"Support for {algorithm.value} has not been implemented yet."

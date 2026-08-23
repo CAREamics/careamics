@@ -10,9 +10,8 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.losses.loss_config import MicroSplitLossConfig
 from careamics.config.microsplit_configuration import MicroSplitConfiguration
-from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
 from .data_factory import create_data_configuration
 from .factory_utils import assemble_augmentations
@@ -32,7 +31,6 @@ def create_microsplit_config(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     multiscale_count: int = 3,
-    noise_model: MultiChannelNMConfig | None = None,
 ) -> MicroSplitConfiguration:
     """Create a configuration for training MicroSplit.
 
@@ -62,13 +60,17 @@ def create_microsplit_config(
         Number of patches to set aside for validation during training.
     multiscale_count : int, default=3
         Number of lateral-context scales.
-    noise_model : MultiChannelNMConfig or None, default=None
-        Trained noise model, required for denoiSplit training.
 
     Returns
     -------
     MicroSplitConfiguration
         Configuration for training MicroSplit.
+
+    Notes
+    -----
+    The noise model is not part of the configuration. For denoiSplit
+    (`noise_model_likelihood_weight > 0`), train one with `NoiseModelTrainer` and pass
+    it to `CAREamist.train(noise_model=...)` (or `MicroSplitModule.set_noise_model`).
     """
     return create_advanced_microsplit_config(**locals())
 
@@ -103,11 +105,8 @@ def create_advanced_microsplit_config(
     # loss parameters
     reconstruction_weight: float = 1.0,
     kl_weight: float = 1.0,
-    musplit_weight: float = 0.1,
-    denoisplit_weight: float = 0.9,
-    # algorithm parameters
-    noise_model: MultiChannelNMConfig | None = None,
-    mmse_count: int = 10,
+    gaussian_likelihood_weight: float = 0.1,
+    noise_model_likelihood_weight: float = 0.9,
     # lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -177,14 +176,12 @@ def create_advanced_microsplit_config(
         Weight of the reconstruction term.
     kl_weight : float, default=1.0
         Weight of the KL term.
-    musplit_weight : float, default=0.1
-        Weight of the Gaussian likelihood (muSplit).
-    denoisplit_weight : float, default=0.9
-        Weight of the noise model likelihood (denoiSplit).
-    noise_model : MultiChannelNMConfig or None, default=None
-        Trained noise model, required for denoiSplit training.
-    mmse_count : int, default=10
-        Number of samples used for MMSE prediction.
+    gaussian_likelihood_weight : float, default=0.1
+        Weight of the Gaussian likelihood term (muSplit).
+    noise_model_likelihood_weight : float, default=0.9
+        Weight of the noise model likelihood term (denoiSplit). The noise model itself
+        is supplied at training time via `CAREamist.train(noise_model=...)` /
+        `MicroSplitModule.set_noise_model`, not through the configuration.
     num_workers : int, default=-1
         Number of workers for data loading.
     trainer_params : dict or None, default=None
@@ -235,14 +232,13 @@ def create_advanced_microsplit_config(
             f"({len(patch_size)}), got {enc_conv_strides} / {dec_conv_strides}"
         )
 
-    # TODO consider accepting an LVAELossConfig directly instead of individual weights
-    # (see PR #1007 discussion); to be addressed in a follow-up PR.
-    loss = LVAELossConfig(
-        loss_type="microsplit",
+    # TODO consider accepting a MicroSplitLossConfig directly instead of individual
+    # weights (see PR #1007 discussion); to be addressed in a follow-up PR.
+    loss = MicroSplitLossConfig(
         reconstruction_weight=reconstruction_weight,
         kl_weight=kl_weight,
-        musplit_weight=musplit_weight,
-        denoisplit_weight=denoisplit_weight,
+        gaussian_likelihood_weight=gaussian_likelihood_weight,
+        noise_model_likelihood_weight=noise_model_likelihood_weight,
         predict_logvar=predict_logvar,
         logvar_lowerbound=logvar_lowerbound,
     )
@@ -269,8 +265,6 @@ def create_advanced_microsplit_config(
         algorithm="microsplit",
         loss=loss,
         model=model,
-        noise_model=noise_model,
-        mmse_count=mmse_count,
         optimizer=OptimizerConfig(
             name=optimizer,
             parameters=optimizer_params or {"lr": 1e-3, "weight_decay": 0},

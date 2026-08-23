@@ -1,25 +1,36 @@
 """Hierarchical DivNoising (HDN) Lightning module."""
 
+import warnings
+from collections.abc import Sequence
+from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-import pytorch_lightning as L
+import lightning.pytorch as L
 import torch
-from torch import nn
 from torchmetrics import MetricCollection
 
 from careamics.config import HDNAlgorithm
 from careamics.dataset import ImageRegionData
 from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
+from careamics.dataset.normalization.normalization import Normalization
 from careamics.losses.lvae import hdn_loss
 from careamics.metrics import SIPSNR
-from careamics.models.lvae.noise_models import (
-    MultiChannelNoiseModel,
-    multichannel_noise_model_factory,
-)
+from careamics.models.lvae import LadderVAE
+from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 from careamics.models.model_factory import model_factory
 from careamics.utils.logging import get_logger
 
-from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
+from .module_utils import (
+    check_noise_model_channels,
+    configure_optimizers,
+    load_noise_model_from_checkpoint,
+    log_training_stats,
+    log_validation_stats,
+    mmse_and_sample_std,
+    resolve_noise_model,
+    save_noise_model_to_checkpoint,
+)
 
 logger = get_logger(__name__)
 
@@ -40,6 +51,10 @@ class HDNModule(L.LightningModule):
       (`predict_logvar` must be `False`);
     - otherwise a Gaussian likelihood with a learned per-pixel variance is used
       (`predict_logvar` must be `True`).
+
+    HDN is stochastic: every forward pass draws a fresh latent sample. Set the
+    `n_samples` attribute to average several draws at prediction time and obtain
+    their standard deviation as an uncertainty estimate.
 
     Parameters
     ----------
@@ -70,25 +85,20 @@ class HDNModule(L.LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config: HDNAlgorithm = config
 
-        self.model: nn.Module = model_factory(self.config.model)
+        self.model: LadderVAE = cast("LadderVAE", model_factory(self.config.model))
         self.loss_func = hdn_loss
 
-        self.noise_model: MultiChannelNoiseModel | None = (
-            multichannel_noise_model_factory(self.config.noise_model)
-        )
-
+        # The noise model is not part of the configuration; it is injected at training
+        # time via `set_noise_model` (or `CAREamist.train(noise_model=...)`). The
+        # likelihood is selected by `predict_logvar`: `True` learns a Gaussian
+        # likelihood (no noise model), `False` uses the noise model likelihood (a noise
+        # model must be provided). `on_fit_start` enforces this and normalizes the raw
+        # model into data space. It is a frozen, loss-side artifact and is deliberately
+        # kept out of the module `state_dict` (assigned via `object.__setattr__` to
+        # avoid nn.Module registration); it is persisted via `on_save_checkpoint`.
+        self._raw_noise_model: MultiChannelNoiseModel | None = None
+        self.noise_model: MultiChannelNoiseModel | None = None
         self.predict_logvar: bool = self.config.model.predict_logvar
-        if self.noise_model is None and not self.predict_logvar:
-            raise ValueError(
-                "Without a noise model, HDN learns a Gaussian likelihood and "
-                "requires `predict_logvar=True`."
-            )
-        if self.noise_model is not None and self.predict_logvar:
-            raise ValueError(
-                "With a noise model, HDN uses the noise model likelihood and "
-                "requires `predict_logvar=False`."
-            )
-        self.mmse_count: int = self.config.mmse_count
 
         self.metrics: MetricCollection = MetricCollection(
             {
@@ -101,22 +111,97 @@ class HDNModule(L.LightningModule):
             }
         )
 
-    def on_fit_start(self) -> None:
-        """On fit start hook for HDN module.
+        self.n_samples: int = 1
 
-        When a noise model is used, it is rebuilt from the (raw-space) configuration
-        and transformed into normalized data space using the input statistics from
-        the training dataset normalization. Rebuilding from the configuration keeps
-        this hook idempotent (e.g. when resuming from a checkpoint).
+    def set_noise_model(
+        self, noise_model: MultiChannelNoiseModel | Sequence[str | Path]
+    ) -> None:
+        """Attach a trained noise model for the noise model likelihood.
+
+        The noise model is a training-time, loss-side artifact and is not part of the
+        configuration. It is validated against the model here and normalized into data
+        space at `on_fit_start`. It is only used when the noise model likelihood is
+        selected (`predict_logvar=False`). Provide it before `trainer.fit` (or via
+        `CAREamist.train(noise_model=...)`).
+
+        Parameters
+        ----------
+        noise_model : MultiChannelNoiseModel or sequence of str or Path
+            The trained (raw-space) noise model, or the per-channel ``.npz`` paths to
+            load it from.
 
         Raises
         ------
+        ValueError
+            If the noise model channel count does not match the model output channels.
+        """
+        nm = resolve_noise_model(noise_model)
+        check_noise_model_channels(nm, self.config.model.output_channels)
+        if self.predict_logvar:
+            warnings.warn(
+                "A noise model was set but HDN is configured for the Gaussian "
+                "likelihood (`predict_logvar=True`), so the noise model will not be "
+                "used. Use `use_noise_model=True` to select the noise model "
+                "likelihood.",
+                UserWarning,
+                stacklevel=2,
+            )
+        # keep the noise model out of the module state_dict (see __init__)
+        object.__setattr__(self, "_raw_noise_model", nm)
+
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Persist the raw-space noise model into the checkpoint.
+
+        Stored under a dedicated key (not in the ``Configuration``) so continued
+        training can restore it. Prediction never needs it.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint dictionary being saved.
+        """
+        save_noise_model_to_checkpoint(self._raw_noise_model, checkpoint)
+
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Restore the raw-space noise model from the checkpoint, if present.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint dictionary being loaded.
+        """
+        restored = load_noise_model_from_checkpoint(checkpoint)
+        if restored is not None:
+            object.__setattr__(self, "_raw_noise_model", restored)
+
+    def on_fit_start(self) -> None:
+        """On fit start hook for HDN module.
+
+        The likelihood is selected by `predict_logvar`: when `True`, HDN learns a
+        Gaussian likelihood and no noise model is used; when `False`, the injected
+        noise model is transformed into normalized data space using the input
+        statistics from the training dataset normalization. Rebuilding the normalized
+        copy from the raw model each fit keeps this hook idempotent (e.g. when resuming
+        from a checkpoint).
+
+        Raises
+        ------
+        ValueError
+            If the noise model likelihood is used (`predict_logvar=False`) but no noise
+            model has been provided.
         TypeError
             If a noise model is used with a normalization other than
             `MeanStdNormalization`.
         """
-        if self.noise_model is None:
+        if self.predict_logvar:
+            # Gaussian (DivNoising) likelihood; no noise model
             return
+        if self._raw_noise_model is None:
+            raise ValueError(
+                "HDN with the noise model likelihood (`predict_logvar=False`) requires "
+                "a noise model. Provide one via `CAREamist.train(noise_model=...)` or "
+                "`HDNModule.set_noise_model(...)`."
+            )
         assert self._trainer is not None
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
         # The noise model likelihood operates in normalized data space, so the noise
@@ -128,11 +213,14 @@ class HDNModule(L.LightningModule):
                 "HDN with a noise model requires MeanStdNormalization to recover the "
                 f"data statistics, but got {type(normalization).__name__}."
             )
-        raw_noise_model = multichannel_noise_model_factory(self.config.noise_model)
-        assert raw_noise_model is not None
-        self.noise_model = raw_noise_model.get_normalized_copy(
-            [float(normalization.input_means[0])],
-            [float(normalization.input_stds[0])],
+        # kept out of state_dict (see __init__); rebuilt from the raw model each fit
+        object.__setattr__(
+            self,
+            "noise_model",
+            self._raw_noise_model.get_normalized_copy(
+                [float(normalization.input_means[0])],
+                [float(normalization.input_stds[0])],
+            ),
         )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
@@ -239,41 +327,28 @@ class HDNModule(L.LightningModule):
             predictions = predictions.chunk(2, dim=1)[0]
         return predictions
 
-    def _predict_mmse(self, x_data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute the MMSE prediction by averaging several samples.
+    def predict_sample(
+        self, x_data: torch.Tensor, normalization: Normalization
+    ) -> torch.Tensor:
+        """Draw one reconstruction and denormalize it into target space.
 
-        The LVAE draws a fresh latent sample on every forward pass, so the minimum
-        mean squared error (MMSE) estimate is the mean of ``mmse_count`` sampled
-        reconstructions. The per-pixel std across those samples is
-        returned as an uncertainty estimate.
+        Each call draws a new latent sample, so repeated calls give different
+        reconstructions.
 
         Parameters
         ----------
         x_data : torch.Tensor
             Input tensor, shape (B, C, [Z], Y, X).
+        normalization : Normalization
+            Normalization used to map the reconstruction back into target space.
 
         Returns
         -------
-        tuple of (torch.Tensor, torch.Tensor)
-            The MMSE prediction and the sample std, both of shape
-            (B, output_channels, [Z], Y, X). The std is all-zeros
-            when ``mmse_count == 1``.
+        torch.Tensor
+            A single reconstruction, shape (B, output_channels, [Z], Y, X).
         """
-        samples = torch.stack(
-            [
-                self._get_reconstruction(self.model(x_data))
-                for _ in range(self.mmse_count)
-            ],
-            dim=0,
-        )
-        mmse_prediction = samples.mean(dim=0)
-        # unbiased std is undefined for a single sample; report zero uncertainty
-        mmse_std = (
-            samples.std(dim=0)
-            if self.mmse_count > 1
-            else torch.zeros_like(mmse_prediction)
-        )
-        return mmse_prediction, mmse_std
+        reconstruction = self._get_reconstruction(self.model(x_data))
+        return normalization.denormalize(reconstruction)
 
     def training_step(
         self,
@@ -347,11 +422,8 @@ class HDNModule(L.LightningModule):
         self,
         batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
         batch_idx: int,
-    ) -> ImageRegionData:
+    ) -> tuple[ImageRegionData, ImageRegionData | None]:
         """Prediction step for HDN.
-
-        Returns the MMSE reconstruction (mean of `mmse_count` stochastic samples).
-        With `mmse_count == 1` this reduces to a single forward pass.
 
         Parameters
         ----------
@@ -362,8 +434,9 @@ class HDNModule(L.LightningModule):
 
         Returns
         -------
-        ImageRegionData
-            The output batch containing the reconstruction.
+        tuple of (ImageRegionData, ImageRegionData or None)
+            The output batch containing the reconstruction and the
+            uncertainty estimate if several samples were drawn.
         """
         x = batch[0]
         x_data = x.data
@@ -371,19 +444,26 @@ class HDNModule(L.LightningModule):
         assert isinstance(x_data, torch.Tensor)
 
         # reconfigure the model for the current input spatial size
-        self.model.reset_for_inference(x_data.shape[-2:])
-
-        prediction, _ = self._predict_mmse(x_data)
+        n_spatial_dims = x_data.dim() - 2
+        self.model.reset_for_inference(tuple(x_data.shape[-n_spatial_dims:]))
 
         normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
-        denormalized_output = (
-            normalization.denormalize(prediction).detach().cpu().numpy()
+        mean, std = mmse_and_sample_std(
+            partial(self.predict_sample, normalization=normalization),
+            x_data,
+            self.n_samples,
         )
 
-        return ImageRegionData(
-            data=denormalized_output,
+        output_channels = self.config.model.output_channels
+        output_data_shape: list[Any] = list(x.data_shape)
+        output_data_shape[1] = torch.full_like(
+            cast(torch.Tensor, output_data_shape[1]), output_channels
+        )
+
+        prediction = ImageRegionData(
+            data=mean.cpu().numpy(),
             source=x.source,
-            data_shape=x.data_shape,
+            data_shape=output_data_shape,
             dtype=x.dtype,
             axes=x.axes,
             target_axes=x.target_axes,
@@ -391,6 +471,10 @@ class HDNModule(L.LightningModule):
             additional_metadata=x.additional_metadata,
             original_data_shape=x.original_data_shape,
         )
+        if std is None:
+            return prediction, None
+        uncertainty = prediction._replace(data=std.cpu().numpy())
+        return prediction, uncertainty
 
     def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]
         """Configure optimizer and learning rate scheduler.

@@ -1,26 +1,37 @@
 """MicroSplit Lightning module."""
 
+import warnings
+from collections.abc import Sequence
+from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-import pytorch_lightning as L
+import lightning.pytorch as L
 import torch
-from torch import nn
 from torchmetrics import MetricCollection
 
 from careamics.config import MicroSplitAlgorithm
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
+from careamics.dataset.normalization.normalization import Normalization
 from careamics.losses.lvae import microsplit_loss
 from careamics.metrics import SIPSNR
-from careamics.models.lvae.noise_models import (
-    MultiChannelNoiseModel,
-    multichannel_noise_model_factory,
-)
+from careamics.models.lvae import LadderVAE
+from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 from careamics.models.model_factory import model_factory
 from careamics.utils.logging import get_logger
 
-from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
+from .module_utils import (
+    check_noise_model_channels,
+    configure_optimizers,
+    load_noise_model_from_checkpoint,
+    log_training_stats,
+    log_validation_stats,
+    mmse_and_sample_std,
+    resolve_noise_model,
+    save_noise_model_to_checkpoint,
+)
 
 logger = get_logger(__name__)
 
@@ -35,11 +46,14 @@ class MicroSplitModule(L.LightningModule):
     channel into several target channels, built on the LVAE model. The reconstruction
     likelihood is the weighted combination configured by the loss:
 
-    - `musplit_weight` weights a Gaussian likelihood with a learned per-pixel
-      variance (requires `predict_logvar=True`);
-    - `denoisplit_weight` weights a noise model likelihood (requires a noise model
-      and `MeanStdNormalization`; the noise model is transformed into normalized
-      data space at the start of training).
+    - `gaussian_likelihood_weight` weights a Gaussian likelihood with a learned
+      per-pixel variance (requires `predict_logvar=True`)
+    - `noise_model_likelihood_weight` weights a noise model likelihood (requires a
+      noise model and `MeanStdNormalization`).
+
+    MicroSplit is stochastic: every forward pass draws a fresh latent sample. Set the
+    `n_samples` attribute to average several draws at prediction time and obtain
+    their standard deviation as an uncertainty estimate.
 
     Parameters
     ----------
@@ -70,14 +84,18 @@ class MicroSplitModule(L.LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
 
-        self.model: nn.Module = model_factory(self.config.model)
+        self.model: LadderVAE = cast("LadderVAE", model_factory(self.config.model))
         self.loss_func = microsplit_loss
 
-        self.noise_model: MultiChannelNoiseModel | None = (
-            multichannel_noise_model_factory(self.config.noise_model)
-        )
+        # The noise model is not part of the configuration; it is injected at training
+        # time via `set_noise_model` (or `CAREamist.train(noise_model=...)`).
+        # `on_fit_start` normalizes the raw model into data space; `None` until then.
+        # It is a frozen, loss-side artifact and is deliberately kept out of the module
+        # `state_dict` (assigned via `object.__setattr__` to avoid nn.Module
+        # registration); it is persisted separately via `on_save_checkpoint`.
+        self._raw_noise_model: MultiChannelNoiseModel | None = None
+        self.noise_model: MultiChannelNoiseModel | None = None
         self.predict_logvar: bool = self.config.model.predict_logvar
-        self.mmse_count: int = self.config.mmse_count
 
         self.metrics: MetricCollection = MetricCollection(
             {
@@ -90,14 +108,75 @@ class MicroSplitModule(L.LightningModule):
             }
         )
 
+        self.n_samples: int = 1
+
+    def set_noise_model(
+        self, noise_model: MultiChannelNoiseModel | Sequence[str | Path]
+    ) -> None:
+        """Attach a trained noise model for the noise model (denoiSplit) likelihood.
+
+        The noise model is a training-time, loss-side artifact and is not part of the
+        configuration. It is validated against the model here and normalized into data
+        space at `on_fit_start`. Provide it before `trainer.fit` (or via
+        `CAREamist.train(noise_model=...)`).
+
+        Parameters
+        ----------
+        noise_model : MultiChannelNoiseModel or sequence of str or Path
+            The trained (raw-space) noise model, or the per-channel ``.npz`` paths to
+            load it from.
+
+        Raises
+        ------
+        ValueError
+            If the noise model channel count does not match the model output channels.
+        """
+        nm = resolve_noise_model(noise_model)
+        check_noise_model_channels(nm, self.config.model.output_channels)
+        if self.config.loss.noise_model_likelihood_weight == 0:
+            warnings.warn(
+                "A noise model was set but noise_model_likelihood_weight is 0, so the "
+                "noise model likelihood is disabled and the noise model will not be "
+                "used.",
+                UserWarning,
+                stacklevel=2,
+            )
+        # keep the noise model out of the module state_dict (see __init__)
+        object.__setattr__(self, "_raw_noise_model", nm)
+
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Persist the raw-space noise model into the checkpoint.
+
+        Stored under a dedicated key (not in the ``Configuration``) so continued
+        training can restore it. Prediction never needs it.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint dictionary being saved.
+        """
+        save_noise_model_to_checkpoint(self._raw_noise_model, checkpoint)
+
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Restore the raw-space noise model from the checkpoint, if present.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint dictionary being loaded.
+        """
+        restored = load_noise_model_from_checkpoint(checkpoint)
+        if restored is not None:
+            object.__setattr__(self, "_raw_noise_model", restored)
+
     def on_fit_start(self) -> None:
         """Validate the supervised-training and noise model requirements.
 
-        When the noise model likelihood is used, the noise model is rebuilt from the
-        (raw-space) configuration and transformed into normalized data space using
-        each channel's statistics from the training dataset normalization, which must
-        therefore be `MeanStdNormalization`. Rebuilding from the configuration keeps
-        this hook idempotent (e.g. when resuming from a checkpoint).
+        When the noise model likelihood is used, the injected noise model is normalized
+        into data space using each channel's statistics from the training dataset
+        normalization, which must therefore be `MeanStdNormalization`. Rebuilding the
+        normalized copy from the raw model keeps this hook idempotent (e.g. when
+        resuming from a checkpoint).
 
         Raises
         ------
@@ -122,11 +201,13 @@ class MicroSplitModule(L.LightningModule):
             raise ValueError(
                 "MicroSplit is supervised: `val_data_target` must be provided."
             )
-        if self.config.loss.denoisplit_weight > 0:
-            if self.noise_model is None:
+        if self.config.loss.noise_model_likelihood_weight > 0:
+            if self._raw_noise_model is None:
                 raise ValueError(
-                    "The noise model likelihood (denoisplit_weight > 0) requires a "
-                    "noise model. Provide one in the configuration."
+                    "The noise model likelihood (noise_model_likelihood_weight > 0) "
+                    "requires a noise model. Provide one via "
+                    "`CAREamist.train(noise_model=...)` or "
+                    "`MicroSplitModule.set_noise_model(...)`."
                 )
             # the noise model likelihood operates in normalized data space, so the
             # per-channel statistics are recovered from the training normalization
@@ -140,13 +221,17 @@ class MicroSplitModule(L.LightningModule):
             # target statistics when supervised, input statistics otherwise
             means = normalization.target_means or normalization.input_means
             stds = normalization.target_stds or normalization.input_stds
-            # rebuild the raw-space model from the config, then normalize each
-            # channel's model with that channel's statistics
-            raw_noise_model = multichannel_noise_model_factory(self.config.noise_model)
-            assert raw_noise_model is not None
-            self.noise_model = raw_noise_model.get_normalized_copy(
-                [float(m) for m in means], [float(s) for s in stds]
-            ).to(self.device)
+            # normalize the injected raw-space model into data space. Rebuilding the
+            # normalized copy from the raw model each fit keeps this hook idempotent
+            # (e.g. when resuming from a checkpoint). Kept out of state_dict (see
+            # __init__).
+            object.__setattr__(
+                self,
+                "noise_model",
+                self._raw_noise_model.get_normalized_copy(
+                    [float(m) for m in means], [float(s) for s in stds]
+                ).to(self.device),
+            )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.
@@ -211,41 +296,28 @@ class MicroSplitModule(L.LightningModule):
             predictions = predictions.chunk(2, dim=1)[0]
         return predictions
 
-    def _predict_mmse(self, x_data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute the MMSE prediction by averaging several samples.
+    def predict_sample(
+        self, x_data: torch.Tensor, normalization: Normalization
+    ) -> torch.Tensor:
+        """Draw one reconstruction and denormalize it into target space.
 
-        The LVAE draws a fresh latent sample on every forward pass, so the minimum
-        mean squared error (MMSE) estimate is the mean of ``mmse_count`` sampled
-        reconstructions. The per-pixel std across those samples is
-        returned as an uncertainty estimate.
+        Each call draws a new latent sample, so repeated calls give different
+        reconstructions.
 
         Parameters
         ----------
         x_data : torch.Tensor
             Input tensor, shape (B, C, [Z], Y, X).
+        normalization : Normalization
+            Normalization used to map the reconstruction back into target space.
 
         Returns
         -------
-        tuple of (torch.Tensor, torch.Tensor)
-            The MMSE prediction and the sample std, both of shape
-            (B, output_channels, [Z], Y, X). The std is all-zeros
-            when ``mmse_count == 1``.
+        torch.Tensor
+            A single reconstruction, shape (B, output_channels, [Z], Y, X).
         """
-        samples = torch.stack(
-            [
-                self._get_reconstruction(self.model(x_data))
-                for _ in range(self.mmse_count)
-            ],
-            dim=0,
-        )
-        mmse_prediction = samples.mean(dim=0)
-        # unbiased std is undefined for a single sample; report zero uncertainty
-        mmse_std = (
-            samples.std(dim=0)
-            if self.mmse_count > 1
-            else torch.zeros_like(mmse_prediction)
-        )
-        return mmse_prediction, mmse_std
+        reconstruction = self._get_reconstruction(self.model(x_data))
+        return normalization.denormalize(reconstruction)
 
     def training_step(
         self, batch: tuple[ImageRegionData, ImageRegionData], batch_idx: int
@@ -316,12 +388,8 @@ class MicroSplitModule(L.LightningModule):
 
     def predict_step(
         self, batch: tuple[ImageRegionData, ...], batch_idx: int
-    ) -> ImageRegionData:
+    ) -> tuple[ImageRegionData, ImageRegionData | None]:
         """Prediction step for MicroSplit.
-
-        Returns the MMSE reconstruction (mean of `mmse_count` stochastic samples)
-        denormalized into target space. With `mmse_count == 1` this reduces to a
-        single forward pass.
 
         Parameters
         ----------
@@ -332,9 +400,10 @@ class MicroSplitModule(L.LightningModule):
 
         Returns
         -------
-        ImageRegionData
+        tuple of (ImageRegionData, ImageRegionData or None)
             The output batch containing the reconstruction, with the channel
-            dimension of `data_shape` set to the number of output channels.
+            dimension of `data_shape` set to the number of output channels, and the
+            uncertainty estimate if several samples were drawn.
         """
         x = batch[0]
         x_data = x.data
@@ -345,23 +414,21 @@ class MicroSplitModule(L.LightningModule):
         n_spatial_dims = x_data.dim() - 2
         self.model.reset_for_inference(tuple(x_data.shape[-n_spatial_dims:]))
 
-        prediction, _ = self._predict_mmse(x_data)
-
-        # denormalize into target space using the prediction dataset's normalization
-        # (uses target statistics when available), consistent with the other modules
         normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
-        denormalized_output = (
-            normalization.denormalize(prediction).detach().cpu().numpy()
+        mean, std = mmse_and_sample_std(
+            partial(self.predict_sample, normalization=normalization),
+            x_data,
+            self.n_samples,
         )
 
         output_channels = self.config.model.output_channels
-        output_data_shape = list(x.data_shape)
+        output_data_shape: list[Any] = list(x.data_shape)
         output_data_shape[1] = torch.full_like(
             cast(torch.Tensor, output_data_shape[1]), output_channels
         )
 
-        return ImageRegionData(
-            data=denormalized_output,
+        prediction = ImageRegionData(
+            data=mean.cpu().numpy(),
             source=x.source,
             data_shape=output_data_shape,
             dtype=x.dtype,
@@ -371,6 +438,10 @@ class MicroSplitModule(L.LightningModule):
             additional_metadata=x.additional_metadata,
             original_data_shape=x.original_data_shape,
         )
+        if std is None:
+            return prediction, None
+        uncertainty = prediction._replace(data=std.cpu().numpy())
+        return prediction, uncertainty
 
     def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]
         """Configure optimizer and learning rate scheduler.

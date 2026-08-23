@@ -89,8 +89,8 @@ class TestHDNConfig:
         assert config.training_config.trainer_params["max_epochs"] == 25
         assert config.training_config.trainer_params["limit_train_batches"] == 500
 
-    def test_self_supervised_checkpointing(self):
-        """Test that HDN uses the self-supervised checkpoint preset (no early stop)."""
+    def test_checkpointing_ranks_by_val_loss(self):
+        """Test that HDN ranks checkpoints by `val_loss` but does not early stop."""
         config = create_hdn_config(
             experiment_name="test",
             data_type="array",
@@ -99,7 +99,8 @@ class TestHDNConfig:
             batch_size=8,
         )
         assert config.training_config.early_stopping_params is None
-        assert "every_n_epochs" in config.training_config.checkpoint_params
+        assert config.training_config.checkpoint_params["monitor"] == "val_loss"
+        assert config.training_config.checkpoint_params["save_top_k"] > 0
 
     def test_3d(self):
         """Test that a 3D HDN configuration can be created."""

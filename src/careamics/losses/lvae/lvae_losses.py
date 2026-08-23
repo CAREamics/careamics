@@ -10,7 +10,7 @@ import torch
 from careamics.losses.lvae.loss_utils import free_bits_kl
 
 if TYPE_CHECKING:
-    from careamics.config import LVAELossConfig
+    from careamics.config import HDNLossConfig, MicroSplitLossConfig
     from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 
 
@@ -220,7 +220,7 @@ def get_kl_divergence_loss(
 def hdn_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
-    config: LVAELossConfig,
+    config: HDNLossConfig,
     noise_model: MultiChannelNoiseModel | None = None,
 ) -> dict[str, torch.Tensor] | None:
     """Loss function for HDN.
@@ -233,7 +233,7 @@ def hdn_loss(
     targets : torch.Tensor
         The target image used to compute the reconstruction loss. In this case we use
         the input patch itself as target. Shape is (B, `target_ch`, [Z], Y, X).
-    config : LVAELossConfig
+    config : HDNLossConfig
         The config for loss function containing all loss hyperparameters.
     noise_model : MultiChannelNoiseModel | None, optional
         The noise model, already normalized into the network's data space (see
@@ -303,7 +303,7 @@ def hdn_loss(
 def microsplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
-    config: LVAELossConfig,
+    config: MicroSplitLossConfig,
     noise_model: MultiChannelNoiseModel | None = None,
 ) -> dict[str, torch.Tensor] | None:
     """Unified loss function for MicroSplit (musplit, denoisplit, musplit_denoisplit).
@@ -321,13 +321,12 @@ def microsplit_loss(
     targets : torch.Tensor
         The target image used to compute the reconstruction loss. Shape is
         (B, `target_ch`, [Z], Y, X).
-    config : LVAELossConfig
+    config : MicroSplitLossConfig
         The config for loss function containing all loss hyperparameters.
-        Uses `musplit_weight` as gaussian_weight and `denoisplit_weight` as nm_weight.
     noise_model : MultiChannelNoiseModel | None, optional
         The noise model, already normalized into the network's data space (see
         `MultiChannelNoiseModel.get_normalized_copy`). Required if
-        denoisplit_weight > 0.
+        `config.noise_model_likelihood_weight` > 0.
 
     Returns
     -------
@@ -339,15 +338,12 @@ def microsplit_loss(
     predictions, td_data = model_outputs
     img_shape = targets.shape[2:]
 
-    gaussian_weight = config.musplit_weight
-    nm_weight = config.denoisplit_weight
+    gaussian_weight = config.gaussian_likelihood_weight
+    nm_weight = config.noise_model_likelihood_weight
 
-    if gaussian_weight > 0 and not config.predict_logvar:
-        raise ValueError(
-            "predict_logvar must be True in config when musplit_weight > 0"
-        )
+    # predict_logvar/gaussian_weight consistency is validated on MicroSplitLossConfig.
     if nm_weight > 0 and noise_model is None:
-        raise ValueError("noise_model required when denoisplit_weight > 0")
+        raise ValueError("noise_model required when noise_model_likelihood_weight > 0")
     recons_loss: torch.Tensor | float = 0.0
     if nm_weight > 0 and gaussian_weight > 0:
         if predictions.shape[1] == 2 * targets.shape[1]:

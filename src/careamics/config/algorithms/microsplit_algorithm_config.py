@@ -1,29 +1,23 @@
 """MicroSplit algorithm configuration."""
 
-import warnings
 from pprint import pformat
 from typing import Annotated, Literal, Self
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, model_validator
 
 from careamics.config.architectures import LVAEConfig
 from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import LVAELossConfig
-from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-from careamics.config.support import SupportedLoss
+from careamics.config.losses.loss_config import MicroSplitLossConfig
 from careamics.config.validators import (
-    at_least_one_likelihood,
     lvae_conv_strides_valid,
     lvae_depth_valid,
     lvae_multiscale_count_valid,
     lvae_spatial_shape_valid,
-    noise_models_match_output_channels,
     predict_logvar_consistent,
-    predict_logvar_required_for_musplit,
 )
 
 MICROSPLIT = "MicroSplit"
@@ -50,11 +44,7 @@ class MicroSplitAlgorithm(BaseModel):
 
     algorithm: Literal["microsplit"] = "microsplit"
 
-    loss: Annotated[
-        LVAELossConfig,
-        AfterValidator(at_least_one_likelihood),
-        AfterValidator(predict_logvar_required_for_musplit),
-    ] = LVAELossConfig(loss_type="microsplit")
+    loss: MicroSplitLossConfig = MicroSplitLossConfig()
 
     model: Annotated[
         LVAEConfig,
@@ -63,10 +53,6 @@ class MicroSplitAlgorithm(BaseModel):
         AfterValidator(lvae_spatial_shape_valid),
         AfterValidator(lvae_depth_valid),
     ]
-
-    noise_model: MultiChannelNMConfig | None = None
-
-    mmse_count: int = Field(default=1, ge=1)
 
     optimizer: OptimizerConfig = OptimizerConfig()
     """Optimizer to use, defined in SupportedOptimizer."""
@@ -77,6 +63,11 @@ class MicroSplitAlgorithm(BaseModel):
     def validate_constraints(self: Self) -> Self:
         """Validate the algorithm-specific constraints.
 
+        The noise model is not part of the configuration; it is supplied at training
+        time (`CAREamist.train(noise_model=...)` / `MicroSplitModule.set_noise_model`)
+        and validated against the model then. Only config-only constraints are checked
+        here.
+
         Returns
         -------
         Self
@@ -85,38 +76,10 @@ class MicroSplitAlgorithm(BaseModel):
         Raises
         ------
         ValueError
-            If the loss, model or noise model configurations are not compatible
-            with the MicroSplit algorithm.
+            If the loss and model configurations are not compatible with the MicroSplit
+            algorithm.
         """
-        if self.loss.loss_type != SupportedLoss.MICROSPLIT:
-            raise ValueError(
-                f"Algorithm {self.algorithm} only supports loss `microsplit`."
-            )
-
-        # Remind users to attach a noise model when using denoiSplit
-        if self.loss.denoisplit_weight > 0 and self.noise_model is None:
-            warnings.warn(
-                "denoisplit_weight > 0 but no noise_model is provided in the "
-                "configuration. A noise model is required for denoiSplit training. "
-                "Train one with NoiseModelTrainer, then pass the result to "
-                "create_microsplit_config(noise_model=trainer.get_config()) "
-                "before training.",
-                UserWarning,
-                stacklevel=2,
-            )
-
-        # Warn about a noise model that will never be used
-        if self.noise_model is not None and self.loss.denoisplit_weight == 0:
-            warnings.warn(
-                "A noise_model is provided but denoisplit_weight is 0, so the noise "
-                "model likelihood is disabled and the noise model will not be used.",
-                UserWarning,
-                stacklevel=2,
-            )
-
         predict_logvar_consistent(self.model, self.loss)
-        noise_models_match_output_channels(self.model, self.noise_model)
-
         return self
 
     def __str__(self) -> str:

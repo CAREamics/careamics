@@ -1,136 +1,132 @@
 """Tests for LVAE loss configuration classes."""
 
-from typing import Literal
-
 import pytest
 from pydantic import ValidationError
 
-from careamics.config.losses.loss_config import LVAELossConfig
-
-
-@pytest.mark.skip(reason="Needs to be updated")
-@pytest.mark.parametrize(
-    "loss_type",
-    ["hdn", "microsplit", "musplit", "denoisplit", "denoisplit_musplit"],
+from careamics.config.losses.loss_config import (
+    HDNLossConfig,
+    MicroSplitLossConfig,
 )
-def test_lvae_loss_config_valid_loss_type(
-    loss_type: Literal[
-        "hdn", "microsplit", "musplit", "denoisplit", "denoisplit_musplit"
-    ],
-) -> None:
-    """Test that valid loss_type values are accepted."""
-    config = LVAELossConfig(loss_type=loss_type)
-    assert config.loss_type == loss_type
 
 
-def test_lvae_loss_config_invalid_loss_type() -> None:
-    """Test that invalid loss_type raises ValidationError."""
+def test_loss_types_are_fixed_per_subclass() -> None:
+    """Each subclass fixes its own `loss_type`."""
+    assert HDNLossConfig().loss_type == "hdn"
+    assert MicroSplitLossConfig().loss_type == "microsplit"
+
+
+def test_invalid_loss_type_rejected() -> None:
+    """A `loss_type` other than the subclass literal raises ValidationError."""
     with pytest.raises(ValidationError):
-        LVAELossConfig(loss_type="invalid_loss")
+        MicroSplitLossConfig(loss_type="invalid_loss")
+    with pytest.raises(ValidationError):
+        HDNLossConfig(loss_type="microsplit")
 
 
-def test_lvae_loss_config_default_values() -> None:
+def test_microsplit_loss_config_default_values() -> None:
     """Test that default values are correctly set."""
-    config = LVAELossConfig(loss_type="microsplit")
+    config = MicroSplitLossConfig()
     assert config.loss_type == "microsplit"
     assert config.reconstruction_weight == 1.0
     assert config.kl_weight == 1.0
-    assert config.musplit_weight == 0.1
-    assert config.denoisplit_weight == 0.9
+    assert config.gaussian_likelihood_weight == 0.1
+    assert config.noise_model_likelihood_weight == 0.9
+
+
+def test_hdn_loss_config_has_no_split_weights() -> None:
+    """HDN loss config exposes only the shared weights (no µSplit/denoiSplit)."""
+    config = HDNLossConfig()
+    assert config.loss_type == "hdn"
+    assert config.reconstruction_weight == 1.0
+    assert config.kl_weight == 1.0
+    assert "gaussian_likelihood_weight" not in HDNLossConfig.model_fields
+    assert "noise_model_likelihood_weight" not in HDNLossConfig.model_fields
 
 
 @pytest.mark.parametrize("weight", [0.0, 0.5, 1.0, 2.0])
-def test_lvae_loss_config_reconstruction_weight(weight: float) -> None:
+def test_reconstruction_weight(weight: float) -> None:
     """Test that various reconstruction_weight values are accepted."""
-    config = LVAELossConfig(loss_type="microsplit", reconstruction_weight=weight)
+    config = MicroSplitLossConfig(reconstruction_weight=weight)
     assert config.reconstruction_weight == weight
 
 
 @pytest.mark.parametrize("weight", [0.0, 0.5, 1.0, 2.0])
-def test_lvae_loss_config_kl_weight(weight: float) -> None:
+def test_kl_weight(weight: float) -> None:
     """Test that various kl_weight values are accepted."""
-    config = LVAELossConfig(loss_type="microsplit", kl_weight=weight)
+    config = MicroSplitLossConfig(kl_weight=weight)
     assert config.kl_weight == weight
 
 
 @pytest.mark.parametrize("weight", [0.0, 0.1, 0.5, 1.0])
-def test_lvae_loss_config_musplit_weight(weight: float) -> None:
-    """Test that various musplit_weight values are accepted."""
-    config = LVAELossConfig(loss_type="microsplit", musplit_weight=weight)
-    assert config.musplit_weight == weight
+def test_gaussian_likelihood_weight(weight: float) -> None:
+    """Test that various gaussian_likelihood_weight values are accepted."""
+    config = MicroSplitLossConfig(gaussian_likelihood_weight=weight)
+    assert config.gaussian_likelihood_weight == weight
 
 
 @pytest.mark.parametrize("weight", [0.0, 0.5, 0.9, 1.0])
-def test_lvae_loss_config_denoisplit_weight(weight: float) -> None:
-    """Test that various denoisplit_weight values are accepted."""
-    config = LVAELossConfig(loss_type="microsplit", denoisplit_weight=weight)
-    assert config.denoisplit_weight == weight
+def test_noise_model_likelihood_weight(weight: float) -> None:
+    """Test that various noise_model_likelihood_weight values are accepted."""
+    config = MicroSplitLossConfig(noise_model_likelihood_weight=weight)
+    assert config.noise_model_likelihood_weight == weight
 
 
 @pytest.mark.parametrize("weight", [-1.0, -0.5])
-def test_lvae_loss_config_negative_weights(weight: float) -> None:
+def test_negative_weights_rejected(weight: float) -> None:
     """Test that negative weight values are rejected."""
     with pytest.raises(ValidationError):
-        LVAELossConfig(loss_type="microsplit", reconstruction_weight=weight)
+        MicroSplitLossConfig(reconstruction_weight=weight)
+    with pytest.raises(ValidationError):
+        MicroSplitLossConfig(gaussian_likelihood_weight=weight)
+    with pytest.raises(ValidationError):
+        MicroSplitLossConfig(noise_model_likelihood_weight=weight)
 
 
-def test_lvae_loss_config_weight_combinations() -> None:
+def test_weight_combinations() -> None:
     """Test various weight combinations for microsplit loss."""
-    # muSplit only (gaussian_weight=1, nm_weight=0)
-    config1 = LVAELossConfig(
-        loss_type="microsplit", musplit_weight=1.0, denoisplit_weight=0.0
+    # muSplit only
+    config1 = MicroSplitLossConfig(
+        gaussian_likelihood_weight=1.0, noise_model_likelihood_weight=0.0
     )
-    assert config1.musplit_weight == 1.0
-    assert config1.denoisplit_weight == 0.0
+    assert config1.gaussian_likelihood_weight == 1.0
+    assert config1.noise_model_likelihood_weight == 0.0
 
-    # denoiSplit only (gaussian_weight=0, nm_weight=1)
-    config2 = LVAELossConfig(
-        loss_type="microsplit", musplit_weight=0.0, denoisplit_weight=1.0
+    # denoiSplit only
+    config2 = MicroSplitLossConfig(
+        gaussian_likelihood_weight=0.0, noise_model_likelihood_weight=1.0
     )
-    assert config2.musplit_weight == 0.0
-    assert config2.denoisplit_weight == 1.0
+    assert config2.gaussian_likelihood_weight == 0.0
+    assert config2.noise_model_likelihood_weight == 1.0
 
-    # Balanced (0.5, 0.5)
-    config3 = LVAELossConfig(
-        loss_type="microsplit", musplit_weight=0.5, denoisplit_weight=0.5
+    # Balanced
+    config3 = MicroSplitLossConfig(
+        gaussian_likelihood_weight=0.5, noise_model_likelihood_weight=0.5
     )
-    assert config3.musplit_weight == 0.5
-    assert config3.denoisplit_weight == 0.5
+    assert config3.gaussian_likelihood_weight == 0.5
+    assert config3.noise_model_likelihood_weight == 0.5
 
 
-def test_lvae_loss_config_hdn_loss_type() -> None:
-    """Test HDN loss type configuration."""
-    config = LVAELossConfig(loss_type="hdn")
-    assert config.loss_type == "hdn"
-    # HDN should work with default weights
-    assert config.reconstruction_weight == 1.0
-    assert config.kl_weight == 1.0
-
-
-def test_lvae_loss_config_full_config() -> None:
+def test_full_config() -> None:
     """Test complete configuration with all parameters."""
-    config = LVAELossConfig(
-        loss_type="microsplit",
+    config = MicroSplitLossConfig(
         reconstruction_weight=1.5,
         kl_weight=0.8,
-        musplit_weight=0.3,
-        denoisplit_weight=0.7,
+        gaussian_likelihood_weight=0.3,
+        noise_model_likelihood_weight=0.7,
     )
     assert config.loss_type == "microsplit"
     assert config.reconstruction_weight == 1.5
     assert config.kl_weight == 0.8
-    assert config.musplit_weight == 0.3
-    assert config.denoisplit_weight == 0.7
+    assert config.gaussian_likelihood_weight == 0.3
+    assert config.noise_model_likelihood_weight == 0.7
 
 
-def test_lvae_loss_config_modification() -> None:
+def test_config_modification() -> None:
     """Test that config values can be modified after creation."""
-    config = LVAELossConfig(loss_type="microsplit")
-    # Modify values
-    config.musplit_weight = 0.8
-    config.denoisplit_weight = 0.2
+    config = MicroSplitLossConfig()
+    config.gaussian_likelihood_weight = 0.8
+    config.noise_model_likelihood_weight = 0.2
     config.reconstruction_weight = 2.0
-    # Verify modifications
-    assert config.musplit_weight == 0.8
-    assert config.denoisplit_weight == 0.2
+    assert config.gaussian_likelihood_weight == 0.8
+    assert config.noise_model_likelihood_weight == 0.2
     assert config.reconstruction_weight == 2.0
