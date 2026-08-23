@@ -15,10 +15,7 @@ from careamics.dataset.normalization.normalization import Normalization
 from careamics.losses.lvae import microsplit_loss
 from careamics.metrics import SIPSNR
 from careamics.models.lvae import LadderVAE
-from careamics.models.lvae.noise_models import (
-    MultiChannelNoiseModel,
-    multichannel_noise_model_factory,
-)
+from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 from careamics.models.model_factory import model_factory
 from careamics.utils.logging import get_logger
 
@@ -83,9 +80,11 @@ class MicroSplitModule(L.LightningModule):
         self.model: LadderVAE = cast("LadderVAE", model_factory(self.config.model))
         self.loss_func = microsplit_loss
 
-        self.noise_model: MultiChannelNoiseModel | None = (
-            multichannel_noise_model_factory(self.config.noise_model)
-        )
+        # The noise model is not part of the configuration; it is injected at training
+        # time via `set_noise_model` (or `CAREamist.train(noise_model=...)`).
+        # `on_fit_start` normalizes the raw model into data space; `None` until then.
+        self._raw_noise_model: MultiChannelNoiseModel | None = None
+        self.noise_model: MultiChannelNoiseModel | None = None
         self.predict_logvar: bool = self.config.model.predict_logvar
 
         self.metrics: MetricCollection = MetricCollection(
@@ -134,10 +133,12 @@ class MicroSplitModule(L.LightningModule):
                 "MicroSplit is supervised: `val_data_target` must be provided."
             )
         if self.config.loss.noise_model_likelihood_weight > 0:
-            if self.noise_model is None:
+            if self._raw_noise_model is None:
                 raise ValueError(
                     "The noise model likelihood (noise_model_likelihood_weight > 0) "
-                    "requires a noise model. Provide one in the configuration."
+                    "requires a noise model. Provide one via "
+                    "`CAREamist.train(noise_model=...)` or "
+                    "`MicroSplitModule.set_noise_model(...)`."
                 )
             # the noise model likelihood operates in normalized data space, so the
             # per-channel statistics are recovered from the training normalization
@@ -151,11 +152,10 @@ class MicroSplitModule(L.LightningModule):
             # target statistics when supervised, input statistics otherwise
             means = normalization.target_means or normalization.input_means
             stds = normalization.target_stds or normalization.input_stds
-            # rebuild the raw-space model from the config, then normalize each
-            # channel's model with that channel's statistics
-            raw_noise_model = multichannel_noise_model_factory(self.config.noise_model)
-            assert raw_noise_model is not None
-            self.noise_model = raw_noise_model.get_normalized_copy(
+            # normalize the injected raw-space model into data space. Rebuilding the
+            # normalized copy from the raw model each fit keeps this hook idempotent
+            # (e.g. when resuming from a checkpoint).
+            self.noise_model = self._raw_noise_model.get_normalized_copy(
                 [float(m) for m in means], [float(s) for s in stds]
             )
 
