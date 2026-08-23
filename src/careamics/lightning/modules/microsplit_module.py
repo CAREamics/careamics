@@ -25,10 +25,12 @@ from careamics.utils.logging import get_logger
 from .module_utils import (
     check_noise_model_channels,
     configure_optimizers,
+    load_noise_model_from_checkpoint,
     log_training_stats,
     log_validation_stats,
     mmse_and_sample_std,
     resolve_noise_model,
+    save_noise_model_to_checkpoint,
 )
 
 logger = get_logger(__name__)
@@ -88,6 +90,9 @@ class MicroSplitModule(L.LightningModule):
         # The noise model is not part of the configuration; it is injected at training
         # time via `set_noise_model` (or `CAREamist.train(noise_model=...)`).
         # `on_fit_start` normalizes the raw model into data space; `None` until then.
+        # It is a frozen, loss-side artifact and is deliberately kept out of the module
+        # `state_dict` (assigned via `object.__setattr__` to avoid nn.Module
+        # registration); it is persisted separately via `on_save_checkpoint`.
         self._raw_noise_model: MultiChannelNoiseModel | None = None
         self.noise_model: MultiChannelNoiseModel | None = None
         self.predict_logvar: bool = self.config.model.predict_logvar
@@ -136,7 +141,33 @@ class MicroSplitModule(L.LightningModule):
                 UserWarning,
                 stacklevel=2,
             )
-        self._raw_noise_model = nm
+        # keep the noise model out of the module state_dict (see __init__)
+        object.__setattr__(self, "_raw_noise_model", nm)
+
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Persist the raw-space noise model into the checkpoint.
+
+        Stored under a dedicated key (not in the ``Configuration``) so continued
+        training can restore it. Prediction never needs it.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint dictionary being saved.
+        """
+        save_noise_model_to_checkpoint(self._raw_noise_model, checkpoint)
+
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Restore the raw-space noise model from the checkpoint, if present.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint dictionary being loaded.
+        """
+        restored = load_noise_model_from_checkpoint(checkpoint)
+        if restored is not None:
+            object.__setattr__(self, "_raw_noise_model", restored)
 
     def on_fit_start(self) -> None:
         """Validate the supervised-training and noise model requirements.
@@ -192,9 +223,14 @@ class MicroSplitModule(L.LightningModule):
             stds = normalization.target_stds or normalization.input_stds
             # normalize the injected raw-space model into data space. Rebuilding the
             # normalized copy from the raw model each fit keeps this hook idempotent
-            # (e.g. when resuming from a checkpoint).
-            self.noise_model = self._raw_noise_model.get_normalized_copy(
-                [float(m) for m in means], [float(s) for s in stds]
+            # (e.g. when resuming from a checkpoint). Kept out of state_dict (see
+            # __init__).
+            object.__setattr__(
+                self,
+                "noise_model",
+                self._raw_noise_model.get_normalized_copy(
+                    [float(m) for m in means], [float(s) for s in stds]
+                ),
             )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:

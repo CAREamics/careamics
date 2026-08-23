@@ -263,6 +263,41 @@ class MultiChannelNoiseModel(nn.Module):
         assert model is not None
         return model
 
+    def to_config(self) -> MultiChannelNMConfig:
+        """Serialize the (raw-space) noise model into a ``MultiChannelNMConfig``.
+
+        Extracts the trained weights and signal bounds from each per-channel model, in
+        channel order. Used to persist the noise model in a checkpoint (separately from
+        the training ``Configuration``) so continued training can restore it.
+
+        Returns
+        -------
+        MultiChannelNMConfig
+            Configuration holding the per-channel trained weights.
+        """
+        from careamics.config.noise_model.noise_model_config import (
+            GaussianMixtureNMConfig,
+            MultiChannelNMConfig,
+        )
+
+        configs = []
+        for ch_idx in range(self._nm_count):
+            nm = getattr(self, f"nmodel_{ch_idx}")
+            configs.append(
+                GaussianMixtureNMConfig(
+                    weight=nm.weight.detach().cpu().numpy(),
+                    min_signal=float(nm.min_signal.item()),
+                    max_signal=float(nm.max_signal.item()),
+                    min_sigma=float(nm.min_sigma.item()),
+                    n_gaussian=nm.n_gaussian,
+                    n_coeff=nm.n_coeff,
+                    channel_index=ch_idx,
+                )
+            )
+        return MultiChannelNMConfig(
+            noise_models=configs, channel_indices=list(range(self._nm_count))
+        )
+
     def to_device(self, device: torch.device) -> None:
         """Move this model and all per-channel noise models to `device`.
 
