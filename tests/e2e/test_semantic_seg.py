@@ -57,7 +57,7 @@ def test_segmentation(tmp_path, n_classes, with_channels):
     )
 
     cfg = create_seg_config(
-        experiment_name="test_single_class",
+        experiment_name="test_seg",
         data_type="array",
         axes="SCYX" if with_channels else "SYX",
         batch_size=4,
