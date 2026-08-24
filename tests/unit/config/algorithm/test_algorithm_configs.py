@@ -6,10 +6,13 @@ from careamics.config.factories.config_discriminators import (
 )
 from tests.utils import unet_algo_dict_testing
 
+# ------------------------ Test utilities --------------------------
+
 ALGORITHMS = ["care", "n2n", "n2v"]
+
 ALGORITHMS_CLASSES = [CAREAlgorithm, N2NAlgorithm, N2VAlgorithm]
 
-# ------------------------ Test utilities --------------------------
+# --- Unit tests
 
 
 def test_default_unet_algorithm_config():
@@ -29,23 +32,24 @@ def test_unet_algorithm_configs(algorithm, cfg_class):
 
 
 @pytest.mark.parametrize(
-    "algorithm, n_in, n_out", list(zip(ALGORITHMS, [1, 2, 3], [1, 2, 3], strict=True))
+    "algorithm, n_in, n_out",
+    [
+        # CARE
+        ("care", 1, 1),
+        ("care", 1, 2),
+        ("care", 2, 3),
+        # N2N
+        ("n2n", 1, 1),
+        ("n2n", 1, 2),
+        ("n2n", 2, 3),
+        # N2V, channels must be equal
+        ("n2v", 1, 1),
+        ("n2v", 2, 2),
+    ],
 )
 def test_unet_algorithm_config_channels(algorithm, n_in, n_out):
     """Test that an algorithm config can be created for all UNet-based algorithms with
-    equal channels."""
-    algo_config_dict = unet_algo_dict_testing(
-        algorithm=algorithm, n_channels_in=n_in, n_channels_out=n_out
-    )
-    instantiate_algorithm_config(algo_config_dict)
-
-
-@pytest.mark.parametrize(
-    "algorithm, n_in, n_out", list(zip(["care", "n2n"], [3, 2], [2, 3], strict=True))
-)
-def test_unet_algorithm_config_diff_channels(algorithm, n_in, n_out):
-    """Test that an algorithm config can be created for all UNet-based algorithms with
-    different channels."""
+    various channels."""
     algo_config_dict = unet_algo_dict_testing(
         algorithm=algorithm, n_channels_in=n_in, n_channels_out=n_out
     )

@@ -15,6 +15,8 @@ class N2VConfiguration(Configuration):
     """N2V-specific configuration."""
 
     algorithm_config: N2VAlgorithm
+    """Algorithm configuration, holding all parameters required to configure the
+    model."""
 
     @model_validator(mode="after")
     def target_axes_must_be_none(self: Self) -> Self:
