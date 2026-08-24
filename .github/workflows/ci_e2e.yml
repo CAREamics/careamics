@@ -14,7 +14,7 @@ on:
 
 jobs:
   test:
-    name: LVAE py3.12 (ubuntu-latest)
+    name: e2e py3.12 (ubuntu-latest)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
