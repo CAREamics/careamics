@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Any, cast
 
-import pytorch_lightning as L
+import lightning as L
 import torch
 from torch import nn
 from torchmetrics import MetricCollection
@@ -178,17 +178,7 @@ class N2VModule(L.LightningModule):
         normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
         denormalized_output = normalization.denormalize(prediction).cpu().numpy()
 
-        output_batch = ImageRegionData(
-            data=denormalized_output,
-            source=x.source,
-            data_shape=x.data_shape,
-            dtype=x.dtype,
-            axes=x.axes,
-            region_spec=x.region_spec,
-            additional_metadata=x.additional_metadata,
-            original_data_shape=x.original_data_shape,
-        )
-        return output_batch
+        return ImageRegionData.from_model_output(x, denormalized_output)
 
     def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]
         """Configure optimizer and learning rate scheduler.

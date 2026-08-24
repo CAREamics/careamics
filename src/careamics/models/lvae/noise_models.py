@@ -1,7 +1,12 @@
+"""Noise models for LVAE-based algorithms."""
+
 from __future__ import annotations
 
+import copy
+import math
 import os
-from typing import TYPE_CHECKING, Optional
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -20,7 +25,7 @@ def create_histogram(
     bins: int, min_val: float, max_val: float, observation: NDArray, signal: NDArray
 ) -> NDArray:
     """
-    Creates a 2D histogram from 'observation' and 'signal'.
+    Create a 2D histogram from 'observation' and 'signal'.
 
     Parameters
     ----------
@@ -39,12 +44,13 @@ def create_histogram(
 
     Returns
     -------
-    histogram : np.ndarray
+    np.ndarray
         A 3D array:
         - histogram[0]: Normalized 2D counts.
         - histogram[1]: Lower boundaries of bins along y.
         - histogram[2]: Upper boundaries of bins along y.
-    The values for x can be obtained by transposing 'histogram[1]' and 'histogram[2]'.
+        The values for x can be obtained by transposing 'histogram[1]' and
+        'histogram[2]'.
     """
     histogram = np.zeros((3, bins, bins))
 
@@ -74,18 +80,18 @@ def create_histogram(
 
 
 def noise_model_factory(
-    model_config: Optional[GaussianMixtureNMConfig],
-) -> Optional[GaussianMixtureNoiseModel]:
+    model_config: GaussianMixtureNMConfig | None,
+) -> GaussianMixtureNoiseModel | None:
     """Noise model factory for single-channel noise models.
 
     Parameters
     ----------
-    model_config : Optional[GaussianMixtureNMConfig]
+    model_config : GaussianMixtureNMConfig | None
         Noise model configuration for a single Gaussian mixture noise model.
 
     Returns
     -------
-    Optional[GaussianMixtureNoiseModel]
+    GaussianMixtureNoiseModel | None
         A single noise model instance, or None if no config is provided.
 
     Raises
@@ -95,46 +101,30 @@ def noise_model_factory(
         Currently only `GaussianMixtureNoiseModel` is implemented.
     """
     if model_config:
-        if model_config.path:
-            if model_config.model_type == "GaussianMixtureNoiseModel":
-                return GaussianMixtureNoiseModel(model_config)
-            else:
-                raise NotImplementedError(
-                    f"Model {model_config.model_type} is not implemented"
-                )
-
-        # TODO this is outdated and likely should be removed !!
-        else:  # TODO this means signal/obs are provided. Controlled in pydantic model
-            # TODO train a new model. Config should always be provided?
-            if model_config.model_type == "GaussianMixtureNoiseModel":
-                # TODO one model for each channel all make this choise inside the model?
-                # trained_nm = train_gm_noise_model(model_config)
-                # return trained_nm
-                raise NotImplementedError(
-                    "GaussianMixtureNoiseModel model training is not implemented."
-                )
-            else:
-                raise NotImplementedError(
-                    f"Model {model_config.model_type} is not implemented"
-                )
+        if model_config.model_type == "GaussianMixtureNoiseModel":
+            return GaussianMixtureNoiseModel(model_config)
+        else:
+            raise NotImplementedError(
+                f"Model {model_config.model_type} is not implemented"
+            )
     return None
 
 
 def multichannel_noise_model_factory(
-    model_config: Optional[MultiChannelNMConfig],
-) -> Optional[MultiChannelNoiseModel]:
+    model_config: MultiChannelNMConfig | None,
+) -> MultiChannelNoiseModel | None:
     """Multi-channel noise model factory.
 
     Parameters
     ----------
-    model_config : Optional[MultiChannelNMConfig]
+    model_config : MultiChannelNMConfig | None
         Noise model configuration, a `MultiChannelNMConfig` config that defines
         noise models for the different output channels.
 
     Returns
     -------
-    Optional[MultiChannelNoiseModel]
-        A noise model instance.
+    MultiChannelNoiseModel | None
+        A noise model instance, or None if no config is provided.
 
     Raises
     ------
@@ -145,28 +135,10 @@ def multichannel_noise_model_factory(
     if model_config:
         noise_models = []
         for nm in model_config.noise_models:
-            if nm.path:
-                if nm.model_type == "GaussianMixtureNoiseModel":
-                    noise_models.append(GaussianMixtureNoiseModel(nm))
-                else:
-                    raise NotImplementedError(
-                        f"Model {nm.model_type} is not implemented"
-                    )
-
-            # TODO this is outdated and likely should be removed !!
-            else:  # TODO this means signal/obs are provided. Controlled in pydantic model
-                # TODO train a new model. Config should always be provided?
-                if nm.model_type == "GaussianMixtureNoiseModel":
-                    # TODO one model for each channel all make this choise inside the model?
-                    # trained_nm = train_gm_noise_model(nm)
-                    # noise_models.append(trained_nm)
-                    raise NotImplementedError(
-                        "GaussianMixtureNoiseModel model training is not implemented."
-                    )
-                else:
-                    raise NotImplementedError(
-                        f"Model {nm.model_type} is not implemented"
-                    )
+            if nm.model_type == "GaussianMixtureNoiseModel":
+                noise_models.append(GaussianMixtureNoiseModel(nm))
+            else:
+                raise NotImplementedError(f"Model {nm.model_type} is not implemented")
         return MultiChannelNoiseModel(noise_models)
     return None
 
@@ -180,12 +152,17 @@ def train_gm_noise_model(
 
     Parameters
     ----------
-    model_config : GaussianMixtureNoiseModel
-        _description_
+    model_config : GaussianMixtureNMConfig
+        Configuration of the Gaussian mixture noise model to train.
+    signal : np.ndarray
+        Clean signal data.
+    observation : np.ndarray
+        Noisy observation data.
 
     Returns
     -------
-    _description_
+    GaussianMixtureNoiseModel
+        The trained noise model.
     """
     # TODO where to put train params?
     # TODO any training params ? Different channels ?
@@ -196,16 +173,24 @@ def train_gm_noise_model(
 
 
 class MultiChannelNoiseModel(nn.Module):
+    """Noise model that wraps one noise model per output channel.
+
+    To handle noise models and the relative likelihood computation for multiple
+    output channels (e.g., muSplit, denoiseSplit).
+
+    This class:
+    - receives as input a variable number of noise models, one for each channel.
+    - computes the likelihood of observations given signals for each channel.
+    - returns the concatenation of these likelihoods.
+
+    Parameters
+    ----------
+    nmodels : list[GaussianMixtureNoiseModel]
+        List of noise models, one for each output channel.
+    """
+
     def __init__(self, nmodels: list[GaussianMixtureNoiseModel]):
         """Constructor.
-
-        To handle noise models and the relative likelihood computation for multiple
-        output channels (e.g., muSplit, denoiseSplit).
-
-        This class:
-        - receives as input a variable number of noise models, one for each channel.
-        - computes the likelihood of observations given signals for each channel.
-        - returns the concatenation of these likelihoods.
 
         Parameters
         ----------
@@ -228,7 +213,14 @@ class MultiChannelNoiseModel(nn.Module):
 
         print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_cnt}")
 
-    def to_device(self, device: torch.device):
+    def to_device(self, device: torch.device) -> None:
+        """Move this model and all per-channel noise models to `device`.
+
+        Parameters
+        ----------
+        device : torch.device
+            Device to move the model to.
+        """
         self.device = device
         self.to(device)
         for ch_idx in range(self._nm_cnt):
@@ -249,6 +241,12 @@ class MultiChannelNoiseModel(nn.Module):
             Underlying signals, i.e., the (clean) output of the model. Specifically, the
             denoised image for HDN, or the unmixed images for denoiSplit.
             Shape: (B, C, [Z], Y, X), where C is the number of unmixed channels.
+
+        Returns
+        -------
+        torch.Tensor
+            Concatenation of the per-channel likelihoods, with the same shape
+            as the inputs.
         """
         # Case 1: obs and signal have a single channel (e.g., denoising)
         if obs.shape[1] == 1:
@@ -270,12 +268,114 @@ class MultiChannelNoiseModel(nn.Module):
             )
         return torch.cat(ll_list, dim=1)
 
+    def sample_observation(self, signal: NDArray) -> NDArray:
+        """Sample noisy observations from the learned noise models.
+
+        For each channel, samples noisy observations using the corresponding
+        channel's noise model.
+
+        Parameters
+        ----------
+        signal : NDArray
+            Clean signal data with shape (..., C, Y, X) where C is the number
+            of channels matching the number of noise models.
+
+        Returns
+        -------
+        NDArray
+            Sampled noisy observation with same shape as input signal.
+        """
+        if signal.ndim < 3:
+            raise ValueError(
+                f"Signal must have at least 3 dimensions (C, Y, X), got {signal.ndim}D"
+            )
+
+        n_channels = signal.shape[-3]
+        if n_channels != self._nm_cnt:
+            raise ValueError(
+                f"Number of channels ({n_channels}) must match number of "
+                f"noise models ({self._nm_cnt})"
+            )
+
+        samples_list = []
+        for ch_idx in range(n_channels):
+            nmodel = getattr(self, f"nmodel_{ch_idx}")
+            channel_signal = signal[..., ch_idx, :, :]
+            channel_sample = nmodel.sample_observation_from_signal(channel_signal)
+            samples_list.append(channel_sample)
+
+        return np.stack(samples_list, axis=-3)
+
+    @property
+    def is_normalized(self) -> bool:
+        """Whether all wrapped per-channel noise models are normalized.
+
+        Returns
+        -------
+        bool
+            True if every child model operates in normalized data space.
+        """
+        return all(
+            getattr(self, f"nmodel_{ch_idx}").is_normalized
+            for ch_idx in range(self._nm_cnt)
+        )
+
+    def get_normalized_copy(
+        self, data_means: Sequence[float], data_stds: Sequence[float]
+    ) -> MultiChannelNoiseModel:
+        """Return a copy with each channel's model in normalized data space.
+
+        Each per-channel noise model is transformed with that channel's
+        statistics (see `GaussianMixtureNoiseModel.get_normalized_copy`).
+        Length-1 statistics are broadcast to all channels.
+
+        Parameters
+        ----------
+        data_means : Sequence[float]
+            Per-channel means used to normalize the data. Length must be 1 or
+            match the number of noise models.
+        data_stds : Sequence[float]
+            Per-channel standard deviations used to normalize the data. Length
+            must be 1 or match the number of noise models.
+
+        Returns
+        -------
+        MultiChannelNoiseModel
+            A new multi-channel model operating on normalized values.
+
+        Raises
+        ------
+        ValueError
+            If the statistics lengths do not match the number of noise models.
+        """
+        means = list(data_means)
+        stds = list(data_stds)
+        if len(means) == 1:
+            means = means * self._nm_cnt
+        if len(stds) == 1:
+            stds = stds * self._nm_cnt
+        if len(means) != self._nm_cnt or len(stds) != self._nm_cnt:
+            raise ValueError(
+                f"Number of data means ({len(means)}) and stds ({len(stds)}) "
+                f"must be 1 or match the number of noise models "
+                f"({self._nm_cnt})."
+            )
+        return MultiChannelNoiseModel(
+            [
+                getattr(self, f"nmodel_{ch_idx}").get_normalized_copy(
+                    means[ch_idx], stds[ch_idx]
+                )
+                for ch_idx in range(self._nm_cnt)
+            ]
+        )
+
 
 class GaussianMixtureNoiseModel(nn.Module):
     """Define a noise model parameterized as a mixture of gaussians.
 
-    If `config.path` is not provided a new object is initialized from scratch.
-    Otherwise, a model is loaded from `config.path`.
+    If `config.weight` is provided, the model is initialized from those weights.
+    Otherwise weights are randomly initialized using `config.min_signal` and
+    `config.max_signal`.
 
     Parameters
     ----------
@@ -288,8 +388,6 @@ class GaussianMixtureNoiseModel(nn.Module):
         Minimum signal intensity expected in the image.
     max_signal : float
         Maximum signal intensity expected in the image.
-    path: Union[str, Path]
-        Path to the directory where the trained noise model (*.npz) is saved in the `train` method.
     weight : torch.nn.Parameter
         A [3*n_gaussian, n_coeff] sized array containing the values of the weights
         describing the GMM noise model, with each row corresponding to one
@@ -304,7 +402,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         Number of gaussians in the mixture.
     n_coeff: int
         Number of coefficients to describe the functional relationship between gaussian
-        parameters and the signal. 2 implies a linear relationship, 3 implies a quadratic
+        parameters and the signal. 2 implies a linear, 3 implies a quadratic
         relationship and so on.
     device: device
         GPU device.
@@ -312,15 +410,25 @@ class GaussianMixtureNoiseModel(nn.Module):
         All values of `standard deviation` below this are clamped to this value.
     """
 
+    # buffers registered in __init__, annotated for mypy
+    min_signal: torch.Tensor
+    max_signal: torch.Tensor
+    min_sigma: torch.Tensor
+    tolerance: torch.Tensor
+
     # TODO training a NM relies on getting a clean data(N2V e.g,)
     def __init__(self, config: GaussianMixtureNMConfig) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        config : GaussianMixtureNMConfig
+            A `pydantic` model that defines the configuration of the GMM noise model.
+        """
         super().__init__()
         self.device = torch.device("cpu")
 
-        if config.path is not None:
-            params = np.load(config.path)
-        else:
-            params = config.model_dump(exclude_none=True)
+        params = config.model_dump(exclude_none=True)
 
         min_sigma = torch.tensor(params["min_sigma"])
         min_signal = torch.tensor(params["min_signal"])
@@ -330,10 +438,10 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.register_buffer("min_sigma", min_sigma)
         self.register_buffer("tolerance", torch.tensor([1e-10]))
 
-        if "trained_weight" in params:
-            weight = torch.tensor(params["trained_weight"])
-        elif "weight" in params and params["weight"] is not None:
-            weight = torch.tensor(params["weight"])
+        # Use config.weight directly to avoid Array PlainSerializer converting
+        # the numpy array to a JSON string via model_dump().
+        if config.weight is not None:
+            weight = torch.as_tensor(np.asarray(config.weight), dtype=torch.float32)
         else:
             weight = self._initialize_weights(
                 params["n_gaussian"], params["n_coeff"], max_signal, min_signal
@@ -345,7 +453,73 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.register_parameter("weight", nn.Parameter(weight))
         self._set_model_mode(mode="prediction")
 
+        # Normalization state
+        self.is_normalized: bool = False
+        self.normalization_mean: float | None = None
+        self.normalization_std: float | None = None
+
         print(f"[{self.__class__.__name__}] min_sigma: {self.min_sigma}")
+
+    def get_normalized_copy(
+        self, data_mean: float, data_std: float
+    ) -> GaussianMixtureNoiseModel:
+        """Return a copy of this model transformed into normalized data space.
+
+        The GMM parameterization is closed under the joint affine transform
+        ``x -> (x - data_mean) / data_std`` of signal and observation, so the
+        returned model computes, exactly, ``likelihood_norm(o', s') = data_std *
+        likelihood_raw(o, s)`` for normalized inputs. Gradients with respect to
+        the normalized signal are identical to denormalizing and evaluating this
+        (raw-space) model.
+
+        Parameters
+        ----------
+        data_mean : float
+            Mean used to normalize the data.
+        data_std : float
+            Standard deviation used to normalize the data. Must be positive.
+
+        Returns
+        -------
+        GaussianMixtureNoiseModel
+            A new model operating on normalized signal/observation values. This
+            model is unchanged.
+
+        Raises
+        ------
+        ValueError
+            If `data_std` is not positive or this model is already normalized.
+        """
+        if data_std <= 0:
+            raise ValueError(f"data_std must be positive, got {data_std}.")
+        if self.is_normalized:
+            raise ValueError(
+                "This noise model is already normalized; refusing to normalize "
+                "twice. Build a raw model from the configuration instead."
+            )
+
+        new = copy.deepcopy(self)
+        d = float(data_std)
+        m = float(data_mean)
+        k = self.n_gaussian
+        with torch.no_grad():
+            # mean-polynomial rows: the residual (poly - alpha-weighted mean of
+            # polys) scales by 1/d; the `+ signal` term follows the normalized
+            # signal automatically
+            new.weight.data[:k, :] /= d
+            # rows K:2K hold w with exp(w) the VARIANCE-polynomial coefficients
+            new.weight.data[k : 2 * k, :] -= math.log(d**2)
+            # alpha rows are functions of the affine-invariant normalized signal
+            # coordinate and are normalized to sum to 1: unchanged
+            new.min_signal.copy_((new.min_signal - m) / d)
+            new.max_signal.copy_((new.max_signal - m) / d)
+            # min_sigma clamps the VARIANCE (despite its name)
+            new.min_sigma.copy_(new.min_sigma / d**2)
+
+        new.is_normalized = True
+        new.normalization_mean = m
+        new.normalization_std = d
+        return new
 
     def _initialize_weights(
         self,
@@ -354,19 +528,49 @@ class GaussianMixtureNoiseModel(nn.Module):
         max_signal: torch.Tensor,
         min_signal: torch.Tensor,
     ) -> torch.Tensor:
-        """Create random weight initialization."""
+        """Create random weight initialization.
+
+        Parameters
+        ----------
+        n_gaussian : int
+            Number of gaussians in the mixture.
+        n_coeff : int
+            Number of polynomial coefficients per gaussian parameter.
+        max_signal : torch.Tensor
+            Maximum signal intensity expected in the image.
+        min_signal : torch.Tensor
+            Minimum signal intensity expected in the image.
+
+        Returns
+        -------
+        torch.Tensor
+            Randomly initialized weights of shape [3 * n_gaussian, n_coeff].
+        """
         weight = torch.randn(n_gaussian * 3, n_coeff)
         weight[n_gaussian : 2 * n_gaussian, 1] = torch.log(
             max_signal - min_signal
         ).float()
         return weight
 
-    def to_device(self, device: torch.device):
+    def to_device(self, device: torch.device) -> None:
+        """Move the model to `device`.
+
+        Parameters
+        ----------
+        device : torch.device
+            Device to move the model to.
+        """
         self.device = device
         self.to(device)
 
     def _set_model_mode(self, mode: str) -> None:
-        """Move parameters to the device and set weights' requires_grad depending on the mode"""
+        """Set `requires_grad` on the weights depending on the mode.
+
+        Parameters
+        ----------
+        mode : str
+            Either "train" or "prediction".
+        """
         if mode == "train":
             self.weight.requires_grad = True
         else:
@@ -375,20 +579,19 @@ class GaussianMixtureNoiseModel(nn.Module):
     def polynomial_regressor(
         self, weight_params: torch.Tensor, signals: torch.Tensor
     ) -> torch.Tensor:
-        """Combines `weight_params` and signal `signals` to regress for the gaussian parameter values.
+        """Combine `weight_params` and `signals` to regress for the gaussian params.
 
         Parameters
         ----------
-        weight_params : Tensor
-            Corresponds to specific rows of the `self.weight`
-
-        signals : Tensor
-            Signals
+        weight_params : torch.Tensor
+            Corresponds to specific rows of `self.weight`.
+        signals : torch.Tensor
+            Signals.
 
         Returns
         -------
-        value : Tensor
-            Corresponds to either of mean, standard deviation or weight, evaluated at `signals`
+        torch.Tensor
+            Corresponds to either of mean, std or weight, evaluated at `signals`.
         """
         value = torch.zeros_like(signals)
         device = (
@@ -407,21 +610,21 @@ class GaussianMixtureNoiseModel(nn.Module):
         self, x: torch.Tensor, mean: torch.Tensor, std: torch.Tensor
     ) -> torch.Tensor:
         """
-        Evaluates the normal probability density at `x` given the mean `mean` and standard deviation `std`.
+        Evaluate the normal probability density at `x` given the `mean` and `std`.
 
         Parameters
         ----------
-        x: torch.Tensor
+        x : torch.Tensor
             The ground-truth tensor. Shape is (batch, 1, dim1, dim2).
-        mean: torch.Tensor
+        mean : torch.Tensor
             The inferred mean of distribution. Shape is (batch, 1, dim1, dim2).
-        std: torch.Tensor
-            The inferred standard deviation of distribution. Shape is (batch, 1, dim1, dim2).
+        std : torch.Tensor
+            The inferred std of distribution. Shape is (batch, 1, dim1, dim2).
 
         Returns
         -------
-        tmp: torch.Tensor
-            Normal probability density of `x` given `mean` and `std`
+        torch.Tensor
+            Normal probability density of `x` given `mean` and `std`.
         """
         tmp = -((x - mean) ** 2)
         tmp = tmp / (2.0 * std * std)
@@ -433,19 +636,22 @@ class GaussianMixtureNoiseModel(nn.Module):
         self, observations: torch.Tensor, signals: torch.Tensor
     ) -> torch.Tensor:
         """
-        Evaluates the likelihood of observations given the signals and the corresponding gaussian parameters.
+        Evaluate the likelihood.
+
+        Evaluates the likelihood of observations given the signals and the
+        corresponding gaussian parameters.
 
         Parameters
         ----------
-        observations : Tensor
+        observations : torch.Tensor
             Noisy observations. Shape is (batch, 1, dim1, dim2).
-        signals : Tensor
+        signals : torch.Tensor
             Underlying signals. Shape is (batch, 1, dim1, dim2).
 
         Returns
         -------
-        value: torch.Tensor:
-            Likelihood of observations given the signals and the GMM noise model
+        torch.Tensor
+            Likelihood of observations given the signals and the GMM noise model.
         """
         observations = observations.float()
         signals = signals.float()
@@ -470,17 +676,17 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     def get_gaussian_parameters(self, signals: torch.Tensor) -> list[torch.Tensor]:
         """
-        Returns the noise model for given signals
+        Return the noise model for given signals.
 
         Parameters
         ----------
-        signals : Tensor
-            Underlying signals
+        signals : torch.Tensor
+            Underlying signals.
 
         Returns
         -------
-        noise_model: list of Tensor
-            Contains a list of `mu`, `sigma` and `alpha` for the `signals`
+        list[torch.Tensor]
+            Contains a list of `mu`, `sigma` and `alpha` for the `signals`.
         """
         noise_model = []
         mu = []
@@ -520,7 +726,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         # subtracting the alpha weighted average of the means from the means
         # ensures that the GMM has the inclination to have the mean=signals.
-        # its like a residual conection. I don't understand why we need to learn the mean?
+        # its like a residual conection. I don't understand why we learn the mean?
         for ker in range(kernels):
             mu[ker] = mu[ker] - sum_means + signals
 
@@ -535,7 +741,20 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     @staticmethod
     def _fast_shuffle(series: torch.Tensor, num: int) -> torch.Tensor:
-        """Shuffle the inputs randomly num times"""
+        """Shuffle the inputs randomly `num` times.
+
+        Parameters
+        ----------
+        series : torch.Tensor
+            Input tensor to shuffle along the first dimension.
+        num : int
+            Number of times to shuffle.
+
+        Returns
+        -------
+        torch.Tensor
+            The shuffled tensor.
+        """
         length = series.shape[0]
         for _ in range(num):
             idx = torch.randperm(length)
@@ -549,23 +768,23 @@ class GaussianMixtureNoiseModel(nn.Module):
         lower_clip: float,
         upper_clip: float,
     ) -> torch.Tensor:
-        """Returns the Signal-Observation pixel intensities as a two-column array
+        """Return the signal-observation pixel intensities as a two-column tensor.
 
         Parameters
         ----------
-        signal : numpy array
-            Clean Signal Data
-        observation: numpy array
-            Noisy observation Data
-        lower_clip: float
+        signal : NDArray
+            Clean signal data.
+        observation : NDArray
+            Noisy observation data.
+        lower_clip : float
             Lower percentile bound for clipping.
-        upper_clip: float
+        upper_clip : float
             Upper percentile bound for clipping.
 
         Returns
         -------
-        noise_model: list of torch floats
-            Contains a list of `mu`, `sigma` and `alpha` for the `signals`
+        torch.Tensor
+            Shuffled two-column tensor of (signal, observation) pixel intensities.
         """
         lb = np.percentile(signal, lower_clip)
         ub = np.percentile(signal, upper_clip)
@@ -595,24 +814,29 @@ class GaussianMixtureNoiseModel(nn.Module):
         lower_clip: float = 0.0,
         upper_clip: float = 100.0,
     ) -> list[float]:
-        """Training to learn the noise model from signal - observation pairs.
+        """Train the noise model on signal-observation pairs.
 
         Parameters
         ----------
-        signal: numpy array
-            Clean Signal Data
-        observation: numpy array
-            Noisy Observation Data
-        learning_rate: float
+        signal : NDArray
+            Clean signal data.
+        observation : NDArray
+            Noisy observation data.
+        learning_rate : float
             Learning rate. Default = 1e-1.
-        batch_size: int
-            Nini-batch size. Default = 250000.
-        n_epochs: int
+        batch_size : int
+            Mini-batch size. Default = 250000.
+        n_epochs : int
             Number of epochs. Default = 2000.
-        lower_clip : int
+        lower_clip : float
             Lower percentile for clipping. Default is 0.
-        upper_clip : int
+        upper_clip : float
             Upper percentile for clipping. Default is 100.
+
+        Returns
+        -------
+        list[float]
+            Training loss for each epoch.
         """
         self._set_model_mode(mode="train")
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -663,63 +887,80 @@ class GaussianMixtureNoiseModel(nn.Module):
         return train_losses
 
     def sample_observation_from_signal(self, signal: NDArray) -> NDArray:
-        """
-        Sample an instance of observation based on an input signal using a
-        learned Gaussian Mixture Model. For each pixel in the input signal,
-        samples a corresponding noisy pixel.
+        """Sample noisy observations from the learned noise model.
+
+        For each pixel in the input signal, samples a corresponding noisy
+        pixel from the Gaussian Mixture Model.
+
+        Note: when this model is normalized (`is_normalized` is True), the input
+        signal and the returned samples live in normalized data space.
 
         Parameters
         ----------
-        signal: numpy array
-            Clean 2D signal data.
+        signal : NDArray
+            Clean signal data. Can be 2D (Y, X) or higher dimensional.
+            For 3D+ arrays, sampling is performed independently for each 2D slice.
 
         Returns
         -------
-        observation: numpy array
-            An instance of noisy observation data based on the input signal.
+        NDArray
+            Sampled noisy observation with same shape as input signal.
         """
-        assert len(signal.shape) == 2, "Only 2D inputs are supported."
+        if signal.ndim < 2:
+            raise ValueError(f"Signal must be at least 2D, got {signal.ndim}D")
 
+        if signal.ndim == 2:
+            return self._sample_2d(signal)
+
+        original_shape = signal.shape
+        flat_signal = signal.reshape(-1, *signal.shape[-2:])
+        samples = np.stack([self._sample_2d(s) for s in flat_signal], axis=0)
+        return samples.reshape(original_shape)
+
+    def _sample_2d(self, signal: NDArray) -> NDArray:
+        """Sample noisy observation for a single 2D image.
+
+        Parameters
+        ----------
+        signal : NDArray
+            Clean 2D signal data with shape (Y, X).
+
+        Returns
+        -------
+        NDArray
+            Sampled noisy observation with shape (Y, X).
+        """
         signal_tensor = torch.from_numpy(signal).to(torch.float32)
         height, width = signal_tensor.shape
 
         with torch.no_grad():
-            # Get gaussian parameters for each pixel
             gaussian_params = self.get_gaussian_parameters(signal_tensor)
             means = np.array(gaussian_params[: self.n_gaussian])
             stds = np.array(gaussian_params[self.n_gaussian : self.n_gaussian * 2])
             alphas = np.array(gaussian_params[self.n_gaussian * 2 :])
 
             if self.n_gaussian == 1:
-                # Single gaussian case
                 observation = np.random.normal(
                     loc=means[0], scale=stds[0], size=(height, width)
                 )
             else:
-                # Multiple gaussians: sample component for each pixel
                 uniform = np.random.rand(1, height, width)
-                # Compute cumulative probabilities for component selection
-                cumulative_alphas = np.cumsum(
-                    alphas, axis=0
-                )  # Shape: (n_gaussian, height, width)
+                cumulative_alphas = np.cumsum(alphas, axis=0)
                 selected_component = np.argmax(
                     uniform < cumulative_alphas, axis=0, keepdims=True
                 )
 
-                # For every pixel, choose the corresponding gaussian
-                # and get the learned mu and sigma
                 selected_mus = np.take_along_axis(means, selected_component, axis=0)
                 selected_stds = np.take_along_axis(stds, selected_component, axis=0)
                 selected_mus = selected_mus.squeeze(0)
                 selected_stds = selected_stds.squeeze(0)
 
-                # Sample from the normal distribution with learned mu and sigma
                 observation = np.random.normal(
                     selected_mus, selected_stds, size=(height, width)
                 )
         return observation
 
-    def save(self, path: str, name: str) -> None:
+    def save(self, path: str, name: str, channel_index: int | None = None) -> None:
         """Save the trained parameters on the noise model.
 
         Parameters
@@ -728,13 +969,31 @@ class GaussianMixtureNoiseModel(nn.Module):
             Path to save the trained parameters.
         name : str
             File name to save the trained parameters.
+        channel_index : int | None, optional
+            The data channel index this model was trained on.  When provided it
+            is stored in the `.npz` file so channel ordering can be validated on
+            load.
+
+        Raises
+        ------
+        ValueError
+            If this model is normalized: the `.npz` format stores raw-space
+            models only.
         """
+        if self.is_normalized:
+            raise ValueError(
+                "Refusing to save a normalized noise model: the .npz format "
+                "stores raw-space models only. Save the raw model and normalize "
+                "at load time with `get_normalized_copy`."
+            )
         os.makedirs(path, exist_ok=True)
-        np.savez(
-            os.path.join(path, name),
-            trained_weight=self.weight.numpy(),
-            min_signal=self.min_signal.numpy(),
-            max_signal=self.max_signal.numpy(),
-            min_sigma=self.min_sigma,
-        )
+        save_kwargs: dict = {
+            "trained_weight": self.weight.numpy(),
+            "min_signal": self.min_signal.numpy(),
+            "max_signal": self.max_signal.numpy(),
+            "min_sigma": self.min_sigma,
+        }
+        if channel_index is not None:
+            save_kwargs["channel_index"] = np.array(channel_index)
+        np.savez(os.path.join(path, name), **save_kwargs)
         print("The trained parameters (" + name + ") is saved at location: " + path)

@@ -62,7 +62,7 @@ careamist = CAREamist(config, enable_progress_bar=False)
 
 # --8<-- [end:careamist_pb]
 
-from pytorch_lightning.callbacks import Callback
+from lightning.pytorch.callbacks import Callback
 
 
 class CustomCallback(Callback):

@@ -177,6 +177,8 @@ class MeanStdNormalization(Normalization):
         self-supervised algorithms such as N2V, the data is denormalized
         using the input statistics.
 
+        If `self.skip_target` is `True`, then this method returns `patch`.
+
         Parameters
         ----------
         patch : torch.Tensor
@@ -185,8 +187,11 @@ class MeanStdNormalization(Normalization):
         Returns
         -------
         torch.Tensor
-            Transformed array.
+            Denormalized array.
         """
+        if self.skip_target:
+            return patch
+
         n_channels = patch.shape[1]
         if self.target_means is not None and self.target_stds is not None:
             means_list, stds_list = self.target_means, self.target_stds

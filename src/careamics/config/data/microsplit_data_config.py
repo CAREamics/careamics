@@ -1,9 +1,11 @@
 """MicroSplit data configuration."""
 
 from collections.abc import Sequence
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import AfterValidator, Field, model_validator
+
+from careamics.config.validators import alpha_ranges_wellformed
 
 from .data_config import DataConfig
 from .patching_strategies import SwitiPatchingConfig
@@ -18,7 +20,10 @@ class MicroSplitDataConfig(DataConfig):
     padding_mode: Literal["reflect", "wrap"] = "reflect"
     """Padding mode used when lateral-context patches extend beyond image borders."""
 
-    alpha_ranges: Sequence[tuple[float, float]] | None = None
+    alpha_ranges: Annotated[
+        Sequence[tuple[float, float]] | None,
+        AfterValidator(alpha_ranges_wellformed),
+    ] = None
     """Ranges used to sample channel mixing weights for synthetic training inputs.
 
     If `None`, the MicroSplit dataset factory will use equal fixed weights for each
@@ -37,6 +42,7 @@ class MicroSplitDataConfig(DataConfig):
         new_batch_size: int | None = None,
         new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         new_axes: str | None = None,
+        new_target_axes: str | None = None,
         new_channels: Sequence[int] | Literal["all"] | None = None,
         new_in_memory: bool | None = None,
         new_dataloader_params: dict[str, Any] | None = None,
@@ -63,6 +69,8 @@ class MicroSplitDataConfig(DataConfig):
             New data type. If `None`, keeps the current data type.
         new_axes : str or None, default=None
             New axes. If `None`, keeps the current axes.
+        new_target_axes : str or None, default=None
+            New target axes. If `None`, keeps the current target axes.
         new_channels : Sequence[int], "all" or None, default=None
             New channel selection. If `None`, keeps the current channel selection. If
             "all", selects all channels.
@@ -97,6 +105,7 @@ class MicroSplitDataConfig(DataConfig):
             new_batch_size=new_batch_size,
             new_data_type=new_data_type,
             new_axes=new_axes,
+            new_target_axes=new_target_axes,
             new_channels=new_channels,
             new_in_memory=new_in_memory,
             new_dataloader_params=new_dataloader_params,

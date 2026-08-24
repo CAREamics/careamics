@@ -122,6 +122,34 @@ def _are_spatial_dims_maintained(
     return is_3D_old == is_3D_new
 
 
+def _validate_axes(axes: str, target_axes: str) -> None:
+    """Check that axes are compatible with target axes.
+
+    Axes are compatible when they have the same sample (S and/or T) dimensions present.
+
+    Parameters
+    ----------
+    axes : str
+        Axes.
+    target_axes : str
+        Target axes.
+
+    Returns
+    -------
+    bool
+        Whether new axes are compatible with target axes.
+    """
+    sample_axes = {axis for axis in axes if axis in "ST"}
+    target_sample_axes = {axis for axis in target_axes if axis in "ST"}
+
+    if sample_axes != target_sample_axes:
+        raise ValueError(
+            f"Axes '{axes}' are not compatible with target axes '{target_axes}'. The "
+            f"same sample axes (S and/or T) must be present in both. Found sample axes "
+            f"{sample_axes} in axes and {target_sample_axes} in target axes."
+        )
+
+
 def _validate_channel_conversion(
     old_axes: str,
     old_channels: Sequence[int] | None,
@@ -443,7 +471,7 @@ class DataConfig(BaseModel):
 
     @field_validator("axes", "target_axes")
     @classmethod
-    def axes_valid(cls, axes: str | None, info: ValidationInfo) -> str | None:
+    def validate_axes(cls, axes: str | None, info: ValidationInfo) -> str | None:
         """
         Validate axes.
 
@@ -493,6 +521,7 @@ class DataConfig(BaseModel):
 
         return axes
 
+    # TODO this should be removed the day we want to support YX <-> ZYX
     @model_validator(mode="after")
     def validate_target_axes_compatible(self: Self) -> Self:
         """Validate that target axes have the same spatial dimensionality.
@@ -520,6 +549,9 @@ class DataConfig(BaseModel):
                 "`target_axes` must have the same spatial dimensionality as `axes`. "
                 f"Got target_axes {self.target_axes} and axes {self.axes}."
             )
+
+        # validate that sample dims are present in both axes and target_axes
+        _validate_axes(self.axes, self.target_axes)
 
         return self
 
@@ -1007,6 +1039,7 @@ class DataConfig(BaseModel):
         new_batch_size: int | None = None,
         new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         new_axes: str | None = None,
+        new_target_axes: str | None = None,
         new_channels: Sequence[int] | Literal["all"] | None = None,
         new_in_memory: bool | None = None,
         new_dataloader_params: dict[str, Any] | None = None,
@@ -1031,7 +1064,7 @@ class DataConfig(BaseModel):
         field depending on the new mode.
 
         To create a new training configuration, please use
-        `careamics.config.create_ng_data_configuration`.
+        `careamics.config.create_data_configuration`.
 
         This method compares the new parameters with the current ones and raises
         errors if incompatible changes are requested, such as switching between 2D and
@@ -1053,6 +1086,8 @@ class DataConfig(BaseModel):
             New data type.
         new_axes : str, default=None
             New axes.
+        new_target_axes : str, default=None
+            New target axes.
         new_channels : Sequence of int or "all", default=None
             New channels.
         new_in_memory : bool, default=None
@@ -1081,7 +1116,7 @@ class DataConfig(BaseModel):
             raise ValueError(
                 "Conversion to 'training' mode is not supported. Create a new "
                 "DataConfig instead, for instance using "
-                "`create_ng_data_configuration`."
+                "`create_data_configuration`."
             )
 
         # sanity checks
@@ -1154,6 +1189,7 @@ class DataConfig(BaseModel):
                 "batch_size": new_batch_size or self.batch_size,
                 "data_type": new_data_type or self.data_type,
                 "axes": new_axes or self.axes,
+                "target_axes": new_target_axes or self.target_axes,
                 "channels": new_channels,
                 "in_memory": (
                     new_in_memory if new_in_memory is not None else self.in_memory

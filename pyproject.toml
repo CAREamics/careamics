@@ -44,10 +44,10 @@ dependencies = [
     # --- Core dependencies ---
     "numpy>=1.21,<=2.4.6",
     'pydantic>=2.11,<=2.13.3',
-    'pytorch_lightning>=2.2,!=2.6.2,!=2.6.3,<=2.6.5',
-    # lightning currently does not support torch 2.10.0
+    "lightning>=2.2,!=2.6.2,!=2.6.3,<=2.6.5",
+    # lightning currently does not support torch 2.13.0
     # see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
-    'torch>=2.1.0,<2.10.0',
+    'torch>=2.1.0,<2.13.0',
     'torchmetrics >0.7.0, <1.9.0',
 
     # --- Data, image processing and visualization ---
@@ -178,7 +178,6 @@ addopts = "-p no:doctest"
 markers = [
     # "gpu: marks tests as requiring gpu",
     "lvae: marks tests as testing lvae",
-    "compat: marks tests as testing v0.1 compat modules",
     "mps_gh_fail: marks tests as failing on Github macos-latest runner",
     "czi: marks tests using czi files",
 ]
