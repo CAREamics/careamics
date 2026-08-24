@@ -144,6 +144,7 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
     predicted_images, _ = convert_prediction(
         predicted,
         tiled=tiled,
+        restore_shape=True,
     )
 
     # assert predicted file exists
