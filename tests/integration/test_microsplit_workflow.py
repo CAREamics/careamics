@@ -1,15 +1,12 @@
-"""Integration tests for the MicroSplit noise-model workflow.
+"""Integration tests for the MicroSplit workflows through `CAREamist`.
 
-The noise model is a runtime, loss-side artifact (see
-`tests/lightning/modules/test_set_noise_model.py`), not part of the configuration.
+Two workflows are covered. The noise model is a runtime, loss-side artifact (see
+`tests/lightning/modules/test_set_noise_model.py`), not part of the configuration;
 `CAREamist.train_noise_model` is the end-user entry point that fits it and attaches
-it to the underlying module.
-
-# TODO: full end-to-end MicroSplit training through `CAREamist.train` once the
-# datamodule dispatches `MicroSplitDataConfig` to the MicroSplit-specific dataset
-# construction (`careamics.dataset.factory.microsplit_factory`); today
-# `CareamicsDataModule.setup` always goes through the generic
-# `create_train_val_datasets` / `create_pred_dataset` factories.
+it to the underlying module. Training and prediction go through
+`CareamicsDataModule`, which dispatches a `MicroSplitDataConfig` to the
+MicroSplit-specific dataset construction in
+`careamics.dataset.factory.microsplit_factory`.
 """
 
 from pathlib import Path
@@ -19,10 +16,14 @@ import pytest
 
 from careamics.careamist import CAREamist
 from careamics.config.factories import (
+    create_advanced_microsplit_config,
     create_advanced_n2v_config,
     create_microsplit_config,
 )
 from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
+    PairedInputTargetMsPatchConstr,
+)
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
     multichannel_noise_model_factory,
@@ -112,3 +113,102 @@ def test_train_input_unsupported_algorithm_raises(tmp_path: Path):
 
     with pytest.raises(ValueError, match="does not support one"):
         careamist.train(train_data=train_array, noise_model=noise_model)
+
+
+def _e2e_careamist(tmp_path: Path, output_channels: int = 2) -> CAREamist:
+    """Return a CAREamist with a small MicroSplit configuration for training.
+
+    The LVAE is shrunk and training is limited to a couple of batches, so that the
+    whole training and prediction chain can be exercised cheaply. The muSplit
+    likelihood is used alone, so that no noise model is required.
+    """
+    config = create_advanced_microsplit_config(
+        experiment_name="test_e2e",
+        data_type="array",
+        axes="SCYX",
+        patch_size=[64, 64],  # the LVAE requires at least 64 pixels in XY
+        batch_size=2,
+        output_channels=output_channels,
+        num_epochs=1,
+        num_steps=2,
+        multiscale_count=1,
+        augmentations=[],
+        gaussian_likelihood_weight=1.0,
+        noise_model_likelihood_weight=0.0,
+        model_params={"z_dims": [32, 32], "n_filters": 8},
+        seed=42,
+    )
+    return CAREamist(config=config, work_dir=tmp_path)
+
+
+def _paired_arrays(
+    seed: int, output_channels: int = 2
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return a single-channel input and the target channels it superimposes."""
+    rng = np.random.default_rng(seed)
+    shape = (2, output_channels, 128, 128)
+    target = rng.uniform(0, 1, shape).astype(np.float32)
+    noise = rng.normal(0, 0.05, (2, 1, 128, 128))
+    return (target.sum(axis=1, keepdims=True) + noise).astype(np.float32), target
+
+
+def test_train_predict_end_to_end(tmp_path: Path):
+    """`CAREamist` trains and predicts with MicroSplit datasets end to end."""
+    # Arrange
+    careamist = _e2e_careamist(tmp_path)
+    train_input, train_target = _paired_arrays(seed=1)
+    val_input, val_target = _paired_arrays(seed=2)
+
+    # Act
+    careamist.train(
+        train_data=train_input,
+        train_data_target=train_target,
+        val_data=val_input,
+        val_data_target=val_target,
+    )
+
+    # Assert: the data module built MicroSplit datasets, not the generic ones
+    assert isinstance(
+        careamist.train_datamodule.train_dataset.patch_constructor,
+        PairedInputTargetMsPatchConstr,
+    )
+    # statistics are computed on the principal input, without the lateral context
+    normalization = careamist.config.data_config.normalization
+    assert len(normalization.input_means) == 1
+    assert len(normalization.target_means) == 2
+
+    # Act: tiles must match the training patch size, the LVAE input shape is validated
+    predictions, _ = careamist.predict(
+        val_input, tile_size=(64, 64), tile_overlap=(32, 32)
+    )
+
+    # Assert
+    assert np.asarray(predictions[0]).shape == (2, 2, 128, 128)
+
+
+def test_predict_whole_image(tmp_path: Path):
+    """MicroSplit prediction works without tiling."""
+    # Arrange
+    careamist = _e2e_careamist(tmp_path)
+    train_input, train_target = _paired_arrays(seed=1)
+    careamist.train(
+        train_data=train_input,
+        train_data_target=train_target,
+        val_data=train_input,
+        val_data_target=train_target,
+    )
+
+    # Act
+    predictions, _ = careamist.predict(train_input)
+
+    # Assert
+    assert np.asarray(predictions[0]).shape == (2, 2, 128, 128)
+
+
+def test_train_without_validation_data_raises(tmp_path: Path):
+    """MicroSplit does not support automatic validation splitting."""
+    careamist = _e2e_careamist(tmp_path)
+    train_input, train_target = _paired_arrays(seed=1)
+
+    with pytest.raises(NotImplementedError, match="Automatic validation splitting"):
+        careamist.train(train_data=train_input, train_data_target=train_target)
