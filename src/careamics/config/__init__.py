@@ -15,6 +15,7 @@ __all__ = [
     "N2NAlgorithm",
     "N2VAlgorithm",
     "PN2VAlgorithm",
+    "SegAlgorithm",
     "ShannonPatchFilterConfig",
     "UNetBasedAlgorithm",
     "UNetConfig",
@@ -22,10 +23,12 @@ __all__ = [
     "create_advanced_care_config",
     "create_advanced_n2n_config",
     "create_advanced_n2v_config",
+    "create_advanced_seg_config",
     "create_care_config",
     "create_data_configuration",
     "create_n2n_config",
     "create_n2v_config",
+    "create_seg_config",
     "create_structn2v_config",
 ]
 
@@ -36,6 +39,7 @@ from .algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
     PN2VAlgorithm,
+    SegAlgorithm,
     UNetBasedAlgorithm,
     VAEBasedAlgorithm,
 )
@@ -51,9 +55,11 @@ from .factories import (
     create_advanced_care_config,
     create_advanced_n2n_config,
     create_advanced_n2v_config,
+    create_advanced_seg_config,
     create_care_config,
     create_n2n_config,
     create_n2v_config,
+    create_seg_config,
     create_structn2v_config,
 )
 from .factories.data_factory import create_data_configuration

@@ -1,7 +1,6 @@
 """UNet-based algorithm Pydantic model."""
 
 from pprint import pformat
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -19,16 +18,12 @@ class UNetBasedAlgorithm(BaseModel):
     training algorithm: which algorithm, loss function, model architecture, optimizer,
     and learning rate scheduler to use.
 
-    Currently, we only support N2V, CARE, N2N, and PN2V algorithms. In order to train
-    these algorithms, use the corresponding configuration child classes (e.g.
-    `N2VAlgorithm`) to ensure coherent parameters (e.g. specific losses).
-
 
     Attributes
     ----------
-    algorithm : {"n2v", "care", "n2n", "pn2v"}
+    algorithm : str
         Algorithm to use.
-    loss : {"n2v", "mae", "mse"}
+    loss : str
         Loss function to use.
     model : UNetConfig
         Model architecture to use.
@@ -53,10 +48,10 @@ class UNetBasedAlgorithm(BaseModel):
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "care", "n2n", "pn2v"]
+    algorithm: str
     """Algorithm name, as defined in SupportedAlgorithm."""
 
-    loss: Literal["n2v", "mae", "mse", "pn2v"]
+    loss: str
     """Loss function to use, as defined in SupportedLoss."""
 
     model: UNetConfig

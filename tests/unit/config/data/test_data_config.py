@@ -120,8 +120,8 @@ AXES_CZI_DISALLOWED = (
 
 def test_default_data_config():
     """Test that the default DataConfig can be created."""
-    ng_data_config_dict = data_config_dict_testing()
-    DataConfig(**ng_data_config_dict)
+    data_config_dict = data_config_dict_testing()
+    DataConfig(**data_config_dict)
 
 
 # -------------------------- Unit tests ----------------------------
@@ -300,11 +300,11 @@ class TestChannelsValidation:
     ),
 )
 def test_validate_patching_mode(mode: str, patching: str, expectation):
-    ng_data_config_dict = data_config_dict_testing(mode=mode, patching=patching)
+    data_config_dict = data_config_dict_testing(mode=mode, patching=patching)
     with expectation:
-        cfg = DataConfig(**ng_data_config_dict)
-        assert cfg.mode == ng_data_config_dict["mode"]
-        assert cfg.patching.name == ng_data_config_dict["patching"]["name"]
+        cfg = DataConfig(**data_config_dict)
+        assert cfg.mode == data_config_dict["mode"]
+        assert cfg.patching.name == data_config_dict["patching"]["name"]
 
 
 @pytest.mark.parametrize(
