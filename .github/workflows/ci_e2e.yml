@@ -43,6 +43,6 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
-      - name: 🧪 Run tests
+      - name: 🧪 Run e2e tests
         # does not run doctests
-        run: uv run pytest tests --color=yes -m e2e
+        run: uv run pytest --color=yes -m e2e
