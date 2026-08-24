@@ -55,6 +55,8 @@ class LadderVAE(nn.Module):
         The number of residual blocks per encoder layer.
     decoder_blocks_per_layer : int
         The number of residual blocks per decoder layer.
+    encoder_first_conv_kernel : int
+        The kernel size of the first bottom-up convolution.
 
     Raises
     ------
@@ -77,6 +79,7 @@ class LadderVAE(nn.Module):
         predict_logvar: bool,
         encoder_blocks_per_layer: int = 1,
         decoder_blocks_per_layer: int = 1,
+        encoder_first_conv_kernel: int = 5,
     ):
         super().__init__()
 
@@ -107,6 +110,7 @@ class LadderVAE(nn.Module):
         self.topdown_batchnorm = True
         self.topdown_conv2d_bias = True
         self.gated = True
+        self.encoder_first_conv_kernel = encoder_first_conv_kernel
         self.encoder_res_block_kernel = 3
         self.decoder_res_block_kernel = 3
         self.encoder_res_block_skip_padding = False
@@ -246,11 +250,11 @@ class LadderVAE(nn.Module):
         conv_block = self.encoder_conv_op(
             in_channels=self.color_ch,
             out_channels=self.n_filters,
-            kernel_size=self.encoder_res_block_kernel,
+            kernel_size=self.encoder_first_conv_kernel,
             padding=(
                 0
                 if self.encoder_res_block_skip_padding
-                else self.encoder_res_block_kernel // 2
+                else self.encoder_first_conv_kernel // 2
             ),
             stride=init_stride,
         )
