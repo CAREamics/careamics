@@ -51,6 +51,7 @@ def toy_data(n_fgnd_classes: int = 1, with_channels: bool = False):
 @pytest.mark.parametrize("n_classes", [1, 2])
 @pytest.mark.parametrize("with_channels", [False, True])
 def test_segmentation(tmp_path, n_classes, with_channels):
+    """Test semantic segmenttion with various classes, with/without input channels."""
 
     train_data, train_data_tar, val_data, val_data_tar = toy_data(
         n_classes, with_channels
