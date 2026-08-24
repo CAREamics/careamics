@@ -11,7 +11,9 @@ from .architecture_config import ArchitectureConfig
 class LVAEConfig(ArchitectureConfig):
     """LVAE model."""
 
-    model_config = ConfigDict(validate_assignment=True, validate_default=True)
+    model_config = ConfigDict(
+        validate_assignment=True, validate_default=True, extra="forbid"
+    )
 
     architecture: Literal["LVAE"]
 
@@ -33,6 +35,8 @@ class LVAEConfig(ArchitectureConfig):
     decoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9)
     encoder_blocks_per_layer: int = Field(default=1, ge=1)
     """Number of residual blocks per encoder layer."""
+    encoder_first_conv_kernel: int = Field(default=5, ge=1)
+    """Kernel size of the first bottom-up convolution."""
     decoder_blocks_per_layer: int = Field(default=1, ge=1)
     """Number of residual blocks per decoder layer."""
     nonlinearity: Literal[
