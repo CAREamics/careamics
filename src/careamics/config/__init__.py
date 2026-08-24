@@ -23,10 +23,12 @@ __all__ = [
     "create_advanced_care_config",
     "create_advanced_n2n_config",
     "create_advanced_n2v_config",
+    "create_advanced_seg_config",
     "create_care_config",
     "create_data_configuration",
     "create_n2n_config",
     "create_n2v_config",
+    "create_seg_config",
     "create_structn2v_config",
 ]
 
@@ -53,9 +55,11 @@ from .factories import (
     create_advanced_care_config,
     create_advanced_n2n_config,
     create_advanced_n2v_config,
+    create_advanced_seg_config,
     create_care_config,
     create_n2n_config,
     create_n2v_config,
+    create_seg_config,
     create_structn2v_config,
 )
 from .factories.data_factory import create_data_configuration

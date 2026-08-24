@@ -61,7 +61,7 @@ def create_val_split(
         raise ValueError(
             f"The number of validation patches to be extracted from the training set "
             f"is too large for given training data size(got {n_val_patches} validation"
-            f"patches but only"
+            f"patches but only "
             f"{n_train_patches} training patches available with patch size "
             f"{patch_size}). Make sure you have enough data to train with, decrease "
             f"'n_val_patches' or the patch size."
