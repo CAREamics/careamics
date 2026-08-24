@@ -40,6 +40,7 @@ def plot_noise_model_distribution(
     save_path : Path | str | None, optional
         Path to save the figure. If None, the figure will not be saved. Default is None.
     """
+    # TODO: this should be adapted for multi-channel case with a list of GMMs.
     min_signal = noise_model.min_signal.item()
     max_signal = noise_model.max_signal.item()
     bin_size = (max_signal - min_signal) / number_of_bins
