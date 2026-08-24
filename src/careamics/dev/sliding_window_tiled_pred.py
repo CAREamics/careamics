@@ -11,20 +11,20 @@ in the patching strategy equalises border coverage with the interior.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import torch
-from careamics.lightning.modules.microsplit_module import MicroSplitModule
 from numpy.typing import NDArray
+from scipy.optimize import brute
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.patching import TileSpecs
+from careamics.lightning.modules.microsplit_module import MicroSplitModule
 from careamics.lightning.prediction.convert_prediction import (
     decollate_image_region_data,
 )
@@ -55,7 +55,7 @@ def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
     int
         `max(1, (patch_size - overlap) // stride)`.
     """
-    return max(1, (patch_size - overlap) // stride)
+    return int(np.ceil((patch_size - overlap) / stride))
 
 
 def compute_stride_for_mmse_count(
@@ -64,127 +64,89 @@ def compute_stride_for_mmse_count(
     target_mmse_count: int,
     *,
     stride_z: int | None = None,
-) -> tuple[list[int], int]:
-    """Pick the SW stride that achieves the smallest per-pixel coverage >= target.
-
-    Returns ``(stride_per_axis, achieved_mmse_count)``. The achieved count is
-    ``prod(K)`` where per-axis ``K = M // s`` and ``M = patch_size - overlap``.
-    By construction the achieved count is >= ``target_mmse_count``, unless the
-    target exceeds the geometric ceiling ``prod(M)`` (in which case stride is
-    clamped to 1 on every searched axis and the ceiling is returned with a
-    warning).
-
-    The YX stride is constrained to be **symmetric** (``stride_y == stride_x``)
-    so the on-image sample pattern is isotropic in the image plane; only the
-    shared YX stride is searched. For 3D, the caller fixes ``stride_z``
-    explicitly -- giving the caller control over the Z axis (where ``M`` is
-    typically much smaller, e.g. ``depth3D = 5``) without making this helper
-    guess at Z behaviour.
-
-    NOTE: ``K_y`` and ``K_x`` may still differ if the YX margins differ.
-
-    Parameters
-    ----------
-    patch_size : Sequence of int
-        Tile size per spatial dimension. Length 2 for 2D, length 3 for 3D.
-    overlap : Sequence of int
-        Overlap per spatial dimension (= ``2 * margin per side``).
-    target_mmse_count : int
-        Target effective per-pixel MMSE count (= product of per-axis K).
-        Must be >= 1.
-    stride_z : int or None, default=None
-        Z stride. Required for 3D inputs, must be `None` for 2D.
-
-    Returns
-    -------
-    stride : list of int
-        Stride per spatial dimension. Same length as `patch_size`.
-    achieved : int
-        Achieved effective per-pixel MMSE count.
-
-    Raises
-    ------
-    ValueError
-        If `patch_size` is not 2D or 3D, if `stride_z` presence does not match
-        the dimensionality, or if `target_mmse_count < 1`.
-    """
-    if target_mmse_count < 1:
-        raise ValueError(f"target_mmse_count must be >= 1, got {target_mmse_count}.")
-    d = len(patch_size)
-    if d not in (2, 3):
-        raise ValueError(f"patch_size must be length 2 (2D) or 3 (3D), got {d}.")
-    if (d == 3) and (stride_z is None):
+) -> tuple[tuple[int, int] | tuple[int, int, int], int]:
+    # NOTE: should already be validated in config
+    if patch_size[-1] != patch_size[-2]:
         raise ValueError(
-            "stride_z must be provided iff patch_size is 3D "
-            f"(d={d}, stride_z={stride_z})."
+            f"Only patches square in the XY dimensions are valid, got {patch_size}."
         )
+    if overlap[-2] != overlap[-1]:  # TODO: not sure if validated in config
+        raise ValueError(f"Overlaps must be equal in XY, got {overlap}.")
 
-    margins = [p - o for p, o in zip(patch_size, overlap, strict=True)]
-    if any(m < 1 for m in margins):
-        raise ValueError(
-            f"patch_size - overlap must be >= 1 per axis, got margins={margins}."
-        )
-
-    if d == 3:
-        assert stride_z is not None
-        m_z = margins[0]
-        if stride_z < 1 or stride_z > m_z:
-            raise ValueError(
-                f"stride_z must be in [1, {m_z}] (= patch_size[0] - overlap[0]), "
-                f"got {stride_z}."
+    crop_size_xy = patch_size[-2] - overlap[-1]  # equal for X and Y
+    stride: tuple[int, int] | tuple[int, int, int]
+    match patch_size, stride_z:
+        case (_, _), _:
+            if stride_z is not None:
+                logger.warning(
+                    "Ignoring parameter `stride_z` for 2D data in SWITi stride "
+                    "calculation."
+                )
+            stride_xy = int(np.ceil(crop_size_xy / np.sqrt(target_mmse_count)))
+            stride = (stride_xy, stride_xy)
+        case (_, _, _), _ if stride_z is not None:
+            crop_size_z = patch_size[0] - overlap[0]
+            coverage_z = int(np.ceil(crop_size_z / stride_z))
+            coverage_remaining = target_mmse_count / coverage_z
+            stride_xy = int(np.ceil(crop_size_xy / np.sqrt(coverage_remaining)))
+            stride = (stride_z, stride_xy, stride_xy)
+        case (_, _, _), None:
+            crop_size_z = patch_size[0] - overlap[0]
+            stride_z, stride_xy = _search_3D_strides(
+                crop_size_xy, crop_size_z, target_mmse_count
             )
-        k_z = m_z // stride_z
-        m_search = margins[1:]
-        # Reduce the YX subproblem: need K_y * K_x >= ceil(target / k_z).
-        target_yx = math.ceil(target_mmse_count / k_z)
-    else:
-        k_z = 1
-        m_search = margins
-        target_yx = target_mmse_count
+            stride = (stride_z, stride_xy, stride_xy)
+        case _:
+            raise ValueError(
+                f"Invalid `patch_size`, only 2D or 3D is allowed, got {patch_size}."
+            )
 
-    stride_yx, achieved_yx = _search_2d_strides(m_search, target_yx)
-
-    if d == 3:
-        stride = [stride_z, *stride_yx]
-    else:
-        stride = list(stride_yx)
-    achieved = k_z * achieved_yx
-    return stride, achieved
+    achieved_mmse_count = np.prod(
+        [
+            effective_mmse_count(ps, s, o)
+            for ps, s, o in zip(patch_size, stride, overlap, strict=True)
+        ]
+    ).item()
+    return stride, achieved_mmse_count
 
 
-def _search_2d_strides(margins: Sequence[int], target: int) -> tuple[list[int], int]:
-    """Brute-force search over the shared YX stride; see caller for docs.
+def _search_3D_strides(
+    crop_size_xy: int, crop_size_z: int, target_mmse_count: int
+) -> tuple[int, int]:
 
-    Constrains ``stride_y == stride_x`` (spatial symmetry on Y/X); picks the
-    candidate with the smallest achieved count >= ``target``, breaking ties by
-    preferring larger stride (= fewer model forward passes for the same
-    per-pixel coverage). Note ``K_y`` and ``K_x`` may still differ if the YX
-    margins differ (rare in practice); only the stride is constrained equal.
-    If no candidate satisfies, returns stride = ``[1, 1]`` (max coverage) and
-    logs a warning.
-    """
-    m_y, m_x = int(margins[0]), int(margins[1])
-    ceiling = m_y * m_x
-    s_max = min(m_y, m_x)
-    best: tuple[tuple[int, int], list[int]] | None = None  # (count, -s), stride
-    for s in range(1, s_max + 1):
-        count = (m_y // s) * (m_x // s)
-        if count < target:
-            continue
-        key = (count, -s)
-        if best is None or key < best[0]:
-            best = (key, [s, s])
-    if best is None:
-        logger.warning(
-            "Requested MMSE count %d exceeds geometric ceiling %d "
-            "(margins %s); clamping YX stride to 1.",
-            target,
-            ceiling,
-            list(margins),
-        )
-        return [1, 1], ceiling
-    (count, _), stride = best
-    return stride, count
+    def objective(value: tuple[int, int]):
+        stride_xy, stride_z = value
+        coverage_xy = int(np.ceil(crop_size_xy / stride_xy))
+        coverage_z = int(np.ceil(crop_size_z / stride_z))
+
+        primary_objective = coverage_xy**2 * coverage_z - target_mmse_count
+
+        # must evaluate to greater than the target count
+        if primary_objective < 0:
+            return np.inf
+
+        # secondary objective:
+        # in the case of a tie, choose solution that minimizes abs(stride_z - stride_xy)
+        secondary_objective = abs(stride_z - stride_xy)
+
+        # Larger than the maximum possible abs(stride_z - stride_xy)
+        tie_break_scale = max(crop_size_xy, crop_size_z) + 1
+
+        return primary_objective * tie_break_scale + secondary_objective
+
+    result = brute(
+        objective,
+        ranges=(
+            # stride cannot be greater than half the crop size,
+            # as it would result in uneven coverage
+            slice(1, max(crop_size_xy // 2, 1) + 1),
+            slice(1, max(crop_size_z // 2, 1) + 1),
+        ),
+        finish=None,
+    )
+
+    stride_xy, stride_z = result.astype(int).tolist()
+    return stride_z, stride_xy
 
 
 @dataclass
