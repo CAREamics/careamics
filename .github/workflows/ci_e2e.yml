@@ -45,4 +45,4 @@ jobs:
 
       - name: 🧪 Run e2e tests
         # does not run doctests
-        run: uv run pytest --color=yes -m e2e
+        run: uv run pytest tests/e2e --color=yes
