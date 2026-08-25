@@ -62,9 +62,7 @@ class ZarrImageStack:
         #   - must be subset of STCZYX
         self._original_axes = axes
         self._original_data_shape: tuple[int, ...] = self._array.shape
-        self.data_shape = AxesTransform(
-            axes, self._original_data_shape
-        ).transformed_shape
+        self.data_shape = AxesTransform(axes, self._original_data_shape).canonical_shape
 
         self._data_dtype = self._array.dtype
         self._chunk_size = self._array.chunks

@@ -68,20 +68,20 @@ def _validate_axes_and_target(original_axes: str, target_axes: str) -> None:
         )
 
 
-# TODO can these classes be simplified for clarity?
 @dataclass(frozen=True)
 class AxesTransform:
-    """Transformation between original and transformed space axes.
+    """Transformation between original and canonical space axes.
 
-    All transformation decisions are derived from the original axes string,
-    shape.
+    All transformation decisions are derived from the original axes and shape. Canonical
+    space refers to SC(Z)YX order.
 
     Attributes
     ----------
     original_axes : str
-        User defined attribute. Axes string of the input data (e.g. "YXC", "STCZYX").
+        Axes string of the source image (e.g. "YXC", "STCZYX").
     original_shape : tuple[int, ...]
-        User defined attribute. Shape corresponding to `original_axes`.
+        Shape of the source image corresponding to `original_axes`, channels may be
+        subsetted compared to the source image.
     sample_dims : list[str]
         Computed property. Original dimensions merged into S. Spatial (Y, X and Z), as
         well as channels, are never considered sample dimensions.
@@ -89,20 +89,22 @@ class AxesTransform:
         Computed property. Whether original data contains a Z axis.
     original_dim_sizes : dict[str, int]
         Computed property. Map from axis name to original size.
-    transformed_axes : str
-        Computed property. Transformed axes string: "SC(Z)YX".
-    transformed_shape : tuple[int, ...]
-        Computed property. Expected shape after forward transformation.
+    canonical_axes : str
+        Computed property. Axes of the data in canonical space.
+    canonical_shape : tuple[int, ...]
+        Computed property. Expected shape after forward transformation to the canonical
+        space.
     order_permutation : list[int]
         Computed property. Permutation to reorder original axes to STCZYX reference
         order in SC(Z)YX space.
     """
 
     original_axes: str
-    """Original axes string of the input data (e.g. "YXC", "STCZYX")."""
+    """Axes string of the source image (e.g. "YXC", "STCZYX")."""
 
     original_shape: Sequence[int]
-    """Shape corresponding to `original_axes`."""
+    """Shape of the source image corresponding to `original_axes`, channels may be
+    subsetted compared to the source image."""
 
     def __post_init__(self) -> None:
         """Validate original axes and shape."""
@@ -159,7 +161,7 @@ class AxesTransform:
         return dict(zip(self.original_axes, self.original_shape, strict=True))
 
     @property
-    def transformed_axes(self) -> str:
+    def canonical_axes(self) -> str:
         """Transformed axes string, `SC(Z)YX` or `SCYX`.
 
         Returns
@@ -171,7 +173,7 @@ class AxesTransform:
         return "SCZYX" if self.original_has_z else "SCYX"
 
     @property
-    def transformed_shape(self) -> tuple[int, ...]:
+    def canonical_shape(self) -> tuple[int, ...]:
         """Expected shape in transformed space.
 
         Returns
@@ -263,8 +265,9 @@ class RestoredAxesTransform:
     (C(Z)YX) or a full array shape (SC(Z)YX).
 
     This class is used in the following cases:
-    - Restoring a full array from SC(Z)YX to original axes order, after prediction.
-    - Restoring a tile from C(Z)YX to original axes order, before writing it in a Zarr.
+    - Restoring a full array from canonical to original axes order, after prediction.
+    - Restoring a tile from canonical to original axes order, before writing it in a
+    Zarr.
     - Generate slices in a fully restored array to index a restored tile (Zarr).
     - Adjust shape based on channel difference between original and current shape, used
     to ensure that Zarr shard and chunk sizes are compatible with the restored array
@@ -829,7 +832,7 @@ def get_patch_slices(
         Slices to index into the original array to extract the patch.
     """
     transform = AxesTransform(original_axes, tuple(original_shape))
-    transformed_shape = transform.transformed_shape
+    transformed_shape = transform.canonical_shape
     # original axes assumed to be any subset of STCZYX (containing YX), in any order
     # arguments must be transformed to index data in original axes order
     # to do this: loop through original axes and append correct index/slice

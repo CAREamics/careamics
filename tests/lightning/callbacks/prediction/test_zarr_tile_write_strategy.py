@@ -161,7 +161,7 @@ def tiles(
         )
         sources.append(arr.store_path)
 
-    shape_with_sc = AxesTransform(data_config.axes, shape).transformed_shape
+    shape_with_sc = AxesTransform(data_config.axes, shape).canonical_shape
 
     tiling_strategy = TiledPatching(
         data_shapes=[shape_with_sc] * n_data,

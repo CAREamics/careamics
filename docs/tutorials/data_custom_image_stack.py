@@ -56,9 +56,7 @@ class HDF5ImageStack:
         self._image_data = image_data
         self.original_axes = axes
         self.original_data_shape = image_data.shape
-        self.data_shape = AxesTransform(
-            axes, self.original_data_shape
-        ).transformed_shape
+        self.data_shape = AxesTransform(axes, self.original_data_shape).canonical_shape
 
     @property
     def data_dtype(self) -> DTypeLike:

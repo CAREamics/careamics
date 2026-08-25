@@ -224,7 +224,7 @@ class FileImageStack:
         # TODO: think this is correct but need more examples to test
         file = tifffile.TiffFile(path)
         original_data_shape = file.series[0].shape
-        data_shape = AxesTransform(axes, original_data_shape).transformed_shape
+        data_shape = AxesTransform(axes, original_data_shape).canonical_shape
         dtype = file.series[0].dtype
         return cls(
             source=path,
