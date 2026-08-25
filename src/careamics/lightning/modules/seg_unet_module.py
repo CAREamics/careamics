@@ -207,7 +207,7 @@ class SegModule(LightningModule):
         prediction = self.model(x.data)
 
         # TODO in the future, we will probably want to also return probability map
-        #   this is not currently not possible due to the prediction conversion
+        #   this is currently not possible due to the prediction conversion
         #   restoring the original target shape
 
         # apply softmax to obtain class probabilities over all classes
