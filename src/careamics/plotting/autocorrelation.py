@@ -29,11 +29,6 @@ def plot_autocorrelation(
     save_path : Path | str | None, optional
         Path to save the figure. If None, the figure will not be saved. Default is None.
     """
-    if image.ndim > 2:
-        raise ValueError(
-            f"The input image must be 2D (YX), but it has {image.ndim} dimensions."
-        )
-
     autocorr_image = autocorrelation(image)
     if crop_center:
         crop_size = 15
