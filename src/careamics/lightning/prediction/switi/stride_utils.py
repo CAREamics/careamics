@@ -37,7 +37,8 @@ def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
         The number of tiles each pixel would be covered by along an axis given the
         parameters.
     """
-    return int(np.ceil((patch_size - overlap) / stride))
+    # if uneven coverage returns the minimum
+    return (patch_size - overlap) // stride
 
 
 def compute_switi_stride(
@@ -175,8 +176,8 @@ def _search_3D_strides(
             Evaluated objective function.
         """
         stride_xy, stride_z = value
-        coverage_xy = int(np.ceil(crop_size_xy / stride_xy))
-        coverage_z = int(np.ceil(crop_size_z / stride_z))
+        coverage_xy = crop_size_xy / stride_xy
+        coverage_z = crop_size_z / stride_z
 
         primary_objective = coverage_xy**2 * coverage_z - target_mmse_count
 
@@ -197,7 +198,7 @@ def _search_3D_strides(
         objective,
         ranges=(
             # stride cannot be greater than half the crop size,
-            # as it would result in uneven coverage
+            # some pixels would only have a coverage of 1
             slice(1, max(crop_size_xy // 2, 1) + 1),
             slice(1, max(crop_size_z // 2, 1) + 1),
         ),
