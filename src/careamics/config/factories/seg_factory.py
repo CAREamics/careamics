@@ -17,6 +17,48 @@ from .training_factory import create_training_configuration, update_trainer_para
 logging = get_logger("Segmentation factory")
 
 
+def _get_norm_dict_with_target_skipped(
+    normalization: Literal["mean_std", "quantile", "min_max", "none"],
+    normalization_params: dict | None,
+) -> dict:
+    """Return a Pydantic-model compatible dictionary with target normalization skipped.
+
+    Parameters
+    ----------
+    normalization : {"mean_std", "quantile", "min_max", "none"}
+        Normalization method.
+    normalization_params : dict
+        Normalization parameters.
+
+    Returns
+    -------
+    dict
+        Dictionary to instantiate a normalization config with the target normalization
+        skipped.
+    """
+    norm_config: dict[str, Any] = {"name": normalization}
+
+    if normalization != "none":
+        norm_config["skip_target"] = True
+
+        if normalization_params is not None:
+            if (
+                "skip_target" in normalization_params
+                and not normalization_params["skip_target"]
+            ):
+                logging.warning(
+                    msg=(
+                        "Parameter `skip_target` in `normalization_params` must be "
+                        "`True`. Current value will be ignored."
+                    ),
+                    stacklevel=2,
+                )
+                del normalization_params["skip_target"]
+            norm_config.update(normalization_params)
+
+    return norm_config
+
+
 def _get_expected_target_axes(axes: str) -> str:
     """Return expected target axes from input axes.
 
@@ -289,21 +331,9 @@ def create_advanced_seg_config(
     )
 
     # normalization
-    norm_config = {"name": normalization, "skip_target": True}
-    if normalization_params is not None:
-        if (
-            "skip_target" in normalization_params
-            and not normalization_params["skip_target"]
-        ):
-            logging.warning(
-                msg=(
-                    "Parameter `skip_target` in `normalization_params` must be `True`. "
-                    "Current value will be ignored."
-                ),
-                stacklevel=2,
-            )
-            del normalization_params["skip_target"]
-        norm_config.update(normalization_params)
+    norm_config = _get_norm_dict_with_target_skipped(
+        normalization, normalization_params
+    )
 
     # data
     data_config = create_data_configuration(
