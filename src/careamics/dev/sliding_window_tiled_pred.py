@@ -1,19 +1,14 @@
-"""Sliding-window inner-tiled prediction for posterior models (MicroSplit-only).
+"""Sliding-window inner-tiled (SWITi) prediction.
 
-Implements a dense-overlap inner-tile stitcher: each predicted tile is cropped
-to its kept inner region (drop margin of ``overlap // 2`` per side, asymmetric
-at image edges) and pasted at its ``stitch_coords`` with `+=` into a running
-sum, with a parallel count array tracking coverage. Tile geometry is produced
-by ``SlidingWindowTiledPatching``; effective per-pixel MMSE count is determined
-by ``effective_mmse_count(patch_size, stride, overlap)`` and edge replication
-in the patching strategy equalises border coverage with the interior.
+Functions for stitching densely sampled overlapping tiles produced by the
+`SWITiPatching` strategy.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from types import EllipsisType
 
 import numpy as np
 import torch
@@ -34,12 +29,9 @@ logger = get_logger(__name__)
 
 
 def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
-    """Per-axis effective MMSE count for `SlidingWindowTiledPatching`.
+    """Calculate per-axis effective MMSE count for `SwitiPatching`.
 
-    Each pixel along the axis is covered by this many independent tile
-    predictions (assuming `mmse_count = 1` in the model — each forward pass
-    yields one stochastic draw). For a multi-axis pixel, the effective count
-    is the product of this value across axes.
+    The effective MMSE count for multiple axes is the product of the result per axis.
 
     Parameters
     ----------
@@ -53,7 +45,8 @@ def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
     Returns
     -------
     int
-        `max(1, (patch_size - overlap) // stride)`.
+        The number of tiles each pixel would be covered by along an axis given the
+        parameters.
     """
     return int(np.ceil((patch_size - overlap) / stride))
 
@@ -65,6 +58,44 @@ def compute_stride_for_mmse_count(
     *,
     stride_z: int | None = None,
 ) -> tuple[tuple[int, int] | tuple[int, int, int], int]:
+    """
+    Compute the optimum stride in each spatial dimension to achieve a target MMSE count.
+
+    The stride in X and Y will be equal.
+
+    If the target MMSE count is not exactly achievable, the achieved MMSE count will
+    always be greater than the target.
+
+    Parameters
+    ----------
+    patch_size : Sequence[int]
+        The input tile size, either 2D or 3D.
+    overlap : Sequence[int]
+        Describes the border cropped from each side of the tile, the border is
+        `overlaps[dim] // 2` for each dimension `dim`.
+    target_mmse_count : int
+        Target MMSE count, e.g. how many tiles will cover each pixel.
+    stride_z : int | None, default=None
+        Optionally choose to manually fix the z_stride, ignored for 2D, if None for 3D
+        it will be calculated. The effective MMSE count will be optimized by jointly
+        tuning `stride_z` and the stride in xy.
+
+    Returns
+    -------
+    tuple[int, int] | tuple[int, int, int]
+        The calculated stride, 2D or 3D depending on the input.
+    int
+        The effective MMSE resulting from the calculated stride.
+
+    Raises
+    ------
+    ValueError
+        If the patch size is not square in XY.
+    ValueError
+        If the overlaps are not equal in XY.
+    ValueError
+        If the `patch_size` is not valid (not 2D or 3D).
+    """
     # NOTE: should already be validated in config
     if patch_size[-1] != patch_size[-2]:
         raise ValueError(
@@ -113,8 +144,47 @@ def compute_stride_for_mmse_count(
 def _search_3D_strides(
     crop_size_xy: int, crop_size_z: int, target_mmse_count: int
 ) -> tuple[int, int]:
+    """
+    Find the stride that results in pixel coverage closest to the `target_mmse_count`.
 
-    def objective(value: tuple[int, int]):
+    The stride is also subject to the following constraints:
+    - The effective MMSE will always be greater than or equal to `target_mmse_count`,
+    - The strides in X and Y are equal, and
+    - If there are two solutions that result in the same optimum effective MMSE count
+      then the result which minimizes the absolute difference between the stride in XY
+      and the stride in Z is chosen.
+
+    Parameters
+    ----------
+    crop_size_xy : int
+        The size of the cropped tile in x and y after dropping the margins.
+    crop_size_z : int
+        The size of the cropped tile in z after dropping the margins.
+    target_mmse_count : int
+        The desired pixel coverage.
+
+    Returns
+    -------
+    int
+        The stride in XY.
+    int
+        The stride in Z.
+    """
+
+    def objective(value: tuple[int, int]) -> float:
+        """Objective to minimize.
+
+        Parameters
+        ----------
+        value : tuple[int, int]
+            First value is the stride in the XY dimensions, second value is the stride
+            in the Z dimension.
+
+        Returns
+        -------
+        int
+            Evaluated objective function.
+        """
         stride_xy, stride_z = value
         coverage_xy = int(np.ceil(crop_size_xy / stride_xy))
         coverage_z = int(np.ceil(crop_size_z / stride_z))
@@ -153,12 +223,11 @@ def _search_3D_strides(
 class _TileAccumulator:
     """Per-image accumulator for sliding-window tile averaging.
 
-    ``sum`` and ``count`` share the same SC(Z)YX shape as the full image; each
-    tile is added in-place at its ``(sample_idx, ..., *spatial_slice)`` location.
+    `sum` and `count` share the same SC(Z)YX shape as the full image.
     """
 
-    sum: NDArray
-    count: NDArray
+    sum: NDArray[np.float32]
+    count: NDArray[np.uint32]
     expected_tiles: int
     seen: int
     source: str
@@ -166,26 +235,31 @@ class _TileAccumulator:
     original_data_shape: tuple[int, ...]
 
     def is_complete(self) -> bool:
-        """Whether all tiles for this image have been accumulated."""
+        """Whether all tiles for this image have been accumulated.
+
+        Returns
+        -------
+        bool
+            Whether all tiles for this image have been accumulated.
+        """
         return self.seen >= self.expected_tiles
 
 
 def _allocate_accumulator(
     tile: ImageRegionData, output_channels: int
 ) -> _TileAccumulator:
-    """Allocate an accumulator sized after the full image carried by ``tile``.
+    """Allocate an accumulator sized after the full image carried by `tile`.
 
-    The spatial extent comes from ``tile.data_shape`` (the input image's
-    ``SC(Z)YX``), while the channel dimension is overridden with
-    ``output_channels`` so the buffer matches the model output (which may have a
-    different number of channels than the input — e.g. MicroSplit unmixing).
+    The spatial extent comes from `tile.data_shape`, while the channel dimension is
+    overridden with `output_channels`.
 
     Parameters
     ----------
     tile : ImageRegionData
-        A tile carrying input-image metadata and a ``TileSpecs`` ``region_spec``.
+        A tile carrying input-image metadata, the `region_specs` attribute is a
+        `TileSpecs` instance.
     output_channels : int
-        Number of channels produced by the model (used as the buffer's C axis).
+        Number of channels produced by the model.
 
     Returns
     -------
@@ -197,7 +271,7 @@ def _allocate_accumulator(
     shape = (input_shape[0], int(output_channels), *input_shape[2:])
     return _TileAccumulator(
         sum=np.zeros(shape, dtype=np.float32),
-        count=np.zeros(shape, dtype=np.float32),
+        count=np.zeros(shape, dtype=np.uint32),
         expected_tiles=int(spec["total_tiles"]),
         seen=0,
         source=tile.source,
@@ -208,25 +282,35 @@ def _allocate_accumulator(
 
 def _tile_paste_slices(
     spec: TileSpecs,
-) -> tuple[tuple[Any, ...], tuple[Any, ...]]:
-    """Build the source-crop and destination-stitch slices for a tile.
+) -> tuple[
+    tuple[slice | EllipsisType | int, ...], tuple[slice | EllipsisType | int, ...]
+]:
+    """Get slices to (i) crop the source tile and, (ii) paste to destination image.
 
-    Source slice indexes into the tile data (``C(Z)YX``) to extract its kept
-    inner region (``crop_coords`` / ``crop_size``). Destination slice indexes
-    into the ``SC(Z)YX`` accumulator at the tile's ``stitch_coords``.
+    Parameters
+    ----------
+    spec : TileSpecs
+        Tile specification that contains crop coordinates and stitching coordinates.
+
+    Returns
+    -------
+    tuple[slice | EllipsisType | int, ...]
+        The source slice that is used to crop the tile.
+    tuple[slice | EllipsisType | int, ...]
+        The slice that is used to paste the cropped tile into the destination image.
     """
     crop_coords = spec["crop_coords"]
     crop_size = spec["crop_size"]
     stitch_coords = spec["stitch_coords"]
     sample_idx = int(spec["sample_idx"])
-    source = (
+    source: tuple[slice | EllipsisType | int, ...] = (
         ...,
         *[
             slice(int(c), int(c) + int(sz))
             for c, sz in zip(crop_coords, crop_size, strict=True)
         ],
     )
-    dest = (
+    dest: tuple[slice | EllipsisType | int, ...] = (
         sample_idx,
         ...,
         *[
@@ -237,20 +321,47 @@ def _tile_paste_slices(
     return source, dest
 
 
-def _paste_tile(acc: _TileAccumulator, tile: ImageRegionData) -> None:
-    """Add a tile's cropped inner region into the accumulator and bump the count."""
-    spec: TileSpecs = tile.region_spec  # type: ignore[assignment]
+# TODO: should be a method on _TileAccumulator
+def _paste_tile(
+    tile_accumulator: _TileAccumulator, tile: ImageRegionData[TileSpecs]
+) -> None:
+    """Add a tile's cropped inner region into the accumulator and bump the count.
+
+    Parameters
+    ----------
+    tile_accumulator : _TileAccumulator
+        The tile accumulator for the image that the given `tile` belongs to.
+    tile : ImageRegionData[TileSpecs]
+        A predicted tile to paste into image.
+    """
+    spec: TileSpecs = tile.region_spec
     source_slice, dest_slice = _tile_paste_slices(spec)
     cropped = np.asarray(tile.data, dtype=np.float32)[source_slice]
-    acc.sum[dest_slice] += cropped
-    acc.count[dest_slice] += 1.0
-    acc.seen += 1
+    tile_accumulator.sum[dest_slice] += cropped
+    tile_accumulator.count[dest_slice] += 1
+    tile_accumulator.seen += 1
 
 
-def _finalize(acc: _TileAccumulator, data_idx: int) -> NDArray:
-    """Average sum by count and return the mean array."""
-    if (acc.count == 0).any():
-        n_uncovered = int((acc.count == 0).sum())
+# TODO: should be a method on _TileAccumulator
+def _finalize(tile_accumulator: _TileAccumulator, data_idx: int) -> NDArray[np.float32]:
+    """Calculate the pixel-wise average of the overlapping tiles.
+
+    The accumulated sum is divided by the count for each pixel.
+
+    Parameters
+    ----------
+    tile_accumulator : _TileAccumulator
+        The tile accumulator the corresponds to the image with `data_idx`.
+    data_idx : int
+        Denotes a specific image.
+
+    Returns
+    -------
+    NDArray[np.float32]
+        The resulting average.
+    """
+    if (tile_accumulator.count == 0).any():
+        n_uncovered = int((tile_accumulator.count == 0).sum())
         logger.warning(
             "Image data_idx=%d has %d uncovered pixel(s). With "
             "SlidingWindowTiledPatching this should not happen — check your "
@@ -259,69 +370,50 @@ def _finalize(acc: _TileAccumulator, data_idx: int) -> NDArray:
             n_uncovered,
         )
     mean = np.divide(
-        acc.sum,
-        acc.count,
-        out=np.zeros_like(acc.sum),
-        where=acc.count > 0,
+        tile_accumulator.sum,
+        tile_accumulator.count,
+        out=np.zeros_like(tile_accumulator.sum),
+        where=tile_accumulator.count > 0,
+        dtype=np.float32,
     )
-    return mean.astype(np.float32)
+    return mean
 
 
-def _move_input_to_device(
+# TODO: why do we need this?
+def _move_input_to_device(  # numpydoc ignore=PR01,RT01
     batch: tuple[ImageRegionData, ...], device: torch.device
 ) -> tuple[ImageRegionData, ...]:
-    """Return ``batch`` with ``batch[0].data`` moved to ``device``.
-
-    ``ImageRegionData`` is a ``NamedTuple``; ``_replace`` is used to swap the
-    ``data`` field without mutating the original.
-    """
+    """Return `batch` with `batch[0].data` moved to `device`."""
     input_region = batch[0]
-    moved = input_region._replace(data=input_region.data.to(device))
+    moved = input_region._replace(data=input_region.data.to(device))  # type: ignore
     return (moved, *batch[1:])
 
 
-def sw_tiled_prediction(
+def switi_prediction(
     model: MicroSplitModule,
+    # TODO: change function to take data source and config to instantiate data loader.
     dataloader: DataLoader,
 ) -> tuple[list[NDArray], list[str]]:
-    """Run dense-overlap sliding-window inner-tiled prediction.
-
-    Iterates ``dataloader`` once. For each batch the model's ``predict_step``
-    produces an already-denormalised MMSE mean per tile; each tile's kept inner
-    region (per its ``crop_coords`` / ``crop_size``) is pasted at
-    ``stitch_coords`` into a per-image accumulator with ``+=``, and a parallel
-    count array tracks coverage. When all tiles for an image have arrived (per
-    ``TileSpecs.total_tiles``), the sum is divided by the count and stored;
-    after the loop the per-image means are returned sorted by ``data_idx``.
-
-    The effective per-pixel MMSE count is determined by the patching strategy:
-    use ``SlidingWindowTiledPatchingConfig`` and the helper
-    ``effective_mmse_count(patch_size, stride, overlap)`` to predict it. With
-    ``edge_replication=True`` the border matches the interior. Set
-    ``model.algorithm_config.mmse_count = 1`` for canonical behaviour; values
-    > 1 multiply the effective count.
+    """Run SWITi inference.
 
     Parameters
     ----------
     model : MicroSplitModule
-        Trained MicroSplit module. Caller is responsible for loading weights
-        and for setting ``model.algorithm_config.mmse_count = 1`` before invocation.
+        Trained MicroSplit module. Must be initialized with
+        `algorithm_config.mmse_count=1`.
     dataloader : DataLoader
-        Prediction dataloader. Expected to be built from a data module whose
-        patching strategy is ``SlidingWindowTiledPatchingConfig``.
+        Prediction dataloader. Underlying dataset must use `SwitiPatching` strategy.
 
     Returns
     -------
     list of numpy.ndarray
-        Per-image stitched predictions with axes ``SC(Z)YX``, sorted by
-        ``data_idx``.
+        Per-image stitched predictions with axes `SC(Z)YX`.
     list of str
-        Per-image sources, in the same order. Empty if all sources equal
-        ``"array"`` (mirroring ``convert_prediction``).
+        Per-image sources (e.g. file paths), empty if input data is arrays.
     """
     # Model output channel count drives the stitch buffer's C axis.
     # For MicroSplit this differs from the input image's channel count.
-    output_channels = int(model.algorithm_config.model.output_channels)
+    output_channels = int(model.config.model.output_channels)
 
     accumulators: dict[int, _TileAccumulator] = {}
     finalized: dict[int, tuple[NDArray, str]] = {}
@@ -335,7 +427,7 @@ def sw_tiled_prediction(
             tqdm(dataloader, total=len(dataloader), desc="Predicting")
         ):
             batch = _move_input_to_device(batch, device)
-            mean_region_batch, _std_region_batch = model.predict_step(batch, batch_idx)
+            mean_region_batch = model.predict_step(batch, batch_idx)
             tiles = decollate_image_region_data(mean_region_batch)
 
             for tile in tiles:
