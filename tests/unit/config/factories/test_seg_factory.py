@@ -1,8 +1,10 @@
 import pytest
 
+from careamics.config.factories.config_discriminators import instantiate_norm_config
 from careamics.config.factories.seg_factory import (
     _get_expected_target_axes,
     _get_input_size,
+    _get_norm_dict_with_target_skipped,
     create_advanced_seg_config,
 )
 from careamics.config.seg_configuration import SegConfiguration
@@ -54,6 +56,21 @@ def test_get_input_size(axes, channels, n_channels_in, exp_n_channels):
     assert result == exp_n_channels
 
 
+@pytest.mark.parametrize("normalization", ["quantile", "mean_std", "min_max", "none"])
+@pytest.mark.parametrize(
+    "norm_params", [None, {}, {"skip_target": False}, {"skip_target": True}]
+)
+def test_get_norm_dict_with_target_skipped(normalization, norm_params):
+    """Test that the returned dictionary always has target skipped."""
+    norm_dict = _get_norm_dict_with_target_skipped(normalization, norm_params)
+
+    # check that one can instantiate a configuration
+    cfg = instantiate_norm_config(norm_dict)
+
+    if normalization != "none":
+        assert cfg.skip_target
+
+
 class TestSegFactory:
 
     @pytest.mark.parametrize("n_classes", [1, 2])
@@ -61,11 +78,3 @@ class TestSegFactory:
         """Test that the model inputs is background + foreground classes."""
         cfg: SegConfiguration = create_configuration(n_classes=n_classes)
         assert cfg.algorithm_config.model.num_classes == n_classes + 1
-
-    @pytest.mark.parametrize(
-        "norm_params", [None, {}, {"skip_target": False}, {"skip_target": True}]
-    )
-    def test_skip_target_enforced(self, norm_params):
-        """Test that `skip_target` is always enforced."""
-        cfg: SegConfiguration = create_configuration(normalization_params=norm_params)
-        assert cfg.data_config.normalization.skip_target
