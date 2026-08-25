@@ -83,11 +83,11 @@ def test_from_array_with_target_axes():
     )
 
     sample, target = train_dataset[0]
-    assert sample.axes == "YX"
-    assert target.axes == "CYX"
+    assert sample.original_axes == "YX"
+    assert target.original_axes == "CYX"
     assert sample.data.shape == (1, *patch_size)
     assert target.data.shape == (2, *patch_size)
-    assert target.original_data_shape == example_target.shape
+    assert target.original_shape == example_target.shape
 
 
 # TODO revisit these tests
@@ -145,7 +145,7 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
                 assert np.all((ch + 1) * 1000 >= sample.data[i])
 
             # test that channels are properly adjusted in data_shape
-            assert sample.data_shape[1] == len(channels)
+            assert sample.canonical_shape[1] == len(channels)
 
 
 @pytest.mark.parametrize(

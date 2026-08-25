@@ -25,8 +25,8 @@ class ImageMetadata(TypedDict):
 
     source: str
     dtype: str
-    data_shape: Sequence[int]
-    original_data_shape: Sequence[int]
+    canonical_shape: Sequence[int]
+    original_shape: Sequence[int]
     additional_metadata: dict[str, Any]
 
 
@@ -58,7 +58,7 @@ def get_image_metadata(image_stack: ImageStack) -> ImageMetadata:
     return {
         "source": str(image_stack.source),
         "dtype": str(image_stack.data_dtype),
-        "data_shape": image_stack.data_shape,
-        "original_data_shape": image_stack.original_data_shape,
+        "canonical_shape": image_stack.data_shape,
+        "original_shape": image_stack.original_data_shape,
         "additional_metadata": additional_metadata,
     }

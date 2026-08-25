@@ -39,11 +39,11 @@ def tile(
     return ImageRegionData(
         data=np.random.rand(*tile_shape).astype(np.float32),
         source="test_source",
-        data_shape=tile_shape,
+        canonical_shape=tile_shape,
         dtype="float32",
-        axes=original_axes,
+        original_axes=original_axes,
         target_axes=target_axes,
-        original_data_shape=original_shape,
+        original_shape=original_shape,
         region_spec=TileSpecs(
             data_idx=2,
             sample_idx=0 if has_samples else None,

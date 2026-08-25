@@ -36,10 +36,10 @@ def batches(source_name: str) -> list[ImageRegionData]:
                     data=(
                         data_idx * np.ones((32, 32)).astype(np.float32)
                     ),  # individual sample, B dim added by collate
-                    data_shape=(10, 32, 32),
+                    canonical_shape=(10, 32, 32),
                     dtype="float32",
                     # axes describes the full dataset shape
-                    axes="SYX",
+                    original_axes="SYX",
                     target_axes="SYX",
                     # non-sense to check that they are properly decollated
                     region_spec={
@@ -52,7 +52,7 @@ def batches(source_name: str) -> list[ImageRegionData]:
                         "chunks": (1, 1, 16, 16),
                         "shards": (1, 1, 32, 32),
                     },
-                    original_data_shape=(10, 32, 32),
+                    original_shape=(10, 32, 32),
                 )
             )
 
@@ -116,8 +116,8 @@ class TestCombineSamples:
                         data=np.ones((3, 32, 32)).astype(np.float32) * data_idx,
                         source=f"{data_idx}.tiff",
                         dtype="float32",
-                        data_shape=(32, 32),
-                        axes="TYXC",
+                        canonical_shape=(32, 32),
+                        original_axes="TYXC",
                         target_axes="TYXC",
                         region_spec={
                             "data_idx": data_idx,
@@ -126,7 +126,7 @@ class TestCombineSamples:
                             "patch_size": (32, 32),
                         },
                         additional_metadata={},
-                        original_data_shape=(10, 32, 32, 3),
+                        original_shape=(10, 32, 32, 3),
                     )
                 )
 
@@ -156,9 +156,9 @@ def test_decollate_image_region_data(n_batch) -> None:
                 source="array.tiff",
                 # individual sample, B dim is added by collate
                 data=np.ones((4, 4)).astype(np.float32),
-                data_shape=(32, 32),
+                canonical_shape=(32, 32),
                 dtype=str(np.float32),
-                axes="YX",
+                original_axes="YX",
                 target_axes="YX",
                 region_spec={
                     "data_idx": i,
@@ -170,7 +170,7 @@ def test_decollate_image_region_data(n_batch) -> None:
                     "chunks": (1, 1, 16, i),
                     "shards": (1, 1, 32, i * 2),
                 },
-                original_data_shape=(32, 32),
+                original_shape=(32, 32),
             )
         )
 
@@ -181,9 +181,9 @@ def test_decollate_image_region_data(n_batch) -> None:
     for i in range(len(batch)):
         np.testing.assert_array_equal(decollated[i].data, batch[i].data, verbose=True)
         assert decollated[i].source == batch[i].source
-        assert decollated[i].data_shape == batch[i].data_shape
+        assert decollated[i].canonical_shape == batch[i].canonical_shape
         assert decollated[i].dtype == batch[i].dtype
-        assert decollated[i].axes == batch[i].axes
+        assert decollated[i].original_axes == batch[i].original_axes
         assert decollated[i].region_spec == batch[i].region_spec
         assert (
             decollated[i].additional_metadata["chunks"]

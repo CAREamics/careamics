@@ -67,8 +67,8 @@ class ZarrTileHandler:
         """
         self.tile = region.data
         tile_shape = region.data.shape
-        original_shape = region.original_data_shape
-        original_axes = region.axes
+        original_shape = region.original_shape
+        original_axes = region.original_axes
         target_axes = region.target_axes
         self.original_chunks = region.additional_metadata.get("chunks", None)
         self.original_shards = region.additional_metadata.get("shards", None)

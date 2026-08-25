@@ -130,9 +130,9 @@ class ImageWriteStrategy(WriteStrategy):
         int
             Total number of samples in the S dimension, or 1 if no S dimension.
         """
-        if "S" in prediction.axes:
-            s_idx = prediction.axes.index("S")
-            return prediction.data_shape[s_idx]
+        if "S" in prediction.original_axes:
+            s_idx = prediction.original_axes.index("S")
+            return prediction.canonical_shape[s_idx]
         return 1
 
     def _get_complete_images(self) -> list[int]:

@@ -10,35 +10,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 _REF_ORDER = "STCZYX"
-_VALID_AXES = set(_REF_ORDER)
-
-
-# TODO to clarify the transformations call the transformed space "canonical".
-
-
-# TODO reuse the validators from configuration? or simply drop the validation from here
-def _validate_axes(axes: str) -> None:
-    """Validate axes.
-
-    Parameters
-    ----------
-    axes : str
-        Axes string of the input data (e.g. "YXC", "STCZYX").
-
-    Raises
-    ------
-    ValueError
-        If axes are not valid.
-    """
-    invalid = set(axes) - _VALID_AXES
-    if invalid:
-        raise ValueError(f"Invalid axis names: {invalid}. Must be from {_VALID_AXES}.")
-
-    if len(set(axes)) != len(axes):
-        raise ValueError(f"Duplicate axes in '{axes}'.")
-
-    if "Y" not in axes or "X" not in axes:
-        raise ValueError("Axes must contain Y and X.")
 
 
 def _validate_axes_and_shape(axes: str, shape: Sequence[int]) -> None:
@@ -56,8 +27,6 @@ def _validate_axes_and_shape(axes: str, shape: Sequence[int]) -> None:
     ValueError
         If axes and shape are not compatible.
     """
-    _validate_axes(axes)
-
     if len(axes) != len(shape):
         raise ValueError(
             f"Axes '{axes}' length ({len(axes)}) does not match shape {shape} length "
@@ -319,10 +288,8 @@ class RestoredAxesTransform:
     """Whether current_shape is a tile shape (C(Z)YX). This is used to identify the axes
     order in `current_shape`."""
 
-    # TODO axes validation could be skipped here since it is ensured by the config
     def __post_init__(self) -> None:
         """Validate current shape and axes."""
-        _validate_axes(self.target_axes)
         _validate_axes_and_target(self.original_axes, self.target_axes)
         _validate_axes_and_shape(self.original_axes, self.original_shape)
 
