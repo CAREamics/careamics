@@ -14,8 +14,8 @@ from careamics.config.data.patching_strategies import (
 
 from .patching import Patching
 from .random_patching import FixedRandomPatching, RandomPatching
-from .sliding_window_tiled_patching import SwitiPatching
 from .stratified_patching import StratifiedPatching
+from .switi_patching import SwitiPatching
 from .tiled_patching import TiledPatching
 from .whole_sample_patching import WholeSamplePatching
 
