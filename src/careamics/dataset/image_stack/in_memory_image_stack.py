@@ -26,7 +26,7 @@ class InMemoryImageStack:
         Array with axes SC(Z)YX.
     original_axes : str or None, optional
         Axis in original order.
-    original_data_shape : tuple of int or None, optional
+    original_shape : tuple of int or None, optional
         Shape in original axis order.
     """
 
@@ -35,7 +35,7 @@ class InMemoryImageStack:
         source: Union[Path, Literal["array"]],
         data: NDArray,
         original_axes: str | None = None,
-        original_data_shape: tuple[int, ...] | None = None,
+        original_shape: tuple[int, ...] | None = None,
     ):
         """Constructor.
 
@@ -48,17 +48,17 @@ class InMemoryImageStack:
             Array with axes SC(Z)YX.
         original_axes : str or None, optional
             Axis in original order.
-        original_data_shape : tuple of int or None, optional
+        original_shape : tuple of int or None, optional
             Shape in original axis order.
         """
         self.source: Union[str, Path, Literal["array"]] = source
         # data expected to be in SC(Z)YX shape, reason to use from_array constructor
         self.data_dtype: DTypeLike = data.dtype
         self._data: NDArray = data.astype(np.float32, copy=False)
-        self.data_shape: Sequence[int] = self._data.shape
+        self.canonical_shape: Sequence[int] = self._data.shape
         self._original_axes: str = original_axes if original_axes is not None else ""
-        self._original_data_shape: tuple[int, ...] = (
-            original_data_shape if original_data_shape is not None else ()
+        self._original_shape: tuple[int, ...] = (
+            original_shape if original_shape is not None else ()
         )
 
     def extract_patch(
@@ -94,14 +94,14 @@ class InMemoryImageStack:
 
         # check that channels are within bounds
         if channels is not None:
-            max_channel = self.data_shape[1] - 1  # channel is second dimension
+            max_channel = self.canonical_shape[1] - 1  # channel is second dimension
             for ch in channels:
                 if ch > max_channel:
                     raise ValueError(
                         f"Channel index {ch} is out of bounds for data with "
-                        f"{self.data_shape[1]} channels. Check the provided `channels` "
-                        f"parameter in the configuration for erroneous channel "
-                        f"indices."
+                        f"{self.canonical_shape[1]} channels. Check the provided "
+                        f"`channels` parameter in the configuration for erroneous "
+                        f"channel indices."
                     )
 
         # TODO: test for 2D or 3D?
@@ -113,19 +113,19 @@ class InMemoryImageStack:
                 channel_slice(channels),  # type: ignore
                 *[
                     slice(
-                        np.clip(c, 0, self.data_shape[2 + i]),
-                        np.clip(c + ps, 0, self.data_shape[2 + i]),
+                        np.clip(c, 0, self.canonical_shape[2 + i]),
+                        np.clip(c + ps, 0, self.canonical_shape[2 + i]),
                     )
                     for i, (c, ps) in enumerate(zip(coords, patch_size, strict=False))
                 ],  # type: ignore
             )  # type: ignore
         ]
-        patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
+        patch = pad_patch(coords, patch_size, self.canonical_shape, patch_data)
 
         return patch
 
     @property
-    def original_data_shape(self) -> tuple[int, ...]:
+    def original_shape(self) -> tuple[int, ...]:
         """Original shape of the data.
 
         Returns
@@ -133,7 +133,7 @@ class InMemoryImageStack:
         tuple of int
             Shape in original axis order.
         """
-        return self._original_data_shape
+        return self._original_shape
 
     @property
     def original_axes(self) -> str:
@@ -166,7 +166,7 @@ class InMemoryImageStack:
             source="array",
             data=reshape_array(data, axes),
             original_axes=axes,
-            original_data_shape=data.shape,
+            original_shape=data.shape,
         )
 
     @classmethod
@@ -190,7 +190,7 @@ class InMemoryImageStack:
             source=path,
             data=reshape_array(data, axes),
             original_axes=axes,
-            original_data_shape=data.shape,
+            original_shape=data.shape,
         )
 
     @classmethod
@@ -220,5 +220,5 @@ class InMemoryImageStack:
             source=path,
             data=reshape_array(data, axes),
             original_axes=axes,
-            original_data_shape=data.shape,
+            original_shape=data.shape,
         )

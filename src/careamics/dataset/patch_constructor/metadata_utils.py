@@ -58,7 +58,7 @@ def get_image_metadata(image_stack: ImageStack) -> ImageMetadata:
     return {
         "source": str(image_stack.source),
         "dtype": str(image_stack.data_dtype),
-        "canonical_shape": image_stack.data_shape,
-        "original_shape": image_stack.original_data_shape,
+        "canonical_shape": image_stack.canonical_shape,
+        "original_shape": image_stack.original_shape,
         "additional_metadata": additional_metadata,
     }

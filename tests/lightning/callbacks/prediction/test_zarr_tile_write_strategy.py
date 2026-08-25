@@ -261,7 +261,7 @@ def test_write_from_array(tmp_path):
     patch_extractor = PatchExtractor(image_stacks)
 
     strategy = TiledPatching(
-        data_shapes=[image_stacks[0].data_shape] * 2,
+        data_shapes=[image_stacks[0].canonical_shape] * 2,
         patch_size=(8, 8),
         overlaps=(4, 4),
     )
@@ -296,7 +296,7 @@ def test_write_from_tiff(tmp_path):
     patch_extractor = PatchExtractor(image_stacks)
 
     strategy = TiledPatching(
-        data_shapes=[image_stacks[0].data_shape] * 2,
+        data_shapes=[image_stacks[0].canonical_shape] * 2,
         patch_size=(8, 8),
         overlaps=(4, 4),
     )

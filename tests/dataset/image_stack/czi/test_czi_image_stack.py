@@ -127,7 +127,7 @@ class TestCziImageStack:
 
         # check axes and shape
         assert image_stack.axes == expected_axes
-        assert image_stack.data_shape == expected_shape
+        assert image_stack.canonical_shape == expected_shape
 
         # test extracted patch matches patch from reference data
         if len(expected_axes) < 5:
@@ -205,7 +205,7 @@ class TestCziImageStack:
             image_stack = CziImageStack(
                 data_path=file_path, scene=scene_idx, depth_axis="Z"
             )
-            assert image_stack.data_shape == expected_shape
+            assert image_stack.canonical_shape == expected_shape
 
             t = expected_shape[0] - scene_idx - 1
             coords = (2, 9, 4)

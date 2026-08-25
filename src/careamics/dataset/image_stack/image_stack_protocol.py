@@ -32,18 +32,18 @@ class ImageStack(Protocol):
         ...
 
     @property
-    def data_shape(self) -> Sequence[int]:
-        """Shape of the image data (SC(Z)YX)."""
+    def canonical_shape(self) -> Sequence[int]:
+        """Shape of the image in canonical space (SC(Z)YX)."""
         ...
 
     @property
     def data_dtype(self) -> DTypeLike:
-        """Data type of the image data."""
+        """Data type of the source image."""
         ...
 
     @property
-    def original_data_shape(self) -> Sequence[int]:
-        """Original shape of the data."""
+    def original_shape(self) -> Sequence[int]:
+        """Original shape of the source image."""
         ...
 
     @property

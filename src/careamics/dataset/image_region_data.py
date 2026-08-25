@@ -54,8 +54,8 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     """
 
     original_shape: Sequence[int]
-    """Original shape of the source image before reshaping in canonical space and with
-    channel subsetting."""
+    """Original shape of the source image before reshaping in canonical space and may
+    include channel subsetting."""
 
     region_spec: RegionSpecs  # PatchSpecs or subclasses, e.g. TileSpecs
     """Specifications of the region within the source image from where `data` is
