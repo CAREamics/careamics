@@ -2,7 +2,7 @@
 
 import itertools
 from collections.abc import Sequence
-from math import prod
+from math import ceil, prod
 
 from .patch_specs import TileSpecs
 
@@ -225,7 +225,13 @@ class SwitiPatching:
         crop_size: list[int] = []
 
         if axis_size <= patch_size:
-            return [0], [0], [0], [axis_size]
+            required_coverage = ceil((patch_size - overlap) / stride)
+            return (
+                [0] * required_coverage,
+                [0] * required_coverage,
+                [0] * required_coverage,
+                [axis_size] * required_coverage,
+            )
 
         # Smallest multiple of `stride` such that the conceptual kept region
         # [i+M, i+P-M) has non-empty intersection with [0, axis_size)
