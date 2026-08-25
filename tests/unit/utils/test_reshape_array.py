@@ -4,6 +4,7 @@ import pytest
 from careamics.utils.reshape_array import (
     AxesTransform,
     RestoredAxesTransform,
+    adjust_shape_for_channels,
     reshape_array,
     restore_array,
 )
@@ -408,6 +409,21 @@ _CHANNEL_MISMATCH_TILE_DISORDERED = [
 ]
 
 # --- Unit tests
+
+
+@pytest.mark.parametrize(
+    "shape, axes, n_channels",
+    [
+        ((3, 2, 8, 8), "SCYX", 3),
+        ((1, 2, 8, 8), "SCYX", 3),
+        ((3, 2, 8, 8, 8), "SCZYX", 3),
+        ((8, 3, 2, 8), "XSCY", 3),
+    ],
+)
+def test_adjust_shape_for_channels(shape, axes, n_channels):
+    """Test adjusting a data shape with a different channel number."""
+    adjusted_shape = adjust_shape_for_channels(shape, axes, n_channels)
+    assert adjusted_shape[axes.index("C")] == n_channels
 
 
 class TestAxesTransform:
