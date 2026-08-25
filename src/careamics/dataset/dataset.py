@@ -15,6 +15,7 @@ from careamics.config.data.data_config import (
 )
 from careamics.dataset.augmentation.compose import Compose
 from careamics.models.constraints import ModelConstraints
+from careamics.utils.reshape_array import adjust_shape_for_channels
 
 from .image_region_data import ImageRegionData
 from .image_stack import GenericImageStack
@@ -81,10 +82,8 @@ def _adjust_original_shape_for_channels(
         Adjusted original data shape.
     """
     if channels is not None and "C" in axes:
-        c_idx = axes.index("C")
-        adjusted_original_shape = list(original_data_shape)
-        adjusted_original_shape[c_idx] = len(channels) if value == "channels" else value
-        original_data_shape = tuple(adjusted_original_shape)
+        n_channels = len(channels) if value == "channels" else value
+        return adjust_shape_for_channels(original_data_shape, axes, n_channels)
     return original_data_shape
 
 
