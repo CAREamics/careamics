@@ -18,13 +18,19 @@ def autocorrelation(image: NDArray) -> NDArray:
     Parameters
     ----------
     image : NDArray
-        Input image.
+        2D input image.
 
     Returns
     -------
     numpy.ndarray
         Autocorrelation of the input image.
     """
+    if image.ndim > 2:
+        raise ValueError(
+            f"The input image must be 2D (YX), but it has {image.ndim} dimensions. "
+            "Use `autocorrelation_stack` function for stack of images."
+        )
+
     # normalize image
     image = (image - np.mean(image)) / np.std(image)
 
