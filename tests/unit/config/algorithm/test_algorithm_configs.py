@@ -31,6 +31,10 @@ def test_unet_algorithm_configs(algorithm, cfg_class):
     assert isinstance(cfg, cfg_class)
 
 
+# TODO this was meant as a general test but is only compatible with CARE/N2V/N2N since
+# these do not have strong constraints on the parameters. Seg requires additional
+# parameters to be of specific non-default values to fit in. This test should be
+# revised.
 @pytest.mark.parametrize(
     "algorithm, n_in, n_out",
     [
@@ -49,7 +53,8 @@ def test_unet_algorithm_configs(algorithm, cfg_class):
 )
 def test_unet_algorithm_config_channels(algorithm, n_in, n_out):
     """Test that an algorithm config can be created for all UNet-based algorithms with
-    various channels."""
+    various channels.
+    """
     algo_config_dict = unet_algo_dict_testing(
         algorithm=algorithm, n_channels_in=n_in, n_channels_out=n_out
     )
