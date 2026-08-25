@@ -209,9 +209,10 @@ class SegModule(LightningModule):
         # TODO in the future, we will probably want to also return probability map
         #   this is currently not possible due to the prediction conversion
         #   restoring the original target shape
-
-        # apply softmax to obtain class probabilities over all classes
         # prediction = prediction.softmax(dim=1)
+
+        # TODO step incompatible with returning probabilities
+        # apply argmaxx to get the class
         prediction = prediction.argmax(dim=1, keepdim=True).cpu().numpy()
 
         output_batch = ImageRegionData(
@@ -220,6 +221,7 @@ class SegModule(LightningModule):
             data_shape=x.data_shape,
             dtype=x.dtype,
             axes=x.axes,
+            # TODO update target axes with a C channel to return probabilities
             target_axes=x.target_axes,
             original_data_shape=x.original_data_shape,
             region_spec=x.region_spec,
