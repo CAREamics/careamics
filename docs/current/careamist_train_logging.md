@@ -30,6 +30,8 @@ The CSV logger is enabled by default. After training, the train and validation l
 ```
 
 1. Returns a dataclass with objects `train_loss`, `val_loss`, `learning_rate`, and `metrics`.
+2. By default, this function plots the losses, the metrics and the learning rate. Plotting metrics
+and learning rate can be turned off using `plot_metrics=False` and `plot_learning_rate=False`.
 
 The underlying file is `work_dir/csv_logs/<experiment_name>/version_<n>/metrics.csv` and can be opened directly with any CSV tool.
 

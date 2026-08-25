@@ -19,17 +19,9 @@ careamist.train(train_data=train_data)
 
 # %%
 # --8<-- [start:csv_logger]
-import matplotlib.pyplot as plt
+from careamics.plotting import plot_loss
 
-losses = careamist.get_losses()  # (1)!
-train_loss = losses.train_loss
-val_loss = losses.val_loss
+training_report = careamist.get_losses()  # (1)!
+plot_loss(training_report)  # (2)!
 
-fig, ax = plt.subplots(figsize=(5, 3.5))
-ax.plot(train_loss.epoch, train_loss.value, label="Train")
-ax.plot(val_loss.epoch, val_loss.value, label="Validation")
-ax.set_xlabel("Epoch")
-ax.set_ylabel("Loss")
-ax.legend(frameon=False)
-fig.tight_layout()
 # --8<-- [end:csv_logger]
