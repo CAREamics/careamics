@@ -31,7 +31,7 @@ def _adjust_shape_for_channels(
     shape: Sequence[int],
     channels: Sequence[int] | None,
     value: int | Literal["channels"] = "channels",
-) -> tuple[int, ...]:
+) -> Sequence[int]:
     """Adjust shape to account for selecting a subset of channels.
 
     Parameters
@@ -50,10 +50,11 @@ def _adjust_shape_for_channels(
         The adjusted data shape in SC(Z)YX format.
     """
     if channels is not None:
-        adjusted_shape = list(shape)
-        adjusted_shape[1] = len(channels) if value == "channels" else value
-        return tuple(adjusted_shape)
-    return tuple(shape)
+        axes = "SCZYX" if len(shape) == 5 else "SCYX"
+        n_channels = len(channels) if value == "channels" else value
+        return adjust_shape_for_channels(shape, axes, n_channels)
+
+    return shape
 
 
 def _adjust_original_shape_for_channels(
