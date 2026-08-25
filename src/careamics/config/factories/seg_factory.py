@@ -20,7 +20,7 @@ logging = get_logger("Segmentation factory")
 def _get_norm_dict_with_target_skipped(
     normalization: Literal["mean_std", "quantile", "min_max", "none"],
     normalization_params: dict | None,
-) -> dict:
+) -> dict[str, Any]:
     """Return a Pydantic-model compatible dictionary with target normalization skipped.
 
     Parameters
@@ -32,7 +32,7 @@ def _get_norm_dict_with_target_skipped(
 
     Returns
     -------
-    dict
+    dict[str, Any]
         Dictionary to instantiate a normalization config with the target normalization
         skipped.
     """
