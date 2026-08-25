@@ -15,10 +15,10 @@ class ImageMetadata(TypedDict):
         Source path or identifier for the image stack.
     dtype : str
         Data type of the image stack.
-    data_shape : Sequence[int]
-        Loaded data shape.
-    original_data_shape : Sequence[int]
-        Original source data shape.
+    canonical_shape : Sequence[int]
+        Image shape once loaded in canonical space (SC(Z)YX).
+    original_shape : Sequence[int]
+        Original source image shape.
     additional_metadata : dict[str, Any]
         Format-specific metadata, such as chunking for zarr data.
     """
