@@ -61,7 +61,7 @@ class MicroSplitDataConfig(DataConfig):
         stride : Sequence[int] or None, default=None
             New tile stride. When provided alongside `new_patch_size` and
             `overlap_size` for `predicting` mode, the result uses a
-            `SlidingWindowTiledPatchingConfig` (dense-overlap inner tiling for
+            `SwitiPatchingConfig` (dense-overlap inner tiling for
             posterior models) instead of the default `TiledPatchingConfig`.
         new_batch_size : int or None, default=None
             New batch size. If `None`, keeps the current batch size.
