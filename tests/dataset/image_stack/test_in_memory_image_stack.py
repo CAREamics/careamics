@@ -25,7 +25,7 @@ def array_stack(shape, axes) -> tuple[NDArray, InMemoryImageStack]:
 def test_from_array(array_stack):
     data, image_stack = array_stack
     np.testing.assert_array_equal(image_stack._data, data)
-    assert image_stack.data_shape == data.shape
+    assert image_stack.canonical_shape == data.shape
     assert image_stack.data_dtype == data.dtype
 
 

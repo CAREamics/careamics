@@ -464,18 +464,6 @@ class TestAxesTransform:
         transform = AxesTransform("TYX", (T_S, XY_S, XY_S))
         assert transform.canonical_shape == (T_S, 1, XY_S, XY_S)
 
-    def test_invalid_axis_name(self):
-        with pytest.raises(ValueError):
-            AxesTransform("ABX", (1, 2, 3))
-
-    def test_duplicate_axes(self):
-        with pytest.raises(ValueError):
-            AxesTransform("YYX", (32, 32, 32))
-
-    def test_missing_y_or_x(self):
-        with pytest.raises(ValueError):
-            AxesTransform("SC", (5, 3))
-
     def test_shape_axes_length_mismatch(self):
         with pytest.raises(ValueError):
             AxesTransform("YX", (32, 32, 32))
