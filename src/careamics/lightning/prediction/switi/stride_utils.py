@@ -17,6 +17,7 @@ from careamics.utils import get_logger
 logger = get_logger(__name__)
 
 
+# TODO: add tests
 def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
     """Calculate per-axis effective MMSE count for `SwitiPatching`.
 
@@ -41,6 +42,7 @@ def effective_mmse_count(patch_size: int, stride: int, overlap: int) -> int:
     return (patch_size - overlap) // stride
 
 
+# TODO: add tests
 def compute_switi_stride(
     patch_size: Sequence[int],
     overlap: Sequence[int],

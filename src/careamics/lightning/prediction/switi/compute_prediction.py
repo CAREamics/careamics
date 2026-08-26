@@ -8,15 +8,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import EllipsisType
+from typing import Any
 
 import numpy as np
 import torch
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader
+from torch.utils.data._utils.collate import default_collate
 from tqdm import tqdm
 
+from careamics.config.data import MicroSplitDataConfig
+from careamics.config.data.patching_strategies import SwitiPatchingConfig
+from careamics.dataset.factory import ImageStackLoading, ReadFuncLoading
+from careamics.dataset.factory.microsplit_factory import create_microsplit_pred_dataset
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.patching import TileSpecs
+from careamics.lightning.data import InputVar
+from careamics.lightning.data.data_module_utils import initialize_data_pair
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
 from careamics.lightning.prediction.convert_prediction import (
     decollate_image_region_data,
@@ -196,10 +204,12 @@ def _move_input_to_device(  # numpydoc ignore=PR01,RT01
     return (moved, *batch[1:])
 
 
+# TODO: add tests
 def switi_prediction(
     model: MicroSplitModule,
-    # TODO: change function to take data source and config to instantiate data loader.
-    dataloader: DataLoader,
+    data_config: MicroSplitDataConfig,
+    pred_data: InputVar,
+    loading: ReadFuncLoading | ImageStackLoading | None = None,
 ) -> tuple[list[NDArray], list[str]]:
     """Run SWITi inference.
 
@@ -208,8 +218,15 @@ def switi_prediction(
     model : MicroSplitModule
         Trained MicroSplit module. Must be initialized with
         `algorithm_config.mmse_count=1`.
-    dataloader : DataLoader
-        Prediction dataloader. Underlying dataset must use `SwitiPatching` strategy.
+    data_config : MicroSplitDataConfig
+        Data configuration for MicroSplit. Must have the "switi" patching strategy
+        configuration.
+    pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
+        Data to predict on. Can be a single item or a sequence of paths/arrays.
+    loading : Loading, default=None
+        Loading strategy to use for the prediction data. May be a ReadFuncLoading or
+        ImageStackLoading. If None, uses the loading strategy from the training
+        configuration.
 
     Returns
     -------
@@ -218,12 +235,32 @@ def switi_prediction(
     list of str
         Per-image sources (e.g. file paths), empty if input data is arrays.
     """
+    # create dataset and dataloader
+    if not isinstance(data_config.patching, SwitiPatchingConfig):
+        raise TypeError(
+            "Patching strategy in the provided `data_config` must be "
+            f"`SwitiPatchingConfig`, got {type(data_config.patching)} instead."
+        )
+    # pred_data: Sequence[NDArray[Any]] | Sequence[Path]
+    pred_data_validated, _ = initialize_data_pair(
+        data_type=data_config.data_type, input_data=pred_data, loading=loading
+    )
+    dataset = create_microsplit_pred_dataset(
+        config=data_config, input_data=pred_data_validated, loading=loading
+    )
+    dataloader = DataLoader(
+        dataset,
+        batch_size=dataset.config.batch_size,
+        collate_fn=default_collate,
+        **data_config.pred_dataloader_params,
+    )
+
     # Model output channel count drives the stitch buffer's C axis.
     # For MicroSplit this differs from the input image's channel count.
     output_channels = int(model.config.model.output_channels)
 
     accumulators: dict[int, _TileAccumulator] = {}
-    finalized: dict[int, tuple[NDArray, str]] = {}
+    finalized: dict[int, tuple[NDArray[Any], str]] = {}
 
     model.eval()
     device = next(model.parameters()).device
@@ -270,4 +307,5 @@ def switi_prediction(
     if set(sources) == {"array"}:
         sources = []
 
+    # TODO: restore shape
     return predictions_output, sources
