@@ -4,7 +4,7 @@ from pprint import pformat
 from typing import Annotated, Literal, Self
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, model_validator
 
 from careamics.config.architectures import LVAEConfig
 from careamics.config.lightning.optimizer_configs import (
@@ -54,8 +54,6 @@ class HDNAlgorithm(BaseModel):
     ]
 
     noise_model: MultiChannelNMConfig | None = None
-
-    mmse_count: int = Field(default=1, ge=1)
 
     # overwrite default optimizer
     optimizer: OptimizerConfig = OptimizerConfig(name="Adamax")

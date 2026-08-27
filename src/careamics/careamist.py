@@ -11,6 +11,8 @@ from numpy.typing import NDArray
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
+from .config.hdn_configuration import HDNConfiguration
+from .config.microsplit_configuration import MicroSplitConfiguration
 from .config.support import SupportedAlgorithm, SupportedLogger
 from .config.utils.configuration_io import load_configuration
 from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
@@ -26,7 +28,7 @@ from .lightning.modules import (
     CAREamicsModule,
     create_module,
 )
-from .lightning.prediction import convert_prediction
+from .lightning.prediction import convert_predict_outputs
 from .lightning.utils import (
     load_config_from_checkpoint,
     load_module_from_checkpoint,
@@ -43,11 +45,16 @@ logger = get_logger(__name__)
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
+OutputType = tuple[list[NDArray], list[str]]
+OutputTypeWithUncertainty = tuple[list[NDArray], list[NDArray], list[str]]
+PredictStepOutput = ImageRegionData | tuple[ImageRegionData, ImageRegionData | None]
 
 ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | HDNConfiguration
+    | MicroSplitConfiguration
 )
 
 
@@ -775,7 +782,8 @@ class CAREamist:
 
         # validate new data config against the rest of the configuration by triggering
         # the model level validation
-        self.config.model_copy().data_config = pred_data_config
+        config_copy: Any = self.config.model_copy()
+        config_copy.data_config = pred_data_config
 
         return CareamicsDataModule(
             data_config=pred_data_config,
@@ -785,8 +793,48 @@ class CAREamist:
             loading=loading,
         )
 
+    def _configure_sampling(self, n_predictions: int | None) -> None:
+        """Set how many stochastic predictions the model draws per input.
+
+        Parameters
+        ----------
+        n_predictions : int or None
+            Number of predictions to draw and average, or None to draw a single one.
+
+        Raises
+        ------
+        ValueError
+            If `n_predictions` is 1, as the uncertainty across a single prediction
+            is undefined.
+        ValueError
+            If `n_predictions` is set but the algorithm is deterministic.
+        """
+        model: Any = self.model
+        is_model_stochastic = hasattr(model, "n_samples")
+
+        if n_predictions is None:
+            if is_model_stochastic:
+                model.n_samples = 1
+            return
+
+        if n_predictions < 2:
+            raise ValueError(
+                f"`n_predictions` must be at least 2, got {n_predictions}: the "
+                f"uncertainty across a single prediction is undefined. Omit "
+                f"`n_predictions` to draw a single prediction without uncertainty."
+            )
+
+        if not is_model_stochastic:
+            raise ValueError(
+                f"`n_predictions` is not supported by "
+                f"{self.config.algorithm_config.algorithm}: it is deterministic and "
+                f"returns the same prediction on every pass. Omit `n_predictions`."
+            )
+
+        model.n_samples = n_predictions
+
     # see comment on train func for a description of why we have these two overloads
-    @overload  # constrained input data type for supported data or ReadFuncLoading
+    @overload  # constrained input data type, single prediction
     def predict(  # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
@@ -803,9 +851,10 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
-    ) -> tuple[list[NDArray], list[str]]: ...
+        n_predictions: None = None,
+    ) -> OutputType: ...
 
-    @overload  # any data input is allowed for ImageStackLoading
+    @overload  # any data input is allowed for ImageStackLoading, single prediction
     def predict(  # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
@@ -822,7 +871,48 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
-    ) -> tuple[list[NDArray], list[str]]: ...
+        n_predictions: None = None,
+    ) -> OutputType: ...
+
+    @overload  # constrained input data type, averaged predictions with uncertainty
+    def predict(  # numpydoc ignore=GL08
+        self,
+        # BASIC PARAMS
+        pred_data: InputVar,
+        *,
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: ReadFuncLoading | None = None,
+        checkpoint: str | Path | None = None,
+        n_predictions: int,
+    ) -> OutputTypeWithUncertainty: ...
+
+    @overload  # any data input, averaged predictions with uncertainty
+    def predict(  # numpydoc ignore=GL08
+        self,
+        # BASIC PARAMS
+        pred_data: Any,
+        *,
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: ImageStackLoading = ...,
+        checkpoint: str | Path | None = None,
+        n_predictions: int,
+    ) -> OutputTypeWithUncertainty: ...
 
     def predict(
         self,
@@ -840,7 +930,8 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: Loading = None,
         checkpoint: str | Path | None = None,
-    ) -> tuple[list[NDArray], list[str]]:
+        n_predictions: int | None = None,
+    ) -> OutputType | OutputTypeWithUncertainty:
         """
         Predict on data and return the predictions.
 
@@ -891,17 +982,33 @@ class CAREamist:
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
+        n_predictions : int, optional
+            Number of stochastic predictions to draw per input and average into the
+            returned prediction. When set, the per-pixel standard deviation across
+            those predictions is also returned, as an uncertainty estimate in the
+            units of the prediction. Must be at least 2, and is only supported by
+            the sampling-based algorithms (HDN and MicroSplit). Note that the
+            estimate is the spread of the drawn predictions alone: it excludes the
+            likelihood variance and so under-estimates the total uncertainty.
 
         Returns
         -------
         tuple of (list of NDArray, list of str)
-            Predictions made by the model and their source identifiers.
+            Predictions made by the model and their source identifiers, when
+            `n_predictions` is not set.
+        tuple of (list of NDArray, list of NDArray, list of str)
+            Predictions, their uncertainty estimates and their source identifiers,
+            when `n_predictions` is set.
 
         Raises
         ------
         ValueError
             If tile overlap is not specified when tile_size is provided.
+        ValueError
+            If `n_predictions` is 1, or the algorithm is deterministic.
         """
+        self._configure_sampling(n_predictions)
+
         datamodule = self._build_predict_datamodule(
             pred_data,
             batch_size=batch_size,
@@ -918,7 +1025,7 @@ class CAREamist:
         checkpoint = self._get_default_ckpt(checkpoint)
 
         try:
-            predictions: list[ImageRegionData] = self.trainer.predict(
+            predictions: list[PredictStepOutput] = self.trainer.predict(
                 model=self.model, datamodule=datamodule, ckpt_path=checkpoint
             )  # type: ignore[assignment]
         except RuntimeError as e:
@@ -950,14 +1057,15 @@ class CAREamist:
                     "\nOut of GPU memory during prediction.\n" + hint
                 ) from e
             raise
-        tiled = tile_size is not None
-        predictions_output, sources = convert_prediction(
-            predictions,
-            tiled=tiled,
-            restore_shape=True,
+
+        predictions_output, uncertainty_output, sources = convert_predict_outputs(
+            predictions, tiled=tile_size is not None
         )
 
-        return predictions_output, sources
+        if uncertainty_output is None:
+            return predictions_output, sources
+
+        return predictions_output, uncertainty_output, sources
 
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
@@ -984,6 +1092,7 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        n_predictions: int | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -1010,6 +1119,7 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        n_predictions: int | None = None,
     ) -> None: ...
 
     def predict_to_disk(
@@ -1035,6 +1145,7 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        n_predictions: int | None = None,
     ) -> None:
         """
         Make predictions on the provided data and save outputs to files.
@@ -1110,6 +1221,11 @@ class CAREamist:
             `write_type` a function to save the data must be passed. See notes below.
         write_func_kwargs : dict of {str: any}, optional
             Additional keyword arguments to be passed to the save function.
+        n_predictions : int, optional
+            Number of stochastic predictions to draw per input and average into the
+            written prediction. Must be at least 2, and is only supported by the
+            sampling-based algorithms (HDN and MicroSplit). The uncertainty across
+            those predictions is not currently written.
 
         Raises
         ------
@@ -1117,6 +1233,8 @@ class CAREamist:
             If `write_type` is custom and `write_extension` is None.
         ValueError
             If `write_type` is custom and `write_func` is None.
+        ValueError
+            If `n_predictions` is 1, or the algorithm is deterministic.
         """
         if write_func_kwargs is None:
             write_func_kwargs = {}
@@ -1156,6 +1274,7 @@ class CAREamist:
         )
 
         self.prediction_writer.enable_writing(True)
+        self._configure_sampling(n_predictions)
 
         checkpoint = self._get_default_ckpt(checkpoint)
 
