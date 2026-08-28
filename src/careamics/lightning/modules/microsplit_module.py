@@ -1,18 +1,20 @@
 """MicroSplit Lightning module."""
 
+from functools import partial
 from typing import TYPE_CHECKING, Any, cast
 
-import pytorch_lightning as L
+import lightning.pytorch as L
 import torch
-from torch import nn
 from torchmetrics import MetricCollection
 
 from careamics.config import MicroSplitAlgorithm
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
+from careamics.dataset.normalization.normalization import Normalization
 from careamics.losses.lvae import microsplit_loss
 from careamics.metrics import SIPSNR
+from careamics.models.lvae import LadderVAE
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
     multichannel_noise_model_factory,
@@ -20,7 +22,12 @@ from careamics.models.lvae.noise_models import (
 from careamics.models.model_factory import model_factory
 from careamics.utils.logging import get_logger
 
-from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
+from .module_utils import (
+    configure_optimizers,
+    log_training_stats,
+    log_validation_stats,
+    mmse_and_sample_std,
+)
 
 logger = get_logger(__name__)
 
@@ -39,6 +46,10 @@ class MicroSplitModule(L.LightningModule):
       per-pixel variance (requires `predict_logvar=True`)
     - `noise_model_likelihood_weight` weights a noise model likelihood (requires a
       noise model and `MeanStdNormalization`).
+
+    MicroSplit is stochastic: every forward pass draws a fresh latent sample. Set the
+    `n_samples` attribute to average several draws at prediction time and obtain
+    their standard deviation as an uncertainty estimate.
 
     Parameters
     ----------
@@ -69,14 +80,13 @@ class MicroSplitModule(L.LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
 
-        self.model: nn.Module = model_factory(self.config.model)
+        self.model: LadderVAE = cast("LadderVAE", model_factory(self.config.model))
         self.loss_func = microsplit_loss
 
         self.noise_model: MultiChannelNoiseModel | None = (
             multichannel_noise_model_factory(self.config.noise_model)
         )
         self.predict_logvar: bool = self.config.model.predict_logvar
-        self.mmse_count: int = self.config.mmse_count
 
         self.metrics: MetricCollection = MetricCollection(
             {
@@ -88,6 +98,8 @@ class MicroSplitModule(L.LightningModule):
                 for i in range(self.config.model.output_channels)
             }
         )
+
+        self.n_samples: int = 1
 
     def on_fit_start(self) -> None:
         """Validate the supervised-training and noise model requirements.
@@ -217,41 +229,28 @@ class MicroSplitModule(L.LightningModule):
             predictions = predictions.chunk(2, dim=1)[0]
         return predictions
 
-    def _predict_mmse(self, x_data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute the MMSE prediction by averaging several samples.
+    def predict_sample(
+        self, x_data: torch.Tensor, normalization: Normalization
+    ) -> torch.Tensor:
+        """Draw one reconstruction and denormalize it into target space.
 
-        The LVAE draws a fresh latent sample on every forward pass, so the minimum
-        mean squared error (MMSE) estimate is the mean of ``mmse_count`` sampled
-        reconstructions. The per-pixel std across those samples is
-        returned as an uncertainty estimate.
+        Each call draws a new latent sample, so repeated calls give different
+        reconstructions.
 
         Parameters
         ----------
         x_data : torch.Tensor
             Input tensor, shape (B, C, [Z], Y, X).
+        normalization : Normalization
+            Normalization used to map the reconstruction back into target space.
 
         Returns
         -------
-        tuple of (torch.Tensor, torch.Tensor)
-            The MMSE prediction and the sample std, both of shape
-            (B, output_channels, [Z], Y, X). The std is all-zeros
-            when ``mmse_count == 1``.
+        torch.Tensor
+            A single reconstruction, shape (B, output_channels, [Z], Y, X).
         """
-        samples = torch.stack(
-            [
-                self._get_reconstruction(self.model(x_data))
-                for _ in range(self.mmse_count)
-            ],
-            dim=0,
-        )
-        mmse_prediction = samples.mean(dim=0)
-        # unbiased std is undefined for a single sample; report zero uncertainty
-        mmse_std = (
-            samples.std(dim=0)
-            if self.mmse_count > 1
-            else torch.zeros_like(mmse_prediction)
-        )
-        return mmse_prediction, mmse_std
+        reconstruction = self._get_reconstruction(self.model(x_data))
+        return normalization.denormalize(reconstruction)
 
     def training_step(
         self, batch: tuple[ImageRegionData, ImageRegionData], batch_idx: int
@@ -322,12 +321,8 @@ class MicroSplitModule(L.LightningModule):
 
     def predict_step(
         self, batch: tuple[ImageRegionData, ...], batch_idx: int
-    ) -> ImageRegionData:
+    ) -> tuple[ImageRegionData, ImageRegionData | None]:
         """Prediction step for MicroSplit.
-
-        Returns the MMSE reconstruction (mean of `mmse_count` stochastic samples)
-        denormalized into target space. With `mmse_count == 1` this reduces to a
-        single forward pass.
 
         Parameters
         ----------
@@ -338,9 +333,10 @@ class MicroSplitModule(L.LightningModule):
 
         Returns
         -------
-        ImageRegionData
+        tuple of (ImageRegionData, ImageRegionData or None)
             The output batch containing the reconstruction, with the channel
-            dimension of `data_shape` set to the number of output channels.
+            dimension of `data_shape` set to the number of output channels, and the
+            uncertainty estimate if several samples were drawn.
         """
         x = batch[0]
         x_data = x.data
@@ -351,23 +347,21 @@ class MicroSplitModule(L.LightningModule):
         n_spatial_dims = x_data.dim() - 2
         self.model.reset_for_inference(tuple(x_data.shape[-n_spatial_dims:]))
 
-        prediction, _ = self._predict_mmse(x_data)
-
-        # denormalize into target space using the prediction dataset's normalization
-        # (uses target statistics when available), consistent with the other modules
         normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
-        denormalized_output = (
-            normalization.denormalize(prediction).detach().cpu().numpy()
+        mean, std = mmse_and_sample_std(
+            partial(self.predict_sample, normalization=normalization),
+            x_data,
+            self.n_samples,
         )
 
         output_channels = self.config.model.output_channels
-        output_data_shape = list(x.data_shape)
+        output_data_shape: list[Any] = list(x.data_shape)
         output_data_shape[1] = torch.full_like(
             cast(torch.Tensor, output_data_shape[1]), output_channels
         )
 
-        return ImageRegionData(
-            data=denormalized_output,
+        prediction = ImageRegionData(
+            data=mean.cpu().numpy(),
             source=x.source,
             data_shape=output_data_shape,
             dtype=x.dtype,
@@ -377,6 +371,10 @@ class MicroSplitModule(L.LightningModule):
             additional_metadata=x.additional_metadata,
             original_data_shape=x.original_data_shape,
         )
+        if std is None:
+            return prediction, None
+        uncertainty = prediction._replace(data=std.cpu().numpy())
+        return prediction, uncertainty
 
     def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]
         """Configure optimizer and learning rate scheduler.

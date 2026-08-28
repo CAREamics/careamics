@@ -84,12 +84,6 @@ def test_no_warning_without_denoisplit():
         MicroSplitAlgorithm(loss=loss, model=LVAEConfig(architecture="LVAE"))
 
 
-def test_mmse_count_lower_bound():
-    """Test that `mmse_count` must be at least 1."""
-    with pytest.raises(ValueError):
-        MicroSplitAlgorithm(model=LVAEConfig(architecture="LVAE"), mmse_count=0)
-
-
 def test_noise_model_count_mismatch(tmp_path: Path, create_dummy_noise_model):
     """Test that the number of noise models must match the output channels."""
     with pytest.raises(ValueError):
@@ -191,12 +185,6 @@ def test_predict_logvar_required_for_musplit():
             ),
             model=LVAEConfig(architecture="LVAE", predict_logvar=False),
         )
-
-
-def test_mmse_count_must_be_positive():
-    """Test that mmse_count must be at least 1."""
-    with pytest.raises(ValueError):
-        MicroSplitAlgorithm(model=LVAEConfig(architecture="LVAE"), mmse_count=0)
 
 
 def test_unused_noise_model_warns(tmp_path: Path, create_dummy_noise_model):
