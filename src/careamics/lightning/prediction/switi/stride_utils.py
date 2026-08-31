@@ -96,7 +96,7 @@ def compute_switi_stride(
     if overlap[-2] != overlap[-1]:  # TODO: not sure if validated in config
         raise ValueError(f"Overlaps must be equal in XY, got {overlap}.")
 
-    crop_size_xy = patch_size[-2] - overlap[-1]  # equal for X and Y
+    crop_size_xy = patch_size[-1] - overlap[-1]  # equal for X and Y
     stride: tuple[int, int] | tuple[int, int, int]
     match patch_size, stride_z:
         case (_, _), _:
@@ -105,11 +105,11 @@ def compute_switi_stride(
                     "Ignoring parameter `stride_z` for 2D data in SWITi stride "
                     "calculation."
                 )
-            stride_xy = int(np.ceil(crop_size_xy / np.sqrt(target_mmse_count)))
+            stride_xy = int(crop_size_xy // np.sqrt(target_mmse_count))
             stride = (stride_xy, stride_xy)
         case (_, _, _), _ if stride_z is not None:
             crop_size_z = patch_size[0] - overlap[0]
-            coverage_z = int(np.ceil(crop_size_z / stride_z))
+            coverage_z = crop_size_z // stride_z
             coverage_remaining = target_mmse_count / coverage_z
             stride_xy = int(np.ceil(crop_size_xy / np.sqrt(coverage_remaining)))
             stride = (stride_z, stride_xy, stride_xy)
