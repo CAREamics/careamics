@@ -105,7 +105,6 @@ def create_advanced_microsplit_config(
     noise_model_likelihood_weight: float = 0.9,
     # algorithm parameters
     noise_model: MultiChannelNMConfig | None = None,
-    mmse_count: int = 10,
     # lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -181,8 +180,6 @@ def create_advanced_microsplit_config(
         Weight of the noise model likelihood term (denoiSplit).
     noise_model : MultiChannelNMConfig or None, default=None
         Trained noise model, required for denoiSplit training.
-    mmse_count : int, default=10
-        Number of samples used for MMSE prediction.
     num_workers : int, default=-1
         Number of workers for data loading.
     trainer_params : dict or None, default=None
@@ -250,7 +247,6 @@ def create_advanced_microsplit_config(
         loss=loss,
         model=model,
         noise_model=noise_model,
-        mmse_count=mmse_count,
         optimizer=OptimizerConfig(
             name=optimizer,
             parameters=optimizer_params or {"lr": 1e-3, "weight_decay": 0},

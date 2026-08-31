@@ -151,7 +151,7 @@ def _paste_tile(
     """
     spec: TileSpecs = tile.region_spec
     source_slice, dest_slice = _tile_paste_slices(spec)
-    cropped = np.asarray(tile.data, dtype=np.float32)[source_slice]
+    cropped = tile.data.cpu().numpy().astype(np.float32)[source_slice] # type: ignore
     tile_accumulator.sum[dest_slice] += cropped
     tile_accumulator.count[dest_slice] += 1
     tile_accumulator.seen += 1
@@ -241,7 +241,7 @@ def switi_prediction(
             "Patching strategy in the provided `data_config` must be "
             f"`SwitiPatchingConfig`, got {type(data_config.patching)} instead."
         )
-    # pred_data: Sequence[NDArray[Any]] | Sequence[Path]
+
     pred_data_validated, _ = initialize_data_pair(
         data_type=data_config.data_type, input_data=pred_data, loading=loading
     )
@@ -264,14 +264,15 @@ def switi_prediction(
 
     model.eval()
     device = next(model.parameters()).device
+    model.model.reset_for_inference(data_config.patching.patch_size)
+
     # TODO: revisit std handling — requires per-MMSE-sample exposure from
     # predict_step. v1 discards std_region_batch.
     with torch.inference_mode():
-        for batch_idx, batch in enumerate(
-            tqdm(dataloader, total=len(dataloader), desc="Predicting")
-        ):
+        for batch in tqdm(dataloader, total=len(dataloader), desc="Predicting"):
             batch = _move_input_to_device(batch, device)
-            mean_region_batch = model.predict_step(batch, batch_idx)
+            sample = model.predict_sample(batch[0].data, dataset.normalization)
+            mean_region_batch = ImageRegionData.from_model_output(batch[0], sample)
             tiles = decollate_image_region_data(mean_region_batch)
 
             for tile in tiles:
