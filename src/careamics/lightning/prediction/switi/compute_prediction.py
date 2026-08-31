@@ -151,7 +151,7 @@ def _paste_tile(
     """
     spec: TileSpecs = tile.region_spec
     source_slice, dest_slice = _tile_paste_slices(spec)
-    cropped = tile.data.cpu().numpy().astype(np.float32)[source_slice] # type: ignore
+    cropped = tile.data.cpu().numpy().astype(np.float32)[source_slice]  # type: ignore
     tile_accumulator.sum[dest_slice] += cropped
     tile_accumulator.count[dest_slice] += 1
     tile_accumulator.seen += 1

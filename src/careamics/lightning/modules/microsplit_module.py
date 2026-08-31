@@ -340,7 +340,25 @@ class MicroSplitModule(L.LightningModule):
         n_spatial_dims = x_data.dim() - 2
         self.model.reset_for_inference(tuple(x_data.shape[-n_spatial_dims:]))
 
-        normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
+        # get normalization
+        # NOTE: SWITi inference uses a Dataloader
+        #   but this should change once the CareamicsDataModule is updated.
+        normalization = None
+        if self.trainer.datamodule is not None:
+            normalization = self.trainer.datamodule.predict_dataset.normalization
+        elif self.trainer.predict_dataloaders is not None:
+            try:
+                normalization = self.trainer.predict_dataloaders.dataset.normalization
+            except AttributeError:
+                normalization = None
+        else:
+            normalization = None
+        if normalization is None:
+            raise ValueError(
+                "Was not able to find normalization stats. Please run prediction with "
+                "a `CAREamicsDataModule` or a `DataLoader` with `CareamicDataset`."
+            )
+
         mean, std = mmse_and_sample_std(
             partial(self.predict_sample, normalization=normalization),
             x_data,
