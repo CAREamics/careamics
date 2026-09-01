@@ -7,6 +7,7 @@ from typing import Dict, Tuple, Union
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as F
+from torch.distributions import kl_divergence
 from torch.distributions.normal import Normal
 
 from .utils import (
@@ -49,6 +50,7 @@ class NormalStochasticBlock(nn.Module):
         transform_p_params: bool = True,
         vanilla_latent_hw: int = None,
         use_naive_exponential: bool = False,
+        analytical_kl: bool = False,
     ):
         """
         Parameters
@@ -78,6 +80,9 @@ class NormalStochasticBlock(nn.Module):
             If `False`, exponentials are computed according to the alternative definition
             provided by `StableExponential` class. This should improve numerical stability
             in the training process. Default is `False`.
+        analytical_kl: bool, optional
+            Whether to compute the KL divergence analytically instead of by a
+            single-sample Monte Carlo estimate. Default is `False`.
         """
         super().__init__()
         assert kernel % 2 == 1
@@ -89,6 +94,7 @@ class NormalStochasticBlock(nn.Module):
         self.conv_dims = conv_dims
         self._use_naive_exponential = use_naive_exponential
         self._vanilla_latent_hw = vanilla_latent_hw
+        self._analytical_kl = analytical_kl
 
         conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
 
@@ -165,7 +171,10 @@ class NormalStochasticBlock(nn.Module):
         z: torch.Tensor,
     ) -> Dict[str, torch.Tensor]:
         """
-        Compute the (Monte Carlo estimated) KL and extract composed versions of the metric.
+        Compute the KL and extract composed versions of the metric.
+
+        The KL is computed analytically if `analytical_kl` was set on this block, and
+        by a single-sample Monte Carlo estimate otherwise.
         Specifically, the different versions of the KL loss terms are:
             - `kl_elementwise`: KL term for each single element of the latent tensor [Shape: (batch, ch, h, w)].
             - `kl_samplewise`: KL term associated to each sample in the batch [Shape: (batch, )].
@@ -191,7 +200,15 @@ class NormalStochasticBlock(nn.Module):
         """
         kl_samplewise_restricted = None
         if mode_pred is False:  # if not predicting
-            kl_elementwise = kl_normal_mc(z, p_params, q_params)
+            if self._analytical_kl:
+                p_mu, p_lv = p_params
+                q_mu, q_lv = q_params
+                kl_elementwise = kl_divergence(
+                    Normal(q_mu.get(), q_lv.get_std()),
+                    Normal(p_mu.get(), p_lv.get_std()),
+                )
+            else:
+                kl_elementwise = kl_normal_mc(z, p_params, q_params)
 
             all_dims = tuple(range(len(kl_elementwise.shape)))
             kl_samplewise = kl_elementwise.sum(all_dims[1:])

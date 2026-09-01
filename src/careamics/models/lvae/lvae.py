@@ -57,6 +57,9 @@ class LadderVAE(nn.Module):
         The number of residual blocks per decoder layer.
     encoder_first_conv_kernel : int
         The kernel size of the first bottom-up convolution.
+    analytical_kl : bool
+        Whether to compute the KL divergence analytically instead of by a single-sample
+        Monte Carlo estimate.
 
     Raises
     ------
@@ -80,6 +83,7 @@ class LadderVAE(nn.Module):
         encoder_blocks_per_layer: int = 1,
         decoder_blocks_per_layer: int = 1,
         encoder_first_conv_kernel: int = 5,
+        analytical_kl: bool = False,
     ):
         super().__init__()
 
@@ -99,6 +103,7 @@ class LadderVAE(nn.Module):
         self.decoder_dropout = decoder_dropout
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
+        self.analytical_kl = analytical_kl
         # -------------------------------------------------------
 
         # -------------------------------------------------------
@@ -404,6 +409,7 @@ class LadderVAE(nn.Module):
                     normalize_latent_factor=normalize_latent_factor,
                     conv2d_bias=self.topdown_conv2d_bias,
                     stochastic_use_naive_exponential=self._stochastic_use_naive_exponential,
+                    analytical_kl=self.analytical_kl,
                 )
             )
         return top_down_layers

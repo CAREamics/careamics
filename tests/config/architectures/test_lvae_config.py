@@ -102,3 +102,10 @@ def test_parameters_wrong_values_by_assigment():
     model.n_filters = model_params["n_filters"]
     with pytest.raises(ValueError):
         model.n_filters = 2
+
+
+def test_analytical_kl_default():
+    """Test that analytical_kl defaults to False."""
+    model = LVAEConfig(architecture="LVAE")
+
+    assert model.analytical_kl is False

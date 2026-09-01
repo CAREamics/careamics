@@ -48,6 +48,10 @@ class LVAEConfig(ArchitectureConfig):
     predict_logvar: bool = True
     """Whether to predict log-variance (pixelwise uncertainty)."""
 
+    analytical_kl: bool = False
+    """Whether to compute the KL divergence analytically instead of by a single-sample
+    Monte Carlo estimate."""
+
     @field_validator("input_shape")
     @classmethod
     def validate_input_shape(cls, input_shape: list) -> list:

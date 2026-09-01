@@ -967,6 +967,7 @@ class TopDownLayer(nn.Module):
         normalize_latent_factor: float = 1.0,
         conv2d_bias: bool = True,
         stochastic_use_naive_exponential: bool = False,
+        analytical_kl: bool = False,
     ):
         """
         Constructor.
@@ -1045,6 +1046,9 @@ class TopDownLayer(nn.Module):
             to the alternative definition provided by `StableExponential` class.
             This should improve numerical stability in the training process.
             Default is `False`.
+        analytical_kl: bool, optional
+            Whether to compute the KL divergence analytically instead of by a
+            single-sample Monte Carlo estimate. Default is `False`.
         """
         super().__init__()
 
@@ -1105,6 +1109,7 @@ class TopDownLayer(nn.Module):
             transform_p_params=(not is_top_layer),
             vanilla_latent_hw=vanilla_latent_hw,
             use_naive_exponential=stochastic_use_naive_exponential,
+            analytical_kl=analytical_kl,
         )
 
         if not is_top_layer:
