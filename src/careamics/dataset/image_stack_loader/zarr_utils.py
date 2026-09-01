@@ -4,7 +4,13 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import zarr
+from zarr.storage import StorePath
 
+from careamics.dataset.image_stack.zarr_access import (
+    ZarrNode,
+    file_uri_to_path,
+    path_to_file_uri,
+)
 from careamics.utils import get_logger
 
 logger = get_logger("ZarrUtils")
@@ -28,12 +34,51 @@ def is_valid_uri(path: str | Path) -> bool:
     """
     parsed = urlparse(str(path))
 
-    valid_schemes = {"file", "s3", "gs", "az", "https", "http", "zip"}
+    # TODO: expand once remote Zarr backends are implemented.
+    valid_schemes = {"file"}
 
     if parsed.scheme and parsed.scheme.lower() in valid_schemes:
         return True
 
     return False
+
+
+def to_zarr_node(source: str | Path | StorePath) -> ZarrNode:
+    """Convert a local path or `file://` URI to a :class:`ZarrNode`.
+
+    Parameters
+    ----------
+    source : str, Path, or StorePath
+        Local path or local file URI.
+
+    Returns
+    -------
+    ZarrNode
+        Parsed Zarr node reference.
+    """
+    if isinstance(source, Path):
+        return ZarrNode(store_uri=path_to_file_uri(source))
+
+    source_str = str(source)
+
+    if not is_valid_uri(source_str):
+        source_path = Path(source_str)
+        if source_path.suffix != ".zarr":
+            raise ValueError(
+                f"Source '{source}' is neither a zarr path nor a file URI."
+            )
+        return ZarrNode(store_uri=path_to_file_uri(source_path))
+
+    parsed = urlparse(source_str)
+    store_suffix = ".zarr"
+    full_path = parsed.path
+    zarr_index = full_path.find(store_suffix)
+    if zarr_index == -1:
+        raise ValueError(f"No .zarr file extension found in source: {source}")
+
+    store_path = full_path[: zarr_index + len(store_suffix)]
+    node_path = full_path[zarr_index + len(store_suffix) :].lstrip("/")
+    return ZarrNode(store_uri=path_to_file_uri(store_path), path=node_path)
 
 
 def collect_arrays(zarr_group: zarr.Group) -> list[str]:
@@ -49,7 +94,7 @@ def collect_arrays(zarr_group: zarr.Group) -> list[str]:
 
     Returns
     -------
-    listof str
+    list[str]
         A list of Zarr arrays contained in the group as relative path to the group.
     """
     arrays: list[str] = []
@@ -64,6 +109,7 @@ def collect_arrays(zarr_group: zarr.Group) -> list[str]:
     return arrays
 
 
+# TODO refactor in dataset.image_stack.zarr_access?
 def decipher_zarr_uri(source: str) -> tuple[str, str, str]:
     """Extract the zarr store path, group path and array path from a zarr source.
 
@@ -93,25 +139,14 @@ def decipher_zarr_uri(source: str) -> tuple[str, str, str]:
     ValueError
         If the source string does not contain a ".zarr" file extension.
     """
-    key = "file://"
-
-    if source[: len(key)] != key:
+    if not is_valid_uri(source):
         raise ValueError(f"Remote file not supported: {source}")
 
-    if ".zarr" not in source:
-        raise ValueError(f"No .zarr file extension found in source: {source}")
-
-    _source = source[len(key) :]
-    groups = _source.split("/")
-
-    # find .zarr entry
-    zarr_index = next((i for i, p in enumerate(groups) if p.endswith(".zarr")))
-
-    path_to_zarr = groups[: zarr_index + 1]
-    parent_path = groups[zarr_index + 1 : -1]
-    content_path = groups[-1]
-
-    return "/".join(path_to_zarr), "/".join(parent_path), content_path
+    node = to_zarr_node(source)
+    path_to_zarr = str(file_uri_to_path(node.store_uri))
+    parent_path = node.parent_path
+    content_path = node.basename
+    return path_to_zarr, parent_path, content_path
 
 
 # TODO use yaozarrs models to validate OME-Zarr structure
