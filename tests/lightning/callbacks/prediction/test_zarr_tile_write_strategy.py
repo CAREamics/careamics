@@ -272,13 +272,10 @@ def test_write_from_array(tmp_path):
         writer.write_tile(tmp_path, region)
 
     # check if the stored zarr is close to the input
-    if writer.current_store is not None:
-        for key in writer.current_store.keys():
-            np.testing.assert_allclose(
-                arrays[int(key)], np.array(writer.current_store[key])
-            )
-    else:
-        raise ValueError("The Zarr tile writer store is None!")
+    written = zarr.open(tmp_path / "prediction.zarr", mode="r")
+    assert isinstance(written, zarr.Group)
+    for key in written.keys():
+        np.testing.assert_allclose(arrays[int(key)], np.array(written[key]))
 
 
 def test_write_from_tiff(tmp_path):
@@ -307,10 +304,79 @@ def test_write_from_tiff(tmp_path):
         writer.write_tile(tmp_path, region)
 
     # check if the stored zarr is close to the input
-    if writer.current_store is not None:
-        for key in writer.current_store.keys():
-            np.testing.assert_allclose(
-                arrays[int(key)], np.array(writer.current_store[key])
-            )
-    else:
-        raise ValueError("The Zarr tile writer store is None!")
+    for index, _ in enumerate(arrays):
+        written = zarr.open(tmp_path / f"test_{index}.zarr", mode="r")
+        assert isinstance(written, zarr.Group)
+        np.testing.assert_allclose(arrays[index], np.array(written[str(index)]))
+
+
+def test_write_from_root_array_source(tmp_path):
+    """Test that Zarr sources stored as root arrays are written back as root arrays."""
+    source_path = tmp_path / "root_input.zarr"
+    source_array = zarr.open_array(
+        source_path, mode="w", shape=(8, 8), dtype=np.float32
+    )
+    source_data = np.arange(64, dtype=np.float32).reshape((8, 8))
+    source_array[...] = source_data
+
+    region = ImageRegionData(
+        data=source_data[None],
+        source=str(source_array.store_path),
+        data_shape=(1, 8, 8),
+        dtype="float32",
+        axes="YX",
+        target_axes="YX",
+        original_data_shape=(8, 8),
+        region_spec=TileSpecs(
+            data_idx=0,
+            sample_idx=0,
+            coords=(0, 0),
+            patch_size=(8, 8),
+            crop_coords=(0, 0),
+            crop_size=(8, 8),
+            stitch_coords=(0, 0),
+            total_tiles=1,
+        ),
+        additional_metadata={"chunks": (8, 8), "shards": None},
+    )
+
+    writer = WriteTilesZarr()
+    writer.write_tile(tmp_path, region)
+
+    output_path = tmp_path / "root_input_output.zarr"
+    written = zarr.open(output_path, mode="r")
+    assert isinstance(written, zarr.Array)
+    np.testing.assert_allclose(written[:], source_data)
+
+
+def test_write_from_root_array_source_with_shards_error(tmp_path):
+    """Test that sharded root-array outputs fail with a clear error."""
+    source_path = tmp_path / "root_input.zarr"
+    source_array = zarr.open_array(
+        source_path, mode="w", shape=(8, 8), dtype=np.float32
+    )
+
+    region = ImageRegionData(
+        data=np.zeros((1, 8, 8), dtype=np.float32),
+        source=str(source_array.store_path),
+        data_shape=(1, 8, 8),
+        dtype="float32",
+        axes="YX",
+        target_axes="YX",
+        original_data_shape=(8, 8),
+        region_spec=TileSpecs(
+            data_idx=0,
+            sample_idx=0,
+            coords=(0, 0),
+            patch_size=(8, 8),
+            crop_coords=(0, 0),
+            crop_size=(8, 8),
+            stitch_coords=(0, 0),
+            total_tiles=1,
+        ),
+        additional_metadata={"chunks": (8, 8), "shards": (8, 8)},
+    )
+
+    writer = WriteTilesZarr()
+    with pytest.raises(NotImplementedError, match="sharded root Zarr arrays"):
+        writer.write_tile(tmp_path, region)

@@ -6,6 +6,7 @@ from careamics.dataset.image_stack_loader.zarr_utils import (
     collect_arrays,
     decipher_zarr_uri,
     is_valid_uri,
+    to_zarr_node,
 )
 
 
@@ -43,10 +44,11 @@ def test_collect_arrays(zarr_linear):
             True,
         ),
         ("file:///absolute/path/to/zarr/store.zarr/array0", True),
-        ("gs://gcs_bucket/mydata.zarr", True),
-        ("az://container/store.zarr", True),
-        ("https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0062A/6001240.zarr", True),
+        # TODO expand URI support once remote Zarr backends are implemented.
         # False
+        ("gs://gcs_bucket/mydata.zarr", False),
+        ("az://container/store.zarr", False),
+        ("https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0062A/6001240.zarr", False),
         ("data/local_store.zarr", False),
         ("/absolute/path/to/store.zarr", False),
         ("./relative/path/to/store.zarr", False),
@@ -94,7 +96,15 @@ def test_decipher_zarr_path(path, zarr_path, group_path, array_name):
     assert decoded_array_name == array_name
 
 
-@pytest.mark.parametrize("zarr_source", ["zarr_linear", "zarr_groups", "zarr_multiple"])
+def test_to_zarr_node_root_uri():
+    node = to_zarr_node("file:///path/to/data.zarr")
+    assert node.store_uri == "file:///path/to/data.zarr"
+    assert node.path == ""
+
+
+@pytest.mark.parametrize(
+    "zarr_source", ["zarr_linear", "zarr_groups", "zarr_multiple", "zarr_root_arrays"]
+)
 def test_create_image_stacks_uris(request, zarr_source):
     """Test that create_image_stacks creates the correct number of ZarrImageStack."""
 
@@ -106,7 +116,11 @@ def test_create_image_stacks_uris(request, zarr_source):
         zarr_file = source["zarr_file"]
         array_path = source["array_path"]
 
-        uri = f"file://{zarr_file}/{array_path}"
+        uri = (
+            f"file://{zarr_file}"
+            if array_path == ""
+            else f"file://{zarr_file}/{array_path}"
+        )
         source_uris.append(uri)
 
     image_stacks = load_zarrs(
@@ -117,7 +131,9 @@ def test_create_image_stacks_uris(request, zarr_source):
     assert len(image_stacks) == 3
 
 
-@pytest.mark.parametrize("zarr_source", ["zarr_linear", "zarr_multiple"])
+@pytest.mark.parametrize(
+    "zarr_source", ["zarr_linear", "zarr_multiple", "zarr_root_arrays"]
+)
 def test_create_image_stacks_paths(request, zarr_source):
     """Test that create_image_stacks creates the correct number of ZarrImageStack
     for file paths to zarr containing arrays in the root group."""

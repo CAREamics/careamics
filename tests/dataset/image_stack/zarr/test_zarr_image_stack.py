@@ -7,6 +7,8 @@ import zarr
 from numpy.typing import NDArray
 
 from careamics.dataset.image_stack import ZarrImageStack
+from careamics.dataset.image_stack.zarr_access import ZarrNode
+from careamics.dataset.image_stack_loader.zarr_utils import to_zarr_node
 from careamics.utils.reshape_array import channel_slice, reshape_array
 
 # TODO test _reshaped_data_shape
@@ -35,6 +37,17 @@ def create_zarr(
     return group
 
 
+def create_zarr_image_stack(
+    file_path: Path, data_path: str, axes: str
+) -> ZarrImageStack:
+    node = ZarrNode(
+        store_uri=file_path.resolve().as_uri(),
+        path=data_path,
+        node_type="array",
+    )
+    return ZarrImageStack(node=node, axes=axes)
+
+
 @pytest.mark.parametrize(
     "original_axes, original_shape, sample_idx",
     [
@@ -61,8 +74,8 @@ def test_extract_patch_2D(
     data_path = "image"
 
     # initialise ZarrImageStack
-    group = create_zarr(file_path=file_path, data_path=data_path, data=data)
-    image_stack = ZarrImageStack(group=group, data_path=data_path, axes=original_axes)
+    _ = create_zarr(file_path=file_path, data_path=data_path, data=data)
+    image_stack = create_zarr_image_stack(file_path, data_path, original_axes)
 
     # test extracted patch matches patch from reference data
     coords = (11, 4)
@@ -104,8 +117,8 @@ def test_extract_channels(
     data_path = "image"
 
     # initialise ZarrImageStack
-    group = create_zarr(file_path=file_path, data_path=data_path, data=data)
-    image_stack = ZarrImageStack(group=group, data_path=data_path, axes=axes)
+    _ = create_zarr(file_path=file_path, data_path=data_path, data=data)
+    image_stack = create_zarr_image_stack(file_path, data_path, axes)
 
     # extract patch
     patch = image_stack.extract_patch(
@@ -146,8 +159,8 @@ def test_extract_channel_error(
     data_path = "image"
 
     # initialise ZarrImageStack
-    group = create_zarr(file_path=file_path, data_path=data_path, data=data)
-    image_stack = ZarrImageStack(group=group, data_path=data_path, axes=axes)
+    _ = create_zarr(file_path=file_path, data_path=data_path, data=data)
+    image_stack = create_zarr_image_stack(file_path, data_path, axes)
 
     expected_msg = (
         f"Channel index {channels[-1]} is out of bounds for data with "
@@ -179,14 +192,33 @@ def test_shards_and_chunks(tmp_path: Path):
     data_path = "image"
 
     # initialise ZarrImageStack
-    group = create_zarr(
+    _ = create_zarr(
         file_path=file_path,
         data_path=data_path,
         data=data,
         shards=shards,
         chunks=chunks,
     )
-    image_stack = ZarrImageStack(group=group, data_path=data_path, axes=axes)
+    image_stack = create_zarr_image_stack(file_path, data_path, axes)
 
     assert image_stack.chunks == chunks
     assert image_stack.shards == shards
+
+
+def test_root_array_source(tmp_path: Path):
+    file_path = tmp_path / "root_array.zarr"
+    root_array = zarr.open_array(file_path, mode="w", shape=(8, 8), dtype=np.uint16)
+    root_array[...] = np.arange(64, dtype=np.uint16).reshape((8, 8))
+
+    image_stack = ZarrImageStack(node=to_zarr_node(file_path), axes="YX")
+
+    assert image_stack.source == file_path.resolve().as_uri()
+    np.testing.assert_array_equal(
+        image_stack.extract_patch(
+            sample_idx=0,
+            channels=None,
+            coords=(0, 0),
+            patch_size=(4, 4),
+        ),
+        np.arange(64, dtype=np.uint16).reshape((8, 8))[:4, :4][None],
+    )
