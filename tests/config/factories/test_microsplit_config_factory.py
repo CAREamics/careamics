@@ -129,6 +129,19 @@ class TestMicroSplitConfig:
         assert model.z_dims == [128, 128]
         assert model.n_filters == 32
 
+    def test_analytical_kl_is_disabled(self):
+        """Test that MicroSplit always keeps the Monte Carlo KL estimate."""
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+            )
+        assert config.algorithm_config.model.analytical_kl is False
+
     def test_model_params_override(self):
         """Test that model_params overrides defaults but not structural params."""
         with pytest.warns(UserWarning):
