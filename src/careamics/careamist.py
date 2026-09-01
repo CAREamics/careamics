@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, cast, overload
+from typing import Any, Literal, overload
 
 from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
@@ -32,11 +32,7 @@ from .lightning.modules import (
     CAREamicsModule,
     create_module,
 )
-from .lightning.prediction import (
-    convert_prediction,
-    prediction_region,
-    uncertainty_region,
-)
+from .lightning.prediction import convert_predict_outputs
 from .lightning.utils import (
     load_config_from_checkpoint,
     load_module_from_checkpoint,
@@ -1164,25 +1160,13 @@ class CAREamist:
                     "\nOut of GPU memory during prediction.\n" + hint
                 ) from e
             raise
-        tiled = tile_size is not None
-        predictions_output, sources = convert_prediction(
-            [prediction_region(batch) for batch in predictions],
-            tiled=tiled,
-            restore_shape=True,
+
+        predictions_output, uncertainty_output, sources = convert_predict_outputs(
+            predictions, tiled=tile_size is not None
         )
 
-        if n_predictions is None:
+        if uncertainty_output is None:
             return predictions_output, sources
-
-        uncertainties = cast(
-            "list[ImageRegionData]",
-            [uncertainty_region(batch) for batch in predictions],
-        )
-        uncertainty_output, _ = convert_prediction(
-            uncertainties,
-            tiled=tiled,
-            restore_shape=True,
-        )
 
         return predictions_output, uncertainty_output, sources
 
