@@ -14,10 +14,8 @@ from careamics.dataset.image_stack.zarr_access import (
     ZarrNode,
     ZarrPythonAccess,
     file_uri_to_path,
-    path_to_file_uri,
-)
-from careamics.dataset.image_stack_loader.zarr_utils import (
     is_valid_uri,
+    path_to_file_uri,
     to_zarr_node,
 )
 from careamics.dataset.patching import TileSpecs

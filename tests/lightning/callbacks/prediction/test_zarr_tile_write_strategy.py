@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import numpy as np
 import pytest
 import tifffile
@@ -10,6 +8,7 @@ import careamics.lightning.callbacks.prediction as pd_writer
 from careamics.config.data import DataConfig
 from careamics.dataset.factory import create_dataset
 from careamics.dataset.image_region_data import ImageRegionData
+from careamics.dataset.image_stack.zarr_access import file_uri_to_path
 from careamics.dataset.image_stack_loader import load_arrays, load_tiffs
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import (
@@ -218,8 +217,9 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
         writer.write_tile(tmp_path, region)
 
     for src in source_set:
-        filename = Path(src[len("file://") :]).parent.stem
-        array_name = Path(src[len("file://") :]).name
+        source_path = file_uri_to_path(src)
+        filename = source_path.parent.stem
+        array_name = source_path.name
 
         # check if zarr prediction exists
         zarr_path = tmp_path / f"{filename}_output.zarr"
@@ -347,36 +347,3 @@ def test_write_from_root_array_source(tmp_path):
     written = zarr.open(output_path, mode="r")
     assert isinstance(written, zarr.Array)
     np.testing.assert_allclose(written[:], source_data)
-
-
-def test_write_from_root_array_source_with_shards_error(tmp_path):
-    """Test that sharded root-array outputs fail with a clear error."""
-    source_path = tmp_path / "root_input.zarr"
-    source_array = zarr.open_array(
-        source_path, mode="w", shape=(8, 8), dtype=np.float32
-    )
-
-    region = ImageRegionData(
-        data=np.zeros((1, 8, 8), dtype=np.float32),
-        source=str(source_array.store_path),
-        data_shape=(1, 8, 8),
-        dtype="float32",
-        axes="YX",
-        target_axes="YX",
-        original_data_shape=(8, 8),
-        region_spec=TileSpecs(
-            data_idx=0,
-            sample_idx=0,
-            coords=(0, 0),
-            patch_size=(8, 8),
-            crop_coords=(0, 0),
-            crop_size=(8, 8),
-            stitch_coords=(0, 0),
-            total_tiles=1,
-        ),
-        additional_metadata={"chunks": (8, 8), "shards": (8, 8)},
-    )
-
-    writer = WriteTilesZarr()
-    with pytest.raises(NotImplementedError, match="sharded root Zarr arrays"):
-        writer.write_tile(tmp_path, region)

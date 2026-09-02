@@ -7,8 +7,7 @@ import zarr
 from numpy.typing import NDArray
 
 from careamics.dataset.image_stack import ZarrImageStack
-from careamics.dataset.image_stack.zarr_access import ZarrNode
-from careamics.dataset.image_stack_loader.zarr_utils import to_zarr_node
+from careamics.dataset.image_stack.zarr_access import ZarrNode, to_zarr_node
 from careamics.utils.reshape_array import channel_slice, reshape_array
 
 # TODO test _reshaped_data_shape
