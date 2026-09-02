@@ -116,3 +116,10 @@ def test_enable_topdown_normalize_factor_default():
     model = LVAEConfig(architecture="LVAE")
 
     assert model.enable_topdown_normalize_factor is True
+
+
+def test_encoder_first_conv_kernel_default():
+    """Test that encoder_first_conv_kernel defaults to 3."""
+    model = LVAEConfig(architecture="LVAE")
+
+    assert model.encoder_first_conv_kernel == 3
