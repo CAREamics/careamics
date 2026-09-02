@@ -13,49 +13,72 @@ from careamics.dataset.image_stack.zarr_access import (
 
 # --- Test utilities
 
-VALID_URIS = [
-    "file:///absolute/path/to/store.zarr",
-    "file:///absolute/path/to/store.zarr/array_0",
-    "file:///tmp/input%20data/store.zarr/group/array_1",
-    "file:///tmp/input%20data/store.zarr/my_group/",
-    "file://localhost/absolute/path/to/store.zarr",
-    "file:///D:/data/store.zarr",
-    "file:///D:/data/store.zarr/array_0",
-]
+if os.name == "nt":
+    VALID_URIS = [
+        "file:///D:/data/store.zarr",
+        "file:///D:/data/store.zarr/array_0",
+        r"file://C:\data\store.zarr",
+        r"file://C:\data\store.zarr/array_0",
+        "file://server/share/store.zarr",
+        "file://server/share/store.zarr/array_0",
+    ]
 
-if os.name == "nt":  # Windows
-    VALID_URIS.extend(
-        [
-            "file://server/share/store.zarr",
+    VALID_URI_NODES = [
+        ("file:///D:/data/store.zarr", "file:///D:/data/store.zarr", ""),
+        ("file:///D:/data/store.zarr/array_0", "file:///D:/data/store.zarr", "array_0"),
+        (r"file://C:\data\store.zarr", r"file://C:\data\store.zarr", ""),
+        (
+            r"file://C:\data\store.zarr/array_0",
+            r"file://C:\data\store.zarr",
+            "array_0",
+        ),
+        ("file://server/share/store.zarr", "file://server/share/store.zarr", ""),
+        (
             "file://server/share/store.zarr/array_0",
-        ]
-    )
-
-VALID_URI_NODES = [
-    ("file:///absolute/path/to/store.zarr", "file:///absolute/path/to/store.zarr", ""),
-    (
-        "file:///absolute/path/to/store.zarr/array_0",
+            "file://server/share/store.zarr",
+            "array_0",
+        ),
+    ]
+else:
+    VALID_URIS = [
         "file:///absolute/path/to/store.zarr",
-        "array_0",
-    ),
-    (
+        "file:///absolute/path/to/store.zarr/array_0",
         "file:///tmp/input%20data/store.zarr/group/array_1",
-        "file:///tmp/input%20data/store.zarr",
-        "group/array_1",
-    ),
-    (
         "file:///tmp/input%20data/store.zarr/my_group/",
-        "file:///tmp/input%20data/store.zarr",
-        "my_group/",
-    ),
-    (
         "file://localhost/absolute/path/to/store.zarr",
-        "file://localhost/absolute/path/to/store.zarr",
-        "",
-    ),
-    ("file:///D:/data/store.zarr", "file:///D:/data/store.zarr", ""),
-    ("file:///D:/data/store.zarr/array_0", "file:///D:/data/store.zarr", "array_0"),
-]
+        "file:///D:/data/store.zarr",
+        "file:///D:/data/store.zarr/array_0",
+    ]
+
+    VALID_URI_NODES = [
+        (
+            "file:///absolute/path/to/store.zarr",
+            "file:///absolute/path/to/store.zarr",
+            "",
+        ),
+        (
+            "file:///absolute/path/to/store.zarr/array_0",
+            "file:///absolute/path/to/store.zarr",
+            "array_0",
+        ),
+        (
+            "file:///tmp/input%20data/store.zarr/group/array_1",
+            "file:///tmp/input%20data/store.zarr",
+            "group/array_1",
+        ),
+        (
+            "file:///tmp/input%20data/store.zarr/my_group/",
+            "file:///tmp/input%20data/store.zarr",
+            "my_group/",
+        ),
+        (
+            "file://localhost/absolute/path/to/store.zarr",
+            "file://localhost/absolute/path/to/store.zarr",
+            "",
+        ),
+        ("file:///D:/data/store.zarr", "file:///D:/data/store.zarr", ""),
+        ("file:///D:/data/store.zarr/array_0", "file:///D:/data/store.zarr", "array_0"),
+    ]
 
 INVALID_URIS = [
     "gs://bucket/store.zarr",
@@ -63,21 +86,31 @@ INVALID_URIS = [
     "https://example.org/store.zarr",
     "http://example.org/store.zarr",
     "zip://archive.zip::store.zarr",
-    "file://data/store.zarr",
-    "file://relative/path/store.zarr",
     "file:relative/path/store.zarr",
     "file:store.zarr",
     "data/local_store.zarr",
-    "/absolute/path/to/store.zarr",
-    "./relative/path/to/store.zarr",
     "C:/data/store.zarr",
     r"C:\data\store.zarr",
     "",
 ]
 
-if os.name != "nt":  # Windows
+if os.name == "nt":
     INVALID_URIS.extend(
         [
+            "file:///absolute/path/to/store.zarr",
+            "file:///absolute/path/to/store.zarr/array_0",
+            "file:///tmp/input%20data/store.zarr/group/array_1",
+            "file:///tmp/input%20data/store.zarr/my_group/",
+            "file://localhost/absolute/path/to/store.zarr",
+            "/absolute/path/to/store.zarr",
+            "./relative/path/to/store.zarr",
+        ]
+    )
+else:
+    INVALID_URIS.extend(
+        [
+            "file://data/store.zarr",
+            "file://relative/path/store.zarr",
             "file://server/share/store.zarr",
             "file://server/share/store.zarr/array_0",
         ]
