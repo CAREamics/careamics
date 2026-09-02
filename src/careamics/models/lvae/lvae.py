@@ -85,7 +85,7 @@ class LadderVAE(nn.Module):
         predict_logvar: bool,
         encoder_blocks_per_layer: int = 1,
         decoder_blocks_per_layer: int = 1,
-        encoder_first_conv_kernel: int = 5,
+        encoder_first_conv_kernel: int = 3,
         analytical_kl: bool = False,
         enable_topdown_normalize_factor: bool = True,
     ):
@@ -109,6 +109,7 @@ class LadderVAE(nn.Module):
         self.predict_logvar = predict_logvar
         self.analytical_kl = analytical_kl
         self.enable_topdown_normalize_factor = enable_topdown_normalize_factor
+        self.encoder_first_conv_kernel = encoder_first_conv_kernel
         # -------------------------------------------------------
 
         # -------------------------------------------------------
@@ -120,7 +121,6 @@ class LadderVAE(nn.Module):
         self.topdown_batchnorm = True
         self.topdown_conv2d_bias = True
         self.gated = True
-        self.encoder_first_conv_kernel = encoder_first_conv_kernel
         self.encoder_res_block_kernel = 3
         self.decoder_res_block_kernel = 3
         self.encoder_res_block_skip_padding = False
