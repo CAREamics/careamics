@@ -9,16 +9,19 @@ from numpy.typing import NDArray
 from zarr.storage import StorePath
 
 from careamics.config.validators import check_czi_axes_validity
-from careamics.image_io import ReadFunc
-
-from ..image_stack import (
+from careamics.dataset.image_stack import (
     FileImageStack,
     InMemoryImageStack,
     ZarrImageStack,
 )
-from ..image_stack.czi_image_stack import CziImageStack
-from ..image_stack.zarr_access import ZarrNode, ZarrPythonAccess
-from .zarr_utils import is_ome_zarr, is_valid_uri, to_zarr_node
+from careamics.dataset.image_stack.czi_image_stack import CziImageStack
+from careamics.dataset.image_stack.zarr_access import (
+    ZarrNode,
+    ZarrPythonAccess,
+    is_valid_uri,
+    to_zarr_node,
+)
+from careamics.image_io import ReadFunc
 
 if TYPE_CHECKING:
     from careamics.image_io.read import ReadFunc
@@ -184,12 +187,12 @@ def load_zarrs(
                 f"Content at '{data_str}' is neither a zarr.Group nor a zarr.Array."
             )
 
-        if root_node.path == "" and is_ome_zarr(opened):
-            # TODO implement OME-Zarr resolution against NGFF 0.5.
-            raise NotImplementedError(
-                "OME-Zarr support is not yet implemented when providing a path to the "
-                "zarr store."
-            )
+        # if root_node.path == "" and is_ome_zarr(opened):
+        #     # TODO implement OME-Zarr resolution against NGFF 0.5.
+        #     raise NotImplementedError(
+        #         "OME-Zarr support is not yet implemented when providing a path to the"
+        #         "zarr store."
+        #     )
 
         array_paths = access.list_array_paths(root_node)
         array_paths.sort()
