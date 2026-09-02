@@ -165,7 +165,8 @@ def create_advanced_microsplit_config(
         `decoder_dropout=0.1`). Structural parameters
         (`architecture`, `input_shape`, `output_channels`, `multiscale_count`,
         `encoder_conv_strides`, `decoder_conv_strides`, `predict_logvar`,
-        `analytical_kl`) are set by the algorithm and cannot be overridden here.
+        `analytical_kl`, `enable_topdown_normalize_factor`) are set by the algorithm and
+        cannot be overridden here.
     predict_logvar : bool, default=True
         Whether to predict the pixelwise log-variance.
     logvar_lowerbound : float or None, default=-5.0
@@ -240,6 +241,7 @@ def create_advanced_microsplit_config(
         "decoder_conv_strides": conv_strides,
         "predict_logvar": predict_logvar,
         "analytical_kl": False,
+        "enable_topdown_normalize_factor": True,
     }
     model = LVAEConfig(**lvae_params)
 

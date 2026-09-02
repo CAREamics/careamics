@@ -142,6 +142,19 @@ class TestMicroSplitConfig:
             )
         assert config.algorithm_config.model.analytical_kl is False
 
+    def test_topdown_normalize_factor_is_enabled(self):
+        """Test that MicroSplit always enables the top-down normalize factor."""
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+            )
+        assert config.algorithm_config.model.enable_topdown_normalize_factor is True
+
     def test_model_params_override(self):
         """Test that model_params overrides defaults but not structural params."""
         with pytest.warns(UserWarning):

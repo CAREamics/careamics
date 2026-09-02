@@ -52,6 +52,10 @@ class LVAEConfig(ArchitectureConfig):
     """Whether to compute the KL divergence analytically instead of by a single-sample
     Monte Carlo estimate."""
 
+    enable_topdown_normalize_factor: bool = True
+    """Whether to scale the inference parameters of the i-th top-down layer for depth
+    stabilization. Only applied when `z_dims` holds more than 4 entries."""
+
     @field_validator("input_shape")
     @classmethod
     def validate_input_shape(cls, input_shape: list) -> list:

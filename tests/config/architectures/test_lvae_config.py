@@ -109,3 +109,10 @@ def test_analytical_kl_default():
     model = LVAEConfig(architecture="LVAE")
 
     assert model.analytical_kl is False
+
+
+def test_enable_topdown_normalize_factor_default():
+    """Test that enable_topdown_normalize_factor defaults to True."""
+    model = LVAEConfig(architecture="LVAE")
+
+    assert model.enable_topdown_normalize_factor is True
