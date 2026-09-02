@@ -150,8 +150,8 @@ def create_advanced_hdn_config(
         `decoder_dropout=0.0`, `nonlinearity="ReLU"`). Structural
         parameters (`architecture`, `input_shape`, `output_channels`,
         `multiscale_count`, `encoder_conv_strides`, `decoder_conv_strides`,
-        `predict_logvar`, `analytical_kl`) are set by the algorithm and cannot be
-        overridden here.
+        `predict_logvar`, `analytical_kl`, `enable_topdown_normalize_factor`) are set by
+        the algorithm and cannot be overridden here.
     reconstruction_weight : float, default=1.0
         Weight of the reconstruction term.
     kl_weight : float, default=1.0
@@ -215,6 +215,7 @@ def create_advanced_hdn_config(
         "decoder_conv_strides": conv_strides,
         "predict_logvar": predict_logvar,
         "analytical_kl": True,
+        "enable_topdown_normalize_factor": False,
     }
     model = LVAEConfig(**lvae_params)
 

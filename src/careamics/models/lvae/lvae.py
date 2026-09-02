@@ -60,6 +60,9 @@ class LadderVAE(nn.Module):
     analytical_kl : bool
         Whether to compute the KL divergence analytically instead of by a single-sample
         Monte Carlo estimate.
+    enable_topdown_normalize_factor : bool
+        Whether to scale the inference parameters of the i-th top-down layer for depth
+        stabilization. Only applied when `z_dims` holds more than 4 entries.
 
     Raises
     ------
@@ -84,6 +87,7 @@ class LadderVAE(nn.Module):
         decoder_blocks_per_layer: int = 1,
         encoder_first_conv_kernel: int = 5,
         analytical_kl: bool = False,
+        enable_topdown_normalize_factor: bool = True,
     ):
         super().__init__()
 
@@ -104,6 +108,7 @@ class LadderVAE(nn.Module):
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
         self.analytical_kl = analytical_kl
+        self.enable_topdown_normalize_factor = enable_topdown_normalize_factor
         # -------------------------------------------------------
 
         # -------------------------------------------------------
@@ -128,7 +133,6 @@ class LadderVAE(nn.Module):
         self.mode_pred = False
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
-        self._enable_topdown_normalize_factor = True
 
         # Attributes that handle LC -> Hardcoded
         self.enable_multiscale = self._multiscale_count > 1
@@ -378,7 +382,7 @@ class LadderVAE(nn.Module):
             # Check if this is the top layer
             is_top = i == self.n_layers - 1
 
-            if self._enable_topdown_normalize_factor:  # TODO: What is this?
+            if self.enable_topdown_normalize_factor:
                 normalize_latent_factor = (
                     1 / np.sqrt(2 * (1 + i)) if len(self.z_dims) > 4 else 1.0
                 )
