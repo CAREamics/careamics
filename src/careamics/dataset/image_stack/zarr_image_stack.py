@@ -101,6 +101,22 @@ class ZarrImageStack:
         return self._shard_size
 
     @property
+    def additional_metadata(self) -> dict[str, Sequence[int]]:
+        """Format-specific metadata.
+
+        Returns
+        -------
+        dict[str, Sequence[int]]
+            Additional metadata for the Zarr array.
+        """
+        metadata: dict[str, Sequence[int]] = {"chunks": self.chunks}
+
+        if self.shards is not None:
+            metadata["shards"] = self.shards
+
+        return metadata
+
+    @property
     def data_dtype(self) -> DTypeLike:
         """Data type of the array.
 

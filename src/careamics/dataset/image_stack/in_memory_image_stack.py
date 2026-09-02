@@ -146,6 +146,17 @@ class InMemoryImageStack:
         """
         return self._original_axes
 
+    @property
+    def additional_metadata(self) -> dict[str, Any]:
+        """Format-specific metadata.
+
+        Returns
+        -------
+        dict[str, Any]
+            Additional metadata.
+        """
+        return {}
+
     @classmethod
     def from_array(cls, data: NDArray, axes: str) -> Self:
         """Construct an in-memory stack from an array.
