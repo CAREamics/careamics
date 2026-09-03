@@ -1037,7 +1037,7 @@ def _extract_lc_patch(
         Lateral context patch with axes CL(Z)YX, where L is the lateral context input
         axis ordered from the native patch scale to larger context scales.
     """
-    shape = extractor.image_stacks[data_idx].data_shape
+    shape = extractor.image_stacks[data_idx].canonical_shape
     spatial_shape = shape[2:]
     n_channels = shape[1] if channels is None else len(channels)
 
@@ -1120,9 +1120,9 @@ def _get_uncorrelated_metadata(
         ]
     principal_image_stack = image_stacks[patch_spec["principal_channel"]]
     all_sources = [str(image_stack.source) for image_stack in image_stacks]
-    all_data_shapes = [image_stack.data_shape for image_stack in image_stacks]
+    all_data_shapes = [image_stack.canonical_shape for image_stack in image_stacks]
     all_original_data_shapes = [
-        image_stack.original_data_shape for image_stack in image_stacks
+        image_stack.original_shape for image_stack in image_stacks
     ]
 
     metadata = get_image_metadata(principal_image_stack)

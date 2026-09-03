@@ -35,7 +35,7 @@ class FileImageStack:
         Function to read the file into an array.
     read_kwargs : dict or Any, optional
         Extra keyword arguments for `read_func`.
-    original_data_shape : tuple of int or None, optional
+    original_shape : tuple of int or None, optional
         Shape in original axis order.
 
     Notes
@@ -52,7 +52,7 @@ class FileImageStack:
         data_dtype: DTypeLike,
         read_func: ReadFunc,
         read_kwargs: dict[str, Any] | Any = None,
-        original_data_shape: tuple[int, ...] | None = None,
+        original_shape: tuple[int, ...] | None = None,
     ):
         """Constructor.
 
@@ -75,18 +75,18 @@ class FileImageStack:
             Function to read the file into an array.
         read_kwargs : dict or Any, optional
             Extra keyword arguments passed to `read_func`.
-        original_data_shape : tuple of int or None, optional
+        original_shape : tuple of int or None, optional
             Shape in original axis order before transformation.
         """
         self.source = source
         self.axes = axes
-        self.data_shape = data_shape
+        self.canonical_shape = data_shape
         self.data_dtype = data_dtype
         self.read_func = read_func
         self.read_kwargs = read_kwargs
         self._data: NDArray | None = None
-        self._original_data_shape: tuple[int, ...] = (
-            original_data_shape if original_data_shape is not None else ()
+        self._original_shape: tuple[int, ...] = (
+            original_shape if original_shape is not None else ()
         )
 
     def extract_patch(
@@ -128,14 +128,14 @@ class FileImageStack:
 
         # check that channels are within bounds
         if channels is not None:
-            max_channel = self.data_shape[1] - 1  # channel is second dimension
+            max_channel = self.canonical_shape[1] - 1  # channel is second dimension
             for ch in channels:
                 if ch > max_channel:
                     raise ValueError(
                         f"Channel index {ch} is out of bounds for data with "
-                        f"{self.data_shape[1]} channels. Check the provided `channels` "
-                        f"parameter in the configuration for erroneous channel "
-                        f"indices."
+                        f"{self.canonical_shape[1]} channels. Check the provided "
+                        f"`channels` parameter in the configuration for erroneous "
+                        f"channel indices."
                     )
 
         patch_data = self._data[
@@ -145,14 +145,14 @@ class FileImageStack:
                 channel_slice(channels),  # type: ignore
                 *[
                     slice(
-                        np.clip(c, 0, self.data_shape[2 + i]),
-                        np.clip(c + ps, 0, self.data_shape[2 + i]),
+                        np.clip(c, 0, self.canonical_shape[2 + i]),
+                        np.clip(c + ps, 0, self.canonical_shape[2 + i]),
                     )
                     for i, (c, ps) in enumerate(zip(coords, patch_size, strict=False))
                 ],  # type: ignore
             )  # type: ignore
         ]
-        patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
+        patch = pad_patch(coords, patch_size, self.canonical_shape, patch_data)
 
         return patch
 
@@ -179,19 +179,19 @@ class FileImageStack:
         return self._data is not None
 
     @property
-    def original_data_shape(self) -> tuple[int, ...]:
-        """Original shape of the data.
+    def original_shape(self) -> tuple[int, ...]:
+        """Original shape of the source image.
 
         Returns
         -------
         tuple of int
             Shape in original axis order.
         """
-        return self._original_data_shape
+        return self._original_shape
 
     @property
     def original_axes(self) -> str:
-        """Original axes of the data.
+        """Original axes of the source image.
 
         Returns
         -------
@@ -223,8 +223,8 @@ class FileImageStack:
         """
         # TODO: think this is correct but need more examples to test
         file = tifffile.TiffFile(path)
-        original_data_shape = file.series[0].shape
-        data_shape = AxesTransform(axes, original_data_shape).transformed_shape
+        original_shape = file.series[0].shape
+        data_shape = AxesTransform(axes, original_shape).canonical_shape
         dtype = file.series[0].dtype
         return cls(
             source=path,
@@ -232,5 +232,5 @@ class FileImageStack:
             data_shape=data_shape,
             data_dtype=dtype,
             read_func=read_tiff,
-            original_data_shape=original_data_shape,
+            original_shape=original_shape,
         )

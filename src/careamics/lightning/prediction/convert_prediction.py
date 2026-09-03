@@ -89,23 +89,23 @@ def decollate_image_region_data(
         additional_metadata = _decollate_batch_dict(batch.additional_metadata, i)
 
         # data shape
-        assert isinstance(batch.data_shape, list)
-        data_shape = tuple(int(dim[i]) for dim in batch.data_shape)
+        assert isinstance(batch.canonical_shape, list)
+        data_shape = tuple(int(dim[i]) for dim in batch.canonical_shape)
 
         # original data shape
-        assert isinstance(batch.original_data_shape, list)
-        original_data_shape = tuple(int(dim[i]) for dim in batch.original_data_shape)
+        assert isinstance(batch.original_shape, list)
+        original_data_shape = tuple(int(dim[i]) for dim in batch.original_shape)
 
         image_region = ImageRegionData(
             data=batch.data[i],  # discard batch dimension
             source=batch.source[i],
             dtype=batch.dtype[i],
-            data_shape=data_shape,
-            axes=batch.axes[i],
+            canonical_shape=data_shape,
+            original_axes=batch.original_axes[i],
             target_axes=batch.target_axes[i],
             region_spec=region_spec,  # type: ignore
             additional_metadata=additional_metadata,
-            original_data_shape=original_data_shape,
+            original_shape=original_data_shape,
         )
         decollated.append(image_region)
 
@@ -157,9 +157,9 @@ def combine_samples(
 
         if restore_shape:
             # get original shape info from the first image region
-            original_axes = image_regions[0].axes
+            original_axes = image_regions[0].original_axes
             target_axes = image_regions[0].target_axes
-            original_data_shape = image_regions[0].original_data_shape
+            original_data_shape = image_regions[0].original_shape
             combined_data = restore_array(
                 combined_data, original_axes, original_data_shape, target_axes
             )

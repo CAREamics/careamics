@@ -46,10 +46,10 @@ def create_image_region(
         data=patch,
         source=str(source),
         dtype=str(extractor.image_stacks[data_idx].data_dtype),
-        data_shape=extractor.image_stacks[data_idx].data_shape,
-        axes=axes,
+        canonical_shape=extractor.image_stacks[data_idx].canonical_shape,
+        original_axes=axes,
         target_axes=axes,
-        original_data_shape=extractor.image_stacks[data_idx].original_data_shape,
+        original_shape=extractor.image_stacks[data_idx].original_shape,
         region_spec=patch_spec,
         additional_metadata={
             "shards": shards,
@@ -161,7 +161,7 @@ def tiles(
         )
         sources.append(arr.store_path)
 
-    shape_with_sc = AxesTransform(data_config.axes, shape).transformed_shape
+    shape_with_sc = AxesTransform(data_config.axes, shape).canonical_shape
 
     tiling_strategy = TiledPatching(
         data_shapes=[shape_with_sc] * n_data,
@@ -261,7 +261,7 @@ def test_write_from_array(tmp_path):
     patch_extractor = PatchExtractor(image_stacks)
 
     strategy = TiledPatching(
-        data_shapes=[image_stacks[0].data_shape] * 2,
+        data_shapes=[image_stacks[0].canonical_shape] * 2,
         patch_size=(8, 8),
         overlaps=(4, 4),
     )
@@ -296,7 +296,7 @@ def test_write_from_tiff(tmp_path):
     patch_extractor = PatchExtractor(image_stacks)
 
     strategy = TiledPatching(
-        data_shapes=[image_stacks[0].data_shape] * 2,
+        data_shapes=[image_stacks[0].canonical_shape] * 2,
         patch_size=(8, 8),
         overlaps=(4, 4),
     )

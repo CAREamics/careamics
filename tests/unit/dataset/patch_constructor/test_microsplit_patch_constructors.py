@@ -56,7 +56,7 @@ def _image_stack_from_array(
         source=Path(source),
         data=array,
         original_axes=axes,
-        original_data_shape=array.shape,
+        original_shape=array.shape,
     )
 
 

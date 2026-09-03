@@ -65,11 +65,11 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
         ImageRegionData(
             source="array.tiff",
             data=array[i],  # individual sample without S dimension
-            data_shape=array.shape,
+            canonical_shape=array.shape,
             dtype=np.float32,
-            axes="SYX",  # axes describes the full dataset, not individual sample
+            original_axes="SYX",  # describes the full dataset, not individual sample
             target_axes="SYX",
-            original_data_shape=array.shape,
+            original_shape=array.shape,
             region_spec={
                 "data_idx": 0,
                 "sample_idx": i,

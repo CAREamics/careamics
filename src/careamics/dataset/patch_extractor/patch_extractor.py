@@ -33,16 +33,16 @@ class PatchExtractor(Generic[GenericImageStack]):
 
         # check all image stacks have the same number of dimensions
         # check all image stacks have the same number of channels
-        self.n_spatial_dims = len(self.image_stacks[0].data_shape) - 2  # SC(Z)YX
+        self.n_spatial_dims = len(self.image_stacks[0].canonical_shape) - 2  # SC(Z)YX
         for i, image_stack in enumerate(image_stacks):
-            if (ndims := len(image_stack.data_shape) - 2) != self.n_spatial_dims:
+            if (ndims := len(image_stack.canonical_shape) - 2) != self.n_spatial_dims:
                 raise ValueError(
                     "All `ImageStack` objects in a `PatchExtractor` must have the same "
                     "number of spatial dimensions. The first image stack is "
                     f"{self.n_spatial_dims}D but found a {ndims}D image stack at index "
                     f"{i}."
                 )
-            if (n_channels := image_stack.data_shape[1]) != self.n_channels:
+            if (n_channels := image_stack.canonical_shape[1]) != self.n_channels:
                 raise ValueError(
                     "All `ImageStack` objects in a `PatchExtractor` must have the same "
                     f"number of channels. The first image stack has {self.n_channels} "
@@ -130,7 +130,7 @@ class PatchExtractor(Generic[GenericImageStack]):
         list of Sequence[int]
             Shape of each stack.
         """
-        return [stack.data_shape for stack in self.image_stacks]
+        return [stack.canonical_shape for stack in self.image_stacks]
 
     @property
     def n_channels(self) -> int:
@@ -141,4 +141,4 @@ class PatchExtractor(Generic[GenericImageStack]):
         int
             Number of channels.
         """
-        return self.image_stacks[0].data_shape[1]
+        return self.image_stacks[0].canonical_shape[1]

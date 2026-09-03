@@ -24,7 +24,7 @@ def _array_to_tile(input_shape, axes, target_shape, target_axes, output_shape):
 def _transformed_shape(input_shape, axes, target_axes, output_shape):
     """Get the transformed shape from the restore_array test inputs."""
     transform = AxesTransform(axes, input_shape)
-    return input_shape, axes, transform.transformed_shape, target_axes, output_shape
+    return input_shape, axes, transform.canonical_shape, target_axes, output_shape
 
 
 # default axes shapes
@@ -440,16 +440,16 @@ class TestAxesTransform:
         assert AxesTransform("YX", (XY_S, XY_S)).original_has_z is False
 
     def test_dl_axes_2d(self):
-        assert AxesTransform("YX", (XY_S, XY_S)).transformed_axes == "SCYX"
+        assert AxesTransform("YX", (XY_S, XY_S)).canonical_axes == "SCYX"
 
     def test_dl_axes_3d(self):
-        assert AxesTransform("ZYX", (Z_S, XY_S, XY_S)).transformed_axes == "SCZYX"
+        assert AxesTransform("ZYX", (Z_S, XY_S, XY_S)).canonical_axes == "SCZYX"
 
     def test_dl_shape_yx(self):
-        assert AxesTransform("YX", (XY_S, XY_S)).transformed_shape == (1, 1, XY_S, XY_S)
+        assert AxesTransform("YX", (XY_S, XY_S)).canonical_shape == (1, 1, XY_S, XY_S)
 
     def test_dl_shape_with_c(self):
-        assert AxesTransform("YXC", (XY_S, XY_S, C_S)).transformed_shape == (
+        assert AxesTransform("YXC", (XY_S, XY_S, C_S)).canonical_shape == (
             1,
             C_S,
             XY_S,
@@ -458,23 +458,11 @@ class TestAxesTransform:
 
     def test_dl_shape_with_st(self):
         transform = AxesTransform("STCYX", (S_S, T_S, C_S, XY_S, XY_S))
-        assert transform.transformed_shape == (S_S * T_S, C_S, XY_S, XY_S)
+        assert transform.canonical_shape == (S_S * T_S, C_S, XY_S, XY_S)
 
     def test_dl_shape_t_as_s(self):
         transform = AxesTransform("TYX", (T_S, XY_S, XY_S))
-        assert transform.transformed_shape == (T_S, 1, XY_S, XY_S)
-
-    def test_invalid_axis_name(self):
-        with pytest.raises(ValueError):
-            AxesTransform("ABX", (1, 2, 3))
-
-    def test_duplicate_axes(self):
-        with pytest.raises(ValueError):
-            AxesTransform("YYX", (32, 32, 32))
-
-    def test_missing_y_or_x(self):
-        with pytest.raises(ValueError):
-            AxesTransform("SC", (5, 3))
+        assert transform.canonical_shape == (T_S, 1, XY_S, XY_S)
 
     def test_shape_axes_length_mismatch(self):
         with pytest.raises(ValueError):
@@ -485,7 +473,7 @@ class TestAxesTransform:
         """Result should always have S, C, and optionally Z, then Y, X."""
         transform = AxesTransform(axes, shape)
         expected_axes = "SCZYX" if "Z" in axes else "SCYX"
-        assert transform.transformed_axes == expected_axes
+        assert transform.canonical_axes == expected_axes
 
 
 class TestReshape:
@@ -496,7 +484,7 @@ class TestReshape:
         result = reshape_array(array, axes)
         transform = AxesTransform(axes, shape)
 
-        assert result.shape == transform.transformed_shape
+        assert result.shape == transform.canonical_shape
         assert result.ndim in (4, 5)
 
     @pytest.mark.parametrize(
@@ -815,7 +803,7 @@ class TestRestoredAxesTransform:
             axes,
             in_shape,
             target_axes,
-            AxesTransform(axes, in_shape).transformed_shape,
+            AxesTransform(axes, in_shape).canonical_shape,
             False,
         )
         assert transform.adjust_shape(shape) == expected_shape

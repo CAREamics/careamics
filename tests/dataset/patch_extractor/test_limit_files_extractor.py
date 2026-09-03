@@ -28,7 +28,7 @@ def test_files_limited(tmp_path: Path):
 
     # using random patching
     patching = RandomPatching(
-        [image_stack.data_shape for image_stack in image_stacks],
+        [image_stack.canonical_shape for image_stack in image_stacks],
         patch_size=(16, 16),
         seed=42,
     )

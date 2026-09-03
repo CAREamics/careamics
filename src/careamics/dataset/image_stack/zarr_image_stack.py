@@ -61,10 +61,8 @@ class ZarrImageStack:
         #   - must contain XY
         #   - must be subset of STCZYX
         self._original_axes = axes
-        self._original_data_shape: tuple[int, ...] = self._array.shape
-        self.data_shape = AxesTransform(
-            axes, self._original_data_shape
-        ).transformed_shape
+        self._original_shape: tuple[int, ...] = self._array.shape
+        self.canonical_shape = AxesTransform(axes, self._original_shape).canonical_shape
 
         self._data_dtype = self._array.dtype
         self._chunk_size = self._array.chunks
@@ -119,19 +117,19 @@ class ZarrImageStack:
         return self._data_dtype
 
     @property
-    def original_data_shape(self) -> tuple[int, ...]:
-        """Original shape of the data.
+    def original_shape(self) -> tuple[int, ...]:
+        """Original shape of the source image.
 
         Returns
         -------
         tuple of int
             Shape in original axis order.
         """
-        return self._original_data_shape
+        return self._original_shape
 
     @property
     def original_axes(self) -> str:
-        """Original axes of the data.
+        """Original axes of the source image.
 
         Returns
         -------
@@ -167,7 +165,7 @@ class ZarrImageStack:
         """
         patch_slice = get_patch_slices(
             self._original_axes,
-            self._original_data_shape,
+            self._original_shape,
             sample_idx,
             channels,
             coords,
@@ -176,5 +174,5 @@ class ZarrImageStack:
 
         patch_data: NDArray = self._array[patch_slice]  # type: ignore
         patch_data = reshape_patch(patch_data, self._original_axes)
-        patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
+        patch = pad_patch(coords, patch_size, self.canonical_shape, patch_data)
         return patch

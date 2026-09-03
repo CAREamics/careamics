@@ -72,7 +72,7 @@ class CziImageStack:
         Path to the CZI file without scene index.
     scene : int or None
         Index of the scene to extract, or None if not specified.
-    data_shape : Sequence[int]
+    canonical_shape : Sequence[int]
         The shape of the data in the order `(SC(Z)YX)`.
     axes : str
         The axes in the CZI file corresponding to the dimensions in `data_shape`.
@@ -170,7 +170,7 @@ class CziImageStack:
         self._czi = CziReader(str(self.data_path))
 
         # Determine metadata
-        self.axes, self.data_shape, self._bounding_rectangle, self._sample_axes = (
+        self.axes, self.canonical_shape, self._bounding_rectangle, self._sample_axes = (
             self._get_shape()
         )
         self.data_dtype = np.float32
@@ -247,7 +247,7 @@ class CziImageStack:
         return original
 
     @property
-    def original_data_shape(self) -> tuple[int, ...]:
+    def original_shape(self) -> tuple[int, ...]:
         """Original shape of the data.
 
         Returns
@@ -257,10 +257,10 @@ class CziImageStack:
         """
         if not self._sample_axes:
             # No dimensions were merged into S, so shape is already original
-            return tuple(self.data_shape)
+            return tuple(self.canonical_shape)
 
         # Reconstruct original shape by replacing S dimension with sample axes
-        shape_list = list(self.data_shape)
+        shape_list = list(self.canonical_shape)
         s_idx = self.axes.index("S")
         # Replace S dimension with the sample axes dimensions
         sample_sizes = list(self._sample_axes.values())
@@ -294,14 +294,14 @@ class CziImageStack:
         """
         # check that channels are within bounds
         if channels is not None:
-            max_channel = self.data_shape[1] - 1  # channel is second dimension
+            max_channel = self.canonical_shape[1] - 1  # channel is second dimension
             for ch in channels:
                 if ch > max_channel:
                     raise ValueError(
                         f"Channel index {ch} is out of bounds for data with "
-                        f"{self.data_shape[1]} channels. Check the provided `channels` "
-                        f"parameter in the configuration for erroneous channel "
-                        f"indices."
+                        f"{self.canonical_shape[1]} channels. Check the provided "
+                        f"`channels` parameter in the configuration for erroneous "
+                        f"channel indices."
                     )
 
         # Determine 3rd dimension (T, Z or none)
@@ -329,7 +329,7 @@ class CziImageStack:
         )
 
         # Create output array of shape (C, Z, Y, X)
-        n_channels = self.data_shape[1] if channels is None else len(channels)
+        n_channels = self.canonical_shape[1] if channels is None else len(channels)
         patch = np.zeros(
             (n_channels, third_dim_size, *patch_size[-2:]), dtype=np.float32
         )
@@ -347,7 +347,9 @@ class CziImageStack:
         # Read XY planes sequentially
         channel_iter: Iterable
         if channels is None:
-            channel_iter = range(self.data_shape[1])  # iter over number of requested C
+            channel_iter = range(
+                self.canonical_shape[1]
+            )  # iter over number of requested C
         else:
             channel_iter = list(channels)
 
@@ -360,7 +362,10 @@ class CziImageStack:
                     plane[third_dim] = third_dim_offset + third_dim_index
 
                     # check if in bounds
-                    if 0 > plane[third_dim] or plane[third_dim] >= self.data_shape[-3]:
+                    if (
+                        0 > plane[third_dim]
+                        or plane[third_dim] >= self.canonical_shape[-3]
+                    ):
                         continue
 
                 # read plane

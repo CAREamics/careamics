@@ -16,7 +16,7 @@ class HDF5ImageStack:
         self.original_data_shape = image_data.shape  # (2)!
         self.data_shape = AxesTransform(  # (3)!
             axes, self.original_data_shape
-        ).transformed_shape
+        ).canonical_shape
 
     @property
     def data_dtype(self) -> DTypeLike:
@@ -73,7 +73,7 @@ from careamics.utils.reshape_array import AxesTransform
 
 original_axes = "YXC"
 original_data_shape = (512, 620, 2)
-data_shape = AxesTransform(original_axes, original_data_shape).transformed_shape
+data_shape = AxesTransform(original_axes, original_data_shape).canonical_shape
 print(data_shape)
 # --8<-- [end:transform-data-shape]
 # %%
