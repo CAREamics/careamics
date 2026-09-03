@@ -29,9 +29,17 @@ The CSV logger is enabled by default. After training, the train and validation l
 --8<-- "current/careamist_train_logging.py:csv_logger"
 ```
 
-1. Returns a dict with keys `train_epoch`, `val_epoch`, `train_loss`, and `val_loss`. Train and validation rows are written separately to the CSV, so the two epoch arrays can have different lengths.
+1. Returns a dataclass with objects `train_loss`, `val_loss`, `learning_rate`, and `metrics`.
+2. By default, this function plots the losses, the metrics and the learning rate. Plotting metrics
+and learning rate can be turned off using `plot_metrics=False` and `plot_learning_rate=False`.
 
 The underlying file is `work_dir/csv_logs/<experiment_name>/version_<n>/metrics.csv` and can be opened directly with any CSV tool.
+
+!!! note "Metrics"
+
+    If metrics were logged, they are returned as a dictionary of dataclasses, each behaving
+    like `train_loss`, i.e. with attributes called `epoch` and `value` that can be plotted
+    against each other.
 
 ## Weights & Biases and TensorBoard
 

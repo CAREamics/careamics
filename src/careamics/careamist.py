@@ -28,6 +28,7 @@ from .lightning.modules import (
 )
 from .lightning.prediction import convert_prediction
 from .lightning.utils import (
+    TrainingReport,
     load_config_from_checkpoint,
     load_module_from_checkpoint,
     read_csv_logger,
@@ -1309,16 +1310,18 @@ class CAREamist:
             channel_names=channel_names,
         )
 
-    def get_losses(self) -> dict[str, list]:
-        """Return data that can be used to plot train and validation loss curves.
+    def get_losses(self) -> TrainingReport:
+        """Return plottable training curves from Lightning CSV logs.
 
         Returns
         -------
-        dict of str: list
-            Dictionary containing losses for each epoch.
+        TrainingReport
+            Dataclass containing train and validation loss, learning rate, and any
+            discovered validation metrics.
         """
         return read_csv_logger(
-            self.config.get_safe_experiment_name(), self.work_dir / "csv_logs"
+            self.work_dir / "csv_logs",
+            self.config.get_safe_experiment_name(),
         )
 
     def stop_training(self) -> None:
