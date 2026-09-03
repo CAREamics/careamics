@@ -16,6 +16,46 @@ _VALID_AXES = set(_REF_ORDER)
 # TODO to clarify the transformations call the transformed space "canonical".
 
 
+def adjust_shape_for_channels(
+    data_shape: Sequence[int],
+    axes: str,
+    n_channels: int,
+) -> Sequence[int]:
+    """Adjust a shape with a different number of channels.
+
+    This method is used in two contexts: subsetting channels during data loading and
+    creating prediction arrays from input shape with different number of output
+    channels.
+
+    Parameters
+    ----------
+    data_shape : Sequence[int]
+        Data shape.
+    axes : str
+        Axes string describing `data_shape`.
+    n_channels : int
+        Number of channels to update `data_shape` with.
+
+    Returns
+    -------
+    Sequence[int]
+        Adjusted data shape.
+
+    Raises
+    ------
+    ValueError
+        If "C" is not found in axes.
+    """
+    if "C" not in axes:
+        raise ValueError(f"Channel axis `C` not found in axes, got {axes}.")
+
+    c_idx = axes.index("C")
+    adjusted_shape = list(data_shape)
+    adjusted_shape[c_idx] = n_channels
+
+    return tuple(adjusted_shape)
+
+
 # TODO reuse the validators from configuration? or simply drop the validation from here
 def _validate_axes(axes: str) -> None:
     """Validate axes.

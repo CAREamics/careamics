@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.patching import TileSpecs
-from careamics.utils.reshape_array import restore_array
+from careamics.utils.reshape_array import adjust_shape_for_channels, restore_array
 
 
 def group_tiles_by_key(
@@ -103,7 +103,11 @@ def stitch_single_prediction(
     numpy.ndarray
         Full image, with dimensions SC(Z)YX.
     """
-    data_shape = tiles[0].data_shape
+    data_shape = adjust_shape_for_channels(
+        tiles[0].data_shape,
+        "SCZYX" if "Z" in tiles[0].axes else "SCYX",  # canonical axes of the full array
+        tiles[0].data.shape[0],
+    )
     predicted_image = np.zeros(data_shape, dtype=np.float32)
 
     # stitch each sample separately
@@ -151,7 +155,11 @@ def stitch_single_sample(
     numpy.ndarray
         Full sample, with dimensions C(Z)YX.
     """
-    data_shape = tiles[0].data_shape  # SC(Z)YX
+    data_shape = adjust_shape_for_channels(
+        tiles[0].data_shape,
+        "SCZYX" if "Z" in tiles[0].axes else "SCYX",  # canonical axes of the full array
+        tiles[0].data.shape[0],
+    )
     predicted_sample = np.zeros(data_shape[1:], dtype=np.float32)
 
     for tile in tiles:
