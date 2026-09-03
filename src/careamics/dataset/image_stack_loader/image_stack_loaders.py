@@ -9,15 +9,19 @@ from numpy.typing import NDArray
 from zarr.storage import StorePath
 
 from careamics.config.validators import check_czi_axes_validity
-from careamics.image_io import ReadFunc
-
-from ..image_stack import (
+from careamics.dataset.image_stack import (
     FileImageStack,
     InMemoryImageStack,
     ZarrImageStack,
 )
-from ..image_stack.czi_image_stack import CziImageStack
-from .zarr_utils import collect_arrays, decipher_zarr_uri, is_ome_zarr, is_valid_uri
+from careamics.dataset.image_stack.czi_image_stack import CziImageStack
+from careamics.dataset.image_stack.zarr_access import (
+    ZarrNode,
+    ZarrPythonAccess,
+    is_valid_uri,
+    to_zarr_node,
+)
+from careamics.image_io import ReadFunc
 
 if TYPE_CHECKING:
     from careamics.image_io.read import ReadFunc
@@ -146,78 +150,67 @@ def load_zarrs(
 
     Returns
     -------
-    list of ZarrImageStack
-        A list of ZarrImageStack created from the sources.
+    list[ZarrImageStack]
+        Image stacks created from the sources.
     """
     image_stacks: list[ZarrImageStack] = []
+    access = ZarrPythonAccess()
 
     for data_source in source:
         data_str = str(data_source)
 
-        # either a path to a zarr file or a uri "file://path/to/zarr/array_path"
-        if data_str.endswith(".zarr"):
-            zarr_group = zarr.open_group(data_str, mode="r")
-
-            # test if ome-zarr (minimum assumption of multiscales)
-            if is_ome_zarr(zarr_group):
-                # TODO placeholder for handling OME-Zarr
-                # - Need to potentially select multiscale level
-                # - Extract axes and compare with provided ones
-                raise NotImplementedError(
-                    "OME-Zarr support is not yet implemented when providing a "
-                    "path to the zarr store. Please provide a file URI to the "
-                    "specific array within the OME-Zarr."
-                )
-            else:
-                # collect all arrays
-                array_paths = collect_arrays(zarr_group)
-
-                # sort names
-                array_paths.sort()
-
-            # instantiate image stacks
-            for array_path in array_paths:
-                image_stacks.append(
-                    ZarrImageStack(group=zarr_group, data_path=array_path, axes=axes)
-                )
-
-        elif is_valid_uri(data_str):
-            # decipher the uri and open the group
-            store_path, parent_path, name = decipher_zarr_uri(data_str)
-
-            zarr_group = zarr.open_group(store_path, path=parent_path, mode="r")
-            content = zarr_group[name]
-
-            # assert if group or array
-            if isinstance(content, zarr.Group):
-                array_paths = collect_arrays(content)
-
-                # sort the names
-                array_paths.sort()
-
-                for array_path in array_paths:
-                    image_stacks.append(
-                        ZarrImageStack(group=content, data_path=array_path, axes=axes)
-                    )
-            else:
-                if not isinstance(content, zarr.Array):
-                    raise TypeError(
-                        f"Content at '{data_str}' is neither a zarr.Group nor "
-                        f"a zarr.Array."
-                    )
-
-                # create image stack from a single array
-                image_stacks.append(
-                    ZarrImageStack(
-                        group=zarr_group,
-                        data_path=name,
-                        axes=axes,
-                    )
-                )
-
-        else:
+        if not (data_str.endswith(".zarr") or is_valid_uri(data_str)):
             raise ValueError(
                 f"Source '{data_source}' is neither a zarr file nor a file URI."
+            )
+
+        root_node = to_zarr_node(data_source)
+        root_type = access.resolve_node_type(root_node)
+
+        if root_type == "array":
+            image_stacks.append(
+                ZarrImageStack(
+                    node=ZarrNode(
+                        store_uri=root_node.store_uri,
+                        path=root_node.path,
+                        node_type="array",
+                    ),
+                    axes=axes,
+                    access=access,
+                )
+            )
+            continue
+
+        opened = access.open_node(root_node, mode="r")
+        if not isinstance(opened, zarr.Group):
+            raise TypeError(
+                f"Content at '{data_str}' is neither a zarr.Group nor a zarr.Array."
+            )
+
+        # if root_node.path == "" and is_ome_zarr(opened):
+        #     # TODO implement OME-Zarr resolution against NGFF 0.5.
+        #     raise NotImplementedError(
+        #         "OME-Zarr support is not yet implemented when providing a path to the"
+        #         "zarr store."
+        #     )
+
+        array_paths = access.list_array_paths(root_node)
+        array_paths.sort()
+
+        for array_path in array_paths:
+            full_path = (
+                array_path if root_node.path == "" else f"{root_node.path}/{array_path}"
+            )
+            image_stacks.append(
+                ZarrImageStack(
+                    node=ZarrNode(
+                        store_uri=root_node.store_uri,
+                        path=full_path,
+                        node_type="array",
+                    ),
+                    axes=axes,
+                    access=access,
+                )
             )
 
     return image_stacks

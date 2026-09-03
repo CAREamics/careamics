@@ -3,12 +3,12 @@
 from collections.abc import Sequence
 
 import numpy as np
-import zarr
 from numpy.typing import DTypeLike, NDArray
 
 from careamics.utils.reshape_array import AxesTransform, get_patch_slices, reshape_patch
 
 from .image_utils.image_stack_utils import pad_patch
+from .zarr_access import ZarrAccessProtocol, ZarrNode, ZarrPythonAccess
 
 
 class ZarrImageStack:
@@ -17,58 +17,51 @@ class ZarrImageStack:
 
     Parameters
     ----------
-    group : zarr.Group
-        Zarr group containing the array.
-    data_path : str
-        Path to the array within the group.
+    node : ZarrNode
+        Zarr node pointing to an array.
     axes : str
         Axis order (e.g. STCZYX).
+    access : ZarrAccessProtocol or None, default=None
+        Zarr backend access implementation.
     """
 
-    def __init__(self, group: zarr.Group, data_path: str, axes: str):
+    def __init__(
+        self,
+        node: ZarrNode,
+        axes: str,
+        access: ZarrAccessProtocol | None = None,
+    ):
         """Constructor.
 
         Parameters
         ----------
-        group : zarr.Group
-            Zarr group containing the array.
-        data_path : str
-            Path to the array within the group.
+        node : ZarrNode
+            Zarr node pointing to an array.
         axes : str
             Axis order (e.g. STCZYX).
+        access : ZarrAccessProtocol or None, default=None
+            Zarr backend access implementation.
         """
-        if not isinstance(group, zarr.Group):
-            raise TypeError(f"group must be a zarr.Group instance, got {type(group)}.")
+        self._access = ZarrPythonAccess() if access is None else access
+        self._node = node
 
-        self._group = group
-        self._store = str(group.store_path)
-        try:
-            self._array = group[data_path]
-        except KeyError as e:
-            raise ValueError(
-                f"Did not find array at '{data_path}' in store '{self._store}'."
-            ) from e
+        if self._access.resolve_node_type(node) != "array":
+            raise TypeError(f"Node '{node.source}' must point to a zarr.Array.")
 
-        if not isinstance(self._array, zarr.Array):
-            raise TypeError(
-                f"data at path '{data_path}' must be a zarr.Array instance, "
-                f"got {type(self._array)}."
-            )
-
-        self._source = self._array.store_path
+        self._source = node.source
 
         # TODO: validate axes
         #   - must contain XY
         #   - must be subset of STCZYX
         self._original_axes = axes
-        self._original_data_shape: tuple[int, ...] = self._array.shape
+        self._original_data_shape = self._access.get_array_shape(node)
         self.data_shape = AxesTransform(
             axes, self._original_data_shape
         ).transformed_shape
 
-        self._data_dtype = self._array.dtype
-        self._chunk_size = self._array.chunks
-        self._shard_size = self._array.shards
+        self._data_dtype = self._access.get_array_dtype(node)
+        self._chunk_size = self._access.get_array_chunks(node)
+        self._shard_size = self._access.get_array_shards(node)
 
     @property
     def source(self) -> str:
@@ -174,7 +167,7 @@ class ZarrImageStack:
             patch_size,
         )
 
-        patch_data: NDArray = self._array[patch_slice]  # type: ignore
+        patch_data: NDArray = self._access.read_array_patch(self._node, patch_slice)
         patch_data = reshape_patch(patch_data, self._original_axes)
         patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
         return patch
