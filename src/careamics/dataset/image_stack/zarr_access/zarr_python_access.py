@@ -145,8 +145,8 @@ class ZarrPythonAccess:
         """
         return asarray(self._require_array(node, mode="r")[patch_index])
 
-    def resolve_node_type(self, node: ZarrNode) -> Literal["array", "group"]:
-        """Return whether the node is an array or a group.
+    def resolve_node_type(self, node: ZarrNode) -> ZarrNode:
+        """Return a node with updated node type.
 
         Parameters
         ----------
@@ -155,17 +155,25 @@ class ZarrPythonAccess:
 
         Returns
         -------
-        {"array", "group"}
-            Node type.
+        ZarrNode
+            ZarrNode with updated type.
+
+        Raises
+        ------
+        ValueError
+            If the ZarrNode corresponds to neither zarr.Array nor zarr.Group.
         """
         opened = self.open_node(node, mode="r")
         if isinstance(opened, zarr.Array):
-            return "array"
-        if isinstance(opened, zarr.Group):
-            return "group"
-        raise TypeError(
-            f"Unsupported Zarr node type for '{node.source}': {type(opened)}."
-        )
+            node_type: Literal["array", "group"] = "array"
+        elif isinstance(opened, zarr.Group):
+            node_type = "group"
+        else:
+            raise ValueError(
+                f"Unsupported Zarr node type for '{node.source}': {type(opened)}."
+            )
+
+        return ZarrNode(store_uri=node.store_uri, path=node.path, node_type=node_type)
 
     def create_array(
         self,

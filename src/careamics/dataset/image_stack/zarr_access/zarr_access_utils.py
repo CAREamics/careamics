@@ -66,7 +66,8 @@ def file_uri_to_path(file_uri: str) -> Path:
 
     if parsed.scheme != "file":
         raise ValueError(
-            f"Unsupported Zarr URI scheme {parsed.scheme!r} in {file_uri!r}."
+            f"Unsupported Zarr URI scheme {parsed.scheme!r} in {file_uri!r}. "
+            f"Only `file` URI scheme are supported."
         )
 
     # a local file URI must have no authority, or use "localhost".
@@ -80,7 +81,9 @@ def file_uri_to_path(file_uri: str) -> Path:
         path = f"//{parsed.netloc}{unquote(parsed.path)}"
     else:
         raise ValueError(
-            f"Non-local file URI authority {parsed.netloc!r} in {file_uri!r}."
+            f"Non-local file URI authority {parsed.netloc!r} in {file_uri!r}. "
+            f"Only file URI with `localhost`, no authority, or Windows ."
+            f"UNC compatible path are accepted."
         )
 
     # convert /C:/path to C:/path on Windows
@@ -112,7 +115,9 @@ def path_to_file_uri(path: str | Path) -> str:
 
 
 def to_zarr_node(source: str | Path | StorePath) -> ZarrNode:
-    """Convert a local path or `file://` URI to a :class:`ZarrNode`.
+    """Convert a local path or `file://` URI to a `ZarrNode`.
+
+    This function determines the URI to the .zarr file
 
     Parameters
     ----------
@@ -123,21 +128,27 @@ def to_zarr_node(source: str | Path | StorePath) -> ZarrNode:
     -------
     ZarrNode
         Parsed Zarr node reference.
+
+    Raises
+    ------
+    Value Error
+        If the path is not a zarr path or a supported URI.
     """
     if isinstance(source, Path):
         return ZarrNode(store_uri=path_to_file_uri(source))
 
-    source_str = str(source)
+    source_str = str(source)  # str(StorePath) returns a URI
     normalized_source_str = source_str.replace("\\", "/")
 
     if not is_valid_uri(source_str):
         source_path = Path(source_str)
         if source_path.suffix != ".zarr":
             raise ValueError(
-                f"Source '{source}' is neither a zarr path nor a file URI."
+                f"Source '{source}' is neither a zarr path nor a supported URI."
             )
         return ZarrNode(store_uri=path_to_file_uri(source_path))
 
+    # valid URI, find path to Zarr root
     store_suffix = ".zarr"
     zarr_index = normalized_source_str.find(store_suffix)
     if zarr_index == -1:
