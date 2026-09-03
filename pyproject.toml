@@ -54,6 +54,7 @@ dependencies = [
     'pyyaml!=6.0.0,<=6.0.3',
     'scikit-image<=0.26.0',
     'zarr>=3.0.0,<4.0.0',
+    'yaozarrs[io]>=0.3.1,<0.4.0',
     'tifffile<=2026.3.3',
     'matplotlib<=3.11.1',
     'microssim<=0.0.4', # TODO absorb as careamics.metrics
