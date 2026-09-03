@@ -20,5 +20,9 @@ class SupportedPatching(StrEnum):
     TILED = "tiled"
     """Tiled patching strategy, used during prediction."""
 
+    SWITI = "switi"
+    """Sliding-window inner-tiled patching with stride decoupled from overlap.
+    Used during prediction with posterior models."""
+
     WHOLE = "whole"
     """Whole image patching strategy, used during prediction."""

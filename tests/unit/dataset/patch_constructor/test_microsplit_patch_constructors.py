@@ -18,6 +18,7 @@ from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import (
     StratifiedPatching,
+    TiledPatching,
     UncorrelatedPatchSpecs,
     is_uncorrelated_specs,
 )
@@ -40,6 +41,7 @@ C3_VALUE = 10
 REAL_INPUT_VALUE = 16.2
 
 PATCH_SIZE = (64, 64)
+TILE_OVERLAPS = (48, 48)
 
 MULTIPLEXED_TARGET_SOURCE = "multiplexed_target_{idx}.tiff"
 REAL_INPUT_SOURCE = "input_{idx}.tiff"
@@ -116,6 +118,11 @@ def separate_target_extractors():
 @pytest.fixture
 def patching_strategy():
     return StratifiedPatching(MULTIPLEXED_TARGET_SHAPES, PATCH_SIZE, seed=42)
+
+
+@pytest.fixture
+def tiling_strategy():
+    return TiledPatching(INPUT_SHAPES, PATCH_SIZE, TILE_OVERLAPS)
 
 
 @pytest.fixture
@@ -312,11 +319,11 @@ def test_t3_construct_patch(
 def test_pred_construct_patch(
     multiscale_count: int,
     input_target_extractor: PatchExtractor,
-    patching_strategy: StratifiedPatching,
+    tiling_strategy: TiledPatching,
 ):
     """Test that the MicroSplit T3 patch constructor outputs patches as expected."""
     patch_constructor = PredMsPatchConstr(
-        patching_strategy,
+        tiling_strategy,
         input_target_extractor,
         multiscale_count,
         "reflect",
