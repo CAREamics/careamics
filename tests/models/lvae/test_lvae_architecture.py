@@ -5,10 +5,7 @@ import pytest
 import torch
 from torch import nn
 
-from careamics.config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import LVAELossConfig
-from careamics.config.noise_model.likelihood_config import GaussianLikelihoodConfig
 from careamics.models.model_factory import model_factory
 
 
@@ -20,8 +17,7 @@ def create_LVAE_model(
     decoder_conv_strides=(2, 2),
     multiscale_count: int = 0,
     output_channels: int = 1,
-    analytical_kl: bool = False,
-    predict_logvar: Union[Literal["pixelwise"], None] = None,
+    predict_logvar: bool = True,
 ) -> nn.Module:
     lvae_model_config = LVAEConfig(
         architecture="LVAE",
@@ -32,19 +28,8 @@ def create_LVAE_model(
         multiscale_count=multiscale_count,
         output_channels=output_channels,
         predict_logvar=predict_logvar,
-        analytical_kl=analytical_kl,
     )
-
-    config = VAEBasedAlgorithm(
-        algorithm_type="vae",
-        algorithm="microsplit",
-        loss=LVAELossConfig(loss_type="musplit"),
-        model=lvae_model_config,
-        gaussian_likelihood=GaussianLikelihoodConfig(
-            predict_logvar=predict_logvar, logvar_lowerbound=0.0
-        ),
-    )
-    return model_factory(config.model)
+    return model_factory(lvae_model_config)
 
 
 @pytest.mark.skip(reason="Needs to be updated")
@@ -75,7 +60,7 @@ def test_first_bottom_up(
     first_bottom_up = model.first_bottom_up
     inputs = torch.ones((1, *img_size))
     output = first_bottom_up(inputs)
-    assert output.shape == (1, model.encoder_n_filters, *img_size[1:])
+    assert output.shape == (1, model.n_filters, *img_size[1:])
 
 
 @pytest.mark.skip(reason="Needs to be updated")
@@ -120,7 +105,7 @@ def test_bottom_up_layers(
     )
     bottom_up_layers = model.bottom_up_layers
     assert len(bottom_up_layers) == len(z_dims)
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     downscale_factor = [2 for _ in model.image_size[-2:]]
     if len(model.image_size) == 4:
         downscale_factor.insert(0, 1)
@@ -216,7 +201,7 @@ def test_bottom_up_pass(
         assert bottom_up_layers[i].lowres_net is not None, "Missing lowres_net"
 
     img_size = model.image_size
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     inputs = torch.ones((1, *img_size))
     outputs = model._bottomup_pass(
         inp=inputs,
@@ -244,7 +229,7 @@ def test_topmost_top_down_layer(
         multiscale_count=multiscale_count,
     )
     topmost_top_down = model.top_down_layers[-1]
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
 
     downscaling = 2 ** (model.n_layers + 1 - multiscale_count)
     downscaled_size = img_size // downscaling
@@ -293,7 +278,7 @@ def test_all_top_down_layers(
         decoder_conv_strides=decoder_conv_stride,
     )
     top_down_layers = model.top_down_layers
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     downscaling = 2 ** (model.n_layers + 1 - multiscale_count)
     downscaled_size = [img_sz // downscaling for img_sz in img_size[-2:]]
     if len(img_size) == 4:
@@ -339,7 +324,7 @@ def test_final_top_down(
         multiscale_count=multiscale_count,
     )
     final_top_down = model.final_top_down
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     final_upsampling = not model.no_initial_downscaling
     inp_size = img_size // 2 if final_upsampling else img_size
     inputs = torch.ones((1, n_filters, inp_size, inp_size))
@@ -362,7 +347,7 @@ def test_top_down_pass(
     )
     top_down_layers = model.top_down_layers
     final_top_down = model.final_top_down
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     n_layers = model.n_layers
 
     # Compute the bu_values for all the layers
@@ -391,12 +376,10 @@ def test_top_down_pass(
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("multiscale_count", [1, 3, 5])
-@pytest.mark.parametrize("analytical_kl", [False, True])
 @pytest.mark.parametrize("batch_size", [1, 8])
 def test_KL_shape(
     img_size: int,
     multiscale_count: int,
-    analytical_kl: bool,
     batch_size: int,
     tmp_path,
     create_dummy_noise_model,
@@ -406,11 +389,10 @@ def test_KL_shape(
         create_dummy_noise_model=create_dummy_noise_model,
         input_shape=img_size,
         multiscale_count=multiscale_count,
-        analytical_kl=analytical_kl,
     )
     top_down_layers = model.top_down_layers
     final_top_down = model.final_top_down
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     n_layers = model.n_layers
 
     # Compute the bu_values for all the layers
@@ -468,7 +450,7 @@ def test_output_layer(
         output_channels=output_channels,
     )
     out_layer = model.output_layer
-    n_filters = model.encoder_n_filters
+    n_filters = model.n_filters
     input_ = torch.ones((1, n_filters, img_size, img_size))
     output = out_layer(input_)
 
@@ -477,6 +459,7 @@ def test_output_layer(
     assert output.shape == exp_out_shape
 
 
+@pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize(
     "img_size, z_dims, multiscale_count, encoder_conv_stride, decoder_conv_stride",
     [

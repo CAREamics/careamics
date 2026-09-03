@@ -7,7 +7,6 @@ from typing import Dict, Tuple, Union
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as F
-from torch.distributions import kl_divergence
 from torch.distributions.normal import Normal
 
 from .utils import (
@@ -163,11 +162,10 @@ class NormalStochasticBlock(nn.Module):
         q: torch.distributions.normal.Normal,
         q_params: torch.Tensor,
         mode_pred: bool,
-        analytical_kl: bool,
         z: torch.Tensor,
     ) -> Dict[str, torch.Tensor]:
         """
-        Compute KL (analytical or MC estimate) and then process it, extracting composed versions of the metric.
+        Compute the (Monte Carlo estimated) KL and extract composed versions of the metric.
         Specifically, the different versions of the KL loss terms are:
             - `kl_elementwise`: KL term for each single element of the latent tensor [Shape: (batch, ch, h, w)].
             - `kl_samplewise`: KL term associated to each sample in the batch [Shape: (batch, )].
@@ -188,17 +186,12 @@ class NormalStochasticBlock(nn.Module):
             The parameters of the inference distribution.
         mode_pred: bool
             Whether the model is in prediction mode.
-        analytical_kl: bool
-            Whether to compute the KL divergence analytically or using Monte Carlo estimation.
         z: torch.Tensor
             The sampled latent tensor.
         """
         kl_samplewise_restricted = None
         if mode_pred is False:  # if not predicting
-            if analytical_kl:
-                kl_elementwise = kl_divergence(q, p)
-            else:
-                kl_elementwise = kl_normal_mc(z, p_params, q_params)
+            kl_elementwise = kl_normal_mc(z, p_params, q_params)
 
             all_dims = tuple(range(len(kl_elementwise.shape)))
             kl_samplewise = kl_elementwise.sum(all_dims[1:])
@@ -303,7 +296,6 @@ class NormalStochasticBlock(nn.Module):
         q_params: Union[torch.Tensor, None] = None,
         forced_latent: Union[torch.Tensor, None] = None,
         force_constant_output: bool = False,
-        analytical_kl: bool = False,
         mode_pred: bool = False,
         use_uncond_mode: bool = False,
         var_clip_max: Union[float, None] = None,
@@ -322,9 +314,6 @@ class NormalStochasticBlock(nn.Module):
         force_constant_output: bool, optional
             Whether to copy the first sample (and rel. distrib parameters) over the whole batch.
             This is used when doing experiment from the prior - q is not used.
-            Default is `False`.
-        analytical_kl: bool, optional
-            Whether to compute the KL divergence analytically or using Monte Carlo estimation.
             Default is `False`.
         mode_pred: bool, optional
             Whether the model is in prediction mode. Default is `False`.
@@ -377,9 +366,7 @@ class NormalStochasticBlock(nn.Module):
             # Compute log q(z)
             logprob_q = q.log_prob(z).sum(tuple(range(1, z.dim())))
             # Compute KL divergence metrics
-            kl_dict = self.compute_kl_metrics(
-                p, p_params, q, q_params, mode_pred, analytical_kl, z
-            )
+            kl_dict = self.compute_kl_metrics(p, p_params, q, q_params, mode_pred, z)
         else:
             kl_dict = {}
             logprob_q = None
