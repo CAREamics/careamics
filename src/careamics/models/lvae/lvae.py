@@ -102,10 +102,8 @@ class LadderVAE(nn.Module):
             The number of scales for multiscale processing.
         z_dims : list[int]
             The dimensions of the latent space for each layer.
-        encoder_n_filters : int
-            The number of filters in the encoder.
-        decoder_n_filters : int
-            The number of filters in the decoder.
+        n_filters : int
+            The number of filters in the encoder and the decoder.
         encoder_conv_strides : list[int]
             The strides for the conv layers encoder.
         decoder_conv_strides : list[int]
@@ -122,6 +120,14 @@ class LadderVAE(nn.Module):
             The number of residual blocks per encoder layer.
         decoder_blocks_per_layer : int
             The number of residual blocks per decoder layer.
+        encoder_first_conv_kernel : int
+            The kernel size of the first bottom-up convolution.
+        analytical_kl : bool
+            Whether to compute the KL divergence analytically instead of by a
+            single-sample Monte Carlo estimate.
+        enable_topdown_normalize_factor : bool
+            Whether to scale the inference parameters of the i-th top-down layer for
+            depth stabilization. Only applied when `z_dims` holds more than 4 entries.
         """
         super().__init__()
 

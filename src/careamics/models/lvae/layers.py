@@ -984,6 +984,9 @@ class TopDownLayer(nn.Module):
         A factor used to normalize the latent tensors. Default is 1.0.
     stochastic_use_naive_exponential : bool, optional
         Whether to use the naive (non-stable) exponential. Default is `False`.
+    analytical_kl : bool, optional
+        Whether to compute the KL divergence analytically instead of by a
+        single-sample Monte Carlo estimate. Default is `False`.
     """
 
     def __init__(
@@ -1074,7 +1077,7 @@ class TopDownLayer(nn.Module):
             to the alternative definition provided by `StableExponential` class.
             This should improve numerical stability in the training process.
             Default is `False`.
-        analytical_kl: bool, optional
+        analytical_kl : bool, optional
             Whether to compute the KL divergence analytically instead of by a
             single-sample Monte Carlo estimate. Default is `False`.
         """

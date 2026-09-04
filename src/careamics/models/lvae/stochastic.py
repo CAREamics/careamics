@@ -59,6 +59,9 @@ class NormalStochasticBlock(nn.Module):
         The spatial size of the latent tensor used for prediction. Default is `None`.
     use_naive_exponential : bool, optional
         Whether to use the naive (non-stable) exponential. Default is `False`.
+    analytical_kl : bool, optional
+        Whether to compute the KL divergence analytically instead of by a
+        single-sample Monte Carlo estimate. Default is `False`.
     """
 
     def __init__(
@@ -105,7 +108,7 @@ class NormalStochasticBlock(nn.Module):
             provided by `StableExponential` class. This should improve numerical
             stability
             in the training process. Default is `False`.
-        analytical_kl: bool, optional
+        analytical_kl : bool, optional
             Whether to compute the KL divergence analytically instead of by a
             single-sample Monte Carlo estimate. Default is `False`.
         """
@@ -334,7 +337,7 @@ class NormalStochasticBlock(nn.Module):
         Processing consists in:
             - convolution on the input tensor to double the number of channels.
             - split the resulting tensor into 2 chunks, respectively mean and log-var.
-            - crop the resulting tensors so that each spatial dimension larger than 1 is even.
+            - crop the tensors so each spatial dimension larger than 1 is even.
             - (optionally) clip the log-variance to an upper threshold.
             - define the normal distribution q(z) given the parameter tensors above.
 
