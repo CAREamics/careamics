@@ -435,24 +435,19 @@ class CoLogger(Logger):
         -------
         dict[str, Any]
             A dictionary with the same keys as `params`,
-            but with values converted to supported types.
-
-        Raises
-        ------
-        ValueError
-            If any value in `params` is of an unsupported type.
+            but with only key:values of supported types.
         """
         # make sure all values are int, float, str, bool, or torch.Tensor
         checked_params = {}
         for key, value in params.items():
             if value is None:
                 continue  # skip None values
-            if isinstance(value, (int, float, str, bool)):
+            if isinstance(value, (int, float, str, bool, tuple, list)):
                 checked_params[key] = value
             elif isinstance(value, torch.Tensor):
                 checked_params[key] = value.item()
             else:
-                raise ValueError(
+                print(
                     f"Value for key '{key}' is of type {type(value)}, "
                     "which is not supported. "
                     "Supported types are int, float, str, bool, and torch.Tensor."
