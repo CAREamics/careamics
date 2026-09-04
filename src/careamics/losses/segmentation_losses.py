@@ -223,9 +223,11 @@ class CrossEntropyLoss(Module):
     ----------
     weight : Tensor, default=None
         A manual rescaling weight given to each class for both losses.
+    include_background : bool, default=True
+        Whether to include the background class in the Dice loss calculation.
     """
 
-    def __init__(self, weight=None) -> None:
+    def __init__(self, weight=None, include_background=True) -> None:
         """Constructor.
 
         Parameters
@@ -235,6 +237,7 @@ class CrossEntropyLoss(Module):
         """
         super().__init__()
         self.weight = weight
+        self.include_background = include_background
 
     def forward(self, inputs, targets) -> torch.Tensor:
         """Compute cross-entropy loss from segmentation logits and targets.
@@ -256,7 +259,11 @@ class CrossEntropyLoss(Module):
             inputs.device
         )
         return F.cross_entropy(
-            inputs, target_indices, weight=self.weight, reduction="mean"
+            inputs, 
+            target_indices, 
+            weight=self.weight, 
+            reduction="mean",
+            ignore_index=-100 if self.include_background else 0
         )
 
 
@@ -274,10 +281,10 @@ def get_seg_loss(loss: str) -> Callable:
         Corresponding loss function.
     """
     if loss == "dice":
-        return DiceLoss()
+        return DiceLoss(include_background=False)
     elif loss == "ce":
-        return CrossEntropyLoss()
+        return CrossEntropyLoss(include_background=False)
     elif loss == "dice_ce":
-        return DiceCELoss()
+        return DiceCELoss(include_background=False)
     else:
         raise ValueError(f"Unsupported loss function: {loss}")
