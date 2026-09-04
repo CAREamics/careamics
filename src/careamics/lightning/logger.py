@@ -375,7 +375,9 @@ class CoLogger(Logger):
         step : int | None, optional
             The current step or epoch number, by default None.
         """
-        exp, ssi, sei = hparams(_flatten_dict(tb_logger.hparams), {})  # type: ignore
+        params = self._check_values(_flatten_dict(tb_logger.hparams))  # type: ignore
+
+        exp, ssi, sei = hparams(params, {})
         with SummaryWriter(log_dir=tb_logger.log_dir) as w_hp:
             if w_hp.file_writer is not None:
                 w_hp.file_writer.add_summary(exp)
@@ -420,3 +422,38 @@ class CoLogger(Logger):
             _logged_in = False
 
         return _logged_in
+
+    def _check_values(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Check if all values in the params dictionary are of supported types.
+
+        Parameters
+        ----------
+        params : dict[str, Any]
+            A dictionary of parameters to check.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary with the same keys as `params`,
+            but with values converted to supported types.
+
+        Raises
+        ------
+        ValueError
+            If any value in `params` is of an unsupported type.
+        """
+        # make sure all values are int, float, str, bool, or torch.Tensor
+        checked_params = {}
+        for key, value in params.items():
+            if isinstance(value, (int, float, str, bool)):
+                checked_params[key] = value
+            elif isinstance(value, torch.Tensor):
+                checked_params[key] = value.item()
+            else:
+                raise ValueError(
+                    f"Value for key '{key}' is of type {type(value)}, "
+                    "which is not supported. "
+                    "Supported types are int, float, str, bool, and torch.Tensor."
+                )
+
+        return checked_params
