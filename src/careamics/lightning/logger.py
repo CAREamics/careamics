@@ -445,6 +445,8 @@ class CoLogger(Logger):
         # make sure all values are int, float, str, bool, or torch.Tensor
         checked_params = {}
         for key, value in params.items():
+            if value is None:
+                continue  # skip None values
             if isinstance(value, (int, float, str, bool)):
                 checked_params[key] = value
             elif isinstance(value, torch.Tensor):
