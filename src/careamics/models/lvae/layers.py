@@ -1076,9 +1076,7 @@ class TopDownLayer(nn.Module):
         self.stochastic_skip = stochastic_skip
         self.learn_top_prior = learn_top_prior
         self.retain_spatial_dims = retain_spatial_dims
-        self.input_image_shape = (
-            input_image_shape if len(conv_strides) == 3 else input_image_shape[1:]
-        )
+        self.input_image_shape = tuple(input_image_shape[-len(conv_strides) :])
         self.latent_shape = self.input_image_shape if self.retain_spatial_dims else None
         self.normalize_latent_factor = normalize_latent_factor
         self._vanilla_latent_hw = vanilla_latent_hw  # TODO: check this, it is not used

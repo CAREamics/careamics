@@ -840,4 +840,6 @@ class LadderVAE(nn.Module):
             self.bottom_up_layers[i].output_expected_shape = tuple(
                 ts // 2 ** (i + 1) for ts in tile_size
             )
-            self.top_down_layers[i].latent_shape = tile_size
+            self.top_down_layers[i].latent_shape = tuple(
+                tile_size[-len(self.decoder_conv_strides) :]
+            )
