@@ -259,11 +259,11 @@ class CrossEntropyLoss(Module):
             inputs.device
         )
         return F.cross_entropy(
-            inputs, 
-            target_indices, 
-            weight=self.weight, 
+            inputs,
+            target_indices,
+            weight=self.weight,
             reduction="mean",
-            ignore_index=-100 if self.include_background else 0
+            ignore_index=-100 if self.include_background else 0,
         )
 
 
