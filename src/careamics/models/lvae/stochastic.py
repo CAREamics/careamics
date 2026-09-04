@@ -1,8 +1,6 @@
-"""Script containing the common basic blocks (nn.Module)
-reused by the LadderVAE architecture.
-"""
+"""Stochastic latent block (nn.Module) used by the LadderVAE architecture."""
 
-from typing import Dict, Tuple, Union
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -34,10 +32,33 @@ class NormalStochasticBlock(nn.Module):
         If parameters for q are not given, sampling is done from p(z).
 
     NOTE 2:
-        The restricted KL divergence is obtained by first computing the element-wise KL divergence
-        (i.e., the KL computed for each element of the latent tensors). Then, the restricted version
-        is computed by summing over the channels and the spatial dimensions associated only to the
+        The restricted KL divergence is obtained by first computing the element-wise KL
+        divergence
+        (i.e., the KL computed for each element of the latent tensors). Then, the
+        restricted version
+        is computed by summing over the channels and the spatial dimensions associated
+        only to the
         portion of the latent tensor that is used for prediction.
+
+    Parameters
+    ----------
+    c_in : int
+        The number of channels of the input tensor.
+    c_vars : int
+        The number of channels of the latent space tensor.
+    c_out : int
+        The number of output channels of the stochastic layer (differs from the latent
+        z).
+    conv_dims : int, optional
+        The number of dimensions of the convolutional layers (2D or 3D). Default is 2.
+    kernel : int, optional
+        The size of the kernel used in the convolutional layers. Default is 3.
+    transform_p_params : bool, optional
+        Whether to apply a transformation to the `p_params` tensor. Default is `True`.
+    vanilla_latent_hw : int, optional
+        The spatial size of the latent tensor used for prediction. Default is `None`.
+    use_naive_exponential : bool, optional
+        Whether to use the naive (non-stable) exponential. Default is `False`.
     """
 
     def __init__(
@@ -48,37 +69,41 @@ class NormalStochasticBlock(nn.Module):
         conv_dims: int = 2,
         kernel: int = 3,
         transform_p_params: bool = True,
-        vanilla_latent_hw: int = None,
+        vanilla_latent_hw: int | None = None,
         use_naive_exponential: bool = False,
         analytical_kl: bool = False,
     ):
-        """
+        """Constructor.
+
         Parameters
         ----------
-        c_in: int
+        c_in : int
             The number of channels of the input tensor.
-        c_vars: int
+        c_vars : int
             The number of channels of the latent space tensor.
-        c_out:  int
+        c_out : int
             The output of the stochastic layer.
             Note that this is different from the sampled latent z.
-        conv_dims: int, optional
+        conv_dims : int, optional
             The number of dimensions of the convolutional layers (2D or 3D).
             Default is 2.
-        kernel: int, optional
+        kernel : int, optional
             The size of the kernel used in convolutional layers.
             Default is 3.
-        transform_p_params: bool, optional
+        transform_p_params : bool, optional
             Whether a transformation should be applied to the `p_params` tensor.
             The transformation consists in a 2D convolution ()`conv_in_p()`) that
             maps the input to a larger number of channels.
             Default is `True`.
-        vanilla_latent_hw: int, optional
-            The shape of the latent tensor used for prediction (i.e., it influences the computation of restricted KL).
+        vanilla_latent_hw : int, optional
+            The shape of the latent tensor used for prediction (i.e., it influences the
+            computation of restricted KL).
             Default is `None`.
-        use_naive_exponential: bool, optional
-            If `False`, exponentials are computed according to the alternative definition
-            provided by `StableExponential` class. This should improve numerical stability
+        use_naive_exponential : bool, optional
+            If `False`, exponentials are computed according to the alternative
+            definition
+            provided by `StableExponential` class. This should improve numerical
+            stability
             in the training process. Default is `False`.
         analytical_kl: bool, optional
             Whether to compute the KL divergence analytically instead of by a
@@ -116,19 +141,27 @@ class NormalStochasticBlock(nn.Module):
             - Sampled from the (Gaussian) latent distribution.
             - Taken as a pre-defined forced latent.
             - Taken as the mode (mean) of the latent distribution.
-            - In prediction mode (`mode_pred==True`), can be either sample or taken as the distribution mode.
+            - In prediction mode (`mode_pred==True`), can be either sample or taken as
+            the distribution mode.
 
         Parameters
         ----------
-        sampling_distrib: torch.distributions.normal.Normal
+        sampling_distrib : torch.distributions.normal.Normal
             The Gaussian distribution from which latent tensor is sampled.
-        forced_latent: torch.Tensor
-            A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent tensor and,
+        forced_latent : torch.Tensor
+            A pre-defined latent tensor. If it is not `None`, than it is used as the
+            actual latent tensor and,
             hence, sampling does not happen.
-        mode_pred: bool
+        mode_pred : bool
             Whether the model is prediction mode.
-        use_uncond_mode: bool
-            Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
+        use_uncond_mode : bool
+            Whether to use the uncoditional distribution p(z) to sample latents in
+            prediction mode.
+
+        Returns
+        -------
+        torch.Tensor
+            The sampled (or forced) latent tensor.
         """
         if forced_latent is None:
             if mode_pred:
@@ -143,20 +176,25 @@ class NormalStochasticBlock(nn.Module):
         return z
 
     def sample_from_q(
-        self, q_params: torch.Tensor, var_clip_max: float
+        self, q_params: torch.Tensor, var_clip_max: float | None
     ) -> torch.Tensor:
-        """
-        Given an input parameter tensor defining q(z),
-        it processes it by calling `process_q_params()` method and
-        sample a latent tensor from the resulting distribution.
+        """Sample a latent tensor from the inference distribution q(z).
+
+        The input parameter tensor defining q(z) is processed by `process_q_params()`
+        and a latent tensor is sampled from the resulting distribution.
 
         Parameters
         ----------
-        q_params: torch.Tensor
+        q_params : torch.Tensor
             The input tensor to be processed.
-        var_clip_max: float
+        var_clip_max : float or None
             The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped.
+
+        Returns
+        -------
+        torch.Tensor
+            The latent tensor sampled from q(z).
         """
         _, _, q = self.process_q_params(q_params, var_clip_max)
         return q.rsample()
@@ -169,34 +207,42 @@ class NormalStochasticBlock(nn.Module):
         q_params: torch.Tensor,
         mode_pred: bool,
         z: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
-        """
-        Compute the KL and extract composed versions of the metric.
+    ) -> dict[str, torch.Tensor]:
+        """Compute the (Monte Carlo estimated) KL and its composed versions.
 
-        The KL is computed analytically if `analytical_kl` was set on this block, and
-        by a single-sample Monte Carlo estimate otherwise.
         Specifically, the different versions of the KL loss terms are:
-            - `kl_elementwise`: KL term for each single element of the latent tensor [Shape: (batch, ch, h, w)].
-            - `kl_samplewise`: KL term associated to each sample in the batch [Shape: (batch, )].
-            - `kl_samplewise_restricted`: KL term only associated to the portion of the latent tensor that is
-            used for prediction and summed over channel and spatial dimensions [Shape: (batch, )].
-            - `kl_channelwise`: KL term associated to each sample and each channel [Shape: (batch, ch, )].
-            - `kl_spatial`: KL term summed over the channels, i.e., retaining the spatial dimensions [Shape: (batch, h, w)]
+            - `kl_elementwise`: KL term for each single element of the latent tensor
+            [Shape: (batch, ch, h, w)].
+            - `kl_samplewise`: KL term associated to each sample in the batch [Shape:
+            (batch, )].
+            - `kl_samplewise_restricted`: KL term only associated to the portion of the
+            latent tensor that is
+            used for prediction and summed over channel and spatial dimensions [Shape:
+            (batch, )].
+            - `kl_channelwise`: KL term associated to each sample and each channel
+            [Shape: (batch, ch, )].
+            - `kl_spatial`: KL term summed over the channels, i.e., retaining the
+            spatial dimensions [Shape: (batch, h, w)].
 
         Parameters
         ----------
-        p: torch.distributions.normal.Normal
+        p : torch.distributions.normal.Normal
             The prior generative distribution p(z_i|z_{i+1}) (or p(z_L)).
-        p_params: torch.Tensor
+        p_params : torch.Tensor
             The parameters of the prior generative distribution.
-        q: torch.distributions.normal.Normal
+        q : torch.distributions.normal.Normal
             The inference distribution q(z_i|z_{i+1}) (or q(z_L|x)).
-        q_params: torch.Tensor
+        q_params : torch.Tensor
             The parameters of the inference distribution.
-        mode_pred: bool
+        mode_pred : bool
             Whether the model is in prediction mode.
-        z: torch.Tensor
+        z : torch.Tensor
             The sampled latent tensor.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            The dictionary of KL metrics (see the method summary for the keys).
         """
         kl_samplewise_restricted = None
         if mode_pred is False:  # if not predicting
@@ -214,7 +260,8 @@ class NormalStochasticBlock(nn.Module):
             kl_samplewise = kl_elementwise.sum(all_dims[1:])
             kl_channelwise = kl_elementwise.sum(all_dims[2:])
 
-            # compute KL only on the portion of the latent space that is used for prediction.
+            # compute KL only on the portion of the latent space that is used for
+            # prediction.
             pad = (kl_elementwise.shape[-1] - self._vanilla_latent_hw) // 2
             if pad > 0:
                 tmp = kl_elementwise[..., pad:-pad, pad:-pad]
@@ -238,23 +285,29 @@ class NormalStochasticBlock(nn.Module):
         return kl_dict
 
     def process_p_params(
-        self, p_params: torch.Tensor, var_clip_max: float
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.distributions.normal.Normal]:
-        """Process the input parameters to get the prior distribution p(z_i|z_{i+1}) (or p(z_L)).
+        self, p_params: torch.Tensor, var_clip_max: float | None
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.distributions.normal.Normal]:
+        """Process the input parameters to get the prior distribution p(z_i|z_{i+1}).
 
         Processing consists in:
-            - (optionally) 2D convolution on the input tensor to increase number of channels.
+            - (optionally) 2D convolution on the input tensor to increase number of
+            channels.
             - split the resulting tensor into two chunks, the mean and the log-variance.
             - (optionally) clip the log-variance to an upper threshold.
             - define the normal distribution p(z) given the parameter tensors above.
 
         Parameters
         ----------
-        p_params: torch.Tensor
+        p_params : torch.Tensor
             The input tensor to be processed.
-        var_clip_max: float
+        var_clip_max : float or None
             The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped.
+
+        Returns
+        -------
+        tuple of (torch.Tensor, torch.Tensor, torch.distributions.normal.Normal)
+            The prior mean wrapper, log-variance wrapper, and the distribution p(z).
         """
         if self.transform_p_params:
             p_params = self.conv_in_p(p_params)
@@ -272,10 +325,11 @@ class NormalStochasticBlock(nn.Module):
         return p_mu, p_lv, p
 
     def process_q_params(
-        self, q_params: torch.Tensor, var_clip_max: float
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.distributions.normal.Normal]:
-        """
-        Process the input parameters to get the inference distribution q(z_i|z_{i+1}) (or q(z|x)).
+        self,
+        q_params: torch.Tensor,
+        var_clip_max: float | None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.distributions.normal.Normal]:
+        """Process the input parameters into the inference distribution q(z).
 
         Processing consists in:
             - convolution on the input tensor to double the number of channels.
@@ -286,11 +340,16 @@ class NormalStochasticBlock(nn.Module):
 
         Parameters
         ----------
-        p_params: torch.Tensor
+        q_params : torch.Tensor
             The input tensor to be processed.
-        var_clip_max: float
+        var_clip_max : float or None
             The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped.
+
+        Returns
+        -------
+        tuple of (torch.Tensor, torch.Tensor, torch.distributions.normal.Normal)
+            The inference mean wrapper, log-variance wrapper, and the distribution q(z).
         """
         q_params = self.conv_in_q(q_params)
 
@@ -319,30 +378,42 @@ class NormalStochasticBlock(nn.Module):
         mode_pred: bool = False,
         use_uncond_mode: bool = False,
         var_clip_max: Union[float, None] = None,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        """Run the stochastic block: sample a latent and compute KL metrics.
+
         Parameters
         ----------
-        p_params: torch.Tensor
-            The output tensor of the top-down layer above (i.e., mu_{p,i+1}, sigma_{p,i+1}).
-        q_params: torch.Tensor, optional
-            The tensor resulting from merging the bu_value tensor at the same hierarchical level
+        p_params : torch.Tensor
+            The output tensor of the top-down layer above (i.e., mu_{p,i+1},
+            sigma_{p,i+1}).
+        q_params : torch.Tensor, optional
+            The tensor resulting from merging the bu_value tensor at the same
+            hierarchical level
             from the bottom-up pass and the `p_params` tensor. Default is `None`.
-        forced_latent: torch.Tensor, optional
-            A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent
+        forced_latent : torch.Tensor, optional
+            A pre-defined latent tensor. If it is not `None`, than it is used as the
+            actual latent
             tensor and, hence, sampling does not happen. Default is `None`.
-        force_constant_output: bool, optional
-            Whether to copy the first sample (and rel. distrib parameters) over the whole batch.
+        force_constant_output : bool, optional
+            Whether to copy the first sample (and rel. distrib parameters) over the
+            whole batch.
             This is used when doing experiment from the prior - q is not used.
             Default is `False`.
-        mode_pred: bool, optional
+        mode_pred : bool, optional
             Whether the model is in prediction mode. Default is `False`.
-        use_uncond_mode: bool, optional
-            Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
+        use_uncond_mode : bool, optional
+            Whether to use the uncoditional distribution p(z) to sample latents in
+            prediction mode.
             Default is `False`.
-        var_clip_max: float, optional
+        var_clip_max : float, optional
             The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped. Default is `None`.
+
+        Returns
+        -------
+        tuple of (torch.Tensor, dict[str, torch.Tensor])
+            The output tensor of the stochastic block and a dictionary of auxiliary
+            quantities (sampled latent, distribution parameters, KL metrics, etc.).
         """
         debug_qvar_max = 0
 
