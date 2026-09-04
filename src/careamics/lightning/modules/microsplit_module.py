@@ -1,6 +1,9 @@
 """MicroSplit Lightning module."""
 
+import warnings
+from collections.abc import Sequence
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import lightning.pytorch as L
@@ -15,18 +18,19 @@ from careamics.dataset.normalization.normalization import Normalization
 from careamics.losses.lvae import microsplit_loss
 from careamics.metrics import SIPSNR
 from careamics.models.lvae import LadderVAE
-from careamics.models.lvae.noise_models import (
-    MultiChannelNoiseModel,
-    multichannel_noise_model_factory,
-)
+from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 from careamics.models.model_factory import model_factory
 from careamics.utils.logging import get_logger
 
 from .module_utils import (
+    check_noise_model_channels,
     configure_optimizers,
+    load_noise_model_from_checkpoint,
     log_training_stats,
     log_validation_stats,
     mmse_and_sample_std,
+    resolve_noise_model,
+    save_noise_model_to_checkpoint,
 )
 
 logger = get_logger(__name__)
@@ -83,9 +87,14 @@ class MicroSplitModule(L.LightningModule):
         self.model: LadderVAE = cast("LadderVAE", model_factory(self.config.model))
         self.loss_func = microsplit_loss
 
-        self.noise_model: MultiChannelNoiseModel | None = (
-            multichannel_noise_model_factory(self.config.noise_model)
-        )
+        # The noise model is not part of the configuration; it is injected at training
+        # time via `set_noise_model` (or `CAREamist.train(noise_model=...)`).
+        # `on_fit_start` normalizes the raw model into data space; `None` until then.
+        # It is a frozen, loss-side artifact and is deliberately kept out of the module
+        # `state_dict` (assigned via `object.__setattr__` to avoid nn.Module
+        # registration); it is persisted separately via `on_save_checkpoint`.
+        self._raw_noise_model: MultiChannelNoiseModel | None = None
+        self.noise_model: MultiChannelNoiseModel | None = None
         self.predict_logvar: bool = self.config.model.predict_logvar
 
         self.metrics: MetricCollection = MetricCollection(
@@ -101,14 +110,73 @@ class MicroSplitModule(L.LightningModule):
 
         self.n_samples: int = 1
 
+    def set_noise_model(
+        self, noise_model: MultiChannelNoiseModel | Sequence[str | Path]
+    ) -> None:
+        """Attach a trained noise model for the noise model (denoiSplit) likelihood.
+
+        The noise model is a training-time, loss-side artifact and is not part of the
+        configuration. It is validated against the model here and normalized into data
+        space at `on_fit_start`. Provide it before `trainer.fit` (or via
+        `CAREamist.train(noise_model=...)`).
+
+        Parameters
+        ----------
+        noise_model : MultiChannelNoiseModel or sequence of str or Path
+            The trained (raw-space) noise model, or the per-channel ``.npz`` paths to
+            load it from.
+
+        Raises
+        ------
+        ValueError
+            If the noise model channel count does not match the model output channels.
+        """
+        nm = resolve_noise_model(noise_model)
+        check_noise_model_channels(nm, self.config.model.output_channels)
+        if self.config.loss.noise_model_likelihood_weight == 0:
+            warnings.warn(
+                "A noise model was set but noise_model_likelihood_weight is 0, so the "
+                "noise model likelihood is disabled and the noise model will not be "
+                "used.",
+                UserWarning,
+                stacklevel=2,
+            )
+        # keep the noise model out of the module state_dict (see __init__)
+        object.__setattr__(self, "_raw_noise_model", nm)
+
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Persist the raw-space noise model into the checkpoint.
+
+        Stored under a dedicated key (not in the ``Configuration``) so continued
+        training can restore it. Prediction never needs it.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint dictionary being saved.
+        """
+        save_noise_model_to_checkpoint(self._raw_noise_model, checkpoint)
+
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Restore the raw-space noise model from the checkpoint, if present.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint dictionary being loaded.
+        """
+        restored = load_noise_model_from_checkpoint(checkpoint)
+        if restored is not None:
+            object.__setattr__(self, "_raw_noise_model", restored)
+
     def on_fit_start(self) -> None:
         """Validate the supervised-training and noise model requirements.
 
-        When the noise model likelihood is used, the noise model is rebuilt from the
-        (raw-space) configuration and transformed into normalized data space using
-        each channel's statistics from the training dataset normalization, which must
-        therefore be `MeanStdNormalization`. Rebuilding from the configuration keeps
-        this hook idempotent (e.g. when resuming from a checkpoint).
+        When the noise model likelihood is used, the injected noise model is normalized
+        into data space using each channel's statistics from the training dataset
+        normalization, which must therefore be `MeanStdNormalization`. Rebuilding the
+        normalized copy from the raw model keeps this hook idempotent (e.g. when
+        resuming from a checkpoint).
 
         Raises
         ------
@@ -134,10 +202,12 @@ class MicroSplitModule(L.LightningModule):
                 "MicroSplit is supervised: `val_data_target` must be provided."
             )
         if self.config.loss.noise_model_likelihood_weight > 0:
-            if self.noise_model is None:
+            if self._raw_noise_model is None:
                 raise ValueError(
                     "The noise model likelihood (noise_model_likelihood_weight > 0) "
-                    "requires a noise model. Provide one in the configuration."
+                    "requires a noise model. Provide one via "
+                    "`CAREamist.train(noise_model=...)` or "
+                    "`MicroSplitModule.set_noise_model(...)`."
                 )
             # the noise model likelihood operates in normalized data space, so the
             # per-channel statistics are recovered from the training normalization
@@ -151,12 +221,16 @@ class MicroSplitModule(L.LightningModule):
             # target statistics when supervised, input statistics otherwise
             means = normalization.target_means or normalization.input_means
             stds = normalization.target_stds or normalization.input_stds
-            # rebuild the raw-space model from the config, then normalize each
-            # channel's model with that channel's statistics
-            raw_noise_model = multichannel_noise_model_factory(self.config.noise_model)
-            assert raw_noise_model is not None
-            self.noise_model = raw_noise_model.get_normalized_copy(
-                [float(m) for m in means], [float(s) for s in stds]
+            # normalize the injected raw-space model into data space. Rebuilding the
+            # normalized copy from the raw model each fit keeps this hook idempotent
+            # (e.g. when resuming from a checkpoint). Kept out of state_dict (see
+            # __init__).
+            object.__setattr__(
+                self,
+                "noise_model",
+                self._raw_noise_model.get_normalized_copy(
+                    [float(m) for m in means], [float(s) for s in stds]
+                ),
             )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
