@@ -28,6 +28,7 @@ from .lightning.modules import (
 )
 from .lightning.prediction import convert_prediction
 from .lightning.utils import (
+    TrainingReport,
     load_config_from_checkpoint,
     load_module_from_checkpoint,
     read_csv_logger,
@@ -58,7 +59,7 @@ class CAREamist:
     ----------
     config : Configuration | Path | str, default=None
         CAREamics configuration, or a path to a configuration file. See
-        `careamics.config.ng_factories` for method to build configurations.
+        `careamics.config.factories` for method to build configurations.
     checkpoint_path : Path | str, default=None
         Path to a checkpoint file from which to load the model and configuration.
     bmz_path : Path | str, default=None
@@ -113,7 +114,7 @@ class CAREamist:
         ----------
         config : Configuration | Path | str, default=None
             CAREamics configuration, or a path to a configuration file. See
-            `careamics.config.ng_factories` for method to build configurations. `config`
+            `careamics.config.factories` for method to build configurations. `config`
             is mutually exclusive with `checkpoint_path` and `bmz_path`.
         checkpoint_path : Path | str, default=None
             Path to a checkpoint file from which to load the model and configuration.
@@ -796,6 +797,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -815,6 +817,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -833,6 +836,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -871,6 +875,9 @@ class CAREamist:
             Overlap between tiles, can be None.
         axes : str, optional
             Axes of the input data, by default None.
+        target_axes : str | None, default=None
+            Axes for prediction target data. If None, uses target axes from the training
+            configuration.
         data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
         num_workers : int, optional
@@ -908,6 +915,7 @@ class CAREamist:
             tile_size=tile_size,
             tile_overlap=tile_overlap,
             axes=axes,
+            target_axes=target_axes,
             data_type=data_type,
             num_workers=num_workers,
             channels=channels,
@@ -972,6 +980,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -998,6 +1007,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1023,6 +1033,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        target_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1078,6 +1089,9 @@ class CAREamist:
             Overlap between tiles.
         axes : str, optional
             Axes of the input data, by default None.
+        target_axes : str | None, default=None
+            Axes for prediction target data. If None, uses target axes from the training
+            configuration.
         data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
         num_workers : int, optional
@@ -1166,6 +1180,7 @@ class CAREamist:
             tile_size=tile_size,
             tile_overlap=tile_overlap,
             axes=axes,
+            target_axes=target_axes,
             data_type=data_type,
             num_workers=num_workers,
             channels=channels,
@@ -1309,16 +1324,18 @@ class CAREamist:
             channel_names=channel_names,
         )
 
-    def get_losses(self) -> dict[str, list]:
-        """Return data that can be used to plot train and validation loss curves.
+    def get_losses(self) -> TrainingReport:
+        """Return plottable training curves from Lightning CSV logs.
 
         Returns
         -------
-        dict of str: list
-            Dictionary containing losses for each epoch.
+        TrainingReport
+            Dataclass containing train and validation loss, learning rate, and any
+            discovered validation metrics.
         """
         return read_csv_logger(
-            self.config.get_safe_experiment_name(), self.work_dir / "csv_logs"
+            self.work_dir / "csv_logs",
+            self.config.get_safe_experiment_name(),
         )
 
     def stop_training(self) -> None:
