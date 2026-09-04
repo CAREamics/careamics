@@ -442,15 +442,11 @@ class CoLogger(Logger):
         for key, value in params.items():
             if value is None:
                 continue  # skip None values
-            if isinstance(value, (int, float, str, bool, tuple, list)):
+            if isinstance(value, (int, float, str, bool)):
                 checked_params[key] = value
             elif isinstance(value, torch.Tensor):
                 checked_params[key] = value.item()
             else:
-                print(
-                    f"Value for key '{key}' is of type {type(value)}, "
-                    "which is not supported. "
-                    "Supported types are int, float, str, bool, and torch.Tensor."
-                )
+                checked_params[key] = str(value)  # convert to string
 
         return checked_params
