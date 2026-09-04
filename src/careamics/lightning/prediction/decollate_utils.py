@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from typing import Any, cast
 
 import numpy as np
+import torch
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.patching import PatchSpecs
@@ -41,8 +42,8 @@ def _is_string_scalar(value: Any) -> bool:
     return isinstance(value, str | bytes)
 
 
-def _is_tensor_like(value: Any) -> bool:
-    """Return whether a value behaves like a tensor.
+def _is_tensor(value: Any) -> bool:
+    """Return whether a value is a tensor.
 
     Parameters
     ----------
@@ -52,9 +53,9 @@ def _is_tensor_like(value: Any) -> bool:
     Returns
     -------
     bool
-        True if the value exposes tensor-like indexing.
+        True if the value is a Tensor.
     """
-    return hasattr(value, "ndim") and hasattr(value, "__getitem__")
+    return isinstance(value, torch.Tensor)
 
 
 def _extract_tensor_item(value: Any) -> Any:
@@ -119,7 +120,7 @@ def _decollate_batch_value(value: Any, index: int) -> Any:
 
         return list(extracted_tuple)
 
-    if _is_tensor_like(value):
+    if _is_tensor(value):
         return _extract_tensor_item(value[index])
 
     return value
@@ -182,9 +183,9 @@ def decollate_image_region_data(
             data_shape=data_shape,
             axes=batch.axes[i],
             target_axes=batch.target_axes[i],
+            original_data_shape=original_data_shape,
             region_spec=region_spec,
             additional_metadata=additional_metadata,
-            original_data_shape=original_data_shape,
         )
         decollated.append(image_region)
 

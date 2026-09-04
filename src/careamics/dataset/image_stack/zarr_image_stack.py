@@ -1,6 +1,7 @@
 """ImageStack implementation for Zarr-backed images."""
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 from numpy.typing import DTypeLike, NDArray
@@ -8,7 +9,12 @@ from numpy.typing import DTypeLike, NDArray
 from careamics.utils.reshape_array import AxesTransform, get_patch_slices, reshape_patch
 
 from .image_utils.image_stack_utils import pad_patch
-from .zarr_access import ZarrAccessProtocol, ZarrNode, ZarrPythonAccess
+from .zarr_access import (
+    ZarrAccessProtocol,
+    ZarrNode,
+    ZarrPythonAccess,
+    build_default_ome_metadata,
+)
 
 
 class ZarrImageStack:
@@ -23,6 +29,8 @@ class ZarrImageStack:
         Axis order (e.g. STCZYX).
     access : ZarrAccessProtocol or None, default=None
         Zarr backend access implementation.
+    additional_metadata : dict[str, Any] or None, default=None
+        Additional metadata associated with the array.
     """
 
     def __init__(
@@ -30,6 +38,7 @@ class ZarrImageStack:
         node: ZarrNode,
         axes: str,
         access: ZarrAccessProtocol | None = None,
+        additional_metadata: dict[str, Any] | None = None,
     ):
         """Constructor.
 
@@ -41,11 +50,16 @@ class ZarrImageStack:
             Axis order (e.g. STCZYX).
         access : ZarrAccessProtocol or None, default=None
             Zarr backend access implementation.
+        additional_metadata : dict[str, Any] or None, default=None
+            Additional metadata associated with the array.
         """
         self._access = ZarrPythonAccess() if access is None else access
         self._node = node
+        self._additional_metadata = (
+            {} if additional_metadata is None else dict(additional_metadata)
+        )
 
-        if self._access.resolve_node_type(node) != "array":
+        if self._access.resolve_node_type(node).node_type != "array":
             raise TypeError(f"Node '{node.source}' must point to a zarr.Array.")
 
         self._source = node.source
@@ -101,15 +115,22 @@ class ZarrImageStack:
         return self._shard_size
 
     @property
-    def additional_metadata(self) -> dict[str, Sequence[int]]:
+    def additional_metadata(self) -> dict[str, Any]:
         """Format-specific metadata.
 
         Returns
         -------
-        dict[str, Sequence[int]]
+        dict[str, Any]
             Additional metadata for the Zarr array.
         """
-        metadata: dict[str, Sequence[int]] = {"chunks": self.chunks}
+        metadata = dict(self._additional_metadata)
+        if "ome" not in metadata:
+            metadata["ome"] = build_default_ome_metadata(
+                self._node,
+                self._original_axes,
+            ).to_dict()
+
+        metadata["chunks"] = self.chunks
 
         if self.shards is not None:
             metadata["shards"] = self.shards
