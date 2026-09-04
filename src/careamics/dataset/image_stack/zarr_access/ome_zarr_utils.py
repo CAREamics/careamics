@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import Any, TypeAlias
+from typing import Any, Literal, TypeAlias
 
 import zarr
 from pydantic import ValidationError
@@ -15,6 +15,169 @@ from .zarr_access_protocol import ZarrNode
 from .zarr_access_utils import file_uri_to_path
 
 OMEType: TypeAlias = Image | Bf2Raw | Plate | LabelImage | Series
+
+
+# --- Internal OME-NGFF metadata representation
+
+
+@dataclass(frozen=True)
+class ResolvedOMEZarrNode:
+    """Resolved OME-Zarr array node and metadata."""
+
+    node: ZarrNode
+    additional_metadata: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class OMEZarrMetadata:
+    """Internal OME-Zarr metadata representation.
+
+    Attributes
+    ----------
+    layout : {"image", "collection"}
+        OME-Zarr layout category for the source. Image corresponds to a single OME-NGFF
+        multiscale image, while collection relates to the bioformats2raw layout for
+        multi-image storage.
+    image_group_path : str
+        Path to the OME image group within the store.
+    level : str
+        Multiscale level path.
+    axes : list[dict[str, Any]]
+        Serialized OME axis metadata for the selected image.
+    coordinate_transformations : list[dict[str, Any]]
+        Serialized coordinate transformations for the selected level.
+    version : str
+        OME-NGFF version string.
+    """
+
+    layout: Literal["image", "collection"]
+    image_group_path: str
+    level: str
+    axes: list[dict[str, Any]]
+    coordinate_transformations: list[dict[str, Any]]
+    version: str = "0.5"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the metadata as a dictionary.
+
+        Returns
+        -------
+        dict[str, Any]
+            Metadata as dictionary.
+        """
+        metadata = {
+            "layout": self.layout,
+            "image_group_path": self.image_group_path,
+            "level": self.level,
+            "axes": self.axes,
+            "coordinate_transformations": self.coordinate_transformations,
+            "version": self.version,
+        }
+        return metadata
+
+    def to_additional_metadata(self) -> dict[str, Any]:
+        """Return the additional metadata payload.
+
+        Returns
+        -------
+        dict[str, Any]
+            Dictionary holding the metadata with the `ome` key.
+        """
+        return {"ome": self.to_dict()}
+
+
+# TODO should we impose here the constraints on axes (len >=2,<=5, unique) in OME-NGFF?
+def _default_axes_metadata(axes: str) -> list[dict[str, Any]]:
+    """Return default OME axis metadata from CAREamics axes.
+
+    Parameters
+    ----------
+    axes : str
+        CAREamics axes.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        OME axis metadata.
+    """
+    metadata = []
+    for axis_name in axes:
+        if axis_name in {"Z", "Y", "X"}:
+            metadata.append({"name": axis_name.lower(), "type": "space"})
+        elif axis_name == "T":
+            metadata.append({"name": "t", "type": "time"})
+        elif axis_name == "C":
+            metadata.append({"name": "c", "type": "channel"})
+        else:
+            metadata.append({"name": axis_name.lower(), "type": "custom"})
+    return metadata
+
+
+def build_default_ome_metadata(node: ZarrNode, axes: str) -> OMEZarrMetadata:
+    """Build default OME metadata for a non-OME Zarr array.
+
+    Parameters
+    ----------
+    node : ZarrNode
+        Array node.
+    axes : str
+        CAREamics axes.
+
+    Returns
+    -------
+    OMEZarrMetadata
+        Default OME metadata.
+    """
+    is_img_layout = node.path == ""
+
+    axes_metadata = _default_axes_metadata(axes)
+    return OMEZarrMetadata(
+        layout="image" if is_img_layout else "collection",
+        image_group_path="" if is_img_layout else node.path,
+        level="0",
+        axes=axes_metadata,
+        coordinate_transformations=[
+            {"type": "scale", "scale": [1.0] * len(axes_metadata)}
+        ],
+    )
+
+
+def build_ome_metadata(
+    image_group_path: str,
+    level: str,
+    ome_metadata: Image,
+) -> OMEZarrMetadata:
+    """Build internal OME metadata from validated OME-Zarr metadata.
+
+    Parameters
+    ----------
+    image_group_path : str
+        Path to the OME image group within the store.
+    level : str
+        Multiscale level.
+    ome_metadata : Image
+        OME image metadata.
+
+    Returns
+    -------
+    OMEZarrMetadata
+        Internal OME metadata.
+    """
+    is_img_layout = image_group_path == ""
+
+    _, dataset_metadata = _resolve_dataset(ome_metadata, level)
+    coordinate_transformations = dataset_metadata.coordinateTransformations
+    transforms = [_model_to_dict(transform) for transform in coordinate_transformations]
+
+    return OMEZarrMetadata(
+        layout="image" if is_img_layout else "collection",
+        image_group_path=image_group_path,
+        level=level,
+        axes=[_model_to_dict(axis) for axis in ome_metadata.multiscales[0].axes],
+        coordinate_transformations=transforms,
+        version=ome_metadata.version,
+    )
+
 
 # --- Supported metadata utilities
 
@@ -42,6 +205,8 @@ def _raise_for_unsupported_ome_metadata(ome_metadata: OMEType, source: str) -> N
         raise NotImplementedError(
             f"OME-Zarr label hierarchies are not supported yet: '{source}'."
         )
+
+    # guard against a node pointing at an "OME" group containing series
     if isinstance(ome_metadata, Series):
         raise NotImplementedError(
             "Series metadata cannot be directly used for loading images."
@@ -55,7 +220,7 @@ def _raise_for_unsupported_ome_metadata(ome_metadata: OMEType, source: str) -> N
             )
 
 
-# --- OME-NGFF metadata
+# --- OME-NGFF metadata operations
 
 
 def _get_ome_metadata(group: zarr.Group) -> OMEType | None:
@@ -113,7 +278,7 @@ def _resolve_dataset(
     multiscales = ome_metadata.multiscales
     if len(multiscales) > 1:
         raise ValueError(
-            f"Expected a single multiscale pyramid, got {len(multiscales)}"
+            f"Expected a single multiscale pyramid, got {len(multiscales)}."
         )
 
     datasets = multiscales[0].datasets
@@ -161,31 +326,23 @@ def _get_collection_image_paths(group: zarr.Group) -> list[str]:
     )
 
 
-def _image_metadata_to_dict(ome_metadata: Image) -> dict[str, Any]:
-    """Return a dict from a yaozarrs.Image OME-NGFF metadata.
+def _model_to_dict(model: Any) -> dict[str, Any]:
+    """Return a Pydantic model as a dictionary.
 
     Parameters
     ----------
-    ome_metadata : Image
-        OME-NGFF metadata for an image.
+    model : Any
+        Pydantic model.
 
     Returns
     -------
     dict[str, Any]
-        OME-NGFF metadata as a dictionary.
+        Model as a dictionary.
     """
-    return ome_metadata.model_dump(mode="json", by_alias=True, exclude_none=True)
+    return model.model_dump(mode="json", by_alias=True, exclude_none=True)
 
 
 # ---
-
-
-@dataclass(frozen=True)
-class ResolvedOMEZarrNode:
-    """Resolved OME-Zarr array node and metadata."""
-
-    node: ZarrNode
-    additional_metadata: dict[str, Any]
 
 
 def _open_group(node: ZarrNode) -> zarr.Group:
@@ -224,57 +381,19 @@ def _open_group(node: ZarrNode) -> zarr.Group:
     return group
 
 
-# TODO revisit
-def _build_ome_additional_metadata(
-    image_group_path: str,
-    dataset_path: str,
-    ome_metadata: Image,
-    dataset_metadata: Dataset,
-) -> dict[str, Any]:
-    """Build CAREamics metadata for an OME-resolved array.
-
-    Parameters
-    ----------
-    image_group_path : str
-        Path to the OME image group within the store.
-    dataset_path : str
-        Selected multiscale dataset path.
-    ome_metadata : dict[str, Any]
-        OME image metadata.
-    dataset_metadata : dict[str, Any]
-        Selected dataset metadata.
-
-    Returns
-    -------
-    dict[str, Any]
-        Additional metadata for the resolved image stack.
-    """
-    multiscales = ome_metadata.multiscales
-    axes = multiscales[0].axes
-
-    return {
-        "ome": {
-            "is_ome_zarr": True,
-            "version": ome_metadata.version,
-            "image_group_path": image_group_path,
-            "multiscale_level": dataset_path,
-            "axes": axes,
-            "dimension_names": [axis.name for axis in axes],
-            "dataset": dataset_metadata,
-            "multiscales": multiscales,
-        }
-    }
-
-
 def resolve_ome_zarr_nodes(
-    node: ZarrNode,
+    group_node: ZarrNode,
     level: str = "0",
 ) -> list[ResolvedOMEZarrNode]:
-    """Resolve OME-Zarr root or image-group nodes to concrete array nodes.
+    """Resolve a Zarr node to concrete OME zarr nodes.
+
+    Since only single multiscale pyramid are supported, this method returns a
+    single node for a zarr node containing an array with OME-Zarr Metadata. For
+    bioformats2raw.layout, it returns all arrays in the serie as Zarr nodes.
 
     Parameters
     ----------
-    node : ZarrNode
+    group_node : ZarrNode
         Zarr group node to resolve.
     level : str, default="0"
         Multiscale level to select.
@@ -284,23 +403,23 @@ def resolve_ome_zarr_nodes(
     list[ResolvedOMEZarrNode]
         Resolved array nodes with associated OME metadata.
     """
-    if node.node_type is not None and node.node_type != "group":
+    if group_node.node_type is not None and group_node.node_type != "group":
         raise ValueError(
-            f"Wrong ZarrNode node type, expected `group`, got `{node.node_type}`."
+            f"Wrong ZarrNode node type, expected `group`, got `{group_node.node_type}`."
         )
 
-    group = _open_group(node)
+    group = _open_group(group_node)
     ome_metadata = _get_ome_metadata(group)
     if ome_metadata is None:
         return []
 
     # raise error for unsupported Plate and LabelImage
-    _raise_for_unsupported_ome_metadata(ome_metadata, node.source)
+    _raise_for_unsupported_ome_metadata(ome_metadata, group_node.source)
 
     # single multiscale Image
     if isinstance(ome_metadata, Image):
         dataset_path, _ = _resolve_dataset(ome_metadata, level)
-        image_group_path = node.path
+        image_group_path = group_node.path
         resolved_path = (
             dataset_path
             if image_group_path == ""
@@ -309,11 +428,15 @@ def resolve_ome_zarr_nodes(
         return [
             ResolvedOMEZarrNode(
                 node=ZarrNode(
-                    store_uri=node.store_uri,
+                    store_uri=group_node.store_uri,
                     path=resolved_path,
                     node_type="array",
                 ),
-                additional_metadata=_image_metadata_to_dict(ome_metadata),
+                additional_metadata=build_ome_metadata(
+                    image_group_path=image_group_path,
+                    level=dataset_path,
+                    ome_metadata=ome_metadata,
+                ).to_additional_metadata(),
             )
         ]
     # collection of images
@@ -321,7 +444,7 @@ def resolve_ome_zarr_nodes(
         resolved_nodes: list[ResolvedOMEZarrNode] = []
         for image_group_path in _get_collection_image_paths(group):
             child_node = ZarrNode(
-                store_uri=node.store_uri,
+                store_uri=group_node.store_uri,
                 path=image_group_path,
                 node_type="group",
             )
@@ -331,12 +454,12 @@ def resolve_ome_zarr_nodes(
     return []
 
 
-def get_ome_array_metadata(node: ZarrNode) -> dict[str, Any]:
+def get_ome_array_metadata(array_node: ZarrNode) -> dict[str, Any]:
     """Return OME metadata for an OME array node.
 
     Parameters
     ----------
-    node : ZarrNode
+    array_node : ZarrNode
         Array node to inspect.
 
     Returns
@@ -344,28 +467,28 @@ def get_ome_array_metadata(node: ZarrNode) -> dict[str, Any]:
     dict[str, Any]
         Additional metadata for the explicit array.
     """
-    if node.node_type is not None and node.node_type != "array":
+    if array_node.node_type is not None and array_node.node_type != "array":
         raise ValueError(
-            f"Wrong ZarrNode node type, expected `array`, got `{node.node_type}`."
+            f"Wrong ZarrNode node type, expected `array`, got `{array_node.node_type}`."
         )
 
     # arrays in root are not OME compatible
-    if node.path == "":
+    if array_node.path == "":
         return {}
 
     parent_node = ZarrNode(
-        store_uri=node.store_uri,
-        path=node.parent_path,
+        store_uri=array_node.store_uri,
+        path=array_node.parent_path,
         node_type="group",
     )
 
     try:
-        resolved_nodes = resolve_ome_zarr_nodes(parent_node, level=node.basename)
+        resolved_nodes = resolve_ome_zarr_nodes(parent_node, level=array_node.basename)
     except (ValueError, NotImplementedError):
         return {}
 
     for resolved in resolved_nodes:
-        if resolved.node.path == node.path:
+        if resolved.node.path == array_node.path:
             return resolved.additional_metadata
 
     return {}
