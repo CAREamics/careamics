@@ -42,12 +42,12 @@ class ResidualBlock(nn.Module):
         The number of input and output channels (they are the same).
     nonlin : Callable
         The non-linearity function used in the block (e.g., `nn.ReLU`).
+    dropout : float
+        The dropout probability in dropout layers.
     conv_strides : Sequence[int], optional
         The convolution strides, used to infer the convolution dimensionality.
     groups : int, optional
         The number of groups to consider in the convolutions. Default is 1.
-    dropout : float, optional
-        The dropout probability in dropout layers. Default is `None`.
     gated : bool, optional
         Whether to append a gating layer at the end of the block. Default is `False`.
     """
@@ -58,9 +58,9 @@ class ResidualBlock(nn.Module):
         self,
         channels: int,
         nonlin: Callable,
+        dropout: float,
         conv_strides: Sequence[int] = (2, 2),
         groups: int = 1,
-        dropout: float | None = None,
         gated: bool = False,
     ):
         """
@@ -72,13 +72,13 @@ class ResidualBlock(nn.Module):
             The number of input and output channels (they are the same).
         nonlin : Callable
             The non-linearity function used in the block (e.g., `nn.ReLU`).
+        dropout : float
+            The dropout probability in dropout layers.
         conv_strides : tuple of int, optional
             The convolution strides, used to infer the convolution dimensionality.
             Default is `(2, 2)`.
         groups : int, optional
             The number of groups to consider in the convolutions. Default is 1.
-        dropout : float, optional
-            The dropout probability in dropout layers. Default is `None`.
         gated : bool, optional
             Whether to append a gating layer at the end of the block. Default is
             `False`.
@@ -290,14 +290,14 @@ class BottomUpDeterministicResBlock(nn.Module):
         The number of output channels.
     conv_strides : Sequence[int]
         The convolution strides, used to infer the convolution dimensionality.
+    dropout : float
+        The dropout probability in dropout layers.
     nonlin : Callable, optional
         The non-linearity function used in the block. Default is `nn.LeakyReLU`.
     downsample : bool, optional
         Whether to downsample by a factor 2 in `pre_conv`. Default is `False`.
     groups : int, optional
         The number of groups to consider in the convolutions. Default is 1.
-    dropout : float, optional
-        The dropout probability in dropout layers. Default is `None`.
     gated : bool, optional
         Whether to use a gated residual block. Default is `False`.
     """
@@ -307,10 +307,10 @@ class BottomUpDeterministicResBlock(nn.Module):
         c_in: int,
         c_out: int,
         conv_strides: Sequence[int],
+        dropout: float,
         nonlin: Callable = _DEFAULT_NONLIN,
         downsample: bool = False,
         groups: int = 1,
-        dropout: Union[float, None] = None,
         gated: bool = False,
     ):
         """
@@ -324,6 +324,8 @@ class BottomUpDeterministicResBlock(nn.Module):
             The number of output channels.
         conv_strides : tuple of int
             The convolution strides, used to infer the convolution dimensionality.
+        dropout : float
+            The dropout probability in dropout layers.
         nonlin : Callable, optional
             The non-linearity function used in the block. Default is `nn.LeakyReLU`.
         downsample : bool, optional
@@ -331,8 +333,6 @@ class BottomUpDeterministicResBlock(nn.Module):
             `False`.
         groups : int, optional
             The number of groups to consider in the convolutions. Default is 1.
-        dropout : float, optional
-            The dropout probability in dropout layers. Default is `None`.
         gated : bool, optional
             Whether to use a gated residual block. Default is `False`.
         """
@@ -382,14 +382,14 @@ class TopDownDeterministicResBlock(nn.Module):
         The number of output channels.
     conv_strides : Sequence[int]
         The convolution strides, used to infer the convolution dimensionality.
+    dropout : float
+        The dropout probability in dropout layers.
     nonlin : Callable, optional
         The non-linearity function used in the block. Default is `nn.LeakyReLU`.
     upsample : bool, optional
         Whether to upsample by a factor 2 in `pre_conv`. Default is `False`.
     groups : int, optional
         The number of groups to consider in the convolutions. Default is 1.
-    dropout : float, optional
-        The dropout probability in dropout layers. Default is `None`.
     gated : bool, optional
         Whether to use a gated residual block. Default is `False`.
     """
@@ -399,10 +399,10 @@ class TopDownDeterministicResBlock(nn.Module):
         c_in: int,
         c_out: int,
         conv_strides: Sequence[int],
+        dropout: float,
         nonlin: Callable = _DEFAULT_NONLIN,
         upsample: bool = False,
         groups: int = 1,
-        dropout: Union[float, None] = None,
         gated: bool = False,
     ):
         """
@@ -416,6 +416,8 @@ class TopDownDeterministicResBlock(nn.Module):
             The number of output channels.
         conv_strides : tuple of int
             The convolution strides, used to infer the convolution dimensionality.
+        dropout : float
+            The dropout probability in dropout layers.
         nonlin : Callable, optional
             The non-linearity function used in the block. Default is `nn.LeakyReLU`.
         upsample : bool, optional
@@ -423,8 +425,6 @@ class TopDownDeterministicResBlock(nn.Module):
             `False`.
         groups : int, optional
             The number of groups to consider in the convolutions. Default is 1.
-        dropout : float, optional
-            The dropout probability in dropout layers. Default is `None`.
         gated : bool, optional
             Whether to use a gated residual block. Default is `False`.
         """
@@ -486,14 +486,14 @@ class BottomUpLayer(nn.Module):
         Number of `BottomUpDeterministicResBlock` modules stacked in this layer.
     n_filters : int
         Number of channels present throughout the layers of this block.
+    dropout : float
+        The dropout probability in dropout layers.
     conv_strides : Sequence[int], optional
         The convolution strides, used to infer the convolution dimensionality.
     downsampling_steps : int, optional
         Number of downsampling steps done in this layer (typically 1). Default is 0.
     nonlin : Callable, optional
         The non-linearity function used in the block. Default is `nn.LeakyReLU`.
-    dropout : float, optional
-        The dropout probability in dropout layers. Default is `None`.
     enable_multiscale : bool, optional
         Whether to enable multiscale (Lateral Contextualization). Default is `False`.
     multiscale_lowres_size_factor : int, optional
@@ -517,10 +517,10 @@ class BottomUpLayer(nn.Module):
         self,
         n_res_blocks: int,
         n_filters: int,
+        dropout: float,
         conv_strides: Sequence[int] = (2, 2),
         downsampling_steps: int = 0,
         nonlin: Callable = _DEFAULT_NONLIN,
-        dropout: float | None = None,
         enable_multiscale: bool = False,
         multiscale_lowres_size_factor: int | None = None,
         lowres_separate_branch: bool = False,
@@ -537,6 +537,8 @@ class BottomUpLayer(nn.Module):
             Number of `BottomUpDeterministicResBlock` modules stacked in this layer.
         n_filters : int
             Number of channels present through out the layers of this block.
+        dropout : float
+            The dropout probability in dropout layers.
         conv_strides : Sequence[int], optional
             The convolution strides, used to infer the convolution dimensionality.
             Default is `(2, 2)`.
@@ -546,9 +548,6 @@ class BottomUpLayer(nn.Module):
             Default is 0.
         nonlin : Callable, optional
             The non-linearity function used in the block. Default is `None`.
-        dropout : float, optional
-            The dropout probability in dropout layers. If `None` dropout is not used.
-            Default is `None`.
         enable_multiscale : bool, optional
             Whether to enable multiscale (Lateral Contextualization) or not. Default is
             `False`.
@@ -622,10 +621,10 @@ class BottomUpLayer(nn.Module):
 
     def _init_multiscale(
         self,
+        n_filters: int,
+        dropout: float,
         nonlin: Callable = _DEFAULT_NONLIN,
-        n_filters: int | None = None,
         conv_strides: Sequence[int] = (2, 2),
-        dropout: float | None = None,
     ) -> None:
         """
         Bottom-up layer's method that initializes the LC modules.
@@ -643,16 +642,15 @@ class BottomUpLayer(nn.Module):
 
         Parameters
         ----------
-        nonlin : Callable, optional
-            The non-linearity function used in the block. Default is `None`.
         n_filters : int
             Number of channels present through out the layers of this block.
+        dropout : float
+            The dropout probability in dropout layers.
+        nonlin : Callable, optional
+            The non-linearity function used in the block. Default is `nn.LeakyReLU`.
         conv_strides : Sequence[int], optional
             The convolution strides, used to infer the convolution dimensionality.
             Default is `(2, 2)`.
-        dropout : float, optional
-            The dropout probability in dropout layers. If `None` dropout is not used.
-            Default is `None`.
         """
         self.lowres_net = self.net
         if self.lowres_separate_branch:
@@ -759,21 +757,21 @@ class MergeLayer(nn.Module):
     ----------
     channels : Union[int, Iterable[int]]
         The number of channels used in the convolutional blocks of this layer.
+    dropout : float
+        The dropout probability in dropout layers.
     conv_strides : Sequence[int], optional
         The convolution strides, used to infer the convolution dimensionality.
         Default is `(2, 2)`.
     nonlin : Callable, optional
         The non-linearity function used in the block. Default is `nn.LeakyReLU`.
-    dropout : float, optional
-        The dropout probability in dropout layers. Default is `None`.
     """
 
     def __init__(
         self,
         channels: Union[int, Iterable[int]],
+        dropout: float,
         conv_strides: Sequence[int] = (2, 2),
         nonlin: Callable = _DEFAULT_NONLIN,
-        dropout: float | None = None,
     ):
         """
         Constructor.
@@ -789,13 +787,12 @@ class MergeLayer(nn.Module):
                 - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]),
                 out_channels=channels[-1]
                 - ResBlock: in_channels=channels[-1], out_channels=channels[-1]
+        dropout : float
+            The dropout probability in dropout layers.
         conv_strides : tuple, optional
             The strides used in the convolutions. Default is `(2, 2)`.
         nonlin : Callable, optional
             The non-linearity function used in the block. Default is `nn.LeakyReLU`.
-        dropout : float, optional
-            The dropout probability in dropout layers. If `None` dropout is not used.
-            Default is `None`.
         """
         super().__init__()
         if isinstance(channels, int):
@@ -958,6 +955,10 @@ class TopDownLayer(nn.Module):
         The number of channels present through out the layers of this block.
     conv_strides : Sequence[int]
         The convolution strides, used to infer the convolution dimensionality.
+    input_image_shape : Sequence[int]
+        The shape of the input image tensor.
+    dropout : float
+        The dropout probability in dropout layers.
     is_top_layer : bool, optional
         Whether the current layer is at the top of the Decoder hierarchy.
         Default is `False`.
@@ -966,8 +967,6 @@ class TopDownLayer(nn.Module):
         `None`.
     nonlin : Callable, optional
         The non-linearity function used in the block. Default is `nn.LeakyReLU`.
-    dropout : float, optional
-        The dropout probability in dropout layers. Default is `None`.
     stochastic_skip : bool, optional
         Whether to use a skip connection around the stochastic block. Default `False`.
     learn_top_prior : bool, optional
@@ -978,8 +977,6 @@ class TopDownLayer(nn.Module):
         Whether the layer output keeps the input spatial size. Default is `False`.
     vanilla_latent_hw : Iterable[int], optional
         The spatial size of the latent used for prediction. Default is `None`.
-    input_image_shape : tuple[int, int], optional
-        The shape of the input image tensor. Default is `None`.
     normalize_latent_factor : float, optional
         A factor used to normalize the latent tensors. Default is 1.0.
     stochastic_use_naive_exponential : bool, optional
@@ -992,16 +989,16 @@ class TopDownLayer(nn.Module):
         n_res_blocks: int,
         n_filters: int,
         conv_strides: Sequence[int],
+        input_image_shape: Sequence[int],
+        dropout: float,
         is_top_layer: bool = False,
         upsampling_steps: Union[int, None] = None,
         nonlin: Callable = _DEFAULT_NONLIN,
-        dropout: Union[float, None] = None,
         stochastic_skip: bool = False,
         learn_top_prior: bool = False,
         top_prior_param_shape: Union[Iterable[int], None] = None,
         retain_spatial_dims: bool = False,
         vanilla_latent_hw: int | None = None,
-        input_image_shape: Sequence[int] | None = None,
         normalize_latent_factor: float = 1.0,
         stochastic_use_naive_exponential: bool = False,
     ):
@@ -1018,6 +1015,12 @@ class TopDownLayer(nn.Module):
             The number of channels present through out the layers of this block.
         conv_strides : tuple, optional
             The strides used in the convolutions. Default is `(2, 2)`.
+        input_image_shape : Sequence[int]
+            The shape of the input image tensor.
+            When `retain_spatial_dims` is set to `True`, this is used to ensure that the
+            shape of this layer output has the same shape as the input.
+        dropout : float
+            The dropout probability in dropout layers.
         is_top_layer : bool, optional
             Whether the current layer is at the top of the Decoder hierarchy. Default is
             `False`.
@@ -1028,9 +1031,6 @@ class TopDownLayer(nn.Module):
         nonlin : Callable, optional
             The non-linearity function used in the block (e.g., `nn.ReLU`). Default is
             `None`.
-        dropout : float, optional
-            The dropout probability in dropout layers. If `None` dropout is not used.
-            Default is `None`.
         stochastic_skip : bool, optional
             Whether to use skip connections between previous top-down layer's output and
             this layer's stochastic output.
@@ -1057,11 +1057,6 @@ class TopDownLayer(nn.Module):
             The shape of the latent tensor used for prediction (i.e., it influences the
             computation of restricted KL).
             Default is `None`.
-        input_image_shape : Tuple[int, int], optionalut
-            The shape of the input image tensor.
-            When `retain_spatial_dims` is set to `True`, this is used to ensure that the
-            shape of this layer
-            output has the same shape as the input. Default is `None`.
         normalize_latent_factor : float, optional
             A factor used to normalize the latent tensors `q_params`.
             Specifically, normalization is done by dividing the latent tensor by this
@@ -1081,7 +1076,6 @@ class TopDownLayer(nn.Module):
         self.stochastic_skip = stochastic_skip
         self.learn_top_prior = learn_top_prior
         self.retain_spatial_dims = retain_spatial_dims
-        assert input_image_shape is not None
         self.input_image_shape = (
             input_image_shape if len(conv_strides) == 3 else input_image_shape[1:]
         )

@@ -91,10 +91,8 @@ class LadderVAE(nn.Module):
             The number of scales for multiscale processing.
         z_dims : list[int]
             The dimensions of the latent space for each layer.
-        encoder_n_filters : int
-            The number of filters in the encoder.
-        decoder_n_filters : int
-            The number of filters in the decoder.
+        n_filters : int
+            The number of filters in the encoder and decoder.
         encoder_conv_strides : list[int]
             The strides for the conv layers encoder.
         decoder_conv_strides : list[int]
@@ -324,7 +322,9 @@ class LadderVAE(nn.Module):
 
             # TODO: check correctness of this
             if self._multiscale_count > 1:
-                output_expected_shape = (dim // 2 ** (i + 1) for dim in self.image_size)
+                output_expected_shape = tuple(
+                    dim // 2 ** (i + 1) for dim in self.image_size
+                )
             else:
                 output_expected_shape = None
 
@@ -351,9 +351,9 @@ class LadderVAE(nn.Module):
                     # is left as-is intentionally.
                     enable_multiscale=self.enable_multiscale,
                     multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
-                    multiscale_lowres_size_factor=multiscale_lowres_size_factor,  # type: ignore[arg-type]
+                    multiscale_lowres_size_factor=multiscale_lowres_size_factor,
                     decoder_retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
-                    output_expected_shape=output_expected_shape,  # type: ignore[arg-type]
+                    output_expected_shape=output_expected_shape,
                 )
             )
 
@@ -484,8 +484,6 @@ class LadderVAE(nn.Module):
         """
         stride = 1 if self.no_initial_downscaling else 2
         nonlin = get_activation(self.nonlin)
-        if self._multiscale_count is None:
-            self._multiscale_count = 1
 
         msg = (
             f"Multiscale count ({self._multiscale_count}) should not exceed the number"
