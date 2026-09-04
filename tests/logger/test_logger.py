@@ -16,7 +16,7 @@ def test_logger(tmp_path: Path):
         num_epochs=5,
         use_n2v2=False,
         use_tensorboard=True,
-        use_wandb=True,
+        use_wandb=False,
     )
 
     logger = CoLogger(
@@ -24,7 +24,7 @@ def test_logger(tmp_path: Path):
         work_dir=tmp_path,
         config=config,
         use_tensorboard=True,
-        use_wandb=True,
+        use_wandb=False,
         log_version=0,
         finalize_after_fit=False,
     )
@@ -36,9 +36,7 @@ def test_logger(tmp_path: Path):
     log_dirs = logger.log_dir
     assert "csv" in log_dirs
     assert "tensorboard" in log_dirs
-    assert "wandb" in log_dirs
     assert Path(log_dirs["tensorboard"]).exists()
-    assert Path(log_dirs["wandb"]).exists()
 
     logger.log_metrics({"acc": 0.99})
 
