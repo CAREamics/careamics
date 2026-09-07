@@ -4,17 +4,16 @@ from pprint import pformat
 from typing import Annotated, Literal, Self
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, model_validator
 
 from careamics.config.architectures import LVAEConfig
 from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.losses.loss_config import HDNLossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.config.validators import (
-    loss_type_is_hdn,
     model_with_single_output_channel,
     model_without_multiscale,
     noise_models_match_output_channels,
@@ -46,9 +45,7 @@ class HDNAlgorithm(BaseModel):
 
     algorithm: Literal["hdn"] = "hdn"
 
-    loss: Annotated[LVAELossConfig, AfterValidator(loss_type_is_hdn)] = LVAELossConfig(
-        loss_type="hdn"
-    )
+    loss: HDNLossConfig = HDNLossConfig()
 
     model: Annotated[
         LVAEConfig,
@@ -57,8 +54,6 @@ class HDNAlgorithm(BaseModel):
     ]
 
     noise_model: MultiChannelNMConfig | None = None
-
-    mmse_count: int = Field(default=1, ge=1)
 
     # overwrite default optimizer
     optimizer: OptimizerConfig = OptimizerConfig(name="Adamax")

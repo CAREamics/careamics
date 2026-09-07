@@ -9,7 +9,7 @@ import torch
 from careamics.config import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.config.algorithms import MicroSplitAlgorithm
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.losses.loss_config import MicroSplitLossConfig
 from careamics.dataset.factory import TrainValData
 from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
@@ -189,8 +189,8 @@ def test_microsplit_on_fit_start_normalizes_per_channel(tmp_path):
     nm_config = MultiChannelNMConfig(noise_models=[gmm_config] * 2)
 
     algorithm_config = MicroSplitAlgorithm(
-        loss=LVAELossConfig(
-            loss_type="microsplit", denoisplit_weight=0.9, musplit_weight=0.1
+        loss=MicroSplitLossConfig(
+            noise_model_likelihood_weight=0.9, gaussian_likelihood_weight=0.1
         ),
         model=LVAEConfig(architecture="LVAE", output_channels=2),
         noise_model=nm_config,

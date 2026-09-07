@@ -17,7 +17,7 @@ from careamics.config import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
 )
-from careamics.config.losses import LVAELossConfig
+from careamics.config.losses import MicroSplitLossConfig
 from careamics.config.support import SupportedLoss
 from careamics.losses.lvae.lvae_loss_factory import (
     lvae_loss_factory,
@@ -175,15 +175,14 @@ def test_KL_divergence_loss(
 @pytest.mark.parametrize("n_layers", [1, 4])
 @pytest.mark.parametrize("enable_lc", [False, True])
 def test_microsplit_loss_musplit_mode(batch_size, target_ch, n_layers, enable_lc):
-    """Pure musplit mode: musplit_weight > 0, denoisplit_weight = 0."""
+    """Pure musplit mode: gaussian weight > 0, noise-model weight = 0."""
     img_size = 32
     reconstruction = torch.rand(batch_size, target_ch * 2, img_size, img_size)
     target = torch.rand(batch_size, target_ch, img_size, img_size)
     td_data = _make_td_data(batch_size, n_layers, img_size, enable_lc)
-    config = LVAELossConfig(
-        loss_type="microsplit",
-        musplit_weight=1.0,
-        denoisplit_weight=0.0,
+    config = MicroSplitLossConfig(
+        gaussian_likelihood_weight=1.0,
+        noise_model_likelihood_weight=0.0,
         predict_logvar=True,
         logvar_lowerbound=-5.0,
     )
@@ -213,10 +212,9 @@ def test_microsplit_loss_denoisplit_mode(
     nm = init_noise_model(tmp_path, target_ch)
     _, _, means, stds = _target_stats(target)
     nm_norm = nm.get_normalized_copy(means, stds)
-    config = LVAELossConfig(
-        loss_type="microsplit",
-        musplit_weight=0.0,
-        denoisplit_weight=1.0,
+    config = MicroSplitLossConfig(
+        gaussian_likelihood_weight=0.0,
+        noise_model_likelihood_weight=1.0,
         predict_logvar=predict_logvar,
     )
     output = microsplit_loss(
@@ -230,8 +228,8 @@ def test_microsplit_loss_denoisplit_mode(
     assert torch.isfinite(output["loss"])
 
 
-@pytest.mark.parametrize("musplit_weight", [0.1, 0.5])
-def test_microsplit_loss_combined_mode(tmp_path, musplit_weight):
+@pytest.mark.parametrize("gaussian_likelihood_weight", [0.1, 0.5])
+def test_microsplit_loss_combined_mode(tmp_path, gaussian_likelihood_weight):
     """Combined musplit+denoisplit mode."""
     batch_size, target_ch, img_size = 4, 2, 32
     reconstruction = torch.rand(batch_size, target_ch * 2, img_size, img_size)
@@ -240,10 +238,9 @@ def test_microsplit_loss_combined_mode(tmp_path, musplit_weight):
     nm = init_noise_model(tmp_path, target_ch)
     _, _, means, stds = _target_stats(target)
     nm_norm = nm.get_normalized_copy(means, stds)
-    config = LVAELossConfig(
-        loss_type="microsplit",
-        musplit_weight=musplit_weight,
-        denoisplit_weight=1.0 - musplit_weight,
+    config = MicroSplitLossConfig(
+        gaussian_likelihood_weight=gaussian_likelihood_weight,
+        noise_model_likelihood_weight=1.0 - gaussian_likelihood_weight,
         predict_logvar=True,
     )
     output = microsplit_loss(
@@ -360,10 +357,9 @@ def test_equiv_musplit_loss(kl_weight):
     target = torch.rand(4, target_ch, img_size, img_size)
     td_data = _make_td_data(4, n_layers, img_size, enable_lc=False)
 
-    config = LVAELossConfig(
-        loss_type="microsplit",
-        musplit_weight=1.0,
-        denoisplit_weight=0.0,
+    config = MicroSplitLossConfig(
+        gaussian_likelihood_weight=1.0,
+        noise_model_likelihood_weight=0.0,
         predict_logvar=True,
         logvar_lowerbound=-5.0,
         reconstruction_weight=1.0,
@@ -418,10 +414,9 @@ def test_equiv_denoisplit_loss(tmp_path):
     data_mean, data_std, means, stds = _target_stats(target)
     nm_norm = nm.get_normalized_copy(means, stds)
 
-    config = LVAELossConfig(
-        loss_type="microsplit",
-        musplit_weight=0.0,
-        denoisplit_weight=1.0,
+    config = MicroSplitLossConfig(
+        gaussian_likelihood_weight=0.0,
+        noise_model_likelihood_weight=1.0,
         predict_logvar=True,
         reconstruction_weight=1.0,
         kl_weight=1.0,
@@ -475,10 +470,9 @@ def test_equiv_denoisplit_musplit_loss(tmp_path):
     data_mean, data_std, means, stds = _target_stats(target)
     nm_norm = nm.get_normalized_copy(means, stds)
 
-    config = LVAELossConfig(
-        loss_type="microsplit",
-        musplit_weight=musplit_w,
-        denoisplit_weight=denoisplit_w,
+    config = MicroSplitLossConfig(
+        gaussian_likelihood_weight=musplit_w,
+        noise_model_likelihood_weight=denoisplit_w,
         predict_logvar=True,
         logvar_lowerbound=-5.0,
         reconstruction_weight=1.0,

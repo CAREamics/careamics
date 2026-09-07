@@ -103,7 +103,7 @@ class XYFlip(Transform):
             return patch, target, additional_arrays
 
         # choose an axis to flip
-        axis = self.rng.choice(self.axis_indices)
+        axis = int(self.rng.choice(self.axis_indices))
 
         patch_transformed = self._apply(patch, axis)
         target_transformed = self._apply(target, axis) if target is not None else None

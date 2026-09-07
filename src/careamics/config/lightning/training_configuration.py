@@ -102,12 +102,15 @@ def default_training_dict(
     # parameters, we keep either user defined or the defaults
     # supervised algorithms monitor a meaningful validation loss, self-supervised ones
     # compare noisy pixels to noisy pixels and cannot be monitored by a metric
+    ranks_by_val_loss = algorithm in ("care", "microsplit", "hdn")
     supervised = algorithm in ("care", "microsplit")
 
     if checkpoint_params is None:
         # select default checkpointing preset based on algorithm
         default_ckpt_preset = (
-            SupervisedCheckpointing if supervised else SelfSupervisedCheckpointing
+            SupervisedCheckpointing
+            if ranks_by_val_loss
+            else SelfSupervisedCheckpointing
         )
         default_checkpoint = asdict(default_ckpt_preset())
         checkpoint_params = default_checkpoint

@@ -54,17 +54,17 @@ class TestMicroSplitConfig:
                 patch_size=[64, 64],
                 batch_size=8,
                 output_channels=2,
-                musplit_weight=0.3,
-                denoisplit_weight=0.7,
+                gaussian_likelihood_weight=0.3,
+                noise_model_likelihood_weight=0.7,
             )
-        assert config.algorithm_config.loss.musplit_weight == 0.3
-        assert config.algorithm_config.loss.denoisplit_weight == 0.7
+        assert config.algorithm_config.loss.gaussian_likelihood_weight == 0.3
+        assert config.algorithm_config.loss.noise_model_likelihood_weight == 0.7
 
     def test_predict_logvar_consistency(self):
         """Test that model and loss agree on predict_logvar.
 
         `predict_logvar=False` is only valid without the muSplit Gaussian likelihood
-        (`musplit_weight=0`), i.e. for pure denoiSplit.
+        (`gaussian_likelihood_weight=0`), i.e. for pure denoiSplit.
         """
         with pytest.warns(UserWarning):
             config = create_advanced_microsplit_config(
@@ -75,8 +75,8 @@ class TestMicroSplitConfig:
                 batch_size=8,
                 output_channels=2,
                 predict_logvar=False,
-                musplit_weight=0.0,
-                denoisplit_weight=1.0,
+                gaussian_likelihood_weight=0.0,
+                noise_model_likelihood_weight=1.0,
             )
         assert config.algorithm_config.model.predict_logvar is False
         assert config.algorithm_config.loss.predict_logvar is False
@@ -176,8 +176,8 @@ def test_normalization_none_rejected():
             batch_size=8,
             output_channels=2,
             multiscale_count=1,
-            musplit_weight=1.0,
-            denoisplit_weight=0.0,
+            gaussian_likelihood_weight=1.0,
+            noise_model_likelihood_weight=0.0,
             normalization="none",
         )
 
@@ -193,8 +193,8 @@ def test_alpha_ranges_must_match_output_channels():
             batch_size=8,
             output_channels=2,
             multiscale_count=1,
-            musplit_weight=1.0,
-            denoisplit_weight=0.0,
+            gaussian_likelihood_weight=1.0,
+            noise_model_likelihood_weight=0.0,
             alpha_ranges=[(0.0, 1.0)],
         )
 
