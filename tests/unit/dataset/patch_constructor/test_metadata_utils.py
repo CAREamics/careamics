@@ -32,11 +32,13 @@ def test_zarr_image_stack_additional_metadata_contains_chunks_and_shards(
         axes="SYX",
     )
 
-    assert image_stack.additional_metadata == {
-        "chunks": (1, 4, 4),
-        "shards": (2, 8, 8),
-    }
-    assert get_image_metadata(image_stack)["additional_metadata"] == {
-        "chunks": (1, 4, 4),
-        "shards": (2, 8, 8),
-    }
+    assert image_stack.additional_metadata["chunks"] == (1, 4, 4)
+    assert image_stack.additional_metadata["shards"] == (2, 8, 8)
+    assert image_stack.additional_metadata["ome"]["layout"] == "collection"
+    assert image_stack.additional_metadata["ome"]["image_group_path"] == "array_0"
+    assert image_stack.additional_metadata["ome"]["level"] == "0"
+
+    metadata = get_image_metadata(image_stack)["additional_metadata"]
+    assert metadata["chunks"] == (1, 4, 4)
+    assert metadata["shards"] == (2, 8, 8)
+    assert metadata["ome"]["layout"] == "collection"

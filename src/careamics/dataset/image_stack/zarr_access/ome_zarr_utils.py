@@ -87,7 +87,7 @@ class OMEZarrMetadata:
 
 
 # TODO should we impose here the constraints on axes (len >=2,<=5, unique) in OME-NGFF?
-def _default_axes_metadata(axes: str) -> list[dict[str, Any]]:
+def default_ome_axes_metadata(axes: str) -> list[dict[str, Any]]:
     """Return default OME axis metadata from CAREamics axes.
 
     Parameters
@@ -130,7 +130,7 @@ def build_default_ome_metadata(node: ZarrNode, axes: str) -> OMEZarrMetadata:
     """
     is_img_layout = node.path == ""
 
-    axes_metadata = _default_axes_metadata(axes)
+    axes_metadata = default_ome_axes_metadata(axes)
     return OMEZarrMetadata(
         layout="image" if is_img_layout else "collection",
         image_group_path="" if is_img_layout else node.path,

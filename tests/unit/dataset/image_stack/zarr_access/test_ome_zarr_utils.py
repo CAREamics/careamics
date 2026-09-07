@@ -6,11 +6,11 @@ from yaozarrs import v05
 
 from careamics.dataset.image_stack.zarr_access import ZarrNode, path_to_file_uri
 from careamics.dataset.image_stack.zarr_access.ome_zarr_utils import (
-    _default_axes_metadata,
     _get_collection_image_paths,
     _get_ome_metadata,
     _raise_for_unsupported_ome_metadata,
     _resolve_dataset,
+    default_ome_axes_metadata,
     get_ome_array_metadata,
     resolve_ome_zarr_nodes,
 )
@@ -148,7 +148,7 @@ FIXT_GROUP_TYPE_PAIRS = [
 @pytest.mark.parametrize("axes", ["ZYX", "CYX", "SCZYX"])
 def test_default_axes_metadata(axes):
     """Test that default axes are compatible with OME-NGFF."""
-    ome_axes = _default_axes_metadata(axes)
+    ome_axes = default_ome_axes_metadata(axes)
 
     assert len(ome_axes) == len(axes)
     for original, ome in zip(axes, ome_axes, strict=True):
