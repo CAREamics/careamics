@@ -13,9 +13,14 @@ from careamics.dataset.image_stack.zarr_access import (
     ZarrAccessProtocol,
     ZarrNode,
     ZarrPythonAccess,
+    create_ome_array,
+    ensure_ome_store_structure,
     file_uri_to_path,
+    get_ome_dimension_names,
     is_valid_uri,
     path_to_file_uri,
+    resolve_ome_output_node,
+    to_ome_write_target,
     to_zarr_node,
 )
 from careamics.dataset.patching import TileSpecs
@@ -277,7 +282,7 @@ def _get_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
         data_idx = region.region_spec["data_idx"]
         return ZarrNode(
             store_uri=path_to_file_uri(dirpath.joinpath("prediction.zarr")),
-            path=f"{data_idx}",
+            path=f"{data_idx}/0",
             node_type="array",
         )
     elif is_valid_uri(region.source):
@@ -285,24 +290,21 @@ def _get_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
         output_store_path = _add_output_key(
             dirpath, file_uri_to_path(source_node.store_uri)
         )
-        return ZarrNode(
-            store_uri=path_to_file_uri(output_store_path),
-            path=source_node.path,
-            node_type="array",
+        source_ome = region.additional_metadata.get("ome")
+        return resolve_ome_output_node(
+            source_node=source_node,
+            output_store_uri=path_to_file_uri(output_store_path),
+            source_ome=source_ome if isinstance(source_ome, dict) else None,
         )
     elif ".zarr" not in region.source:
         _source = Path(region.source)
-        data_idx = region.region_spec["data_idx"]
         return ZarrNode(
-            store_uri=path_to_file_uri(_source.parent.joinpath(f"{_source.stem}.zarr")),
-            path=f"{data_idx}",
+            store_uri=path_to_file_uri(dirpath.joinpath("prediction.zarr")),
+            path=f"{_source.stem}/0",
             node_type="array",
         )
     else:
-        raise NotImplementedError(
-            f"Invalid source: {region.source}. Currently, only predicting from "
-            f"array, Zarr, or TIFF files is supported when writing Zarr tiles."
-        )
+        raise NotImplementedError(f"Invalid source: {region.source}.")
 
 
 class ZarrTileWriteStrategy(WriteStrategy):
@@ -328,10 +330,11 @@ class ZarrTileWriteStrategy(WriteStrategy):
         self.access = ZarrPythonAccess() if access is None else access
         self.current_array: zarr.Array | None = None
         self._current_node_source: str | None = None
+        self._store_image_groups: dict[str, set[str]] = {}
 
     def set_source_base(self, source_base: Path | None) -> None:
         """
-        No-op.
+        No-op for Zarr writer.
 
         Parameters
         ----------
@@ -347,15 +350,19 @@ class ZarrTileWriteStrategy(WriteStrategy):
 
     def _create_array(
         self,
+        region: ImageRegionData,
         node: ZarrNode,
         shape: Sequence[int],
         shards: tuple[int, ...] | None,
         chunks: tuple[int, ...],
+        pred_axes: str,
     ) -> None:
         """Create a new array in an existing zarr store or group.
 
         Parameters
         ----------
+        region : ImageRegionData
+            Region to write.
         node : ZarrNode
             Output array node.
         shape : Sequence[int]
@@ -364,6 +371,8 @@ class ZarrTileWriteStrategy(WriteStrategy):
             Shard size for the array.
         chunks : tuple[int, ...]
             Chunk size for the array.
+        pred_axes : str
+            Prediction axes.
 
         Returns
         -------
@@ -380,12 +389,31 @@ class ZarrTileWriteStrategy(WriteStrategy):
                 f"Chunks {chunks} and shards {shards} have different lengths."
             )
 
-        self.current_array = self.access.create_array(
-            node=node,
-            shape=shape,
+        ome_target = to_ome_write_target(node)
+        store_key = ome_target.store_uri
+        if store_key not in self._store_image_groups:
+            self._store_image_groups[store_key] = set()
+        if ome_target.image_group_path != "":
+            # array is from a OME-NGFF collection, will be written as a collection
+            self._store_image_groups[store_key].add(ome_target.image_group_path)
+
+        source_ome = region.additional_metadata.get("ome")
+        ensure_ome_store_structure(
+            target=ome_target,
+            axes=pred_axes,
+            source_ome=source_ome if isinstance(source_ome, dict) else None,
+            image_group_paths=sorted(self._store_image_groups[store_key]),
+        )
+        self.current_array = create_ome_array(
+            target=ome_target,
+            shape=tuple(shape),
             shards=shards,
             chunks=chunks,
             dtype=float32,
+            dimension_names=get_ome_dimension_names(
+                pred_axes,
+                source_ome if isinstance(source_ome, dict) else None,
+            ),
         )
         self._current_node_source = node.source
 
@@ -416,10 +444,12 @@ class ZarrTileWriteStrategy(WriteStrategy):
             or self._current_node_source != output_node.source
         ):
             self._create_array(
+                region,
                 output_node,
                 handler.pred_array_shape,
                 handler.pred_shards,
                 handler.pred_chunks,
+                handler.pred_array_axes,
             )
 
         if self.current_array is None:
