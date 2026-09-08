@@ -54,7 +54,7 @@ def plot_loss(
     # plot figure
     fig = plt.figure(1, figsize=fig_size, layout="constrained")
 
-    plot_idx = 0
+    plot_idx = 1
     axis = fig.add_subplot(1, n_plots, plot_idx)
     axis.grid(alpha=0.35)
     axis.plot(
