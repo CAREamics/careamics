@@ -286,7 +286,7 @@ def get_seg_loss(loss_config: SegmentationLoss) -> Callable:
     Callable
         Corresponding loss function.
     """
-    parameters = loss_config.model_dump(exclude=set("name"))
+    parameters = loss_config.model_dump(exclude={"name"})
 
     if loss_config.name == "dice":
         return DiceLoss(**parameters)
