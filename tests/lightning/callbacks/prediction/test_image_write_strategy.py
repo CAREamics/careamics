@@ -59,7 +59,7 @@ def test_cache_tiles_init(write_func, write_image_strategy):
 
 def test_write_image_batch(write_image_strategy, ordered_array, mocker):
     """Test writing a batch."""
-    array = ordered_array((5, 1, 8, 8))  # C singleton dimension from predictions
+    array = ordered_array((5, 1, 8, 8))
 
     prediction = [
         ImageRegionData(
