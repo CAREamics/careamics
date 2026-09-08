@@ -41,7 +41,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: 🧪 Run Tests
-        run: uv run pytest --color=yes --cov --cov-config=pyproject.toml --cov-report=xml --cov-report=term-missing 
+        run: uv run pytest --color=yes --cov --cov-config=pyproject.toml --cov-report=xml --cov-report=term-missing  -m "not e2e"
 
       - name: Coverage
         uses: codecov/codecov-action@v7
