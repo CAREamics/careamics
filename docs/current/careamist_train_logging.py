@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 from careamics.careamist import CAREamist
 from careamics.config.factories import create_n2v_config
 
@@ -25,6 +29,4 @@ training_report = careamist.get_losses()  # (1)!
 plot_loss(training_report)  # (2)!
 
 # --8<-- [end:csv_logger]
-import matplotlib.pyplot as plt
 
-plt.close()
