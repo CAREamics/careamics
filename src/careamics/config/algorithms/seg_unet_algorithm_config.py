@@ -1,16 +1,26 @@
 """Segmentation with UNet algorithm configuration."""
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Union
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import AfterValidator
+from pydantic import AfterValidator, Field, model_validator
 
 from careamics.config.algorithms.unet_algorithm_config import UNetBasedAlgorithm
 from careamics.config.architectures import UNetConfig
+from careamics.config.losses import (
+    CELossConfig,
+    DiceCELossConfig,
+    DiceLossConfig,
+)
 from careamics.config.validators import (
     model_without_final_activation,
     model_without_n2v2,
 )
+
+SegmentationLoss = Annotated[
+    Union[DiceLossConfig, DiceCELossConfig, CELossConfig],
+    Field(discriminator="name"),
+]
 
 
 def _model_with_at_least_2_classes(model: UNetConfig) -> UNetConfig:
@@ -72,7 +82,7 @@ class SegAlgorithm(UNetBasedAlgorithm):
     algorithm: Literal["seg"] = "seg"
     """Segmentation algorithm name."""
 
-    loss: Literal["dice", "ce", "dice_ce"] = "dice"
+    loss: SegmentationLoss = DiceCELossConfig()
     """Segmentation-compatible loss function."""
 
     model: Annotated[
@@ -83,6 +93,25 @@ class SegAlgorithm(UNetBasedAlgorithm):
         AfterValidator(_model_with_dependent_channels),
     ]
     """UNet without a final activation function and without the `n2v2` modifications."""
+
+    @model_validator(mode="after")
+    def class_weights_match_model(self) -> "SegAlgorithm":
+        """Validate that class weights match the model output classes.
+
+        Returns
+        -------
+        SegAlgorithm
+            Validated configuration.
+        """
+        if (
+            self.loss.class_weights is not None
+            and len(self.loss.class_weights) != self.model.num_classes
+        ):
+            raise ValueError(
+                f"Class weights must have length {self.model.num_classes} (number of "
+                f"classes), got {len(self.loss.class_weights)}."
+            )
+        return self
 
     def get_algorithm_friendly_name(self) -> str:
         """

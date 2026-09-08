@@ -71,6 +71,33 @@ def test_get_norm_dict_with_target_skipped(normalization, norm_params):
         assert cfg.skip_target
 
 
+def test_loss_parameters_are_configured():
+    """Test that segmentation loss parameters are passed to the algorithm config."""
+    cfg = create_configuration(
+        n_classes=2,
+        loss="dice_ce",
+        loss_parameters={
+            "class_weights": [1.0, 2.0, 3.0],
+            "dice_weight": 0.25,
+            "ce_weights": 0.75,
+        },
+    )
+
+    assert cfg.algorithm_config.loss.name == "dice_ce"
+    assert cfg.algorithm_config.loss.class_weights == [1.0, 2.0, 3.0]
+    assert cfg.algorithm_config.loss.dice_weight == 0.25
+    assert cfg.algorithm_config.loss.ce_weights == 0.75
+
+
+def test_loss_class_weights_match_model_classes():
+    """Test that class weights have one value per model output class."""
+    with pytest.raises(ValueError, match="Class weights must have length 3"):
+        create_configuration(
+            n_classes=2,
+            loss_parameters={"class_weights": [1.0, 2.0]},
+        )
+
+
 class TestSegFactory:
 
     @pytest.mark.parametrize("n_classes", [1, 2])
