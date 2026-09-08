@@ -43,7 +43,7 @@ classifiers = [
 dependencies = [
     # --- Core dependencies ---
     "numpy>=1.21,<=2.4.6",
-    'pydantic>=2.11,<=2.13.3',
+    'pydantic>=2.11,<=2.13.5',
     "lightning>=2.2,!=2.6.2,!=2.6.3,<=2.6.5",
     # lightning currently does not support torch 2.13.0
     # see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
@@ -176,9 +176,8 @@ filterwarnings = [
 addopts = "-p no:doctest"
 
 markers = [
-    # "gpu: marks tests as requiring gpu",
     "lvae: marks tests as testing lvae",
-    "compat: marks tests as testing v0.1 compat modules",
+    "e2e: marks longer running end-to-end tests",
     "mps_gh_fail: marks tests as failing on Github macos-latest runner",
     "czi: marks tests using czi files",
 ]

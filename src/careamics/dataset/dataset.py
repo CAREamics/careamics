@@ -90,7 +90,7 @@ def _adjust_original_shape_for_channels(
 
 def _patch_size_within_data_shapes(
     data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
-) -> bool:
+) -> list[bool]:
     """Determine whether all the data_shapes are greater or equal than the patch size.
 
     Parameters
@@ -107,9 +107,10 @@ def _patch_size_within_data_shapes(
         If all the data shapes are greater or equal than the patch size.
     """
     patch_arr = np.array(patch_size)
-    return all(
-        (patch_arr <= np.array(data_shape[2:])).all() for data_shape in data_shapes
-    )
+    return [
+        bool((patch_arr <= np.array(data_shape[2:])).all())
+        for data_shape in data_shapes
+    ]
 
 
 def _shapes_all_equal(data_shapes: Sequence[Sequence[int]]) -> bool:
@@ -200,14 +201,18 @@ def _validate_shapes_against_patching(
     # validate shapes according to the mode and patching strategy
     if data_config.mode != Mode.PREDICTING:
         # make sure all the image sizes are greater than the patch size for training
-        if not isinstance(
-            data_config.patching, WholePatchingConfig
-        ) and not _patch_size_within_data_shapes(
-            data_shapes, data_config.patching.patch_size
+        if not isinstance(data_config.patching, WholePatchingConfig) and not all(
+            shapes_big_enough := _patch_size_within_data_shapes(
+                data_shapes, data_config.patching.patch_size
+            )
         ):
+            faulty_shapes = [
+                d for i, d in enumerate(data_shapes) if not shapes_big_enough[i]
+            ]
             raise ValueError(
                 "Not all images sizes are greater or equal than the patch size for "
-                "training and validation."
+                "training and validation. Got the following shapes for images that are "
+                f"too small: {faulty_shapes}."
             )
     else:
         if isinstance(data_config.patching, WholePatchingConfig):

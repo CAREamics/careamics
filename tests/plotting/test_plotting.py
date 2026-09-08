@@ -2,9 +2,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
-import pytest
 
 from careamics.config import GaussianMixtureNMConfig
+from careamics.lightning.utils import Series, TrainingReport
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     create_histogram,
@@ -46,22 +46,16 @@ def train_noise_model(image_size, max_value, noise_scale):
     return noise_model, hist
 
 
-def test_plot_loss_empty_dict():
-    """Test plotting an empty loss dict."""
-    loss_dict = {}
-    with pytest.raises(ValueError) as ex_info:
-        plot_loss(loss_dict)
-    assert ex_info.type is ValueError
-
-
 def test_plot_loss(tmp_path: Path):
     """Test plotting the loss dict."""
-    loss_dict = {
-        "train_loss": np.random.rand(10).tolist(),
-        "val_loss": np.random.rand(10).tolist(),
-    }
+    report = TrainingReport(
+        train_loss=Series(epoch=range(10), value=np.random.rand(10).tolist()),
+        val_loss=Series(epoch=range(10), value=np.random.rand(10).tolist()),
+        learning_rate=Series(epoch=range(10), value=np.random.rand(10).tolist()),
+        metrics={},
+    )
     with patch("matplotlib.pyplot.show") as show_patch:
-        plot_loss(loss_dict, save_path=tmp_path)
+        plot_loss(report, save_path=tmp_path)
     assert show_patch.called
     assert (tmp_path / "losses.png").exists()
 
