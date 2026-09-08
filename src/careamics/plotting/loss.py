@@ -52,7 +52,7 @@ def plot_loss(
     fig_size = (4 * n_plots, 3.5)
 
     # plot figure
-    fig = plt.figure(1, figsize=fig_size, layout="constrained")
+    fig = plt.figure(figsize=fig_size, layout="constrained")
 
     plot_idx = 1
     axis = fig.add_subplot(1, n_plots, plot_idx)
@@ -100,12 +100,10 @@ def plot_loss(
         axis.xaxis.set_major_locator(MaxNLocator(integer=True))
         axis.legend(frameon=False)
 
-    fig.tight_layout()
-
     # check for saving the figure as an image
     if save_path is not None:
-        _save_file = get_plot_file_path(save_path, "losses.png")
-        fig.savefig(_save_file, format="png", dpi=300)
+        output_file = get_plot_file_path(save_path, "losses.png")
+        fig.savefig(output_file, format="png", dpi=300)
         print(f"The figure was saved at {_save_file.resolve()}")
 
     plt.show()
