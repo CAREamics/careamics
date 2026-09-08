@@ -104,6 +104,6 @@ def plot_loss(
     if save_path is not None:
         output_file = get_plot_file_path(save_path, "losses.png")
         fig.savefig(output_file, format="png", dpi=300)
-        print(f"The figure was saved at {_save_file.resolve()}")
+        print(f"The figure was saved at {output_file.resolve()}")
 
     plt.show()
