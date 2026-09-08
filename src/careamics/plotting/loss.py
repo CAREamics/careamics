@@ -52,13 +52,10 @@ def plot_loss(
     fig_size = (4 * n_plots, 3.5)
 
     # plot figure
-    fig, ax = plt.subplots(1, n_plots, figsize=fig_size)
+    fig = plt.figure(1, figsize=fig_size, layout="constrained")
 
     plot_idx = 0
-    if n_plots == 1:
-        axis = ax
-    else:
-        axis = ax[plot_idx]
+    axis = fig.add_subplot(1, n_plots, plot_idx)
     axis.grid(alpha=0.35)
     axis.plot(
         train_loss.epoch, train_loss.value, color="dodgerblue", label="Train loss"
@@ -72,6 +69,7 @@ def plot_loss(
 
     if plot_metrics:
         plot_idx += 1
+        axis = fig.add_subplot(1, n_plots, plot_idx)
 
         # process metrics name to remove underscores and add capitalization
         metric_names = {
@@ -81,26 +79,26 @@ def plot_loss(
 
         for k in metrics_dict.keys():
             metric = metrics_dict[k]
-            ax[plot_idx].plot(metric.epoch, metric.value, label=metric_names[k])
+            axis.plot(metric.epoch, metric.value, label=metric_names[k])
 
-        ax[plot_idx].grid(alpha=0.35)
-        ax[plot_idx].set_xlabel("Epoch")
-        ax[plot_idx].set_ylabel("Score")
-        ax[plot_idx].set_title("Metrics")
-        ax[plot_idx].xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax[plot_idx].legend(frameon=False)
+        axis.grid(alpha=0.35)
+        axis.set_xlabel("Epoch")
+        axis.set_ylabel("Score")
+        axis.set_title("Metrics")
+        axis.xaxis.set_major_locator(MaxNLocator(integer=True))
+        axis.legend(frameon=False)
 
     if plot_learning_rate:
         plot_idx += 1
-        ax[plot_idx].grid(alpha=0.35)
-        ax[plot_idx].plot(
-            learning_rate.epoch, learning_rate.value, label="Learning rate"
-        )
-        ax[plot_idx].set_xlabel("Epoch")
-        ax[plot_idx].set_ylabel("Value")
-        ax[plot_idx].set_title("Learning rate")
-        ax[plot_idx].xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax[plot_idx].legend(frameon=False)
+        axis = fig.add_subplot(1, n_plots, plot_idx)
+
+        axis.grid(alpha=0.35)
+        axis.plot(learning_rate.epoch, learning_rate.value, label="Learning rate")
+        axis.set_xlabel("Epoch")
+        axis.set_ylabel("Value")
+        axis.set_title("Learning rate")
+        axis.xaxis.set_major_locator(MaxNLocator(integer=True))
+        axis.legend(frameon=False)
 
     fig.tight_layout()
 
