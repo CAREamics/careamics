@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -29,4 +30,3 @@ training_report = careamist.get_losses()  # (1)!
 plot_loss(training_report)  # (2)!
 
 # --8<-- [end:csv_logger]
-
