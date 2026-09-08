@@ -25,3 +25,6 @@ training_report = careamist.get_losses()  # (1)!
 plot_loss(training_report)  # (2)!
 
 # --8<-- [end:csv_logger]
+import matplotlib.pyplot as plt
+
+plt.close()
