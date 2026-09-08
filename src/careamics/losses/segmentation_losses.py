@@ -103,30 +103,32 @@ class DiceLoss(Module):
 
     Parameters
     ----------
-    class_weights : Tensor, optional
+    class_weights : torch.Tensor, optional
         A manual rescaling weight given to each class.
     """
 
-    def __init__(self, class_weights=None) -> None:
+    def __init__(self, class_weights: list[float] | None = None) -> None:
         """Constructor.
 
         Parameters
         ----------
-        class_weights : Tensor, optional
+        class_weights : list[float] | None
             A manual rescaling weight given to each class.
         """
         super().__init__()
         self.weights = _weights_to_tensor(class_weights)
 
-    def forward(self, inputs, targets, smooth=1) -> torch.Tensor:
+    def forward(
+        self, inputs: torch.tensor, targets: torch.tensor, smooth: float = 1
+    ) -> torch.Tensor:
         """Compute Dice loss.
 
         Parameters
         ----------
-        inputs : Tensor
+        inputs : torch.Tensor
             Predicted logits of shape (B, C, [Z], Y, X) where C is the number of
             classes, including background (C=2 for binary).
-        targets : Tensor
+        targets : torch.Tensor
             Ground truth of shape (B, 1, [Z], Y, X) with class indices.
         smooth : float, default=1
             Smoothing constant to avoid division by zero.
@@ -165,7 +167,7 @@ class DiceCELoss(Module):
 
     Parameters
     ----------
-    class_weights : Tensor, default=None
+    class_weights : torch.Tensor, default=None
         A manual rescaling weight given to each class for both losses.
     ce_weight : float, default=1.0
         Weight for the cross-entropy component.
@@ -173,12 +175,17 @@ class DiceCELoss(Module):
         Weight for the Dice loss component.
     """
 
-    def __init__(self, class_weights=None, ce_weight=1.0, dice_weight=1.0) -> None:
+    def __init__(
+        self,
+        class_weights: list[float] | None = None,
+        ce_weight: float = 1.0,
+        dice_weight: float = 1.0,
+    ) -> None:
         """Constructor.
 
         Parameters
         ----------
-        class_weights : Tensor, default=None
+        class_weights : list[float] | None
             A manual rescaling weight given to each class for both losses.
         ce_weight : float, default=1.0
             Weight for the cross-entropy component.
@@ -191,15 +198,17 @@ class DiceCELoss(Module):
         self.ce_weight = ce_weight
         self.dice_weight = dice_weight
 
-    def forward(self, inputs, targets, smooth=1) -> torch.Tensor:
+    def forward(
+        self, inputs: torch.tensor, targets: torch.tensor, smooth: float = 1
+    ) -> torch.Tensor:
         """Compute combined Dice and Cross-Entropy loss.
 
         Parameters
         ----------
-        inputs : Tensor
+        inputs : torch.Tensor
             Predicted logits of shape (B, C, [Z], Y, X) where C is the number of
             classes, including background (C=2 for binary).
-        targets : Tensor
+        targets : torch.Tensor
             Ground truth of shape (B, 1, [Z], Y, X) with class indices.
         smooth : float, default=1
             Smoothing constant for Dice loss.
@@ -234,30 +243,34 @@ class CrossEntropyLoss(Module):
 
     Parameters
     ----------
-    class_weights : Tensor, default=None
+    class_weights : torch.Tensor, default=None
         A manual rescaling weight given to each class for both losses.
     """
 
-    def __init__(self, class_weights=None) -> None:
+    def __init__(self, class_weights: list[float] | None) -> None:
         """Constructor.
 
         Parameters
         ----------
-        class_weights : Tensor, optional
+        class_weights : list[float] | None
             A manual rescaling weight given to each class.
         """
         super().__init__()
         self.weights = _weights_to_tensor(class_weights)
 
-    def forward(self, inputs, targets) -> torch.Tensor:
+    def forward(
+        self,
+        inputs: torch.tensor,
+        targets: torch.tensor,
+    ) -> torch.Tensor:
         """Compute cross-entropy loss from segmentation logits and targets.
 
         Parameters
         ----------
-        inputs : Tensor
+        inputs : torch.Tensor
             Predicted logits of shape (B, C, [Z], Y, X) where C is the number of
             classes, including background (C=2 for binary).
-        targets : Tensor
+        targets : torch.Tensor
             Ground truth of shape (B, 1, [Z], Y, X) with class indices.
 
         Returns
