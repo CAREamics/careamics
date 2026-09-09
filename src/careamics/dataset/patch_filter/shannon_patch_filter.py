@@ -144,7 +144,6 @@ class ShannonPatchFilter(PatchFilter):
             image = image[z_idx]
             filter_map = filter_map[z_idx]
 
-
         fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
         ax.imshow(image, "gray")
         m = ax.imshow(filter_map, "magma", alpha=0.5)
