@@ -55,10 +55,9 @@ def main() -> None:
         experiment_name="n2v_lightsheet_denoising",
         data_type="zarr",
         axes="TCZYX",
-        patch_size=(16, 128, 128),
-        batch_size=2,
-        num_epochs=10,
-        num_steps=100,
+        patch_size=(32, 128, 128),
+        batch_size=6,
+        num_epochs=50,
         n_channels=2,
         independent_channels=True,
     )
