@@ -1,3 +1,5 @@
+from functools import partial
+
 import numpy as np
 import pytest
 import zarr
@@ -11,7 +13,11 @@ from careamics.dataset.image_stack.zarr_access import (
 
 # --- Test utilities
 
-BACKENDS = [ZarrPythonAccess, TensorstoreAccess]
+BACKENDS = [
+    pytest.param(ZarrPythonAccess, id="zarr"),
+    pytest.param(partial(ZarrPythonAccess, use_zarrs=True), id="zarrs"),
+    pytest.param(TensorstoreAccess, id="tensorstore"),
+]
 
 
 def to_dict(shape, dtype, chunks, shards) -> dict:
