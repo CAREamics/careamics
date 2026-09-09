@@ -71,7 +71,10 @@ def main() -> None:
 
     # prediction
     careamist.predict_to_disk(
-        pred_data=path_to_zarr, tile_size=(16, 128, 128), tile_overlap=(4, 48, 48)
+        pred_data=path_to_zarr,
+        batch_size=16,
+        tile_size=(32, 128, 128),
+        tile_overlap=(4, 48, 48),
     )
 
 
