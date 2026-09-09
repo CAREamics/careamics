@@ -18,11 +18,22 @@ def download_data() -> Path:
     Path
         Path to data.
     """
-    return Path(
+    file_list = Path(
         pooch.retrieve(
-            "https://zenodo.org/records/22078388/files/001-small-lowT.zip?download=1"
+            "https://zenodo.org/records/22078388/files/001-small-lowT.zip?download=1",
+            known_hash=(
+                "5069b9606d646f810e9f0b899d98916d8366bfb14bc74765774c1d4df4a5fe80"
+            ),
+            processor=pooch.Unzip(),
+            path=Path("data"),
         )
     )
+
+    for f in file_list:
+        if f.endswith("raw.ome.zarr/zarr.json"):
+            return f
+
+    return f
 
 
 def main() -> None:
@@ -36,7 +47,7 @@ def main() -> None:
     root = Path(".") / "n2v_training"
     root.mkdir(exist_ok=True, parents=True)
 
-    path = download_data()
+    path_to_zarr = download_data()
 
     config = create_advanced_n2v_config(
         experiment_name="n2v_lightsheet_denoising",
@@ -48,7 +59,7 @@ def main() -> None:
         num_steps=100,
     )
     careamist = CAREamist(config=config, work_dir=root)
-    careamist.train(train_data=path)
+    careamist.train(train_data=path_to_zarr)
 
     results = root / "results"
     results.mkdir(exist_ok=True, parents=True)
@@ -57,7 +68,7 @@ def main() -> None:
 
     # prediction
     careamist.predict_to_disk(
-        pred_data=path, tile_size=(16, 128, 128), tile_overlap=(4, 48, 48)
+        pred_data=path_to_zarr, tile_size=(16, 128, 128), tile_overlap=(4, 48, 48)
     )
 
 
