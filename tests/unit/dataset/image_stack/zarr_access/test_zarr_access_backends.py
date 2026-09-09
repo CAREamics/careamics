@@ -1,18 +1,17 @@
-import itertools
-from contextlib import nullcontext as does_not_raise
-
 import numpy as np
 import pytest
 import zarr
 
 from careamics.dataset.image_stack.zarr_access import (
+    TensorstoreAccess,
+    ZarrArraySpec,
     ZarrNode,
     ZarrPythonAccess,
 )
 
 # --- Test utilities
 
-BACKENDS = [ZarrPythonAccess]
+BACKENDS = [ZarrPythonAccess, TensorstoreAccess]
 
 
 def to_dict(shape, dtype, chunks, shards) -> dict:
@@ -129,80 +128,35 @@ ARRAYS = [
 # --- Unit tests
 
 
-class TestZarrPythonAccess:
-    @pytest.mark.parametrize("node_key", NODE_KEYS)
-    def test_open_node(self, zarr_nodes, node_key):
-        access = ZarrPythonAccess()
-        node = zarr_nodes[node_key]
-        opened_node = access.open_node(node)
-
-        if node.node_type == "array":
-            assert isinstance(opened_node, zarr.Array)
-        else:
-            assert isinstance(opened_node, zarr.Group)
-
-    @pytest.mark.parametrize("node_key", GROUP_W_ARRAYS)
-    def test_list_arrays(self, zarr_nodes, node_key):
-        key, n_arrays = node_key
-        access = ZarrPythonAccess()
-        node = zarr_nodes[key]
-        array_lst = access.list_array_paths(node)
-        assert len(array_lst) == n_arrays
-
+@pytest.mark.parametrize("access_cls", BACKENDS)
+class TestZarrAccess:
     @pytest.mark.parametrize("node_key", ARRAYS)
-    def test_get_array_shape(self, zarr_nodes, node_key):
+    def test_get_array_shape(self, zarr_nodes, node_key, access_cls):
         key, metadata = node_key
-        access = ZarrPythonAccess()
+        access = access_cls()
         node = zarr_nodes[key]
         assert access.get_array_shape(node) == metadata["shape"]
 
     @pytest.mark.parametrize("node_key", ARRAYS)
-    def test_get_array_dtype(self, zarr_nodes, node_key):
+    def test_get_array_dtype(self, zarr_nodes, node_key, access_cls):
         key, metadata = node_key
-        access = ZarrPythonAccess()
+        access = access_cls()
         node = zarr_nodes[key]
         assert access.get_array_dtype(node) == metadata["dtype"]
 
     @pytest.mark.parametrize("node_key", ARRAYS)
-    def test_get_array_chunks(self, zarr_nodes, node_key):
+    def test_get_array_chunks(self, zarr_nodes, node_key, access_cls):
         key, metadata = node_key
-        access = ZarrPythonAccess()
+        access = access_cls()
         node = zarr_nodes[key]
         assert access.get_array_chunks(node) == metadata["chunks"]
 
     @pytest.mark.parametrize("node_key", ARRAYS)
-    def test_get_array_shards(self, zarr_nodes, node_key):
+    def test_get_array_shards(self, zarr_nodes, node_key, access_cls):
         key, metadata = node_key
-        access = ZarrPythonAccess()
+        access = access_cls()
         node = zarr_nodes[key]
         assert access.get_array_shards(node) == metadata["shards"]
-
-    @pytest.mark.parametrize(
-        "node_key, expected",
-        list(itertools.product(ARRAYS, ["array"]))
-        + list(itertools.product(GROUP_W_ARRAYS, ["group"])),
-    )
-    def test_resolve_node_type(self, zarr_nodes, node_key, expected):
-        key, _ = node_key
-        access = ZarrPythonAccess()
-        node = zarr_nodes[key]
-        assert access.resolve_node_type(node).node_type == expected
-
-    @pytest.mark.parametrize(
-        "node_key, expected",
-        list(itertools.product(ARRAYS, [does_not_raise()]))
-        + list(
-            itertools.product(
-                GROUP_W_ARRAYS, [pytest.raises(TypeError, match=r"not a zarr\.Array")]
-            )
-        ),
-    )
-    def test_require_array(self, zarr_nodes, node_key, expected):
-        key, _ = node_key
-        access = ZarrPythonAccess()
-        node = zarr_nodes[key]
-        with expected:
-            access._require_array(node)
 
     @pytest.mark.parametrize(
         "node_key, patch_index, expected",
@@ -212,8 +166,10 @@ class TestZarrPythonAccess:
             ("root_array", np.s_[1:3, 0:2], np.zeros((2, 2), dtype=np.float32)),
         ],
     )
-    def test_read_array_patch(self, zarr_nodes, node_key, patch_index, expected):
-        access = ZarrPythonAccess()
+    def test_read_array_patch(
+        self, zarr_nodes, node_key, patch_index, expected, access_cls
+    ):
+        access = access_cls()
         node = zarr_nodes[node_key]
 
         patch = access.read_array_patch(node, patch_index)
@@ -221,55 +177,93 @@ class TestZarrPythonAccess:
         assert isinstance(patch, np.ndarray)
         np.testing.assert_array_equal(patch, expected)
 
-    def test_create_array_root_array(self, tmp_path):
-        access = ZarrPythonAccess()
+    def test_create_array_root_array(self, tmp_path, access_cls):
+        access = access_cls()
         store_path = tmp_path / "root_output.zarr"
         node = ZarrNode(store_uri=store_path.as_uri(), path="", node_type="array")
 
-        created = access.create_array(
+        result = access.create_array(
             node=node,
-            shape=(6, 6),
-            chunks=(3, 3),
-            shards=None,
-            dtype=np.float32,
+            spec=ZarrArraySpec(
+                shape=(6, 6),
+                chunks=(3, 3),
+                shards=None,
+                dtype=np.float32,
+                dimension_names=("row", "column"),
+            ),
         )
+        written = zarr.open(store_path, mode="r")
 
-        assert isinstance(created, zarr.Array)
-        assert created.shape == (6, 6)
-        assert created.dtype == np.dtype(np.float32)
-        assert created.chunks == (3, 3)
-        assert created.shards is None
+        assert result is None
+        assert isinstance(written, zarr.Array)
+        assert written.shape == (6, 6)
+        assert written.dtype == np.dtype(np.float32)
+        assert written.chunks == (3, 3)
+        assert written.shards is None
+        assert written.metadata.dimension_names == ("row", "column")
 
-    def test_create_array_group_backed_array(self, tmp_path):
-        access = ZarrPythonAccess()
+    def test_create_array_group_backed_array(self, tmp_path, access_cls):
+        access = access_cls()
         store_path = tmp_path / "group_output.zarr"
         node = ZarrNode(
             store_uri=store_path.as_uri(),
             path="predictions/array_0",
             node_type="array",
         )
+        zarr.create_group(store_path).create_group("predictions")
 
-        created = access.create_array(
+        result = access.create_array(
             node=node,
-            shape=(8, 8),
-            chunks=(4, 4),
-            shards=(8, 8),
-            dtype=np.float64,
+            spec=ZarrArraySpec(
+                shape=(8, 8),
+                chunks=(4, 4),
+                shards=(8, 8),
+                dtype=np.float64,
+            ),
         )
 
-        assert isinstance(created, zarr.Array)
-        assert created.shape == (8, 8)
-        assert created.dtype == np.dtype(np.float64)
-        assert created.chunks == (4, 4)
-        assert created.shards == (8, 8)
+        assert result is None
 
         store = zarr.open(store_path, mode="r")
         assert isinstance(store, zarr.Group)
         assert "predictions" in store
         assert "array_0" in store["predictions"]
+        assert store["predictions/array_0"].dtype == np.dtype(np.float64)
+        assert store["predictions/array_0"].chunks == (4, 4)
+        assert store["predictions/array_0"].shards == (8, 8)
 
-    def test_create_array_returns_existing_array(self, tmp_path):
-        access = ZarrPythonAccess()
+    def test_create_array_group_backed_unsharded_array(self, tmp_path, access_cls):
+        access = access_cls()
+        store_path = tmp_path / "group_output.zarr"
+        node = ZarrNode(
+            store_uri=store_path.as_uri(),
+            path="predictions/array_0",
+            node_type="array",
+        )
+        zarr.create_group(store_path).create_group("predictions")
+
+        result = access.create_array(
+            node=node,
+            spec=ZarrArraySpec(
+                shape=(8, 8),
+                chunks=(4, 4),
+                shards=None,
+                dtype=np.float64,
+            ),
+        )
+
+        assert result is None
+
+        store = zarr.open(store_path, mode="r")
+        assert isinstance(store, zarr.Group)
+        assert "predictions" in store
+        assert "array_0" in store["predictions"]
+        assert store["predictions/array_0"].dtype == np.dtype(np.float64)
+        assert store["predictions/array_0"].chunks == (4, 4)
+        assert store["predictions/array_0"].shards is None
+
+    def test_create_array_returns_existing_array(self, tmp_path, access_cls):
+        access = access_cls()
         store_path = tmp_path / "existing_root_array.zarr"
         existing = create_array_store(
             store_path,
@@ -279,20 +273,21 @@ class TestZarrPythonAccess:
         )
         node = ZarrNode(store_uri=store_path.as_uri(), path="", node_type="array")
 
-        created = access.create_array(
+        result = access.create_array(
             node=node,
-            shape=(5, 5),
-            chunks=(2, 2),
-            shards=None,
-            dtype=np.float32,
+            spec=ZarrArraySpec(
+                shape=(5, 5),
+                chunks=(2, 2),
+                shards=None,
+                dtype=np.float32,
+            ),
         )
 
-        assert isinstance(created, zarr.Array)
-        assert created.path == existing.path
-        assert created.shape == existing.shape
+        assert result is None
+        assert zarr.open_array(store_path, mode="r").shape == existing.shape
 
-    def test_write_array_tile(self, tmp_path):
-        access = ZarrPythonAccess()
+    def test_write_array_tile(self, tmp_path, access_cls):
+        access = access_cls()
         store_path = tmp_path / "write_tile.zarr"
         create_array_store(
             store_path,

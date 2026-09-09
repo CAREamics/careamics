@@ -49,23 +49,21 @@ dependencies = [
     # see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
     'torch>=2.1.0,<2.13.0',
     'torchmetrics >0.7.0, <1.9.0',
-
     # --- Data, image processing and visualization ---
     'pyyaml!=6.0.0,<=6.0.3',
     'scikit-image<=0.26.0',
+    'tensorstore>=0.1.85',
     'zarr>=3.0.0,<4.0.0',
     'yaozarrs[io]>=0.3.1,<0.4.0',
+    'pydantic-tensorstore',
     'tifffile<=2026.3.3',
     'matplotlib<=3.11.1',
     'microssim<=0.0.4', # TODO absorb as careamics.metrics
-
-    # --- Used by LVAE code --- 
+    # --- Used by LVAE code ---
     'torchvision<=0.25.0', # TODO used in model and module, revisit
-
     # --- BMZ dependencies ---
     'bioimageio.core>=0.9.0,<=0.11.0',
     'pillow<=12.3.0', # TODO used to create covers, revisit
-
     # --- Others ---
     'psutil<=7.2.2', # used for virtual memory estimation
 ]
@@ -227,3 +225,6 @@ exclude = [ # don't report on objects that match any of these regex
     "test_*",
     "src/careamics/lvae_training/*",
 ]
+
+[tool.uv.sources]
+pydantic-tensorstore = { git = "https://github.com/tlambert03/pydantic-tensorstore.git" }
