@@ -49,70 +49,7 @@ def create_array_store(
     return array
 
 
-@pytest.fixture(scope="session")
-def zarr_nodes(tmp_path_factory):
-    root_dir = tmp_path_factory.mktemp("zarr_access")
-    group_store = root_dir / "group_store.zarr"
-    root_array_store = root_dir / "root_array_store.zarr"
-
-    group = zarr.create_group(group_store)
-    group.create_array(
-        "array",
-        data=np.zeros((16, 16)).astype(np.int32),
-        chunks=(4, 4),
-        shards=(8, 8),
-    )
-
-    group_1 = group.create_group("group_1")
-    group_1.create_array(
-        "array_1_0",
-        data=np.zeros((6, 6)).astype(np.int16),
-        chunks=(2, 2),
-    )
-    group_1.create_array(
-        "array_1_1",
-        data=np.zeros((8, 8)).astype(np.float64),
-        chunks=(4, 4),
-        shards=(8, 8),
-    )
-    group_1.create_array(
-        "array_1_2",
-        data=np.zeros((5, 5)).astype(np.float32),
-        chunks=(1, 2),
-    )
-
-    group.create_group("group_1/group_2")
-
-    zarr.open_array(root_array_store, mode="w", shape=(4, 4), chunks=(2, 2), dtype="f4")
-
-    return {
-        "array": ZarrNode(
-            store_uri=group_store.as_uri(), path="array", node_type="array"
-        ),
-        "group_1": ZarrNode(
-            store_uri=group_store.as_uri(), path="group_1", node_type="group"
-        ),
-        "array_1_0": ZarrNode(
-            store_uri=group_store.as_uri(), path="group_1/array_1_0", node_type="array"
-        ),
-        "array_1_1": ZarrNode(
-            store_uri=group_store.as_uri(), path="group_1/array_1_1", node_type="array"
-        ),
-        "array_1_2": ZarrNode(
-            store_uri=group_store.as_uri(), path="group_1/array_1_2", node_type="array"
-        ),
-        "group_2": ZarrNode(
-            store_uri=group_store.as_uri(), path="group_1/group_2", node_type="group"
-        ),
-        "root_group": ZarrNode(
-            store_uri=group_store.as_uri(), path="", node_type="group"
-        ),
-        "root_array": ZarrNode(
-            store_uri=root_array_store.as_uri(), path="", node_type="array"
-        ),
-    }
-
-
+# from fixture zarr_nodes in conftest.py
 NODE_KEYS = ["array", "group_1", "group_2", "root_group", "root_array"]
 
 GROUP_W_ARRAYS = [("root_group", 1), ("group_1", 3), ("group_2", 0)]
