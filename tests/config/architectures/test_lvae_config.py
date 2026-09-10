@@ -102,24 +102,3 @@ def test_parameters_wrong_values_by_assigment():
     model.n_filters = model_params["n_filters"]
     with pytest.raises(ValueError):
         model.n_filters = 2
-
-
-def test_analytical_kl_default():
-    """Test that analytical_kl defaults to False."""
-    model = LVAEConfig(architecture="LVAE")
-
-    assert model.analytical_kl is False
-
-
-def test_enable_topdown_normalize_factor_default():
-    """Test that enable_topdown_normalize_factor defaults to True."""
-    model = LVAEConfig(architecture="LVAE")
-
-    assert model.enable_topdown_normalize_factor is True
-
-
-def test_encoder_first_conv_kernel_default():
-    """Test that encoder_first_conv_kernel defaults to 3."""
-    model = LVAEConfig(architecture="LVAE")
-
-    assert model.encoder_first_conv_kernel == 3

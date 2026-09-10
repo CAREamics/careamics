@@ -52,16 +52,16 @@ class LadderVAE(nn.Module):
         The nonlinearity function to use.
     predict_logvar : bool
         Whether to predict the log variance.
-    encoder_blocks_per_layer : int
+    encoder_blocks_per_layer : int, default=1
         The number of residual blocks per encoder layer.
-    decoder_blocks_per_layer : int
+    decoder_blocks_per_layer : int, default=1
         The number of residual blocks per decoder layer.
-    encoder_first_conv_kernel : int
+    encoder_first_conv_kernel : int, default=3
         The kernel size of the first bottom-up convolution.
-    analytical_kl : bool
+    analytical_kl : bool, default=False
         Whether to compute the KL divergence analytically instead of by a single-sample
         Monte Carlo estimate.
-    enable_topdown_normalize_factor : bool
+    enable_topdown_normalize_factor : bool, default=True
         Whether to scale the inference parameters of the i-th top-down layer for depth
         stabilization. Only applied when `z_dims` holds more than 4 entries.
 
@@ -116,16 +116,16 @@ class LadderVAE(nn.Module):
             The nonlinearity function to use.
         predict_logvar : bool
             Whether to predict the log variance.
-        encoder_blocks_per_layer : int
+        encoder_blocks_per_layer : int, default=1
             The number of residual blocks per encoder layer.
-        decoder_blocks_per_layer : int
+        decoder_blocks_per_layer : int, default=1
             The number of residual blocks per decoder layer.
-        encoder_first_conv_kernel : int
+        encoder_first_conv_kernel : int, default=3
             The kernel size of the first bottom-up convolution.
-        analytical_kl : bool
+        analytical_kl : bool, default=False
             Whether to compute the KL divergence analytically instead of by a
             single-sample Monte Carlo estimate.
-        enable_topdown_normalize_factor : bool
+        enable_topdown_normalize_factor : bool, default=True
             Whether to scale the inference parameters of the i-th top-down layer
             for depth stabilization. Only applied when `z_dims` holds more than
             4 entries.
