@@ -696,6 +696,7 @@ class TestConvertMode:
             mode=TRAINING,
             patching=DEFAULT_PATCHING,
             data_type="tiff",
+            zarr_backend="zarrs",
             axes="SCYX",
             batch_size=5,
             channels=[0, 2],
@@ -709,6 +710,7 @@ class TestConvertMode:
         assert converted_cfg.mode == new_mode
         assert converted_cfg.batch_size == cfg.batch_size
         assert converted_cfg.data_type == cfg.data_type
+        assert converted_cfg.zarr_backend == cfg.zarr_backend
         assert converted_cfg.axes == cfg.axes
         assert converted_cfg.channels == cfg.channels
         assert converted_cfg.in_memory == cfg.in_memory

@@ -1167,6 +1167,7 @@ class CAREamist:
             write_func=write_func,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            zarr_backend=self.config.data_config.zarr_backend,
         )
 
         self.prediction_writer.enable_writing(True)

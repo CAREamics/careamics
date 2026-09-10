@@ -399,7 +399,6 @@ class DataConfig(BaseModel):
     target_axes: str | None = None
     """Optional axes of target data. If `None`, targets use `axes`."""
 
-    # TODO: update docs for stratified patching
     patching: PatchingConfig = Field(..., discriminator="name")
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
@@ -463,6 +462,10 @@ class DataConfig(BaseModel):
     """Default number of workers for all dataloaders that do not explicitly set
     `num_workers`. Automatically detected based on the current platform:
     0 on Windows and macOS, `min(cpu_count - 1, 4)` on Linux."""
+
+    zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr"
+    """Backend used to read and write Zarr arrays. Only effective if `data_type` is set
+    to `zarr`."""
 
     seed: int = Field(default_factory=generate_random_seed, gt=0)
     """Random seed for reproducibility. If not specified, a random seed is generated."""

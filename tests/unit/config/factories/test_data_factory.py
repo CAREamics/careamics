@@ -60,6 +60,19 @@ class TestSpatialAugmentations:
 
 
 class TestDataConfiguration:
+    @pytest.mark.parametrize("zarr_backend", ["zarr", "zarrs", "tensorstore"])
+    def test_zarr_backend(self, zarr_backend):
+        """Test that the Zarr backend is stored in the configuration."""
+        config = create_data_configuration(
+            data_type="zarr",
+            axes="YX",
+            patch_size=(16, 16),
+            batch_size=1,
+            zarr_backend=zarr_backend,
+        )
+
+        assert config.zarr_backend == zarr_backend
+
     def test_default_aug(self):
         """Test that the default augmentations are present in the configuration."""
         config: DataConfig = create_data_configuration(

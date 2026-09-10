@@ -6,10 +6,15 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
+from careamics.dataset.image_stack.zarr_access import (
+    TensorstoreAccess,
+    ZarrPythonAccess,
+)
 from careamics.image_io.write import write_tiff
 from careamics.lightning.callbacks.prediction import (
     ImageWriteStrategy,
     TileWriteStrategy,
+    ZarrTileWriteStrategy,
     create_write_strategy,
     select_write_extension,
     select_write_func,
@@ -61,6 +66,26 @@ def test_create_write_strategy_custom_untiled():
     assert write_strategy.write_func is save_numpy
     assert write_strategy.write_extension == ".npy"
     assert write_strategy.write_func_kwargs == {}
+
+
+@pytest.mark.parametrize(
+    ("backend", "access_type", "use_zarrs"),
+    [
+        pytest.param("zarr", ZarrPythonAccess, False, id="zarr"),
+        pytest.param("zarrs", ZarrPythonAccess, True, id="zarrs"),
+        pytest.param("tensorstore", TensorstoreAccess, None, id="tensorstore"),
+    ],
+)
+def test_create_zarr_write_strategy(backend, access_type, use_zarrs):
+    """Test that tiled Zarr writing uses the selected backend."""
+    write_strategy = create_write_strategy(
+        write_type="zarr", tiled=True, zarr_backend=backend
+    )
+
+    assert isinstance(write_strategy, ZarrTileWriteStrategy)
+    assert isinstance(write_strategy.access, access_type)
+    if use_zarrs is not None:
+        assert write_strategy.access._use_zarrs is use_zarrs
 
 
 def test_select_write_func_tiff():

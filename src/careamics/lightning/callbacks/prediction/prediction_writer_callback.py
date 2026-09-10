@@ -10,6 +10,7 @@ from lightning.pytorch import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter
 
 from careamics.dataset.image_region_data import ImageRegionData
+from careamics.dataset.image_stack.zarr_access import ZarrBackend
 from careamics.image_io.write.get_func import SupportedWriteType, WriteFunc
 from careamics.lightning.prediction import decollate_image_region_data
 from careamics.utils import get_logger
@@ -154,6 +155,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         write_func: WriteFunc | None = None,
         write_extension: str | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        zarr_backend: ZarrBackend = "zarr",
     ) -> None:
         """
         Set the writing strategy.
@@ -172,6 +174,9 @@ class PredictionWriterCallback(BasePredictionWriter):
             The file extension to use when writing files.
         write_func_kwargs : dict of str to Any, default=None
             Additional keyword arguments to pass to `write_func`.
+        zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+            Backend used to write Zarr arrays, only effective if `write_type` is set to
+            `zarr`.
         """
         self.write_strategy = create_write_strategy(
             write_type=write_type,
@@ -179,6 +184,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             write_func=write_func,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            zarr_backend=zarr_backend,
         )
 
     def write_on_batch_end(
