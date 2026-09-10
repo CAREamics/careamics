@@ -7,8 +7,8 @@ from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.patching import TileSpecs
 from careamics.lightning.callbacks.prediction.zarr_tile_write_strategy import (
     ZarrTileHandler,
-    _auto_chunks,
 )
+from careamics.lightning.callbacks.prediction.zarr_write_strategy import auto_chunks
 from tests.unit.utils.test_reshape_array import (
     _CHANNEL_REMOVED_NON_CANONICAL,
     _array_to_tile,
@@ -90,7 +90,7 @@ def tile(
     ],
 )
 def test_auto_chunks(axes, data_shape, expected_chunks):
-    chunks = _auto_chunks(axes, data_shape)
+    chunks = auto_chunks(axes, data_shape)
     assert chunks == expected_chunks
 
 
