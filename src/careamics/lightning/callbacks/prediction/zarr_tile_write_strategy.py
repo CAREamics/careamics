@@ -457,6 +457,12 @@ class ZarrTileWriteStrategy(WriteStrategy):
             handler.restored_crop,
         )
 
+        self.access.write_array_tile(
+            output_node,
+            handler.stitch_slices,
+            handler.restored_crop,
+        )
+
     def write_batch(
         self,
         dirpath: Path,
