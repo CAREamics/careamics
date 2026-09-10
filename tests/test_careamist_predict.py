@@ -15,7 +15,6 @@ def random_array(shape: tuple[int, ...], seed: int = 42) -> NDArray:
     return (rng.integers(0, 255, shape)).astype(np.float32)
 
 
-@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_arrays_no_tiling(tmp_path: Path, batch_size: int, samples: int):
@@ -42,7 +41,6 @@ def test_predict_arrays_no_tiling(tmp_path: Path, batch_size: int, samples: int)
     assert predicted[0].shape == (samples, 32, 32)
 
 
-@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
@@ -71,7 +69,6 @@ def test_predict_on_array_tiled(tmp_path: Path, batch_size: int, samples: int):
     assert predicted[0].shape == (samples, 32, 32)
 
 
-@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("tiled", [True, False])
 def test_predict_path(tmp_path: Path, tiled: bool):
     """Test that CAREamist can predict with tiff files."""
@@ -115,7 +112,6 @@ def test_predict_path(tmp_path: Path, tiled: bool):
         assert p.squeeze().shape == train_array.shape
 
 
-@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("independent_channels", [False, True])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_tiled_channel(
@@ -152,7 +148,6 @@ def test_predict_tiled_channel(
 
 
 @pytest.mark.skip(reason="TODO revisit after fixing stats in convert mode")
-@pytest.mark.mps_gh_fail
 def test_predict_channel_subset(tmp_path: Path):
     """Test that CAREamist can predict on a subset of channels."""
     train_array = random_array((3, 32, 32), seed=42)
@@ -181,7 +176,6 @@ def test_predict_channel_subset(tmp_path: Path):
     assert predicted[0].squeeze().shape == (2, 32, 32)
 
 
-@pytest.mark.mps_gh_fail
 def test_predict_to_disk_path_tiff(tmp_path: Path):
     """Test predict_to_disk with path source and tiff write type."""
     train_array = random_array((32, 32), seed=42)
@@ -216,7 +210,6 @@ def test_predict_to_disk_path_tiff(tmp_path: Path):
         assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
 
 
-@pytest.mark.mps_gh_fail
 def test_predict_to_disk_custom(tmp_path: Path):
     """Test predict_to_disk with custom write type."""
 
