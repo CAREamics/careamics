@@ -11,12 +11,14 @@ from numpy import dtype as np_dtype
 from numpy.typing import DTypeLike, NDArray
 from pydantic_tensorstore import (
     FileKvStore,
+    Zarr3BytesConfig,
     Zarr3ChunkConfiguration,
     Zarr3ChunkGrid,
     Zarr3CodecBytes,
     Zarr3CodecCRC32C,
     Zarr3CodecShardingIndexed,
     Zarr3Metadata,
+    Zarr3ShardingIndexedConfig,
     Zarr3Spec,
 )
 
@@ -271,16 +273,14 @@ class TensorstoreAccess:
         """
         return [
             Zarr3CodecShardingIndexed(
-                configuration=Zarr3CodecShardingIndexed.ShardingIndexedConfig(
+                configuration=Zarr3ShardingIndexedConfig(
                     chunk_shape=list(chunks),
                     codecs=[
-                        Zarr3CodecBytes(
-                            configuration=Zarr3CodecBytes.BytesConfig(endian="little")
-                        )
+                        Zarr3CodecBytes(configuration=Zarr3BytesConfig(endian="little"))
                     ],
                     index_codecs=[
                         Zarr3CodecBytes(
-                            configuration=Zarr3CodecBytes.BytesConfig(endian="little")
+                            configuration=Zarr3BytesConfig(endian="little")
                         ),
                         Zarr3CodecCRC32C(),
                     ],
