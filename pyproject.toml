@@ -43,11 +43,11 @@ classifiers = [
 dependencies = [
     # --- Core dependencies ---
     "numpy>=1.21,<=2.4.6",
-    'pydantic>=2.11,<=2.13.3',
-    "lightning>=2.2,!=2.6.2,!=2.6.3,<=2.6.5",
-    # lightning currently does not support torch 2.13.0
+    'pydantic>=2.11,<=2.13.5',
+    "lightning>=2.2,!=2.6.2,!=2.6.3,<=2.6.6",
+    # lightning caps torch and torchmetrics dependency
     # see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
-    'torch>=2.1.0,<2.13.0',
+    'torch>=2.6.0,<2.14.0',
     'torchmetrics >0.7.0, <1.9.0',
 
     # --- Data, image processing and visualization ---
@@ -59,7 +59,7 @@ dependencies = [
     'microssim<=0.0.4', # TODO absorb as careamics.metrics
 
     # --- Used by LVAE code --- 
-    'torchvision<=0.25.0', # TODO used in model and module, revisit
+    'torchvision<=0.26.0', # TODO used in model and module, revisit
 
     # --- BMZ dependencies ---
     'bioimageio.core>=0.9.0,<=0.11.0',
@@ -176,10 +176,8 @@ filterwarnings = [
 addopts = "-p no:doctest"
 
 markers = [
-    # "gpu: marks tests as requiring gpu",
     "lvae: marks tests as testing lvae",
-    "compat: marks tests as testing v0.1 compat modules",
-    "mps_gh_fail: marks tests as failing on Github macos-latest runner",
+    "e2e: marks longer running end-to-end tests",
     "czi: marks tests using czi files",
 ]
 

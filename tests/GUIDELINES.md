@@ -35,4 +35,3 @@ test data, etc.)
 
 - `lvae`: lvae-specific tests
 - `slow`: tests that are slow to run, e.g. training for several epochs
-- `mps_gh_fail`: tests that are expected to fail on MPS on Github (e.g. due to unsupported features)

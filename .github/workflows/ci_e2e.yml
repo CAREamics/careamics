@@ -1,4 +1,4 @@
-name: codecov
+name: CI-e2e
 
 on:
   push:
@@ -7,13 +7,15 @@ on:
     tags:
       - "v*"
   pull_request:
+  workflow_dispatch:
+  schedule:
+    # run every week (for --pre release tests)
+    - cron: "0 0 * * 0"
 
 jobs:
-  codecov:
-    name: codecov update
+  test:
+    name: e2e py3.12 (ubuntu-latest)
     runs-on: ubuntu-latest
-    env:
-      MPLBACKEND: Agg # non-interactive matplotlib back-end
     strategy:
       fail-fast: false
       matrix:
@@ -25,12 +27,11 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-tags: true
           fetch-depth: 0
-  
+            
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
@@ -42,10 +43,6 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
-      - name: 🧪 Run Tests
-        run: uv run pytest --color=yes --cov --cov-config=pyproject.toml --cov-report=xml --cov-report=term-missing  -m "not e2e"
-
-      - name: Coverage
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: 🧪 Run e2e tests
+        # does not run doctests
+        run: uv run pytest tests/e2e --color=yes
