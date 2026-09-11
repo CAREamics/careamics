@@ -182,8 +182,8 @@ class ZarrAccessProtocol(Protocol):
         """
         ...
 
-    def resolve_node_type(self, node: ZarrNode) -> Literal["array", "group"]:
-        """Return whether the node is an array or a group.
+    def resolve_node_type(self, node: ZarrNode) -> ZarrNode:
+        """Return a node with updated node type.
 
         Parameters
         ----------
@@ -192,8 +192,8 @@ class ZarrAccessProtocol(Protocol):
 
         Returns
         -------
-        {"array", "group"}
-            Node type.
+        ZarrNode
+            ZarrNode with updated type.
         """
         ...
 

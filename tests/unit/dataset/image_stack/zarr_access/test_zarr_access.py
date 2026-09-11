@@ -186,7 +186,7 @@ class TestZarrPythonAccess:
         key, _ = node_key
         access = ZarrPythonAccess()
         node = zarr_nodes[key]
-        assert access.resolve_node_type(node) == expected
+        assert access.resolve_node_type(node).node_type == expected
 
     @pytest.mark.parametrize(
         "node_key, expected",
