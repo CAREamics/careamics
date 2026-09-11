@@ -52,10 +52,18 @@ class LadderVAE(nn.Module):
         The nonlinearity function to use.
     predict_logvar : bool
         Whether to predict the log variance.
-    encoder_blocks_per_layer : int
+    encoder_blocks_per_layer : int, default=1
         The number of residual blocks per encoder layer.
-    decoder_blocks_per_layer : int
+    decoder_blocks_per_layer : int, default=1
         The number of residual blocks per decoder layer.
+    encoder_first_conv_kernel : int, default=3
+        The kernel size of the first bottom-up convolution.
+    analytical_kl : bool, default=False
+        Whether to compute the KL divergence analytically instead of by a single-sample
+        Monte Carlo estimate.
+    enable_topdown_normalize_factor : bool, default=True
+        Whether to scale the inference parameters of the i-th top-down layer for depth
+        stabilization. Only applied when `z_dims` holds more than 4 entries.
 
     Raises
     ------
@@ -78,6 +86,9 @@ class LadderVAE(nn.Module):
         predict_logvar: bool,
         encoder_blocks_per_layer: int = 1,
         decoder_blocks_per_layer: int = 1,
+        encoder_first_conv_kernel: int = 3,
+        analytical_kl: bool = False,
+        enable_topdown_normalize_factor: bool = True,
     ):
         """Constructor.
 
@@ -105,10 +116,19 @@ class LadderVAE(nn.Module):
             The nonlinearity function to use.
         predict_logvar : bool
             Whether to predict the log variance.
-        encoder_blocks_per_layer : int
+        encoder_blocks_per_layer : int, default=1
             The number of residual blocks per encoder layer.
-        decoder_blocks_per_layer : int
+        decoder_blocks_per_layer : int, default=1
             The number of residual blocks per decoder layer.
+        encoder_first_conv_kernel : int, default=3
+            The kernel size of the first bottom-up convolution.
+        analytical_kl : bool, default=False
+            Whether to compute the KL divergence analytically instead of by a
+            single-sample Monte Carlo estimate.
+        enable_topdown_normalize_factor : bool, default=True
+            Whether to scale the inference parameters of the i-th top-down layer
+            for depth stabilization. Only applied when `z_dims` holds more than
+            4 entries.
         """
         super().__init__()
 
@@ -126,6 +146,9 @@ class LadderVAE(nn.Module):
         self.decoder_dropout = decoder_dropout
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
+        self.analytical_kl = analytical_kl
+        self.enable_topdown_normalize_factor = enable_topdown_normalize_factor
+        self.encoder_first_conv_kernel = encoder_first_conv_kernel
         # -------------------------------------------------------
 
         # -------------------------------------------------------
@@ -139,7 +162,6 @@ class LadderVAE(nn.Module):
         self.mode_pred = False
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
-        self._enable_topdown_normalize_factor = True
 
         # Attributes that handle LC -> Hardcoded
         self.enable_multiscale = self._multiscale_count > 1
@@ -260,8 +282,8 @@ class LadderVAE(nn.Module):
         conv_block = self.encoder_conv_op(
             in_channels=self.color_ch,
             out_channels=self.n_filters,
-            kernel_size=self.encoder_res_block_kernel,
-            padding=self.encoder_res_block_kernel // 2,
+            kernel_size=self.encoder_first_conv_kernel,
+            padding=self.encoder_first_conv_kernel // 2,
             stride=init_stride,
         )
 
@@ -396,7 +418,7 @@ class LadderVAE(nn.Module):
             # Check if this is the top layer
             is_top = i == self.n_layers - 1
 
-            if self._enable_topdown_normalize_factor:  # TODO: What is this?
+            if self.enable_topdown_normalize_factor:
                 normalize_latent_factor = (
                     1 / np.sqrt(2 * (1 + i)) if len(self.z_dims) > 4 else 1.0
                 )
@@ -421,6 +443,7 @@ class LadderVAE(nn.Module):
                     input_image_shape=self.image_size,
                     normalize_latent_factor=normalize_latent_factor,
                     stochastic_use_naive_exponential=self._stochastic_use_naive_exponential,
+                    analytical_kl=self.analytical_kl,
                 )
             )
         return top_down_layers

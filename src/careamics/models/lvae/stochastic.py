@@ -5,6 +5,7 @@ from typing import Union
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as F
+from torch.distributions import kl_divergence
 from torch.distributions.normal import Normal
 
 from .utils import (
@@ -58,6 +59,9 @@ class NormalStochasticBlock(nn.Module):
         The spatial size of the latent tensor used for prediction. Default is `None`.
     use_naive_exponential : bool, optional
         Whether to use the naive (non-stable) exponential. Default is `False`.
+    analytical_kl : bool, optional
+        Whether to compute the KL divergence analytically instead of by a
+        single-sample Monte Carlo estimate. Default is `False`.
     """
 
     def __init__(
@@ -70,6 +74,7 @@ class NormalStochasticBlock(nn.Module):
         transform_p_params: bool = True,
         vanilla_latent_hw: int | None = None,
         use_naive_exponential: bool = False,
+        analytical_kl: bool = False,
     ):
         """Constructor.
 
@@ -103,6 +108,9 @@ class NormalStochasticBlock(nn.Module):
             provided by `StableExponential` class. This should improve numerical
             stability
             in the training process. Default is `False`.
+        analytical_kl : bool, optional
+            Whether to compute the KL divergence analytically instead of by a
+            single-sample Monte Carlo estimate. Default is `False`.
         """
         super().__init__()
         assert kernel % 2 == 1
@@ -114,6 +122,7 @@ class NormalStochasticBlock(nn.Module):
         self.conv_dims = conv_dims
         self._use_naive_exponential = use_naive_exponential
         self._vanilla_latent_hw = vanilla_latent_hw
+        self._analytical_kl = analytical_kl
 
         conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
 
@@ -202,7 +211,7 @@ class NormalStochasticBlock(nn.Module):
         mode_pred: bool,
         z: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
-        """Compute the (Monte Carlo estimated) KL and its composed versions.
+        """Compute the KL and its composed versions.
 
         Specifically, the different versions of the KL loss terms are:
             - `kl_elementwise`: KL term for each single element of the latent tensor
@@ -240,7 +249,15 @@ class NormalStochasticBlock(nn.Module):
         """
         kl_samplewise_restricted = None
         if mode_pred is False:  # if not predicting
-            kl_elementwise = kl_normal_mc(z, p_params, q_params)
+            if self._analytical_kl:
+                p_mu, p_lv = p_params
+                q_mu, q_lv = q_params
+                kl_elementwise = kl_divergence(
+                    Normal(q_mu.get(), q_lv.get_std()),
+                    Normal(p_mu.get(), p_lv.get_std()),
+                )
+            else:
+                kl_elementwise = kl_normal_mc(z, p_params, q_params)
 
             all_dims = tuple(range(len(kl_elementwise.shape)))
             kl_samplewise = kl_elementwise.sum(all_dims[1:])
@@ -314,15 +331,15 @@ class NormalStochasticBlock(nn.Module):
         self,
         q_params: torch.Tensor,
         var_clip_max: float | None,
-        allow_oddsizes: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.distributions.normal.Normal]:
         """Process the input parameters into the inference distribution q(z).
 
         Processing consists in:
             - convolution on the input tensor to double the number of channels.
             - split the resulting tensor into 2 chunks, respectively mean and log-var.
+            - crop the resulting tensors so that each spatial dimension larger
+            than 1 is even.
             - (optionally) clip the log-variance to an upper threshold.
-            - (optionally) crop the resulting tensors to keep the last spatial dim even.
             - define the normal distribution q(z) given the parameter tensors above.
 
         Parameters
@@ -332,9 +349,6 @@ class NormalStochasticBlock(nn.Module):
         var_clip_max : float or None
             The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped.
-        allow_oddsizes : bool, optional
-            Whether to allow an odd last spatial dimension (skip the centercrop).
-            Default is `False`.
 
         Returns
         -------
@@ -347,10 +361,13 @@ class NormalStochasticBlock(nn.Module):
         if var_clip_max is not None:
             q_lv = torch.clip(q_lv, max=var_clip_max)
 
-        if q_mu.shape[-1] % 2 == 1 and allow_oddsizes is False:
-            q_mu = F.center_crop(q_mu, q_mu.shape[-1] - 1)
-            q_lv = F.center_crop(q_lv, q_lv.shape[-1] - 1)
-            # TODO revisit ?!
+        h, w = q_mu.shape[-2:]
+        new_h = h - (h % 2 if h > 1 else 0)
+        new_w = w - (w % 2 if w > 1 else 0)
+        if (new_h, new_w) != (h, w):
+            q_mu = F.center_crop(q_mu, [new_h, new_w])
+            q_lv = F.center_crop(q_lv, [new_h, new_w])
+
         q_mu = StableMean(q_mu)
         q_lv = StableLogVar(q_lv, enable_stable=not self._use_naive_exponential)
         q = Normal(q_mu.get(), q_lv.get_std())
