@@ -13,7 +13,7 @@ from careamics.lightning.prediction import combine_samples
 from careamics.utils.reshape_array import RestoredAxesTransform
 
 from .image_write_utils import get_complete_images
-from .zarr_write_strategy import (
+from .zarr_write_utils import (
     ZarrWriteStrategyBase,
     auto_chunks,
     get_zarr_destination,
@@ -96,7 +96,9 @@ class ZarrImageWriteStrategy(ZarrWriteStrategyBase):
             original_axes=region.axes,
             original_shape=region.original_data_shape,
             target_axes=region.target_axes,
-            current_shape=image.data.shape,
+            current_shape=region.data.shape,
+            # before combine sample region is effectively a whole-image tile missing S
+            current_is_tile=True,
         )
 
         if not transform.canonical_order:

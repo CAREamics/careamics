@@ -15,7 +15,7 @@ from careamics.dataset.image_stack.zarr_access import (
 from careamics.dataset.patching import TileSpecs
 from careamics.utils.reshape_array import RestoredAxesTransform
 
-from .zarr_write_strategy import (
+from .zarr_write_utils import (
     ZarrWriteStrategyBase,
     auto_chunks,
     get_zarr_destination,

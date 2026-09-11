@@ -8,7 +8,7 @@ from careamics.dataset.patching import TileSpecs
 from careamics.lightning.callbacks.prediction.zarr_tile_write_strategy import (
     ZarrTileHandler,
 )
-from careamics.lightning.callbacks.prediction.zarr_write_strategy import auto_chunks
+from careamics.lightning.callbacks.prediction.zarr_write_utils import auto_chunks
 from tests.unit.utils.test_reshape_array import (
     _CHANNEL_REMOVED_NON_CANONICAL,
     _array_to_tile,
