@@ -54,6 +54,7 @@ dependencies = [
     'scikit-image<=0.26.0',
     'tensorstore>=0.1.0, <0.2.0',
     'zarr>=3.0.0,<4.0.0',
+    'zarrs>=0.2.3,<0.3.0',
     'yaozarrs[io]>=0.3.1,<0.4.0',
     'pydantic-tensorstore',
     'tifffile<=2026.3.3',
