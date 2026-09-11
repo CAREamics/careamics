@@ -245,8 +245,6 @@ class CrossEntropyLoss(Module):
     ----------
     class_weights : torch.Tensor, default=None
         A manual rescaling weight given to each class for both losses.
-    include_background : bool, default=True
-        Whether to include the background class in the Dice loss calculation.
     """
 
     def __init__(self, class_weights: list[float] | None) -> None:
