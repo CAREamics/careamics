@@ -52,7 +52,7 @@ dependencies = [
     # --- Data, image processing and visualization ---
     'pyyaml!=6.0.0,<=6.0.3',
     'scikit-image<=0.26.0',
-    'tensorstore>=0.1.85',
+    'tensorstore>=0.1.0, <0.2.0',
     'zarr>=3.0.0,<4.0.0',
     'zarrs>=0.2.3,<0.3.0',
     'yaozarrs[io]>=0.3.1,<0.4.0',
@@ -178,7 +178,6 @@ addopts = "-p no:doctest"
 markers = [
     "lvae: marks tests as testing lvae",
     "e2e: marks longer running end-to-end tests",
-    "mps_gh_fail: marks tests as failing on Github macos-latest runner",
     "czi: marks tests using czi files",
 ]
 
@@ -225,6 +224,3 @@ exclude = [ # don't report on objects that match any of these regex
     "test_*",
     "src/careamics/lvae_training/*",
 ]
-
-[tool.uv.sources]
-pydantic-tensorstore = { git = "https://github.com/tlambert03/pydantic-tensorstore.git" }
