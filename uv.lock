@@ -442,7 +442,7 @@ requires-dist = [
     { name = "tifffile", specifier = "<=2026.3.3" },
     { name = "torch", specifier = ">=2.1.0,<2.13.0" },
     { name = "torchmetrics", specifier = ">0.7.0,<1.9.0" },
-    { name = "torchvision", specifier = "<=0.25.0" },
+    { name = "torchvision", specifier = "<=0.26.0" },
     { name = "wandb", marker = "extra == 'wandb'" },
     { name = "zarr", specifier = ">=3.0.0,<4.0.0" },
 ]
