@@ -1,5 +1,6 @@
 """Tests for NoiseModelTrainer."""
 
+import warnings
 from collections.abc import Callable
 from pathlib import Path
 
@@ -66,7 +67,7 @@ def test_train_from_pairs_single_channel() -> None:
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
     noise_models = trainer.train_from_pairs(
-        signal=signal, observation=observation, n_epochs=10
+        signal=signal, observation=observation, axes="SYX", n_epochs=10
     )
 
     assert len(noise_models) == 1
@@ -83,7 +84,7 @@ def test_train_from_pairs_multi_channel() -> None:
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
     noise_models = trainer.train_from_pairs(
-        signal=signal, observation=observation, n_epochs=10
+        signal=signal, observation=observation, axes="SCYX", n_epochs=10
     )
 
     assert len(noise_models) == 2
@@ -92,60 +93,6 @@ def test_train_from_pairs_multi_channel() -> None:
     assert len(trainer.noise_models) == 2
     assert trainer.histograms is not None
     assert len(trainer.histograms) == 2
-
-
-def test_train_from_pairs_accepts_separate_axes(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    gen = np.random.default_rng(42)
-    signal_scyx = gen.uniform(0, 255, (3, 2, 8, 9))
-    observation_scyx = signal_scyx + gen.normal(0, 10, signal_scyx.shape)
-    observation_syxc = np.moveaxis(observation_scyx, 1, -1)
-    captured_channels: list[tuple[np.ndarray, np.ndarray]] = []
-
-    def _fake_train_single_channel(
-        self: NoiseModelTrainer,
-        signal: np.ndarray,
-        observation: np.ndarray,
-        n_epochs: int,
-        learning_rate: float,
-        batch_size: int,
-        min_signal: float | None = None,
-        max_signal: float | None = None,
-    ) -> tuple[GaussianMixtureNoiseModel, list[float]]:
-        _ = (n_epochs, learning_rate, batch_size)
-        captured_channels.append((signal.copy(), observation.copy()))
-        config = GaussianMixtureNMConfig(
-            min_signal=min_signal if min_signal is not None else float(signal.min()),
-            max_signal=max_signal if max_signal is not None else float(signal.max()),
-            n_gaussian=self.n_gaussian,
-            n_coeff=self.n_coeff,
-            min_sigma=self.min_sigma,
-        )
-        return GaussianMixtureNoiseModel(config), [0.0]
-
-    monkeypatch.setattr(
-        NoiseModelTrainer,
-        "_train_single_channel",
-        _fake_train_single_channel,
-    )
-
-    trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    noise_models = trainer.train_from_pairs(
-        signal=signal_scyx,
-        observation=observation_syxc,
-        signal_axes="SCYX",
-        observation_axes="SYXC",
-        n_epochs=1,
-    )
-
-    assert len(noise_models) == 2
-    assert trainer.channel_indices == [0, 1]
-    assert len(captured_channels) == 2
-    np.testing.assert_array_equal(captured_channels[0][0], signal_scyx[:, 0])
-    np.testing.assert_array_equal(captured_channels[0][1], observation_scyx[:, 0])
-    np.testing.assert_array_equal(captured_channels[1][0], signal_scyx[:, 1])
-    np.testing.assert_array_equal(captured_channels[1][1], observation_scyx[:, 1])
 
 
 def test_train_from_pairs_shape_mismatch_raises() -> None:
@@ -157,11 +104,16 @@ def test_train_from_pairs_shape_mismatch_raises() -> None:
         ValueError,
         match="Signal and observation shapes must match after axes normalization",
     ):
-        trainer.train_from_pairs(signal=signal, observation=observation)
+        trainer.train_from_pairs(
+            signal=signal,
+            observation=observation,
+            axes="SYX",
+        )
 
 
 def test_train_from_pairs_normalized_shape_mismatch_raises() -> None:
-    signal = np.random.rand(5, 2, 64, 64)
+    """A channel-count mismatch is caught once both arrays are normalized."""
+    signal = np.random.rand(5, 64, 64, 2)
     observation = np.random.rand(5, 64, 64, 3)
 
     trainer = NoiseModelTrainer()
@@ -172,8 +124,7 @@ def test_train_from_pairs_normalized_shape_mismatch_raises() -> None:
         trainer.train_from_pairs(
             signal=signal,
             observation=observation,
-            signal_axes="SCYX",
-            observation_axes="SYXC",
+            axes="SYXC",
         )
 
 
@@ -183,7 +134,12 @@ def test_save_creates_files(tmp_path: Path) -> None:
     observation = signal + gen.normal(0, 10, signal.shape)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=10)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=10,
+    )
 
     saved_paths = trainer.save(tmp_path, prefix="test_nm")
 
@@ -205,7 +161,12 @@ def test_load_models(tmp_path: Path) -> None:
     observation = signal + gen.normal(0, 10, signal.shape)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=10)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SYX",
+        n_epochs=10,
+    )
     saved_paths = trainer.save(tmp_path)
 
     loaded_models = NoiseModelTrainer.load(saved_paths)
@@ -220,7 +181,12 @@ def test_save_load_roundtrip(tmp_path: Path) -> None:
     observation = signal + gen.normal(0, 10, signal.shape)
 
     trainer = NoiseModelTrainer(n_gaussian=2, n_coeff=3)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=10)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=10,
+    )
     saved_paths = trainer.save(tmp_path)
 
     loaded_models = NoiseModelTrainer.load(saved_paths)
@@ -241,7 +207,12 @@ def test_get_multichannel_model() -> None:
     observation = signal + gen.normal(0, 10, signal.shape)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=10)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=10,
+    )
 
     multichannel = trainer.get_multichannel_model()
 
@@ -265,6 +236,7 @@ def test_trained_model_has_weights() -> None:
     trainer.train_from_pairs(
         signal=signal,
         observation=observation,
+        axes="SYX",
         n_epochs=50,
         learning_rate=0.1,
     )
@@ -289,6 +261,7 @@ def test_noise_model_learns_correct_sigma(
     trainer.train_from_pairs(
         signal=data["signal"],
         observation=data["observation"],
+        axes="SYX",
         n_epochs=500,
         learning_rate=0.1,
     )
@@ -318,11 +291,12 @@ def test_noise_model_samples_match_distribution(
     trainer.train_from_pairs(
         signal=data["signal"],
         observation=data["observation"],
+        axes="SYX",
         n_epochs=300,
         learning_rate=0.1,
     )
 
-    sampled_obs = trainer.sample_observation(data["signal"])
+    sampled_obs = trainer.sample_observation(data["signal"], axes="SYX")
 
     real_noise = (data["observation"] - data["signal"]).ravel()
     sampled_noise = (sampled_obs - data["signal"]).ravel()
@@ -344,7 +318,12 @@ def test_multichannel_learns_different_noise_levels() -> None:
         observation[:, ch] = signal[:, ch] + gen.normal(0, sigma, signal[:, ch].shape)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=3, min_sigma=100.0)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=500)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=500,
+    )
 
     for ch, true_sigma in enumerate(noise_sigmas):
         nm = trainer.noise_models[ch]
@@ -365,9 +344,14 @@ def test_sample_observation_single_channel() -> None:
     observation = signal + gen.normal(0, 20, signal.shape)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2, min_sigma=100.0)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=100)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SYX",
+        n_epochs=100,
+    )
 
-    sampled = trainer.sample_observation(signal)
+    sampled = trainer.sample_observation(signal, axes="SYX")
 
     assert sampled.shape == signal.shape
     assert sampled.dtype == np.float64
@@ -380,9 +364,14 @@ def test_sample_observation_multi_channel() -> None:
     observation = signal + gen.normal(0, 20, signal.shape)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2, min_sigma=100.0)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=100)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=100,
+    )
 
-    sampled = trainer.sample_observation(signal)
+    sampled = trainer.sample_observation(signal, axes="SCYX")
 
     assert sampled.shape == signal.shape
 
@@ -393,7 +382,7 @@ def test_sample_observation_without_training_raises() -> None:
     signal = np.random.rand(5, 64, 64)
 
     with pytest.raises(ValueError, match="No noise models available"):
-        trainer.sample_observation(signal)
+        trainer.sample_observation(signal, axes="SYX")
 
 
 def test_sample_observation_distribution_matches_multichannel() -> None:
@@ -407,9 +396,14 @@ def test_sample_observation_distribution_matches_multichannel() -> None:
         observation[:, ch] = signal[:, ch] + gen.normal(0, sigma, signal[:, ch].shape)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=3, min_sigma=100.0)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=300)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=300,
+    )
 
-    sampled = trainer.sample_observation(signal)
+    sampled = trainer.sample_observation(signal, axes="SCYX")
 
     for ch in range(2):
         real_noise = (observation[:, ch] - signal[:, ch]).ravel()
@@ -431,7 +425,12 @@ def test_trainer_global_signal_range() -> None:
     observation = signal + gen.normal(0, 5, signal.shape).astype(np.float32)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2, global_signal_range=True)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=5)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=5,
+    )
 
     global_min = float(signal.min())
     global_max = float(signal.max())
@@ -453,7 +452,12 @@ def test_get_config_returns_multichannel_nm_config() -> None:
     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=5)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=5,
+    )
 
     config = trainer.get_config()
 
@@ -493,7 +497,12 @@ def test_get_config_roundtrip_numerically_equivalent(tmp_path: Path) -> None:
     observation = signal + gen.normal(0, 15, signal.shape).astype(np.float32)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=5)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SYX",
+        n_epochs=5,
+    )
     saved_paths = trainer.save(tmp_path)
 
     config_via_method = trainer.get_config()
@@ -514,7 +523,12 @@ def test_config_from_paths_builds_multichannel_config(tmp_path: Path) -> None:
     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=5)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=5,
+    )
     saved_paths = trainer.save(tmp_path)
 
     config = NoiseModelTrainer.config_from_paths(saved_paths)
@@ -538,7 +552,12 @@ def test_channel_indices_stored_after_training() -> None:
     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=5)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=5,
+    )
 
     assert trainer.channel_indices == [0, 1, 2]
 
@@ -549,7 +568,12 @@ def test_save_embeds_channel_index_metadata(tmp_path: Path) -> None:
     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=5)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=5,
+    )
     saved_paths = trainer.save(tmp_path)
 
     for expected_ch, path in enumerate(saved_paths):
@@ -559,7 +583,6 @@ def test_save_embeds_channel_index_metadata(tmp_path: Path) -> None:
 
 
 def test_load_old_npz_without_channel_index_backward_compat(tmp_path: Path) -> None:
-    from careamics.config.noise_model import GaussianMixtureNMConfig
 
     weights = np.random.randn(3, 2).astype(np.float32)
     old_path = tmp_path / "old_style.npz"
@@ -577,7 +600,6 @@ def test_load_old_npz_without_channel_index_backward_compat(tmp_path: Path) -> N
 
 
 def test_multichannel_nm_config_rejects_wrong_channel_order() -> None:
-    from careamics.config.noise_model import GaussianMixtureNMConfig
     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
     weights = np.ones((3, 2)).astype(np.float32)
@@ -599,7 +621,6 @@ def test_multichannel_nm_config_rejects_wrong_channel_order() -> None:
 
 def test_multichannel_nm_config_rejects_wrong_indices_length() -> None:
     """MultiChannelNMConfig raises when channel_indices length is wrong."""
-    from careamics.config.noise_model import GaussianMixtureNMConfig
     from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
     weights = np.ones((3, 2)).astype(np.float32)
@@ -616,7 +637,12 @@ def test_get_config_channel_indices_match_metadata() -> None:
     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
 
     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-    trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=5)
+    trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SCYX",
+        n_epochs=5,
+    )
 
     config = trainer.get_config()
     for pos, gmm_cfg in enumerate(config.noise_models):
@@ -625,60 +651,121 @@ def test_get_config_channel_indices_match_metadata() -> None:
         ), f"channel_index mismatch at position {pos}: {gmm_cfg.channel_index}"
 
 
-# def test_diagnose_returns_per_channel_dicts() -> None:
-#     """diagnose() returns one dict per channel with expected keys."""
-#     gen = np.random.default_rng(9)
-#     signal = gen.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
-#     observation = signal + gen.normal(0, 20, signal.shape).astype(np.float32)
+@pytest.fixture(scope="module")
+def channel_last_trained() -> tuple[NoiseModelTrainer, np.ndarray, np.ndarray, list]:
+    """Train on channel-last data whose two channels carry different noise."""
+    gen = np.random.default_rng(42)
+    sigmas = [10.0, 40.0]
 
-#     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-#     trainer.train_from_pairs(signal=signal, observation=observation, n_epochs=10)
+    signal = gen.uniform(0, 255, (10, 64, 64, 2))
+    observation = np.empty_like(signal)
+    for ch, sigma in enumerate(sigmas):
+        observation[..., ch] = signal[..., ch] + gen.normal(
+            0, sigma, signal[..., ch].shape
+        )
 
-#     diagnostics = trainer.diagnose(signal=signal, observation=observation)
-
-#     assert len(diagnostics) == 2
-#     expected_keys = {
-#         "channel_index",
-#         "final_loss",
-#         "loss_trend",
-#         "has_nan_weights",
-#         "has_inf_weights",
-#         "learned_sigma_mean",
-#         "signal_range_coverage",
-#         "wasserstein_distance",
-#     }
-#     for d in diagnostics:
-#         assert expected_keys == set(d.keys()), f"Unexpected keys: {set(d.keys())}"
-#         assert d["channel_index"] in (0, 1)
-#         assert not d["has_nan_weights"]
-#         assert not d["has_inf_weights"]
-#         assert 0.0 <= d["signal_range_coverage"] <= 1.0
+    trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=3, min_sigma=100.0)
+    trainer.train_from_pairs(
+        signal=signal, observation=observation, axes="SYXC", n_epochs=500
+    )
+    return trainer, signal, observation, sigmas
 
 
-# def test_diagnose_without_training_raises() -> None:
-#     """diagnose() raises before training."""
-#     trainer = NoiseModelTrainer()
-#     signal = np.random.rand(4, 2, 16, 16).astype(np.float32)
-#     observation = signal + 0.1
+def test_train_from_pairs_learns_per_channel_noise_from_channel_last_data(
+    channel_last_trained,
+) -> None:
+    """Each model learns the noise of its own channel, not of a pixel row."""
+    trainer, signal, _, sigmas = channel_last_trained
 
-#     with pytest.raises(ValueError, match="No noise models available"):
-#         trainer.diagnose(signal=signal, observation=observation)
+    assert len(trainer.noise_models) == 2
+    for ch, true_sigma in enumerate(sigmas):
+        signal_tensor = torch.from_numpy(signal[..., ch]).float()
+        _, learned, _ = trainer.noise_models[ch].get_gaussian_parameters(signal_tensor)
+
+        assert np.isclose(learned.mean().item(), true_sigma, rtol=0.2), (
+            f"Channel {ch}: learned sigma={learned.mean().item():.2f}, "
+            f"expected sigma={true_sigma:.2f}"
+        )
 
 
-# def test_train_losses_stored_after_training() -> None:
-#     """train_losses are populated with correct shape after training."""
-#     gen = np.random.default_rng(10)
-#     signal = gen.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
-#     observation = signal + gen.normal(0, 10, signal.shape).astype(np.float32)
+def test_diagnose_reports_per_channel_noise_for_channel_last_data(
+    channel_last_trained,
+) -> None:
+    """diagnose() reads each channel from the axes, not from a fixed position."""
+    trainer, signal, observation, sigmas = channel_last_trained
 
-#     n_epochs = 8
-#     trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
-# trainer.train_from_pairs(
-#     signal=signal, observation=observation, n_epochs=n_epochs
-# )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        diagnostics = trainer.diagnose(
+            signal=signal, observation=observation, axes="SYXC"
+        )
 
-#     assert trainer.train_losses is not None
-#     assert len(trainer.train_losses) == 2
-#     for losses in trainer.train_losses:
-#         assert len(losses) == n_epochs
-#         assert all(isinstance(v, float) for v in losses)
+    assert [d["channel_index"] for d in diagnostics] == [0, 1]
+    for diag, true_sigma in zip(diagnostics, sigmas, strict=True):
+        assert np.isclose(diag["learned_sigma_mean"], true_sigma, rtol=0.2)
+        assert diag["signal_range_coverage"] > 0.99
+        # a swap of the two channels lands near 0.09, a match near 0.001
+        assert diag["wasserstein_distance"] < 0.02
+
+
+def test_sample_observation_restores_axes_and_channel_order(
+    channel_last_trained,
+) -> None:
+    """Samples come back in the input order, with each channel's own noise."""
+    trainer, signal, _, sigmas = channel_last_trained
+
+    sampled = trainer.sample_observation(signal, axes="SYXC")
+
+    assert sampled.shape == signal.shape
+    for ch, true_sigma in enumerate(sigmas):
+        sampled_sigma = (sampled[..., ch] - signal[..., ch]).std()
+
+        assert np.isclose(sampled_sigma, true_sigma, rtol=0.25), (
+            f"Channel {ch}: sampled sigma={sampled_sigma:.2f}, "
+            f"expected sigma={true_sigma:.2f}"
+        )
+
+
+def test_train_from_pairs_requires_axes() -> None:
+    """`axes` has no default, so the layout is never guessed."""
+    signal = np.random.rand(5, 2, 8, 9)
+
+    trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
+    with pytest.raises(TypeError):
+        trainer.train_from_pairs(signal=signal, observation=signal)
+
+
+def test_train_from_pairs_rejects_axes_shape_mismatch() -> None:
+    """Axes that do not describe the array are rejected."""
+    signal = np.random.rand(5, 2, 8, 9)
+
+    trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
+    with pytest.raises(ValueError, match="does not match shape"):
+        trainer.train_from_pairs(
+            signal=signal, observation=signal, axes="SYX", n_epochs=1
+        )
+
+
+def test_sample_observation_channel_count_mismatch_raises() -> None:
+    """A signal whose channel count differs from the models is rejected."""
+    gen = np.random.default_rng(9)
+    signal = gen.uniform(0, 255, (4, 2, 8, 9))
+    observation = signal + gen.normal(0, 10, signal.shape)
+
+    trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2, min_sigma=100.0)
+    trainer.train_from_pairs(
+        signal=signal, observation=observation, axes="SCYX", n_epochs=5
+    )
+
+    with pytest.raises(ValueError, match="must match number of noise models"):
+        trainer.sample_observation(signal[:, :1], axes="SCYX")
+
+
+def test_diagnose_without_training_raises() -> None:
+    """diagnose() raises before training."""
+    trainer = NoiseModelTrainer()
+    signal = np.random.rand(4, 2, 16, 16).astype(np.float32)
+    observation = signal + 0.1
+
+    with pytest.raises(ValueError, match="No noise models available"):
+        trainer.diagnose(signal=signal, observation=observation, axes="SCYX")

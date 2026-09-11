@@ -277,20 +277,26 @@ class MultiChannelNoiseModel(nn.Module):
         Parameters
         ----------
         signal : NDArray
-            Clean signal data with shape (..., C, Y, X) where C is the number
-            of channels matching the number of noise models.
+            Clean signal data in `SC(Z)YX` order, where C matches the number of
+            noise models.
 
         Returns
         -------
         NDArray
             Sampled noisy observation with same shape as input signal.
+
+        Raises
+        ------
+        ValueError
+            If `signal` is not 4D or 5D, or if its number of channels does not
+            match the number of noise models.
         """
-        if signal.ndim < 3:
+        if signal.ndim not in (4, 5):
             raise ValueError(
-                f"Signal must have at least 3 dimensions (C, Y, X), got {signal.ndim}D"
+                f"Signal must be 4D (SCYX) or 5D (SCZYX), got {signal.ndim}D"
             )
 
-        n_channels = signal.shape[-3]
+        n_channels = signal.shape[1]
         if n_channels != self._nm_cnt:
             raise ValueError(
                 f"Number of channels ({n_channels}) must match number of "
@@ -300,11 +306,10 @@ class MultiChannelNoiseModel(nn.Module):
         samples_list = []
         for ch_idx in range(n_channels):
             nmodel = getattr(self, f"nmodel_{ch_idx}")
-            channel_signal = signal[..., ch_idx, :, :]
-            channel_sample = nmodel.sample_observation_from_signal(channel_signal)
+            channel_sample = nmodel.sample_observation_from_signal(signal[:, ch_idx])
             samples_list.append(channel_sample)
 
-        return np.stack(samples_list, axis=-3)
+        return np.stack(samples_list, axis=1)
 
     @property
     def is_normalized(self) -> bool:
