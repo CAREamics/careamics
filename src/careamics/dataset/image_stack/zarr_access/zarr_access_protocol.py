@@ -6,7 +6,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
-import zarr
 from numpy.typing import DTypeLike, NDArray
 
 
@@ -68,42 +67,33 @@ class ZarrNode:
         return f"{self.store_uri}/{self.path}"
 
 
+@dataclass(frozen=True)
+class ZarrArraySpec:
+    """Specification for creating a Zarr array.
+
+    Attributes
+    ----------
+    shape : tuple[int, ...]
+        Array shape.
+    chunks : tuple[int, ...]
+        Chunk shape.
+    shards : tuple[int, ...] or None
+        Shard shape.
+    dtype : DTypeLike
+        Array dtype.
+    dimension_names : tuple[str or None, ...] or None
+        Optional dimension names.
+    """
+
+    shape: tuple[int, ...]
+    chunks: tuple[int, ...]
+    shards: tuple[int, ...] | None
+    dtype: DTypeLike
+    dimension_names: tuple[str | None, ...] | None = None
+
+
 class ZarrAccessProtocol(Protocol):
     """Protocol for backend-specific Zarr operations."""
-
-    def open_node(
-        self, node: ZarrNode, mode: Literal["r", "a", "w"] = "r"
-    ) -> zarr.Array | zarr.Group:
-        """Open a Zarr node.
-
-        Parameters
-        ----------
-        node : ZarrNode
-            Node to open.
-        mode : {"r", "a", "w"}, default="r"
-            Open mode.
-
-        Returns
-        -------
-        zarr.Array or zarr.Group
-            Opened node.
-        """
-        ...
-
-    def list_array_paths(self, node: ZarrNode) -> list[str]:
-        """List first-level arrays beneath a group node.
-
-        Parameters
-        ----------
-        node : ZarrNode
-            Group node to inspect.
-
-        Returns
-        -------
-        list[str]
-            Relative array paths.
-        """
-        ...
 
     def get_array_shape(self, node: ZarrNode) -> tuple[int, ...]:
         """Return an array shape.
@@ -182,48 +172,24 @@ class ZarrAccessProtocol(Protocol):
         """
         ...
 
-    def resolve_node_type(self, node: ZarrNode) -> ZarrNode:
-        """Return a node with updated node type.
-
-        Parameters
-        ----------
-        node : ZarrNode
-            Node to inspect.
-
-        Returns
-        -------
-        ZarrNode
-            ZarrNode with updated type.
-        """
-        ...
-
     def create_array(
         self,
         node: ZarrNode,
-        shape: Sequence[int],
-        chunks: tuple[int, ...],
-        shards: tuple[int, ...] | None,
-        dtype: DTypeLike,
-    ) -> zarr.Array:
+        spec: ZarrArraySpec,
+    ) -> None:
         """Create or open an output array.
 
         Parameters
         ----------
         node : ZarrNode
             Output array node.
-        shape : Sequence[int]
-            Output array shape.
-        chunks : tuple[int, ...]
-            Output chunk shape.
-        shards : tuple[int, ...] or None
-            Output shard shape.
-        dtype : DTypeLike
-            Output array dtype.
+        spec : ZarrArraySpec
+            Output array specification. Parent groups must already exist.
 
         Returns
         -------
-        zarr.Array
-            Existing or newly created output array.
+        None
+            The array is created or opened in place.
         """
         ...
 

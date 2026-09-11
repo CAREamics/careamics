@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-import zarr
 from numpy.typing import NDArray
 from zarr.storage import StorePath
 
@@ -20,6 +19,8 @@ from careamics.dataset.image_stack.zarr_access import (
     ZarrPythonAccess,
     get_ome_array_metadata,
     is_valid_uri,
+    list_array_paths,
+    resolve_node_type,
     resolve_ome_zarr_nodes,
     to_zarr_node,
 )
@@ -169,7 +170,7 @@ def load_zarrs(
 
         # create zarr node and determine whether it is a group or an array
         root_node = to_zarr_node(data_source)
-        root_node = access.resolve_node_type(root_node)
+        root_node = resolve_node_type(root_node)
 
         # if array, instantiate image stack
         if root_node.node_type == "array":
@@ -188,12 +189,6 @@ def load_zarrs(
             continue
 
         # else node is a group, search for sub-arrays
-        opened = access.open_node(root_node, mode="r")
-        if not isinstance(opened, zarr.Group):
-            raise ValueError(
-                f"Content at '{data_str}' is neither a zarr.Group nor a zarr.Array."
-            )
-
         ome_nodes = resolve_ome_zarr_nodes(root_node)
         if len(ome_nodes) > 0:
             for resolved in ome_nodes:
@@ -208,7 +203,7 @@ def load_zarrs(
             continue
 
         # non-OME source
-        array_paths = access.list_array_paths(root_node)
+        array_paths = list_array_paths(root_node)
         array_paths.sort()
 
         for array_path in array_paths:
