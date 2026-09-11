@@ -13,6 +13,8 @@ __all__ = [
     "create_dataset",
     "create_microsplit_dataset",
     "create_microsplit_pred_dataset",
+    "create_microsplit_pred_dataset_from_data",
+    "create_microsplit_train_val_datasets",
     "create_pred_dataset",
     "create_train_dataset",
     "create_train_val_datasets",
@@ -44,4 +46,6 @@ from .microsplit_factory import (
     PairedInputTarget,
     create_microsplit_dataset,
     create_microsplit_pred_dataset,
+    create_microsplit_pred_dataset_from_data,
+    create_microsplit_train_val_datasets,
 )

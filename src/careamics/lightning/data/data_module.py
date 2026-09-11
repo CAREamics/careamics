@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader, Sampler
 from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.data_config import DataConfig
+from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset import CareamicsDataset
 from careamics.dataset.factory import (
@@ -21,6 +22,8 @@ from careamics.dataset.factory import (
     ReadFuncLoading,
     TrainValData,
     TrainValSplitData,
+    create_microsplit_pred_dataset_from_data,
+    create_microsplit_train_val_datasets,
     create_pred_dataset,
     create_train_val_datasets,
     create_val_split_datasets,
@@ -56,8 +59,51 @@ _Data = TrainValData[Any] | TrainValSplitData[Any] | PredData[Any]
 """Data for training with validation or validation splitting or data for prediction."""
 
 
+_MICROSPLIT_ONLY_FIELDS = frozenset(MicroSplitDataConfig.model_fields) - frozenset(
+    DataConfig.model_fields
+)
+"""Fields that only exist on `MicroSplitDataConfig`, lost when validating a `dict`."""
+
+
+def _reject_downgraded_subclass_dict(data_config: dict[str, Any]) -> None:
+    """Raise if a dictionary carries MicroSplit fields that would be silently dropped.
+
+    Dictionaries are validated as a plain `DataConfig`, which ignores unknown fields.
+    A MicroSplit dictionary would therefore lose the fields that select the MicroSplit
+    dataset construction, and training would silently run without lateral context.
+
+    Parameters
+    ----------
+    data_config : dict of {str: Any}
+        The data configuration dictionary to check.
+
+    Raises
+    ------
+    ValueError
+        If the dictionary contains any MicroSplit-only field.
+    """
+    found = sorted(_MICROSPLIT_ONLY_FIELDS.intersection(data_config))
+    if found:
+        raise ValueError(
+            f"The data configuration dictionary contains MicroSplit-only field(s) "
+            f"{found}, but dictionaries are validated as a plain `DataConfig`, which "
+            f"would silently drop them and build a non-MicroSplit dataset. Please pass "
+            f"a `MicroSplitDataConfig` instance instead, for instance "
+            f"`create_microsplit_config(...).data_config`."
+        )
+
+
 class CareamicsDataModule(L.LightningDataModule):
     """Data module for Careamics dataset.
+
+    The type of `data_config` selects how the datasets are constructed: a
+    `MicroSplitDataConfig` builds MicroSplit datasets, with lateral context, through
+    `careamics.dataset.factory.microsplit_factory`, while any other `DataConfig` builds
+    the basic patch datasets used by CARE, N2N, N2V and HDN. Only the paired
+    input/target MicroSplit mode is supported here, so `train_data_target` and
+    `val_data_target` are required, and automatic validation splitting is not
+    available. Note that a `dict` is always validated as a plain `DataConfig`, so a
+    MicroSplit configuration must be passed as a `MicroSplitDataConfig` instance.
 
     Parameters
     ----------
@@ -228,6 +274,7 @@ class CareamicsDataModule(L.LightningDataModule):
         if isinstance(data_config, DataConfig):
             self.config = data_config
         else:
+            _reject_downgraded_subclass_dict(data_config)
             self.config = DataConfig.model_validate(data_config)
 
         self.rng = np.random.default_rng(seed=self.config.seed)
@@ -278,6 +325,12 @@ class CareamicsDataModule(L.LightningDataModule):
                 return
 
             if isinstance(self._data, TrainValSplitData):
+                if isinstance(self.config, MicroSplitDataConfig):
+                    raise NotImplementedError(
+                        "Automatic validation splitting is not implemented for "
+                        "MicroSplit. Please provide explicit validation data through "
+                        "`val_data` and `val_data_target`."
+                    )
                 self.train_dataset, self.val_dataset = create_val_split_datasets(
                     self.config,
                     self._data,
@@ -286,9 +339,21 @@ class CareamicsDataModule(L.LightningDataModule):
                     self.model_constraints,
                 )
             elif isinstance(self._data, TrainValData):
-                self.train_dataset, self.val_dataset = create_train_val_datasets(
-                    self.config, self._data, self.loading, self.model_constraints
-                )
+                if isinstance(self.config, MicroSplitDataConfig):
+                    (
+                        self.train_dataset,
+                        self.val_dataset,
+                    ) = create_microsplit_train_val_datasets(
+                        self.config,
+                        self._data,
+                        self.loading,
+                        self.rng,
+                        self.model_constraints,
+                    )
+                else:
+                    self.train_dataset, self.val_dataset = create_train_val_datasets(
+                        self.config, self._data, self.loading, self.model_constraints
+                    )
             else:
                 raise ValueError("Training and validation data has not been provided.")
 
@@ -299,9 +364,14 @@ class CareamicsDataModule(L.LightningDataModule):
             if not isinstance(self._data, PredData):
                 raise ValueError("No data has been provided for prediction.")
 
-            self.predict_dataset = create_pred_dataset(
-                self.config, self._data, self.loading, self.model_constraints
-            )
+            if isinstance(self.config, MicroSplitDataConfig):
+                self.predict_dataset = create_microsplit_pred_dataset_from_data(
+                    self.config, self._data, self.loading, self.model_constraints
+                )
+            else:
+                self.predict_dataset = create_pred_dataset(
+                    self.config, self._data, self.loading, self.model_constraints
+                )
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 

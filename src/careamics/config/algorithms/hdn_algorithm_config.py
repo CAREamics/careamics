@@ -12,11 +12,9 @@ from careamics.config.lightning.optimizer_configs import (
     OptimizerConfig,
 )
 from careamics.config.losses.loss_config import HDNLossConfig
-from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.config.validators import (
     model_with_single_output_channel,
     model_without_multiscale,
-    noise_models_match_output_channels,
     predict_logvar_consistent,
 )
 
@@ -53,8 +51,6 @@ class HDNAlgorithm(BaseModel):
         AfterValidator(model_with_single_output_channel),
     ]
 
-    noise_model: MultiChannelNMConfig | None = None
-
     # overwrite default optimizer
     optimizer: OptimizerConfig = OptimizerConfig(name="Adamax")
     """Optimizer to use, defined in SupportedOptimizer."""
@@ -76,24 +72,6 @@ class HDNAlgorithm(BaseModel):
             If the model and loss `predict_logvar` do not match.
         """
         predict_logvar_consistent(self.model, self.loss)
-        return self
-
-    @model_validator(mode="after")
-    def validate_noise_model_channels(self: Self) -> Self:
-        """Validate that the number of noise models matches the output channels.
-
-        Returns
-        -------
-        Self
-            The validated model.
-
-        Raises
-        ------
-        ValueError
-            If the number of output channels does not match the number of noise
-            models.
-        """
-        noise_models_match_output_channels(self.model, self.noise_model)
         return self
 
     def __str__(self) -> str:

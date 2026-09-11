@@ -127,17 +127,17 @@ def test_multi_channel_noise_model_likelihood(
     nm = multichannel_noise_model_factory(noise_model_config)
     assert nm is not None
     assert isinstance(nm, MultiChannelNoiseModel)
-    assert nm._nm_cnt == target_ch
+    assert nm._nm_count == target_ch
     assert all(
         isinstance(getattr(nm, f"nmodel_{i}"), GaussianMixtureNoiseModel)
-        for i in range(nm._nm_cnt)
+        for i in range(nm._nm_count)
     )
     assert all(
         np.allclose(
             getattr(nm, f"nmodel_{i}").weight,
             create_dummy_noise_model["trained_weight"] + rand_epss[i],
         )
-        for i in range(nm._nm_cnt)
+        for i in range(nm._nm_count)
     )
     inp_shape = (1, target_ch, img_size, img_size)
     signal = torch.ones(inp_shape)

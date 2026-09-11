@@ -16,6 +16,7 @@ from careamics.lightning.modules.microsplit_module import MicroSplitModule
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
+    multichannel_noise_model_factory,
 )
 
 pytestmark = pytest.mark.lvae
@@ -193,9 +194,9 @@ def test_microsplit_on_fit_start_normalizes_per_channel(tmp_path):
             noise_model_likelihood_weight=0.9, gaussian_likelihood_weight=0.1
         ),
         model=LVAEConfig(architecture="LVAE", output_channels=2),
-        noise_model=nm_config,
     )
     module = MicroSplitModule(algorithm_config)
+    module.set_noise_model(multichannel_noise_model_factory(nm_config))
 
     target_means = [100.0, 5000.0]
     target_stds = [10.0, 250.0]

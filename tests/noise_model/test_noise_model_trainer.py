@@ -246,7 +246,7 @@ def test_get_multichannel_model() -> None:
     multichannel = trainer.get_multichannel_model()
 
     assert isinstance(multichannel, MultiChannelNoiseModel)
-    assert multichannel._nm_cnt == 2
+    assert multichannel._nm_count == 2
 
 
 def test_get_multichannel_model_without_training_raises() -> None:
