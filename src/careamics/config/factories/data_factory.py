@@ -91,6 +91,7 @@ def create_data_configuration(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     pred_dataloader_params: dict[str, Any] | None = None,
+    zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr",
     seed: int | None = None,
 ) -> DataConfig:
     """
@@ -140,6 +141,9 @@ def create_data_configuration(
         Parameters for the validation dataloader, see PyTorch notes, by default None.
     pred_dataloader_params : dict
         Parameters for the test dataloader, see PyTorch notes, by default None.
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used to read and write Zarr arrays, only effective if `data_type` is set
+        to `zarr`.
     seed : int, default=None
         Random seed for reproducibility. If `None`, seed is generated automatically.
 
@@ -164,10 +168,11 @@ def create_data_configuration(
         "channels": channels,
         "augmentations": augmentations,
         "n_val_patches": n_val_patches,
-        "seed": seed,
         "normalization": (
             normalization if normalization is not None else {"name": "mean_std"}
         ),
+        "zarr_backend": zarr_backend,
+        "seed": seed,
     }
 
     if patch_filter_config is not None:
