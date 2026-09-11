@@ -9,6 +9,13 @@
 **/*.unzip
 **/*.zip
 
+# examples: only keep markdown, python, and notebooks
+examples/**
+!examples/**/
+!examples/**/*.md
+!examples/**/*.py
+!examples/**/*.ipynb
+
 .vscode
 *.DS_Store
 **/.DS_Store
