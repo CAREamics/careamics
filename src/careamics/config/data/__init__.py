@@ -13,6 +13,7 @@ __all__ = [
     "QuantileConfig",
     "RandomPatchingConfig",
     "ShannonPatchFilterConfig",
+    "SwitiPatchingConfig",
     "TiledPatchingConfig",
     "WholePatchingConfig",
 ]
@@ -34,6 +35,7 @@ from .patch_filter import (
 )
 from .patching_strategies import (
     RandomPatchingConfig,
+    SwitiPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
 )

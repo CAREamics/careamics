@@ -39,6 +39,7 @@ from .patching_strategies import (
     FixedRandomPatchingConfig,
     RandomPatchingConfig,
     StratifiedPatchingConfig,
+    SwitiPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
 )
@@ -281,6 +282,7 @@ Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type
 PatchingConfig = Union[
     FixedRandomPatchingConfig,
     RandomPatchingConfig,
+    SwitiPatchingConfig,
     StratifiedPatchingConfig,
     TiledPatchingConfig,
     WholePatchingConfig,
@@ -686,10 +688,11 @@ class DataConfig(BaseModel):
                     f"mode '{mode.value}'. Use 'fixed_random' for validating."
                 )
         elif mode == Mode.PREDICTING:
-            if patching.name not in ["tiled", "whole"]:
+            if patching.name not in ["tiled", "switi", "whole"]:
                 raise ValueError(
                     f"Patching strategy '{patching.name}' is not compatible with "
-                    f"mode '{mode.value}'. Use 'tiled' or 'whole' for predicting."
+                    f"mode '{mode.value}'. Use 'tiled', 'switi', or "
+                    f"'whole' for predicting."
                 )
         return patching
 
