@@ -1,6 +1,7 @@
 """UNet-based algorithm Pydantic model."""
 
 from pprint import pformat
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -51,7 +52,7 @@ class UNetBasedAlgorithm(BaseModel):
     algorithm: str
     """Algorithm name, as defined in SupportedAlgorithm."""
 
-    loss: str
+    loss: Any
     """Loss function to use, as defined in SupportedLoss."""
 
     model: UNetConfig

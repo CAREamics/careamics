@@ -64,8 +64,7 @@ class SegModule(LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
-        loss = self.config.loss
-        self.loss_func = get_seg_loss(loss)
+        self.loss_func = get_seg_loss(self.config.loss)
 
         self.metrics: MetricCollection = MetricCollection(
             GeneralizedDiceScore(

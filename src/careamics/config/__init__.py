@@ -6,7 +6,6 @@ __all__ = [
     "GaussianMixtureNMConfig",
     "HDNAlgorithm",
     "LVAEConfig",
-    "LVAELossConfig",
     "MaxPatchFilterConfig",
     "MeanStdPatchFilterConfig",
     "MicroSplitAlgorithm",
@@ -63,7 +62,6 @@ from .factories import (
     create_structn2v_config,
 )
 from .factories.data_factory import create_data_configuration
-from .losses.loss_config import LVAELossConfig
 from .noise_model import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,

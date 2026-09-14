@@ -7,7 +7,7 @@ from pydantic import ConfigDict
 
 from careamics.config.algorithms.vae_algorithm_config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.losses import LVAELossConfig
 
 MICROSPLIT = "MicroSplit"
 

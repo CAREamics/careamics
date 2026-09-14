@@ -11,10 +11,9 @@ import torch
 
 from careamics.config import (
     GaussianMixtureNMConfig,
-    LVAELossConfig,
     MultiChannelNMConfig,
 )
-from careamics.config.losses.loss_config import KLLossConfig
+from careamics.config.losses import KLLossConfig, LVAELossConfig
 from careamics.config.noise_model.likelihood_config import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
