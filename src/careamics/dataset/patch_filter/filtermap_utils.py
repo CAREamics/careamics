@@ -49,7 +49,8 @@ def create_filter_map(
     patching_strategy = StratifiedPatching(
         [(1, 1, *image.shape)], patch_size=patch_size
     )
-    input_extractor = PatchExtractor(load_arrays([image], axes="YX"))
+    axes = "YX" if len(patch_size) == 2 else "ZYX"
+    input_extractor = PatchExtractor(load_arrays([image], axes=axes))
 
     # the stratified sampling regions regions overlap
     # 4 overlaping regions for 2D, 8 overlapping regions for 3D

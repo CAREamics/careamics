@@ -151,6 +151,7 @@ class MaxPatchFilter(PatchFilter):
             # take the middle z slice if not specified
             z_idx == image.shape[0] // 2 if z_idx is None else z_idx
             image = image[z_idx]
+            filter_map = filter_map[z_idx]
 
         fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
         ax.imshow(image, "gray")
