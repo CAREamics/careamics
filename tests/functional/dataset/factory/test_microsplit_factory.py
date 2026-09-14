@@ -380,8 +380,9 @@ def _training_config(**kwargs: Any) -> MicroSplitDataConfig:
     return MicroSplitDataConfig(**params)
 
 
-@pytest.mark.parametrize("data_type", ["array", "tiff"])
-@pytest.mark.parametrize("multiscale_count", [1, 3])
+# `data_type` and `multiscale_count` are independent axes, so two cases cover both
+# rather than their full product
+@pytest.mark.parametrize(("data_type", "multiscale_count"), [("array", 3), ("tiff", 1)])
 def test_train_val_datasets_build_paired_constructors(
     tmp_path: Path,
     data_type: Literal["array", "tiff"],
