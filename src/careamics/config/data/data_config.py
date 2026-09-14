@@ -933,7 +933,10 @@ class DataConfig(BaseModel):
 
         This validator runs before ``set_default_workers_in_dataloaders``, so
         the dataloader dicts only contain user-supplied values at this point.
-        Only fires when `num_workers` was explicitly set on the model.
+        Only fires when `num_workers` was explicitly set on the model, and only
+        for the dataloaders the current mode actually uses: the dicts belonging
+        to the other modes are carried along untouched and their values are not
+        a conflict.
 
         Returns
         -------
@@ -942,11 +945,17 @@ class DataConfig(BaseModel):
         """
         if "num_workers" not in self.model_fields_set:
             return self
-        for name, params in (
-            ("train_dataloader_params", self.train_dataloader_params),
-            ("val_dataloader_params", self.val_dataloader_params),
-            ("pred_dataloader_params", self.pred_dataloader_params),
-        ):
+        checked: tuple[tuple[str, dict[str, Any]], ...]
+        if self.mode == Mode.TRAINING:
+            checked = (
+                ("train_dataloader_params", self.train_dataloader_params),
+                ("val_dataloader_params", self.val_dataloader_params),
+            )
+        elif self.mode == Mode.VALIDATING:
+            checked = (("val_dataloader_params", self.val_dataloader_params),)
+        else:
+            checked = (("pred_dataloader_params", self.pred_dataloader_params),)
+        for name, params in checked:
             if "num_workers" in params and params["num_workers"] != self.num_workers:
                 logger.warning(
                     f"`num_workers={self.num_workers}` conflicts with "
@@ -1061,7 +1070,7 @@ class DataConfig(BaseModel):
         field depending on the new mode.
 
         To create a new training configuration, please use
-        `careamics.config.create_ng_data_configuration`.
+        `careamics.config.create_data_configuration`.
 
         This method compares the new parameters with the current ones and raises
         errors if incompatible changes are requested, such as switching between 2D and
@@ -1113,7 +1122,7 @@ class DataConfig(BaseModel):
             raise ValueError(
                 "Conversion to 'training' mode is not supported. Create a new "
                 "DataConfig instead, for instance using "
-                "`create_ng_data_configuration`."
+                "`create_data_configuration`."
             )
 
         # sanity checks
@@ -1209,5 +1218,8 @@ class DataConfig(BaseModel):
         # remove patch filter when switching to validation or prediction
         del model_dict["patch_filter"]
         del model_dict["mask_filter"]
+
+        if new_dataloader_params is not None and "num_workers" in new_dataloader_params:
+            model_dict["num_workers"] = new_dataloader_params["num_workers"]
 
         return DataConfig(**model_dict)

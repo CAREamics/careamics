@@ -10,8 +10,10 @@ except PackageNotFoundError:
 __all__ = [
     "CAREamist",
     "ImageStackLoading",
+    "NoiseModelTrainer",
     "ReadFuncLoading",
 ]
 
 from .careamist import CAREamist
 from .dataset.factory import ImageStackLoading, ReadFuncLoading
+from .noise_model import NoiseModelTrainer

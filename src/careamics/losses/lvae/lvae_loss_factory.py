@@ -4,18 +4,14 @@ Loss factory module.
 This module contains a factory function for creating loss functions.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import Union
 
 from careamics.config.support import SupportedLoss
 
 from .lvae_losses import (
-    denoisplit_loss,
-    denoisplit_musplit_loss,
     hdn_loss,
-    musplit_loss,
+    microsplit_loss,
 )
 
 
@@ -37,14 +33,8 @@ def lvae_loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
     NotImplementedError
         If the loss is unknown.
     """
-    if loss == SupportedLoss.MUSPLIT:
-        return musplit_loss
-
-    elif loss == SupportedLoss.DENOISPLIT:
-        return denoisplit_loss
-
-    elif loss == SupportedLoss.DENOISPLIT_MUSPLIT:
-        return denoisplit_musplit_loss
+    if loss == SupportedLoss.MICROSPLIT:
+        return microsplit_loss
 
     elif loss == SupportedLoss.HDN:
         return hdn_loss

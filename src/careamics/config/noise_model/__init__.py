@@ -1,12 +1,6 @@
 """Noise models Pydantic configurations."""
 
-__all__ = [
-    "GaussianLikelihoodConfig",
-    "GaussianMixtureNMConfig",
-    "MultiChannelNMConfig",
-    "NMLikelihoodConfig",
-]
+__all__ = ["GaussianMixtureNMConfig", "MultiChannelNMConfig"]
 
 
-from .likelihood_config import GaussianLikelihoodConfig, NMLikelihoodConfig
 from .noise_model_config import GaussianMixtureNMConfig, MultiChannelNMConfig
