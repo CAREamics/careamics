@@ -112,7 +112,7 @@ class DiceLoss(Module):
 
         Parameters
         ----------
-        class_weights : list[float] | None
+        class_weights : list[float] | None, default=None
             A manual rescaling weight given to each class.
         """
         super().__init__()
@@ -185,7 +185,7 @@ class DiceCELoss(Module):
 
         Parameters
         ----------
-        class_weights : list[float] | None
+        class_weights : list[float] | None, default=None
             A manual rescaling weight given to each class for both losses.
         ce_weight : float, default=1.0
             Weight for the cross-entropy component.
@@ -247,12 +247,12 @@ class CrossEntropyLoss(Module):
         A manual rescaling weight given to each class for both losses.
     """
 
-    def __init__(self, class_weights: list[float] | None) -> None:
+    def __init__(self, class_weights: list[float] | None = None) -> None:
         """Constructor.
 
         Parameters
         ----------
-        class_weights : list[float] | None
+        class_weights : list[float] | None, default=None
             A manual rescaling weight given to each class.
         """
         super().__init__()
