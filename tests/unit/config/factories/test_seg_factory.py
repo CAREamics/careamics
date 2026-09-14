@@ -79,14 +79,14 @@ def test_loss_parameters_are_configured():
         loss_parameters={
             "class_weights": [1.0, 2.0, 3.0],
             "dice_weight": 0.25,
-            "ce_weights": 0.75,
+            "ce_weight": 0.75,
         },
     )
 
     assert cfg.algorithm_config.loss.name == "dice_ce"
     assert cfg.algorithm_config.loss.class_weights == [1.0, 2.0, 3.0]
     assert cfg.algorithm_config.loss.dice_weight == 0.25
-    assert cfg.algorithm_config.loss.ce_weights == 0.75
+    assert cfg.algorithm_config.loss.ce_weight == 0.75
 
 
 def test_loss_class_weights_match_model_classes():

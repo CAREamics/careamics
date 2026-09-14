@@ -5,6 +5,12 @@ from contextlib import nullcontext as does_not_raise
 import pytest
 import torch
 
+from careamics.config.losses.seg_loss_config import (
+    CELossConfig,
+    DiceCELossConfig,
+    DiceLossConfig,
+    _SegmentationLossConfig,
+)
 from careamics.losses.segmentation_losses import (
     CrossEntropyLoss,
     DiceCELoss,
@@ -150,18 +156,22 @@ def test_dice_ce_sum(class_labels, one_hot_labels, batch_size, is_3D):
 
 
 @pytest.mark.parametrize(
-    "loss_name, exp_class, exp_error",
+    "config, exp_class, exp_error",
     [
         # no error
-        ("dice", DiceLoss, does_not_raise()),
-        ("ce", CrossEntropyLoss, does_not_raise()),
-        ("dice_ce", DiceCELoss, does_not_raise()),
+        (DiceLossConfig(), DiceLoss, does_not_raise()),
+        (CELossConfig(), CrossEntropyLoss, does_not_raise()),
+        (DiceCELossConfig(), DiceCELoss, does_not_raise()),
         # error
-        ("not_a_loss", None, pytest.raises(ValueError, match="Unsupported")),
+        (
+            _SegmentationLossConfig(name="not a loss"),
+            None,
+            pytest.raises(ValueError, match="Unsupported"),
+        ),
     ],
 )
-def test_get_loss(loss_name, exp_class, exp_error):
+def test_get_loss(config, exp_class, exp_error):
     """Test loss factory."""
     with exp_error:
-        loss = get_seg_loss(loss_name)
+        loss = get_seg_loss(config)
         assert isinstance(loss, exp_class)

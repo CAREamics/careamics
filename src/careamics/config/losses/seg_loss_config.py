@@ -10,6 +10,9 @@ class _SegmentationLossConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
+    name: str
+    """Segmentation loss name."""
+
     class_weights: list[float] | None = None
     """Optional weight for each segmentation class."""
 
