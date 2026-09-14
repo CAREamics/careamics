@@ -3,7 +3,11 @@ import pytest
 
 from careamics.config import create_data_configuration
 from careamics.config.data import MicroSplitDataConfig
-from careamics.dataset.factory import MultiChannelTarget, create_dataset
+from careamics.dataset.factory import (
+    MultiChannelTarget,
+    PairedInputTarget,
+    create_dataset,
+)
 from careamics.dataset.factory.microsplit_factory import create_microsplit_dataset
 from careamics.lightning.data import GroupedIndexSampler
 
@@ -112,3 +116,32 @@ def test_from_microsplit_dataset(
             dataset, rng=np.random.default_rng(42)
         )
         assert sorted(sampler.grouped_indices[0]) == list(range(len(dataset)))
+
+
+def test_from_paired_microsplit_dataset() -> None:
+    """Test grouped sampling supports the paired MicroSplit constructor.
+
+    This is the constructor `CareamicsDataModule` builds for MicroSplit training.
+    """
+    # Arrange
+    config = MicroSplitDataConfig(
+        mode="training",
+        data_type="array",
+        axes="SCYX",
+        patching={"name": "stratified", "patch_size": (16, 16), "seed": 42},
+        normalization={"name": "none"},
+    )
+    target = np.zeros((1, 2, 32, 32), dtype=np.float32)
+    dataset = create_microsplit_dataset(
+        config=config,
+        data=PairedInputTarget(
+            input_data=[target.sum(axis=1, keepdims=True)], target_data=[target]
+        ),
+        rng=np.random.default_rng(42),
+    )
+
+    # Act
+    sampler = GroupedIndexSampler.from_dataset(dataset, rng=np.random.default_rng(42))
+
+    # Assert
+    assert sorted(sampler.grouped_indices[0]) == list(range(len(dataset)))
