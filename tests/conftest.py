@@ -25,7 +25,6 @@ from careamics.lightning.utils.load_checkpoint import _create_loaded_exp_name
 
 pytest.register_assert_rewrite("functional.dataset.utils")
 
-# TODO move to compat/conftest.py
 
 ############################################################
 # Old fixtures below, kept for backwards compatibility, need
