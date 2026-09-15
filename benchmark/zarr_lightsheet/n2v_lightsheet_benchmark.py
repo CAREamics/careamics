@@ -144,6 +144,13 @@ def main() -> None:
         n_channels=2,
         independent_channels=True,
         zarr_backend=zarr_backend,
+        num_workers=0,
+        # train_dataloader_params={
+        #     "multiprocessing_context": 'spawn'
+        # },
+        # val_dataloader_params={
+        #     "multiprocessing_context": 'spawn'
+        # },
         seed=24,
     )
     careamist = CAREamist(config=config, work_dir=root)
@@ -162,6 +169,7 @@ def main() -> None:
         batch_size=16,
         tile_size=(32, 128, 128),
         tile_overlap=(4, 48, 48),
+        num_workers=0,
     )
     prediction_seconds = perf_counter() - prediction_start
 
