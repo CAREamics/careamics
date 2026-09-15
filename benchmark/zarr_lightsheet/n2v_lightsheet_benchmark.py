@@ -141,10 +141,13 @@ def main() -> None:
         patch_size=(32, 128, 128),
         batch_size=6,
         num_epochs=50,
-        n_channels=2,
-        independent_channels=True,
+        channels=[0],
         zarr_backend=zarr_backend,
         num_workers=0,
+        normalization_params={
+            "means": [141.00148],
+            "stds": [108.16662014],
+        },
         # train_dataloader_params={
         #     "multiprocessing_context": 'spawn'
         # },
