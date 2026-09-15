@@ -56,7 +56,7 @@ dependencies = [
     'zarr>=3.0.0,<4.0.0',
     'tifffile<=2026.3.3',
     'matplotlib<=3.11.2',
-    'microssim<=0.0.4', # TODO absorb as careamics.metrics
+    'microssim<=0.0.5', # TODO absorb as careamics.metrics
 
     # --- Used by LVAE code --- 
     'torchvision<=0.26.0', # TODO used in model and module, revisit
