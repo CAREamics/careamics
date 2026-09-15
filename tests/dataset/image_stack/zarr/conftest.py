@@ -106,3 +106,19 @@ def zarr_multiple(tmp_path, arrays) -> list[ZarrSource]:
         )
 
     return source
+
+
+@pytest.fixture
+def zarr_root_arrays(tmp_path, arrays) -> list[ZarrSource]:
+    """Three Zarr stores where each store contains an array at the root."""
+    source = []
+
+    for i in range(arrays.shape[0]):
+        path = tmp_path / f"root_array_{i}.zarr"
+        root_array = zarr.open_array(
+            path, mode="w", shape=arrays[i].shape, dtype=arrays[i].dtype
+        )
+        root_array[...] = arrays[i]
+        source.append({"zarr_file": str(path.absolute()), "array_path": ""})
+
+    return source
