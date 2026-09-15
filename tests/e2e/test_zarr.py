@@ -6,7 +6,7 @@ import zarr
 from yaozarrs import v05, validate_zarr_store, write
 
 from careamics import CAREamist
-from careamics.config import create_care_config, create_n2v_config
+from careamics.config import create_advanced_n2v_config, create_care_config
 
 
 def _ome_image_metadata() -> v05.Image:
@@ -98,14 +98,16 @@ def _train_n2v_model(
     tmp_path: Path,
     train_data: list[str],
     val_data: list[str],
+    zarr_backend: str = "zarr",
 ) -> CAREamist:
-    cfg = create_n2v_config(
+    cfg = create_advanced_n2v_config(
         experiment_name="n2v_zarr",
         data_type="zarr",
         axes="YX",
         patch_size=(32, 32),
         batch_size=2,
         num_epochs=2,
+        zarr_backend=zarr_backend,
     )
     careamist = CAREamist(cfg, work_dir=tmp_path)
     careamist.train(train_data=train_data, val_data=val_data)
@@ -167,8 +169,12 @@ def test_smoke_n2v_plain_zarr_root_array(tmp_path: Path) -> None:
 
 
 @pytest.mark.mps_gh_fail
-def test_smoke_n2v_single_image_ome_zarr(tmp_path: Path) -> None:
-    """Test that an OME-NGFF single array gets written as an Image OME-Zarr."""
+@pytest.mark.parametrize("backend", ["zarr", "zarrs", "tensorstore"])
+def test_smoke_n2v_single_image_ome_zarr(tmp_path: Path, backend: str) -> None:
+    """Test that an OME-NGFF single array gets written as an Image OME-Zarr.
+
+    Note: this test also run the various zarr backends.
+    """
     rng = np.random.default_rng(42)
     train_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
     val_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
@@ -181,9 +187,7 @@ def test_smoke_n2v_single_image_ome_zarr(tmp_path: Path) -> None:
     pred_uri = _create_single_image_ome_zarr(tmp_path / "input_image.zarr", pred_array)
 
     careamist = _train_n2v_model(
-        tmp_path,
-        train_data=[train_uri],
-        val_data=[val_uri],
+        tmp_path, train_data=[train_uri], val_data=[val_uri], zarr_backend=backend
     )
     careamist.predict_to_disk(
         pred_data=[pred_uri],

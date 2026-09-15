@@ -15,8 +15,9 @@ from careamics.dataset.image_stack import (
 )
 from careamics.dataset.image_stack.czi_image_stack import CziImageStack
 from careamics.dataset.image_stack.zarr_access import (
+    ZarrBackend,
     ZarrNode,
-    ZarrPythonAccess,
+    create_zarr_access,
     get_ome_array_metadata,
     is_valid_uri,
     list_array_paths,
@@ -134,6 +135,7 @@ def load_custom_file(
 def load_zarrs(
     source: Sequence[str | Path | StorePath],
     axes: str,
+    zarr_backend: ZarrBackend = "zarr",
 ) -> list[ZarrImageStack]:
     """Create a list of ZarrImageStack from a sequence of zarr file paths or URIs.
 
@@ -151,6 +153,8 @@ def load_zarrs(
         Source zarr file paths or URIs.
     axes : str
         Original axes of the data, must be a subset of "STCZYX".
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used for Zarr array I/O.
 
     Returns
     -------
@@ -158,7 +162,7 @@ def load_zarrs(
         Image stacks created from the sources.
     """
     image_stacks: list[ZarrImageStack] = []
-    access = ZarrPythonAccess()
+    access = create_zarr_access(zarr_backend)
 
     for data_source in source:
         data_str = str(data_source)

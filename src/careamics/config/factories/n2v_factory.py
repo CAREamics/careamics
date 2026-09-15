@@ -303,6 +303,7 @@ def create_advanced_n2v_config(
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
+    zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr",
     # n2v specific
     use_n2v2: bool = False,
     roi_size: int = 11,
@@ -420,6 +421,9 @@ def create_advanced_n2v_config(
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used to read and write Zarr arrays, only effective if `data_type` is set
+        to `zarr`.
     use_n2v2 : bool, default=False
         Whether to use N2V2.
     roi_size : int, default=11
@@ -494,6 +498,7 @@ def create_advanced_n2v_config(
         num_workers=num_workers,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
+        zarr_backend=zarr_backend,
         seed=seed,
     )
 

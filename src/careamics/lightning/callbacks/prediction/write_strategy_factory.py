@@ -3,6 +3,7 @@
 from typing import Any
 
 from careamics.config.support import SupportedData
+from careamics.dataset.image_stack.zarr_access import ZarrBackend, create_zarr_access
 from careamics.image_io import SupportedWriteType, WriteFunc, get_write_func
 
 from .image_write_strategy import ImageWriteStrategy
@@ -17,6 +18,7 @@ def create_write_strategy(
     write_func: WriteFunc | None = None,
     write_extension: str | None = None,
     write_func_kwargs: dict[str, Any] | None = None,
+    zarr_backend: ZarrBackend = "zarr",
 ) -> WriteStrategy:
     """
     Create a write strategy from convenient parameters.
@@ -35,6 +37,9 @@ def create_write_strategy(
         `write_type` an extension to save the data with must be passed.
     write_func_kwargs : dict of {str: any}, optional
         Additional keyword arguments to be passed to the save function.
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used to write Zarr arrays, only effective if `write_type` is set to
+        `zarr`.
 
     Returns
     -------
@@ -74,6 +79,7 @@ def create_write_strategy(
             write_func=write_func,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            zarr_backend=zarr_backend,
         )
 
     return write_strategy
@@ -84,6 +90,7 @@ def _create_tiled_write_strategy(
     write_func: WriteFunc | None,
     write_extension: str | None,
     write_func_kwargs: dict[str, Any],
+    zarr_backend: ZarrBackend = "zarr",
 ) -> WriteStrategy:
     """
     Create a tiled write strategy.
@@ -103,6 +110,9 @@ def _create_tiled_write_strategy(
         `write_type` an extension to save the data with must be passed.
     write_func_kwargs : dict of {str: any}
         Additional keyword arguments to be passed to the save function.
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used to write Zarr arrays, only effective if `write_type` is set to
+        `zarr`.
 
     Returns
     -------
@@ -115,7 +125,7 @@ def _create_tiled_write_strategy(
         if `write_type="zarr" is chosen.
     """
     if write_type == "zarr":
-        return ZarrTileWriteStrategy()
+        return ZarrTileWriteStrategy(access=create_zarr_access(zarr_backend))
     else:
         write_func = select_write_func(write_type=write_type, write_func=write_func)
         write_extension = select_write_extension(
