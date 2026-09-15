@@ -144,6 +144,7 @@ def main() -> None:
         n_channels=2,
         independent_channels=True,
         zarr_backend=zarr_backend,
+        seed=24,
     )
     careamist = CAREamist(config=config, work_dir=root)
 
@@ -161,7 +162,6 @@ def main() -> None:
         batch_size=16,
         tile_size=(32, 128, 128),
         tile_overlap=(4, 48, 48),
-        checkpoint="last",
     )
     prediction_seconds = perf_counter() - prediction_start
 
