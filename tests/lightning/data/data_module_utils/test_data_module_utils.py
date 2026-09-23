@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import zarr
 
-from careamics.dataset.image_stack_loader.zarr_utils import is_valid_uri
+from careamics.dataset.image_stack.zarr_access import is_valid_uri
 from careamics.lightning.data.data_module_utils import initialize_data_pair
 
 
