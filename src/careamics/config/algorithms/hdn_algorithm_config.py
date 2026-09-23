@@ -1,13 +1,24 @@
 """HDN algorithm configuration."""
 
-from typing import Literal
+from pprint import pformat
+from typing import Annotated, Literal, Self
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import ConfigDict
+from pydantic import AfterValidator, BaseModel, ConfigDict, model_validator
 
-from careamics.config.algorithms.vae_algorithm_config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.lightning.optimizer_configs import (
+    LrSchedulerConfig,
+    OptimizerConfig,
+)
+from careamics.config.losses.loss_config import HDNLossConfig
+from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
+from careamics.config.validators import (
+    model_with_single_output_channel,
+    model_without_multiscale,
+    noise_models_match_output_channels,
+    predict_logvar_consistent,
+)
 
 HDN = "Hierarchical DivNoising"
 
@@ -24,18 +35,76 @@ HDN_REF = CiteEntry(
 )
 
 
-class HDNAlgorithm(VAEBasedAlgorithm):
+class HDNAlgorithm(BaseModel):
     """HDN algorithm configuration."""
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(
+        protected_namespaces=(),  # allows to use model_* as a field name
+        validate_assignment=True,
+    )
 
     algorithm: Literal["hdn"] = "hdn"
 
-    loss: LVAELossConfig
+    loss: HDNLossConfig = HDNLossConfig()
 
-    model: LVAEConfig  # TODO add validators
+    model: Annotated[
+        LVAEConfig,
+        AfterValidator(model_without_multiscale),
+        AfterValidator(model_with_single_output_channel),
+    ]
 
-    is_supervised: bool = False
+    noise_model: MultiChannelNMConfig | None = None
+
+    # overwrite default optimizer
+    optimizer: OptimizerConfig = OptimizerConfig(name="Adamax")
+    """Optimizer to use, defined in SupportedOptimizer."""
+
+    lr_scheduler: LrSchedulerConfig = LrSchedulerConfig()
+
+    @model_validator(mode="after")
+    def validate_predict_logvar(self: Self) -> Self:
+        """Validate the consistency of `predict_logvar` between model and loss.
+
+        Returns
+        -------
+        Self
+            The validated model.
+
+        Raises
+        ------
+        ValueError
+            If the model and loss `predict_logvar` do not match.
+        """
+        predict_logvar_consistent(self.model, self.loss)
+        return self
+
+    @model_validator(mode="after")
+    def validate_noise_model_channels(self: Self) -> Self:
+        """Validate that the number of noise models matches the output channels.
+
+        Returns
+        -------
+        Self
+            The validated model.
+
+        Raises
+        ------
+        ValueError
+            If the number of output channels does not match the number of noise
+            models.
+        """
+        noise_models_match_output_channels(self.model, self.noise_model)
+        return self
+
+    def __str__(self) -> str:
+        """Pretty string representing the configuration.
+
+        Returns
+        -------
+        str
+            Pretty string.
+        """
+        return pformat(self.model_dump())
 
     def get_algorithm_friendly_name(self) -> str:
         """
@@ -101,3 +170,15 @@ class HDNAlgorithm(VAEBasedAlgorithm):
             Algorithm description.
         """
         return HDN_DESCRIPTION
+
+    @classmethod
+    def is_supervised(cls) -> bool:
+        """
+        Return whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return False

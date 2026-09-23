@@ -4,7 +4,6 @@ __all__ = [
     "CAREModule",
     "CareamicsDataModule",
     "ConfigSaverCallback",
-    "DataStatsCallback",
     "ImageStackLoading",
     "MicroSplitDataModule",
     "N2VModule",
@@ -24,7 +23,6 @@ from careamics.dataset.factory import ImageStackLoading, ReadFuncLoading
 
 from .callbacks import (
     ConfigSaverCallback,
-    DataStatsCallback,
     PredictionStoppedException,
     ProgressBarCallback,
     StopPredictionCallback,

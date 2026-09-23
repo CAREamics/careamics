@@ -1,8 +1,9 @@
 """Losses Pydantic configurations."""
 
 __all__ = [
-    "KLLossConfig",
+    "HDNLossConfig",
     "LVAELossConfig",
+    "MicroSplitLossConfig",
 ]
 
-from .loss_config import KLLossConfig, LVAELossConfig
+from .loss_config import HDNLossConfig, LVAELossConfig, MicroSplitLossConfig

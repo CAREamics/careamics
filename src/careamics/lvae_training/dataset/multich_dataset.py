@@ -9,11 +9,11 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+from .config import MicroSplitDataConfig
+from .types import DataSplitType, TilingMode
 from .utils.empty_patch_fetcher import EmptyPatchFetcher
 from .utils.index_manager import GridIndexManager
 from .utils.index_switcher import IndexSwitcher
-from .config import MicroSplitDataConfig
-from .types import DataSplitType, TilingMode
 
 
 class MultiChDloader(Dataset):
