@@ -159,8 +159,8 @@ def test_global_stats_pools_across_channels():
         patching={"name": "whole"},
         normalization={
             "name": "quantile",
-            "lower_quantiless": 0.01,
-            "upper_quantiless": 0.99,
+            "lower_quantiles": 0.01,
+            "upper_quantiles": 0.99,
             "per_channel": False,
         },
     )
