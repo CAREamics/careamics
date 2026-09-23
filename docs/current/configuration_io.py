@@ -2,7 +2,7 @@
 
 # %%
 # --8<-- [start:save_load]
-from careamics.config.factories import create_n2v_config
+from careamics.config import create_n2v_config
 from careamics.config.utils.configuration_io import (
     save_configuration,
     load_configuration,

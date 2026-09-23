@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from pathlib import Path
 import numpy as np
-from careamics.config.factories import create_n2v_config
+from careamics.config import create_n2v_config
 from careamics.careamist import CAREamist
 import tifffile
 import shutil

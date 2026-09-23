@@ -5,7 +5,7 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 import pooch
 
-from careamics.config.factories import create_advanced_n2v_config
+from careamics.config import create_advanced_n2v_config
 from careamics.lightning import (
     CareamicsDataModule,
     ConfigSaverCallback,

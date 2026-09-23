@@ -2,7 +2,7 @@
 
 # %%
 # --8<-- [start:czi]
-from careamics.config.factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
