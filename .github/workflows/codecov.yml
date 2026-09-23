@@ -12,6 +12,8 @@ jobs:
   codecov:
     name: codecov update
     runs-on: ubuntu-latest
+    env:
+      MPLBACKEND: Agg # non-interactive matplotlib back-end
     strategy:
       fail-fast: false
       matrix:

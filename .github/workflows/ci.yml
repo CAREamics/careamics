@@ -24,6 +24,8 @@ jobs:
   test:
     name: ${{ matrix.platform }} (${{ matrix.python-version }})
     runs-on: ${{ matrix.platform }}
+    env:
+      MPLBACKEND: Agg # non-interactive matplotlib back-end
     strategy:
       fail-fast: false
       matrix:
