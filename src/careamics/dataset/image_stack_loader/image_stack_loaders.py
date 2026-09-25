@@ -18,7 +18,9 @@ from careamics.dataset.image_stack.czi_image_stack import CziImageStack
 from careamics.dataset.image_stack.zarr_access import (
     ZarrNode,
     ZarrPythonAccess,
+    get_ome_array_metadata,
     is_valid_uri,
+    resolve_ome_zarr_nodes,
     to_zarr_node,
 )
 from careamics.image_io import ReadFunc
@@ -127,6 +129,7 @@ def load_custom_file(
     ]
 
 
+# TODO split in sub-routines to clarify OME and non-OME paths
 def load_zarrs(
     source: Sequence[str | Path | StorePath],
     axes: str,
@@ -161,13 +164,15 @@ def load_zarrs(
 
         if not (data_str.endswith(".zarr") or is_valid_uri(data_str)):
             raise ValueError(
-                f"Source '{data_source}' is neither a zarr file nor a file URI."
+                f"Source '{data_source}' is neither a zarr file nor a valid file URI."
             )
 
+        # create zarr node and determine whether it is a group or an array
         root_node = to_zarr_node(data_source)
-        root_type = access.resolve_node_type(root_node)
+        root_node = access.resolve_node_type(root_node)
 
-        if root_type == "array":
+        # if array, instantiate image stack
+        if root_node.node_type == "array":
             image_stacks.append(
                 ZarrImageStack(
                     node=ZarrNode(
@@ -177,23 +182,32 @@ def load_zarrs(
                     ),
                     axes=axes,
                     access=access,
+                    additional_metadata=get_ome_array_metadata(root_node),
                 )
             )
             continue
 
+        # else node is a group, search for sub-arrays
         opened = access.open_node(root_node, mode="r")
         if not isinstance(opened, zarr.Group):
-            raise TypeError(
+            raise ValueError(
                 f"Content at '{data_str}' is neither a zarr.Group nor a zarr.Array."
             )
 
-        # if root_node.path == "" and is_ome_zarr(opened):
-        #     # TODO implement OME-Zarr resolution against NGFF 0.5.
-        #     raise NotImplementedError(
-        #         "OME-Zarr support is not yet implemented when providing a path to the"
-        #         "zarr store."
-        #     )
+        ome_nodes = resolve_ome_zarr_nodes(root_node)
+        if len(ome_nodes) > 0:
+            for resolved in ome_nodes:
+                image_stacks.append(
+                    ZarrImageStack(
+                        node=resolved.node,
+                        axes=axes,
+                        access=access,
+                        additional_metadata=resolved.additional_metadata,
+                    )
+                )
+            continue
 
+        # non-OME source
         array_paths = access.list_array_paths(root_node)
         array_paths.sort()
 
