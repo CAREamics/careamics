@@ -136,6 +136,12 @@ class ZarrImageStack:
         if self.shards is not None:
             metadata["shards"] = self.shards
 
+        # TODO remove this hack and find a better way to deal with it
+        metadata["ome"]["coordinate_transformations"][0]["scale"] = [
+            np.array(f).astype(np.float32)
+            for f in metadata["ome"]["coordinate_transformations"][0]["scale"]
+        ]
+
         return metadata
 
     @property
