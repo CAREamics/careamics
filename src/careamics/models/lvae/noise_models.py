@@ -708,11 +708,22 @@ class GaussianMixtureNoiseModel(nn.Module):
             sigma_temp = torch.clamp(sigma_temp, min=self.min_sigma)
             sigma.append(torch.sqrt(sigma_temp))
 
-            expval = torch.exp(
+            # Keep the raw logit; the softmax below is stabilized before exp.
+            alpha.append(
                 self.polynomial_regressor(self.weight[2 * kernels + num, :], signals)
                 + self.tolerance
             )
-            alpha.append(expval)
+
+        # Max-shifted softmax over the mixture logits. Exponentiating the raw
+        # polynomial overflows float32 once it exceeds ~88 (log of the float32
+        # max): the canonical sox2golgiv2 GT_TRITC model reaches 138 over the
+        # top third of its signal range, so `exp` returned inf, the sum was inf,
+        # and inf/inf made every alpha -- and through `sum_means` below every
+        # mean -- NaN. Subtracting the per-point maximum is algebraically
+        # identical after normalization and cannot overflow.
+        max_logit = torch.stack(alpha, dim=0).max(dim=0).values
+        for ker in range(kernels):
+            alpha[ker] = torch.exp(alpha[ker] - max_logit)
 
         sum_alpha = 0
         for al in range(kernels):

@@ -131,13 +131,23 @@ def RangeInvariantPsnr(gt: Tensor, pred: Tensor) -> Tensor:
     return _psnr_internal(zero_mean(gt_norm), fix(gt_norm, pred_flat), ra)
 
 
-def _to_tensor_batch(data: ArrayCollection) -> Tensor:
-    """Convert batch inputs to tensors."""
+def _to_tensor_batch(data: ArrayCollection) -> Tensor | list[Tensor]:
+    """Convert batch inputs to tensors.
+
+    Returns a stacked tensor when the collection is rectangular, and a list of
+    per-image tensors when it is ragged. Datasets whose frames differ in Y/X
+    (Pavia-P24, HT-P23A) cannot be stacked; the only consumer, `_avg_psnr`,
+    indexes element by element and computes the metric per image, so a list is
+    an equivalent batch there and the two paths give identical numbers.
+    """
     if isinstance(data, Tensor):
         return data
     if isinstance(data, np.ndarray):
         return torch.as_tensor(data)
-    return torch.as_tensor(np.stack(data, axis=0))
+    try:
+        return torch.as_tensor(np.stack(data, axis=0))
+    except ValueError:
+        return [torch.as_tensor(np.asarray(d)) for d in data]
 
 
 def _avg_psnr(

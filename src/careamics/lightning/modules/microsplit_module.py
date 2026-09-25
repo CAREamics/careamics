@@ -23,10 +23,12 @@ from careamics.models.model_factory import model_factory
 from careamics.utils.logging import get_logger
 
 from .module_utils import (
+    compile_model_if_requested,
     configure_optimizers,
     log_training_stats,
     log_validation_stats,
     mmse_and_sample_std,
+    skip_nan_batch,
 )
 
 logger = get_logger(__name__)
@@ -166,6 +168,14 @@ class MicroSplitModule(L.LightningModule):
                 f"{self.config.loss.noise_model_likelihood_weight}."
             )
 
+    def configure_model(self) -> None:
+        """Compile the inner model if compilation was requested.
+
+        Lightning calls this hook once the module is on its target device and
+        before the strategy wraps it, which is where `torch.compile` belongs.
+        """
+        compile_model_if_requested(self)
+
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.
 
@@ -278,8 +288,8 @@ class MicroSplitModule(L.LightningModule):
         model_outputs = self.model(x_data)
         loss = self._compute_loss(model_outputs, target)
         if loss is None:
-            # skip the batch on NaN loss
-            return None
+            # neutralize the batch on NaN loss (zero gradient, see helper)
+            return skip_nan_batch(self)
 
         log_training_stats(self, loss["loss"], batch_size=x_data.shape[0])
         self.log_dict(

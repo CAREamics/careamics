@@ -96,6 +96,8 @@ def create_advanced_microsplit_config(
     uncorrelated_channel_prob: float = 0.0,
     # model parameters
     model_params: dict[str, Any] | None = None,
+    encoder_conv_strides: Sequence[int] | None = None,
+    decoder_conv_strides: Sequence[int] | None = None,
     predict_logvar: bool = True,
     logvar_lowerbound: float | None = -5.0,
     # loss parameters
@@ -168,6 +170,12 @@ def create_advanced_microsplit_config(
         `analytical_kl`, `enable_topdown_normalize_factor`,
         `encoder_first_conv_kernel`) are set by the algorithm and cannot be overridden
         here.
+    encoder_conv_strides : sequence of int or None, default=None
+        Encoder convolution strides, one per patch dimension. Default
+        `[2] * len(patch_size)`; 3D data that should not be downsampled in Z needs
+        `[1, 2, 2]`.
+    decoder_conv_strides : sequence of int or None, default=None
+        Decoder convolution strides, same convention as `encoder_conv_strides`.
     predict_logvar : bool, default=True
         Whether to predict the pixelwise log-variance.
     logvar_lowerbound : float or None, default=-5.0
@@ -213,7 +221,24 @@ def create_advanced_microsplit_config(
     MicroSplitConfiguration
         Configuration for training MicroSplit.
     """
-    conv_strides = [2] * len(patch_size)
+    default_conv_strides = [2] * len(patch_size)
+    enc_conv_strides = (
+        list(encoder_conv_strides)
+        if encoder_conv_strides is not None
+        else default_conv_strides
+    )
+    dec_conv_strides = (
+        list(decoder_conv_strides)
+        if decoder_conv_strides is not None
+        else default_conv_strides
+    )
+    if len(enc_conv_strides) != len(patch_size) or len(dec_conv_strides) != len(
+        patch_size
+    ):
+        raise ValueError(
+            f"encoder/decoder_conv_strides must match patch_size length "
+            f"({len(patch_size)}), got {enc_conv_strides} / {dec_conv_strides}"
+        )
 
     # TODO consider accepting a MicroSplitLossConfig directly instead of individual
     # weights (see PR #1007 discussion); to be addressed in a follow-up PR.
@@ -238,8 +263,8 @@ def create_advanced_microsplit_config(
         "input_shape": tuple(patch_size),
         "output_channels": output_channels,
         "multiscale_count": multiscale_count,
-        "encoder_conv_strides": conv_strides,
-        "decoder_conv_strides": conv_strides,
+        "encoder_conv_strides": enc_conv_strides,
+        "decoder_conv_strides": dec_conv_strides,
         "predict_logvar": predict_logvar,
         "analytical_kl": False,
         "enable_topdown_normalize_factor": True,

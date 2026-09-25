@@ -1,5 +1,6 @@
 """Utilities for Lightning modules."""
 
+import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -217,3 +218,114 @@ def mmse_and_sample_std(
     std = (sum_squared_deviations / (n_samples - 1)).sqrt()
 
     return mean, std
+
+
+def request_model_compilation(module: L.LightningModule, **compile_kwargs: Any) -> None:
+    """Mark a module's inner model for `torch.compile`.
+
+    The compilation itself is deferred to `configure_model`, which Lightning
+    calls once the module sits on its target device.
+
+    Parameters
+    ----------
+    module : L.LightningModule
+        The module whose `model` attribute should be compiled.
+    **compile_kwargs : Any
+        Keyword arguments forwarded to `torch.compile`, e.g. `mode`, `dynamic`
+        or `fullgraph`.
+    """
+    module._compile_kwargs = compile_kwargs  # type: ignore[assignment]
+
+
+def compile_model_if_requested(module: L.LightningModule) -> None:
+    """Compile a module's inner model in place if compilation was requested.
+
+    Uses `nn.Module.compile()` rather than rebinding `module.model` to the object
+    returned by `torch.compile`. The in-place variant stores the compiled
+    callable outside the module's parameters and buffers, so `state_dict()` keys
+    are unchanged and checkpoints stay interchangeable with uncompiled runs;
+    rebinding would prefix every key with `_orig_mod.`.
+
+    Lightning may call `configure_model` more than once (once per `fit`,
+    `validate`, `test` and `predict` entry point), so this is idempotent.
+
+    Parameters
+    ----------
+    module : L.LightningModule
+        The module whose `model` attribute should be compiled.
+    """
+    compile_kwargs = getattr(module, "_compile_kwargs", None)
+    if compile_kwargs is None:
+        return
+    model = module.model  # type: ignore[attr-defined]
+    if getattr(model, "_compiled_call_impl", None) is not None:
+        return  # already compiled
+    model.compile(**compile_kwargs)
+    logger.info(
+        f"Compiled {type(model).__name__} with torch.compile({compile_kwargs})."
+    )
+
+
+def zero_gradient_loss(model: nn.Module) -> torch.Tensor:
+    """Build a finite loss whose gradient is exactly zero for every parameter.
+
+    Touching every trainable parameter keeps DDP's reducer satisfied without
+    `find_unused_parameters`, while the zero gradient makes the batch contribute
+    nothing to the update.
+
+    Parameters
+    ----------
+    model : nn.Module
+        The model whose parameters the loss should touch.
+
+    Returns
+    -------
+    torch.Tensor
+        A scalar loss that back-propagates a zero gradient to every parameter.
+    """
+    contributions = [
+        (parameter * 0.0).sum()
+        for parameter in model.parameters()
+        if parameter.requires_grad
+    ]
+    if not contributions:
+        raise ValueError("Model has no trainable parameters.")
+    return torch.stack(contributions).sum()
+
+
+def skip_nan_batch(module: L.LightningModule) -> torch.Tensor:
+    """Neutralize a training batch whose loss came out NaN.
+
+    Returns a loss that is finite-by-construction in its gradients: it touches
+    every trainable parameter but back-propagates exactly zero, so the batch
+    contributes nothing to the update.
+
+    Returning `None` instead -- Lightning's documented way to skip an optimizer
+    step -- is not usable here. Lightning's AMP plugin calls `_after_closure`,
+    and therefore gradient clipping, *unconditionally*, before it checks whether
+    the closure returned `None` (see `plugins/precision/amp.py`). With no
+    backward pass, no parameter has a `.grad`, and `clip_grad_value_` raises
+    `RuntimeError: Expected !nested_tensorlist[0].empty() to be true` on the
+    empty gradient list. That applies whenever `gradient_clip_val` is set, on a
+    single device as much as under DDP.
+
+    Under DDP a zero-gradient loss is required for a second reason: a rank that
+    skips backward desynchronizes the gradient all-reduce and deadlocks or
+    crashes the other ranks.
+
+    Parameters
+    ----------
+    module : L.LightningModule
+        The module whose training step produced the NaN loss.
+
+    Returns
+    -------
+    torch.Tensor
+        A scalar loss that back-propagates a zero gradient to every parameter.
+    """
+    warnings.warn(
+        "NaN loss encountered; the batch contributes a zero gradient instead of "
+        "being skipped.",
+        stacklevel=2,
+    )
+    return zero_gradient_loss(module.model)  # type: ignore[attr-defined]
