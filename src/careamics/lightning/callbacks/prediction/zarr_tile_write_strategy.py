@@ -4,16 +4,15 @@ from collections.abc import Sequence
 from pathlib import Path
 from types import EllipsisType
 
-import zarr
 from numpy import float32
 from numpy.typing import NDArray
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack.zarr_access import (
     ZarrAccessProtocol,
+    ZarrArraySpec,
     ZarrNode,
     ZarrPythonAccess,
-    create_ome_array,
     ensure_ome_store_structure,
     file_uri_to_path,
     get_ome_dimension_names,
@@ -328,7 +327,6 @@ class ZarrTileWriteStrategy(WriteStrategy):
             Zarr backend access implementation.
         """
         self.access = ZarrPythonAccess() if access is None else access
-        self.current_array: zarr.Array | None = None
         self._current_node_source: str | None = None
         self._store_image_groups: dict[str, set[str]] = {}
 
@@ -404,15 +402,19 @@ class ZarrTileWriteStrategy(WriteStrategy):
             source_ome=source_ome if isinstance(source_ome, dict) else None,
             image_group_paths=sorted(self._store_image_groups[store_key]),
         )
-        self.current_array = create_ome_array(
-            target=ome_target,
-            shape=tuple(shape),
-            shards=shards,
-            chunks=chunks,
-            dtype=float32,
-            dimension_names=get_ome_dimension_names(
-                pred_axes,
-                source_ome if isinstance(source_ome, dict) else None,
+        self.access.create_array(
+            node=ome_target.array_node,
+            spec=ZarrArraySpec(
+                shape=tuple(shape),
+                shards=shards,
+                chunks=chunks,
+                dtype=float32,
+                dimension_names=tuple(
+                    get_ome_dimension_names(
+                        pred_axes,
+                        source_ome if isinstance(source_ome, dict) else None,
+                    )
+                ),
             ),
         )
         self._current_node_source = node.source
@@ -439,10 +441,7 @@ class ZarrTileWriteStrategy(WriteStrategy):
         handler = ZarrTileHandler(region)
 
         # create array
-        if (
-            self.current_array is None
-            or self._current_node_source != output_node.source
-        ):
+        if self._current_node_source != output_node.source:
             self._create_array(
                 region,
                 output_node,
@@ -452,8 +451,11 @@ class ZarrTileWriteStrategy(WriteStrategy):
                 handler.pred_array_axes,
             )
 
-        if self.current_array is None:
-            raise RuntimeError("Zarr array not initialized.")
+        self.access.write_array_tile(
+            output_node,
+            handler.stitch_slices,
+            handler.restored_crop,
+        )
 
         self.access.write_array_tile(
             output_node,

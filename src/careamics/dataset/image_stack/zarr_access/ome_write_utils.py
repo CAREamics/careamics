@@ -8,12 +8,9 @@ from typing import Any
 import zarr
 from yaozarrs import v05
 
-from .ome_zarr_utils import default_ome_axes_metadata
+from .ome_utils import default_ome_axes_metadata
 from .zarr_access_protocol import ZarrNode
 from .zarr_access_utils import file_uri_to_path
-
-# TODO in the near future we need to decouple OME specs generation and Zarr group/array
-# creation.
 
 
 @dataclass(frozen=True)
@@ -311,56 +308,3 @@ def ensure_ome_store_structure(
             array_name=target.array_name,
         )
     )
-
-
-def create_ome_array(
-    target: OMEWriteTarget,
-    shape: tuple[int, ...],
-    chunks: tuple[int, ...],
-    shards: tuple[int, ...] | None,
-    dtype: Any,
-    dimension_names: list[str],
-) -> zarr.Array:
-    """Create or open an OME-Zarr array.
-
-    Parameters
-    ----------
-    target : OMEWriteTarget
-        Output target.
-    shape : tuple[int, ...]
-        Array shape.
-    chunks : tuple[int, ...]
-        Chunk shape.
-    shards : tuple[int, ...] or None
-        Shard shape.
-    dtype : Any
-        Array dtype.
-    dimension_names : list[str]
-        Dimension names for the array metadata.
-
-    Returns
-    -------
-    zarr.Array
-        Existing or newly created array.
-    """
-    store_path = file_uri_to_path(target.store_uri)
-    root = zarr.open_group(store_path, mode="a")
-    group = _ensure_group(root, target.image_group_path)
-
-    if target.array_name in group:
-        array = group[target.array_name]
-        if not isinstance(array, zarr.Array):
-            raise RuntimeError(f"Zarr array '{target.array_name}' is not an array.")
-        return array
-
-    array = group.create_array(
-        name=target.array_name,
-        shape=shape,
-        chunks=chunks,
-        shards=shards,
-        dtype=dtype,
-        dimension_names=dimension_names,
-    )
-    if not isinstance(array, zarr.Array):
-        raise RuntimeError(f"Zarr array '{target.array_name}' is not an array.")
-    return array
