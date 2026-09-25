@@ -37,9 +37,7 @@ def test_output_expected_shape_survives_repeated_reads():
 
     for layer in model.bottom_up_layers:
         assert isinstance(layer.output_expected_shape, tuple)
-        assert tuple(layer.output_expected_shape) == tuple(
-            layer.output_expected_shape
-        )
+        assert tuple(layer.output_expected_shape) == tuple(layer.output_expected_shape)
 
 
 @pytest.mark.lvae
