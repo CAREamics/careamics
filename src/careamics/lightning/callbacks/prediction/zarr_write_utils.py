@@ -58,7 +58,14 @@ def _add_output_key(dirpath: Path, path: str | Path) -> Path:
         Output Zarr store path.
     """
     source_path = Path(path)
-    return dirpath / f"{source_path.stem}{OUTPUT_KEY}.zarr"
+
+    # TODO hack fix, find better solution
+    if ".ome" in source_path.stem:
+        name = source_path.stem[: source_path.stem.find(".ome")]
+    else:
+        name = source_path.stem
+
+    return dirpath / f"{name}{OUTPUT_KEY}.ome.zarr"
 
 
 def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
