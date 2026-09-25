@@ -9,7 +9,10 @@ from tests.utils import (
 )
 
 from careamics.config.data.data_config import DataConfig
-from careamics.dataset.factory import TrainValSplitData, create_train_dataset
+from careamics.dataset.factory import (
+    TrainValSplitData,
+    create_train_dataset,
+)
 from careamics.dataset.patch_constructor import BasicPatchConstr
 
 
