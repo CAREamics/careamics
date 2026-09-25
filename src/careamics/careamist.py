@@ -2,18 +2,14 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, cast, overload
+from typing import Any, Literal, overload
 
 from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from numpy.typing import NDArray
 
-from .config.algorithms import (
-    CAREAlgorithm,
-    N2NAlgorithm,
-    N2VAlgorithm,
-)
+from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
 from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
@@ -32,20 +28,15 @@ from .lightning.modules import (
     CAREamicsModule,
     create_module,
 )
-from .lightning.prediction import (
-    convert_prediction,
-    prediction_region,
-    uncertainty_region,
-)
+from .lightning.prediction import convert_predict_outputs
 from .lightning.utils import (
+    TrainingReport,
     load_config_from_checkpoint,
     load_module_from_checkpoint,
     read_csv_logger,
 )
 from .model_io.bmz_io import load_from_bmz
 from .models import get_model_constraints
-from .models.lvae.noise_models import MultiChannelNoiseModel
-from .noise_model import NoiseModelTrainer
 from .utils import get_logger, get_run_version
 from .utils.reshape_array import reshape_array
 
@@ -55,7 +46,6 @@ logger = get_logger(__name__)
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
-NoiseModelInput = MultiChannelNoiseModel | list[str | Path]
 OutputType = tuple[list[NDArray], list[str]]
 OutputTypeWithUncertainty = tuple[list[NDArray], list[NDArray], list[str]]
 PredictStepOutput = ImageRegionData | tuple[ImageRegionData, ImageRegionData | None]
@@ -606,7 +596,6 @@ class CAREamist:
         # ADVANCED PARAMS
         filtering_mask: InputVar | None = None,
         loading: ReadFuncLoading | None = None,
-        noise_model: NoiseModelInput | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -621,7 +610,6 @@ class CAREamist:
         # ADVANCED PARAMS
         filtering_mask: Any | None = None,
         loading: ImageStackLoading = ...,
-        noise_model: NoiseModelInput | None = None,
     ) -> None: ...
 
     def train(
@@ -635,7 +623,6 @@ class CAREamist:
         # ADVANCED PARAMS
         filtering_mask: Any | None = None,
         loading: Loading = None,
-        noise_model: NoiseModelInput | None = None,
     ) -> None:
         """Train the model on the provided data.
 
@@ -658,30 +645,14 @@ class CAREamist:
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
-        noise_model : MultiChannelNoiseModel or list of str or Path, optional
-            Trained noise model for the noise model likelihood (MicroSplit denoiSplit /
-            HDN noise model pathway), as a `MultiChannelNoiseModel` or the per-channel
-            `.npz` paths to load it from. Only used by MicroSplit and HDN; it is a
-            training-time, loss-side artifact and is not stored in the configuration.
-            Produce one with `NoiseModelTrainer` or `CAREamist.train_noise_model`.
 
         Raises
         ------
         ValueError
-            If train_data is not provided, or if a noise model is provided for an
-            algorithm that does not support one.
+            If train_data is not provided.
         """
         if train_data is None:
             raise ValueError("Training data must be provided. Provide `train_data`.")
-
-        if noise_model is not None:
-            if not hasattr(self.model, "set_noise_model"):
-                raise ValueError(
-                    "A noise model was provided but the "
-                    f"{self.config.get_algorithm_friendly_name()} algorithm does not "
-                    "support one (only MicroSplit and HDN do)."
-                )
-            self.model.set_noise_model(noise_model)
 
         if self.config.is_supervised() and train_data_target is None:
             raise ValueError(
@@ -734,83 +705,6 @@ class CAREamist:
                 wandb.finish()
                 break
 
-    def train_noise_model(
-        self,
-        signal: NDArray,
-        observation: NDArray,
-        *,
-        signal_axes: str | None = None,
-        observation_axes: str | None = None,
-        n_gaussian: int = 3,
-        n_coeff: int = 3,
-        min_sigma: float = 125.0,
-        n_epochs: int = 2000,
-        save: bool = True,
-    ) -> MultiChannelNoiseModel:
-        """Train a noise model and attach it for the noise model likelihood.
-
-        This is a thin convenience wrapper over `NoiseModelTrainer`: it fits one
-        Gaussian-mixture noise model per channel from `(signal, observation)` pairs,
-        optionally saves the trained models under `work_dir/noise_models`, attaches the
-        result to the underlying module (so a subsequent `train()` needs nothing else),
-        and returns it for inspection.
-
-        The `signal` is a clean/denoised estimate (typically an N2V prediction) and the
-        `observation` is the matching raw noisy data. Only MicroSplit and HDN use noise
-        models.
-
-        Parameters
-        ----------
-        signal : numpy.ndarray
-            Clean/denoised signal, shape `(S, C, [Z], Y, X)` or `(S, [Z], Y, X)`.
-        observation : numpy.ndarray
-            Noisy observation matching `signal`.
-        signal_axes : str, optional
-            Axes of `signal`; reshaped to canonical `SC(Z)YX` when provided.
-        observation_axes : str, optional
-            Axes of `observation`; reshaped to canonical `SC(Z)YX` when provided.
-        n_gaussian : int, default=3
-            Number of Gaussian components per channel.
-        n_coeff : int, default=3
-            Number of polynomial coefficients for signal-dependent parameters.
-        min_sigma : float, default=125.0
-            Minimum standard deviation for the Gaussian components.
-        n_epochs : int, default=2000
-            Number of training epochs.
-        save : bool, default=True
-            Whether to save the trained noise models under `work_dir/noise_models`.
-
-        Returns
-        -------
-        MultiChannelNoiseModel
-            The trained multi-channel noise model, also attached to the module.
-
-        Raises
-        ------
-        ValueError
-            If the current algorithm does not support a noise model.
-        """
-        if not hasattr(self.model, "set_noise_model"):
-            raise ValueError(
-                f"The {self.config.get_algorithm_friendly_name()} algorithm does not "
-                "support a noise model (only MicroSplit and HDN do)."
-            )
-        trainer = NoiseModelTrainer(
-            n_gaussian=n_gaussian, n_coeff=n_coeff, min_sigma=min_sigma
-        )
-        trainer.train_from_pairs(
-            signal=signal,
-            observation=observation,
-            signal_axes=signal_axes,
-            observation_axes=observation_axes,
-            n_epochs=n_epochs,
-        )
-        if save:
-            trainer.save(self.work_dir / "noise_models")
-        noise_model = trainer.get_multichannel_model()
-        self.model.set_noise_model(noise_model)
-        return noise_model
-
     def _build_predict_datamodule(
         self,
         pred_data: Any,
@@ -820,7 +714,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        target_axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -845,9 +739,9 @@ class CAREamist:
             Tile overlap for prediction. If None, defaults to (48, 48).
         axes : str | None, default=None
             Axes for prediction. If None, uses training configuration axes.
-        target_axes : str | None, default=None
-            Axes for prediction target data. If None, uses target axes from the training
-            configuration.
+        output_axes : str | None, default=None
+            Output axes used for reshaping prediction. If None, uses `target_axes` from
+            the training configuration.
         data_type : {"array", "tiff", "zarr", "czi", "custom"} | None, default=None
             Data type for prediction. If None, uses training configuration data type.
         num_workers : int | None, default=None
@@ -882,7 +776,7 @@ class CAREamist:
             new_data_type=data_type,
             new_dataloader_params=dataloader_params,
             new_axes=axes,
-            new_target_axes=target_axes,
+            new_target_axes=output_axes,
             new_channels=channels,
             new_in_memory=in_memory,
         )
@@ -951,6 +845,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -971,6 +866,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1030,6 +926,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1069,6 +966,9 @@ class CAREamist:
             Overlap between tiles, can be None.
         axes : str, optional
             Axes of the input data, by default None.
+        output_axes : str | None, default=None
+            Output axes used for reshaping prediction. If None, uses `target_axes` from
+            the training configuration.
         data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
         num_workers : int, optional
@@ -1122,6 +1022,7 @@ class CAREamist:
             tile_size=tile_size,
             tile_overlap=tile_overlap,
             axes=axes,
+            output_axes=output_axes,
             data_type=data_type,
             num_workers=num_workers,
             channels=channels,
@@ -1164,25 +1065,13 @@ class CAREamist:
                     "\nOut of GPU memory during prediction.\n" + hint
                 ) from e
             raise
-        tiled = tile_size is not None
-        predictions_output, sources = convert_prediction(
-            [prediction_region(batch) for batch in predictions],
-            tiled=tiled,
-            restore_shape=True,
+
+        predictions_output, uncertainty_output, sources = convert_predict_outputs(
+            predictions, tiled=tile_size is not None
         )
 
-        if n_predictions is None:
+        if uncertainty_output is None:
             return predictions_output, sources
-
-        uncertainties = cast(
-            "list[ImageRegionData]",
-            [uncertainty_region(batch) for batch in predictions],
-        )
-        uncertainty_output, _ = convert_prediction(
-            uncertainties,
-            tiled=tiled,
-            restore_shape=True,
-        )
 
         return predictions_output, uncertainty_output, sources
 
@@ -1199,6 +1088,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1226,6 +1116,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1252,6 +1143,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1308,6 +1200,9 @@ class CAREamist:
             Overlap between tiles.
         axes : str, optional
             Axes of the input data, by default None.
+        output_axes : str | None, default=None
+            Output axes used for reshaping prediction. If None, uses `target_axes` from
+            the training configuration.
         data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
         num_workers : int, optional
@@ -1404,6 +1299,7 @@ class CAREamist:
             tile_size=tile_size,
             tile_overlap=tile_overlap,
             axes=axes,
+            output_axes=output_axes,
             data_type=data_type,
             num_workers=num_workers,
             channels=channels,
@@ -1547,16 +1443,18 @@ class CAREamist:
             channel_names=channel_names,
         )
 
-    def get_losses(self) -> dict[str, list]:
-        """Return data that can be used to plot train and validation loss curves.
+    def get_losses(self) -> TrainingReport:
+        """Return plottable training curves from Lightning CSV logs.
 
         Returns
         -------
-        dict of str: list
-            Dictionary containing losses for each epoch.
+        TrainingReport
+            Dataclass containing train and validation loss, learning rate, and any
+            discovered validation metrics.
         """
         return read_csv_logger(
-            self.config.get_safe_experiment_name(), self.work_dir / "csv_logs"
+            self.work_dir / "csv_logs",
+            self.config.get_safe_experiment_name(),
         )
 
     def stop_training(self) -> None:

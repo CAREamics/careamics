@@ -1,6 +1,6 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -14,15 +14,18 @@ if TYPE_CHECKING:
     from torch import Tensor
 
 
+PredictStepOutput = ImageRegionData | tuple[ImageRegionData, ImageRegionData | None]
+
+
 def prediction_region(
-    output: ImageRegionData | tuple[ImageRegionData, ImageRegionData | None],
+    output: PredictStepOutput,
 ) -> ImageRegionData:
     """
     Select the prediction from a `predict_step` output.
 
     Parameters
     ----------
-    output : ImageRegionData or tuple of (ImageRegionData, ImageRegionData or None)
+    output : PredictStepOutput
         Output of a single `predict_step` call.
 
     Returns
@@ -36,14 +39,14 @@ def prediction_region(
 
 
 def uncertainty_region(
-    output: ImageRegionData | tuple[ImageRegionData, ImageRegionData | None],
+    output: PredictStepOutput,
 ) -> ImageRegionData | None:
     """
     Select the uncertainty estimate from a `predict_step` output.
 
     Parameters
     ----------
-    output : ImageRegionData or tuple of (ImageRegionData, ImageRegionData or None)
+    output : PredictStepOutput
         Output of a single `predict_step` call.
 
     Returns
@@ -267,3 +270,45 @@ def convert_prediction(
         sources = []
 
     return predictions_output, sources
+
+
+def convert_predict_outputs(
+    outputs: list[PredictStepOutput],
+    tiled: bool,
+) -> tuple[list[NDArray], list[NDArray] | None, list[str]]:
+    """
+    Convert the `predict_step` outputs into predictions, uncertainties and sources.
+
+    Parameters
+    ----------
+    outputs : list of PredictStepOutput
+        Output from `Trainer.predict`, list of batches.
+    tiled : bool
+        Whether the predictions are tiled.
+
+    Returns
+    -------
+    list of numpy.ndarray
+        Predictions, restored to their original shape and dimension order.
+    list of numpy.ndarray or None
+        Uncertainty estimates, or None if the outputs do not contain any.
+    list of str
+        List of sources, one per output or empty if all equal to `array`.
+    """
+    predictions, sources = convert_prediction(
+        [prediction_region(output) for output in outputs],
+        tiled=tiled,
+        restore_shape=True,
+    )
+
+    uncertainty_regions = [uncertainty_region(output) for output in outputs]
+    if any(region is None for region in uncertainty_regions):
+        return predictions, None, sources
+
+    uncertainties, _ = convert_prediction(
+        cast("list[ImageRegionData]", uncertainty_regions),
+        tiled=tiled,
+        restore_shape=True,
+    )
+
+    return predictions, uncertainties, sources

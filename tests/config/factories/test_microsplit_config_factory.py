@@ -16,44 +16,47 @@ class TestMicroSplitConfig:
 
     def test_create_standard_config(self):
         """Test that a MicroSplit configuration can be created."""
-        config = create_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-        )
+        with pytest.warns(UserWarning):
+            config = create_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+            )
         assert isinstance(config, MicroSplitConfiguration)
         assert isinstance(config.algorithm_config, MicroSplitAlgorithm)
         assert isinstance(config.data_config, MicroSplitDataConfig)
 
     def test_multiscale_count_propagated(self):
         """Test that multiscale_count is set on both the model and data config."""
-        config = create_advanced_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-            multiscale_count=2,
-        )
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+                multiscale_count=2,
+            )
         assert config.algorithm_config.model.multiscale_count == 2
         assert config.data_config.multiscale_count == 2
 
     def test_loss_weights_propagated(self):
         """Test that the loss weights are set on the loss config."""
-        config = create_advanced_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-            gaussian_likelihood_weight=0.3,
-            noise_model_likelihood_weight=0.7,
-        )
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+                gaussian_likelihood_weight=0.3,
+                noise_model_likelihood_weight=0.7,
+            )
         assert config.algorithm_config.loss.gaussian_likelihood_weight == 0.3
         assert config.algorithm_config.loss.noise_model_likelihood_weight == 0.7
 
@@ -63,30 +66,32 @@ class TestMicroSplitConfig:
         `predict_logvar=False` is only valid without the muSplit Gaussian likelihood
         (`gaussian_likelihood_weight=0`), i.e. for pure denoiSplit.
         """
-        config = create_advanced_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-            predict_logvar=False,
-            gaussian_likelihood_weight=0.0,
-            noise_model_likelihood_weight=1.0,
-        )
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+                predict_logvar=False,
+                gaussian_likelihood_weight=0.0,
+                noise_model_likelihood_weight=1.0,
+            )
         assert config.algorithm_config.model.predict_logvar is False
         assert config.algorithm_config.loss.predict_logvar is False
 
     def test_supervised_checkpointing(self):
         """Test that MicroSplit uses the supervised checkpoint preset (early stop)."""
-        config = create_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-        )
+        with pytest.warns(UserWarning):
+            config = create_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+            )
         assert config.training_config.early_stopping_params == {
             "monitor": "val_loss",
             "mode": "min",
@@ -95,45 +100,87 @@ class TestMicroSplitConfig:
 
     def test_num_epochs_and_num_steps(self):
         """Test that both num_epochs and num_steps can be set simultaneously."""
-        config = create_advanced_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-            num_epochs=25,
-            num_steps=500,
-        )
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+                num_epochs=25,
+                num_steps=500,
+            )
         assert config.training_config.trainer_params["max_epochs"] == 25
         assert config.training_config.trainer_params["limit_train_batches"] == 500
 
     def test_model_params_defaults(self):
         """Test that the MicroSplit LVAE defaults are applied to the model."""
-        config = create_advanced_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-        )
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+            )
         model = config.algorithm_config.model
         assert model.z_dims == [128, 128]
         assert model.n_filters == 32
 
+    def test_analytical_kl_is_disabled(self):
+        """Test that MicroSplit always keeps the Monte Carlo KL estimate."""
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+            )
+        assert config.algorithm_config.model.analytical_kl is False
+
+    def test_topdown_normalize_factor_is_enabled(self):
+        """Test that MicroSplit always enables the top-down normalize factor."""
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+            )
+        assert config.algorithm_config.model.enable_topdown_normalize_factor is True
+
+    def test_encoder_first_conv_kernel_is_three(self):
+        """Test that MicroSplit always uses a 3x3 first bottom-up convolution."""
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+            )
+        assert config.algorithm_config.model.encoder_first_conv_kernel == 3
+
     def test_model_params_override(self):
         """Test that model_params overrides defaults but not structural params."""
-        config = create_advanced_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-            multiscale_count=3,
-            model_params={"n_filters": 64, "encoder_dropout": 0.2},
-        )
+        with pytest.warns(UserWarning):
+            config = create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+                multiscale_count=3,
+                model_params={"n_filters": 64, "encoder_dropout": 0.2},
+            )
         model = config.algorithm_config.model
         # user override wins over the default
         assert model.n_filters == 64
@@ -145,15 +192,16 @@ class TestMicroSplitConfig:
 
 def _base_config() -> MicroSplitConfiguration:
     """Build a valid MicroSplit configuration for cross-validation tests."""
-    return create_advanced_microsplit_config(
-        experiment_name="test",
-        data_type="array",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        output_channels=2,
-        multiscale_count=1,
-    )
+    with pytest.warns(UserWarning):
+        return create_advanced_microsplit_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            output_channels=2,
+            multiscale_count=1,
+        )
 
 
 def test_normalization_none_rejected():

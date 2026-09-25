@@ -189,8 +189,6 @@ def test_bottom_up_pass(
         decoder_conv_strides=decoder_conv_stride,
         multiscale_count=multiscale_count,
     )
-    first_bottom_up_layer = model.first_bottom_up
-    lowres_first_bottom_up_layers = model.lowres_first_bottom_ups
     bottom_up_layers = model.bottom_up_layers
 
     assert len(bottom_up_layers) == len(
@@ -203,12 +201,7 @@ def test_bottom_up_pass(
     img_size = model.image_size
     n_filters = model.n_filters
     inputs = torch.ones((1, *img_size))
-    outputs = model._bottomup_pass(
-        inp=inputs,
-        first_bottom_up=first_bottom_up_layer,
-        lowres_first_bottom_ups=lowres_first_bottom_up_layers,
-        bottom_up_layers=bottom_up_layers,
-    )
+    outputs = model.bottomup_pass(inputs)
     exp_img_size = img_size
     for i in range(len(bottom_up_layers)):
         if i + 1 > multiscale_count - 1:

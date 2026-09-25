@@ -16,7 +16,10 @@ from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
     create_histogram,
 )
-from careamics.utils.reshape_array import reshape_array
+from careamics.utils.logging import get_logger
+from careamics.utils.reshape_array import reshape_array, restore_array
+
+logger = get_logger(__name__)
 
 
 class NoiseModelTrainer:
@@ -60,8 +63,7 @@ class NoiseModelTrainer:
     >>> noise_models = trainer.train_from_pairs( # doctest: +SKIP
     ...     signal=n2v_predictions,   # clean / denoised  (S, C, Y, X)
     ...     observation=noisy_data,   # original noisy    (S, C, Y, X)
-    ...     signal_axes="SCYX",
-    ...     observation_axes="SCYX",
+    ...     axes="SCYX",
     ...     n_epochs=2000,
     ... )
 
@@ -104,8 +106,7 @@ class NoiseModelTrainer:
         self,
         signal: NDArray,
         observation: NDArray,
-        signal_axes: str | None = None,
-        observation_axes: str | None = None,
+        axes: str,
         n_epochs: int = 2000,
         learning_rate: float = 1e-1,
         batch_size: int = 250000,
@@ -119,19 +120,13 @@ class NoiseModelTrainer:
         Parameters
         ----------
         signal : NDArray
-            Clean/denoised signal data.
-            Shape: (S, C, [Z], Y, X) or (S, [Z], Y, X) for single channel.
+            Clean/denoised signal data, in the order given by ``axes``.
         observation : NDArray
-            Noisy observation data. Same shape as signal.
-        signal_axes : str | None, default=None
-            Axes describing ``signal``.  If provided, signal is reshaped to
-            CAREamics' canonical ``SC(Z)YX`` order before training.  If None,
-            signal is assumed to already be in ``SC(Z)YX`` order, or ``S(Z)YX``
-            for single-channel data.
-        observation_axes : str | None, default=None
-            Axes describing ``observation``.  If provided, observation is
-            reshaped to CAREamics' canonical ``SC(Z)YX`` order before training.
-            If None, observation is assumed to already match the signal layout.
+            Noisy observation data, in the order given by ``axes``.
+        axes : str
+            Axes describing both arrays, for example ``"SCYX"`` or ``"YXC"``.
+            Both arrays are reshaped to the canonical ``SC(Z)YX`` order before
+            training.
         n_epochs : int, default=2000
             Number of training epochs.
         learning_rate : float, default=1e-1
@@ -147,13 +142,11 @@ class NoiseModelTrainer:
         Raises
         ------
         ValueError
-            If signal and observation shapes do not match after optional axes
+            If signal and observation shapes do not match after axes
             normalization.
         """
-        if signal_axes is not None:
-            signal = reshape_array(signal, signal_axes)
-        if observation_axes is not None:
-            observation = reshape_array(observation, observation_axes)
+        signal = reshape_array(signal, axes)
+        observation = reshape_array(observation, axes)
 
         if signal.shape != observation.shape:
             raise ValueError(
@@ -161,10 +154,6 @@ class NoiseModelTrainer:
                 f"normalization. "
                 f"Got signal: {signal.shape}, observation: {observation.shape}"
             )
-
-        if signal.ndim == 3:
-            signal = signal[:, np.newaxis, ...]
-            observation = observation[:, np.newaxis, ...]
 
         n_channels = signal.shape[1]
 
@@ -180,7 +169,9 @@ class NoiseModelTrainer:
         self.train_losses = []
 
         for channel_idx in range(n_channels):
-            print(f"Training noise model for channel {channel_idx + 1}/{n_channels}")
+            logger.info(
+                f"Training noise model for channel {channel_idx + 1}/{n_channels}"
+            )
 
             channel_signal = signal[:, channel_idx]
             channel_obs = observation[:, channel_idx]
@@ -378,6 +369,7 @@ class NoiseModelTrainer:
         self,
         signal: NDArray,
         observation: NDArray,
+        axes: str,
         wasserstein: bool = True,
     ) -> list[dict]:
         """Report per-channel diagnostics for the trained noise models.
@@ -389,10 +381,13 @@ class NoiseModelTrainer:
         Parameters
         ----------
         signal : NDArray
-            Clean/denoised signal used during training.
-            Shape: (S, C, [Z], Y, X) or (S, [Z], Y, X).
+            Clean/denoised signal used during training, in the order given by
+            ``axes``.
         observation : NDArray
-            Noisy observation used during training.  Same shape as signal.
+            Noisy observation used during training, in the order given by
+            ``axes``.
+        axes : str
+            Axes describing both arrays, for example ``"SCYX"`` or ``"YXC"``.
         wasserstein : bool, default=True
             Whether to compute the Wasserstein distance between real residuals
             and sampled residuals (slower but informative).
@@ -414,9 +409,8 @@ class NoiseModelTrainer:
                 "No noise models available. Call train_from_pairs() first."
             )
 
-        if signal.ndim == 3:
-            signal = signal[:, np.newaxis, ...]
-            observation = observation[:, np.newaxis, ...]
+        signal = reshape_array(signal, axes)
+        observation = reshape_array(observation, axes)
 
         results = []
         for idx, nm in enumerate(self.noise_models):
@@ -519,7 +513,7 @@ class NoiseModelTrainer:
 
         return results
 
-    def sample_observation(self, signal: NDArray) -> NDArray:
+    def sample_observation(self, signal: NDArray, axes: str) -> NDArray:
         """Sample noisy observations from the trained noise models.
 
         For each pixel in the input signal, samples a corresponding noisy
@@ -528,30 +522,44 @@ class NoiseModelTrainer:
         Parameters
         ----------
         signal : NDArray
-            Clean signal data. Shape should match the training data:
-            - Single channel: (S, [Z], Y, X)
-            - Multi-channel: (S, C, [Z], Y, X)
+            Clean signal data, in the order given by ``axes``.
+        axes : str
+            Axes describing ``signal``, for example ``"SCYX"`` or ``"YXC"``.
 
         Returns
         -------
         NDArray
-            Sampled noisy observation with same shape as input signal.
+            Sampled noisy observation with the same axes order and shape as
+            ``signal``.
 
         Raises
         ------
         ValueError
-            If no noise models have been trained.
+            If no noise models have been trained, or if the number of channels
+            in ``signal`` does not match the number of noise models.
         """
         if self.noise_models is None:
             raise ValueError(
                 "No noise models available. Call train_from_pairs() first."
             )
 
-        if len(self.noise_models) == 1:
-            return self.noise_models[0].sample_observation_from_signal(signal)
+        signal_array = reshape_array(signal, axes)
 
-        multichannel = self.get_multichannel_model()
-        return multichannel.sample_observation(signal)
+        n_channels = signal_array.shape[1]
+        if n_channels != len(self.noise_models):
+            raise ValueError(
+                f"Number of channels ({n_channels}) must match number of noise "
+                f"models ({len(self.noise_models)})."
+            )
+
+        samples = np.stack(
+            [
+                noise_model.sample_observation_from_signal(signal_array[:, idx])
+                for idx, noise_model in enumerate(self.noise_models)
+            ],
+            axis=1,
+        )
+        return restore_array(samples, axes, signal.shape)
 
     # ------------------------------------------------------------------
     # Private helpers

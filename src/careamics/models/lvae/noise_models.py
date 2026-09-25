@@ -6,7 +6,6 @@ import copy
 import math
 import os
 from collections.abc import Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -14,10 +13,12 @@ import torch
 import torch.nn as nn
 from numpy.typing import NDArray
 
-from careamics.utils import get_device
+from careamics.utils import get_device, get_logger
 
 if TYPE_CHECKING:
     from careamics.config import GaussianMixtureNMConfig, MultiChannelNMConfig
+
+logger = get_logger(__name__)
 
 # TODO this module shouldn't be in lvae folder
 
@@ -207,96 +208,10 @@ class MultiChannelNoiseModel(nn.Module):
                     f"nmodel_{i}", nmodel
                 )  # TODO: wouldn't be easier to use a list?
 
-        self._nm_count = 0
+        self._nm_cnt = 0
         for nmodel in nmodels:
             if nmodel is not None:
-                self._nm_count += 1
-
-        print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_count}")
-
-    def __len__(self) -> int:
-        """Return the number of per-channel noise models.
-
-        Returns
-        -------
-        int
-            The number of channels the noise model covers.
-        """
-        return self._nm_count
-
-    @classmethod
-    def from_npz(cls, paths: Sequence[str | Path]) -> MultiChannelNoiseModel:
-        """Build a multi-channel noise model from per-channel ``.npz`` files.
-
-        Each file is a raw-space Gaussian-mixture noise model saved by
-        ``GaussianMixtureNoiseModel.save`` / ``NoiseModelTrainer.save``. The files are
-        loaded in the given order (one per output channel); when the files carry a
-        ``channel_index``, ordering consistency is validated by
-        ``MultiChannelNMConfig``.
-
-        Parameters
-        ----------
-        paths : Sequence[str or Path]
-            Paths to the per-channel ``.npz`` noise-model files.
-
-        Returns
-        -------
-        MultiChannelNoiseModel
-            The assembled multi-channel noise model.
-
-        Raises
-        ------
-        ValueError
-            If ``paths`` is empty.
-        """
-        from careamics.config.noise_model.noise_model_config import (
-            GaussianMixtureNMConfig,
-            MultiChannelNMConfig,
-        )
-
-        if len(paths) == 0:
-            raise ValueError("No noise model paths provided.")
-        configs = [GaussianMixtureNMConfig.from_npz(Path(p)) for p in paths]
-        # MultiChannelNMConfig validates channel-index ordering / count consistency
-        config = MultiChannelNMConfig(noise_models=configs)
-        model = multichannel_noise_model_factory(config)
-        assert model is not None
-        return model
-
-    def to_config(self) -> MultiChannelNMConfig:
-        """Serialize the (raw-space) noise model into a ``MultiChannelNMConfig``.
-
-        Extracts the trained weights and signal bounds from each per-channel model, in
-        channel order. Used to persist the noise model in a checkpoint (separately from
-        the training ``Configuration``) so continued training can restore it.
-
-        Returns
-        -------
-        MultiChannelNMConfig
-            Configuration holding the per-channel trained weights.
-        """
-        from careamics.config.noise_model.noise_model_config import (
-            GaussianMixtureNMConfig,
-            MultiChannelNMConfig,
-        )
-
-        configs = []
-        for ch_idx in range(self._nm_count):
-            nm = getattr(self, f"nmodel_{ch_idx}")
-            configs.append(
-                GaussianMixtureNMConfig(
-                    weight=nm.weight.detach().cpu().numpy(),
-                    min_signal=float(nm.min_signal.item()),
-                    max_signal=float(nm.max_signal.item()),
-                    min_sigma=float(nm.min_sigma.item()),
-                    n_gaussian=nm.n_gaussian,
-                    n_coeff=nm.n_coeff,
-                    channel_index=ch_idx,
-                )
-            )
-        return MultiChannelNMConfig(
-            noise_models=configs, channel_indices=list(range(self._nm_count))
-        )
+                self._nm_cnt += 1
 
     def to_device(self, device: torch.device) -> None:
         """Move this model and all per-channel noise models to `device`.
@@ -308,7 +223,7 @@ class MultiChannelNoiseModel(nn.Module):
         """
         self.device = device
         self.to(device)
-        for ch_idx in range(self._nm_count):
+        for ch_idx in range(self._nm_cnt):
             nmodel = getattr(self, f"nmodel_{ch_idx}")
             nmodel.to_device(device)
 
@@ -339,9 +254,9 @@ class MultiChannelNoiseModel(nn.Module):
             return self.nmodel_0.likelihood(obs, signal)
 
         # Case 2: obs and signal have multiple channels (e.g., denoiSplit)
-        assert obs.shape[1] == self._nm_count, (
+        assert obs.shape[1] == self._nm_cnt, (
             "The number of channels in `obs` must match the number of noise models."
-            f" Got instead: obs={obs.shape[1]},  nm={self._nm_count}"
+            f" Got instead: obs={obs.shape[1]},  nm={self._nm_cnt}"
         )
         ll_list = []
         for ch_idx in range(obs.shape[1]):
@@ -362,34 +277,39 @@ class MultiChannelNoiseModel(nn.Module):
         Parameters
         ----------
         signal : NDArray
-            Clean signal data with shape (..., C, Y, X) where C is the number
-            of channels matching the number of noise models.
+            Clean signal data in `SC(Z)YX` order, where C matches the number of
+            noise models.
 
         Returns
         -------
         NDArray
             Sampled noisy observation with same shape as input signal.
+
+        Raises
+        ------
+        ValueError
+            If `signal` is not 4D or 5D, or if its number of channels does not
+            match the number of noise models.
         """
-        if signal.ndim < 3:
+        if signal.ndim not in (4, 5):
             raise ValueError(
-                f"Signal must have at least 3 dimensions (C, Y, X), got {signal.ndim}D"
+                f"Signal must be 4D (SCYX) or 5D (SCZYX), got {signal.ndim}D"
             )
 
-        n_channels = signal.shape[-3]
-        if n_channels != self._nm_count:
+        n_channels = signal.shape[1]
+        if n_channels != self._nm_cnt:
             raise ValueError(
                 f"Number of channels ({n_channels}) must match number of "
-                f"noise models ({self._nm_count})"
+                f"noise models ({self._nm_cnt})"
             )
 
         samples_list = []
         for ch_idx in range(n_channels):
             nmodel = getattr(self, f"nmodel_{ch_idx}")
-            channel_signal = signal[..., ch_idx, :, :]
-            channel_sample = nmodel.sample_observation_from_signal(channel_signal)
+            channel_sample = nmodel.sample_observation_from_signal(signal[:, ch_idx])
             samples_list.append(channel_sample)
 
-        return np.stack(samples_list, axis=-3)
+        return np.stack(samples_list, axis=1)
 
     @property
     def is_normalized(self) -> bool:
@@ -402,7 +322,7 @@ class MultiChannelNoiseModel(nn.Module):
         """
         return all(
             getattr(self, f"nmodel_{ch_idx}").is_normalized
-            for ch_idx in range(self._nm_count)
+            for ch_idx in range(self._nm_cnt)
         )
 
     def get_normalized_copy(
@@ -436,21 +356,21 @@ class MultiChannelNoiseModel(nn.Module):
         means = list(data_means)
         stds = list(data_stds)
         if len(means) == 1:
-            means = means * self._nm_count
+            means = means * self._nm_cnt
         if len(stds) == 1:
-            stds = stds * self._nm_count
-        if len(means) != self._nm_count or len(stds) != self._nm_count:
+            stds = stds * self._nm_cnt
+        if len(means) != self._nm_cnt or len(stds) != self._nm_cnt:
             raise ValueError(
                 f"Number of data means ({len(means)}) and stds ({len(stds)}) "
                 f"must be 1 or match the number of noise models "
-                f"({self._nm_count})."
+                f"({self._nm_cnt})."
             )
         return MultiChannelNoiseModel(
             [
                 getattr(self, f"nmodel_{ch_idx}").get_normalized_copy(
                     means[ch_idx], stds[ch_idx]
                 )
-                for ch_idx in range(self._nm_count)
+                for ch_idx in range(self._nm_cnt)
             ]
         )
 
@@ -542,8 +462,6 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.is_normalized: bool = False
         self.normalization_mean: float | None = None
         self.normalization_std: float | None = None
-
-        print(f"[{self.__class__.__name__}] min_sigma: {self.min_sigma}")
 
     def get_normalized_copy(
         self, data_mean: float, data_std: float
@@ -962,15 +880,15 @@ class GaussianMixtureNoiseModel(nn.Module):
             train_losses.append(joint_loss.item())
 
             if self.weight.isnan().any() or self.weight.isinf().any():
-                print(
-                    "NaN or Inf detected in the weights. Aborting training at epoch: ",
-                    t,
+                logger.warning(
+                    f"NaN or Inf detected in the weights. "
+                    f"Aborting training at epoch: {t}."
                 )
                 break
 
             if t % 100 == 0:
                 last_losses = train_losses[-100:]
-                print(t, np.mean(last_losses))
+                logger.info(f"Epoch {t}: mean loss {np.mean(last_losses):.4f}")
 
             optimizer.zero_grad()
             joint_loss.backward()
@@ -979,7 +897,6 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         self._set_model_mode(mode="prediction")
         self.to_device(torch.device("cpu"))
-        print("===================\n")
         return train_losses
 
     def sample_observation_from_signal(self, signal: NDArray) -> NDArray:
@@ -1092,4 +1009,4 @@ class GaussianMixtureNoiseModel(nn.Module):
         if channel_index is not None:
             save_kwargs["channel_index"] = np.array(channel_index)
         np.savez(os.path.join(path, name), **save_kwargs)
-        print("The trained parameters (" + name + ") is saved at location: " + path)
+        logger.info(f"Noise model parameters ({name}) saved at location: {path}")

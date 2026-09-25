@@ -3,7 +3,6 @@
 import pytest
 
 from careamics.config.architectures import LVAEConfig
-from careamics.models.lvae.layers import _downscaled_latent_shape
 from careamics.models.model_factory import model_factory
 
 
@@ -25,36 +24,6 @@ def _create_lvae(
             predict_logvar=True,
         )
     )
-
-
-@pytest.mark.lvae
-@pytest.mark.parametrize(
-    "latent_shape, expected",
-    [
-        # a 2D encoder stores only the X extent; it is broadcast over (Y, X)
-        ((64,), (32, 32)),
-        ((128,), (64, 64)),
-        # the full 2D tile shape, as set by `reset_for_inference`
-        ((64, 64), (32, 32)),
-        ((64, 128), (32, 64)),
-        # 3D: Z is retained, Y and X are halved
-        ((16, 64, 64), (16, 32, 32)),
-    ],
-)
-def test_downscaled_latent_shape(latent_shape, expected):
-    """The crop target halves Y and X, broadcasting a 1-tuple over both."""
-    assert _downscaled_latent_shape(latent_shape) == expected
-
-
-@pytest.mark.lvae
-def test_downscaled_latent_shape_returns_plain_ints():
-    """The result holds Python ints, so the caller's comparison stays static.
-
-    Routing this through NumPy makes Dynamo treat `x.shape[-1] > shape[-1]` as
-    data-dependent control flow and refuse to capture a single graph.
-    """
-    shape = _downscaled_latent_shape((64,))
-    assert all(type(dim) is int for dim in shape)
 
 
 @pytest.mark.lvae

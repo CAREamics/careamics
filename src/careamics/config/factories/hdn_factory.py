@@ -12,6 +12,7 @@ from careamics.config.lightning.optimizer_configs import (
     OptimizerConfig,
 )
 from careamics.config.losses.loss_config import HDNLossConfig
+from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
 from .data_factory import create_data_configuration, list_spatial_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
@@ -28,14 +29,12 @@ def create_hdn_config(
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
-    use_noise_model: bool = False,
+    noise_model: MultiChannelNMConfig | None = None,
 ) -> HDNConfiguration:
     """Create a configuration for training HDN.
 
-    The reconstruction likelihood is selected by `use_noise_model`: set it to use the
-    noise model likelihood, leave it `False` to learn a Gaussian likelihood
-    (DivNoising). The noise model itself is supplied at training time via
-    `CAREamist.train(noise_model=...)` / `HDNModule.set_noise_model`, not here.
+    The reconstruction likelihood is selected from `noise_model`: pass one to use the
+    noise model likelihood, omit it to learn a Gaussian likelihood (DivNoising).
 
     See `create_advanced_hdn_config` for more parameters.
 
@@ -59,9 +58,8 @@ def create_hdn_config(
         List of augmentations to apply. If `None`, all augmentations are applied.
     n_val_patches : int, default=8
         Number of patches to set aside for validation during training.
-    use_noise_model : bool, default=False
-        If `True`, use the noise model likelihood (supply the trained noise model at
-        training time). If `False`, use the Gaussian (DivNoising) pathway.
+    noise_model : MultiChannelNMConfig or None, default=None
+        Trained noise model. If `None`, the Gaussian (DivNoising) pathway is used.
 
     Returns
     -------
@@ -82,7 +80,7 @@ def create_advanced_hdn_config(
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
-    use_noise_model: bool = False,
+    noise_model: MultiChannelNMConfig | None = None,
     # advanced data parameters
     channels: Sequence[int] | None = None,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
@@ -111,9 +109,8 @@ def create_advanced_hdn_config(
 ) -> HDNConfiguration:
     """Create an advanced configuration for training HDN.
 
-    `predict_logvar` is derived from `use_noise_model`: it is enabled when no noise
-    model is used (DivNoising Gaussian likelihood) and disabled otherwise. The noise
-    model itself is supplied at training time, not through the configuration.
+    `predict_logvar` is derived from `noise_model`: it is enabled when no noise model
+    is provided (DivNoising Gaussian likelihood) and disabled otherwise.
 
     Parameters
     ----------
@@ -135,9 +132,8 @@ def create_advanced_hdn_config(
         List of augmentations to apply. If `None`, all augmentations are applied.
     n_val_patches : int, default=8
         Number of patches to set aside for validation during training.
-    use_noise_model : bool, default=False
-        If `True`, use the noise model likelihood (supply the trained noise model at
-        training time). If `False`, use the Gaussian (DivNoising) pathway.
+    noise_model : MultiChannelNMConfig or None, default=None
+        Trained noise model. If `None`, the Gaussian (DivNoising) pathway is used.
     channels : sequence of int or None, default=None
         List of channels to use. If `None`, all channels are used.
     normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
@@ -154,7 +150,8 @@ def create_advanced_hdn_config(
         `decoder_dropout=0.0`, `nonlinearity="ReLU"`). Structural
         parameters (`architecture`, `input_shape`, `output_channels`,
         `multiscale_count`, `encoder_conv_strides`, `decoder_conv_strides`,
-        `predict_logvar`) are set from the dedicated arguments and cannot be overridden
+        `predict_logvar`, `analytical_kl`, `enable_topdown_normalize_factor`,
+        `encoder_first_conv_kernel`) are set by the algorithm and cannot be overridden
         here.
     reconstruction_weight : float, default=1.0
         Weight of the reconstruction term.
@@ -192,7 +189,7 @@ def create_advanced_hdn_config(
     HDNConfiguration
         Configuration for training HDN.
     """
-    predict_logvar = not use_noise_model
+    predict_logvar = noise_model is None
     conv_strides = [2] * len(patch_size)
 
     loss = HDNLossConfig(
@@ -218,6 +215,9 @@ def create_advanced_hdn_config(
         "encoder_conv_strides": conv_strides,
         "decoder_conv_strides": conv_strides,
         "predict_logvar": predict_logvar,
+        "analytical_kl": True,
+        "enable_topdown_normalize_factor": False,
+        "encoder_first_conv_kernel": 5,
     }
     model = LVAEConfig(**lvae_params)
 
@@ -225,6 +225,7 @@ def create_advanced_hdn_config(
         algorithm="hdn",
         loss=loss,
         model=model,
+        noise_model=noise_model,
         optimizer=OptimizerConfig(
             name=optimizer,
             parameters=optimizer_params or {"lr": 3e-4},

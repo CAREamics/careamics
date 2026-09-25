@@ -141,3 +141,36 @@ class TestHDNConfig:
         model = config.algorithm_config.model
         assert model.nonlinearity == "ELU"
         assert model.n_filters == 64
+
+    def test_analytical_kl_is_enabled(self):
+        """Test that HDN always selects the analytical KL."""
+        config = create_advanced_hdn_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+        )
+        assert config.algorithm_config.model.analytical_kl is True
+
+    def test_topdown_normalize_factor_is_disabled(self):
+        """Test that HDN always disables the top-down normalize factor."""
+        config = create_advanced_hdn_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+        )
+        assert config.algorithm_config.model.enable_topdown_normalize_factor is False
+
+    def test_encoder_first_conv_kernel_is_five(self):
+        """Test that HDN always uses a 5x5 first bottom-up convolution."""
+        config = create_advanced_hdn_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+        )
+        assert config.algorithm_config.model.encoder_first_conv_kernel == 5

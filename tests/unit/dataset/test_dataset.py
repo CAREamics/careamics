@@ -109,7 +109,7 @@ def test_adjust_shape_for_channels(shape, channels, expected_shape):
     ],
 )
 def test_patch_size_within_data_shapes(data_shapes, patch_size, expected):
-    assert _patch_size_within_data_shapes(data_shapes, patch_size) == expected
+    assert all(_patch_size_within_data_shapes(data_shapes, patch_size)) == expected
 
 
 @pytest.mark.parametrize(
