@@ -262,7 +262,7 @@ def test_smoke_n2v_zarr(tmp_path, shape, axes, channels):
     # assert predicted file exists
     output_file = dirpath / f"{file_name[:-len('.zarr')]}_output.zarr"
     assert output_file.exists()
-    save_data = zarr.open_array(output_file, path="array")
+    save_data = zarr.open_array(output_file, path="array/0")
 
     predicted_img = predicted_images[0]
     np.testing.assert_array_equal(save_data, predicted_img, verbose=True)

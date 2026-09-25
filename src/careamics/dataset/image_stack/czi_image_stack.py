@@ -267,6 +267,17 @@ class CziImageStack:
         shape_list[s_idx : s_idx + 1] = sample_sizes
         return tuple(shape_list)
 
+    @property
+    def additional_metadata(self) -> dict[str, Any]:
+        """Format-specific metadata.
+
+        Returns
+        -------
+        dict[str, Any]
+            Additional metadata.
+        """
+        return {}
+
     def extract_patch(
         self,
         sample_idx: int,
