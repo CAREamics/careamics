@@ -8,6 +8,7 @@ from careamics.image_io import SupportedWriteType, WriteFunc, get_write_func
 from .image_write_strategy import ImageWriteStrategy
 from .tile_write_strategy import TileWriteStrategy
 from .write_strategy import WriteStrategy
+from .zarr_image_write_strategy import ZarrImageWriteStrategy
 from .zarr_tile_write_strategy import ZarrTileWriteStrategy
 
 
@@ -57,7 +58,9 @@ def create_write_strategy(
         write_func_kwargs = {}
 
     write_strategy: WriteStrategy
-    if not tiled:
+    if not tiled and write_type == "zarr":
+        write_strategy = ZarrImageWriteStrategy()
+    elif not tiled:
         write_func = select_write_func(write_type=write_type, write_func=write_func)
         write_extension = select_write_extension(
             write_type=write_type, write_extension=write_extension
