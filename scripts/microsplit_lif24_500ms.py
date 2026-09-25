@@ -37,12 +37,12 @@ from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pytorch_lightning as L
+import lightning.pytorch as L
 import tifffile
 import torch
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, TQDMProgressBar
-from pytorch_lightning.loggers import WandbLogger
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint, TQDMProgressBar
+from lightning.pytorch.loggers import WandbLogger
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data.distributed import DistributedSampler
@@ -60,6 +60,7 @@ from careamics.dataset.factory import (
 )
 from careamics.dataset.factory.factory import TrainValData
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
+from careamics.lightning.modules.module_utils import request_model_compilation
 from careamics.lightning.prediction.convert_prediction import convert_prediction
 from careamics.lvae_training.dataset.utils.data_utils import get_datasplit_tuples
 from careamics.lvae_training.metrics import RangeInvariantPsnr, compute_stats
@@ -597,6 +598,12 @@ def main(args) -> None:
     )
 
     model = MicroSplitModule(config.algorithm_config)
+    if args.compile:
+        # Compiled in-place at `configure_model` time, so checkpoints stay
+        # interchangeable with uncompiled runs. Under DDP this still gets
+        # Dynamo's DDPOptimizer: the compiled forward runs inside DDP's own
+        # forward, which is what activates the allreduce-overlap graph split.
+        request_model_compilation(model, mode=args.compile_mode)
     trainer = create_trainer(
         config,
         output_dir,
@@ -685,6 +692,21 @@ if __name__ == "__main__":
         type=int,
         default=MMSE_COUNT,
         help="Number of posterior samples averaged at predict time (MMSE).",
+    )
+
+    # torch.compile
+    parser.add_argument(
+        "--compile",
+        action="store_true",
+        help="Compile the LVAE with torch.compile. Adds a one-off warm-up cost "
+        "on the first batch of each distinct input shape.",
+    )
+    parser.add_argument(
+        "--compile-mode",
+        type=str,
+        default="default",
+        choices=["default", "reduce-overhead", "max-autotune"],
+        help="torch.compile mode. Only used with --compile.",
     )
 
     # multi-GPU

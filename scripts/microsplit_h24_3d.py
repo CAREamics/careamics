@@ -38,12 +38,12 @@ from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pytorch_lightning as L
+import lightning.pytorch as L
 import tifffile
 import torch
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, TQDMProgressBar
-from pytorch_lightning.loggers import WandbLogger
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
+from lightning.pytorch.loggers import WandbLogger
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data.distributed import DistributedSampler
@@ -61,6 +61,7 @@ from careamics.dataset.factory import (
 )
 from careamics.dataset.factory.factory import TrainValData
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
+from careamics.lightning.modules.module_utils import request_model_compilation
 from careamics.lightning.prediction.convert_prediction import convert_prediction
 from careamics.lvae_training.dataset.utils.data_utils import get_datasplit_tuples
 from careamics.lvae_training.metrics import RangeInvariantPsnr, compute_stats
@@ -90,6 +91,10 @@ MULTISCALE_COUNT = 1
 OUTPUT_CHANNELS = len(CH_IDX_LIST)  # 2
 MMSE_COUNT = 1
 GRID_YX = 32
+# Predict grid in Z. None = one tile per depth3D slab (overlap 0), the old
+# behaviour. The paper run 2506/D29-M3-S0-L8/3 was evaluated with grid
+# (3, 32, 32) (`Test_P64_G3-32-32_M50_Sk0`), i.e. Z overlap = depth - 3.
+GRID_Z: Optional[int] = None
 LR = 1e-3
 
 N2V_PATCH_SIZE = (8, 64, 64)
@@ -152,16 +157,40 @@ def synthesize_input(target_arr: np.ndarray, alpha: float = 0.5) -> np.ndarray:
     )
 
 
+def split_indices(
+    n_frames: int, *, match_disentangle: bool = True
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """T-frame split indices.
+
+    disentangle (`elisa3D_rawdata_loader.get_train_val_data`, DataType.Elisa3DData
+    = HT_H24) permutes the frame order with `np.random.RandomState(955)` BEFORE
+    slicing the split, so a plain `get_datasplit_tuples` selects DIFFERENT frames.
+    Every H24 run before 2026-09-13 used the unpermuted split; `--legacy-split`
+    restores it for reproducing those numbers.
+    """
+    train_idx, val_idx, test_idx = get_datasplit_tuples(
+        VAL_FRACTION, TEST_FRACTION, n_frames
+    )
+    if not match_disentangle:
+        print(f"[SPLIT] legacy unpermuted: train={train_idx} val={val_idx} test={test_idx}")
+        return train_idx, val_idx, test_idx
+    order = np.random.RandomState(955).permutation(n_frames)
+    train_idx, val_idx, test_idx = order[train_idx], order[val_idx], order[test_idx]
+    print(f"[SPLIT] disentangle RandomState(955): train={train_idx} val={val_idx} test={test_idx}")
+    return train_idx, val_idx, test_idx
+
+
 def load_split_arrays(
     data_file: Path | str,
     z_start: int,
     z_stop: int,
     alpha: float,
+    match_disentangle: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     filtered = load_filtered_volume(data_file, z_start, z_stop).astype(np.float32)
     scyzx = np.moveaxis(filtered, 2, 1)  # (T, C, Z, Y, X)
-    train_idx, val_idx, test_idx = get_datasplit_tuples(
-        VAL_FRACTION, TEST_FRACTION, scyzx.shape[0]
+    train_idx, val_idx, test_idx = split_indices(
+        scyzx.shape[0], match_disentangle=match_disentangle
     )
     target_arr = scyzx
     input_arr = synthesize_input(target_arr, alpha=alpha)
@@ -293,10 +322,12 @@ class MicroSplitNgDataModule3D(L.LightningDataModule):
 # ---------------------------------------------------------------------------
 
 
-def prepare_noise_model_data(data_file: Path, z_start: int, z_stop: int) -> np.ndarray:
+def prepare_noise_model_data(
+    data_file: Path, z_start: int, z_stop: int, match_disentangle: bool = True
+) -> np.ndarray:
     filtered = load_filtered_volume(data_file, z_start, z_stop).astype(np.float32)
-    train_idx, _, _ = get_datasplit_tuples(
-        VAL_FRACTION, TEST_FRACTION, filtered.shape[0]
+    train_idx, _, _ = split_indices(
+        filtered.shape[0], match_disentangle=match_disentangle
     )
     return np.moveaxis(filtered[train_idx], 2, -1)  # (T', Z, Y, X, C)
 
@@ -367,11 +398,12 @@ def build_microsplit_config(
     seed: int,
     mmse_count: int = MMSE_COUNT,
 ) -> Any:
+    # The noise model is no longer a config argument: it is attached to the
+    # module with model.set_noise_model(paths) after construction, as in
+    # microsplit_t24_train.py. Only the loss weights go through the config.
     if nm_paths:
-        nm_config = NoiseModelTrainer.config_from_paths(nm_paths)
         musplit_w, denoisplit_w = 0.1, 0.9
     else:
-        nm_config = None
         musplit_w, denoisplit_w = 1.0, 0.0
 
     return create_advanced_microsplit_config(
@@ -383,10 +415,8 @@ def build_microsplit_config(
         multiscale_count=MULTISCALE_COUNT,
         batch_size=batch_size,
         num_epochs=num_epochs,
-        mmse_count=mmse_count,
-        noise_model=nm_config,
-        musplit_weight=musplit_w,
-        denoisplit_weight=denoisplit_w,
+        gaussian_likelihood_weight=musplit_w,
+        noise_model_likelihood_weight=denoisplit_w,
         augmentations=[],
         encoder_conv_strides=ENCODER_CONV_STRIDES,
         decoder_conv_strides=DECODER_CONV_STRIDES,
@@ -434,9 +464,47 @@ def create_trainer(
     devices: int = 1,
     strategy: str = "auto",
     sync_batchnorm: bool = False,
+    max_steps: Optional[int] = None,
+    limit_train_batches: Optional[int] = None,
+    early_stop_patience: Optional[int] = None,
 ) -> Trainer:
-    """Build a Lightning Trainer. `devices=1` preserves single-GPU behavior."""
+    """Build a Lightning Trainer. `devices=1` preserves single-GPU behavior.
+
+    `max_steps` / `limit_train_batches` reproduce disentangle's budget exactly:
+    its epochs are capped at `limit_train_batches` optimizer steps and the paper
+    runs are defined by their checkpoint's global_step. With `max_steps` set,
+    `max_epochs` is lifted so the step count alone ends training.
+    Besides `last.ckpt`, the lowest-`val_loss` epoch is kept as `best.ckpt`
+    (= disentangle's `BaselineVAECL_best.ckpt`, which the paper evaluated).
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
+    extra_callbacks: list[Any] = [
+        ModelCheckpoint(
+            dirpath=output_dir / "checkpoints",
+            filename="best",
+            monitor="val_loss",
+            mode="min",
+            save_top_k=1,
+        )
+    ]
+    if early_stop_patience is not None:
+        extra_callbacks.append(
+            # Check after validation, never at train-epoch end: a checkpoint saved
+            # after the last batch but before the epoch is marked complete resumes
+            # into an empty epoch whose train-end hook has no val_loss yet (H24 job
+            # 43359113, vault errors.md E3).
+            EarlyStopping(
+                monitor="val_loss",
+                mode="min",
+                patience=early_stop_patience,
+                check_on_train_epoch_end=False,
+            )
+        )
+    budget: dict[str, Any] = {}
+    if max_steps is not None:
+        budget.update(max_steps=max_steps, max_epochs=-1)
+    if limit_train_batches is not None:
+        budget["limit_train_batches"] = limit_train_batches
     kwargs: dict[str, Any] = dict(
         max_epochs=config.training_config.trainer_params["max_epochs"],
         precision=config.training_config.trainer_params["precision"],
@@ -451,6 +519,7 @@ def create_trainer(
                 filename=f"ht_h24_3d_{experiment_name}",
                 save_last=True,
             ),
+            *extra_callbacks,
             TQDMProgressBar(refresh_rate=50),
         ],
         logger=(
@@ -459,6 +528,7 @@ def create_trainer(
             else None
         ),
     )
+    kwargs.update(budget)
     if devices > 1:
         kwargs.update(
             accelerator="gpu",
@@ -479,7 +549,8 @@ def _train_val_cfgs(config: Any) -> tuple[MicroSplitDataConfig, MicroSplitDataCo
 
 def _predict_cfg(config: Any) -> MicroSplitDataConfig:
     train_cfg: MicroSplitDataConfig = config.data_config
-    overlap = (0, PATCH_SIZE[1] - GRID_YX, PATCH_SIZE[2] - GRID_YX)
+    overlap_z = 0 if GRID_Z is None else PATCH_SIZE[0] - GRID_Z
+    overlap = (overlap_z, PATCH_SIZE[1] - GRID_YX, PATCH_SIZE[2] - GRID_YX)
     return train_cfg.convert_mode(
         "predicting",
         new_patch_size=PATCH_SIZE,
@@ -542,14 +613,24 @@ def predict_and_eval(
     alpha: float,
     output_metrics: str,
     preview_dir: Path,
+    eval_split: str = "val",
+    match_disentangle: bool = True,
 ) -> None:
-    _, _, va_in, va_tg, _, _ = load_split_arrays(data_file, z_start, z_stop, alpha)
+    _, _, val_in, val_tg, test_in, test_tg = load_split_arrays(
+        data_file, z_start, z_stop, alpha, match_disentangle=match_disentangle
+    )
+    va_in, va_tg = (test_in, test_tg) if eval_split == "test" else (val_in, val_tg)
+    print(f"[EVAL] split={eval_split} frames={va_in.shape[0]}")
     pred_cfg = _predict_cfg(config)
     dm.pred_config = pred_cfg
     dm.pred_input = [va_in]
     dm.batch_size = batch_size
     dm.setup("predict")
     predictions = trainer.predict(model, datamodule=dm)
+    # `MicroSplitModule.predict_step` returns (prediction, uncertainty) per batch;
+    # `convert_prediction` wants the predictions alone (as in microsplit_lif24_5ms.py).
+    # Missing this crashed job 43301213 after 2h11m of prediction.
+    predictions = [batch[0] for batch in predictions]
     stitched, _ = convert_prediction(predictions, tiled=True, restore_shape=True)
     arr = np.concatenate(stitched, axis=0) if len(stitched) > 1 else stitched[0]
     if arr.ndim == 5 and arr.shape[1] == OUTPUT_CHANNELS:
@@ -575,6 +656,12 @@ def predict_and_eval(
 
 
 def main(args) -> None:
+    global PATCH_SIZE, GRID_Z
+    PATCH_SIZE = (args.patch_depth, PATCH_SIZE[1], PATCH_SIZE[2])
+    GRID_Z = args.grid_z
+    print(f"[CONFIG] PATCH_SIZE={PATCH_SIZE} GRID_Z={GRID_Z} "
+          f"max_steps={args.max_steps} limit_train_batches={args.limit_train_batches} "
+          f"early_stop_patience={args.early_stop_patience}")
     L.seed_everything(args.seed, workers=True)
     data_root = Path(args.data_root)
     data_file = data_root / DATA_FILE
@@ -611,7 +698,9 @@ def main(args) -> None:
     elif args.skip_training:
         nm_paths = None
     else:
-        nm_input = prepare_noise_model_data(data_file, args.z_start, args.z_stop)
+        nm_input = prepare_noise_model_data(
+            data_file, args.z_start, args.z_stop, match_disentangle=not args.legacy_split
+        )
         n2v_pred = train_n2v(
             nm_input,
             args.experiment_name,
@@ -623,6 +712,9 @@ def main(args) -> None:
             predict_tile_overlap=tuple(args.n2v_predict_tile_overlap),
         )
         nm_paths = fit_noise_models(n2v_pred, nm_input, noise_model_dir)
+        if args.fit_noise_model_only:
+            print(f"--fit-noise-model-only: stopping after the GMM fit. {nm_paths}")
+            return
 
     config = build_microsplit_config(
         experiment_name=args.experiment_name,
@@ -640,6 +732,7 @@ def main(args) -> None:
         args.z_start,
         args.z_stop,
         args.alpha,
+        match_disentangle=not args.legacy_split,
     )
     train_cfg, val_cfg = _train_val_cfgs(config)
     dm = MicroSplitNgDataModule3D(
@@ -654,6 +747,17 @@ def main(args) -> None:
     )
 
     model = MicroSplitModule(config.algorithm_config)
+    if nm_paths:
+        model.set_noise_model([str(p) for p in nm_paths])
+    # create_advanced_microsplit_config no longer takes mmse_count; the module
+    # carries it as n_samples (same as microsplit_t24_train.py).
+    model.n_samples = args.mmse_count
+    if args.compile:
+        # Compiled in-place at `configure_model` time, so checkpoints stay
+        # interchangeable with uncompiled runs. Under DDP this still gets
+        # Dynamo's DDPOptimizer: the compiled forward runs inside DDP's own
+        # forward, which is what activates the allreduce-overlap graph split.
+        request_model_compilation(model, mode=args.compile_mode)
     trainer = create_trainer(
         config,
         output_dir,
@@ -661,6 +765,9 @@ def main(args) -> None:
         devices=args.devices,
         strategy=strategy,
         sync_batchnorm=sync_bn,
+        max_steps=args.max_steps,
+        limit_train_batches=args.limit_train_batches,
+        early_stop_patience=args.early_stop_patience,
     )
 
     if args.skip_training:
@@ -671,7 +778,16 @@ def main(args) -> None:
     else:
         if args.pretrained_ckpt is not None:
             load_pretrained_model(model, args.pretrained_ckpt)
-        trainer.fit(model, datamodule=dm)
+        # --resume-ckpt restores optimizer, scheduler and epoch counter, which
+        # --pretrained-ckpt does NOT: it only loads weights. A 208-epoch run is
+        # ~53 h single GPU, so it has to survive the wall clock in chained jobs.
+        resume = args.resume_ckpt
+        if resume and not Path(resume).exists():
+            print(f"[RESUME] {resume} does not exist yet; starting from scratch.")
+            resume = None
+        if resume:
+            print(f"[RESUME] continuing from {resume}")
+        trainer.fit(model, datamodule=dm, ckpt_path=resume)
 
     # Non-rank-0 DDP workers exit here; predict + eval runs single-GPU on rank 0.
     if args.devices > 1:
@@ -710,6 +826,8 @@ def main(args) -> None:
             args.alpha,
             output_metrics,
             preview_dir,
+            eval_split=args.eval_split,
+            match_disentangle=not args.legacy_split,
         )
 
 
@@ -726,6 +844,39 @@ if __name__ == "__main__":
         help=f"Directory containing {DATA_FILE}. Default: {DEFAULT_DATA_ROOT}",
     )
 
+    parser.add_argument(
+        "--patch-depth",
+        type=int,
+        default=PATCH_SIZE[0],
+        help="Z size of the (Z, 64, 64) patch = disentangle depth3D. 9 = run "
+        "2408/D29/24 (old default); 5 = paper Table 1 run 2506/D29/3.",
+    )
+    parser.add_argument(
+        "--grid-z",
+        type=int,
+        default=None,
+        help="Predict grid in Z (Z overlap = patch_depth - grid_z). Default: no "
+        "Z overlap. Paper 2506/D29/3 was evaluated with grid (3, 32, 32).",
+    )
+    parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=None,
+        help="Stop after this many optimizer steps (lifts --num-epochs). Paper "
+        "2506/D29/3: 800000 (global_step of its last checkpoint).",
+    )
+    parser.add_argument(
+        "--limit-train-batches",
+        type=int,
+        default=None,
+        help="Cap on optimizer steps per epoch (disentangle limit_train_batches).",
+    )
+    parser.add_argument(
+        "--early-stop-patience",
+        type=int,
+        default=None,
+        help="Stop when val_loss has not improved for this many epochs. Default: off.",
+    )
     parser.add_argument("--z-start", type=int, default=Z_START)
     parser.add_argument(
         "--z-stop",
@@ -755,6 +906,21 @@ if __name__ == "__main__":
         type=int,
         default=MMSE_COUNT,
         help="Number of posterior samples averaged at predict time (MMSE).",
+    )
+
+    # torch.compile
+    parser.add_argument(
+        "--compile",
+        action="store_true",
+        help="Compile the LVAE with torch.compile. Adds a one-off warm-up cost "
+        "on the first batch of each distinct input shape.",
+    )
+    parser.add_argument(
+        "--compile-mode",
+        type=str,
+        default="default",
+        choices=["default", "reduce-overhead", "max-autotune"],
+        help="torch.compile mode. Only used with --compile.",
     )
 
     # multi-GPU
@@ -821,7 +987,32 @@ if __name__ == "__main__":
         help="Skip Trainer.fit; predict-only. Requires --pretrained-ckpt.",
     )
     parser.add_argument("--skip-predict", action="store_true")
+    parser.add_argument(
+        "--fit-noise-model-only",
+        action="store_true",
+        help="Fit N2V + GMM, save them, then exit. Used by the DDP job chain.",
+    )
+    parser.add_argument(
+        "--eval-split",
+        choices=("val", "test"),
+        default="val",
+        help="Split to predict and score. Default val, as in the 2026-08 runs.",
+    )
+    parser.add_argument(
+        "--legacy-split",
+        action="store_true",
+        help="Unpermuted split of the pre-2026-09-13 runs, instead of the "
+        "disentangle RandomState(955) permutation.",
+    )
     parser.add_argument("--pretrained-ckpt", type=str, default=None)
+    parser.add_argument(
+        "--resume-ckpt",
+        type=str,
+        default=None,
+        help="Lightning checkpoint to CONTINUE training from (optimizer and "
+        "epoch counter restored). Missing file = start from scratch, so the "
+        "same command works as the first job of a chain.",
+    )
 
     parser.add_argument("--output-metrics", type=str, default=None)
     parser.add_argument(
