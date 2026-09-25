@@ -51,7 +51,9 @@ from torch.utils.data.distributed import DistributedSampler
 
 from careamics import CAREamist
 from careamics.config import (
+    GaussianMixtureNMConfig,
     MicroSplitDataConfig,
+    MultiChannelNMConfig,
     create_advanced_microsplit_config,
     create_n2v_config,
 )
@@ -605,6 +607,19 @@ def build_denoised_input(
 # ---------------------------------------------------------------------------
 
 
+def noise_model_config(nm_paths: Optional[list[Path]]) -> Optional[MultiChannelNMConfig]:
+    """Per-channel `.npz` files -> the config-level noise model (dev/microsplit_api).
+
+    The noise model lives in the configuration; `MicroSplitModule.on_fit_start`
+    rebuilds it and normalizes it with the training data statistics.
+    """
+    if not nm_paths:
+        return None
+    return MultiChannelNMConfig(
+        noise_models=[GaussianMixtureNMConfig.from_npz(p) for p in nm_paths]
+    )
+
+
 def build_microsplit_config(
     experiment_name: str,
     nm_paths: Optional[list[Path]],
@@ -637,6 +652,7 @@ def build_microsplit_config(
         num_epochs=num_epochs,
         gaussian_likelihood_weight=musplit_w,
         noise_model_likelihood_weight=denoisplit_w,
+        noise_model=noise_model_config(nm_paths),
         model_params={
             "z_dims": Z_DIMS,
             "n_filters": N_FILTERS,
@@ -702,6 +718,41 @@ def load_pretrained_model(model: MicroSplitModule, ckpt_path: str) -> None:
             f"Checkpoint {ckpt_path!r} does not match MicroSplitModule "
             f"({len(missing)} missing, {len(unexpected)} unexpected keys)."
         )
+
+
+def upgrade_legacy_checkpoint(ckpt_path: str, model: MicroSplitModule) -> str:
+    """Make a checkpoint written before the dev/microsplit_api merge resumable.
+
+    Before the merge the noise model lived outside the module `state_dict` (under a
+    top-level `noise_model` checkpoint key); now it is a submodule with
+    `noise_model.*` buffers, so Lightning's strict resume fails with missing keys.
+    `MicroSplitModule.on_fit_start` rebuilds the noise model from the configuration
+    on every fit, so filling those keys from the freshly built module is exact. Any
+    other missing or unexpected key is a real architecture mismatch and raises.
+
+    Returns the path to resume from: the original if it is already compatible,
+    otherwise an upgraded copy next to it (the original is left untouched).
+    """
+    ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+    state = ckpt["state_dict"]
+    expected = model.state_dict()
+    missing = [k for k in expected if k not in state]
+    unexpected = [k for k in state if k not in expected]
+    if not missing and not unexpected:
+        return ckpt_path
+    bad = [k for k in missing if not k.startswith("noise_model.")] + unexpected
+    if bad:
+        raise RuntimeError(
+            f"Checkpoint {ckpt_path!r} does not match the model beyond the noise "
+            f"model keys: {bad[:10]}"
+        )
+    for k in missing:
+        state[k] = expected[k].detach().cpu().clone()
+    ckpt.pop("noise_model", None)  # the pre-merge top-level copy
+    out = Path(ckpt_path).with_name(Path(ckpt_path).stem + "_upgraded.ckpt")
+    torch.save(ckpt, out)
+    print(f"[RESUME] legacy checkpoint: added {len(missing)} noise_model.* keys -> {out}")
+    return str(out)
 
 
 def create_trainer(
@@ -1112,17 +1163,17 @@ def log_resolved_config(config: Any) -> None:
 def print_noise_model_banner(model: MicroSplitModule, config: Any, nm_paths) -> None:
 
     """State unambiguously, in the log, whether this run uses a noise model."""
-    raw = getattr(model, "_raw_noise_model", None)
+    nm_cfg = config.algorithm_config.noise_model
     loss = config.algorithm_config.loss
-    enabled = raw is not None and loss.noise_model_likelihood_weight > 0
+    enabled = nm_cfg is not None and loss.noise_model_likelihood_weight > 0
     bar = "=" * 70
     print(f"\n{bar}")
     print(f"NOISE MODEL: {'ENABLED' if enabled else 'DISABLED'}")
     print(f"{bar}")
     print(f"  noise_model_paths                     : {nm_paths}")
-    print(f"  model._raw_noise_model                : {raw}")
+    print(f"  algorithm_config.noise_model         : {'set' if nm_cfg is not None else None}")
     print(f"  n_gaussian / n_coeff / min_sigma      : "
-          f"{[(m.n_gaussian, m.n_coeff, float(m.min_sigma.reshape(-1)[0])) for m in (getattr(raw, f'nmodel_{i}') for i in range(len(raw)))] if raw is not None else 'n/a -- no noise model'}")
+          f"{[(m.n_gaussian, m.n_coeff, m.min_sigma) for m in nm_cfg.noise_models] if nm_cfg is not None else 'n/a -- no noise model'}")
     print(f"  loss.noise_model_likelihood_weight    : "
           f"{loss.noise_model_likelihood_weight}")
     print(f"  loss.gaussian_likelihood_weight       : "
@@ -1291,10 +1342,8 @@ def main(args) -> None:
 
     # ------- model + trainer -------
     model = MicroSplitModule(config.algorithm_config)
-    # PR #1053 / "rm nm from conf": the noise model and the MMSE sample count
-    # left the configuration and are now injected on the module directly.
-    if nm_paths:
-        model.set_noise_model(nm_paths)
+    # The noise model comes in through the configuration (dev/microsplit_api);
+    # the MMSE sample count is set on the module.
     log_resolved_config(config)
     print_noise_model_banner(model, config, nm_paths)
     model.n_samples = args.mmse_count[0]
@@ -1331,6 +1380,8 @@ def main(args) -> None:
         if resume == "auto":
             last = output_dir / "checkpoints" / "last.ckpt"
             resume = str(last) if last.exists() else None
+        if resume:
+            resume = upgrade_legacy_checkpoint(resume, model)
         print(f"[BRANCH] resume_ckpt={resume!r}")
         trainer.fit(model, datamodule=dm, ckpt_path=resume)
 

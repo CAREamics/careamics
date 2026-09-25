@@ -50,7 +50,9 @@ from torch.utils.data.distributed import DistributedSampler
 
 from careamics import CAREamist
 from careamics.config import (
+    GaussianMixtureNMConfig,
     MicroSplitDataConfig,
+    MultiChannelNMConfig,
     create_advanced_microsplit_config,
     create_n2v_config,
 )
@@ -398,9 +400,9 @@ def build_microsplit_config(
     seed: int,
     mmse_count: int = MMSE_COUNT,
 ) -> Any:
-    # The noise model is no longer a config argument: it is attached to the
-    # module with model.set_noise_model(paths) after construction, as in
-    # microsplit_t24_train.py. Only the loss weights go through the config.
+    # The noise model goes through the configuration (dev/microsplit_api):
+    # `MicroSplitModule.on_fit_start` rebuilds it and normalizes it with the
+    # training data statistics.
     if nm_paths:
         musplit_w, denoisplit_w = 0.1, 0.9
     else:
@@ -417,6 +419,13 @@ def build_microsplit_config(
         num_epochs=num_epochs,
         gaussian_likelihood_weight=musplit_w,
         noise_model_likelihood_weight=denoisplit_w,
+        noise_model=(
+            MultiChannelNMConfig(
+                noise_models=[GaussianMixtureNMConfig.from_npz(p) for p in nm_paths]
+            )
+            if nm_paths
+            else None
+        ),
         augmentations=[],
         encoder_conv_strides=ENCODER_CONV_STRIDES,
         decoder_conv_strides=DECODER_CONV_STRIDES,
@@ -454,6 +463,41 @@ def load_pretrained_model(model: MicroSplitModule, ckpt_path: str) -> None:
             f"Checkpoint {ckpt_path!r} does not match MicroSplitModule "
             f"({len(missing)} missing, {len(unexpected)} unexpected keys)."
         )
+
+
+def upgrade_legacy_checkpoint(ckpt_path: str, model: MicroSplitModule) -> str:
+    """Make a checkpoint written before the dev/microsplit_api merge resumable.
+
+    Before the merge the noise model lived outside the module `state_dict` (under a
+    top-level `noise_model` checkpoint key); now it is a submodule with
+    `noise_model.*` buffers, so Lightning's strict resume fails with missing keys.
+    `MicroSplitModule.on_fit_start` rebuilds the noise model from the configuration
+    on every fit, so filling those keys from the freshly built module is exact. Any
+    other missing or unexpected key is a real architecture mismatch and raises.
+
+    Returns the path to resume from: the original if it is already compatible,
+    otherwise an upgraded copy next to it (the original is left untouched).
+    """
+    ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+    state = ckpt["state_dict"]
+    expected = model.state_dict()
+    missing = [k for k in expected if k not in state]
+    unexpected = [k for k in state if k not in expected]
+    if not missing and not unexpected:
+        return ckpt_path
+    bad = [k for k in missing if not k.startswith("noise_model.")] + unexpected
+    if bad:
+        raise RuntimeError(
+            f"Checkpoint {ckpt_path!r} does not match the model beyond the noise "
+            f"model keys: {bad[:10]}"
+        )
+    for k in missing:
+        state[k] = expected[k].detach().cpu().clone()
+    ckpt.pop("noise_model", None)  # the pre-merge top-level copy
+    out = Path(ckpt_path).with_name(Path(ckpt_path).stem + "_upgraded.ckpt")
+    torch.save(ckpt, out)
+    print(f"[RESUME] legacy checkpoint: added {len(missing)} noise_model.* keys -> {out}")
+    return str(out)
 
 
 def create_trainer(
@@ -747,8 +791,6 @@ def main(args) -> None:
     )
 
     model = MicroSplitModule(config.algorithm_config)
-    if nm_paths:
-        model.set_noise_model([str(p) for p in nm_paths])
     # create_advanced_microsplit_config no longer takes mmse_count; the module
     # carries it as n_samples (same as microsplit_t24_train.py).
     model.n_samples = args.mmse_count
@@ -786,6 +828,7 @@ def main(args) -> None:
             print(f"[RESUME] {resume} does not exist yet; starting from scratch.")
             resume = None
         if resume:
+            resume = upgrade_legacy_checkpoint(resume, model)
             print(f"[RESUME] continuing from {resume}")
         trainer.fit(model, datamodule=dm, ckpt_path=resume)
 
