@@ -310,7 +310,11 @@ class LadderVAE(nn.Module):
 
             # TODO: check correctness of this
             if self._multiscale_count > 1:
-                output_expected_shape = (dim // 2 ** (i + 1) for dim in self.image_size)
+                # tuple, not a generator: `BottomUpLayer.forward` reads this on
+                # every pass, and a generator would be empty after the first.
+                output_expected_shape = tuple(
+                    dim // 2 ** (i + 1) for dim in self.image_size
+                )
             else:
                 output_expected_shape = None
 
@@ -797,7 +801,7 @@ class LadderVAE(nn.Module):
             tile_size = self.image_size
         self.image_size = tile_size
         for i in range(self.n_layers):
-            self.bottom_up_layers[i].output_expected_shape = (
+            self.bottom_up_layers[i].output_expected_shape = tuple(
                 ts // 2 ** (i + 1) for ts in tile_size
             )
             self.top_down_layers[i].latent_shape = tile_size

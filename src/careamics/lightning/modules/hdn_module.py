@@ -23,6 +23,7 @@ from careamics.utils.logging import get_logger
 
 from .module_utils import (
     check_noise_model_channels,
+    compile_model_if_requested,
     configure_optimizers,
     load_noise_model_from_checkpoint,
     log_training_stats,
@@ -30,6 +31,7 @@ from .module_utils import (
     mmse_and_sample_std,
     resolve_noise_model,
     save_noise_model_to_checkpoint,
+    skip_nan_batch,
 )
 
 logger = get_logger(__name__)
@@ -223,6 +225,14 @@ class HDNModule(L.LightningModule):
             ),
         )
 
+    def configure_model(self) -> None:
+        """Compile the inner model if compilation was requested.
+
+        Lightning calls this hook once the module is on its target device and
+        before the strategy wraps it, which is where `torch.compile` belongs.
+        """
+        compile_model_if_requested(self)
+
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.
 
@@ -377,8 +387,8 @@ class HDNModule(L.LightningModule):
 
         model_outputs = self.model(x_data)
         loss = self._compute_loss(model_outputs, target)
-        if loss is None:  # skip the batch on NaN loss
-            return None
+        if loss is None:  # neutralize the batch on NaN loss (zero gradient)
+            return skip_nan_batch(self)
 
         log_training_stats(self, loss["loss"], batch_size=x_data.shape[0])
         self.log_dict(

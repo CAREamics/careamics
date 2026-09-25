@@ -1,10 +1,9 @@
 """Script containing the common basic blocks (nn.Module) reused by the LadderVAE."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from copy import deepcopy
 from typing import Callable, Literal, Optional, Union
 
-import numpy as np
 import torch
 import torch.nn as nn
 
@@ -903,6 +902,36 @@ class SkipConnectionMerger(MergeLayer):
         )
 
 
+def _downscaled_latent_shape(latent_shape: Sequence[int]) -> tuple[int, ...]:
+    """Compute the spatial shape a top-down layer should crop its output to.
+
+    `latent_shape` is ([Z], Y, X) for a 3D encoder but only (X,) for a 2D one
+    (see `TopDownLayer.__init__`), while `reset_for_inference` replaces it with
+    the full tile shape. A 1-tuple is broadcast across the spatial dimensions,
+    which is what the NumPy arithmetic this replaces did implicitly.
+
+    Keeping the arithmetic in plain Python also matters for `torch.compile`:
+    routing shapes through NumPy turns the caller's comparison into
+    data-dependent control flow, which on its own breaks the model into eight
+    subgraphs.
+
+    Parameters
+    ----------
+    latent_shape : Sequence[int]
+        The spatial shape retained by the layer, as (X,), (Y, X) or (Z, Y, X).
+
+    Returns
+    -------
+    tuple of int
+        The downscaled shape: Z is left untouched, Y and X are halved.
+    """
+    rescale = (1, 2, 2) if len(latent_shape) == 3 else (2, 2)
+    shape = tuple(latent_shape)
+    if len(shape) == 1:
+        shape = shape * len(rescale)
+    return tuple(dim // factor for dim, factor in zip(shape, rescale))
+
+
 class TopDownLayer(nn.Module):
     """Top-down inference layer.
 
@@ -1332,10 +1361,7 @@ class TopDownLayer(nn.Module):
             # because that's the only case in which we need to retain the shape.
             # Here, it must be strictly greater than half the input shape, which is
             # the case if and only if `x.shape == self.latent_shape`.
-            rescale = (
-                np.array((1, 2, 2)) if len(self.latent_shape) == 3 else np.array((2, 2))
-            )  # TODO better way?
-            new_latent_shape = tuple(np.array(self.latent_shape) // rescale)
+            new_latent_shape = _downscaled_latent_shape(self.latent_shape)
             if x.shape[-1] > new_latent_shape[-1]:
                 x = crop_img_tensor(x, new_latent_shape)
         # TODO: `retain_spatial_dims` is the same for all the TD layers.
