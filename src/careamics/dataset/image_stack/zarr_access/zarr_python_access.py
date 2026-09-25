@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager
 from typing import Any, Literal
 
 import zarr
@@ -15,7 +16,23 @@ from .zarr_hierarchy_utils import open_zarr_node
 
 
 class ZarrPythonAccess:
-    """`zarr`-backed Zarr access."""
+    """`zarr`-backed Zarr access.
+
+    Parameters
+    ----------
+    use_zarrs : bool, default=False
+        Whether to use the strict zarrs codec pipeline.
+    """
+
+    def __init__(self, use_zarrs: bool = False) -> None:
+        """Initialize Zarr access.
+
+        Parameters
+        ----------
+        use_zarrs : bool, default=False
+            Whether to use the strict zarrs codec pipeline.
+        """
+        self._use_zarrs = use_zarrs
 
     def get_array_shape(self, node: ZarrNode) -> tuple[int, ...]:
         """Return an array shape.
@@ -30,7 +47,8 @@ class ZarrPythonAccess:
         tuple[int, ...]
             Array shape.
         """
-        return tuple(self._require_array(node).shape)
+        with self._zarr_config():
+            return tuple(self._require_array(node).shape)
 
     def get_array_dtype(self, node: ZarrNode) -> DTypeLike:
         """Return an array dtype.
@@ -45,7 +63,8 @@ class ZarrPythonAccess:
         DTypeLike
             Array dtype.
         """
-        return self._require_array(node).dtype
+        with self._zarr_config():
+            return self._require_array(node).dtype
 
     def get_array_chunks(self, node: ZarrNode) -> Sequence[int]:
         """Return an array chunk shape.
@@ -60,7 +79,8 @@ class ZarrPythonAccess:
         Sequence[int]
             Chunk shape.
         """
-        return self._require_array(node).chunks
+        with self._zarr_config():
+            return self._require_array(node).chunks
 
     def get_array_shards(self, node: ZarrNode) -> Sequence[int] | None:
         """Return an array shard shape.
@@ -75,7 +95,8 @@ class ZarrPythonAccess:
         Sequence[int] or None
             Shard shape.
         """
-        return self._require_array(node).shards
+        with self._zarr_config():
+            return self._require_array(node).shards
 
     def read_array_patch(self, node: ZarrNode, patch_index: Any) -> NDArray[Any]:
         """Read a patch from an array node.
@@ -92,7 +113,8 @@ class ZarrPythonAccess:
         NDArray[Any]
             Selected patch data.
         """
-        return asarray(self._require_array(node, mode="r")[patch_index])
+        with self._zarr_config():
+            return asarray(self._require_array(node, mode="r")[patch_index])
 
     def create_array(
         self,
@@ -113,10 +135,11 @@ class ZarrPythonAccess:
         None
             The array is created or opened in place.
         """
-        if node.path == "":
-            self._create_or_open_root_array(node, spec)
-        else:
-            self._create_or_open_group_array(node, spec)
+        with self._zarr_config():
+            if node.path == "":
+                self._create_or_open_root_array(node, spec)
+            else:
+                self._create_or_open_group_array(node, spec)
 
     def write_array_tile(
         self, node: ZarrNode, tile_index: Any, data: NDArray[Any]
@@ -137,8 +160,30 @@ class ZarrPythonAccess:
         None
             This method writes in place.
         """
-        array = self._require_array(node, mode="a")
-        array[tile_index] = data
+        with self._zarr_config():
+            array = self._require_array(node, mode="a")
+            array[tile_index] = data
+
+    @contextmanager
+    def _zarr_config(self) -> Generator[None, None, None]:
+        """Apply the selected codec pipeline.
+
+        Yields
+        ------
+        None
+            The selected Zarr configuration is active.
+        """
+        if not self._use_zarrs:
+            yield
+            return
+
+        with zarr.config.set(
+            {
+                "codec_pipeline.path": "zarrs.ZarrsCodecPipeline",
+                "codec_pipeline.strict": True,
+            }
+        ):
+            yield
 
     def _require_array(
         self, node: ZarrNode, mode: Literal["r", "a", "w"] = "r"
