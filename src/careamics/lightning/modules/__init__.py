@@ -9,6 +9,7 @@ from .get_module import (
 )
 from .hdn_module import HDNModule
 from .microsplit_module import MicroSplitModule
+from .module_utils import request_model_compilation
 from .n2v_module import N2VModule
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "N2VModule",
     "create_module",
     "get_module_cls",
+    "request_model_compilation",
 ]

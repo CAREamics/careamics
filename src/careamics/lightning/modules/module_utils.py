@@ -1,6 +1,8 @@
 """Utilities for Lightning modules."""
 
-from collections.abc import Callable
+import warnings
+from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Any
 
 import lightning.pytorch as L
@@ -9,9 +11,109 @@ from torch import nn
 from torchmetrics import MetricCollection
 
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
+from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def resolve_noise_model(
+    noise_model: MultiChannelNoiseModel | Sequence[str | Path],
+) -> MultiChannelNoiseModel:
+    """Resolve a noise model argument into a runtime ``MultiChannelNoiseModel``.
+
+    Accepts either an already-built ``MultiChannelNoiseModel`` (returned as-is) or a
+    sequence of per-channel ``.npz`` paths (loaded via ``MultiChannelNoiseModel.from_npz``).
+
+    Parameters
+    ----------
+    noise_model : MultiChannelNoiseModel or sequence of str or Path
+        The noise model object, or the per-channel ``.npz`` paths to load it from.
+
+    Returns
+    -------
+    MultiChannelNoiseModel
+        The resolved runtime noise model.
+    """
+    if isinstance(noise_model, MultiChannelNoiseModel):
+        return noise_model
+    return MultiChannelNoiseModel.from_npz(list(noise_model))
+
+
+def check_noise_model_channels(
+    noise_model: MultiChannelNoiseModel, output_channels: int
+) -> None:
+    """Validate that the noise model covers exactly ``output_channels`` channels.
+
+    Parameters
+    ----------
+    noise_model : MultiChannelNoiseModel
+        The runtime noise model.
+    output_channels : int
+        The number of output channels of the LVAE model.
+
+    Raises
+    ------
+    ValueError
+        If the noise model channel count does not match ``output_channels``.
+    """
+    if len(noise_model) != output_channels:
+        raise ValueError(
+            f"Noise model has {len(noise_model)} channel(s) but the model has "
+            f"{output_channels} output channel(s); they must match."
+        )
+
+
+# Dedicated checkpoint key for the (raw-space) noise model, kept separate from
+# `hyper_parameters` so it is persisted with the checkpoint but not via the
+# training `Configuration`.
+NOISE_MODEL_CKPT_KEY = "noise_model"
+
+
+def save_noise_model_to_checkpoint(
+    raw_noise_model: MultiChannelNoiseModel | None, checkpoint: dict[str, Any]
+) -> None:
+    """Persist the raw-space noise model into the checkpoint dict.
+
+    The noise model is a frozen, loss-side artifact and is intentionally kept out of
+    the module ``state_dict``; it is stored here under a dedicated key so continued
+    training (resume / fine-tune) can restore it without re-passing it.
+
+    Parameters
+    ----------
+    raw_noise_model : MultiChannelNoiseModel or None
+        The raw-space noise model to persist, or ``None`` to persist nothing.
+    checkpoint : dict
+        The checkpoint dictionary to write into.
+    """
+    if raw_noise_model is not None:
+        checkpoint[NOISE_MODEL_CKPT_KEY] = raw_noise_model.to_config().model_dump()
+
+
+def load_noise_model_from_checkpoint(
+    checkpoint: dict[str, Any],
+) -> MultiChannelNoiseModel | None:
+    """Rebuild the raw-space noise model from a checkpoint dict.
+
+    Parameters
+    ----------
+    checkpoint : dict
+        The checkpoint dictionary previously written by
+        ``save_noise_model_to_checkpoint``.
+
+    Returns
+    -------
+    MultiChannelNoiseModel or None
+        The restored raw-space noise model, or ``None`` if the checkpoint carries none.
+    """
+    payload = checkpoint.get(NOISE_MODEL_CKPT_KEY)
+    if payload is None:
+        return None
+    # local imports to avoid importing config at module import time
+    from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
+    from careamics.models.lvae.noise_models import multichannel_noise_model_factory
+
+    return multichannel_noise_model_factory(MultiChannelNMConfig(**payload))
 
 
 def log_training_stats(module: L.LightningModule, loss: Any, batch_size: int) -> None:
@@ -217,3 +319,114 @@ def mmse_and_sample_std(
     std = (sum_squared_deviations / (n_samples - 1)).sqrt()
 
     return mean, std
+
+
+def request_model_compilation(module: L.LightningModule, **compile_kwargs: Any) -> None:
+    """Mark a module's inner model for `torch.compile`.
+
+    The compilation itself is deferred to `configure_model`, which Lightning
+    calls once the module sits on its target device.
+
+    Parameters
+    ----------
+    module : L.LightningModule
+        The module whose `model` attribute should be compiled.
+    **compile_kwargs : Any
+        Keyword arguments forwarded to `torch.compile`, e.g. `mode`, `dynamic`
+        or `fullgraph`.
+    """
+    module._compile_kwargs = compile_kwargs  # type: ignore[assignment]
+
+
+def compile_model_if_requested(module: L.LightningModule) -> None:
+    """Compile a module's inner model in place if compilation was requested.
+
+    Uses `nn.Module.compile()` rather than rebinding `module.model` to the object
+    returned by `torch.compile`. The in-place variant stores the compiled
+    callable outside the module's parameters and buffers, so `state_dict()` keys
+    are unchanged and checkpoints stay interchangeable with uncompiled runs;
+    rebinding would prefix every key with `_orig_mod.`.
+
+    Lightning may call `configure_model` more than once (once per `fit`,
+    `validate`, `test` and `predict` entry point), so this is idempotent.
+
+    Parameters
+    ----------
+    module : L.LightningModule
+        The module whose `model` attribute should be compiled.
+    """
+    compile_kwargs = getattr(module, "_compile_kwargs", None)
+    if compile_kwargs is None:
+        return
+    model = module.model  # type: ignore[attr-defined]
+    if getattr(model, "_compiled_call_impl", None) is not None:
+        return  # already compiled
+    model.compile(**compile_kwargs)
+    logger.info(
+        f"Compiled {type(model).__name__} with torch.compile({compile_kwargs})."
+    )
+
+
+def zero_gradient_loss(model: nn.Module) -> torch.Tensor:
+    """Build a finite loss whose gradient is exactly zero for every parameter.
+
+    Touching every trainable parameter keeps DDP's reducer satisfied without
+    `find_unused_parameters`, while the zero gradient makes the batch contribute
+    nothing to the update.
+
+    Parameters
+    ----------
+    model : nn.Module
+        The model whose parameters the loss should touch.
+
+    Returns
+    -------
+    torch.Tensor
+        A scalar loss that back-propagates a zero gradient to every parameter.
+    """
+    contributions = [
+        (parameter * 0.0).sum()
+        for parameter in model.parameters()
+        if parameter.requires_grad
+    ]
+    if not contributions:
+        raise ValueError("Model has no trainable parameters.")
+    return torch.stack(contributions).sum()
+
+
+def skip_nan_batch(module: L.LightningModule) -> torch.Tensor:
+    """Neutralize a training batch whose loss came out NaN.
+
+    Returns a loss that is finite-by-construction in its gradients: it touches
+    every trainable parameter but back-propagates exactly zero, so the batch
+    contributes nothing to the update.
+
+    Returning `None` instead -- Lightning's documented way to skip an optimizer
+    step -- is not usable here. Lightning's AMP plugin calls `_after_closure`,
+    and therefore gradient clipping, *unconditionally*, before it checks whether
+    the closure returned `None` (see `plugins/precision/amp.py`). With no
+    backward pass, no parameter has a `.grad`, and `clip_grad_value_` raises
+    `RuntimeError: Expected !nested_tensorlist[0].empty() to be true` on the
+    empty gradient list. That applies whenever `gradient_clip_val` is set, on a
+    single device as much as under DDP.
+
+    Under DDP a zero-gradient loss is required for a second reason: a rank that
+    skips backward desynchronizes the gradient all-reduce and deadlocks or
+    crashes the other ranks.
+
+    Parameters
+    ----------
+    module : L.LightningModule
+        The module whose training step produced the NaN loss.
+
+    Returns
+    -------
+    torch.Tensor
+        A scalar loss that back-propagates a zero gradient to every parameter.
+    """
+    warnings.warn(
+        "NaN loss encountered; the batch contributes a zero gradient instead of "
+        "being skipped.",
+        stacklevel=2,
+    )
+    return zero_gradient_loss(module.model)  # type: ignore[attr-defined]

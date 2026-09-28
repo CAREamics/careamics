@@ -16,7 +16,12 @@ from careamics.metrics import SIPSNR
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
 
-from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
+from .module_utils import (
+    compile_model_if_requested,
+    configure_optimizers,
+    log_training_stats,
+    log_validation_stats,
+)
 from .n2v_utils import N2VManipulate
 
 logger = get_logger(__name__)
@@ -81,6 +86,14 @@ class N2VModule(L.LightningModule):
                 "N2V is a self-supervised algorithm, arguments passed to "
                 "`train_data_target` will be ignored.",
             )
+
+    def configure_model(self) -> None:
+        """Compile the inner model if compilation was requested.
+
+        Lightning calls this hook once the module is on its target device and
+        before the strategy wraps it, which is where `torch.compile` belongs.
+        """
+        compile_model_if_requested(self)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
