@@ -11,7 +11,10 @@ from lightning.pytorch.callbacks import BasePredictionWriter
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.image_io.write.get_func import SupportedWriteType, WriteFunc
-from careamics.lightning.prediction import decollate_image_region_data
+from careamics.lightning.prediction import (
+    decollate_image_region_data,
+    prediction_region,
+)
 from careamics.utils import get_logger
 
 from .file_path_utils import common_source_base
@@ -185,7 +188,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         self,
         trainer: Trainer,
         pl_module: LightningModule,
-        prediction: ImageRegionData,
+        prediction: ImageRegionData | tuple[ImageRegionData, ImageRegionData | None],
         batch_indices: Sequence[int] | None,
         batch: ImageRegionData,
         batch_idx: int,
@@ -194,7 +197,9 @@ class PredictionWriterCallback(BasePredictionWriter):
         """
         Write predictions at the end of a batch.
 
-        Writing method is determined by the attribute `write_strategy`.
+        Writing method is determined by the attribute `write_strategy`. Only the
+        prediction is written; the uncertainty estimate of the sampling-based
+        algorithms is discarded.
 
         Parameters
         ----------
@@ -202,8 +207,8 @@ class PredictionWriterCallback(BasePredictionWriter):
             PyTorch Lightning trainer.
         pl_module : LightningModule
             PyTorch Lightning module.
-        prediction : ImageRegionData
-            Prediction outputs of `batch`.
+        prediction : ImageRegionData or tuple of ImageRegionData
+            Prediction outputs of `batch`, optionally paired with the uncertainty.
         batch_indices : sequence of Any, optional
             Batch indices.
         batch : ImageRegionData
@@ -219,7 +224,7 @@ class PredictionWriterCallback(BasePredictionWriter):
 
         if self.write_strategy is not None:
             assert prediction is not None
-            predictions = decollate_image_region_data(prediction)
+            predictions = decollate_image_region_data(prediction_region(prediction))
 
             self.write_strategy.write_batch(
                 dirpath=self.dirpath,

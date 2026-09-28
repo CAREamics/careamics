@@ -1,5 +1,6 @@
-"""Training utilities for Lightning modules."""
+"""Utilities for Lightning modules."""
 
+from collections.abc import Callable
 from typing import Any
 
 import lightning.pytorch as L
@@ -170,3 +171,49 @@ def configure_optimizers(
         "lr_scheduler": scheduler,
         "monitor": monitor,
     }
+
+
+def mmse_and_sample_std(
+    sample_prediction: Callable[[torch.Tensor], torch.Tensor],
+    x_data: torch.Tensor,
+    n_samples: int,
+) -> tuple[torch.Tensor, torch.Tensor | None]:
+    """Draw several stochastic predictions and reduce them to the MMSE and its spread.
+
+    The samples are accumulated one at a time with Welford's algorithm
+    so the memory footprint does not grow with `n_samples`.
+
+    Parameters
+    ----------
+    sample_prediction : callable
+        Draws a single sample from `x_data`, shape (B, C, [Z], Y, X).
+    x_data : torch.Tensor
+        Input passed to `sample_prediction` on every draw.
+    n_samples : int
+        Number of samples to draw.
+
+    Returns
+    -------
+    tuple of (torch.Tensor, torch.Tensor or None)
+        The MMSE estimate and the standard deviation across the samples, both of
+        the shape returned by `sample_prediction`. The standard deviation is `None`
+        when `n_samples == 1`.
+    """
+    # TODO: The standard deviation across samples excludes the likelihood variance
+    # and is a per-pixel marginal, so it under-estimates the total predictive
+    # uncertainty.
+
+    mean = sample_prediction(x_data)
+    if n_samples == 1:
+        return mean, None
+
+    sum_squared_deviations = torch.zeros_like(mean)
+    for count in range(2, n_samples + 1):
+        sample = sample_prediction(x_data)
+        deviation = sample - mean
+        mean = mean + deviation / count
+        sum_squared_deviations = sum_squared_deviations + deviation * (sample - mean)
+
+    std = (sum_squared_deviations / (n_samples - 1)).sqrt()
+
+    return mean, std
