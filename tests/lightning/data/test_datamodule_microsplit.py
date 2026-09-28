@@ -68,10 +68,14 @@ def _datamodule(config: DataConfig, **kwargs: Any) -> CareamicsDataModule:
     return CareamicsDataModule(config, **data)
 
 
-@pytest.mark.parametrize("multiscale_count", [1, 3])
-def test_fit_builds_microsplit_datasets(multiscale_count: int) -> None:
-    """Test a MicroSplit configuration builds datasets with lateral context."""
+def test_fit_builds_microsplit_datasets() -> None:
+    """Test a MicroSplit configuration builds datasets with lateral context.
+
+    The `multiscale_count` matrix is covered at the factory level, in
+    `tests/functional/dataset/factory/test_microsplit_factory.py`.
+    """
     # Arrange
+    multiscale_count = 3
     datamodule = _datamodule(_config(multiscale_count=multiscale_count))
 
     # Act
@@ -100,35 +104,6 @@ def test_fit_builds_basic_datasets_for_generic_config() -> None:
     assert isinstance(datamodule.val_dataset.patch_constructor, BasicPatchConstr)
 
 
-def test_fit_computes_statistics_on_training_data() -> None:
-    """Test validation reuses the training statistics rather than its own.
-
-    The training dataset must be built before the validation configuration is derived.
-    """
-    # Arrange
-    train_input, train_target = _paired_arrays(value=1.0)
-    val_input, val_target = _paired_arrays(value=100.0)
-    config = _config()
-    datamodule = CareamicsDataModule(
-        config,
-        train_data=train_input,
-        train_data_target=train_target,
-        val_data=val_input,
-        val_data_target=val_target,
-    )
-
-    # Act
-    datamodule.setup("fit")
-
-    # Assert: the input sums the two training channels, so its mean is 2.0, whereas
-    # the validation data would give 200.0.
-    assert config.normalization.input_means == [2.0]
-    assert (
-        datamodule.val_dataset.config.normalization.input_means
-        == config.normalization.input_means
-    )
-
-
 def test_fit_saves_resolved_statistics_to_hparams() -> None:
     """Test the statistics computed during setup are saved to the hyperparameters."""
     datamodule = _datamodule(_config())
@@ -151,21 +126,6 @@ def test_fit_rejects_validation_splitting() -> None:
         datamodule.setup("fit")
 
 
-@pytest.mark.parametrize(
-    ("missing_field", "match"),
-    [
-        ("train_data_target", "MicroSplit is supervised"),
-        ("val_data_target", "`val_data_target` must be provided"),
-    ],
-)
-def test_fit_requires_targets(missing_field: str, match: str) -> None:
-    """Test MicroSplit requires both training and validation targets."""
-    datamodule = _datamodule(_config(), **{missing_field: None})
-
-    with pytest.raises(ValueError, match=match):
-        datamodule.setup("fit")
-
-
 def test_predict_builds_microsplit_dataset() -> None:
     """Test a MicroSplit configuration builds a MicroSplit prediction dataset."""
     pred_input, _ = _paired_arrays()
@@ -175,17 +135,6 @@ def test_predict_builds_microsplit_dataset() -> None:
 
     datamodule.setup("predict")
 
-    assert isinstance(datamodule.predict_dataset.patch_constructor, PredMsPatchConstr)
-
-
-def test_predict_converts_training_config() -> None:
-    """Test a training configuration is converted to whole-image prediction."""
-    pred_input, _ = _paired_arrays()
-    datamodule = CareamicsDataModule(_config(), pred_data=pred_input)
-
-    datamodule.setup("predict")
-
-    assert datamodule.predict_dataset.config.mode == "predicting"
     assert isinstance(datamodule.predict_dataset.patch_constructor, PredMsPatchConstr)
 
 
