@@ -8,7 +8,7 @@ import pytest
 import tifffile
 from numpy.typing import NDArray
 
-from careamics.config.data import MicroSplitDataConfig
+from careamics.config.data import MicroSplitDataConfig, SwitiPatchingConfig
 from careamics.dataset.factory import (
     IndependentTargets,
     MultiChannelTarget,
@@ -16,7 +16,15 @@ from careamics.dataset.factory import (
     create_microsplit_dataset,
     create_microsplit_pred_dataset,
 )
-from careamics.dataset.patching import is_uncorrelated_specs
+from careamics.dataset.image_stack import InMemoryImageStack
+from careamics.dataset.patch_constructor import PredMsPatchConstr
+from careamics.dataset.patch_extractor import PatchExtractor
+from careamics.dataset.patching import (
+    SwitiPatching,
+    WholeSamplePatching,
+    is_tile_specs,
+    is_uncorrelated_specs,
+)
 
 MicroSplitSource = list[NDArray[Any]] | list[Path]
 
@@ -338,3 +346,147 @@ def test_factory_warns_unused_fields(
 
     assert len(warnings) == 1
     assert warning_field in warnings[0]
+
+
+# ---------------------------------------------------------------------------
+# Sliding-window tiled prediction x MicroSplit
+# ---------------------------------------------------------------------------
+
+
+def _pred_sliding_window_config(
+    *,
+    patch_size: tuple[int, int],
+    overlaps: tuple[int, int],
+    stride: tuple[int, int],
+    multiscale_count: int,
+) -> MicroSplitDataConfig:
+    return MicroSplitDataConfig(
+        mode="predicting",
+        data_type="array",
+        axes="SCYX",
+        patching=SwitiPatchingConfig(
+            patch_size=list(patch_size),
+            overlaps=list(overlaps),
+            stride=list(stride),
+        ),
+        normalization={"name": "none"},
+        multiscale_count=multiscale_count,
+        padding_mode="reflect",
+        seed=42,
+    )
+
+
+@pytest.mark.parametrize("multiscale_count", [1, 3])
+def test_microsplit_pred_factory_with_sliding_window_tiled(multiscale_count: int):
+    """SW-tiled prediction dataset yields LC patches with consistent TileSpecs."""
+    patch_size = (16, 16)
+    overlaps = (8, 8)
+    stride = (4, 4)
+
+    rng = np.random.default_rng(0)
+    image = rng.random(size=(1, 1, 32, 32)).astype(np.float32)
+
+    config = _pred_sliding_window_config(
+        patch_size=patch_size,
+        overlaps=overlaps,
+        stride=stride,
+        multiscale_count=multiscale_count,
+    )
+    dataset = create_microsplit_pred_dataset(config=config, input_data=[image])
+
+    # n_patches matches what SlidingWindowTiledPatching reports.
+    sw_patching = SwitiPatching(
+        data_shapes=[image.shape],
+        patch_size=list(patch_size),
+        overlaps=list(overlaps),
+        stride=list(stride),
+    )
+    assert len(dataset) == sw_patching.n_patches
+    assert len(dataset) > 0
+
+    # Each item is a TileSpecs-bearing LC patch with shape (L, Y, X).
+    seen_total_tiles: set[int] = set()
+    for idx in range(len(dataset)):
+        (input_region,) = dataset[idx]
+        spec = input_region.region_spec
+        assert is_tile_specs(spec)
+        assert input_region.data.shape == (multiscale_count, *patch_size)
+        seen_total_tiles.add(int(spec["total_tiles"]))
+
+    # All tiles for the single image carry the same total_tiles value and it
+    # matches n_patches.
+    assert seen_total_tiles == {len(dataset)}
+
+
+def test_microsplit_convert_mode_stride_builds_sliding_window_config():
+    """`convert_mode(..., stride=...)` switches to SlidingWindowTiledPatchingConfig."""
+    train_config = MicroSplitDataConfig(
+        mode="training",
+        data_type="array",
+        axes="SCYX",
+        patching={"name": "random", "patch_size": [16, 16], "seed": 13},
+        normalization={"name": "none"},
+        multiscale_count=2,
+        padding_mode="reflect",
+        seed=42,
+    )
+
+    pred_config = train_config.convert_mode(
+        new_mode="predicting",
+        new_patch_size=[16, 16],
+        overlap_size=[8, 8],
+        stride=[4, 4],
+    )
+
+    assert isinstance(pred_config, MicroSplitDataConfig)
+    assert pred_config.mode == "predicting"
+    assert isinstance(pred_config.patching, SwitiPatchingConfig)
+    assert list(pred_config.patching.stride) == [4, 4]
+    assert list(pred_config.patching.patch_size) == [16, 16]
+    assert list(pred_config.patching.overlaps) == [8, 8]
+    # MicroSplit-specific fields preserved.
+    assert pred_config.multiscale_count == 2
+    assert pred_config.padding_mode == "reflect"
+
+
+def test_microsplit_convert_mode_stride_requires_predicting_mode_and_sizes():
+    """`stride` is only valid for predicting with patch_size and overlap_size."""
+    train_config = MicroSplitDataConfig(
+        mode="training",
+        data_type="array",
+        axes="SCYX",
+        patching={"name": "random", "patch_size": [16, 16], "seed": 13},
+        normalization={"name": "none"},
+    )
+    with pytest.raises(ValueError, match="stride"):
+        train_config.convert_mode(
+            new_mode="predicting",
+            new_patch_size=[16, 16],
+            overlap_size=None,
+            stride=[4, 4],
+        )
+    with pytest.raises(ValueError, match="stride"):
+        train_config.convert_mode(
+            new_mode="validating",
+            new_patch_size=[16, 16],
+            overlap_size=[8, 8],
+            stride=[4, 4],
+        )
+
+
+def test_ms_pred_patch_constructor_rejects_non_tile_specs_patching():
+    """The guard raises TypeError when the patching strategy isn't TileSpecs-valued."""
+    rng = np.random.default_rng(0)
+    image = rng.random(size=(1, 1, 32, 32)).astype(np.float32)
+    extractor = PatchExtractor(
+        image_stacks=[InMemoryImageStack.from_array(image, axes="SCYX")]
+    )
+    whole_patching = WholeSamplePatching(data_shapes=[image.shape])
+
+    with pytest.raises(TypeError, match="TileSpecs"):
+        PredMsPatchConstr(
+            patching_strategy=whole_patching,
+            input_extractor=extractor,
+            multiscale_count=1,
+            padding_mode="reflect",
+        )

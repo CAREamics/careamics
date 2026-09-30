@@ -11,6 +11,7 @@ from careamics.dataset.patching import (
     RandomPatching,
     SequentialPatching,
     StratifiedPatching,
+    SwitiPatching,
     TiledPatching,
     WholeSamplePatching,
 )
@@ -107,6 +108,18 @@ def _create_whole_sample_patching_strategy(
     return WholeSamplePatching(data_shapes=data_shapes)
 
 
+def _create_switi_patching_strategy(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+) -> SwitiPatching:
+    n_dims = len(patch_size)
+    return SwitiPatching(
+        data_shapes=data_shapes,
+        patch_size=patch_size,
+        overlaps=(2,) * n_dims,
+        stride=(1,) * n_dims,
+    )
+
+
 PatchingStrategyConstr = Callable[[Sequence[Sequence[int]], Sequence[int]], Patching]
 
 # !!! if new strategies are added they should be tested here !!!
@@ -118,6 +131,7 @@ PATCHING_STRATEGY_CONSTR: tuple[PatchingStrategyConstr, ...] = (
     _create_whole_sample_patching_strategy,
     _create_stratified_patching_strategy,
     _create_fixed_patching_strategy,
+    _create_switi_patching_strategy,
 )
 
 
