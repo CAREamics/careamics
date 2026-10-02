@@ -168,7 +168,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
         if not hasattr(self.data_config.patching, "patch_size"):
             return self
 
-        model_constraints = get_model_constraints(self.algorithm_config.model)
+        model_constraints = get_model_constraints(self.algorithm_config)
         model_constraints.validate_spatial_shape(self.data_config.patching.patch_size)
 
         return self
@@ -184,7 +184,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
             Validated configuration.
         """
         if self.data_config.channels is not None:
-            model_constraints = get_model_constraints(self.algorithm_config.model)
+            model_constraints = get_model_constraints(self.algorithm_config)
             model_constraints.validate_input_channels(len(self.data_config.channels))
 
         return self

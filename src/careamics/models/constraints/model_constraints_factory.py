@@ -1,17 +1,25 @@
 """Model constraints factory."""
 
-from careamics.config.architectures import UNetConfig
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from careamics.config.support import SupportedAlgorithm
+
+if TYPE_CHECKING:
+    from careamics.config.factories.config_discriminators import AlgorithmConfig
 
 from .model_constraints import ModelConstraints
+from .seg_unet_constraints import SegUNetConstraints
 from .unet_constraints import UNetConstraints
 
 
-def get_model_constraints(model_config: UNetConfig) -> ModelConstraints:
+def get_model_constraints(algorithm_config: AlgorithmConfig) -> ModelConstraints:
     """Get the model constraints for the given model configuration.
 
     Parameters
     ----------
-    model_config : UNetConfig
+    algorithm_config : AlgorithmConfig
         The model configuration.
 
     Returns
@@ -24,10 +32,13 @@ def get_model_constraints(model_config: UNetConfig) -> ModelConstraints:
     ValueError
         If the model type is not supported.
     """
-    match model_config.architecture:
-        case "UNet":
-            return UNetConstraints(model_config)
+    match algorithm_config.algorithm:
+        case SupportedAlgorithm.SEG:
+            return SegUNetConstraints(algorithm_config.model)
+        case SupportedAlgorithm.CARE | SupportedAlgorithm.N2N | SupportedAlgorithm.N2V:
+            return UNetConstraints(algorithm_config.model)
         case _:
             raise ValueError(
-                f"Model type {model_config.architecture} is not supported."
+                f"Algorithm {algorithm_config.algorithm} has no corresponding model"
+                f"constraints."
             )
