@@ -13,6 +13,10 @@ from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.data_config import DataConfig
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
+from careamics.lightning.callbacks.config_saver_callback import (
+    ConfigSaverCallback,
+    TrainingDataConfigCallback,
+)
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset import CareamicsDataset
 from careamics.dataset.factory import (
@@ -322,6 +326,7 @@ class CareamicsDataModule(L.LightningDataModule):
         """
         if stage == "fit" or stage == "validate":
             if (self.train_dataset is not None) and (self.val_dataset is not None):
+                self._persist_training_data_config()
                 return
 
             if isinstance(self._data, TrainValSplitData):
@@ -359,6 +364,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
             # statistics may have been calculated now, save config to hparams
             self._save_hparams()
+            self._persist_training_data_config()
 
         elif stage == "predict":
             if not isinstance(self._data, PredData):
@@ -414,6 +420,24 @@ class CareamicsDataModule(L.LightningDataModule):
     def _save_hparams(self) -> None:
         """Save configuration in hyperparameters."""
         self.hparams.update(data_config=self.config.model_dump(mode="json"))
+
+    def _persist_training_data_config(self) -> None:
+        """Keep the training data config available for later checkpoints.
+
+        No-op when this datamodule is not attached to a trainer, or when a callback
+        already persists a training data configuration.
+        """
+        if self.trainer is None:
+            return
+        for callback in self.trainer.callbacks:
+            if isinstance(callback, TrainingDataConfigCallback):
+                return
+            if (
+                isinstance(callback, ConfigSaverCallback)
+                and callback.data_config is not None
+            ):
+                return
+        self.trainer.callbacks.append(TrainingDataConfigCallback(self.config))
 
     def train_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
         """

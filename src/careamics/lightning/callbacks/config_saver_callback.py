@@ -98,7 +98,74 @@ class ConfigSaverCallback(Callback):
 
         # Persist the training data config if provided
         if self.data_config is not None:
-            checkpoint.setdefault("datamodule_hyper_parameters", {})
-            checkpoint["datamodule_hyper_parameters"]["data_config"] = (
-                self.data_config.model_dump(mode="json")
-            )
+            _write_data_config(checkpoint, self.data_config)
+
+
+def _write_data_config(checkpoint: dict[str, Any], data_config: DataConfig) -> None:
+    """Write a training data configuration into a checkpoint.
+
+    Parameters
+    ----------
+    checkpoint : dict of {str: Any}
+        Checkpoint dictionary to modify.
+    data_config : DataConfig
+        Training data configuration, including any normalization statistics resolved
+        on this object.
+    """
+    checkpoint.setdefault("datamodule_hyper_parameters", {})
+    checkpoint["datamodule_hyper_parameters"]["data_config"] = data_config.model_dump(
+        mode="json"
+    )
+
+
+class TrainingDataConfigCallback(Callback):
+    """
+    Write the training data configuration into later checkpoints on this trainer.
+
+    Lightning copies ``datamodule_hyper_parameters`` from the datamodule currently
+    assigned to ``trainer.datamodule``. During ``fit`` that is the training
+    datamodule, whose hyperparameters already contain ``data_config``. A later
+    ``save_checkpoint`` copies whatever datamodule is assigned then. This callback
+    holds the training ``DataConfig`` and writes that same object on every save.
+    It does not write ``careamics_info``.
+
+    Parameters
+    ----------
+    data_config : DataConfig
+        Training data configuration. Normalization statistics are read from this
+        same object at save time.
+
+    Attributes
+    ----------
+    data_config : DataConfig
+        Training data configuration to store in checkpoint.
+    """
+
+    def __init__(self, data_config: DataConfig) -> None:
+        """
+        Initialize the callback.
+
+        Parameters
+        ----------
+        data_config : DataConfig
+            Training data configuration to store in checkpoint.
+        """
+        super().__init__()
+        self.data_config = data_config
+
+    def on_save_checkpoint(
+        self, trainer: Trainer, pl_module: LightningModule, checkpoint: dict[str, Any]
+    ) -> None:
+        """
+        Lightning hook called when saving a checkpoint.
+
+        Parameters
+        ----------
+        trainer : Trainer
+            Lightning trainer instance.
+        pl_module : LightningModule
+            Lightning module being checkpointed.
+        checkpoint : dict
+            Checkpoint dictionary to modify.
+        """
+        _write_data_config(checkpoint, self.data_config)
