@@ -31,6 +31,8 @@ class ConfigSaverCallback(Callback):
         written into the checkpoint regardless of which datamodule is active on
         the trainer, ensuring the checkpoint keeps the training data config even
         when saved after prediction.
+    project_name : str | None
+        Name of the project, used to group related experiments.
 
     Attributes
     ----------
@@ -42,6 +44,8 @@ class ConfigSaverCallback(Callback):
         Training configuration to store in checkpoint.
     data_config : DataConfig | None
         Training data configuration to store in checkpoint.
+    project_name : str | None
+        Name of the project, used to group related experiments.
     """
 
     def __init__(
@@ -50,6 +54,7 @@ class ConfigSaverCallback(Callback):
         experiment_name: str,
         training_config: TrainingConfig,
         data_config: DataConfig | None = None,
+        project_name: str | None = None,
     ):
         """
         Initialize the callback.
@@ -66,12 +71,15 @@ class ConfigSaverCallback(Callback):
             Training data configuration to store in checkpoint. If provided, it is
             written into the checkpoint regardless of which datamodule is active on
             the trainer.
+        project_name : str | None, default=None
+            Name of the project, used to group related experiments.
         """
         super().__init__()
         self.careamics_version = careamics_version
         self.experiment_name = experiment_name
         self.training_config = training_config
         self.data_config = data_config
+        self.project_name = project_name
 
     def on_save_checkpoint(
         self, trainer: Trainer, pl_module: LightningModule, checkpoint: dict[str, Any]
@@ -93,6 +101,7 @@ class ConfigSaverCallback(Callback):
         checkpoint["careamics_info"] = {
             "version": self.careamics_version,
             "experiment_name": self.experiment_name,
+            "project_name": self.project_name,
             "training_config": self.training_config.model_dump(mode="json"),
         }
 

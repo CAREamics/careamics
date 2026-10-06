@@ -81,6 +81,9 @@ class CoLogger(Logger):
         super().__init__()
 
         self._name = experiment_name
+        self._project_name = (
+            config.project_name if config.project_name else experiment_name
+        )
         self._version = log_version
         self._log_dir = work_dir / "logs"
         self._log_dir.mkdir(parents=True, exist_ok=True)
@@ -116,9 +119,9 @@ class CoLogger(Logger):
             is_logged_in = self._wandb_login()
             self.wandb = WandbLogger(
                 name=self._name,
+                project=self._project_name,
                 save_dir=self._wandb_log_dir,
                 config=config.model_dump(),
-                version=str(self._version),
                 anonymous=not is_logged_in,
                 offline=not is_logged_in,
                 job_type="careamics_training",

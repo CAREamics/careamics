@@ -517,7 +517,7 @@ def checkpoint(
     dmodule = CareamicsDataModule(data_config=config.data_config, **data)
     trainer, info_callback = _checkpoint_trainer(request.param, config.data_config)
     logger = CoLogger(
-        experiment_name="testing",
+        experiment_name=config.experiment_name,
         work_dir=tmp_path,
         config=config,
     )

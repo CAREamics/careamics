@@ -443,6 +443,7 @@ class CAREamist:
                 config.get_safe_experiment_name(),
                 config.training_config,
                 config.data_config,
+                config.project_name,
             ),
         ]
 

@@ -8,7 +8,8 @@ from careamics.lightning.logger import CoLogger
 
 def test_logger(tmp_path: Path):
     config = create_advanced_n2v_config(
-        experiment_name="careamics_testing",
+        experiment_name="careamics_test",
+        project_name="careamics_n2v",
         data_type="array",
         axes="YX",
         patch_size=(64, 64),
