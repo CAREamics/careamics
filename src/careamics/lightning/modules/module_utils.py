@@ -1,6 +1,7 @@
 """Utilities for Lightning modules."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Any
 
 import lightning.pytorch as L
@@ -9,9 +10,109 @@ from torch import nn
 from torchmetrics import MetricCollection
 
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
+from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def resolve_noise_model(
+    noise_model: MultiChannelNoiseModel | Sequence[str | Path],
+) -> MultiChannelNoiseModel:
+    """Resolve a noise model argument into a runtime ``MultiChannelNoiseModel``.
+
+    Accepts either an already-built ``MultiChannelNoiseModel`` (returned as-is) or a
+    sequence of per-channel ``.npz`` paths (loaded via ``MultiChannelNoiseModel.from_npz``).
+
+    Parameters
+    ----------
+    noise_model : MultiChannelNoiseModel or sequence of str or Path
+        The noise model object, or the per-channel ``.npz`` paths to load it from.
+
+    Returns
+    -------
+    MultiChannelNoiseModel
+        The resolved runtime noise model.
+    """
+    if isinstance(noise_model, MultiChannelNoiseModel):
+        return noise_model
+    return MultiChannelNoiseModel.from_npz(list(noise_model))
+
+
+def check_noise_model_channels(
+    noise_model: MultiChannelNoiseModel, output_channels: int
+) -> None:
+    """Validate that the noise model covers exactly ``output_channels`` channels.
+
+    Parameters
+    ----------
+    noise_model : MultiChannelNoiseModel
+        The runtime noise model.
+    output_channels : int
+        The number of output channels of the LVAE model.
+
+    Raises
+    ------
+    ValueError
+        If the noise model channel count does not match ``output_channels``.
+    """
+    if len(noise_model) != output_channels:
+        raise ValueError(
+            f"Noise model has {len(noise_model)} channel(s) but the model has "
+            f"{output_channels} output channel(s); they must match."
+        )
+
+
+# Dedicated checkpoint key for the (raw-space) noise model, kept separate from
+# `hyper_parameters` so it is persisted with the checkpoint but not via the
+# training `Configuration`.
+NOISE_MODEL_CKPT_KEY = "noise_model"
+
+
+def save_noise_model_to_checkpoint(
+    raw_noise_model: MultiChannelNoiseModel | None, checkpoint: dict[str, Any]
+) -> None:
+    """Persist the raw-space noise model into the checkpoint dict.
+
+    The noise model is a frozen, loss-side artifact and is intentionally kept out of
+    the module ``state_dict``; it is stored here under a dedicated key so continued
+    training (resume / fine-tune) can restore it without re-passing it.
+
+    Parameters
+    ----------
+    raw_noise_model : MultiChannelNoiseModel or None
+        The raw-space noise model to persist, or ``None`` to persist nothing.
+    checkpoint : dict
+        The checkpoint dictionary to write into.
+    """
+    if raw_noise_model is not None:
+        checkpoint[NOISE_MODEL_CKPT_KEY] = raw_noise_model.to_config().model_dump()
+
+
+def load_noise_model_from_checkpoint(
+    checkpoint: dict[str, Any],
+) -> MultiChannelNoiseModel | None:
+    """Rebuild the raw-space noise model from a checkpoint dict.
+
+    Parameters
+    ----------
+    checkpoint : dict
+        The checkpoint dictionary previously written by
+        ``save_noise_model_to_checkpoint``.
+
+    Returns
+    -------
+    MultiChannelNoiseModel or None
+        The restored raw-space noise model, or ``None`` if the checkpoint carries none.
+    """
+    payload = checkpoint.get(NOISE_MODEL_CKPT_KEY)
+    if payload is None:
+        return None
+    # local imports to avoid importing config at module import time
+    from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
+    from careamics.models.lvae.noise_models import multichannel_noise_model_factory
+
+    return multichannel_noise_model_factory(MultiChannelNMConfig(**payload))
 
 
 def log_training_stats(module: L.LightningModule, loss: Any, batch_size: int) -> None:
