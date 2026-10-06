@@ -28,6 +28,7 @@ from .lightning.modules import (
 )
 from .lightning.prediction import convert_prediction
 from .lightning.utils import (
+    TrainingReport,
     load_config_from_checkpoint,
     load_module_from_checkpoint,
     read_csv_logger,
@@ -694,7 +695,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        target_axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -719,9 +720,9 @@ class CAREamist:
             Tile overlap for prediction. If None, defaults to (48, 48).
         axes : str | None, default=None
             Axes for prediction. If None, uses training configuration axes.
-        target_axes : str | None, default=None
-            Axes for prediction target data. If None, uses target axes from the training
-            configuration.
+        output_axes : str | None, default=None
+            Output axes used for reshaping prediction. If None, uses `target_axes` from
+            the training configuration.
         data_type : {"array", "tiff", "zarr", "czi", "custom"} | None, default=None
             Data type for prediction. If None, uses training configuration data type.
         num_workers : int | None, default=None
@@ -756,7 +757,7 @@ class CAREamist:
             new_data_type=data_type,
             new_dataloader_params=dataloader_params,
             new_axes=axes,
-            new_target_axes=target_axes,
+            new_target_axes=output_axes,
             new_channels=channels,
             new_in_memory=in_memory,
         )
@@ -784,6 +785,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -803,6 +805,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -821,6 +824,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -859,6 +863,9 @@ class CAREamist:
             Overlap between tiles, can be None.
         axes : str, optional
             Axes of the input data, by default None.
+        output_axes : str | None, default=None
+            Output axes used for reshaping prediction. If None, uses `target_axes` from
+            the training configuration.
         data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
         num_workers : int, optional
@@ -896,6 +903,7 @@ class CAREamist:
             tile_size=tile_size,
             tile_overlap=tile_overlap,
             axes=axes,
+            output_axes=output_axes,
             data_type=data_type,
             num_workers=num_workers,
             channels=channels,
@@ -921,7 +929,7 @@ class CAREamist:
                         " predict(..., tile_size=(64, 64))\n"
                     )
                 elif not tiled:
-                    hint = "Try enabling tiling:" " predict(..., tile_size=(64, 64))\n"
+                    hint = "Try enabling tiling: predict(..., tile_size=(64, 64))\n"
                 elif not at_min_batch:
                     hint = (
                         "Try reducing the batch size:"
@@ -931,8 +939,7 @@ class CAREamist:
                     )
                 else:
                     hint = (
-                        "Try using a smaller tile size:"
-                        " predict(..., tile_size=(...))\n"
+                        "Try using a smaller tile size: predict(..., tile_size=(...))\n"
                     )
                 raise RuntimeError(
                     "\nOut of GPU memory during prediction.\n" + hint
@@ -960,6 +967,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -986,6 +994,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1011,6 +1020,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
+        output_axes: str | None = None,
         data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
@@ -1066,6 +1076,9 @@ class CAREamist:
             Overlap between tiles.
         axes : str, optional
             Axes of the input data, by default None.
+        output_axes : str | None, default=None
+            Output axes used for reshaping prediction. If None, uses `target_axes` from
+            the training configuration.
         data_type : {"array", "tiff", "czi", "zarr", "custom"}, optional
             Type of the input data.
         num_workers : int, optional
@@ -1154,6 +1167,7 @@ class CAREamist:
             tile_size=tile_size,
             tile_overlap=tile_overlap,
             axes=axes,
+            output_axes=output_axes,
             data_type=data_type,
             num_workers=num_workers,
             channels=channels,
@@ -1297,16 +1311,18 @@ class CAREamist:
             channel_names=channel_names,
         )
 
-    def get_losses(self) -> dict[str, list]:
-        """Return data that can be used to plot train and validation loss curves.
+    def get_losses(self) -> TrainingReport:
+        """Return plottable training curves from Lightning CSV logs.
 
         Returns
         -------
-        dict of str: list
-            Dictionary containing losses for each epoch.
+        TrainingReport
+            Dataclass containing train and validation loss, learning rate, and any
+            discovered validation metrics.
         """
         return read_csv_logger(
-            self.config.get_safe_experiment_name(), self.work_dir / "logs" / "csv_logs"
+            self.work_dir / "logs" / "csv_logs",
+            self.config.get_safe_experiment_name(),
         )
 
     def stop_training(self) -> None:

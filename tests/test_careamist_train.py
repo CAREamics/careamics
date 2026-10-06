@@ -61,7 +61,6 @@ def test_train_error_no_target_data(tmp_path: Path):
         )
 
 
-@pytest.mark.mps_gh_fail
 def test_v2_train_array(tmp_path: Path):
     """Test that CAREamist can be trained on arrays."""
     train_array = random_array((32, 32), seed=42)
@@ -108,7 +107,6 @@ def test_v2_train_array_auto_val_split_small_data(tmp_path: Path):
         careamist.train(train_data=train_array)
 
 
-@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("independent_channels", [False, True])
 def test_v2_train_array_channel(tmp_path: Path, independent_channels: bool):
     """Test that CAREamist can be trained on arrays with channels."""
@@ -136,7 +134,6 @@ def test_v2_train_array_channel(tmp_path: Path, independent_channels: bool):
     assert len(careamist.get_checkpoints()) > 0
 
 
-@pytest.mark.mps_gh_fail
 def test_v2_train_array_3d(tmp_path: Path):
     """Test that CAREamist can be trained on 3D arrays."""
     train_array = random_array((8, 32, 32), seed=42)
@@ -159,7 +156,6 @@ def test_v2_train_array_3d(tmp_path: Path):
     assert len(careamist.get_checkpoints()) > 0
 
 
-@pytest.mark.mps_gh_fail
 def test_v2_train_tiff_in_memory(tmp_path: Path):
     """Test that CAREamist can be trained with tiff files in memory."""
     train_array = random_array((32, 32), seed=42)
@@ -188,7 +184,6 @@ def test_v2_train_tiff_in_memory(tmp_path: Path):
     assert len(careamist.get_checkpoints()) > 0
 
 
-@pytest.mark.mps_gh_fail
 def test_v2_train_tiff_not_in_memory(tmp_path: Path):
     """Test N2V training from tiff files with in_memory=False (on-disk reading)."""
     train_array = random_array((32, 32), seed=42)

@@ -173,7 +173,7 @@ class ImageWriteStrategy(WriteStrategy):
         for data_idx in complete_images:
             cached_preds = self.image_cache.pop(data_idx)
 
-            image_lst, sources = combine_samples(cached_preds)
+            image_lst, sources = combine_samples(cached_preds, restore_shape=True)
 
             for i, image in enumerate(image_lst):
                 source_path = Path(sources[i])

@@ -24,6 +24,8 @@ jobs:
   test:
     name: ${{ matrix.platform }} (${{ matrix.python-version }})
     runs-on: ${{ matrix.platform }}
+    env:
+      MPLBACKEND: Agg # non-interactive matplotlib back-end
     strategy:
       fail-fast: false
       matrix:
@@ -54,7 +56,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: 🧪 Run tests
-        run: uv run pytest --color=yes -m "not lvae and not compat"
+        run: uv run pytest --color=yes -m "not lvae and not e2e"
 
 
   deploy:

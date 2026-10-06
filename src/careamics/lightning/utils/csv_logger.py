@@ -1,70 +1,136 @@
 """PyTorch lightning utilities."""
 
+import csv
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
 
 
-def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
-    """Return the loss curves from the csv logs.
+@dataclass
+class Series:
+    """An easy to plot series extracting from training log."""
+
+    epoch: list[int]
+    """X-axis values representing training epochs."""
+
+    value: list[int | float]
+    """Y-axis values representing the quantity recorded over the epoch."""
+
+
+@dataclass
+class TrainingReport:
+    """Series extracted from training logs."""
+
+    train_loss: Series
+    """Training loss."""
+
+    val_loss: Series
+    """Validation loss."""
+
+    learning_rate: Series
+    """Learning rate."""
+
+    metrics: dict[str, Series]
+    """Metrics, can be empty."""
+
+
+def _extract_series(rows: list[dict[str, str]], column: str) -> Series:
+    """Extract an epoch-aligned plottable series from sparse CSV logger rows.
 
     Parameters
     ----------
-    experiment_name : str
-        Name of the experiment.
-    log_folder : Path or str
-        Path to the folder containing the csv logs.
+    rows : list[dict[str, str]]
+        List of rows as extracted from `csv.DictReader`.
+    column : str
+        Name of the column to extract as a series.
 
     Returns
     -------
-    dict
-        Dictionary containing the loss curves, with keys "train_epoch", "val_epoch",
-        "train_loss" and "val_loss".
+    Series
+        Series `column` extracted from `rows`.
+    """
+    values_by_epoch: dict[int, float] = {}
+
+    for row in rows:
+        raw_epoch = row.get("epoch", "")
+        raw_value = row.get(column, "")
+
+        if raw_epoch == "" or raw_value == "":
+            continue
+
+        values_by_epoch[int(float(raw_epoch))] = float(raw_value)
+
+    epochs = sorted(values_by_epoch)
+    return Series(
+        epoch=epochs,
+        value=[values_by_epoch[epoch] for epoch in epochs],
+    )
+
+
+def read_csv_logger(
+    log_folder: Union[str, Path], experiment_name: str, version: int | None = None
+) -> TrainingReport:
+    """Return plottable training curves from Lightning CSV logs.
+
+    Parameters
+    ----------
+    log_folder : Path or str
+        Path to the folder containing the csv logs.
+    experiment_name : str
+        Name of the experiment.
+    version : int or None, default = None
+        Version number to load, if `None` then the latest version is loaded.
+
+    Returns
+    -------
+    TrainingReport
+        Dataclass containing train and validation loss, learning rate, and any
+        discovered validation metrics.
+
+    Raises
+    ------
+    ValueError
+        If `version` is specified but not found.
     """
     path = Path(log_folder) / experiment_name
 
     # find the most recent of version_* folders
     versions = [int(v.name.split("_")[-1]) for v in path.iterdir() if v.is_dir()]
-    version = max(versions)
+
+    if version is None:
+        version = max(versions)
+    else:
+        if version not in versions:
+            raise ValueError(
+                f"Version {version} not found in {path}. Existing versions are "
+                f"{versions}."
+            )
 
     path_log = path / f"version_{version}" / "metrics.csv"
 
-    with open(path_log) as f:
-        lines = f.readlines()
+    with open(path_log, newline="") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        fieldnames = [name for name in (reader.fieldnames or []) if name is not None]
 
-        header = lines[0].strip().split(",")
-        metrics: dict[str, list] = {value: [] for value in header}
-
-        for single_line in lines[1:]:
-            values = single_line.strip().split(",")
-
-            for k, v in zip(header, values, strict=False):
-                metrics[k].append(v)
-
-    # train and val are not logged on the same row and can have different lengths
-    train_epoch = [
-        int(metrics["epoch"][i])
-        for i in range(len(metrics["epoch"]))
-        if metrics["train_loss_epoch"][i] != ""
-    ]
-    val_epoch = [
-        int(metrics["epoch"][i])
-        for i in range(len(metrics["epoch"]))
-        if metrics["val_loss"][i] != ""
-    ]
-    train_losses = [
-        float(metrics["train_loss_epoch"][i])
-        for i in range(len(metrics["train_loss_epoch"]))
-        if metrics["train_loss_epoch"][i] != ""
-    ]
-    val_losses = [
-        float(metrics["val_loss"][i])
-        for i in range(len(metrics["val_loss"]))
-        if metrics["val_loss"][i] != ""
-    ]
-
-    return {
-        "train_epoch": train_epoch,
-        "val_epoch": val_epoch,
-        "train_loss": train_losses,
-        "val_loss": val_losses,
+    reserved_columns = {
+        "epoch",
+        "step",
+        "train_loss_step",
+        "train_loss_epoch",
+        "val_loss",
+        "learning_rate",
     }
+    metrics = {
+        column: _extract_series(rows, column)
+        for column in fieldnames
+        if column not in reserved_columns
+        and any(row.get(column, "") != "" for row in rows)
+    }
+
+    return TrainingReport(
+        train_loss=_extract_series(rows, "train_loss_epoch"),
+        val_loss=_extract_series(rows, "val_loss"),
+        learning_rate=_extract_series(rows, "learning_rate"),
+        metrics=metrics,
+    )

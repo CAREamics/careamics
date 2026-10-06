@@ -158,7 +158,7 @@ class TileWriteStrategy(WriteStrategy):
             Tiles to stitch and write.
         """
         # stitch prediction
-        prediction_image = stitch_single_prediction(tiles)
+        prediction_image = stitch_single_prediction(tiles, restore_shape=True)
         source: Path = Path(tiles[0].source)
 
         # Handle array sources with postfix

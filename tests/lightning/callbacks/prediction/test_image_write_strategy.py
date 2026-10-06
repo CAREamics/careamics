@@ -59,7 +59,7 @@ def test_cache_tiles_init(write_func, write_image_strategy):
 
 def test_write_image_batch(write_image_strategy, ordered_array, mocker):
     """Test writing a batch."""
-    array = ordered_array((5, 8, 8))
+    array = ordered_array((5, 1, 8, 8))
 
     prediction = [
         ImageRegionData(
@@ -69,7 +69,7 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
             dtype=np.float32,
             axes="SYX",  # axes describes the full dataset, not individual sample
             target_axes="SYX",
-            original_data_shape=array.shape,
+            original_data_shape=array.squeeze(1).shape,
             region_spec={
                 "data_idx": 0,
                 "sample_idx": i,
@@ -102,4 +102,4 @@ def test_write_image_batch(write_image_strategy, ordered_array, mocker):
         postfix="_0",
     )
     assert call_args["file_path"] == expected_file_path
-    np.testing.assert_array_equal(call_args["img"], array)
+    np.testing.assert_array_equal(call_args["img"], array.squeeze(1))
