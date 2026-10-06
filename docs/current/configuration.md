@@ -451,7 +451,7 @@ In the presence of channels, all parameters that are passed to `normalization_pa
 
 ### Choosing a logger
 
-By default, CAREamics uses the CSV logger from PyTorch Lightning, saving all the loss and metrics to a csv file. In addition, we can use more advanced logging tools, such as [WandB](https://wandb.ai/) or [Tensorboard](https://www.tensorflow.org/tensorboard). To use these loggers, simply set the `logger` parameter to `"wandb"` or `"tensorboard"`.
+By default, CAREamics uses the CSV logger from PyTorch Lightning, saving all the loss and metrics to a csv file. In addition, we can use more advanced logging tools, such as [WandB](https://wandb.ai/) or [Tensorboard](https://www.tensorflow.org/tensorboard). To use these loggers, simply set the `use_wandb=True` or `use_tensorboard=True`.
 
 
 

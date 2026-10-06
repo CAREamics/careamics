@@ -3,8 +3,8 @@
 CAREamics writes a CSV log of the training and validation metrics (see the
 [Logging guide](../current/careamist_train_logging.md)). You can also save
 these metrics to [Weights & Biases](https://wandb.ai/) or
-[TensorBoard](https://www.tensorflow.org/tensorboard) by passing `logger="wandb"` or
-`logger="tensorboard"` to the advanced configuration factory. 
+[TensorBoard](https://www.tensorflow.org/tensorboard) by passing `use_wandb=True` or
+`use_tensorboard=True` to the advanced configuration factory. 
 
 This tutorial covers enabling and configuring each backend.
 
@@ -36,7 +36,7 @@ A full reference is in the [WandB documentation](https://docs.wandb.ai/guides/tr
 
 ### Enabling WandB
 
-Build the configuration with the advanced factory and pass `logger="wandb"`:
+Build the configuration with the advanced factory and pass `use_wandb=True`:
 
 ```python title="Training with WandB enabled"
 --8<-- "tutorials/logging_wandb_tensorboard.py:wandb_enable"

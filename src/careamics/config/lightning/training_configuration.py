@@ -64,6 +64,8 @@ class SelfSupervisedCheckpointing:
 def default_training_dict(
     algorithm: Literal["care", "n2n", "n2v"],
     trainer_params: dict[str, Any] | None = None,
+    use_tensorboard: bool = False,
+    use_wandb: bool = False,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     checkpoint_params: dict[str, Any] | None = None,
     early_stopping_params: dict[str, Any] | None = None,
@@ -81,8 +83,12 @@ def default_training_dict(
         Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict, optional
         Parameters for Lightning Trainer class, by default None.
-    logger : {"wandb", "tensorboard", "none"}, optional
-        Logger to use, by default "none".
+    use_tensorboard : bool, default=False
+        Whether to use TensorBoard for logging.
+    use_wandb : bool, default=False
+        Whether to use Weights & Biases for logging.
+    logger : Literal["wandb", "tensorboard", "none"], default="none"
+        Logger to use (deprecated).
     checkpoint_params : dict, optional
         Parameters for the checkpoint callback, by default None. If None, then default
         parameters are applied based on the algorithm.
@@ -124,8 +130,15 @@ def default_training_dict(
             else None
         )
 
+    if logger == "tensorboard":
+        use_tensorboard = True
+    elif logger == "wandb":
+        use_wandb = True
+
     return {
         "trainer_params": {} if trainer_params is None else trainer_params,
+        "use_tensorboard": use_tensorboard,
+        "use_wandb": use_wandb,
         "logger": None if logger == "none" else logger,
         "checkpoint_params": checkpoint_params,
         "early_stopping_params": early_stopping_params,
@@ -205,7 +218,17 @@ class TrainingConfig(BaseModel):
     trainer_params: dict = Field(default={})
     """Parameters passed to the PyTorch Lightning Trainer class"""
 
-    logger: Literal["wandb", "tensorboard"] | None = None
+    use_wandb: bool = False
+    """Whether to use Weights & Biases logger during training."""
+
+    use_tensorboard: bool = False
+    """Whether to use TensorBoard logger during training."""
+
+    logger: Literal["wandb", "tensorboard"] | None = Field(
+        default=None,
+        deprecated="Using `logger` is deprecated, "
+        + "set `use_wandb` or `use_tensorboard` instead.",
+    )
     """Logger to use during training. If None, no logger will be used. Available
     loggers are defined in SupportedLogger."""
 
@@ -301,7 +324,7 @@ class TrainingConfig(BaseModel):
         return user_params
 
     def __str__(self) -> str:
-        """Pretty string reprensenting the configuration.
+        """Pretty string representing the configuration.
 
         Returns
         -------

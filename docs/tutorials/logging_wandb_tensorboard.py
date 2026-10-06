@@ -33,7 +33,7 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=2,
-    logger="wandb",  # (1)!
+    use_wandb=True,  # (1)!
 )
 careamist = CAREamist(config)
 careamist.train(train_data=train_data)
@@ -51,7 +51,7 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=2,
-    logger="tensorboard",  # (1)!
+    use_tensorboard=True,  # (1)!
 )
 careamist = CAREamist(config)
 careamist.train(train_data=train_data)
@@ -78,7 +78,7 @@ for exp in experiments:
         patch_size=exp["patch_size"],
         batch_size=exp["batch_size"],
         num_epochs=2,
-        logger="tensorboard",
+        use_tensorboard=True,
     )
     careamist = CAREamist(config, work_dir=base_dir / exp["name"])  # (1)!
     careamist.train(train_data=train_data)

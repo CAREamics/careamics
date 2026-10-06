@@ -115,7 +115,7 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    logger="wandb",  # (1)!
+    use_wandb=True,  # (1)!
 )
 # --8<-- [end:adv_config_n2v_logger]
 # %%
