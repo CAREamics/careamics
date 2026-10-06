@@ -61,9 +61,7 @@ def test_n2v_lightning_checkpoint_predicts_through_careamist(tmp_path: Path) -> 
     assert config.data_config.normalization.input_means is None
 
     module = N2VModule(config.algorithm_config)
-    datamodule = CareamicsDataModule(
-        config.data_config, train_data=train, val_data=val
-    )
+    datamodule = CareamicsDataModule(config.data_config, train_data=train, val_data=val)
     trainer, checkpoint = _trainer(tmp_path)
     trainer.fit(module, datamodule=datamodule)
 
@@ -108,9 +106,7 @@ def test_n2v_checkpoint_saved_after_predict_keeps_training_stats(
         masked_pixel_percentage=5,
     )
     module = N2VModule(config.algorithm_config)
-    datamodule = CareamicsDataModule(
-        config.data_config, train_data=train, val_data=val
-    )
+    datamodule = CareamicsDataModule(config.data_config, train_data=train, val_data=val)
     trainer, _checkpoint = _trainer(tmp_path)
     trainer.fit(module, datamodule=datamodule)
     training_means = datamodule.hparams["data_config"]["normalization"]["input_means"]
@@ -188,9 +184,7 @@ def test_microsplit_lightning_checkpoint_predicts_through_careamist(
     assert len(saved_norm["target_means"]) == 2
 
     careamist = CAREamist(checkpoint_path=checkpoint.last_model_path, work_dir=tmp_path)
-    predicted, _ = careamist.predict(
-        train, tile_size=(64, 64), tile_overlap=(32, 32)
-    )
+    predicted, _ = careamist.predict(train, tile_size=(64, 64), tile_overlap=(32, 32))
 
     np.testing.assert_allclose(
         careamist.config.data_config.normalization.input_means,
