@@ -12,7 +12,6 @@ from lightning.pytorch.loggers import CSVLogger, Logger, TensorBoardLogger, Wand
 from lightning.pytorch.utilities import rank_zero_only
 from numpy.typing import NDArray
 from torch import Tensor
-from typing_extensions import override
 
 from careamics.config.configuration import Configuration
 from careamics.config.utils.configuration_io import save_configuration
@@ -128,7 +127,6 @@ class CoLogger(Logger):
             self.loggers.append(self.wandb)
 
     @rank_zero_only
-    @override
     def log_hyperparams(
         self,
         params: dict[str, Any],
@@ -163,7 +161,6 @@ class CoLogger(Logger):
         self._log_hp_first_call = False
 
     @rank_zero_only
-    @override
     def log_metrics(
         self,
         metrics: dict[str, Any],
@@ -238,7 +235,6 @@ class CoLogger(Logger):
             self.wandb.log_image(key=key, images=image_list, step=step, **kwargs)
 
     @property
-    @override
     def name(self) -> str:
         """Get the name of the logger.
 
@@ -250,7 +246,6 @@ class CoLogger(Logger):
         return self._name
 
     @property
-    @override
     def version(self) -> int:
         """Get the version of the logger.
 
@@ -262,7 +257,6 @@ class CoLogger(Logger):
         return self._version
 
     @property
-    @override
     def root_dir(self) -> Path:
         """Parent directory for all logs.
 
@@ -274,7 +268,6 @@ class CoLogger(Logger):
         return self._log_dir
 
     @property
-    @override
     def log_dir(self) -> dict[str, str]:
         """List of directories for all loggers.
 
@@ -293,7 +286,6 @@ class CoLogger(Logger):
         return dirs
 
     @property
-    @override
     def save_dir(self) -> Path:
         """The current directory where logs are saved.
 
@@ -305,7 +297,6 @@ class CoLogger(Logger):
         """
         return self._log_dir
 
-    @override
     @rank_zero_only
     def save(self) -> None:
         """Save the state of all loggers."""
@@ -313,7 +304,6 @@ class CoLogger(Logger):
         self.csv.save()
 
     @rank_zero_only
-    @override
     def finalize(self, status: str) -> None:
         """Finalize all loggers.
 
