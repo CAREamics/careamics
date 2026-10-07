@@ -198,7 +198,7 @@ def create_advanced_hdn_config(
         Configuration for training HDN.
     """
     predict_logvar = noise_model is None
-    conv_strides = [2] * len(patch_size)
+    conv_strides = [1, 2, 2] if len(patch_size) == 3 else [2, 2]
 
     loss = HDNLossConfig(
         reconstruction_weight=reconstruction_weight,
