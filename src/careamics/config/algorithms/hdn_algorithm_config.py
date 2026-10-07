@@ -61,6 +61,9 @@ class HDNAlgorithm(BaseModel):
 
     lr_scheduler: LrSchedulerConfig = LrSchedulerConfig()
 
+    supervised: bool = False
+    """Whether to train against target data instead of the input itself."""
+
     @model_validator(mode="after")
     def validate_predict_logvar(self: Self) -> Self:
         """Validate the consistency of `predict_logvar` between model and loss.
@@ -94,6 +97,27 @@ class HDNAlgorithm(BaseModel):
             models.
         """
         noise_models_match_output_channels(self.model, self.noise_model)
+        return self
+
+    @model_validator(mode="after")
+    def validate_supervised_without_noise_model(self: Self) -> Self:
+        """Validate that supervised training does not use a noise model.
+
+        Returns
+        -------
+        Self
+            The validated model.
+
+        Raises
+        ------
+        ValueError
+            If `supervised` is `True` and a noise model is provided.
+        """
+        if self.supervised and self.noise_model is not None:
+            raise ValueError(
+                "HDN with a noise model is not supported in supervised mode. Remove "
+                "the noise model, or set `supervised=False`."
+            )
         return self
 
     def __str__(self) -> str:
@@ -171,8 +195,7 @@ class HDNAlgorithm(BaseModel):
         """
         return HDN_DESCRIPTION
 
-    @classmethod
-    def is_supervised(cls) -> bool:
+    def is_supervised(self) -> bool:
         """
         Return whether the algorithm is supervised.
 
@@ -181,4 +204,4 @@ class HDNAlgorithm(BaseModel):
         bool
             Whether the algorithm is supervised.
         """
-        return False
+        return self.supervised
