@@ -293,6 +293,31 @@ def test_predict_to_disk_custom_raises(tmp_path: Path):
         )
 
 
+def test_predict_to_disk_target_raises(tmp_path: Path):
+    """Test predict_to_disk raises when prediction targets are provided."""
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(8, 8),
+        batch_size=1,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+    pred_array = random_array((32, 32))
+
+    with pytest.raises(
+        NotImplementedError,
+        match=r"Prediction target data is not supported for prediction to disk\.",
+    ):
+        careamist.predict_to_disk(
+            pred_data=pred_array,
+            pred_data_target=pred_array,
+        )
+
+
 def test_predict_invalid_spatial_dims_no_tiling_raises(tmp_path: Path):
     """Test that predict raises ValueError for invalid spatial dims without tiling."""
     config = create_advanced_n2v_config(
