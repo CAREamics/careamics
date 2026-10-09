@@ -292,7 +292,8 @@ def create_advanced_seg_config(
     loss : Literal["dice", "ce", "dice_ce"], default="dice_ce"
         Loss function to use for training.
     loss_parameters : dict[str, Any]
-        Parameters to the loss function.
+        Parameters to the loss function. Note that `class_weights` must include
+        background weight and be of length `n_classes+1`.
     trainer_params : dict | None, default=None
         Parameters for the trainer, see the relevant documentation.
     model_params : dict | None, default=None
