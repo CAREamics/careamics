@@ -9,20 +9,8 @@ from pydantic import ConfigDict, Field, field_validator
 from .architecture_config import ArchitectureConfig
 
 
-# TODO tests activation <-> pydantic model, test the literals!
-# TODO annotations for the json schema?
 class UNetConfig(ArchitectureConfig):
-    """
-    Pydantic model for a N2V(2)-compatible UNet.
-
-    Attributes
-    ----------
-    depth : int
-        Depth of the model, between 1 and 10 (default 2).
-    num_channels_init : int
-        Number of filters of the first level of the network, should be even
-        and minimum 8 (default 96).
-    """
+    """Pydantic model for a N2V(2)-compatible UNet."""
 
     # pydantic model config
     model_config = ConfigDict(validate_assignment=True, extra="forbid")
