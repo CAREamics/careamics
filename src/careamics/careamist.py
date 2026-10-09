@@ -1127,11 +1127,18 @@ class CAREamist:
 
         Raises
         ------
+        NotImplementedError
+            If prediction target data is provided.
         ValueError
             If `write_type` is custom and `write_extension` is None.
         ValueError
             If `write_type` is custom and `write_func` is None.
         """
+        if pred_data_target is not None:
+            raise NotImplementedError(
+                "Prediction target data is not supported for prediction to disk."
+            )
+
         if write_func_kwargs is None:
             write_func_kwargs = {}
 
