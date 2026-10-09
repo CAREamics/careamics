@@ -108,8 +108,9 @@ class SegAlgorithm(UNetBasedAlgorithm):
             and len(self.loss.class_weights) != self.model.num_classes
         ):
             raise ValueError(
-                f"Class weights must have length {self.model.num_classes} (number of "
-                f"classes), got {len(self.loss.class_weights)}."
+                f"Class weights must have length {self.model.num_classes}, which is "
+                f"equal to `n_classes+1` (number of foreground classes + background), "
+                f"got {len(self.loss.class_weights)}."
             )
         return self
 
