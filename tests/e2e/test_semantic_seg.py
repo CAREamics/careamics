@@ -69,7 +69,7 @@ def test_segmentation(tmp_path, n_classes, with_channels, is_3d):
         axes=f"S{'C' if with_channels else ''}{'ZYX' if is_3d else 'YX'}",
         batch_size=4,
         patch_size=(4, 4, 4) if is_3d else (4, 4),
-        num_epochs=2,
+        num_epochs=4,
         n_channels_in=3 if with_channels else None,
         n_classes=n_classes,
     )
@@ -85,6 +85,8 @@ def test_segmentation(tmp_path, n_classes, with_channels, is_3d):
     # predict to memory
     pred, _ = careamist.predict(pred_data=train_data)
     assert pred[0].shape == train_data_tar.shape
+
+    # brittle assertion that may break randomly
     assert set(np.unique(pred[0])) == set(range(n_classes + 1))
 
     # predict to disk
