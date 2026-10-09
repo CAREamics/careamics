@@ -14,6 +14,9 @@ from careamics.config.lightning.optimizer_configs import (
 from careamics.config.losses.loss_config import HDNLossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.config.validators import (
+    lvae_conv_strides_valid,
+    lvae_depth_valid,
+    lvae_spatial_shape_valid,
     model_with_single_output_channel,
     model_without_multiscale,
     noise_models_match_output_channels,
@@ -51,6 +54,9 @@ class HDNAlgorithm(BaseModel):
         LVAEConfig,
         AfterValidator(model_without_multiscale),
         AfterValidator(model_with_single_output_channel),
+        AfterValidator(lvae_conv_strides_valid),
+        AfterValidator(lvae_spatial_shape_valid),
+        AfterValidator(lvae_depth_valid),
     ]
 
     noise_model: MultiChannelNMConfig | None = None
@@ -60,6 +66,9 @@ class HDNAlgorithm(BaseModel):
     """Optimizer to use, defined in SupportedOptimizer."""
 
     lr_scheduler: LrSchedulerConfig = LrSchedulerConfig()
+
+    supervised: bool = False
+    """Whether to train against target data instead of the input itself."""
 
     @model_validator(mode="after")
     def validate_predict_logvar(self: Self) -> Self:
@@ -94,6 +103,27 @@ class HDNAlgorithm(BaseModel):
             models.
         """
         noise_models_match_output_channels(self.model, self.noise_model)
+        return self
+
+    @model_validator(mode="after")
+    def validate_supervised_without_noise_model(self: Self) -> Self:
+        """Validate that supervised training does not use a noise model.
+
+        Returns
+        -------
+        Self
+            The validated model.
+
+        Raises
+        ------
+        ValueError
+            If `supervised` is `True` and a noise model is provided.
+        """
+        if self.supervised and self.noise_model is not None:
+            raise ValueError(
+                "HDN with a noise model is not supported in supervised mode. Remove "
+                "the noise model, or set `supervised=False`."
+            )
         return self
 
     def __str__(self) -> str:
@@ -171,8 +201,7 @@ class HDNAlgorithm(BaseModel):
         """
         return HDN_DESCRIPTION
 
-    @classmethod
-    def is_supervised(cls) -> bool:
+    def is_supervised(self) -> bool:
         """
         Return whether the algorithm is supervised.
 
@@ -181,4 +210,4 @@ class HDNAlgorithm(BaseModel):
         bool
             Whether the algorithm is supervised.
         """
-        return False
+        return self.supervised

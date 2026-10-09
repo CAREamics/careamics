@@ -30,6 +30,7 @@ def create_hdn_config(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     noise_model: MultiChannelNMConfig | None = None,
+    supervised: bool = False,
 ) -> HDNConfiguration:
     """Create a configuration for training HDN.
 
@@ -60,6 +61,9 @@ def create_hdn_config(
         Number of patches to set aside for validation during training.
     noise_model : MultiChannelNMConfig or None, default=None
         Trained noise model. If `None`, the Gaussian (DivNoising) pathway is used.
+    supervised : bool, default=False
+        Whether to train against target data. If `True`, `train_data_target` must
+        be provided at training time, and `noise_model` must be `None`.
 
     Returns
     -------
@@ -81,6 +85,7 @@ def create_advanced_hdn_config(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     noise_model: MultiChannelNMConfig | None = None,
+    supervised: bool = False,
     # advanced data parameters
     channels: Sequence[int] | None = None,
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
@@ -134,6 +139,9 @@ def create_advanced_hdn_config(
         Number of patches to set aside for validation during training.
     noise_model : MultiChannelNMConfig or None, default=None
         Trained noise model. If `None`, the Gaussian (DivNoising) pathway is used.
+    supervised : bool, default=False
+        Whether to train against target data. If `True`, `train_data_target` must
+        be provided at training time, and `noise_model` must be `None`.
     channels : sequence of int or None, default=None
         List of channels to use. If `None`, all channels are used.
     normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
@@ -190,7 +198,7 @@ def create_advanced_hdn_config(
         Configuration for training HDN.
     """
     predict_logvar = noise_model is None
-    conv_strides = [2] * len(patch_size)
+    conv_strides = [1, 2, 2] if len(patch_size) == 3 else [2, 2]
 
     loss = HDNLossConfig(
         reconstruction_weight=reconstruction_weight,
@@ -226,6 +234,7 @@ def create_advanced_hdn_config(
         loss=loss,
         model=model,
         noise_model=noise_model,
+        supervised=supervised,
         optimizer=OptimizerConfig(
             name=optimizer,
             parameters=optimizer_params or {"lr": 3e-4},

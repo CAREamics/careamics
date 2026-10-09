@@ -9,6 +9,7 @@ from torchmetrics import MetricCollection
 
 from careamics.config import HDNAlgorithm
 from careamics.dataset import ImageRegionData
+from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
 from careamics.dataset.normalization.normalization import Normalization
 from careamics.losses.lvae import hdn_loss
@@ -123,15 +124,18 @@ class HDNModule(L.LightningModule):
 
         Raises
         ------
+        ValueError
+            If the presence of target data does not match `config.supervised`.
         TypeError
             If a noise model is used with a normalization other than
             `MeanStdNormalization`.
         """
+        assert self._trainer is not None
+        datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
+        self._check_target_data(datamodule)
         if self.noise_model is None:
             return
         assert self.config.noise_model is not None
-        assert self._trainer is not None
-        datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
         # The noise model likelihood operates in normalized data space, so the noise
         # model path requires zero-mean/unit-variance normalization to recover the
         # data statistics; other normalizations do not expose input means/stds.
@@ -151,6 +155,43 @@ class HDNModule(L.LightningModule):
             f"Noise model loaded: {len(self.config.noise_model.noise_models)} "
             f"channel noise model(s). HDN will use the noise model likelihood."
         )
+
+    def _check_target_data(self, datamodule: "CareamicsDataModule") -> None:
+        """Check that target data is provided if and only if HDN is supervised.
+
+        Parameters
+        ----------
+        datamodule : CareamicsDataModule
+            The training datamodule.
+
+        Raises
+        ------
+        ValueError
+            If the presence of target data does not match `config.supervised`.
+        """
+        data = datamodule._data
+        assert isinstance(data, (TrainValData, TrainValSplitData))
+        has_train_target = data.train_data_target is not None
+        if self.config.supervised and not has_train_target:
+            raise ValueError(
+                "HDN is configured as supervised (`supervised=True`): "
+                "`train_data_target` must be provided."
+            )
+        if not self.config.supervised and has_train_target:
+            raise ValueError(
+                "Target data was provided, but HDN is configured as unsupervised. "
+                "Set `supervised=True` in the configuration to train against the "
+                "targets, or do not provide `train_data_target`."
+            )
+        if (
+            self.config.supervised
+            and isinstance(data, TrainValData)
+            and data.val_data_target is None
+        ):
+            raise ValueError(
+                "HDN is configured as supervised (`supervised=True`): "
+                "`val_data_target` must be provided."
+            )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, Any]]:
         """Forward pass.
