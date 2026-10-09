@@ -37,7 +37,7 @@ class ModelConstraints(Protocol):
         """
         ...
 
-    def validate_spatial_shape(self, shape: Sequence[int]) -> None:
+    def validate_spatial_shape(self, input_shape: Sequence[int]) -> None:
         """Whether the given spatial shape is compatible with the model constraints.
 
         Shape must be of length 2 (YX) or 3 (ZYX). To validate channel dimension, use
@@ -45,7 +45,7 @@ class ModelConstraints(Protocol):
 
         Parameters
         ----------
-        shape : Sequence[int]
+        input_shape : Sequence[int]
             The spatial shape of the input tensor to validate (length 2 or 3).
 
         Raises
