@@ -12,6 +12,7 @@ class SupportedAlgorithm(StrEnum):
     configurations.
     """
 
+    # --- unet-based algorithms
     N2V = "n2v"
     """Noise2Void algorithm, a self-supervised approach based on blind denoising."""
 
@@ -23,18 +24,16 @@ class SupportedAlgorithm(StrEnum):
     """Noise2Noise algorithm, a self-supervised denoising scheme based on comparing
     noisy images of the same sample."""
 
-    MUSPLIT = "musplit"  # TODO remove
-    """An image splitting approach based on ladder VAE architectures."""
+    PN2V = "pn2v"
+    """Probabilistic Noise2Void. A extension of Noise2Void using noise models."""
 
+    SEG = "seg"
+    """UNet-based semantic segmentation."""
+
+    # --- vae-based algorithms
     MICROSPLIT = "microsplit"
-    """A micro-level image splitting approach based on ladder VAE architectures."""
-
-    DENOISPLIT = "denoisplit"
     """An image splitting and denoising approach based on ladder VAE architectures."""
 
     HDN = "hdn"
-    """Hierarchical Denoising Network, an unsupervised denoising algorithm"""
-
-    PN2V = "pn2v"
-    """Probabilistic Noise2Void. A extension of Noise2Void is not restricted to Gaussian
-    noise models or Gaussian intensity predictions."""
+    """Hierarchical DivNoising, an unsupervised denoising algorithm capable of removing
+    structured noise."""

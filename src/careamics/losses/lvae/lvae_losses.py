@@ -15,7 +15,7 @@ from careamics.models.lvae.likelihoods import (
 )
 
 if TYPE_CHECKING:
-    from careamics.config import LVAELossConfig
+    from careamics.config.losses import LVAELossConfig
 
 Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
