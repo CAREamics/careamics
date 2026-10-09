@@ -78,3 +78,8 @@ class TestSegFactory:
         """Test that the model inputs is background + foreground classes."""
         cfg: SegConfiguration = create_configuration(n_classes=n_classes)
         assert cfg.algorithm_config.model.num_classes == n_classes + 1
+
+    def test_disabled_parameters(self):
+        cfg: SegConfiguration = create_configuration()
+        assert not cfg.algorithm_config.model.independent_channels
+        assert not cfg.algorithm_config.model.n2v2

@@ -103,7 +103,10 @@ class MeanStdConfig(BaseModel):
         computation.
     """
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+    )
 
     name: Literal["mean_std"] = "mean_std"
     per_channel: bool = True
@@ -347,7 +350,7 @@ class QuantileConfig(BaseModel):
         Computed upper quantile values for target.
     """
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
     name: Literal["quantile"] = "quantile"
     per_channel: bool = True
@@ -712,7 +715,7 @@ class MinMaxConfig(BaseModel):
         Maximum values for target normalization. None for automatic computation.
     """
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
     name: Literal["min_max"] = "min_max"
     per_channel: bool = True

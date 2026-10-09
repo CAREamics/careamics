@@ -181,6 +181,7 @@ class MeanStdPatchFilter(PatchFilter):
             # take the middle z slice if not specified
             z_idx == image.shape[0] // 2 if z_idx is None else z_idx
             image = image[:, z_idx]
+            filter_map = filter_map[:, z_idx]
 
         fig, axes = plt.subplots(1, 2, figsize=(16, 8), constrained_layout=True)
         cbars: list[plt.Colorbar] = []
