@@ -16,6 +16,11 @@ from careamics.config.validators import (
     model_without_final_activation,
     model_without_n2v2,
 )
+from careamics.references.segmentation import (
+    UNET_REF,
+    UNET_SEGMENTATION,
+    UNET_SEGMENTATION_DESCRIPTION,
+)
 
 SegmentationLoss = Annotated[
     Union[DiceLossConfig, DiceCELossConfig, CELossConfig],
@@ -123,7 +128,7 @@ class SegAlgorithm(UNetBasedAlgorithm):
         str
             Friendly name.
         """
-        return "UNet semantic segmentation"
+        return UNET_SEGMENTATION
 
     def get_algorithm_keywords(self) -> list[str]:
         """
@@ -155,7 +160,7 @@ class SegAlgorithm(UNetBasedAlgorithm):
         str
             Algorithm references.
         """
-        return ""
+        return UNET_REF.text + " doi: " + str(UNET_REF.doi)
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """
@@ -168,7 +173,7 @@ class SegAlgorithm(UNetBasedAlgorithm):
         List[CiteEntry]
             List of citation entries.
         """
-        return []
+        return [UNET_REF]
 
     def get_algorithm_description(self) -> str:
         """
@@ -181,7 +186,7 @@ class SegAlgorithm(UNetBasedAlgorithm):
         str
             Description of the algorithm.
         """
-        return "UNet semantic segmentation."
+        return UNET_SEGMENTATION_DESCRIPTION
 
     @classmethod
     def is_supervised(cls) -> bool:
