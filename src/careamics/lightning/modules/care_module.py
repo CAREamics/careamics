@@ -58,8 +58,7 @@ class CAREModule(L.LightningModule):
 
         if not isinstance(config, (CAREAlgorithm, N2NAlgorithm)):
             raise ValueError(
-                f"Parameter `algorithm_config` must be a CAREAlgorithm, N2NAlgorithm, "
-                f"or a dict that represents a valid CAREAlgorithm or N2NAlgorithm "
+                f"Parameter `algorithm_config` must be a CAREAlgorithm or N2NAlgorithm "
                 f"Pydantic model (got {type(config).__name__})."
             )
 
