@@ -10,6 +10,7 @@ from careamics.config.data.data_config import DataConfig
 from careamics.config.factories import (
     create_advanced_care_config,
     create_advanced_n2v_config,
+    create_advanced_seg_config,
 )
 from careamics.config.lightning.training_configuration import (
     TrainingConfig,
@@ -20,7 +21,7 @@ from careamics.lightning.callbacks.config_saver_callback import (
     ConfigSaverCallback,
 )
 from careamics.lightning.data.data_module import CareamicsDataModule
-from careamics.lightning.modules import CAREModule, N2VModule
+from careamics.lightning.modules import CAREModule, N2VModule, SegModule
 from careamics.lightning.utils.load_checkpoint import _create_loaded_exp_name
 
 pytest.register_assert_rewrite("functional.dataset.utils")
@@ -446,7 +447,7 @@ def _checkpoint_trainer(request):
     return _get_trainer_and_info
 
 
-@pytest.fixture(params=["n2v", "care"])
+@pytest.fixture(params=["n2v", "care", "seg"])
 def checkpoint(
     request,
     _checkpoint_trainer: tuple[Trainer, ConfigSaverCallback | None],
@@ -494,6 +495,29 @@ def checkpoint(
             axes="YX",
             patch_size=[16, 16],
             batch_size=2,
+            normalization="mean_std",
+            normalization_params={
+                "input_means": [0.5],
+                "input_stds": [0.3],
+                "target_means": [0.5],
+                "target_stds": [0.3],
+            },
+        )
+        data = {
+            "train_data": train_data,
+            "val_data": val_data,
+            "train_data_target": train_data_target,
+            "val_data_target": val_data_target,
+        }
+    elif request.param == "seg":
+        module_cls = SegModule
+        config = create_advanced_seg_config(
+            experiment_name="checkpoint_fixture_seg",
+            data_type="array",
+            axes="YX",
+            patch_size=[16, 16],
+            batch_size=2,
+            n_classes=3,
             normalization="mean_std",
             normalization_params={
                 "input_means": [0.5],
