@@ -132,10 +132,6 @@ def test_loss_wrong_prediction_is_higher(loss_func, class_labels, one_hot_labels
     [
         (BIN_CLASS_LABELS, BIN_ONE_HOT),
         (MUL_CLASS_LABELS, MUL_ONE_HOT),
-        (BIN_CLASS_LABELS, BIN_ONE_HOT),
-        (MUL_CLASS_LABELS, MUL_ONE_HOT),
-        (BIN_CLASS_LABELS, BIN_ONE_HOT),
-        (MUL_CLASS_LABELS, MUL_ONE_HOT),
     ],
 )
 @pytest.mark.parametrize("batch_size", [1, 2])

@@ -24,7 +24,7 @@ class UNetBasedAlgorithm(BaseModel):
     ----------
     algorithm : str
         Algorithm to use.
-    loss : str
+    loss : Any
         Loss function to use.
     model : UNetConfig
         Model architecture to use.
