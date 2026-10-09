@@ -14,7 +14,9 @@ class _SegmentationLossConfig(BaseModel):
     """Segmentation loss name."""
 
     class_weights: list[float] | None = None
-    """Optional weight for each segmentation class."""
+    """Optional weight for each segmentation class, including background. Must be of
+    size `n_classes+1` (where `n_classes` is the number of foreground classes passed "
+    "to the configuration factory). """
 
 
 class DiceLossConfig(_SegmentationLossConfig):

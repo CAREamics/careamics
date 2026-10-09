@@ -53,8 +53,7 @@ class N2VModule(L.LightningModule):
 
         if not isinstance(config, N2VAlgorithm):
             raise ValueError(
-                f"Parameter `algorithm_config` must be a N2VAlgorithm "
-                f"or a dict that represents a valid N2VAlgorithm Pydantic model "
+                f"Parameter `algorithm_config` must be a N2VAlgorithm Pydantic model "
                 f"(got {type(config).__name__})."
             )
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})

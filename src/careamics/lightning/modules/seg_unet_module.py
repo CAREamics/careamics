@@ -56,8 +56,7 @@ class SegModule(LightningModule):
 
         if not isinstance(config, SegAlgorithm):
             raise ValueError(
-                f"Parameter `algorithm_config` must be a SegAlgorithm "
-                f"or a dict that represents a valid SegAlgorithm Pydantic model "
+                f"Parameter `algorithm_config` must be a SegAlgorithm Pydantic model "
                 f"(got {type(config).__name__})."
             )
 

@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 
 from careamics.careamist import CAREamist
-from careamics.config.factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 root = Path(__file__).parent / "temp_data"
 root.mkdir(exist_ok=True)
