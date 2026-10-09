@@ -44,7 +44,7 @@ def algorithm_factory(
 def create_algorithm_configuration(
     dimensions: Literal[2, 3],
     algorithm: Literal["n2v", "care", "n2n", "seg"],
-    loss: Literal["n2v", "mae", "mse", "dice", "ce", "dice_ce"],
+    loss: str | dict[str, Any],
     independent_channels: bool,
     n_channels_in: int,
     n_channels_out: int,
@@ -64,9 +64,10 @@ def create_algorithm_configuration(
         Dimension of the model, either 2D or 3D.
     algorithm : {"n2v", "care", "n2n", "seg"}
         Algorithm to use.
-    loss : {"n2v", "mae", "mse", "dice", "ce", "dice_ce"}
+    loss : {"n2v", "mae", "mse", "dice", "ce", "dice_ce"} or dict[str, Any]
         Loss function to use. Choose `n2v` for N2V, `mae` or `mse` for CARE and N2N,
-        and `dice`, `ce`, or `dice_ce` for segmentation.
+        and "dice", "ce" or "dice_ce" for segmentation. Alternatively, parameters for
+        segmentation losses can be passed together with the loss name in a dictionary.
     independent_channels : bool
         Whether to train all channels independently.
     n_channels_in : int
@@ -106,6 +107,9 @@ def create_algorithm_configuration(
         architecture=SupportedArchitecture.UNET.value,
         **model_params,
     )
+
+    if algorithm == "seg" and isinstance(loss, str):
+        loss = {"name": loss}
 
     return {
         "algorithm": algorithm,

@@ -202,7 +202,8 @@ def create_advanced_seg_config(
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     # lightning parameters
     num_workers: int = -1,
-    loss: Literal["dice", "ce", "dice_ce"] = "dice",
+    loss: Literal["dice", "ce", "dice_ce"] = "dice_ce",
+    loss_parameters: dict[str, Any] | None = None,
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -288,8 +289,11 @@ def create_advanced_seg_config(
         on the number of available CPUs. Unless explicitly overridden in
         `train_dataloader_params` and `val_dataloader_params`, this will be applied to
         all dataloaders.
-    loss : Literal["dice", "ce", "dice_ce"], default="dice"
+    loss : Literal["dice", "ce", "dice_ce"], default="dice_ce"
         Loss function to use for training.
+    loss_parameters : dict[str, Any]
+        Parameters to the loss function. Note that `class_weights` must include
+        background weight and be of length `n_classes+1`.
     trainer_params : dict | None, default=None
         Parameters for the trainer, see the relevant documentation.
     model_params : dict | None, default=None
@@ -358,7 +362,7 @@ def create_advanced_seg_config(
     algorithm_params = create_algorithm_configuration(
         dimensions=3 if data_config.is_3D() else 2,
         algorithm="seg",
-        loss=loss,
+        loss={"name": loss, **(loss_parameters or {})},
         independent_channels=False,
         n_channels_in=n_channels_in,
         n_channels_out=n_classes + 1,  # add background channel
