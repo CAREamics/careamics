@@ -13,6 +13,7 @@ from careamics.config.algorithms import (
 from careamics.config.configuration import Configuration
 from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.n2v_configuration import N2VConfiguration
+from careamics.config.seg_configuration import SegConfiguration
 from careamics.config.support import SupportedAlgorithm
 
 
@@ -62,9 +63,9 @@ def _algo_discriminator(algo: Any) -> SupportedAlgorithm | None:
 Config = Annotated[
     Union[
         Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],
+        Annotated[SegConfiguration, Tag(SupportedAlgorithm.SEG)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
         Annotated[Configuration, Tag(SupportedAlgorithm.N2N)],
-        Annotated[Configuration, Tag(SupportedAlgorithm.SEG)],
     ],
     Discriminator(_config_discriminator),
 ]
