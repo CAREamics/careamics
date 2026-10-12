@@ -230,12 +230,12 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
 
         # check sharding and chunking
         if shards is not None:
-            assert g[array_name].shards == shards
+            assert g[array_name]["0"].shards == shards
         if chunks is not None:
-            assert g[array_name].chunks == chunks
+            assert g[array_name]["0"].chunks == chunks
 
         # pull array
-        pred_array = g[array_name][:]
+        pred_array = g[array_name]["0"][:]
         data_idx = int(array_name.split("_")[-1])
         expected_array = arrays[data_idx]
 
@@ -275,7 +275,9 @@ def test_write_from_array(tmp_path):
     written = zarr.open(tmp_path / "prediction.zarr", mode="r")
     assert isinstance(written, zarr.Group)
     for key in written.keys():
-        np.testing.assert_allclose(arrays[int(key)], np.array(written[key]))
+        if key == "OME":
+            continue
+        np.testing.assert_allclose(arrays[int(key)], written[key]["0"][:])
 
 
 def test_write_from_tiff(tmp_path):
@@ -304,14 +306,14 @@ def test_write_from_tiff(tmp_path):
         writer.write_tile(tmp_path, region)
 
     # check if the stored zarr is close to the input
+    written = zarr.open(tmp_path / "prediction.zarr", mode="r")
+    assert isinstance(written, zarr.Group)
     for index, _ in enumerate(arrays):
-        written = zarr.open(tmp_path / f"test_{index}.zarr", mode="r")
-        assert isinstance(written, zarr.Group)
-        np.testing.assert_allclose(arrays[index], np.array(written[str(index)]))
+        np.testing.assert_allclose(arrays[index], written[f"test_{index}"]["0"][:])
 
 
 def test_write_from_root_array_source(tmp_path):
-    """Test that Zarr sources stored as root arrays are written back as root arrays."""
+    """Test that root-array Zarr sources are written as single-image OME-Zarr."""
     source_path = tmp_path / "root_input.zarr"
     source_array = zarr.open_array(
         source_path, mode="w", shape=(8, 8), dtype=np.float32
@@ -345,5 +347,5 @@ def test_write_from_root_array_source(tmp_path):
 
     output_path = tmp_path / "root_input_output.zarr"
     written = zarr.open(output_path, mode="r")
-    assert isinstance(written, zarr.Array)
-    np.testing.assert_allclose(written[:], source_data)
+    assert isinstance(written, zarr.Group)
+    np.testing.assert_allclose(written["0"][:], source_data)
