@@ -5,26 +5,42 @@ description: Logging
 
 # Logging
 
-You can follow the progress of the training, or inspect it once training is over, using
-the logging capacities of PyTorch Lightning.
+You can follow the progress of the training, or inspect it once training is over, using the logging capacities of PyTorch Lightning.
 
+CAREamics always writes a CSV log of training and validation metrics. In addition, it can forward those metrics to [Weights & Biases](https://wandb.ai/) or [TensorBoard](https://www.tensorflow.org/tensorboard) by passing `logger="wandb"` or `logger="tensorboard"` to the advanced configuration factory (see [Choosing a logger](./configuration.md#choosing-a-logger)). The CSV log is *always* written, regardless of which extra logger is enabled. Enabling and configuring those two backends is covered in the [WandB and TensorBoard tutorial](../tutorials/logging_wandb_tensorboard.md).
 
-TODO: description of logging and checkpoints, what does the csv file looks like
+All training artefacts are written under the `work_dir` passed to the `CAREamist` (the current working directory by default), with the following layout:
 
+```
+work_dir/
+├── csv_logs/<experiment_name>/version_<n>/metrics.csv
+├── tb_logs/lightning_logs/version_<n>/             # if logger="tensorboard"
+├── wandb_logs/                                     # if logger="wandb"
+└── checkpoints/<experiment_name>_<n>/
+```
+
+A new `version_<n>` directory is created each time training is re-run with the same `experiment_name`.
 
 ## CSV logger
 
-By default, CAREamics only uses the `csv` logger, which outputs a CSV file with all the
-training metrics. It can be inspected using the `CAREamist`.
+The CSV logger is enabled by default. After training, the train and validation losses can be read back through `CAREamist.get_losses()` and plotted:
 
-```python
---8<-- "current/training_logging.py:csv_logger"
+```python title="Plotting losses from the CSV log"
+--8<-- "current/careamist_train_logging.py:csv_logger"
 ```
 
-## WandB
+1. Returns a dataclass with objects `train_loss`, `val_loss`, `learning_rate`, and `metrics`.
+2. By default, this function plots the losses, the metrics and the learning rate. Plotting metrics
+and learning rate can be turned off using `plot_metrics=False` and `plot_learning_rate=False`.
 
-(soon)
+The underlying file is `work_dir/csv_logs/<experiment_name>/version_<n>/metrics.csv` and can be opened directly with any CSV tool.
 
-## TensorBoard
+!!! note "Metrics"
 
-(soon)
+    If metrics were logged, they are returned as a dictionary of dataclasses, each behaving
+    like `train_loss`, i.e. with attributes called `epoch` and `value` that can be plotted
+    against each other.
+
+## Weights & Biases and TensorBoard
+
+Beyond the CSV log, CAREamics can forward metrics to Weights & Biases or TensorBoard by passing `logger="wandb"` or `logger="tensorboard"` to the advanced configuration factory. Enabling and configuring each backend is covered in the dedicated [WandB and TensorBoard tutorial](../tutorials/logging_wandb_tensorboard.md).

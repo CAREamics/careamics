@@ -1,15 +1,13 @@
-"""Pydantic model for the XYFlip transform."""
+"""Pydantic model for the XYFlip augmentation."""
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import ConfigDict, Field
-
-from .transform_config import TransformConfig
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class XYFlipConfig(TransformConfig):
+class XYFlipConfig(BaseModel):
     """
-    Pydantic model used to represent XYFlip transformation.
+    Configuration for the XYFlip augmentation.
 
     Attributes
     ----------
@@ -17,7 +15,7 @@ class XYFlipConfig(TransformConfig):
         Name of the transformation.
     p : float
         Probability of applying the transform, by default 0.5.
-    seed : Optional[int]
+    seed : int | None
         Seed for the random number generator,  by default None.
     """
 
@@ -41,3 +39,24 @@ class XYFlipConfig(TransformConfig):
         le=1,
     )
     seed: int | None = None
+
+    def model_dump(self, **kwargs) -> dict[str, Any]:
+        """
+        Return the model as a dictionary.
+
+        Parameters
+        ----------
+        **kwargs
+            Pydantic BaseMode model_dump method keyword arguments.
+
+        Returns
+        -------
+        {str: Any}
+            Dictionary representation of the model.
+        """
+        model_dict = super().model_dump(**kwargs)
+
+        # remove the name field as it is not accepted by the augmentation class
+        model_dict.pop("name")
+
+        return model_dict

@@ -5,6 +5,7 @@ from typing import Union
 
 import numpy as np
 from bioimageio.spec._internal.io import extract
+from bioimageio.spec.model import AnyModelDescr, ModelDescr
 from bioimageio.spec.model.v0_5 import (
     ArchitectureFromLibraryDescr,
     Author,
@@ -16,8 +17,9 @@ from bioimageio.spec.model.v0_5 import (
     FixedZeroMeanUnitVarianceAlongAxisKwargs,
     FixedZeroMeanUnitVarianceDescr,
     Identifier,
+    InputAxis,
     InputTensorDescr,
-    ModelDescr,
+    OutputAxis,
     OutputTensorDescr,
     PytorchStateDictWeightsDescr,
     SpaceInputAxis,
@@ -27,8 +29,11 @@ from bioimageio.spec.model.v0_5 import (
     WeightsDescr,
 )
 from pydantic import DirectoryPath
+from torch import __version__ as PYTORCH_VERSION
 
-from careamics.config import Configuration, DataConfig
+from careamics.config.configuration import Configuration
+from careamics.config.data import DataConfig, MeanStdConfig
+from careamics.utils.version import get_careamics_version
 
 from ._readme_factory import readme_factory
 
@@ -68,7 +73,7 @@ def _create_axes(
     spatial_axes = data_config.axes.replace("S", "").replace("C", "")
 
     # batch is always present
-    axes_model = [BatchAxis()]
+    axes_model: list[AxisBase] = [BatchAxis()]
 
     if "C" in data_config.axes:
         if channel_names is not None:
@@ -131,14 +136,19 @@ def _create_inputs_ouputs(
     tuple[InputTensorDescr, OutputTensorDescr]
         Input and output tensor descriptions.
     """
-    input_axes = _create_axes(input_array, data_config, channel_names)
-    output_axes = _create_axes(output_array, data_config, channel_names, False)
+    input_axes: list[InputAxis] = _create_axes(
+        input_array, data_config, channel_names
+    )  # type: ignore
+    output_axes: list[OutputAxis] = _create_axes(
+        output_array, data_config, channel_names, False
+    )  # type: ignore
 
     # mean and std
-    assert data_config.image_means is not None, "Mean cannot be None."
-    assert data_config.image_means is not None, "Std cannot be None."
-    means = data_config.image_means
-    stds = data_config.image_stds
+    if isinstance(data_config.normalization, MeanStdConfig):
+        assert data_config.normalization.input_means is not None, "Mean cannot be None."
+        assert data_config.normalization.input_stds is not None, "Std cannot be None."
+        means = data_config.normalization.input_means
+        stds = data_config.normalization.input_stds
 
     # and the mean and std required to invert the normalization
     # CAREamics denormalization: x = y * (std + eps) + mean
@@ -184,26 +194,26 @@ def _create_inputs_ouputs(
 
 
 def create_model_description(
+    model_dir: Path,
     config: Configuration,
     name: str,
     general_description: str,
     data_description: str,
-    authors: list[Author],
+    authors: list[dict],
     inputs: Union[Path, str],
     outputs: Union[Path, str],
     weights_path: Union[Path, str],
-    torch_version: str,
-    careamics_version: str,
     config_path: Union[Path, str],
     env_path: Union[Path, str],
     covers: list[Union[Path, str]],
     channel_names: list[str] | None = None,
-    model_version: str = "0.1.0",
 ) -> ModelDescr:
     """Create model description.
 
     Parameters
     ----------
+    model_dir : Path
+        Model directory.
     config : Configuration
         CAREamics configuration.
     name : str
@@ -220,10 +230,6 @@ def create_model_description(
         Path to output .npy file.
     weights_path : Union[Path, str]
         Path to model weights.
-    torch_version : str
-        Pytorch version.
-    careamics_version : str
-        CAREamics version.
     config_path : Union[Path, str]
         Path to model configuration.
     env_path : Union[Path, str]
@@ -232,8 +238,6 @@ def create_model_description(
         Paths to cover images.
     channel_names : Optional[list[str]], optional
         Channel names, by default None.
-    model_version : str, default "0.1.0"
-        Model version.
 
     Returns
     -------
@@ -242,10 +246,14 @@ def create_model_description(
     """
     # documentation
     doc = readme_factory(
+        model_dir,
         config,
-        careamics_version=careamics_version,
+        careamics_version=get_careamics_version(),
         data_description=data_description,
     )
+
+    # authors
+    author_list = [Author(**author) for author in authors]
 
     # inputs, outputs
     input_descr, output_descr = _create_inputs_ouputs(
@@ -268,17 +276,23 @@ def create_model_description(
         pytorch_state_dict=PytorchStateDictWeightsDescr(
             source=weights_path,
             architecture=architecture_descr,
-            pytorch_version=Version(torch_version),
+            pytorch_version=Version(PYTORCH_VERSION),
             dependencies=FileDescr(source=Path(env_path)),
         ),
+    )
+
+    # careamics version
+    # (removing non numeric characters like "*"; might happens when using dev versions)
+    careamics_version = ".".join(
+        [s for s in get_careamics_version().split(".") if s.isnumeric()]
     )
 
     # overall model description
     model = ModelDescr(
         name=name,
-        authors=authors,
+        authors=author_list,
         description=general_description,
-        documentation=doc,
+        documentation=FileDescr(source=doc),
         inputs=[input_descr],
         outputs=[output_descr],
         tags=config.get_algorithm_keywords(),
@@ -286,8 +300,8 @@ def create_model_description(
             "https://github.com/CAREamics/careamics",
             "https://careamics.github.io/latest/",
         ],
-        license="BSD-3-Clause",
-        config={
+        license="BSD-3-Clause",  # type: ignore
+        config={  # type: ignore
             "bioimageio": {
                 "test_kwargs": {
                     "pytorch_state_dict": {
@@ -297,22 +311,22 @@ def create_model_description(
                 }
             }
         },
-        version=model_version,
+        version=Version(careamics_version),
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
         cite=config.get_algorithm_citations(),
-        covers=covers,
+        covers=[FileDescr(source=Path(c)) for c in covers],
     )
 
     return model
 
 
-def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
+def extract_model_path(model_desc: AnyModelDescr) -> tuple[Path, Path]:
     """Return the relative path to the weights and configuration files.
 
     Parameters
     ----------
-    model_desc : ModelDescr
+    model_desc : AnyModelDescr
         Model description.
 
     Returns
@@ -332,6 +346,10 @@ def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
 
     weights_path = model_dir.joinpath(model_desc.weights.pytorch_state_dict.source.path)
 
+    if model_desc.attachments is None:
+        raise ValueError("No configuration file found in model attachments.")
+
+    # find the configuration file
     for file in model_desc.attachments:
         file_path = file.source if isinstance(file.source, Path) else file.source.path
         if file_path is None:

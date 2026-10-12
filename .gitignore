@@ -2,9 +2,12 @@
 
 # image and data
 **/*.zarr
+**/*.tif*
+**/*.png
 **/*.jpg
 **/*.jpeg
 **/*.unzip
+**/*.zip
 
 .vscode
 *.DS_Store
@@ -14,6 +17,8 @@
 # torch related
 **/lightning_logs
 **/*.ckpt
+**/checkpoints
+**/csv_logs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -176,3 +181,4 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+**/wandb_logs

@@ -18,12 +18,14 @@ jobs:
     # included in the sdist (unless explicitly excluded)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - run: pipx run check-manifest
 
   test:
     name: ${{ matrix.platform }} (${{ matrix.python-version }})
     runs-on: ${{ matrix.platform }}
+    env:
+      MPLBACKEND: Agg # non-interactive matplotlib back-end
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +39,10 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+        with:
+          fetch-tags: true
+          fetch-depth: 0 
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -51,7 +56,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: 🧪 Run tests
-        run: uv run pytest --color=yes -m "not lvae"
+        run: uv run pytest --color=yes -m "not lvae and not e2e"
 
 
   deploy:
@@ -85,10 +90,9 @@ jobs:
 
       # Check that basic features work and we didn't miss to include crucial files
       - name: Smoke test (wheel)
-        run: uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
-
+        run: uv run --isolated --no-project --with dist/*.whl tests/test_smoke_after_packaging.py
       - name: Smoke test (source distribution)
-        run: uv run --isolated --no-project --with dist/*.tar.gz tests/smoke_test.py
+        run: uv run --isolated --no-project --with dist/*.tar.gz tests/test_smoke_after_packaging.py
         
       - name: Publish
         run: uv publish

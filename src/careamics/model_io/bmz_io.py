@@ -8,30 +8,25 @@ import numpy as np
 from bioimageio.core import load_model_description, test_model
 from bioimageio.spec import ValidationSummary, save_bioimageio_package
 from pydantic import HttpUrl
-from torch import __version__ as PYTORCH_VERSION
 from torch import load, save
-from torchvision import __version__ as TORCHVISION_VERSION
 
-from careamics.config import Configuration
+from careamics.config.configuration import Configuration
 from careamics.config.support import SupportedArchitecture
 from careamics.config.utils.configuration_io import (
     load_configuration,
     save_configuration,
 )
-from careamics.lightning.lightning_module import FCNModule, VAEModule
-from careamics.utils.version import get_careamics_version
+from careamics.lightning.modules import CAREamicsModule, create_module
 
 from .bioimage import (
-    create_env_text,
     create_model_description,
     extract_model_path,
+    get_env_file,
 )
 from .bioimage.cover_factory import create_cover
 
 
-def _export_state_dict(
-    model: Union[FCNModule, VAEModule], path: Union[Path, str]
-) -> Path:
+def _export_state_dict(model: CAREamicsModule, path: Union[Path, str]) -> Path:
     """
     Export the model state dictionary to a file.
 
@@ -61,9 +56,7 @@ def _export_state_dict(
     return path
 
 
-def _load_state_dict(
-    model: Union[FCNModule, VAEModule], path: Union[Path, str]
-) -> None:
+def _load_state_dict(model: CAREamicsModule, path: Union[Path, str]) -> None:
     """
     Load a model from a state dictionary.
 
@@ -83,9 +76,8 @@ def _load_state_dict(
     model.model.load_state_dict(state_dict)
 
 
-# TODO break down in subfunctions
 def export_to_bmz(
-    model: Union[FCNModule, VAEModule],
+    model: CAREamicsModule,
     config: Configuration,
     path_to_archive: Union[Path, str],
     model_name: str,
@@ -96,7 +88,6 @@ def export_to_bmz(
     output_array: np.ndarray,
     covers: list[Union[Path, str]] | None = None,
     channel_names: list[str] | None = None,
-    model_version: str = "0.1.0",
 ) -> None:
     """Export the model to BioImage Model Zoo format.
 
@@ -129,8 +120,6 @@ def export_to_bmz(
         Paths to the cover images.
     channel_names : Optional[list[str]], optional
         Channel names, by default None.
-    model_version : str, default="0.1.0"
-        Model version.
     """
     path_to_archive = Path(path_to_archive)
 
@@ -142,19 +131,14 @@ def export_to_bmz(
     if not path_to_archive.parent.exists():
         path_to_archive.parent.mkdir(parents=True, exist_ok=True)
 
-    # versions
-    careamics_version = get_careamics_version()
-
     # save files in temporary folder
     with tempfile.TemporaryDirectory() as tmpdirname:
         temp_path = Path(tmpdirname)
 
         # create environment file
-        # TODO move in bioimage module
-        env_path = temp_path / "environment.yml"
-        env_path.write_text(create_env_text(PYTORCH_VERSION, TORCHVISION_VERSION))
+        env_path = get_env_file(temp_path)
 
-        # export input and ouputs
+        # export input and outputs
         inputs = temp_path / "inputs.npy"
         np.save(inputs, input_array)
         outputs = temp_path / "outputs.npy"
@@ -166,12 +150,13 @@ def export_to_bmz(
         # export model state dictionary
         weight_path = _export_state_dict(model, temp_path / "weights.pth")
 
-        # export cover if necesary
+        # create covers if necessary
         if covers is None:
             covers = [create_cover(temp_path, input_array, output_array)]
 
         # create model description
         model_description = create_model_description(
+            model_dir=temp_path,
             config=config,
             name=model_name,
             general_description=general_description,
@@ -180,13 +165,10 @@ def export_to_bmz(
             inputs=inputs,
             outputs=outputs,
             weights_path=weight_path,
-            torch_version=PYTORCH_VERSION,
-            careamics_version=careamics_version,
             config_path=config_path,
             env_path=env_path,
             covers=covers,
             channel_names=channel_names,
-            model_version=model_version,
         )
 
         # test model description
@@ -201,7 +183,9 @@ def export_to_bmz(
 
         summary: ValidationSummary = test_model(model_description, **test_kwargs)
         if summary.status == "failed":
-            raise ValueError(f"Model description test failed: {summary}")
+            raise ValueError("Model description test failed!")
+        else:
+            print("Model description test passed.")
 
         # save bmz model
         save_bioimageio_package(model_description, output_path=path_to_archive)
@@ -209,7 +193,7 @@ def export_to_bmz(
 
 def load_from_bmz(
     path: Union[Path, str, HttpUrl],
-) -> tuple[Union[FCNModule, VAEModule], Configuration]:
+) -> tuple[Configuration, CAREamicsModule]:
     """Load a model from a BioImage Model Zoo archive.
 
     Parameters
@@ -241,15 +225,14 @@ def load_from_bmz(
 
     # create careamics lightning module
     if config.algorithm_config.model.architecture == SupportedArchitecture.UNET:
-        model = FCNModule(algorithm_config=config.algorithm_config)
-    elif config.algorithm_config.model.architecture == SupportedArchitecture.LVAE:
-        model = VAEModule(algorithm_config=config.algorithm_config)
+        model = create_module(config.algorithm_config)
+
     else:
         raise ValueError(
             f"Unsupported architecture {config.algorithm_config.model.architecture}"
-        )  # TODO ugly ?
+        )
 
     # load model state dictionary
     _load_state_dict(model, weights_path)
 
-    return model, config
+    return config, model

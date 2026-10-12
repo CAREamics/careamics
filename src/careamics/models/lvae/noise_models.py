@@ -8,6 +8,8 @@ import torch
 import torch.nn as nn
 from numpy.typing import NDArray
 
+from careamics.utils import get_device
+
 if TYPE_CHECKING:
     from careamics.config import GaussianMixtureNMConfig, MultiChannelNMConfig
 
@@ -211,7 +213,7 @@ class MultiChannelNoiseModel(nn.Module):
             List of noise models, one for each output channel.
         """
         super().__init__()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = get_device()
 
         for i, nmodel in enumerate(nmodels):  # TODO refactor this !!!
             if nmodel is not None:

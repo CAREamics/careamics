@@ -3,29 +3,29 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from pytorch_lightning import Callback, Trainer
+from lightning.pytorch import Callback, Trainer
 
-from careamics import CAREamist, Configuration
-from careamics.config.ng_configs import NGConfiguration
-from careamics.config.ng_configs.ng_training_configuration import (
-    NGTrainingConfig,
-    default_training_dict,
-)
-from careamics.config.ng_factories import (
+from careamics.config.configuration import Configuration
+from careamics.config.data.data_config import DataConfig
+from careamics.config.factories import (
     create_advanced_care_config,
     create_advanced_n2v_config,
 )
-from careamics.config.support import SupportedData
-from careamics.lightning.callbacks.careamics_checkpoint_info_callback import (
-    CareamicsCheckpointInfo,
+from careamics.config.lightning.training_configuration import (
+    TrainingConfig,
+    default_training_dict,
 )
-from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
-from careamics.lightning.dataset_ng.lightning_modules import CAREModule, N2VModule
-from careamics.lightning.dataset_ng.load_checkpoint import _create_loaded_exp_name
-from careamics.model_io import export_to_bmz
+from careamics.config.support import SupportedData
+from careamics.lightning.callbacks.config_saver_callback import (
+    ConfigSaverCallback,
+)
+from careamics.lightning.data.data_module import CareamicsDataModule
+from careamics.lightning.modules import CAREModule, N2VModule
+from careamics.lightning.utils.load_checkpoint import _create_loaded_exp_name
 
-pytest.register_assert_rewrite("functional.dataset_ng.utils")
+pytest.register_assert_rewrite("functional.dataset.utils")
 
+# TODO move to compat/conftest.py
 
 ############################################################
 # Old fixtures below, kept for backwards compatibility, need
@@ -350,38 +350,10 @@ def overlaps() -> tuple[int, int]:
 
 
 @pytest.fixture
-def pre_trained(tmp_path, minimum_n2v_configuration):
-    """Fixture to create a pre-trained CAREamics model."""
-    # training data
-    train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)
-
-    # create configuration
-    config = Configuration(**minimum_n2v_configuration)
-    config.data_config.axes = "YX"
-    config.data_config.batch_size = 2
-    config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (8, 8)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
-
-    # train CAREamist
-    careamist.train(train_source=train_array)
-
-    # check that it trained
-    pre_trained_path: Path = (
-        tmp_path / "checkpoints" / "LevitatingFrog" / "LevitatingFrog_last.ckpt"
-    )
-    assert pre_trained_path.exists()
-
-    return pre_trained_path
-
-
-@pytest.fixture
-def pre_trained_v2(tmp_path):
-    """Fixture to create a pre-trained CAREamistV2 model."""
-    from careamics.careamist_v2 import CAREamistV2
-    from careamics.config.ng_factories import create_advanced_n2v_config
+def pre_trained(tmp_path):
+    """Fixture to create a pre-trained CAREamist model."""
+    from careamics.careamist import CAREamist
+    from careamics.config.factories import create_advanced_n2v_config
 
     # training data
     train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)
@@ -398,48 +370,17 @@ def pre_trained_v2(tmp_path):
         masked_pixel_percentage=masked_pixel_percentage,
     )
 
-    # instantiate CAREamistV2
-    careamist = CAREamistV2(config=config, work_dir=tmp_path)
+    # instantiate CAREamist
+    careamist = CAREamist(config=config, work_dir=tmp_path)
 
     # train CAREamist
     careamist.train(train_data=train_array)
 
     # check that it trained
-    pre_trained_path: Path = tmp_path / "checkpoints" / "test_last.ckpt"
+    pre_trained_path: Path = tmp_path / "checkpoints" / "test_0" / "test_last.ckpt"
     assert pre_trained_path.exists()
 
     return pre_trained_path
-
-
-@pytest.fixture
-def pre_trained_bmz(tmp_path, pre_trained) -> Path:
-    """Fixture to create a BMZ model."""
-    # training data
-    train_array = np.ones((32, 32), dtype=np.float32)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
-
-    # predict (no tiling and no tta)
-    predicted_output = careamist.predict(train_array, tta_transforms=False)
-    predicted = np.concatenate(predicted_output, axis=0)
-
-    # export to BioImage Model Zoo
-    path = tmp_path / "model.zip"
-    export_to_bmz(
-        model=careamist.model,
-        config=careamist.cfg,
-        path_to_archive=path,
-        model_name="TopModel",
-        general_description="A model that just walked in.",
-        data_description="My data.",
-        authors=[{"name": "Amod", "affiliation": "El"}],
-        input_array=train_array[np.newaxis, np.newaxis, ...],
-        output_array=predicted,
-    )
-    assert path.exists()
-
-    return path
 
 
 @pytest.fixture
@@ -486,14 +427,16 @@ def _checkpoint_trainer(request):
 
     def _get_trainer_and_info(
         algorithm: str,
-    ) -> tuple[Trainer, CareamicsCheckpointInfo | None]:
+        data_config: DataConfig,
+    ) -> tuple[Trainer, ConfigSaverCallback | None]:
         if request.param:
-            info_callback = CareamicsCheckpointInfo(
-                careamics_version="0.2.0",
+            info_callback = ConfigSaverCallback(
+                careamics_version="0.3.0",
                 experiment_name="testing",
-                training_config=NGTrainingConfig(
+                training_config=TrainingConfig(
                     **default_training_dict(algorithm=algorithm)
                 ),
+                data_config=data_config,
             )
             callbacks: list[Callback] = [info_callback]
         else:
@@ -507,9 +450,9 @@ def _checkpoint_trainer(request):
 @pytest.fixture(params=["n2v", "care"])
 def checkpoint(
     request,
-    _checkpoint_trainer: tuple[Trainer, CareamicsCheckpointInfo | None],
+    _checkpoint_trainer: tuple[Trainer, ConfigSaverCallback | None],
     tmp_path: Path,
-) -> tuple[Path, type[N2VModule] | type[CAREModule], NGConfiguration]:
+) -> tuple[Path, type[N2VModule] | type[CAREModule], Configuration]:
     """
     Fixture producing a checkpoint with the expected module type and expected config.
 
@@ -519,7 +462,7 @@ def checkpoint(
         The path to the checkpoint
     expected_module_cls : type[N2VModule] | type[CAREModule]
         The expected module class type saved in the checkpoint.
-    expected_config : NGConfiguration
+    expected_config : Configuration
         The expected config saved in the checkpoint.
     """
 
@@ -571,7 +514,7 @@ def checkpoint(
 
     module = module_cls(config.algorithm_config)
     dmodule = CareamicsDataModule(data_config=config.data_config, **data)
-    trainer, info_callback = _checkpoint_trainer(request.param)
+    trainer, info_callback = _checkpoint_trainer(request.param, config.data_config)
     trainer.fit(model=module, datamodule=dmodule)
     ckpt_path = tmp_path / "checkpoint_test_fixture.ckpt"
     trainer.save_checkpoint(ckpt_path)
@@ -582,8 +525,6 @@ def checkpoint(
         config.training_config = info_callback.training_config
     else:
         config.experiment_name = _create_loaded_exp_name(ckpt_path)
-        config.training_config = NGTrainingConfig(
-            **default_training_dict(request.param)
-        )
+        config.training_config = TrainingConfig(**default_training_dict(request.param))
 
     return ckpt_path, module_cls, config

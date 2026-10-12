@@ -1,19 +1,18 @@
 """Utility functions to load pretrained models."""
 
 from pathlib import Path
-from typing import Union
 
 import torch
 
-from careamics.config import Configuration
-from careamics.lightning.lightning_module import FCNModule, VAEModule
+from careamics.config.configuration import Configuration
+from careamics.config.support import SupportedArchitecture
+from careamics.lightning.modules import CAREamicsModule, create_module
 from careamics.model_io.bmz_io import load_from_bmz
-from careamics.utils import check_path_exists
 
 
 def load_pretrained(
-    path: Union[Path, str],
-) -> tuple[Union[FCNModule, VAEModule], Configuration]:
+    path: Path | str,
+) -> tuple[Configuration, CAREamicsModule]:
     """
     Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
 
@@ -21,12 +20,12 @@ def load_pretrained(
 
     Parameters
     ----------
-    path : Union[Path, str]
+    path : Path | str
         Path to the pretrained model.
 
     Returns
     -------
-    tuple[CAREamicsKiln, Configuration]
+    tuple[Configuration, CAREamicsModule]
         tuple of CAREamics model and its configuration.
 
     Raises
@@ -34,7 +33,9 @@ def load_pretrained(
     ValueError
         If the model format is not supported.
     """
-    path = check_path_exists(path)
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Data path {path} is incorrect or does not exist.")
 
     if path.suffix == ".ckpt":
         return _load_checkpoint(path)
@@ -47,19 +48,19 @@ def load_pretrained(
 
 
 def _load_checkpoint(
-    path: Union[Path, str],
-) -> tuple[Union[FCNModule, VAEModule], Configuration]:
+    path: Path | str,
+) -> tuple[Configuration, CAREamicsModule]:
     """
     Load a model from a checkpoint and return both model and configuration.
 
     Parameters
     ----------
-    path : Union[Path, str]
+    path : Path | str
         Path to the checkpoint.
 
     Returns
     -------
-    tuple[CAREamicsKiln, Configuration]
+    tuple[Configuration, CAREamicsModule]
         tuple of CAREamics model and its configuration.
 
     Raises
@@ -82,14 +83,18 @@ def _load_checkpoint(
             f"checkpoint: {checkpoint.keys()}"
         ) from e
 
-    if cfg_dict["algorithm_config"]["model"]["architecture"] == "UNet":
-        model = FCNModule.load_from_checkpoint(path)
-    elif cfg_dict["algorithm_config"]["model"]["architecture"] == "LVAE":
-        model = VAEModule.load_from_checkpoint(path)
+    config = Configuration(**cfg_dict)
+
+    # create careamics lightning module
+    if config.algorithm_config.model.architecture == SupportedArchitecture.UNET:
+        model = create_module(config.algorithm_config)
+
     else:
         raise ValueError(
-            "Invalid model architecture: "
-            f"{cfg_dict['algorithm_config']['model']['architecture']}"
+            f"Unsupported architecture {config.algorithm_config.model.architecture}"
         )
 
-    return model, Configuration(**cfg_dict)
+    # loading model state_dict
+    model.model.load_state_dict(checkpoint)
+
+    return config, model

@@ -3,8 +3,8 @@
 import sys
 from typing import Union
 
-from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks import TQDMProgressBar
+from lightning.pytorch import LightningModule, Trainer
+from lightning.pytorch.callbacks import TQDMProgressBar
 from tqdm.auto import tqdm
 
 

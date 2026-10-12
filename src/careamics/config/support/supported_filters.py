@@ -1,9 +1,9 @@
 """Coordinate and patch filters supported by CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedPatchFilters(str, BaseEnum):
+class SupportedPatchFilters(StrEnum):
     """Supported patch filters."""
 
     MAX = "max"
@@ -11,7 +11,7 @@ class SupportedPatchFilters(str, BaseEnum):
     SHANNON = "shannon"
 
 
-class SupportedCoordinateFilters(str, BaseEnum):
+class SupportedCoordinateFilters(StrEnum):
     """Supported coordinate filters."""
 
     MASK = "mask"

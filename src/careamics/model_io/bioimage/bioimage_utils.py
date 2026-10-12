@@ -3,6 +3,9 @@
 from pathlib import Path
 from typing import Union
 
+from torch import __version__ as PYTORCH_VERSION
+from torchvision import __version__ as TORCHVISION_VERSION
+
 from careamics.utils.version import get_careamics_version
 
 
@@ -22,6 +25,26 @@ def get_unzip_path(zip_path: Union[Path, str]) -> Path:
     zip_path = Path(zip_path)
 
     return zip_path.parent / (str(zip_path.name) + ".unzip")
+
+
+def get_env_file(model_dir: Path | str) -> Path:
+    """Create environment yaml file for the bioimage model.
+
+    Parameters
+    ----------
+    model_dir : Path
+        Path to the bioimage.io model directory.
+
+    Returns
+    -------
+    Path
+        Path to the environment yaml file.
+    """
+    model_dir = Path(model_dir)
+    env_path = model_dir / "environment.yml"
+    env_path.write_text(create_env_text(PYTORCH_VERSION, TORCHVISION_VERSION))
+
+    return env_path
 
 
 def create_env_text(pytorch_version: str, torchvision_version: str) -> str:

@@ -5,13 +5,47 @@ description: Quick start
 
 # Predicting with CAREamics
 
+Prediction can be performed right after training, re-using the same `CAREamist` object,
+or by creating a new one with a path to a checkpoint:
+
+```python title="Starting from a checkpoint"
+--8<-- "current/careamist_predicting.py:pred_start"
+```
+
 ## Returning predictions
 
-The simplest form of prediction is to call `predict`, which returns the predictions.
+The simplest form of prediction is to call `predict`, which returns the predictions and
+their sources.
 
 ```python title="Prediction"
 --8<-- "current/careamist_predicting.py:pred"
 ```
+
+The `predict` method returns both a list of arrays corresponding to the predictions and
+a list of their sources. If `pred_data` was a list of path to files, then `sources` will
+be a list of path to the file corresponding to each array. If the arrays were
+otherwise passed as `numpy` arrays, then the source can be ignored, since it is an empty
+list:
+
+```python title="Prediction from arrays"
+--8<-- "current/careamist_predicting.py:pred_empty_source"
+```
+
+!!! note "Dimensions of the prediction"
+    
+    The returned predictions will have the same dimension order as the input data. The
+    only difference may be the channels dimension, which will depend on the algorithm
+    used (e.g. CARE can have different channel dimensions in input and output).
+
+!!! note "Checkpoint"
+
+    By default, CAREamics uses a checkpoint callback that saves multiple checkpoints
+    during training. Depending on the algorithm, the prediction method will either
+    use the best checkpoint (the one with the lowest validation loss) or the last
+    checkpoint (the one from the last epoch).
+
+    Noise2Void and Noise2Noise will use the last checkpoint, while the other algorithms
+    will use the best checkpoint.
 
 ### Tiling
 
@@ -89,10 +123,50 @@ need to specify the new axes and `data_type`. Finally, we do not want to train i
     trained on single-channel data, then `channels=[1]` can be used to specify that
     only the second channel should be used for prediction.
 
+!!! note "New target axes"
+
+    `target_axes` are used to determine the axes order of the prediction. If you used
+    targets during training (e.g. CARE), and are changing the axes during prediction,
+    you may need to adjust the `target_axes` as well.
+
+### Choosing the checkpoint
+
+Checkpoints can be specified by passing a `checkpoint` argument to the `predict` method.
+It can be either a path to a checkpoint file or one of the keywords specified by
+PyTorch Lightning (typically `"best"` or `"last"`, see [documentation](https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict)).
+
+```python title="Prediction with checkpoint"
+--8<-- "current/careamist_predicting.py:pred_checkpoint"
+```
+
+!!! warning "Noise2Void and Noise2Noise"
+
+    Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
+    based on validation loss. Specify an explicit path if you want to use a
+    specific checkpoint.
+
 
 ## Predicting to disk
 
-(soon)
+Prediction can also be saved directly to disk. This is particularly useful for large
+number of files that may not fit in memory.
+
+```python title="Predict directly to the disk"
+--8<-- "current/careamist_predicting.py:pred_to_disk"
+```
+
+1. Optional, if not provided the predictions will be saved in the working directory,
+   in a folder called `predictions`.
+
+!!! important "Other parameters"
+
+    `predict_to_disk` accepts similar parameters as `predict`, including tiling,
+    dataloader parameters or checkpoints. Refer to the previous sections for more
+    details.
+
+!!! note "Default format"
+
+    Predictions are currently by default written as TIFF files.
 
 !!! note "CZI format"
 
@@ -100,4 +174,40 @@ need to specify the new axes and `data_type`. Finally, we do not want to train i
 
 !!! note "Zarr format"
 
-    Prediction directly to disk is with Zarr requires tiling to be enabled.
+    Prediction directly to disk is with Zarr requires tiling to be enabled, and the
+    original axes need to be in canonical order (S)(T)(C)(Z)YX.
+
+
+### Change the write type
+
+You can also select a different write type that the default or from the source data.
+
+```python title="Predict with a different type"
+--8<-- "current/careamist_predicting.py:pred_write_type"
+```
+
+1. The write type can be changed. Currently, only `tiff` and `zarr` are supported.
+
+
+!!! important "Zarr as write type"
+
+    Zarr can be selected as write type only if tiling is enabled.
+
+### Use a custom write function
+
+We support passing a custom write function to save the predictions. The function must
+implement a particular `Protocol` ([`WriteFunc`][careamics.image_io.write.WriteFunc]),
+meaning that the function signature must strictly be that of the `WriteFunc` protocol.
+The function must accept a path, an array and allow passing additional keyword
+arguments. Here is an example of writing to a custom type (`.npy`):
+
+```python title="Custom write function"
+--8<-- "current/careamist_predicting.py:pred_write_func"
+```
+
+1. First define your write function.
+2. We need to select `custom` as the write type.
+3. And specify the extension of the file to write.
+4. Pass the custom write function to the `write_func` argument.
+5. Optional, to pass additional parameters to underlying functions.
+

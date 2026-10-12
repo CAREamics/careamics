@@ -1,12 +1,16 @@
 """Transforms supported by CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
-class SupportedTransform(str, BaseEnum):
-    """Transforms officially supported by CAREamics."""
+class SupportedAugmentation(StrEnum):
+    """Augmentations supported by CAREamics."""
 
     XY_FLIP = "XYFlip"
     XY_RANDOM_ROTATE90 = "XYRandomRotate90"
-    NORMALIZE = "Normalize"
+
+
+class SupportedTransform(StrEnum):
+    """Transforms supported by CAREamics."""
+
     N2V_MANIPULATE = "N2VManipulate"

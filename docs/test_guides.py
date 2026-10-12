@@ -8,10 +8,7 @@ import pytest
 path_to_guides = Path(__file__).parent
 scripts = path_to_guides.rglob("*.py")
 
-# exclude all scripts that end with "errors" to keep a reference of failing examples
-# used in the documentation
-# TODO: is there a better way to show errors to not have to exclude these scripts?
-exclude = ["_errors.py"]
+exclude = []  # add names to exclude, e.g. "_no_exec"
 scripts = [
     script
     for script in scripts

@@ -11,26 +11,13 @@ from careamics.config.validators import (
     model_without_final_activation,
     model_without_n2v2,
 )
+from careamics.references.n2n import (
+    N2N,
+    N2N_DESCRIPTION,
+    N2N_REF,
+)
 
 from .unet_algorithm_config import UNetBasedAlgorithm
-
-N2N = "Noise2Noise"
-
-N2N_DESCRIPTION = (
-    "Noise2Noise is a deep-learning-based algorithm that uses a U-Net "
-    "architecture to restore images. Noise2Noise is a self-supervised "
-    "algorithm that requires only noisy images to train the network. "
-    "The algorithm learns to predict the clean image from the noisy "
-    "image. Noise2Noise is particularly useful when clean images are "
-    "not available for training."
-)
-
-N2N_REF = CiteEntry(
-    text="Lehtinen, J., Munkberg, J., Hasselgren, J., Laine, S., Karras, T., "
-    'Aittala, M. and Aila, T., 2018. "Noise2Noise: Learning image restoration '
-    'without clean data". arXiv preprint arXiv:1803.04189.',
-    doi="10.48550/arXiv.1803.04189",
-)
 
 
 class N2NAlgorithm(UNetBasedAlgorithm):
@@ -91,7 +78,7 @@ class N2NAlgorithm(UNetBasedAlgorithm):
         str
             Algorithm references.
         """
-        return N2N_REF.text + " doi: " + N2N_REF.doi
+        return N2N_REF.text + " doi: " + str(N2N_REF.doi)
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """

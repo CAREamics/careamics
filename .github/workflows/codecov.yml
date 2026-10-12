@@ -2,13 +2,18 @@ name: codecov
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+  pull_request:
 
 jobs:
   codecov:
     name: codecov update
     runs-on: ubuntu-latest
+    env:
+      MPLBACKEND: Agg # non-interactive matplotlib back-end
     strategy:
       fail-fast: false
       matrix:
@@ -21,7 +26,10 @@ jobs:
           access_token: ${{ github.token }}
 
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
+        with:
+          fetch-tags: true
+          fetch-depth: 0
   
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -35,9 +43,9 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: 🧪 Run Tests
-        run: uv run pytest --color=yes --cov --cov-config=pyproject.toml --cov-report=xml --cov-report=term-missing 
+        run: uv run pytest --color=yes --cov --cov-config=pyproject.toml --cov-report=xml --cov-report=term-missing  -m "not e2e"
 
       - name: Coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
-          version: v0.7.3
+          token: ${{ secrets.CODECOV_TOKEN }}

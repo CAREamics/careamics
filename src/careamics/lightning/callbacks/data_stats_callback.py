@@ -1,7 +1,7 @@
 """Data statistics callback."""
 
-import pytorch_lightning as L
-from pytorch_lightning.callbacks import Callback
+import lightning as L
+from lightning.pytorch.callbacks import Callback
 
 
 class DataStatsCallback(Callback):

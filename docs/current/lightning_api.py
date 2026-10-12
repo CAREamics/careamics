@@ -1,21 +1,27 @@
 #!/usr/bin/env python
 # %%
 # --8<-- [start:lightning_api]
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
-from careamics_portfolio import PortfolioManager
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint
+import pooch
 
-from careamics.config.ng_factories import create_advanced_n2v_config
-from careamics.lightning.dataset_ng.data_module import CareamicsDataModule
-from careamics.lightning.dataset_ng.lightning_modules import N2VModule
-from careamics.lightning.dataset_ng.prediction import convert_prediction
-from careamics.lightning.callbacks import CareamicsCheckpointInfo
+from careamics.config import create_advanced_n2v_config
+from careamics.lightning import (
+    CareamicsDataModule,
+    ConfigSaverCallback,
+    N2VModule,
+    convert_prediction,
+)
 
 # download example data
-portfolio_manager = PortfolioManager()
-files = portfolio_manager.denoising.N2V_SEM.download()
-train_image = files[0]
-val_image = files[1]
+train_image = pooch.retrieve(
+    "https://zenodo.org/records/21028053/files/train.tif",
+    known_hash="8be263564a12381bcc0fc69c4271728f3a794aeed78ef85be5fac95e78f5ff73",
+)
+val_image = pooch.retrieve(
+    "https://zenodo.org/records/21028053/files/validation.tif",
+    known_hash="6f5cd80d4e7f086432458987ee09c7623b2f0c98568bdf2f05b747d804abfabb",
+)
 
 # create configuration
 config = create_advanced_n2v_config(  # (1)!
@@ -43,9 +49,12 @@ callbacks = [
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
         **config.training_config.checkpoint_params,
     ),
-    CareamicsCheckpointInfo(  # (6)!
-        config.version, config.experiment_name, config.training_config
-    ),
+    ConfigSaverCallback(
+        config.version,
+        config.experiment_name,
+        config.training_config,
+        config.data_config,
+    ),  # (6)!
 ]
 
 trainer = Trainer(
@@ -80,13 +89,13 @@ stitched_predictions, sources = convert_prediction(  # (12)!
 # --8<-- [end:lightning_api]
 
 # --8<-- [start:predict_to_disk]
-from careamics.lightning.dataset_ng.callbacks.prediction_writer import (
+from careamics.lightning.callbacks.prediction import (
     PredictionWriterCallback,
 )
 
-pred_writer = PredictionWriterCallback(  # (1)!
+pred_writer = PredictionWriterCallback(
     dirpath="predictions", enable_writing=False
-)
+)  # (1)!
 
 callbacks = [
     ModelCheckpoint(
@@ -94,8 +103,11 @@ callbacks = [
         filename=f"{config.experiment_name}_{{epoch:02d}}_step_{{step}}",
         **config.training_config.checkpoint_params,
     ),
-    CareamicsCheckpointInfo(
-        config.version, config.experiment_name, config.training_config
+    ConfigSaverCallback(
+        config.version,
+        config.experiment_name,
+        config.training_config,
+        config.data_config,
     ),
     pred_writer,  # (2)!
 ]
@@ -121,11 +133,18 @@ inf_data_module = CareamicsDataModule(
     pred_data=train_image,
 )
 
-# run inference
+# run inference with predictions written to disk
 pred_writer.set_writing_strategy("tiff", tiled=True)  # (3)!
 pred_writer.enable_writing(True)  # (4)!
 
-tiled_predictions = trainer.predict(
-    model, datamodule=inf_data_module, return_predictions=False  # (5)!
+_ = trainer.predict(
+    model,
+    datamodule=inf_data_module,
+    return_predictions=False,  # (5)!
 )
 # --8<-- [end:predict_to_disk]
+
+import shutil
+
+# delete outputs
+shutil.rmtree("predictions")

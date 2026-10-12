@@ -8,13 +8,13 @@ import socket
 import sys
 from typing import Dict
 
-import pytorch_lightning as pl
+import lightning as pl
 import torch
 from absl import app, flags
 from ml_collections.config_flags import config_flags
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.loggers import WandbLogger
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
+from lightning.pytorch.loggers import WandbLogger
 from torch.utils.data import DataLoader
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))

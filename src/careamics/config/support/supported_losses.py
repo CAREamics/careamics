@@ -1,10 +1,10 @@
 """Losses supported by CAREamics."""
 
-from careamics.utils import BaseEnum
+from enum import StrEnum
 
 
 # TODO register loss with custom_loss decorator?
-class SupportedLoss(str, BaseEnum):
+class SupportedLoss(StrEnum):
     """Supported losses.
 
     Attributes

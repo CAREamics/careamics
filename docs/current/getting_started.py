@@ -3,7 +3,8 @@
 # %%
 import numpy as np
 
-train_data = np.random.randint(0, 255, (512, 512)).astype(np.float32)
+# cannot be 1 patch because of n_val_patches
+train_data = np.random.randint(0, 255, (64 * 4, 64 * 8)).astype(np.float32)
 train_target = train_data
 val_data = train_data
 val_target = train_data
@@ -11,8 +12,8 @@ pred_data = train_data
 
 # %%
 # --8<-- [start:quick_start_n2v]
-from careamics.careamist_v2 import CAREamistV2
-from careamics.config.ng_factories import create_n2v_config
+from careamics.careamist import CAREamist
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -25,18 +26,18 @@ config = create_n2v_config(
 )
 
 # instantiate a careamist
-careamist = CAREamistV2(config)
+careamist = CAREamist(config)
 
 # train the model
 careamist.train(train_data=train_data)  # (2)!
 
 # once trained, predict
-prediction = careamist.predict(pred_data=pred_data)
+predictions, sources = careamist.predict(pred_data=pred_data)
 # --8<-- [end:quick_start_n2v]
 
 # --8<-- [start:quick_start_care]
-from careamics.careamist_v2 import CAREamistV2
-from careamics.config.ng_factories import create_care_config
+from careamics.careamist import CAREamist
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -49,7 +50,7 @@ config = create_care_config(
 )
 
 # instantiate a careamist
-careamist = CAREamistV2(config)
+careamist = CAREamist(config)
 
 # train the model
 careamist.train(
@@ -60,5 +61,5 @@ careamist.train(
 )
 
 # once trained, predict
-prediction = careamist.predict(pred_data=pred_data)
+predictions, sources = careamist.predict(pred_data=pred_data)
 # --8<-- [end:quick_start_care]

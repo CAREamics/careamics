@@ -1,19 +1,20 @@
 """Utils module."""
 
 __all__ = [
-    "BaseEnum",
     "autocorrelation",
-    "check_path_exists",
+    "autocorrelation_stack",
     "cwd",
     "get_careamics_home",
+    "get_device",
     "get_logger",
     "get_ram_size",
+    "get_run_version",
 ]
 
 
-from .autocorrelation import autocorrelation
-from .base_enum import BaseEnum
+from .autocorrelation import autocorrelation, autocorrelation_stack
 from .context import cwd, get_careamics_home
+from .folder_versioning import get_run_version
+from .get_device import get_device
 from .logging import get_logger
-from .path_utils import check_path_exists
 from .ram import get_ram_size

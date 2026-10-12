@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import numpy as np
-from careamics.config.ng_factories import create_n2v_config, create_care_config
-from careamics.dataset_ng.factory import ReadFuncLoading
+from careamics.config import (
+    create_n2v_config,
+    create_care_config,
+)
 
 # create a configuration
 config_n2v = create_n2v_config(
@@ -11,6 +13,8 @@ config_n2v = create_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=1,
+    num_steps=1,
+    n_val_patches=2,
 )
 config_care = create_care_config(
     experiment_name="care",
@@ -19,6 +23,7 @@ config_care = create_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=1,
+    num_steps=1,
     n_val_patches=2,
 )
 config = config_n2v
@@ -34,17 +39,17 @@ read_func = None  # fake it
 
 # %%
 # --8<-- [start:careamist_from_cfg]
-from careamics.careamist_v2 import CAREamistV2
+from careamics.careamist import CAREamist
 
-careamist = CAREamistV2(config)  # (1)!
+careamist = CAREamist(config)  # (1)!
 
 # --8<-- [end:careamist_from_cfg]
 
 # %%
 # --8<-- [start:careamist_workdir]
-from careamics.careamist_v2 import CAREamistV2
+from careamics.careamist import CAREamist
 
-careamist = CAREamistV2(
+careamist = CAREamist(
     config,
     work_dir="path/to/work_dir",  # (1)!
 )
@@ -53,11 +58,11 @@ careamist = CAREamistV2(
 
 # %%
 # --8<-- [start:careamist_pb]
-careamist = CAREamistV2(config, enable_progress_bar=False)
+careamist = CAREamist(config, enable_progress_bar=False)
 
 # --8<-- [end:careamist_pb]
 
-from pytorch_lightning.callbacks import Callback
+from lightning.pytorch.callbacks import Callback
 
 
 class CustomCallback(Callback):
@@ -67,7 +72,7 @@ class CustomCallback(Callback):
 
 # %%
 # --8<-- [start:callbacks]
-from careamics.config.ng_factories import create_advanced_care_config
+from careamics.config import create_advanced_care_config
 
 config = create_advanced_care_config(
     experiment_name="care",
@@ -87,7 +92,7 @@ config.training_config.early_stopping_params = {  # (1)!
     "mode": "min",
 }
 
-careamist = CAREamistV2(
+careamist = CAREamist(
     config,  # (2)!
     callbacks=[
         CustomCallback(),  # (3)!
@@ -97,7 +102,7 @@ careamist = CAREamistV2(
 
 ############################################
 ################ Noise2Void ################
-careamist = CAREamistV2(config_n2v)
+careamist = CAREamist(config_n2v)
 # %%
 # --8<-- [start:train_n2v_no_val]
 careamist.train(train_data=train_data)  # (1)!
@@ -131,7 +136,7 @@ careamist.train(
 ############################################
 ################ CARE ######################
 
-careamist = CAREamistV2(config_care)
+careamist = CAREamist(config_care)
 # %%
 # --8<-- [start:train_care_no_val]
 careamist.train(
@@ -142,7 +147,7 @@ careamist.train(
 # --8<-- [end:train_care_no_val]
 
 
-careamist = CAREamistV2(config_care)
+careamist = CAREamist(config_care)
 # %%
 # --8<-- [start:train_care_val]
 careamist.train(

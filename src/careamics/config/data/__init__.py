@@ -2,23 +2,23 @@
 
 __all__ = [
     "DataConfig",
-    "MaskFilterConfig",
-    "MaxFilterConfig",
-    "MeanSTDFilterConfig",
+    "MaskPatchFilterConfig",
+    "MaxPatchFilterConfig",
     "MeanStdConfig",
+    "MeanStdPatchFilterConfig",
+    "MicroSplitDataConfig",
     "MinMaxConfig",
-    "NGDataConfig",
     "NoNormConfig",
     "NormalizationConfig",
     "QuantileConfig",
     "RandomPatchingConfig",
-    "ShannonFilterConfig",
+    "ShannonPatchFilterConfig",
     "TiledPatchingConfig",
     "WholePatchingConfig",
 ]
 
 from .data_config import DataConfig
-from .ng_data_config import NGDataConfig
+from .microsplit_data_config import MicroSplitDataConfig
 from .normalization_config import (
     MeanStdConfig,
     MinMaxConfig,
@@ -27,10 +27,10 @@ from .normalization_config import (
     QuantileConfig,
 )
 from .patch_filter import (
-    MaskFilterConfig,
-    MaxFilterConfig,
-    MeanSTDFilterConfig,
-    ShannonFilterConfig,
+    MaskPatchFilterConfig,
+    MaxPatchFilterConfig,
+    MeanStdPatchFilterConfig,
+    ShannonPatchFilterConfig,
 )
 from .patching_strategies import (
     RandomPatchingConfig,

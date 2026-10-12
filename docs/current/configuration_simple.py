@@ -2,7 +2,7 @@
 
 # %%
 # --8<-- [start:all_configs]
-from careamics.config.ng_factories import (
+from careamics.config import (
     create_n2v_config,
     create_care_config,
     create_n2n_config,
@@ -17,7 +17,7 @@ from careamics.config.ng_factories import (
 ################ Noise2Void ################
 # %%
 # --8<-- [start:config_n2v]
-from careamics.config.ng_factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -32,7 +32,7 @@ config = create_n2v_config(
 
 # %%
 # --8<-- [start:config_n2v_steps]
-from careamics.config.ng_factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -48,7 +48,7 @@ config = create_n2v_config(
 
 # %%
 # --8<-- [start:config_n2v_augs]
-from careamics.config.ng_factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -64,7 +64,7 @@ config = create_n2v_config(
 
 # %%
 # --8<-- [start:config_n2v_channels]
-from careamics.config.ng_factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -80,7 +80,7 @@ config = create_n2v_config(
 
 # %%
 # --8<-- [start:config_n2v_val]
-from careamics.config.ng_factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -99,7 +99,7 @@ config = create_n2v_config(
 ################# CARE/N2N #################
 # %%
 # --8<-- [start:config_care]
-from careamics.config.ng_factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -114,7 +114,7 @@ config = create_care_config(
 
 # %%
 # --8<-- [start:config_n2n]
-from careamics.config.ng_factories import create_n2n_config
+from careamics.config import create_n2n_config
 
 # create a configuration
 config = create_n2n_config(
@@ -129,7 +129,7 @@ config = create_n2n_config(
 
 # %%
 # --8<-- [start:config_care_steps]
-from careamics.config.ng_factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -145,7 +145,7 @@ config = create_care_config(
 
 # %%
 # --8<-- [start:config_care_augs]
-from careamics.config.ng_factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -161,7 +161,7 @@ config = create_care_config(
 
 # %%
 # --8<-- [start:config_care_channels]
-from careamics.config.ng_factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -172,13 +172,30 @@ config = create_care_config(
     batch_size=8,
     num_epochs=30,
     n_channels_in=3,  # (2)!
-    n_channels_out=2,
 )
 # --8<-- [end:config_care_channels]
 
 # %%
+# --8<-- [start:config_care_out_channels]
+from careamics.config import create_care_config
+
+# create a configuration
+config = create_care_config(
+    experiment_name="care_training",
+    data_type="array",
+    axes="CYX",
+    target_axes="YXC",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    n_channels_in=3,
+    n_channels_out=2,  # (2)!
+)
+# --8<-- [end:config_care_out_channels]
+
+# %%
 # --8<-- [start:config_care_val]
-from careamics.config.ng_factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -191,3 +208,21 @@ config = create_care_config(
     n_val_patches=15,  # (1)!
 )
 # --8<-- [end:config_care_val]
+
+
+# %%
+# --8<-- [start:target_axes]
+from careamics.config import create_care_config
+
+# create a configuration
+config = create_care_config(
+    experiment_name="care_training",
+    data_type="array",
+    axes="CYX",
+    target_axes="YX",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    n_channels_in=3,  # (2)!
+)
+# --8<-- [end:target_axes]

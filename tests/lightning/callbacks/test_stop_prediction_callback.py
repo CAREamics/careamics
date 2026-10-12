@@ -1,7 +1,7 @@
 """Test StopPredictionCallback."""
 
 import pytest
-from pytorch_lightning import Trainer
+from lightning.pytorch import Trainer
 
 from careamics.lightning.callbacks import (
     PredictionStoppedException,
