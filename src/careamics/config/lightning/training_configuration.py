@@ -62,7 +62,7 @@ class SelfSupervisedCheckpointing:
 
 
 def default_training_dict(
-    algorithm: Literal["care", "n2n", "n2v"],
+    algorithm: Literal["care", "n2n", "n2v", "pn2v"],
     trainer_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     checkpoint_params: dict[str, Any] | None = None,
@@ -77,7 +77,7 @@ def default_training_dict(
 
     Parameters
     ----------
-    algorithm : {"care", "n2n", "n2v"}
+    algorithm : {"care", "n2n", "n2v", "pn2v"}
         Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict, optional
         Parameters for Lightning Trainer class, by default None.

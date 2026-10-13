@@ -14,6 +14,7 @@ from careamics.config.algorithms import (
     CAREAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
 )
 from careamics.config.data import DataConfig
 from careamics.config.lightning.training_configuration import (
@@ -24,7 +25,13 @@ from careamics.models import (
     get_model_constraints,
 )
 
-AlgorithmConfig = TypeVar("AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm)
+AlgorithmConfig = TypeVar(
+    "AlgorithmConfig",
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    PN2VAlgorithm,
+)
 
 
 class Configuration(BaseModel, Generic[AlgorithmConfig]):
