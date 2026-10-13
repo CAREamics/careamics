@@ -9,7 +9,7 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from numpy.typing import NDArray
 
-from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, PN2VAlgorithm
 from .config.configuration import Configuration
 from .config.support import SupportedAlgorithm, SupportedLogger
 from .config.utils.configuration_io import load_configuration
@@ -49,6 +49,7 @@ ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | Configuration[PN2VAlgorithm]
 )
 
 
@@ -550,6 +551,7 @@ class CAREamist:
         if self.config.algorithm_config.algorithm in [
             SupportedAlgorithm.N2V,
             SupportedAlgorithm.N2N,
+            SupportedAlgorithm.PN2V,
         ]:
             if checkpoint == "best":
                 raise ValueError(
