@@ -320,7 +320,13 @@ class GaussianMixtureNoiseModel(nn.Module):
         if config.path is not None:
             params = np.load(config.path)
         else:
-            params = config.model_dump(exclude_none=True)
+            params = {
+                "min_sigma": config.min_sigma,
+                "min_signal": config.min_signal,
+                "max_signal": config.max_signal,
+                "n_gaussian": config.n_gaussian,
+                "n_coeff": config.n_coeff,
+            }
 
         min_sigma = torch.tensor(params["min_sigma"])
         min_signal = torch.tensor(params["min_signal"])
@@ -330,10 +336,14 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.register_buffer("min_sigma", min_sigma)
         self.register_buffer("tolerance", torch.tensor([1e-10]))
 
-        if "trained_weight" in params:
-            weight = torch.tensor(params["trained_weight"])
-        elif "weight" in params and params["weight"] is not None:
-            weight = torch.tensor(params["weight"])
+        # Use config.weight directly. model_dump() runs the Array serializer and
+        # turns the numpy weights into a JSON string.
+        if config.path is not None and "trained_weight" in params:
+            weight = torch.tensor(params["trained_weight"], dtype=torch.float32)
+        elif config.path is not None and "weight" in params:
+            weight = torch.tensor(params["weight"], dtype=torch.float32)
+        elif config.weight is not None:
+            weight = torch.as_tensor(np.asarray(config.weight), dtype=torch.float32)
         else:
             weight = self._initialize_weights(
                 params["n_gaussian"], params["n_coeff"], max_signal, min_signal
@@ -663,23 +673,51 @@ class GaussianMixtureNoiseModel(nn.Module):
         return train_losses
 
     def sample_observation_from_signal(self, signal: NDArray) -> NDArray:
-        """
-        Sample an instance of observation based on an input signal using a
-        learned Gaussian Mixture Model. For each pixel in the input signal,
-        samples a corresponding noisy pixel.
+        """Sample noisy observations from the learned noise model.
+
+        For each pixel in the input signal, samples a corresponding noisy pixel
+        from the Gaussian mixture. Arrays with more than two dimensions are sampled
+        independently on each 2D slice.
 
         Parameters
         ----------
-        signal: numpy array
-            Clean 2D signal data.
+        signal : NDArray
+            Clean signal data. Can be 2D ``(Y, X)`` or a stack of 2D images.
 
         Returns
         -------
-        observation: numpy array
-            An instance of noisy observation data based on the input signal.
-        """
-        assert len(signal.shape) == 2, "Only 2D inputs are supported."
+        NDArray
+            Sampled noisy observation with the same shape as ``signal``.
 
+        Raises
+        ------
+        ValueError
+            If ``signal`` has fewer than two dimensions.
+        """
+        if signal.ndim < 2:
+            raise ValueError(f"Signal must be at least 2D, got {signal.ndim}D")
+
+        if signal.ndim == 2:
+            return self._sample_2d(signal)
+
+        original_shape = signal.shape
+        flat_signal = signal.reshape(-1, *signal.shape[-2:])
+        samples = np.stack([self._sample_2d(s) for s in flat_signal], axis=0)
+        return samples.reshape(original_shape)
+
+    def _sample_2d(self, signal: NDArray) -> NDArray:
+        """Sample a noisy observation for one 2D image.
+
+        Parameters
+        ----------
+        signal : NDArray
+            Clean 2D signal, shape ``(Y, X)``.
+
+        Returns
+        -------
+        NDArray
+            Sampled observation, shape ``(Y, X)``.
+        """
         signal_tensor = torch.from_numpy(signal).to(torch.float32)
         height, width = signal_tensor.shape
 
@@ -719,7 +757,7 @@ class GaussianMixtureNoiseModel(nn.Module):
                 )
         return observation
 
-    def save(self, path: str, name: str) -> None:
+    def save(self, path: str, name: str, channel_index: int | None = None) -> None:
         """Save the trained parameters on the noise model.
 
         Parameters
@@ -728,13 +766,18 @@ class GaussianMixtureNoiseModel(nn.Module):
             Path to save the trained parameters.
         name : str
             File name to save the trained parameters.
+        channel_index : int or None, default=None
+            Data channel this model was trained on. Stored in the ``.npz`` file when
+            provided so channel order can be checked on load.
         """
         os.makedirs(path, exist_ok=True)
-        np.savez(
-            os.path.join(path, name),
-            trained_weight=self.weight.numpy(),
-            min_signal=self.min_signal.numpy(),
-            max_signal=self.max_signal.numpy(),
-            min_sigma=self.min_sigma,
-        )
+        save_kwargs: dict = {
+            "trained_weight": self.weight.numpy(),
+            "min_signal": self.min_signal.numpy(),
+            "max_signal": self.max_signal.numpy(),
+            "min_sigma": self.min_sigma,
+        }
+        if channel_index is not None:
+            save_kwargs["channel_index"] = np.array(channel_index)
+        np.savez(os.path.join(path, name), **save_kwargs)
         print("The trained parameters (" + name + ") is saved at location: " + path)
