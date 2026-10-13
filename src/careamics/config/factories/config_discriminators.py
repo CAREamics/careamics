@@ -6,12 +6,16 @@ from pydantic import Discriminator, Tag, TypeAdapter
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
+    HDNAlgorithm,
+    MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
     PN2VAlgorithm,
 )
 from careamics.config.configuration import Configuration
 from careamics.config.data.normalization_config import NormalizationConfig
+from careamics.config.hdn_configuration import HDNConfiguration
+from careamics.config.microsplit_configuration import MicroSplitConfiguration
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.pn2v_configuration import PN2VConfiguration
 from careamics.config.support import SupportedAlgorithm
@@ -66,6 +70,8 @@ Config = Annotated[
         Annotated[PN2VConfiguration, Tag(SupportedAlgorithm.PN2V)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
         Annotated[Configuration, Tag(SupportedAlgorithm.N2N)],
+        Annotated[HDNConfiguration, Tag(SupportedAlgorithm.HDN)],
+        Annotated[MicroSplitConfiguration, Tag(SupportedAlgorithm.MICROSPLIT)],
     ],
     Discriminator(_config_discriminator),
 ]
@@ -76,6 +82,8 @@ AlgorithmConfig = Annotated[
         Annotated[PN2VAlgorithm, Tag(SupportedAlgorithm.PN2V)],
         Annotated[CAREAlgorithm, Tag(SupportedAlgorithm.CARE)],
         Annotated[N2NAlgorithm, Tag(SupportedAlgorithm.N2N)],
+        Annotated[HDNAlgorithm, Tag(SupportedAlgorithm.HDN)],
+        Annotated[MicroSplitAlgorithm, Tag(SupportedAlgorithm.MICROSPLIT)],
     ],
     Discriminator(_algo_discriminator),
 ]

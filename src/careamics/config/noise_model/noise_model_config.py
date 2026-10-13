@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Annotated, Literal, Self, Union
 
 import numpy as np
-import torch
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -20,7 +19,7 @@ from .serializers import array_to_json, to_numpy
 # in pydantic models. Specifically, the aim is to enable saving and loading configs
 # with such arrays to/from JSON files during, resp., training and evaluation.
 Array = Annotated[
-    Union[np.ndarray, torch.Tensor],
+    np.ndarray,
     PlainSerializer(array_to_json, return_type=str),
     PlainValidator(to_numpy),
 ]
@@ -31,29 +30,23 @@ and deserialize them back to arrays."""
 # TODO: add histogram-based noise model
 
 
+# TODO I rogued added the following changes:
+# - removed torch.Tensor as a type for the weights
+# - removed the ConfigDict options `protected_namespace=()` and `extra="allow"`
 class GaussianMixtureNMConfig(BaseModel):
-    """Gaussian mixture noise model."""
+    """Gaussian mixture noise model configuration.
+
+    Weights can be loaded from a previously saved `.npz` file using the
+    `from_npz` classmethod, which populates the `weight`, `min_signal`,
+    `max_signal`, and `min_sigma` fields directly.
+    """
 
     model_config = ConfigDict(
-        protected_namespaces=(),
         validate_assignment=True,
         arbitrary_types_allowed=True,
-        extra="allow",
     )
-    # model type
+
     model_type: Literal["GaussianMixtureNoiseModel"] = "GaussianMixtureNoiseModel"
-
-    path: Union[Path, str] | None = None
-    """Path to the directory where the trained noise model (*.npz) is saved in the
-    `train` method."""
-
-    # TODO remove and use as parameters to the NM functions?
-    signal: Union[str, Path, np.ndarray] | None = Field(default=None, exclude=True)
-    """Path to the file containing signal or respective numpy array."""
-
-    # TODO remove and use as parameters to the NM functions?
-    observation: Union[str, Path, np.ndarray] | None = Field(default=None, exclude=True)
-    """Path to the file containing observation or respective numpy array."""
 
     weight: Array | None = None
     """A [3*n_gaussian, n_coeff] sized array containing the values of the weights
@@ -80,7 +73,7 @@ class GaussianMixtureNMConfig(BaseModel):
     max_signal: float = Field(default=1.0, ge=0.0)
     """Maximum signal intensity expected in the image."""
 
-    min_sigma: float = Field(default=125.0, ge=0.0)  # TODO took from nb in pn2v
+    min_sigma: float = Field(default=200.0, ge=0.0)
     """Minimum value of `standard deviation` allowed in the GMM.
     All values of `standard deviation` below this are clamped to this value."""
 
@@ -88,10 +81,8 @@ class GaussianMixtureNMConfig(BaseModel):
     """Tolerance used in the computation of the noise model likelihood."""
 
     channel_index: int | None = Field(default=None, ge=0)
-    """Data channel this noise model was trained on.
-
-    Used to validate channel ordering when several models are combined.
-    """
+    """The data channel index this noise model was trained on.
+    Used to validate channel ordering when attaching to a multi-channel model."""
 
     @classmethod
     def from_npz(cls, path: Union[str, Path]) -> "GaussianMixtureNMConfig":
@@ -133,54 +124,6 @@ class GaussianMixtureNMConfig(BaseModel):
             channel_index=channel_index,
         )
 
-    @model_validator(mode="after")
-    def validate_path(self: Self) -> Self:
-        """Validate that the path points to a valid .npz file if provided.
-
-        Returns
-        -------
-        Self
-            Returns itself.
-
-        Raises
-        ------
-        ValueError
-            If the path is provided but does not point to a valid .npz file.
-        """
-        if self.path is not None:
-            path = Path(self.path)
-            if not path.exists():
-                raise ValueError(f"Path {path} does not exist.")
-            if path.suffix != ".npz":
-                raise ValueError(f"Path {path} must point to a .npz file.")
-            if not path.is_file():
-                raise ValueError(f"Path {path} must point to a file.")
-        return self
-
-    # @model_validator(mode="after")
-    # def validate_path_to_pretrained_vs_training_data(self: Self) -> Self:
-    #     """Validate paths provided in the config.
-
-    #     Returns
-    #     -------
-    #     Self
-    #         Returns itself.
-    #     """
-    #     if self.path and (self.signal is not None or self.observation is not None):
-    #         raise ValueError(
-    #             "Either only 'path' to pre-trained noise model should be"
-    #             "provided or only signal and observation in form of paths"
-    #             "or numpy arrays."
-    #         )
-    #     if not self.path and (self.signal is None or self.observation is None):
-    #         raise ValueError(
-    #             "Either only 'path' to pre-trained noise model should be"
-    #             "provided or only signal and observation in form of paths"
-    #             "or numpy arrays."
-    #         )
-    #     return self
-    # TODO revisit validation
-
 
 # The noise model is given by a set of GMMs, one for each target
 # e.g., 2 target channels, 2 noise models
@@ -189,32 +132,26 @@ class MultiChannelNMConfig(BaseModel):
 
     When `channel_indices` is provided it must agree with the `channel_index`
     stored on each contained `GaussianMixtureNMConfig` (when that field is set),
-    and its length must equal the number of noise models.
+    and its length must equal the number of noise models.  This enables
+    detecting channel-order swaps before training.
     """
 
-    # TODO: check that this model config is OK
-    model_config = ConfigDict(
-        validate_assignment=True, arbitrary_types_allowed=True, extra="allow"
-    )
+    model_config = ConfigDict(validate_assignment=True)
     noise_models: list[GaussianMixtureNMConfig]
     """List of noise models, one for each target channel."""
 
     channel_indices: list[int] | None = None
-    """Data channel index for each noise model. `None` keeps list order."""
+    """Ordered list of data channel indices, noise_models[i] was trained on
+    channel channel_indices[i].  When None the natural list order is assumed."""
 
     @model_validator(mode="after")
     def _validate_channel_order(self) -> Self:
-        """Validate length and consistency of ``channel_indices``.
+        """Validate length/content and consistency of ``channel_indices``.
 
         Returns
         -------
         Self
             Validated model instance.
-
-        Raises
-        ------
-        ValueError
-            If ``channel_indices`` does not match the contained noise models.
         """
         if self.channel_indices is not None:
             if len(self.channel_indices) != len(self.noise_models):

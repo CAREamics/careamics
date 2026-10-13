@@ -8,15 +8,7 @@ import torch
 from careamics.config.configuration import AlgorithmConfig, Configuration
 from careamics.config.factories.config_discriminators import instantiate_config
 from careamics.config.support import SupportedAlgorithm
-from careamics.lightning.modules import (
-    CAREModule,
-    N2VModule,
-    PN2VModule,
-    get_module_cls,
-)
-
-CAREamicsModuleCls = type[N2VModule] | type[CAREModule] | type[PN2VModule]
-CAREamicsModule = N2VModule | CAREModule | PN2VModule
+from careamics.lightning.modules import CAREamicsModule, get_module_cls
 
 
 def load_module_from_checkpoint(checkpoint_path: Path) -> CAREamicsModule:
