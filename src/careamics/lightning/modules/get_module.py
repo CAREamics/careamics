@@ -2,6 +2,7 @@
 
 from careamics.config import (
     CAREAlgorithm,
+    COSDDAlgorithm,
     HDNAlgorithm,
     MicroSplitAlgorithm,
     N2NAlgorithm,
@@ -11,15 +12,22 @@ from careamics.config.algorithms.unet_algorithm_config import UNetBasedAlgorithm
 from careamics.config.support import SupportedAlgorithm
 
 from .care_module import CAREModule
+from .cosdd_module import COSDDModule
 from .hdn_module import HDNModule
 from .microsplit_module import MicroSplitModule
 from .n2v_module import N2VModule
 
 CAREamicsModuleCls = (
-    type[N2VModule] | type[CAREModule] | type[HDNModule] | type[MicroSplitModule]
+    type[N2VModule]
+    | type[CAREModule]
+    | type[HDNModule]
+    | type[MicroSplitModule]
+    | type[COSDDModule]
 )
-CAREamicsModule = N2VModule | CAREModule | HDNModule | MicroSplitModule
-CAREamicsAlgorithm = UNetBasedAlgorithm | HDNAlgorithm | MicroSplitAlgorithm
+CAREamicsModule = N2VModule | CAREModule | HDNModule | MicroSplitModule | COSDDModule
+CAREamicsAlgorithm = (
+    UNetBasedAlgorithm | HDNAlgorithm | MicroSplitAlgorithm | COSDDAlgorithm
+)
 
 
 def create_module(algorithm_config: CAREamicsAlgorithm) -> CAREamicsModule:
@@ -28,7 +36,7 @@ def create_module(algorithm_config: CAREamicsAlgorithm) -> CAREamicsModule:
 
     Parameters
     ----------
-    algorithm_config : UNetBasedAlgorithm, HDNAlgorithm or MicroSplitAlgorithm
+    algorithm_config : CAREamicsAlgorithm
         The pydantic model with algorithm specific parameters.
 
     Returns
@@ -49,6 +57,8 @@ def create_module(algorithm_config: CAREamicsAlgorithm) -> CAREamicsModule:
         return HDNModule(algorithm_config)
     elif isinstance(algorithm_config, MicroSplitAlgorithm):
         return MicroSplitModule(algorithm_config)
+    elif isinstance(algorithm_config, COSDDAlgorithm):
+        return COSDDModule(algorithm_config)
     else:
         algorithm = algorithm_config.algorithm
         raise NotImplementedError(
@@ -85,6 +95,8 @@ def get_module_cls(algorithm: SupportedAlgorithm) -> CAREamicsModuleCls:
             return HDNModule
         case SupportedAlgorithm.MICROSPLIT:
             return MicroSplitModule
+        case SupportedAlgorithm.COSDD:
+            return COSDDModule
         case _:
             raise NotImplementedError(
                 f"Support for {algorithm.value} has not been implemented yet."
