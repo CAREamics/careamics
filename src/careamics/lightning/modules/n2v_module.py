@@ -153,7 +153,7 @@ class N2VModule(L.LightningModule):
         )
         # log predicted images
         if isinstance(self.logger, CoLogger):
-            n_samples = 5
+            n_samples = min(5, x_data.shape[0])
             self.logger.log_images(  # type: ignore
                 key="Input",
                 images=x_masked[:n_samples],
