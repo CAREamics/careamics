@@ -1,7 +1,6 @@
 """COSDD signal decoder.
 
-Ported from the COSDD reference implementation
-(https://github.com/krulllab/COSDD, `models/s_decoder.py`), MIT License,
+Ported from (https://github.com/krulllab/COSDD, `models/s_decoder.py`), MIT License,
 Copyright (c) 2023 krulllab.
 """
 

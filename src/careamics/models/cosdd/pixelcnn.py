@@ -1,7 +1,6 @@
 """COSDD autoregressive noise decoder.
 
-Ported from the COSDD reference implementation
-(https://github.com/krulllab/COSDD, `models/pixelcnn.py`), MIT License,
+Ported from (https://github.com/krulllab/COSDD, `models/pixelcnn.py`), MIT License,
 Copyright (c) 2023 krulllab.
 """
 
