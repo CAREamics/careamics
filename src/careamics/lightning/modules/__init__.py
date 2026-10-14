@@ -1,6 +1,7 @@
 """CAREamics PyTorch Lightning modules."""
 
 from .care_module import CAREModule
+from .cosdd_module import COSDDModule
 from .get_module import (
     CAREamicsAlgorithm,
     CAREamicsModule,
@@ -15,6 +16,7 @@ __all__ = [
     "CAREModule",
     "CAREamicsAlgorithm",
     "CAREamicsModule",
+    "COSDDModule",
     "HDNModule",
     "MicroSplitModule",
     "N2VModule",
