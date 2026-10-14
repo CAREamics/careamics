@@ -6,7 +6,10 @@ import tifffile
 from numpy.typing import NDArray
 
 from careamics.careamist import CAREamist
-from careamics.config.factories import create_advanced_n2v_config
+from careamics.config.factories import (
+    create_advanced_cosdd_config,
+    create_advanced_n2v_config,
+)
 from careamics.config.factories.hdn_factory import create_hdn_config
 
 
@@ -425,3 +428,74 @@ def test_predict_hdn_returns_uncertainty_tiled(tmp_path: Path):
     assert predicted[0].shape == (1, 128, 128)
     assert uncertainty[0].shape == predicted[0].shape
     assert np.all(uncertainty[0] > 0)
+
+
+def _train_cosdd(tmp_path: Path, train_array: NDArray, **kwargs) -> CAREamist:
+    """Train a small COSDD model for one epoch."""
+    config = create_advanced_cosdd_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SYX",
+        patch_size=(16, 16),
+        batch_size=2,
+        num_epochs=1,
+        num_workers=0,
+        model_params={"s_code_channels": 8, "n_layers": 2, "checkpointed": False},
+        **kwargs,
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array, val_data=train_array)
+    return careamist
+
+
+@pytest.mark.mps_gh_fail
+def test_predict_cosdd(tmp_path: Path):
+    """COSDD predicts with its direct denoiser or by averaging samples."""
+    train_array = random_array((2, 32, 32), seed=42)
+    careamist = _train_cosdd(tmp_path, train_array)
+
+    # direct denoiser, deterministic
+    predicted, _ = careamist.predict(train_array)
+    predicted_again, _ = careamist.predict(train_array)
+    assert predicted[0].shape == (2, 32, 32)
+    np.testing.assert_array_equal(predicted[0], predicted_again[0])
+
+    # average of samples, with their spread as uncertainty
+    predicted, uncertainty, _ = careamist.predict(train_array, n_predictions=3)
+    assert predicted[0].shape == (2, 32, 32)
+    assert uncertainty[0].shape == predicted[0].shape
+    assert np.all(uncertainty[0] > 0)
+
+    # tiled prediction
+    predicted, uncertainty, _ = careamist.predict(
+        train_array, tile_size=(16, 16), tile_overlap=(4, 4), n_predictions=3
+    )
+    assert predicted[0].shape == (2, 32, 32)
+    assert uncertainty[0].shape == predicted[0].shape
+
+
+@pytest.mark.mps_gh_fail
+def test_predict_cosdd_without_direct_denoiser(tmp_path: Path):
+    """COSDD without direct denoiser predicts by sampling."""
+    train_array = random_array((2, 32, 32), seed=42)
+    careamist = _train_cosdd(tmp_path, train_array, use_direct_denoiser=False)
+
+    predicted, _ = careamist.predict(train_array)
+    predicted_again, _ = careamist.predict(train_array)
+    assert predicted[0].shape == (2, 32, 32)
+    assert not np.array_equal(predicted[0], predicted_again[0])
+
+
+@pytest.mark.mps_gh_fail
+def test_predict_cosdd_from_checkpoint(tmp_path: Path):
+    """COSDD can be reloaded from a checkpoint to predict."""
+    train_array = random_array((2, 32, 32), seed=42)
+    careamist = _train_cosdd(tmp_path, train_array)
+    predicted, _ = careamist.predict(train_array, checkpoint="last")
+
+    reloaded = CAREamist(
+        checkpoint_path=careamist.get_checkpoints()[-1], work_dir=tmp_path
+    )
+    predicted_reloaded, _ = reloaded.predict(train_array)
+
+    np.testing.assert_allclose(predicted_reloaded[0], predicted[0], rtol=1e-5)
