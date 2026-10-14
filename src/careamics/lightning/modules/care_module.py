@@ -168,7 +168,7 @@ class CAREModule(L.LightningModule):
             self, val_loss, batch_size=x.data.shape[0], metrics=self.metrics
         )
         # log predicted images
-        if isinstance(self.logger, CoLogger):
+        if batch_idx == 0 and isinstance(self.logger, CoLogger):
             n_samples = min(5, x.data.shape[0])
             self.logger.log_images(  # type: ignore
                 key="Target",
