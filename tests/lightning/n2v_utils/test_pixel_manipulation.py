@@ -79,14 +79,12 @@ def test_uniform_manipulate_torch(ordered_array, shape):
         patch, mask_pixel_percentage=10, subpatch_size=5, rng=rng
     )
 
-    # Find pixels that have different values between patch and transformed patch
-    diff_coords = torch.nonzero(patch != transform_patch, as_tuple=False).T
-
     # Find non-zero pixels in the mask
     mask_coords = torch.nonzero(mask == 1, as_tuple=False).T
 
-    # Check that the transformed pixels correspond to the masked pixels
-    assert torch.equal(diff_coords, mask_coords)
+    # Check that every transformed pixel is masked (a masked pixel can keep its value,
+    # e.g. when the clamped replacement coordinate falls back onto the center)
+    assert mask[patch != transform_patch].all()
 
     # For each pixel masked, check that the manipulated pixel value is within the ROI
     for i in range(mask_coords.shape[-1]):
@@ -135,16 +133,14 @@ def test_median_manipulate_torch(ordered_array, shape, apply_struct: bool):
         rng=rng,
     )
 
-    # Find pixels that have different values between patch and transformed patch
-    diff_coords = torch.nonzero(patch != transform_patch, as_tuple=False).T
-
     # Find non-zero pixels in the mask
     mask_coords = torch.nonzero(mask == 1, as_tuple=False).T
 
     # more than just the masked pixels are changed with structN2V
     if struct_params is None:
-        # Check that the transformed pixels correspond to the masked pixels
-        assert torch.equal(diff_coords, mask_coords)
+        # Check that every transformed pixel is masked (a masked pixel can keep its
+        # value if the median equals it)
+        assert mask[patch != transform_patch].all()
 
     # For each pixel masked, check that the manipulated pixel value is within the ROI
     for i in range(mask_coords.shape[-1]):
@@ -172,6 +168,40 @@ def test_median_manipulate_torch(ordered_array, shape, apply_struct: bool):
         if roi.numel() == subpatch_size**2 - 1:
             roi = roi[roi_mask]
             assert torch.equal(transform_patch[tuple(coords)], torch.median(roi))
+
+
+@pytest.mark.parametrize("manipulate", [uniform_manipulate, median_manipulate])
+@pytest.mark.parametrize("shape", [(4, 16, 16), (4, 8, 16, 16)], ids=["2D", "3D"])
+def test_mask_keeps_unchanged_selected_pixels(manipulate, shape):
+    """Test that selected pixels stay in the mask when their value is unchanged.
+
+    On a constant patch, the replacement value always equals the original one. The
+    mask must nonetheless mark every selected pixel, see #1110.
+    """
+    seed = 42
+    mask_pixel_percentage = 10
+    patch = torch.zeros(shape)
+
+    transform_patch, mask = manipulate(
+        patch,
+        mask_pixel_percentage=mask_pixel_percentage,
+        subpatch_size=5,
+        rng=torch.Generator().manual_seed(seed),
+    )
+
+    # nothing can change on a constant patch
+    assert torch.equal(transform_patch, patch)
+
+    # the selected coordinates are the first draw from the generator, they can
+    # contain duplicates
+    expected_coords = _get_stratified_coords(
+        mask_pixel_percentage, shape, torch.Generator().manual_seed(seed)
+    )
+    expected_mask = torch.zeros(shape, dtype=torch.uint8)
+    expected_mask[tuple(expected_coords.T)] = 1
+
+    assert expected_mask.sum() > 0
+    assert torch.equal(mask, expected_mask)
 
 
 @pytest.mark.parametrize(
