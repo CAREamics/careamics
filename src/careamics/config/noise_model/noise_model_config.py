@@ -67,8 +67,13 @@ class GaussianMixtureNMConfig(BaseModel):
     parameters and the signal. 2 implies a linear relationship, 3 implies a quadratic
     relationship and so on."""
 
-    min_signal: float = Field(default=0.0, ge=0.0)
-    """Minimum signal intensity expected in the image."""
+    min_signal: float = Field(default=0.0)
+    """Minimum signal intensity expected in the image.
+
+    May be negative: it is only the lower end of the linear signal normalisation
+    `(signal - min_signal) / (max_signal - min_signal)`. Noise models fitted on an
+    N2V signal estimate inherit its undershoot below zero (e.g. the published
+    HT_H24 model `2408/0` has `min_signal = -278.15`)."""
 
     max_signal: float = Field(default=1.0, ge=0.0)
     """Maximum signal intensity expected in the image."""
@@ -83,6 +88,27 @@ class GaussianMixtureNMConfig(BaseModel):
     channel_index: int | None = Field(default=None, ge=0)
     """The data channel index this noise model was trained on.
     Used to validate channel ordering when attaching to a multi-channel model."""
+
+    @model_validator(mode="after")
+    def _validate_signal_range(self) -> Self:
+        """Validate that the signal range is non-empty.
+
+        Returns
+        -------
+        Self
+            Validated model instance.
+
+        Raises
+        ------
+        ValueError
+            If `max_signal` is not strictly greater than `min_signal`.
+        """
+        if self.max_signal <= self.min_signal:
+            raise ValueError(
+                f"max_signal ({self.max_signal}) must be greater than "
+                f"min_signal ({self.min_signal})."
+            )
+        return self
 
     @classmethod
     def from_npz(cls, path: Union[str, Path]) -> "GaussianMixtureNMConfig":

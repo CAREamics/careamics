@@ -291,8 +291,10 @@ def uniform_manipulate(
     replacement_pixels = patch[tuple(replacement_coords.T)]
     transformed_patch[tuple(subpatch_centers.T)] = replacement_pixels
 
-    # create a mask representing the masked pixels
-    mask = (transformed_patch != patch).to(dtype=torch.uint8)
+    # mark the selected pixels, not the changed ones: a replacement equal to the
+    # original value must stay in the loss (juglab/n2v, PPN2V)
+    mask = torch.zeros_like(patch, dtype=torch.uint8)
+    mask[tuple(subpatch_centers.T)] = 1
 
     # apply structN2V mask if needed
     if struct_params is not None:
@@ -379,7 +381,9 @@ def median_manipulate(
     # Update the output tensor with medians
     output_batch = batch.clone()
     output_batch[tuple(subpatch_center_coordinates.T)] = medians
-    mask = (batch != output_batch).to(torch.uint8)
+    # mark the selected pixels, not the changed ones (see uniform_manipulate)
+    mask = torch.zeros_like(batch, dtype=torch.uint8)
+    mask[tuple(subpatch_center_coordinates.T)] = 1
 
     if struct_params is not None:
         output_batch = _apply_struct_mask(

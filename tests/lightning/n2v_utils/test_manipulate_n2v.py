@@ -29,9 +29,9 @@ def test_manipulate_n2v(strategy):
     # Assert that the difference between the original and transformed patch are the
     # same pixels that are selected by the mask
     tr_patch, orig_patch, mask = augmented
-    diff_coords = torch.nonzero(tr_patch != orig_patch, as_tuple=False).T
-    mask_coords = torch.nonzero(mask == 1, as_tuple=False).T
-    assert torch.equal(diff_coords, mask_coords)
+    # (changed pixels are a subset of the mask: a selected pixel may keep its value)
+    assert bool(mask[tr_patch != orig_patch].all())
+    assert mask.sum() > 0
 
 
 def test_manipulate_n2v_with_seed():

@@ -12,14 +12,12 @@ from careamics.config.lightning.optimizer_configs import (
     OptimizerConfig,
 )
 from careamics.config.losses.loss_config import HDNLossConfig
-from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.config.validators import (
     lvae_conv_strides_valid,
     lvae_depth_valid,
     lvae_spatial_shape_valid,
     model_with_single_output_channel,
     model_without_multiscale,
-    noise_models_match_output_channels,
     predict_logvar_consistent,
 )
 
@@ -58,8 +56,6 @@ class HDNAlgorithm(BaseModel):
         AfterValidator(lvae_spatial_shape_valid),
         AfterValidator(lvae_depth_valid),
     ]
-
-    noise_model: MultiChannelNMConfig | None = None
 
     # overwrite default optimizer
     optimizer: OptimizerConfig = OptimizerConfig(name="Adamax")

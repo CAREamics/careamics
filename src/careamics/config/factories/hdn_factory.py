@@ -12,7 +12,6 @@ from careamics.config.lightning.optimizer_configs import (
     OptimizerConfig,
 )
 from careamics.config.losses.loss_config import HDNLossConfig
-from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
 from .data_factory import create_data_configuration, list_spatial_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
@@ -34,8 +33,10 @@ def create_hdn_config(
 ) -> HDNConfiguration:
     """Create a configuration for training HDN.
 
-    The reconstruction likelihood is selected from `noise_model`: pass one to use the
-    noise model likelihood, omit it to learn a Gaussian likelihood (DivNoising).
+    The reconstruction likelihood is selected by `use_noise_model`: set it to use the
+    noise model likelihood, leave it `False` to learn a Gaussian likelihood
+    (DivNoising). The noise model itself is supplied at training time via
+    `CAREamist.train(noise_model=...)` / `HDNModule.set_noise_model`, not here.
 
     See `create_advanced_hdn_config` for more parameters.
 
@@ -114,8 +115,9 @@ def create_advanced_hdn_config(
 ) -> HDNConfiguration:
     """Create an advanced configuration for training HDN.
 
-    `predict_logvar` is derived from `noise_model`: it is enabled when no noise model
-    is provided (DivNoising Gaussian likelihood) and disabled otherwise.
+    `predict_logvar` is derived from `use_noise_model`: it is enabled when no noise
+    model is used (DivNoising Gaussian likelihood) and disabled otherwise. The noise
+    model itself is supplied at training time, not through the configuration.
 
     Parameters
     ----------
