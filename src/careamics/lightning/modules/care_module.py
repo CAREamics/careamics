@@ -14,6 +14,7 @@ from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.config.support import SupportedLoss
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
+from careamics.lightning.logger import CoLogger
 from careamics.metrics import SIPSNR
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
@@ -166,6 +167,21 @@ class CAREModule(L.LightningModule):
         log_validation_stats(
             self, val_loss, batch_size=x.data.shape[0], metrics=self.metrics
         )
+        # log predicted images
+        if batch_idx == 0 and isinstance(self.logger, CoLogger):
+            n_samples = min(5, x.data.shape[0])
+            self.logger.log_images(  # type: ignore
+                key="Target",
+                images=target.data[:n_samples],
+                step=self.global_step,
+                captions=["Target images"] * n_samples,
+            )
+            self.logger.log_images(  # type: ignore
+                key="Prediction",
+                images=prediction[:n_samples],
+                step=self.global_step,
+                captions=["Predicted images"] * n_samples,
+            )
 
     def predict_step(
         self,
