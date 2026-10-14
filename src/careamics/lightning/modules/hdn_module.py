@@ -24,7 +24,6 @@ from careamics.utils.logging import get_logger
 
 from .module_utils import (
     check_noise_model_channels,
-    compile_model_if_requested,
     configure_optimizers,
     load_noise_model_from_checkpoint,
     log_training_stats,

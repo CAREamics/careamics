@@ -35,37 +35,59 @@ import tifffile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import msplit_common as P  # noqa: E402
-from careamics.lvae_training.dataset.utils.data_utils import get_datasplit_tuples  # noqa: E402
+from careamics.lvae_training.dataset.utils.data_utils import (
+    get_datasplit_tuples,
+)  # noqa: E402
 
-HERE = P.PAPER_ROOT / "chicago_sch23"   # bundle folder: ckpts, noise models, run outputs
+HERE = P.PAPER_ROOT / "chicago_sch23"  # bundle folder: ckpts, noise models, run outputs
 
 # --- bundled runs (disentangle 2406/D18-M3-S0-L8/0, 2501/D18-M3-S0-L8/1, /3) ----
 AXES = "SCYX"
 PATCH_SIZE = (64, 64)
 MULTISCALE_COUNT = 3
 BATCH_SIZE = 32
-DENOISPLIT_WEIGHT = 0.0             # dao3ch_config: usplit_w 1.0 -> pure muSplit
+DENOISPLIT_WEIGHT = 0.0  # dao3ch_config: usplit_w 1.0 -> pure muSplit
 
 # Each condition: channels, checkpoint to predict, training phases in order.
 # A later phase warm-starts from the previous phase's last checkpoint (A5).
 CONDITIONS = {
     "4ch": dict(
-        channels=[0, 1, 2, 3], predict_from="best",
-        phases=[dict(suffix="", steps_per_epoch=2000, max_steps=800_000,
-                     early_stop_patience=200)],
+        channels=[0, 1, 2, 3],
+        predict_from="best",
+        phases=[
+            dict(
+                suffix="",
+                steps_per_epoch=2000,
+                max_steps=800_000,
+                early_stop_patience=200,
+            )
+        ],
     ),
     "ch01": dict(
-        channels=[0, 1], predict_from="last",
-        phases=[dict(suffix="", max_epochs=32)],       # an epoch = the whole dataset
+        channels=[0, 1],
+        predict_from="last",
+        phases=[dict(suffix="", max_epochs=32)],  # an epoch = the whole dataset
     ),
     "ch23": dict(
-        channels=[2, 3], predict_from="best",
+        channels=[2, 3],
+        predict_from="best",
         phases=[
-            dict(suffix="", steps_per_epoch=2000, max_steps=380_000,
-                 early_stop_patience=200),
-            dict(suffix="_lrdecay", steps_per_epoch=2000, max_steps=120_000,
-                 early_stop_patience=200, lr=5e-4, lr_scheduler="step",
-                 lr_step_epochs=30, lr_gamma=0.5),
+            dict(
+                suffix="",
+                steps_per_epoch=2000,
+                max_steps=380_000,
+                early_stop_patience=200,
+            ),
+            dict(
+                suffix="_lrdecay",
+                steps_per_epoch=2000,
+                max_steps=120_000,
+                early_stop_patience=200,
+                lr=5e-4,
+                lr_scheduler="step",
+                lr_step_epochs=30,
+                lr_gamma=0.5,
+            ),
         ],
     ),
 }
@@ -92,7 +114,7 @@ def load_split_arrays(channels: list[int]):
     """(train, val, test) x (input, target) SCYX float32 arrays."""
     parts = []
     for f in FILES:
-        data = tifffile.imread(os.path.join(DATA_ROOT, f))       # (T, C, Y, X)
+        data = tifffile.imread(os.path.join(DATA_ROOT, f))  # (T, C, Y, X)
         if data.ndim != 4:
             raise ValueError(f"{f}: expected TCYX, got {data.shape}")
         parts.append(np.take(data, channels, axis=1).astype(np.float32))
@@ -101,8 +123,11 @@ def load_split_arrays(channels: list[int]):
     del parts
     tr, va, te = get_datasplit_tuples(VAL_FRACTION, TEST_FRACTION, len(target))
     inp = synthesize_input(target)
-    print(f"[DATA] channels {channels}: {target.shape} -> train {len(tr)} val {len(va)} "
-          f"test {len(te)} frames", flush=True)
+    print(
+        f"[DATA] channels {channels}: {target.shape} -> train {len(tr)} val {len(va)} "
+        f"test {len(te)} frames",
+        flush=True,
+    )
     return inp[tr], target[tr], inp[va], target[va], inp[te], target[te]
 
 
@@ -113,26 +138,42 @@ def main(args: argparse.Namespace) -> None:
     run = P.RunDirs(cond_dir, args.experiment_name)
     batch = args.batch_size or BATCH_SIZE
     n_out = len(cond["channels"])
-    P.log_parameters(args, {"condition_dir": cond_dir, "run_dir": run.root,
-                            "PATCH_SIZE": PATCH_SIZE, "BATCH_SIZE": batch, **cond})
+    P.log_parameters(
+        args,
+        {
+            "condition_dir": cond_dir,
+            "run_dir": run.root,
+            "PATCH_SIZE": PATCH_SIZE,
+            "BATCH_SIZE": batch,
+            **cond,
+        },
+    )
     tr_in, tr_tg, va_in, va_tg, te_in, te_tg = load_split_arrays(cond["channels"])
     if not (args.skip_n2v and args.skip_nm):
         print("[NM] pure muSplit: no N2V, no noise models", flush=True)
 
     def config_for(phase: dict):
         return P.microsplit_config(
-            run.experiment + phase["suffix"], axes=AXES, patch_size=PATCH_SIZE,
-            output_channels=n_out, multiscale_count=MULTISCALE_COUNT,
-            batch_size=batch, num_workers=args.num_workers, seed=args.seed,
+            run.experiment + phase["suffix"],
+            axes=AXES,
+            patch_size=PATCH_SIZE,
+            output_channels=n_out,
+            multiscale_count=MULTISCALE_COUNT,
+            batch_size=batch,
+            num_workers=args.num_workers,
+            seed=args.seed,
             denoisplit_weight=DENOISPLIT_WEIGHT,
             max_epochs=args.num_epochs or phase.get("max_epochs", 400),
             max_steps=args.max_steps or phase.get("max_steps"),
             steps_per_epoch=phase.get("steps_per_epoch"),
             early_stop_patience=phase.get("early_stop_patience"),
-            lr=phase.get("lr"), lr_scheduler=phase.get("lr_scheduler", "plateau"),
+            lr=phase.get("lr"),
+            lr_scheduler=phase.get("lr_scheduler", "plateau"),
             lr_step_epochs=phase.get("lr_step_epochs", 30),
             lr_gamma=phase.get("lr_gamma", 0.5),
-            devices=args.devices, wandb=args.wandb, smoke=args.smoke,
+            devices=args.devices,
+            wandb=args.wandb,
+            smoke=args.smoke,
         )
 
     # 3. MicroSplit, phase by phase
@@ -147,11 +188,23 @@ def main(args: argparse.Namespace) -> None:
             careamist = P.make_careamist(config_for(phase), run.train)
             P.attach_noise_model(careamist, None)
             sampled = phase.get("steps_per_epoch") and args.devices == 1
-            dm = P.make_datamodule(careamist, [tr_in], [tr_tg], [va_in], [va_tg],
-                                   samples_per_epoch=(phase["steps_per_epoch"] * batch
-                                                      if sampled else None))
-            best = P.train_stage(careamist, dm, work_dir=run.train,
-                                 resume=not args.no_resume, init_ckpt=previous_last)
+            dm = P.make_datamodule(
+                careamist,
+                [tr_in],
+                [tr_tg],
+                [va_in],
+                [va_tg],
+                samples_per_epoch=(
+                    phase["steps_per_epoch"] * batch if sampled else None
+                ),
+            )
+            best = P.train_stage(
+                careamist,
+                dm,
+                work_dir=run.train,
+                resume=not args.no_resume,
+                init_ckpt=previous_last,
+            )
             name = careamist.config.get_safe_experiment_name()
             previous_last = P.latest_last_checkpoint(run.train, name)
         ckpt = best if cond["predict_from"] == "best" else previous_last
@@ -164,15 +217,28 @@ def main(args: argparse.Namespace) -> None:
     mmse = P.SMOKE_MMSE if args.smoke else args.mmse
     if args.smoke:
         ev_in, ev_tg = P.smoke_crop(ev_in), P.smoke_crop(ev_tg)
-    preds = P.predict_stage(careamist, ev_in, ckpt=ckpt, out_dir=run.predict,
-                            patch_size=PATCH_SIZE, mmse=mmse, batch_size=batch,
-                            seed=args.seed)
-    P.evaluate(preds, [np.moveaxis(t, 1, -1) for t in ev_tg], run.predict,
-               tag=f"{args.eval_split}_mmse{mmse}", save=not args.smoke)
+    preds = P.predict_stage(
+        careamist,
+        ev_in,
+        ckpt=ckpt,
+        out_dir=run.predict,
+        patch_size=PATCH_SIZE,
+        mmse=mmse,
+        batch_size=batch,
+        seed=args.seed,
+    )
+    P.evaluate(
+        preds,
+        [np.moveaxis(t, 1, -1) for t in ev_tg],
+        run.predict,
+        tag=f"{args.eval_split}_mmse{mmse}",
+        save=not args.smoke,
+    )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     P.add_common_args(parser, conditions=list(CONDITIONS), default_condition="ch23")
     main(parser.parse_args())
