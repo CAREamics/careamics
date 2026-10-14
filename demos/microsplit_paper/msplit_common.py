@@ -1,32 +1,6 @@
-"""Shared helpers for the MicroSplit paper scripts in this folder.
+"""Shared helpers for the run_<dataset>.py scripts in this folder.
 
-Every `<dataset>/run_<dataset>.py` script runs four stages, each skippable:
-
-    1. n2v      train Noise2Void on the training targets, predict them
-    2. nm       fit one GMM noise model per target channel on (N2V, raw) pairs
-    3. train    train MicroSplit
-    4. predict  tiled MMSE prediction of the eval split + metrics
-
-A skipped stage takes its result from the condition folder next to the script:
-`n2v_ckpt/` (stage 1), `noise_models/` (stage 2), `ckpts/` (stage 3). New
-outputs go to `<condition folder>/runs/<experiment name>/`, never into those.
-
-All modelling goes through careamics: `CAREamist`, `create_n2v_config`,
-`create_advanced_microsplit_config`, `CareamicsDataModule`, `NoiseModelTrainer`
-and `careamics.lvae_training.metrics`. This file only holds what careamics does
-not offer (A1-A6 below) and the bookkeeping around the stages.
-
-    A1  GMM domain per channel = union of the N2V signal and the raw data range
-        (`fit_noise_models(domain="union")`; careamics' `train_from_pairs` only
-        offers the signal range). Uses the private
-        `NoiseModelTrainer._train_single_channel`.
-    A2  noise-model fit over stacks of different shapes (`pixel_pairs`).
-    A3  refuse to save NaN / Inf GMM weights (careamics only warns).
-    A4  fixed epoch length on small datasets (`SampledDataModule`).
-    A5  load weights into a module built from a new configuration
-        (`load_weights`; `CAREamist(checkpoint_path=)` always resumes).
-    A6  predict N2V from its lowest-val-loss checkpoint
-        (`best_checkpoint`; careamics refuses "best" for N2V).
+Outputs: /project/careamics/experiments/paper/msplit/<dataset>/<condition>/runs/<experiment-name>/{n2v,noise_models,train,predict}
 """
 
 from __future__ import annotations
@@ -59,25 +33,17 @@ from careamics.noise_model import NoiseModelTrainer
 
 PAPER_ROOT = Path("/project/careamics/experiments/paper/msplit")
 
-# Pinned for every MicroSplit run in this folder (disentangle: image_size 64,
-# z_dims [128]x4, n_filters 64, fp16, gradient clip value 0.5).
 Z_DIMS = [128] * 4
 N_FILTERS = 64
 GRID_SIZE = 32
 PRECISION = 16
 GRADIENT_CLIP_VAL = 0.5
 
-# Smoke mode: every stage starts, none finishes.
 SMOKE_N2V_STEPS = 2
 SMOKE_NM_EPOCHS = 5
 SMOKE_TRAIN_STEPS = 2
 SMOKE_VAL_STEPS = 2
 SMOKE_MMSE = 2
-
-
-# ---------------------------------------------------------------------------
-# CLI and run folders
-# ---------------------------------------------------------------------------
 
 
 def add_common_args(
@@ -246,10 +212,6 @@ def smoke_crop_channel_last(stacks: Sequence[np.ndarray], **kw) -> list[np.ndarr
     ]
 
 
-# ---------------------------------------------------------------------------
-# Checkpoint selection (A6) and weight loading (A5)
-# ---------------------------------------------------------------------------
-
 _VAL_LOSS = re.compile(r"_(-?[0-9]+\.[0-9]+)\.ckpt$")
 
 
@@ -357,11 +319,6 @@ def predictable_checkpoint(
     return out
 
 
-# ---------------------------------------------------------------------------
-# Stage 1: N2V
-# ---------------------------------------------------------------------------
-
-
 def n2v_stage(
     nm_input: Sequence[np.ndarray],
     *,
@@ -434,11 +391,6 @@ def n2v_stage(
     return prediction
 
 
-# ---------------------------------------------------------------------------
-# Stage 2: noise models (A1, A2, A3)
-# ---------------------------------------------------------------------------
-
-
 def pixel_pairs(stacks: Sequence[np.ndarray]) -> np.ndarray:
     """Channel-last stacks of any shapes -> one (1, C, 1, N) SCYX pixel array (A2)."""
     n_ch = np.shape(stacks[0])[-1]
@@ -486,7 +438,6 @@ def fit_noise_models(
             lo = float(min(sig[:, c].min(), obs[:, c].min()))
             hi = float(max(sig[:, c].max(), obs[:, c].max()))
             ranges.append((lo, hi))
-            # Same optimiser settings as train_from_pairs' defaults.
             nm, losses = trainer._train_single_channel(
                 signal=sig[:, c],
                 observation=obs[:, c],
@@ -516,11 +467,6 @@ def fit_noise_models(
     (out_dir / "nm_params.json").write_text(json.dumps(params, indent=2))
     print(f"[NM] saved {[str(p) for p in paths]}  {params}", flush=True)
     return paths
-
-
-# ---------------------------------------------------------------------------
-# Stage 3: MicroSplit config and training (A4)
-# ---------------------------------------------------------------------------
 
 
 def microsplit_config(
@@ -586,7 +532,6 @@ def microsplit_config(
         patch_size=tuple(patch_size),
         batch_size=batch_size,
         output_channels=output_channels,
-        # the factory writes num_epochs into trainer_params["max_epochs"]
         num_epochs=trainer_params["max_epochs"],
         multiscale_count=multiscale_count,
         model_params={"z_dims": Z_DIMS, "n_filters": N_FILTERS},
@@ -601,7 +546,6 @@ def microsplit_config(
                 "monitor": "val_loss",
                 "mode": "min",
                 "patience": early_stop_patience,
-                # after validation: a resumed empty epoch has no val_loss (errors.md E3)
                 "check_on_train_epoch_end": False,
             }
         ),
@@ -636,7 +580,7 @@ class SampledDataModule(CareamicsDataModule):
         super().__init__(*args, **kwargs)
         self.samples_per_epoch = samples_per_epoch
 
-    def _sampler(self, stage: str):  # type: ignore[override]
+    def _sampler(self, stage: str):
         if stage == "train":
             return RandomSampler(
                 self.train_dataset,
@@ -719,11 +663,6 @@ def train_stage(
     return best
 
 
-# ---------------------------------------------------------------------------
-# Stage 4: predict + metrics
-# ---------------------------------------------------------------------------
-
-
 def predict_stage(
     careamist: CAREamist,
     eval_input: Sequence[np.ndarray],
@@ -764,9 +703,7 @@ def predict_stage(
         raise RuntimeError(
             f"{len(preds)} predictions for {len(eval_input)} eval stacks"
         )
-    return [
-        np.moveaxis(np.asarray(p), 1, -1) for p in preds
-    ]  # S C [Z] Y X -> S [Z] Y X C
+    return [np.moveaxis(np.asarray(p), 1, -1) for p in preds]
 
 
 def evaluate(

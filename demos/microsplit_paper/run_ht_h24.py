@@ -1,52 +1,39 @@
-"""HT-H24 3D (Table 1 row I), end to end: N2V -> noise models -> MicroSplit -> predict.
-
-Defaults reproduce the bundled run in `default/` (own noise models): `h24_3d_dis208`,
-the config of disentangle run 2408/D29-M3-S0-L8/24 (depth 9, batch 32, 208 epochs;
-the Table 1 run 2506/D29/3 uses depth 5, batch 16). last checkpoint epoch 198
-(the run stopped at 199 of 208), test 39.12 / 33.99 dB range-invariant PSNR at
-mmse 50, Z tiles abutting. Noise models: 3 gaussians / 3 coeffs / min_sigma 200
-over the N2V signal range, from a 10-epoch N2V that predates the N2V mask fix;
-a fresh run uses the fixed one.
+"""HT-H24 3D.
 
     python run_ht_h24.py                                   # all four stages
     python run_ht_h24.py --skip-n2v --skip-nm --skip-train # predict default/ckpts
     python run_ht_h24.py --smoke --experiment-name smoke   # every stage starts
 
-Outputs: /project/careamics/experiments/paper/msplit/ht_h24/default/runs/<experiment-name>/{n2v,noise_models,train,predict}.
-Training resumes this experiment's newest last checkpoint.
+Outputs: /project/careamics/experiments/paper/msplit/ht_h24/default/runs/<experiment-name>/{n2v,noise_models,train,predict}
+(<experiment-name> defaults to e2e).
 """
 
 from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
 import tifffile
+from careamics.lvae_training.dataset.utils.data_utils import get_datasplit_tuples
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import msplit_common as P  # noqa: E402
-from careamics.lvae_training.dataset.utils.data_utils import (
-    get_datasplit_tuples,
-)  # noqa: E402
+import msplit_common as P
 
-HERE = P.PAPER_ROOT / "ht_h24"  # bundle folder: ckpts, noise models, run outputs
+HERE = P.PAPER_ROOT / "ht_h24"
 CONDITIONS = {"default": HERE / "default"}
 
-# --- bundled run h24_3d_dis208 ------------------------------------------------
 AXES = "SCZYX"
-PATCH_SIZE = (9, 64, 64)  # depth3D 9
+PATCH_SIZE = (9, 64, 64)
 STRIDES = [1, 2, 2]
 MULTISCALE_COUNT = 1
 OUTPUT_CHANNELS = 2
 BATCH_SIZE = 32
 DENOISPLIT_WEIGHT = 0.9
 LR = 1e-3
-MAX_EPOCHS = 208  # an epoch is the whole training set
-AUGMENTATIONS: list[str] = []  # the H24 runs trained without flips/rotations
-GRID_Z = None  # Z tiles abut
+MAX_EPOCHS = 208
+AUGMENTATIONS: list[str] = []
+GRID_Z = None
 PREDICT_FROM = "last"
 
 N2V_EPOCHS = 10
@@ -56,11 +43,6 @@ N2V_TILE_OVERLAP = (0, 32, 32)
 N2V_PICK = "last"
 NM = dict(n_gaussian=3, n_coeff=3, min_sigma=200.0, n_epochs=2000, domain="signal")
 
-# --- data (from scripts/microsplit_h24_3d.py) ---------------------------------
-# Mirror: WTC11_WT_DIV25_3_1_0001.tif, (T=16, Z, C, Y, X) uint16. Z slab 25:40,
-# channels 0, 1. disentangle elisa3D_rawdata_loader permutes the T order with
-# RandomState(955) before get_datasplit_tuples(0.1, 0.1) -> train 13 / val 2 /
-# test 1 time points. Input = 0.5 ch0 + 0.5 ch1.
 DATA_FILE = (
     "/group/jug/public_html/microsplit/ht_h24_3d_tiff/WTC11_WT_DIV25_3_1_0001.tif"
 )
@@ -72,7 +54,7 @@ TEST_FRACTION = 0.1
 
 def load_split_arrays():
     """(train, val, test) x (input, target) SCZYX float32 arrays."""
-    volume = tifffile.imread(DATA_FILE)  # (T, Z, C, Y, X)
+    volume = tifffile.imread(DATA_FILE)
     if volume.ndim != 5:
         raise ValueError(f"expected (T, Z, C, Y, X), got {volume.shape}")
     target = np.moveaxis(volume[:, Z_START:Z_STOP, CHANNELS].astype(np.float32), 2, 1)
@@ -108,7 +90,6 @@ def main(args: argparse.Namespace) -> None:
     )
     tr_in, tr_tg, va_in, va_tg, te_in, te_tg = load_split_arrays()
 
-    # 1 + 2. noise models
     if args.skip_nm:
         nm_paths = (
             [Path(p) for p in args.nm_paths]
@@ -116,7 +97,7 @@ def main(args: argparse.Namespace) -> None:
             else P.bundled_noise_models(cond_dir, OUTPUT_CHANNELS)
         )
     else:
-        nm_input = [np.moveaxis(tr_tg, 1, -1)]  # (T, Z, Y, X, C)
+        nm_input = [np.moveaxis(tr_tg, 1, -1)]
         if args.smoke:
             nm_input = P.smoke_crop_channel_last(nm_input, yx=256, z=8)
         n2v_ckpt = None
@@ -141,7 +122,6 @@ def main(args: argparse.Namespace) -> None:
         nm_kw = dict(NM, n_epochs=P.SMOKE_NM_EPOCHS) if args.smoke else NM
         nm_paths = P.fit_noise_models(n2v_pred, nm_input, run.nm, **nm_kw)
 
-    # 3. MicroSplit
     training = not args.skip_train
     config = P.microsplit_config(
         run.experiment,
@@ -180,7 +160,6 @@ def main(args: argparse.Namespace) -> None:
         if not args.skip_predict:
             P.compute_normalization(careamist, [tr_in], [tr_tg], [va_in], [va_tg])
 
-    # 4. predict + metrics
     if args.skip_predict:
         return
     ev_in, ev_tg = (te_in, te_tg) if args.eval_split == "test" else (va_in, va_tg)

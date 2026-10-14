@@ -1,55 +1,33 @@
-"""Chicago-Sch23 (Table 1 rows XV, XX, XXX), end to end: MicroSplit -> predict.
-
-Pure muSplit, as the paper runs: no noise model, so stages 1-2 (N2V, noise
-models) do nothing. Conditions = the bundled runs:
-
-    4ch   chicago4_paper           channels 0-3, best ckpt epoch 393,
-                                   test 35.46 / 39.46 / 38.59 / 36.06 dB
-    ch01  chicago_ch01_32ep        channels 0, 1, last ckpt epoch 31 (32 epochs),
-                                   test 40.42 / 41.98 dB
-    ch23  chicago_ch23_paper ->    channels 2, 3: paper schedule (380k steps),
-          chicago_ch23_lrdecay     then a StepLR continuation warm-started from its
-                                   last ckpt (lr 5e-4, x0.5 / 30 epochs, 120k steps);
-                                   best ckpt epoch 42, test 66.57 / 43.67 dB
-    (range-invariant PSNR, test split, mmse 50)
+"""Chicago-Sch23.
 
     python run_chicago_sch23.py --condition ch23                       # train + predict
     python run_chicago_sch23.py --condition 4ch --skip-train           # predict 4ch/ckpts
     python run_chicago_sch23.py --condition ch01 --smoke --experiment-name smoke
 
-The bundled runs trained on 4 GPUs (DDP, 8 per GPU) except the ch23 continuation;
-the default here is 1 GPU at the same global batch 32. Outputs:
-/project/careamics/experiments/paper/msplit/chicago_sch23/<condition>/runs/<experiment-name>/{train,predict}. Training resumes each phase's
-newest last checkpoint, so a long run is the same command submitted several times.
+Outputs: /project/careamics/experiments/paper/msplit/chicago_sch23/<condition>/runs/<experiment-name>/{train,predict}
+(<experiment-name> defaults to e2e).
 """
 
 from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
 import tifffile
+from careamics.lvae_training.dataset.utils.data_utils import get_datasplit_tuples
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import msplit_common as P  # noqa: E402
-from careamics.lvae_training.dataset.utils.data_utils import (
-    get_datasplit_tuples,
-)  # noqa: E402
+import msplit_common as P
 
-HERE = P.PAPER_ROOT / "chicago_sch23"  # bundle folder: ckpts, noise models, run outputs
+HERE = P.PAPER_ROOT / "chicago_sch23"
 
-# --- bundled runs (disentangle 2406/D18-M3-S0-L8/0, 2501/D18-M3-S0-L8/1, /3) ----
 AXES = "SCYX"
 PATCH_SIZE = (64, 64)
 MULTISCALE_COUNT = 3
 BATCH_SIZE = 32
-DENOISPLIT_WEIGHT = 0.0  # dao3ch_config: usplit_w 1.0 -> pure muSplit
+DENOISPLIT_WEIGHT = 0.0
 
-# Each condition: channels, checkpoint to predict, training phases in order.
-# A later phase warm-starts from the previous phase's last checkpoint (A5).
 CONDITIONS = {
     "4ch": dict(
         channels=[0, 1, 2, 3],
@@ -66,7 +44,7 @@ CONDITIONS = {
     "ch01": dict(
         channels=[0, 1],
         predict_from="last",
-        phases=[dict(suffix="", max_epochs=32)],  # an epoch = the whole dataset
+        phases=[dict(suffix="", max_epochs=32)],
     ),
     "ch23": dict(
         channels=[2, 3],
@@ -92,12 +70,6 @@ CONDITIONS = {
     ),
 }
 
-# --- data (from scripts/microsplit_chicago_sch23.py) --------------------------
-# Mirror: SIM1-49_merged.tif (T=49, C=4, 4096, 4096) and SIM201-263_merged.tif
-# (T=63, ...) float32, TCYX through tifffile. disentangle concatenates them in
-# this order (load-bearing: the split is positional) and splits with
-# get_datasplit_tuples(0.1, 0.1). Input synthesized: 0.5/0.5 for a pair, the
-# channel mean for all four (disentangle alpha 1/K).
 DATA_ROOT = "/group/jug/public_html/microsplit/chicago_sch23_tiff"
 FILES = ["SIM1-49_merged.tif", "SIM201-263_merged.tif"]
 VAL_FRACTION = 0.1
@@ -114,7 +86,7 @@ def load_split_arrays(channels: list[int]):
     """(train, val, test) x (input, target) SCYX float32 arrays."""
     parts = []
     for f in FILES:
-        data = tifffile.imread(os.path.join(DATA_ROOT, f))  # (T, C, Y, X)
+        data = tifffile.imread(os.path.join(DATA_ROOT, f))
         if data.ndim != 4:
             raise ValueError(f"{f}: expected TCYX, got {data.shape}")
         parts.append(np.take(data, channels, axis=1).astype(np.float32))
@@ -176,7 +148,6 @@ def main(args: argparse.Namespace) -> None:
             smoke=args.smoke,
         )
 
-    # 3. MicroSplit, phase by phase
     if args.skip_train:
         careamist = P.make_careamist(config_for(cond["phases"][-1]), run.train)
         ckpt = Path(args.ckpt) if args.ckpt else P.single_file(cond_dir / "ckpts")
@@ -209,7 +180,6 @@ def main(args: argparse.Namespace) -> None:
             previous_last = P.latest_last_checkpoint(run.train, name)
         ckpt = best if cond["predict_from"] == "best" else previous_last
 
-    # 4. predict + metrics
     if args.skip_predict:
         return
     ev_in, ev_tg = (te_in, te_tg) if args.eval_split == "test" else (va_in, va_tg)

@@ -1,43 +1,26 @@
-"""Pavia-P24 (Table 1 rows VI, VII), end to end: N2V -> noise models -> MicroSplit -> predict.
-
-Conditions = the bundled runs (own noise models, 3 gaussians / 3 coeffs /
-min_sigma 0.125 over the N2V signal range, from a 10-epoch N2V):
-
-    high_highskew     HighSkew / High   (Cond_3/Main),       419 epochs, last ckpt,
-                      test 25.08 / 23.94 dB
-    medium_balanced   Balanced / Medium (Cond_1/Divided_2),  449 epochs, last ckpt,
-                      test 22.79 / 23.74 dB
-    (range-invariant PSNR, test split, mmse 50)
-
-An epoch is the whole training set (no step cap, no early stopping). Both bundled
-runs trained on 4 GPUs (DDP, 8 per GPU); the default here is 1 GPU at the same
-global batch 32. Their N2V predates the N2V mask fix; a fresh run uses the fixed one.
+"""Pavia-P24.
 
     python run_pavia_p24.py --condition high_highskew                   # all stages
     python run_pavia_p24.py --condition medium_balanced --skip-n2v --skip-nm --skip-train
     python run_pavia_p24.py --condition high_highskew --smoke --experiment-name smoke
 
-Outputs: /project/careamics/experiments/paper/msplit/pavia_p24/<condition>/runs/<experiment-name>/{n2v,noise_models,train,predict}.
-Training resumes this experiment's newest last checkpoint.
+Outputs: /project/careamics/experiments/paper/msplit/pavia_p24/<condition>/runs/<experiment-name>/{n2v,noise_models,train,predict}
+(<experiment-name> defaults to e2e).
 """
 
 from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
 import tifffile
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import msplit_common as P  # noqa: E402
+import msplit_common as P
 
-HERE = P.PAPER_ROOT / "pavia_p24"  # bundle folder: ckpts, noise models, run outputs
+HERE = P.PAPER_ROOT / "pavia_p24"
 
-# --- bundled runs pavia_high_highskew_419ep / pavia_medium_balanced_449ep ------
-# (disentangle 2408/D24-M3-S0-L8/9 and /11 for the data and split)
 CONDITIONS = {
     "high_highskew": dict(
         alpha_level="HighSkew", power_level="High", val=[2, 4], test=[1, 3], epochs=419
@@ -65,12 +48,6 @@ N2V_TILE_OVERLAP = (48, 48)
 N2V_PICK = "last"
 NM = dict(n_gaussian=3, n_coeff=3, min_sigma=0.125, n_epochs=2000, domain="signal")
 
-# --- data (from scripts/microsplit_pavia_p24.py + conversion/ms_sources.py) ---
-# Mirror: Cond_{1,2,3}/{Main,Divided_2,Divided_4}/*.tif, each (N, Y, X, C=2).
-# pavia3_rawdata_loader: the subdir's non-json files, sorted by RELATIVE path
-# (load-bearing: val/test indices are positional over the concatenation);
-# explicit val/test frame indices per condition, read from each run's config.pkl;
-# train = every other frame. Input = 0.5 ch0 + 0.5 ch1.
 DATA_ROOT = "/group/jug/public_html/microsplit/pavia_p24_tiff"
 ALPHA_SUBDIR = {"Balanced": "Cond_1", "MediumSkew": "Cond_2", "HighSkew": "Cond_3"}
 POWER_SUBDIR = {"High": "Main", "Medium": "Divided_2", "Low": "Divided_4"}
@@ -111,7 +88,7 @@ def load_split_arrays(cond: dict):
         tg = []
         for g in sorted(idx):
             fi, k = index[g]
-            tg.append(np.moveaxis(per_file[fi][k : k + 1], -1, 1))  # (1, C, Y, X)
+            tg.append(np.moveaxis(per_file[fi][k : k + 1], -1, 1))
         return [synthesize_input(t) for t in tg], tg
 
     print(
@@ -141,7 +118,6 @@ def main(args: argparse.Namespace) -> None:
     )
     tr_in, tr_tg, va_in, va_tg, te_in, te_tg = load_split_arrays(cond)
 
-    # 1 + 2. noise models
     if args.skip_nm:
         nm_paths = (
             [Path(p) for p in args.nm_paths]
@@ -149,7 +125,7 @@ def main(args: argparse.Namespace) -> None:
             else P.bundled_noise_models(cond_dir, OUTPUT_CHANNELS)
         )
     else:
-        nm_input = [np.moveaxis(t, 1, -1) for t in tr_tg]  # (1, Y, X, C) frames
+        nm_input = [np.moveaxis(t, 1, -1) for t in tr_tg]
         if args.smoke:
             nm_input = P.smoke_crop_channel_last(nm_input, yx=256, n_stacks=2)
         n2v_ckpt = None
@@ -174,7 +150,6 @@ def main(args: argparse.Namespace) -> None:
         nm_kw = dict(NM, n_epochs=P.SMOKE_NM_EPOCHS) if args.smoke else NM
         nm_paths = P.fit_noise_models(n2v_pred, nm_input, run.nm, **nm_kw)
 
-    # 3. MicroSplit
     training = not args.skip_train
     config = P.microsplit_config(
         run.experiment,
@@ -209,7 +184,6 @@ def main(args: argparse.Namespace) -> None:
         if not args.skip_predict:
             P.compute_normalization(careamist, tr_in, tr_tg, va_in, va_tg)
 
-    # 4. predict + metrics
     if args.skip_predict:
         return
     ev_in, ev_tg = (te_in, te_tg) if args.eval_split == "test" else (va_in, va_tg)

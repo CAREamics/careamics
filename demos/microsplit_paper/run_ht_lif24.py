@@ -1,49 +1,27 @@
-"""HT-LIF24 (Table 1 rows XIV, XXVIII), end to end: N2V -> noise models -> MicroSplit -> predict.
-
-Conditions = the bundled runs:
-
-    5ms            2-split, 5 ms, targets Nucleus + MicroTubules (raw channels 0, 1),
-                   real superimposed input (raw channel 8); own noise models
-                   (3 gaussians / 3 coeffs / min_sigma 200, N2V signal range, 10-epoch
-                   N2V on all three channels); batch 64, 400 epochs, no early stopping;
-                   ckpt epoch 399, canonical test 31.87 / 32.88 dB
-    3split_500ms   3-split, 500 ms, targets raw channels 1, 2, 3, input 17 (BCD);
-                   pure muSplit (the paper-config run with noise models diverged);
-                   batch 32, 400 epochs, early stopping 200; best ckpt epoch 257,
-                   canonical test 39.66 / 41.70 / 44.32 dB
-    (range-invariant PSNR vs the 500 ms targets, mmse 50)
-
-The canonical test split is get_datasplit_tuples(0.1, 0.1)'s test frames over the
-Set1..Set6 concatenation; ground truth is always the 500 ms acquisition.
+"""HT-LIF24.
 
     python run_ht_lif24.py --condition 5ms                                  # all stages
-    python run_ht_lif24.py --condition 5ms --skip-n2v --skip-nm --skip-train
+    python run_ht_lif24.py --condition 5ms --skip-n2v --skip-nm --skip-train # predict 5ms/ckpts
     python run_ht_lif24.py --condition 3split_500ms --smoke --experiment-name smoke
 
-Outputs: /project/careamics/experiments/paper/msplit/ht_lif24/<condition>/runs/<experiment-name>/{n2v,noise_models,train,predict}.
-Training resumes this experiment's newest last checkpoint.
+Outputs: /project/careamics/experiments/paper/msplit/ht_lif24/<condition>/runs/<experiment-name>/{n2v,noise_models,train,predict}
+(<experiment-name> defaults to e2e).
 """
 
 from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
 import tifffile
+from careamics.lvae_training.dataset.utils.data_utils import get_datasplit_tuples
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import msplit_common as P  # noqa: E402
-from careamics.lvae_training.dataset.utils.data_utils import (
-    get_datasplit_tuples,
-)  # noqa: E402
+import msplit_common as P
 
-HERE = P.PAPER_ROOT / "ht_lif24"  # bundle folder: ckpts, noise models, run outputs
+HERE = P.PAPER_ROOT / "ht_lif24"
 
-# --- bundled runs ht_lif24_5ms_ngds_v3_400ep / lif24_3split_500ms_musplit_400ep --
-# (disentangle 2501/D25-M3-S0-L8/3 and 2406/D25-M3-S0-L8/17)
 CONDITIONS = {
     "5ms": dict(
         exposure="5ms",
@@ -69,7 +47,7 @@ CONDITIONS = {
 AXES = "SCYX"
 PATCH_SIZE = (64, 64)
 MULTISCALE_COUNT = 3
-MAX_EPOCHS = 400  # an epoch is the whole training set
+MAX_EPOCHS = 400
 
 N2V_EPOCHS = 10
 N2V_PATCH_SIZE = (64, 64)
@@ -78,10 +56,6 @@ N2V_TILE_OVERLAP = (48, 48)
 N2V_PICK = "last"
 NM = dict(n_gaussian=3, n_coeff=3, min_sigma=200.0, n_epochs=2000, domain="signal")
 
-# --- data (from scripts/microsplit_lif24_5ms.py) ------------------------------
-# Mirror: <root>/<exposure>/Set{1..6}/uSplit_<exposure>.tif, (N, C, Y, X).
-# Frames of Set1..Set6 concatenated, split by get_datasplit_tuples(0.1, 0.1).
-# The last listed channel is the real superimposed input (training mode III).
 DATA_ROOT = "/group/jug/public_html/microsplit/ht_lif24_tiff"
 HIGHSNR_EXPOSURE = "500ms"
 VAL_FRACTION = 0.1
@@ -134,7 +108,6 @@ def main(args: argparse.Namespace) -> None:
         flush=True,
     )
 
-    # 1 + 2. noise models (targets only; N2V sees the input channel too)
     nm_paths = None
     if use_nm and args.skip_nm:
         nm_paths = (
@@ -143,7 +116,7 @@ def main(args: argparse.Namespace) -> None:
             else P.bundled_noise_models(cond_dir, n_out)
         )
     elif use_nm:
-        nm_input = [np.moveaxis(data[tr], 1, -1)]  # (N, Y, X, C+1)
+        nm_input = [np.moveaxis(data[tr], 1, -1)]
         if args.smoke:
             nm_input = P.smoke_crop_channel_last(nm_input, yx=256, n_samples=2)
         n2v_ckpt = None
@@ -175,7 +148,6 @@ def main(args: argparse.Namespace) -> None:
     else:
         print("[NM] pure muSplit: no N2V, no noise models", flush=True)
 
-    # 3. MicroSplit
     training = not args.skip_train
     config = P.microsplit_config(
         run.experiment,
@@ -211,7 +183,6 @@ def main(args: argparse.Namespace) -> None:
         if not args.skip_predict:
             P.compute_normalization(careamist, [tr_in], [tr_tg], [va_in], [va_tg])
 
-    # 4. predict + metrics against the 500 ms targets of the same frames
     if args.skip_predict:
         return
     idx = te if args.eval_split == "test" else va

@@ -1,48 +1,39 @@
-"""CBG-N18 3D (Table 1 row XXII), end to end: N2V -> noise models -> MicroSplit -> predict.
-
-Defaults reproduce the bundled run in `default/` (own noise models):
-`cbg_n18_paper`, final best checkpoint (epoch 375), test 38.75 / 42.49 / 34.92 dB
-range-invariant PSNR at mmse 50, Z tiles abutting (Z grid 5). Its noise models
-were fit from an N2V trained before the N2V mask fix; a fresh run uses the fixed one.
+"""CBG-N18 3D.
 
     python run_cbg_n18.py                                   # all four stages
     python run_cbg_n18.py --skip-n2v --skip-nm --skip-train # predict default/ckpts
     python run_cbg_n18.py --smoke --experiment-name smoke   # every stage starts
 
-Outputs: /project/careamics/experiments/paper/msplit/cbg_n18/default/runs/<experiment-name>/{n2v,noise_models,train,predict}.
-Training resumes this experiment's newest last checkpoint, so a long run is the
-same command submitted several times.
+Outputs: /project/careamics/experiments/paper/msplit/cbg_n18/default/runs/<experiment-name>/{n2v,noise_models,train,predict}
+(<experiment-name> defaults to e2e).
 """
 
 from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
 import tifffile
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import msplit_common as P  # noqa: E402
+import msplit_common as P
 
-HERE = P.PAPER_ROOT / "cbg_n18"  # bundle folder: ckpts, noise models, run outputs
+HERE = P.PAPER_ROOT / "cbg_n18"
 CONDITIONS = {"default": HERE / "default"}
 
-# --- bundled run cbg_n18_paper (disentangle 2506/D30-M3-S0-L8/6) --------------
 AXES = "SCZYX"
-PATCH_SIZE = (5, 64, 64)  # depth3D 5
+PATCH_SIZE = (5, 64, 64)
 STRIDES = [1, 2, 2]
 MULTISCALE_COUNT = 1
 OUTPUT_CHANNELS = 3
 BATCH_SIZE = 16
 DENOISPLIT_WEIGHT = 0.9
-STEPS_PER_EPOCH = 2000  # dataset < 2000 x 16 -> A4
+STEPS_PER_EPOCH = 2000
 MAX_STEPS = 800_000
 EARLY_STOP_PATIENCE = 200
 MAX_EPOCHS = 400
-GRID_Z = None  # bundled predict: Z tiles abut
+GRID_Z = None
 PREDICT_FROM = "best"
 
 N2V_EPOCHS = 20
@@ -52,11 +43,6 @@ N2V_TILE_OVERLAP = (0, 32, 32)
 N2V_PICK = "best"
 NM = dict(n_gaussian=6, n_coeff=4, min_sigma=0.125, n_epochs=2000, domain="union")
 
-# --- data (from scripts/microsplit_cbg.py, subset "liver") --------------------
-# Mirror: channel_234_1.tif, (C=3, Z=301, 752, 752) uint16. disentangle
-# care3D_rawdata_loader splits the one volume in Z: test [0, int(0.1 Z)), val the
-# next int(0.1 Z) planes, train the rest. All three channels are targets;
-# input = channel mean (alpha 1/K).
 DATA_ROOT = "/group/jug/public_html/microsplit/cbg_n18_tiff"
 LIVER_FILE = "channel_234_1.tif"
 VAL_FRACTION = 0.1
@@ -69,7 +55,7 @@ def synthesize_input(target: np.ndarray) -> np.ndarray:
 
 def load_split_arrays():
     """(train, val, test) x (input, target), lists of (1, C, Z, Y, X) float32."""
-    arr = tifffile.imread(os.path.join(DATA_ROOT, LIVER_FILE))  # (C, Z, Y, X)
+    arr = tifffile.imread(os.path.join(DATA_ROOT, LIVER_FILE))
     if arr.ndim != 4 or arr.shape[0] != 3:
         raise ValueError(f"{LIVER_FILE}: expected (3, Z, Y, X), got {arr.shape}")
     n_z = arr.shape[1]
@@ -108,7 +94,6 @@ def main(args: argparse.Namespace) -> None:
     )
     tr_in, tr_tg, va_in, va_tg, te_in, te_tg = load_split_arrays()
 
-    # 1 + 2. noise models
     if args.skip_nm:
         nm_paths = (
             [Path(p) for p in args.nm_paths]
@@ -116,7 +101,7 @@ def main(args: argparse.Namespace) -> None:
             else P.bundled_noise_models(cond_dir, OUTPUT_CHANNELS)
         )
     else:
-        nm_input = [np.moveaxis(t, 1, -1) for t in tr_tg]  # (1, Z, Y, X, C)
+        nm_input = [np.moveaxis(t, 1, -1) for t in tr_tg]
         if args.smoke:
             nm_input = P.smoke_crop_channel_last(nm_input, yx=256, z=8)
         n2v_ckpt = None
@@ -141,7 +126,6 @@ def main(args: argparse.Namespace) -> None:
         nm_kw = dict(NM, n_epochs=P.SMOKE_NM_EPOCHS) if args.smoke else NM
         nm_paths = P.fit_noise_models(n2v_pred, nm_input, run.nm, **nm_kw)
 
-    # 3. MicroSplit
     training = not args.skip_train
     config = P.microsplit_config(
         run.experiment,
@@ -187,7 +171,6 @@ def main(args: argparse.Namespace) -> None:
         if not args.skip_predict:
             P.compute_normalization(careamist, tr_in, tr_tg, va_in, va_tg)
 
-    # 4. predict + metrics
     if args.skip_predict:
         return
     ev_in, ev_tg = (te_in, te_tg) if args.eval_split == "test" else (va_in, va_tg)
