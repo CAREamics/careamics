@@ -410,7 +410,7 @@ class CoLogger(Logger):
 
         _logged_in = True
         try:
-            wandb.login()
+            wandb.login(timeout=60)
         except Exception:
             _logged_in = False
 
