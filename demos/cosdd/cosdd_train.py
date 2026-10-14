@@ -4,9 +4,7 @@ Paper settings (Salmon & Krull, WACV 2025, supplementary 2.1 and 3):
 "large" model = 14 Ladder VAE levels with 64 latent channels
 (s_code_channels=128), 3 Gaussians, AR receptive field along x, random
 256 x 256 crops, batch 4 x 4 accumulated batches, Adamax lr 2e-3,
-ReduceLROnPlateau (factor 0.1, patience 50), early stopping after 100 epochs
-without improvement. 16 crops per 1024 x 1024 frame and epoch, as in the
-reference, is what careamics' random patching gives by default.
+ReduceLROnPlateau (factor 0.1, patience 50), early stopping after 100 epochs.
 
 Example:
     python cosdd_train.py --dataset conva --experiment-name cosdd_conva_large
@@ -39,7 +37,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--experiment-name", required=True)
     p.add_argument("--runs-dir", type=Path, default=RUNS_DIR)
     p.add_argument(
-        "--model", default=None, choices=list(MODELS), help="default large, or tiny with --smoke"
+        "--model",
+        default=None,
+        choices=list(MODELS),
+        help="default large, or tiny with --smoke",
     )
     p.add_argument("--n-gaussians", type=int, default=3)
     p.add_argument("--patch-size", type=int, default=256)
@@ -140,9 +141,11 @@ def main() -> None:
         "global_step": careamist.trainer.global_step,
         "train_minutes": round(train_min, 1),
         "best_model_path": str(ckpt_cb.best_model_path),
-        "best_model_score": float(ckpt_cb.best_model_score)
-        if ckpt_cb.best_model_score is not None
-        else None,
+        "best_model_score": (
+            float(ckpt_cb.best_model_score)
+            if ckpt_cb.best_model_score is not None
+            else None
+        ),
         "last_model_path": str(ckpt_cb.last_model_path),
         "checkpoints": [str(p) for p in careamist.get_checkpoints()],
     }

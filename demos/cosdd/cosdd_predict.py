@@ -1,14 +1,5 @@
 """Denoise the test set with a trained COSDD model and compute PSNR.
 
-Estimates: the direct denoiser, one random sample, and the MMSE over each
-`--n-samples` (the paper reports MMSE over 100 samples). Whole frames are
-predicted, without tiling, as in the reference.
-
-PSNR: skimage PSNR per frame with data_range = max - min of the ground-truth
-frame, averaged over frames (see `cosdd_data` for the ground truth of each
-dataset). Range-invariant PSNR (careamics `scale_invariant_psnr`) is reported
-next to it.
-
 Example:
     python cosdd_predict.py --run-dir /group/jug/Igor/cosdd/runs/cosdd_conva_large
     python cosdd_predict.py --run-dir /group/jug/Igor/cosdd/runs/smoke --smoke
@@ -118,9 +109,7 @@ def main() -> None:
             "minutes": round(timings[name] / 60, 2),
         }
         ref = f"{paper[name]:7.2f}" if name in paper else f"{'-':>7}"
-        print(
-            f"{name:>10} {plain:8.2f} {rinv:9.2f} {ref} {timings[name] / 60:7.1f}"
-        )
+        print(f"{name:>10} {plain:8.2f} {rinv:9.2f} {ref} {timings[name] / 60:7.1f}")
     plain, rinv = frame_psnrs(gt, test)
     metrics["noisy"] = {"psnr": plain, "rinv_psnr": rinv}
     print(f"{'noisy':>10} {plain:8.2f} {rinv:9.2f}")
