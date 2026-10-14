@@ -389,7 +389,10 @@ def microsplit_loss(
     # with default reconstruction_weight=1.0 behaviour is identical.
     recons_loss = config.reconstruction_weight * recons_loss
     if isinstance(recons_loss, torch.Tensor) and torch.isnan(recons_loss).any():
-        recons_loss = 0.0
+        # Signal the caller to skip this batch. Zeroing the reconstruction term
+        # instead leaves a finite KL-only loss, which keeps the optimizer stepping
+        # with no reconstruction anchor and silently collapses training.
+        return None
 
     # TODO simplify
     # Annealing is disabled, so kl_weight is just config.kl_weight
