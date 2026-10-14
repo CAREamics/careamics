@@ -38,3 +38,7 @@ class SupportedAlgorithm(StrEnum):
     PN2V = "pn2v"
     """Probabilistic Noise2Void. A extension of Noise2Void is not restricted to Gaussian
     noise models or Gaussian intensity predictions."""
+
+    COSDD = "cosdd"
+    """COrrelated and Signal-Dependent Denoising, an unsupervised denoiser for
+    signal-dependent and spatially correlated noise."""

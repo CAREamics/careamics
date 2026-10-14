@@ -2,6 +2,7 @@
 
 __all__ = [
     "CAREAlgorithm",
+    "COSDDAlgorithm",
     "HDNAlgorithm",
     "MicroSplitAlgorithm",
     "N2NAlgorithm",
@@ -11,6 +12,7 @@ __all__ = [
 ]
 
 from .care_algorithm_config import CAREAlgorithm
+from .cosdd_algorithm_config import COSDDAlgorithm
 from .hdn_algorithm_config import HDNAlgorithm
 from .microsplit_algorithm_config import MicroSplitAlgorithm
 from .n2n_algorithm_config import N2NAlgorithm
