@@ -11,6 +11,7 @@ from numpy.typing import NDArray
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
+from .config.cosdd_configuration import COSDDConfiguration
 from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
 from .config.support import SupportedAlgorithm, SupportedLogger
@@ -56,6 +57,7 @@ ConfigurationType = (
     | Configuration[N2VAlgorithm]
     | HDNConfiguration
     | MicroSplitConfiguration
+    | COSDDConfiguration
 )
 
 
@@ -994,9 +996,11 @@ class CAREamist:
             returned prediction. When set, the per-pixel standard deviation across
             those predictions is also returned, as an uncertainty estimate in the
             units of the prediction. Must be at least 2, and is only supported by
-            the sampling-based algorithms (HDN and MicroSplit). Note that the
+            the sampling-based algorithms (HDN, MicroSplit and COSDD). Note that the
             estimate is the spread of the drawn predictions alone: it excludes the
-            likelihood variance and so under-estimates the total uncertainty.
+            likelihood variance and so under-estimates the total uncertainty. For
+            COSDD trained with a direct denoiser, omitting `n_predictions` uses the
+            direct denoiser instead of sampling.
 
         Returns
         -------
@@ -1238,8 +1242,8 @@ class CAREamist:
         n_predictions : int, optional
             Number of stochastic predictions to draw per input and average into the
             written prediction. Must be at least 2, and is only supported by the
-            sampling-based algorithms (HDN and MicroSplit). The uncertainty across
-            those predictions is not currently written.
+            sampling-based algorithms (HDN, MicroSplit and COSDD). The uncertainty
+            across those predictions is not currently written.
 
         Raises
         ------
