@@ -11,3 +11,6 @@ class SupportedArchitecture(StrEnum):
 
     LVAE = "LVAE"
     """Ladder Variational Autoencoder used for muSplit and denoiSplit."""
+
+    COSDD = "COSDD"
+    """COSDD networks (Ladder VAE, autoregressive and signal decoders)."""
