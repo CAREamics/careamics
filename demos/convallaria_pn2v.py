@@ -90,9 +90,7 @@ def as_syx(array: np.ndarray) -> np.ndarray:
     return array
 
 
-def sample_scores(
-    prediction: np.ndarray, ground_truth: np.ndarray
-) -> list[float]:
+def sample_scores(prediction: np.ndarray, ground_truth: np.ndarray) -> list[float]:
     """PSNR of each predicted sample against the mean ground truth.
 
     Parameters
