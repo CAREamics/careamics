@@ -1,9 +1,11 @@
 """MicroSplit data configuration."""
 
 from collections.abc import Sequence
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import AfterValidator, Field, model_validator
+
+from careamics.config.validators import alpha_ranges_wellformed
 
 from .data_config import DataConfig
 
@@ -17,7 +19,10 @@ class MicroSplitDataConfig(DataConfig):
     padding_mode: Literal["reflect", "wrap"] = "reflect"
     """Padding mode used when lateral-context patches extend beyond image borders."""
 
-    alpha_ranges: Sequence[tuple[float, float]] | None = None
+    alpha_ranges: Annotated[
+        Sequence[tuple[float, float]] | None,
+        AfterValidator(alpha_ranges_wellformed),
+    ] = None
     """Ranges used to sample channel mixing weights for synthetic training inputs.
 
     If `None`, the MicroSplit dataset factory will use equal fixed weights for each
