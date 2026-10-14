@@ -1501,6 +1501,11 @@ class CAREamist:
             Paths to the cover images.
         channel_names : list of str, default=None
             Channel names.
+
+        Raises
+        ------
+        NotImplementedError
+            If the model is a COSDD model.
         """
         import numpy as np
 
