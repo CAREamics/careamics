@@ -170,13 +170,13 @@ class CAREModule(L.LightningModule):
         # log predicted images
         if isinstance(self.logger, CoLogger):
             n_samples = 5
-            self.loggers[0].log_images(  # type: ignore
+            self.logger.log_images(  # type: ignore
                 key="Target",
                 images=target.data[:n_samples],
                 step=self.global_step,
                 captions=["Target images"] * n_samples,
             )
-            self.loggers[0].log_images(  # type: ignore
+            self.logger.log_images(  # type: ignore
                 key="Prediction",
                 images=prediction[:n_samples],
                 step=self.global_step,

@@ -152,15 +152,15 @@ class N2VModule(L.LightningModule):
             self, val_loss, batch_size=x_data.shape[0], metrics=self.metrics
         )
         # log predicted images
-        if isinstance(self.loggers[0], CoLogger):
+        if isinstance(self.logger, CoLogger):
             n_samples = 5
-            self.loggers[0].log_images(  # type: ignore
+            self.logger.log_images(  # type: ignore
                 key="Input",
                 images=x_masked[:n_samples],
                 step=self.global_step,
                 captions=["Input images"] * n_samples,
             )
-            self.loggers[0].log_images(  # type: ignore
+            self.logger.log_images(  # type: ignore
                 key="Prediction",
                 images=prediction[:n_samples],
                 step=self.global_step,
