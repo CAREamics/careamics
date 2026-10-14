@@ -118,9 +118,7 @@ def main() -> None:
             "minutes": round(timings[name] / 60, 2),
         }
         ref = f"{paper[name]:7.2f}" if name in paper else f"{'-':>7}"
-        print(
-            f"{name:>10} {plain:8.2f} {rinv:9.2f} {ref} {timings[name] / 60:7.1f}"
-        )
+        print(f"{name:>10} {plain:8.2f} {rinv:9.2f} {ref} {timings[name] / 60:7.1f}")
     plain, rinv = frame_psnrs(gt, test)
     metrics["noisy"] = {"psnr": plain, "rinv_psnr": rinv}
     print(f"{'noisy':>10} {plain:8.2f} {rinv:9.2f}")

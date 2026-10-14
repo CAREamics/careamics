@@ -39,7 +39,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--experiment-name", required=True)
     p.add_argument("--runs-dir", type=Path, default=RUNS_DIR)
     p.add_argument(
-        "--model", default=None, choices=list(MODELS), help="default large, or tiny with --smoke"
+        "--model",
+        default=None,
+        choices=list(MODELS),
+        help="default large, or tiny with --smoke",
     )
     p.add_argument("--n-gaussians", type=int, default=3)
     p.add_argument("--patch-size", type=int, default=256)
@@ -140,9 +143,11 @@ def main() -> None:
         "global_step": careamist.trainer.global_step,
         "train_minutes": round(train_min, 1),
         "best_model_path": str(ckpt_cb.best_model_path),
-        "best_model_score": float(ckpt_cb.best_model_score)
-        if ckpt_cb.best_model_score is not None
-        else None,
+        "best_model_score": (
+            float(ckpt_cb.best_model_score)
+            if ckpt_cb.best_model_score is not None
+            else None
+        ),
         "last_model_path": str(ckpt_cb.last_model_path),
         "checkpoints": [str(p) for p in careamist.get_checkpoints()],
     }
