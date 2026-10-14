@@ -1,0 +1,244 @@
+"""UNet-based segmentation Lightning Module."""
+
+from typing import TYPE_CHECKING, Any
+
+import torch
+from lightning.pytorch import LightningModule
+from torch import nn
+from torchmetrics import MetricCollection
+from torchmetrics.segmentation import GeneralizedDiceScore
+
+from careamics.config import SegAlgorithm
+from careamics.config.factories.algorithm_factory import algorithm_factory
+from careamics.dataset import ImageRegionData
+from careamics.dataset.factory import TrainValData, TrainValSplitData
+from careamics.losses import get_seg_loss
+from careamics.models.unet import UNet
+from careamics.utils.logging import get_logger
+
+from .module_utils import (
+    configure_optimizers,
+    log_training_stats,
+    log_validation_stats,
+)
+
+if TYPE_CHECKING:
+    from careamics.lightning.data.data_module import CareamicsDataModule
+
+logger = get_logger(__name__)
+
+
+class SegModule(LightningModule):
+    """CAREamics PyTorch Lightning module for UNet-based segmentation.
+
+    Parameters
+    ----------
+    algorithm_config : SegAlgorithm or dict
+        Configuration for the segmentation algorithm, either as a SegAlgorithm
+        instance or a dictionary.
+    """
+
+    def __init__(self, algorithm_config: SegAlgorithm | dict) -> None:
+        """Instantiate Segmentation Module.
+
+        Parameters
+        ----------
+        algorithm_config : SegAlgorithm or dict
+            Configuration for the segmentation algorithm, either as a SegAlgorithm
+            instance or a dictionary.
+        """
+        super().__init__()
+
+        if isinstance(algorithm_config, dict):
+            config = algorithm_factory(algorithm_config)
+        else:
+            config = algorithm_config
+
+        if not isinstance(config, SegAlgorithm):
+            raise ValueError(
+                f"Parameter `algorithm_config` must be a SegAlgorithm Pydantic model "
+                f"(got {type(config).__name__})."
+            )
+
+        self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
+        self.config = config
+        self.model: nn.Module = UNet(**self.config.model.model_dump())
+        self.loss_func = get_seg_loss(self.config.loss)
+
+        self.metrics: MetricCollection = MetricCollection(
+            GeneralizedDiceScore(
+                num_classes=self.config.model.num_classes,
+                per_class=True,
+                input_format="index",
+            )
+        )
+
+    def on_fit_start(self) -> None:
+        """On fit start hook for Segmentation module.
+
+        Check that training and validation target data have been supplied.
+        """
+        assert self._trainer is not None
+        datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
+        assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
+        if datamodule._data.train_data_target is None:
+            raise ValueError(
+                "Training target data must be provided for supervised training."
+            )
+        if (
+            isinstance(datamodule._data, TrainValData)
+            and datamodule._data.val_data_target is None
+        ):
+            raise ValueError(
+                "Validation target data must be provided for supervised training."
+            )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Model output tensor.
+        """
+        return self.model(x)
+
+    def training_step(
+        self,
+        batch: tuple[ImageRegionData, ImageRegionData],
+        batch_idx: int,
+    ) -> torch.Tensor:
+        """Training step for segmentation module.
+
+        Parameters
+        ----------
+        batch : (ImageRegionData, ImageRegionData)
+            A tuple containing the input data and the target data.
+        batch_idx : int
+            The index of the current batch in the training loop.
+
+        Returns
+        -------
+        torch.Tensor
+            The loss value computed for the current batch.
+        """
+        x, target = batch[0], batch[1]
+
+        prediction = self.model(x.data)
+        loss = self.loss_func(prediction, target.data)
+
+        log_training_stats(self, loss, batch_size=x.data.shape[0])
+
+        return loss
+
+    def validation_step(
+        self,
+        batch: tuple[ImageRegionData, ImageRegionData],
+        batch_idx: int,
+    ) -> None:
+        """Validation step for segmentation module.
+
+        Parameters
+        ----------
+        batch : (ImageRegionData, ImageRegionData)
+            A tuple containing the input data and the target data.
+        batch_idx : int
+            The index of the current batch in the validation loop.
+        """
+        x, target = batch[0], batch[1]
+
+        prediction = self.model(x.data)
+        val_loss = self.loss_func(prediction, target.data)
+
+        # compute metrics on validation
+        # get index class, without C dimension
+        pred_classes = prediction.argmax(dim=1)  # (B, [Z], Y, X)
+
+        assert isinstance(target.data, torch.Tensor)
+        target_long = target.data.long().squeeze(1)  # (B, [Z], Y, X)
+        self.metrics(pred_classes, target_long)
+
+        # not passing metrics because GenerelizedDiceScore is a tensor of length
+        # num_classes, which cannot be reduced to a scalar if num_classes > 1
+        # so we log the metrics ourselves in on_validation_epoch_end
+        log_validation_stats(self, val_loss, batch_size=x.data.shape[0])
+
+    def on_validation_epoch_end(self) -> None:
+        """Log per-class Dice scores at the end of each validation epoch."""
+        scores = self.metrics.compute()
+        dice_per_class = scores["GeneralizedDiceScore"]
+
+        if dice_per_class.ndim == 0:
+            self.log("val_dice", dice_per_class, prog_bar=True, logger=True)
+        else:
+            for i, score in enumerate(dice_per_class):
+                self.log(f"val_dice_class_{i}", score, prog_bar=True, logger=True)
+        self.metrics.reset()
+
+    def predict_step(
+        self,
+        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch_idx: int,
+    ) -> ImageRegionData:
+        """Prediction step for segmentation module.
+
+        Parameters
+        ----------
+        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
+            A tuple containing the input data and optionally the target data.
+        batch_idx : int
+            The index of the current batch in the prediction loop.
+
+        Returns
+        -------
+        ImageRegionData
+            The output batch containing the predictions.
+        """
+        x = batch[0]
+        # TODO: add TTA
+        prediction = self.model(x.data)
+
+        # TODO in the future, we will probably want to also return probability map
+        #   this is currently not possible due to the prediction conversion
+        #   restoring the original target shape
+        # prediction = prediction.softmax(dim=1)
+
+        # TODO step incompatible with returning probabilities
+        # apply argmaxx to get the class
+        prediction = prediction.argmax(dim=1, keepdim=True).cpu().numpy()
+
+        output_batch = ImageRegionData(
+            data=prediction,
+            source=x.source,
+            data_shape=x.data_shape,
+            dtype=x.dtype,
+            axes=x.axes,
+            # TODO update target axes with a C channel to return probabilities
+            target_axes=x.target_axes,
+            original_data_shape=x.original_data_shape,
+            region_spec=x.region_spec,
+            additional_metadata=x.additional_metadata,
+        )
+        return output_batch
+
+    def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]
+        """Configure optimizer and learning rate scheduler.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the optimizer and learning rate scheduler.
+        """
+        return configure_optimizers(
+            model=self.model,
+            optimizer_name=self.config.optimizer.name,
+            optimizer_parameters=self.config.optimizer.parameters,
+            lr_scheduler_name=self.config.lr_scheduler.name,
+            lr_scheduler_parameters=self.config.lr_scheduler.parameters,
+        )

@@ -4,10 +4,16 @@ from typing import Annotated, Any, Union
 
 from pydantic import Discriminator, Tag, TypeAdapter
 
-from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from careamics.config.algorithms import (
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    SegAlgorithm,
+)
 from careamics.config.configuration import Configuration
 from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.n2v_configuration import N2VConfiguration
+from careamics.config.seg_configuration import SegConfiguration
 from careamics.config.support import SupportedAlgorithm
 
 
@@ -57,6 +63,7 @@ def _algo_discriminator(algo: Any) -> SupportedAlgorithm | None:
 Config = Annotated[
     Union[
         Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],
+        Annotated[SegConfiguration, Tag(SupportedAlgorithm.SEG)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
         Annotated[Configuration, Tag(SupportedAlgorithm.N2N)],
     ],
@@ -68,6 +75,7 @@ AlgorithmConfig = Annotated[
         Annotated[N2VAlgorithm, Tag(SupportedAlgorithm.N2V)],
         Annotated[CAREAlgorithm, Tag(SupportedAlgorithm.CARE)],
         Annotated[N2NAlgorithm, Tag(SupportedAlgorithm.N2N)],
+        Annotated[SegAlgorithm, Tag(SupportedAlgorithm.SEG)],
     ],
     Discriminator(_algo_discriminator),
 ]
