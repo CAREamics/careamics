@@ -16,12 +16,16 @@ from careamics.config.data.normalization_config import (
 from careamics.dataset.patch_constructor import (
     PatchConstr,
 )
+from careamics.utils import get_logger
 
 from .running_mean_std import WelfordStatistics
 from .running_quantile import QuantileEstimator
 from .utils import broadcast_stats
 
 StatsDict = dict[Literal["input", "target"], tuple[NDArray[Any], NDArray[Any]]]
+
+
+logger = get_logger("Statistics")
 
 
 def _compute_mean_std(
@@ -80,9 +84,19 @@ def _compute_mean_std(
     if compute_input:
         input_means, input_stds = input_stats.finalize()
         stats["input"] = (input_means, input_stds)
+        logger.info(
+            f"Computed mean-std for input: means = {input_means}, "
+            f"stds = {input_stds}"
+        )
+
     if compute_target:
         target_means, target_stds = target_stats.finalize()
         stats["target"] = target_means, target_stds
+        logger.info(
+            f"Computed mean-std for target: means = {target_means}, "
+            f"stds = {target_stds}"
+        )
+
     return stats
 
 
@@ -168,10 +182,18 @@ def _compute_min_max(
         assert input_mins is not None
         assert input_maxes is not None
         stats["input"] = (input_mins, input_maxes)
+        logger.info(
+            f"Computed min-max for input: mins = {input_mins}, "
+            f"maxes = {input_maxes}"
+        )
     if compute_target:
         assert target_mins is not None
         assert target_maxes is not None
         stats["target"] = (target_mins, target_maxes)
+        logger.info(
+            f"Computed min-max for target: mins = {target_mins}, "
+            f"maxes = {target_maxes}"
+        )
     return stats
 
 
@@ -249,10 +271,18 @@ def _compute_quantiles(
         assert input_estimator is not None
         input_lower, input_upper = input_estimator.finalize()
         stats["input"] = (input_lower, input_upper)
+        logger.info(
+            f"Computed quantiles for input: lower = {input_lower}, "
+            f"upper = {input_upper}"
+        )
     if compute_target:
         assert target_estimator is not None
         target_lower, target_upper = target_estimator.finalize()
         stats["target"] = target_lower, target_upper
+        logger.info(
+            f"Computed quantiles for target: lower = {target_lower}, "
+            f"upper = {target_upper}"
+        )
     return stats
 
 
