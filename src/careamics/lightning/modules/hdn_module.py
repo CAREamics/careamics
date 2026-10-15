@@ -188,7 +188,9 @@ class HDNModule(L.LightningModule):
         Raises
         ------
         ValueError
-            If the presence of target data does not match `config.supervised`.
+            If the presence of target data does not match `config.supervised`, or if
+            the noise model likelihood is used (`predict_logvar=False`) but no noise
+            model has been provided.
         TypeError
             If a noise model is used with a normalization other than
             `MeanStdNormalization`.
@@ -196,9 +198,15 @@ class HDNModule(L.LightningModule):
         assert self._trainer is not None
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
         self._check_target_data(datamodule)
-        if self.noise_model is None:
+        if self.predict_logvar:
+            # Gaussian (DivNoising) likelihood; no noise model
             return
-        assert self.config.noise_model is not None
+        if self._raw_noise_model is None:
+            raise ValueError(
+                "HDN with the noise model likelihood (`predict_logvar=False`) requires "
+                "a noise model. Provide one via `CAREamist.train(noise_model=...)` or "
+                "`HDNModule.set_noise_model(...)`."
+            )
         # The noise model likelihood operates in normalized data space, so the noise
         # model path requires zero-mean/unit-variance normalization to recover the
         # data statistics; other normalizations do not expose input means/stds.
