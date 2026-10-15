@@ -12,14 +12,12 @@ from careamics.config.lightning.optimizer_configs import (
     OptimizerConfig,
 )
 from careamics.config.losses.loss_config import HDNLossConfig
-from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 from careamics.config.validators import (
     lvae_conv_strides_valid,
     lvae_depth_valid,
     lvae_spatial_shape_valid,
     model_with_single_output_channel,
     model_without_multiscale,
-    noise_models_match_output_channels,
     predict_logvar_consistent,
 )
 
@@ -59,8 +57,6 @@ class HDNAlgorithm(BaseModel):
         AfterValidator(lvae_depth_valid),
     ]
 
-    noise_model: MultiChannelNMConfig | None = None
-
     # overwrite default optimizer
     optimizer: OptimizerConfig = OptimizerConfig(name="Adamax")
     """Optimizer to use, defined in SupportedOptimizer."""
@@ -88,27 +84,12 @@ class HDNAlgorithm(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_noise_model_channels(self: Self) -> Self:
-        """Validate that the number of noise models matches the output channels.
-
-        Returns
-        -------
-        Self
-            The validated model.
-
-        Raises
-        ------
-        ValueError
-            If the number of output channels does not match the number of noise
-            models.
-        """
-        noise_models_match_output_channels(self.model, self.noise_model)
-        return self
-
-    @model_validator(mode="after")
     def validate_supervised_without_noise_model(self: Self) -> Self:
         """Validate that supervised training does not use a noise model.
 
+        The noise model likelihood is selected by `predict_logvar=False`; the noise
+        model itself is supplied at training time.
+
         Returns
         -------
         Self
@@ -117,12 +98,13 @@ class HDNAlgorithm(BaseModel):
         Raises
         ------
         ValueError
-            If `supervised` is `True` and a noise model is provided.
+            If `supervised` is `True` and the noise model likelihood is selected.
         """
-        if self.supervised and self.noise_model is not None:
+        if self.supervised and not self.model.predict_logvar:
             raise ValueError(
-                "HDN with a noise model is not supported in supervised mode. Remove "
-                "the noise model, or set `supervised=False`."
+                "HDN with a noise model is not supported in supervised mode. Use the "
+                "Gaussian likelihood (`use_noise_model=False`), or set "
+                "`supervised=False`."
             )
         return self
 
