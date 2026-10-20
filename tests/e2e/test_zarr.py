@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import zarr
+from tifffile import imwrite
 from yaozarrs import validate_zarr_store
 
 from careamics import CAREamist
@@ -25,13 +26,11 @@ def _create_plain_root_array_zarr(store_path: Path, data: np.ndarray) -> str:
 
 
 def _train_n2v_model(
-    tmp_path: Path,
-    train_data: list[str],
-    val_data: list[str],
+    tmp_path: Path, train_data: list[str], val_data: list[str], data_type: str = "zarr"
 ) -> CAREamist:
     cfg = create_n2v_config(
         experiment_name="n2v_zarr",
-        data_type="zarr",
+        data_type=data_type,
         axes="YX",
         patch_size=(32, 32),
         batch_size=2,
@@ -48,10 +47,11 @@ def _train_care_model(
     train_data_target: list[str],
     val_data: list[str],
     val_data_target: list[str],
+    data_type: str = "zarr",
 ) -> CAREamist:
     cfg = create_care_config(
         experiment_name="n2v_zarr",
-        data_type="zarr",
+        data_type=data_type,
         axes="YX",
         patch_size=(16, 16),
         batch_size=2,
@@ -229,3 +229,64 @@ def test_smoke_care_supervised_same_ome_zarr(tmp_path: Path) -> None:
     output_store = tmp_path / "predictions" / "pred_supervised_output.zarr"
     assert output_store.exists()
     validate_zarr_store(output_store)
+
+
+@pytest.mark.mps_gh_fail
+def test_smoke_n2v_arrays_to_zarr(tmp_path: Path) -> None:
+    """Test that arrays are written as an OME-Zarr collection."""
+    rng = np.random.default_rng(42)
+    train_images = [rng.integers(0, 255, (32, 32)).astype(np.float32) for _ in range(2)]
+
+    careamist = _train_n2v_model(
+        tmp_path, train_data=train_images, val_data=train_images, data_type="array"
+    )
+    careamist.predict_to_disk(
+        pred_data=train_images,
+        prediction_dir="predictions",
+        tile_size=(16, 16),
+        tile_overlap=(4, 4),
+        write_type="zarr",
+    )
+    output_store = tmp_path / "predictions" / "prediction.zarr"
+    assert output_store.exists()
+    validate_zarr_store(output_store)
+
+    # count number of arrays in the store
+    group = zarr.open_group(output_store)
+    assert "OME" in group  # series
+    assert len(list(group["0"].arrays())) == 1
+    assert len(list(group["1"].arrays())) == 1
+
+
+@pytest.mark.mps_gh_fail
+def test_smoke_n2v_tiff_to_zarr(tmp_path: Path) -> None:
+    """Test that an tiff files are written as several OME-Zarr."""
+    rng = np.random.default_rng(42)
+    train_images = [rng.integers(0, 255, (32, 32)).astype(np.float32) for _ in range(2)]
+
+    train_path = tmp_path / "train"
+    train_path.mkdir()
+
+    for i, arr in enumerate(train_images):
+        imwrite(train_path / f"image_{i}.tif", arr)
+
+    careamist = _train_n2v_model(
+        tmp_path, train_data=train_path, val_data=train_path, data_type="tiff"
+    )
+    careamist.predict_to_disk(
+        pred_data=train_path,
+        prediction_dir="predictions",
+        tile_size=(16, 16),
+        tile_overlap=(4, 4),
+        write_type="zarr",
+    )
+
+    output_store = tmp_path / "predictions" / "prediction.zarr"
+    assert output_store.exists()
+    validate_zarr_store(output_store)
+
+    # count number of arrays in the store
+    group = zarr.open_group(output_store)
+    assert "OME" in group  # series
+    for i in range(len(train_images)):
+        assert len(list(group[f"image_{i}"].arrays())) == 1, f"Failed for image_{i}"
