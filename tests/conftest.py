@@ -32,8 +32,9 @@ pytest.register_assert_rewrite("functional.dataset.utils")
 ############################################################
 
 
-def _ome_image_metadata() -> v05.Image:
+def _ome_image_metadata(spatial_scale: tuple[float, float] = (1.0, 1.0)) -> v05.Image:
     """Create metadata for the two-level OME-Zarr test stores."""
+    downsampled_scale = tuple(2.0 * scale for scale in spatial_scale)
     return v05.Image(
         multiscales=[
             v05.Multiscale(
@@ -46,13 +47,13 @@ def _ome_image_metadata() -> v05.Image:
                     v05.Dataset(
                         path="0",
                         coordinateTransformations=[
-                            v05.ScaleTransformation(scale=[1.0, 1.0])
+                            v05.ScaleTransformation(scale=list(spatial_scale))
                         ],
                     ),
                     v05.Dataset(
                         path="1",
                         coordinateTransformations=[
-                            v05.ScaleTransformation(scale=[2.0, 2.0])
+                            v05.ScaleTransformation(scale=list(downsampled_scale))
                         ],
                     ),
                 ],
@@ -88,6 +89,7 @@ def create_single_image_ome_zarr(
     shape: tuple[int, int] = (16, 16),
     chunks: tuple[int, int] = (8, 8),
     shards: tuple[int, ...] | None = None,
+    spatial_scale: tuple[float, float] = (1.0, 1.0),
 ) -> Path:
     """Create a two-level single-image OME-Zarr test store."""
     if data is None:
@@ -103,7 +105,7 @@ def create_single_image_ome_zarr(
 
     return write.v05.write_image(
         store_path,
-        _ome_image_metadata(),
+        _ome_image_metadata(spatial_scale),
         datasets=datasets,
         chunks=chunks,
         shards=shards,
@@ -117,6 +119,7 @@ def create_image_collection_ome_zarr(
     shape: tuple[int, int] = (16, 16),
     chunks: tuple[int, int] = (8, 8),
     shards: tuple[int, ...] | None = None,
+    spatial_scale: tuple[float, float] = (1.0, 1.0),
 ) -> Path:
     """Create a two-level two-image OME-Zarr collection test store."""
     if images is None:
@@ -138,7 +141,7 @@ def create_image_collection_ome_zarr(
     return write.v05.write_bioformats2raw(
         store_path,
         {
-            name: (_ome_image_metadata(), datasets)
+            name: (_ome_image_metadata(spatial_scale), datasets)
             for name, datasets in datasets_by_image.items()
         },
         chunks=chunks,

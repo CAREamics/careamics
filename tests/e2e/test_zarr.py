@@ -67,6 +67,34 @@ def _train_care_model(
     return careamist
 
 
+def _assert_ome_metadata_at_scale(
+    source_group: zarr.Group,
+    prediction_group: zarr.Group,
+    scale: str = "0",
+) -> None:
+    """Assert conserved OME-NGFF metadata for one multiscale level."""
+    source_ome = source_group.attrs["ome"]
+    prediction_ome = prediction_group.attrs["ome"]
+    source_multiscale = source_ome["multiscales"][0]
+    prediction_multiscale = prediction_ome["multiscales"][0]
+
+    assert prediction_ome["version"] == source_ome["version"]
+    assert prediction_multiscale["axes"] == source_multiscale["axes"]
+
+    source_dataset = next(
+        dataset for dataset in source_multiscale["datasets"] if dataset["path"] == scale
+    )
+    prediction_dataset = next(
+        dataset
+        for dataset in prediction_multiscale["datasets"]
+        if dataset["path"] == scale
+    )
+    assert (
+        prediction_dataset["coordinateTransformations"]
+        == source_dataset["coordinateTransformations"]
+    )
+
+
 @pytest.mark.mps_gh_fail
 def test_smoke_n2v_plain_zarr_root_array(tmp_path: Path) -> None:
     """Test that a plain zarr root array gets written as an Image OME-Zarr."""
@@ -103,15 +131,25 @@ def test_smoke_n2v_single_image_ome_zarr(tmp_path: Path) -> None:
     train_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
     val_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
     pred_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
+    spatial_scale = (0.25, 0.75)
 
     train_uri = create_single_image_ome_zarr(
-        tmp_path / "train_image.zarr", train_array, chunks=(16, 16)
+        tmp_path / "train_image.zarr",
+        train_array,
+        chunks=(16, 16),
+        spatial_scale=spatial_scale,
     ).as_uri()
     val_uri = create_single_image_ome_zarr(
-        tmp_path / "val_image.zarr", val_array, chunks=(16, 16)
+        tmp_path / "val_image.zarr",
+        val_array,
+        chunks=(16, 16),
+        spatial_scale=spatial_scale,
     ).as_uri()
     pred_uri = create_single_image_ome_zarr(
-        tmp_path / "input_image.zarr", pred_array, chunks=(16, 16)
+        tmp_path / "input_image.zarr",
+        pred_array,
+        chunks=(16, 16),
+        spatial_scale=spatial_scale,
     ).as_uri()
 
     careamist = _train_n2v_model(
@@ -129,6 +167,10 @@ def test_smoke_n2v_single_image_ome_zarr(tmp_path: Path) -> None:
 
     assert output_store.exists()
     validate_zarr_store(output_store)
+    _assert_ome_metadata_at_scale(
+        zarr.open_group(tmp_path / "input_image.zarr", mode="r"),
+        zarr.open_group(output_store, mode="r"),
+    )
 
 
 @pytest.mark.mps_gh_fail
@@ -147,15 +189,25 @@ def test_smoke_n2v_collection_ome_zarr(tmp_path: Path) -> None:
         "img_0": rng.integers(0, 255, (32, 32)).astype(np.float32),
         "img_1": rng.integers(0, 255, (32, 32)).astype(np.float32),
     }
+    spatial_scale = (0.25, 0.75)
 
     train_uri = create_image_collection_ome_zarr(
-        tmp_path / "train_collection.zarr", train_images, chunks=(16, 16)
+        tmp_path / "train_collection.zarr",
+        train_images,
+        chunks=(16, 16),
+        spatial_scale=spatial_scale,
     ).as_uri()
     val_uri = create_image_collection_ome_zarr(
-        tmp_path / "val_collection.zarr", val_images, chunks=(16, 16)
+        tmp_path / "val_collection.zarr",
+        val_images,
+        chunks=(16, 16),
+        spatial_scale=spatial_scale,
     ).as_uri()
     pred_uri = create_image_collection_ome_zarr(
-        tmp_path / "input_collection.zarr", pred_images, chunks=(16, 16)
+        tmp_path / "input_collection.zarr",
+        pred_images,
+        chunks=(16, 16),
+        spatial_scale=spatial_scale,
     ).as_uri()
 
     careamist = _train_n2v_model(
@@ -172,6 +224,13 @@ def test_smoke_n2v_collection_ome_zarr(tmp_path: Path) -> None:
     output_store = tmp_path / "predictions" / "input_collection_output.zarr"
     assert output_store.exists()
     validate_zarr_store(output_store)
+    source_group = zarr.open_group(tmp_path / "input_collection.zarr", mode="r")
+    output_group = zarr.open_group(output_store, mode="r")
+    for image_name in pred_images:
+        _assert_ome_metadata_at_scale(
+            source_group[image_name],
+            output_group[image_name],
+        )
 
 
 @pytest.mark.mps_gh_fail
