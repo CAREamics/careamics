@@ -9,12 +9,10 @@ from .ome_zarr_utils import (
     resolve_ome_zarr_nodes,
 )
 from .ome_zarr_write_utils import (
-    OMEWriteTarget,
     create_ome_array,
     ensure_ome_store_structure,
     get_ome_dimension_names,
     resolve_ome_output_node,
-    to_ome_write_target,
 )
 from .zarr_access import ZarrAccess, ZarrNode
 from .zarr_access_utils import (
@@ -26,7 +24,6 @@ from .zarr_access_utils import (
 from .zarr_python_access import ZarrPythonAccess
 
 __all__ = [
-    "OMEWriteTarget",
     "OMEZarrMetadata",
     "ZarrAccess",
     "ZarrNode",
@@ -43,6 +40,5 @@ __all__ = [
     "path_to_file_uri",
     "resolve_ome_output_node",
     "resolve_ome_zarr_nodes",
-    "to_ome_write_target",
     "to_zarr_node",
 ]

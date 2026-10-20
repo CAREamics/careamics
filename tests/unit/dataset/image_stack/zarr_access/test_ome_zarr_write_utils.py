@@ -4,14 +4,12 @@ import zarr
 from yaozarrs import validate_zarr_store
 
 from careamics.dataset.image_stack.zarr_access import (
-    OMEWriteTarget,
     ZarrNode,
     create_ome_array,
     ensure_ome_store_structure,
     get_ome_dimension_names,
     path_to_file_uri,
     resolve_ome_output_node,
-    to_ome_write_target,
 )
 
 # --- Test utilities
@@ -38,37 +36,6 @@ def _source_ome_metadata(
 
 
 # --- Unit tests
-
-
-class TestOMEWriteTarget:
-
-    def test_array_node_at_root(self, tmp_path):
-        store_uri = path_to_file_uri(tmp_path / "prediction.zarr")
-        target = OMEWriteTarget(
-            store_uri=store_uri,
-            image_group_path="",
-            array_name="0",
-        )
-
-        assert target.array_node == ZarrNode(
-            store_uri=store_uri,
-            path="0",
-            node_type="array",
-        )
-
-    def test_array_node_in_collection(self, tmp_path):
-        store_uri = path_to_file_uri(tmp_path / "prediction.zarr")
-        target = OMEWriteTarget(
-            store_uri=store_uri,
-            image_group_path="img_0",
-            array_name="0",
-        )
-
-        assert target.array_node == ZarrNode(
-            store_uri=store_uri,
-            path="img_0/0",
-            node_type="array",
-        )
 
 
 class TestResolveOMEOutputNode:
@@ -170,63 +137,24 @@ class TestDimensionNames:
         assert get_ome_dimension_names("YX", source_ome) == ["y", "x"]
 
 
-class TestToOMEWriteTarget:
-
-    def test_root_node(self, tmp_path):
-        store_uri = path_to_file_uri(tmp_path / "prediction.zarr")
-        node = ZarrNode(store_uri=store_uri, path="", node_type="array")
-
-        target = to_ome_write_target(node)
-
-        assert target == OMEWriteTarget(
-            store_uri=store_uri,
-            image_group_path="",
-            array_name="0",
-        )
-
-    def test_single_image_level_node(self, tmp_path):
-        store_uri = path_to_file_uri(tmp_path / "prediction.zarr")
-        node = ZarrNode(store_uri=store_uri, path="1", node_type="array")
-
-        target = to_ome_write_target(node)
-
-        assert target == OMEWriteTarget(
-            store_uri=store_uri,
-            image_group_path="",
-            array_name="1",
-        )
-
-    def test_collection_node(self, tmp_path):
-        store_uri = path_to_file_uri(tmp_path / "prediction.zarr")
-        node = ZarrNode(store_uri=store_uri, path="img_0/0", node_type="array")
-
-        target = to_ome_write_target(node)
-
-        assert target == OMEWriteTarget(
-            store_uri=store_uri,
-            image_group_path="img_0",
-            array_name="0",
-        )
-
-
 class TestOMEStoreWriting:
 
     def test_single_image_store_validates(self, tmp_path):
         store_path = tmp_path / "prediction.zarr"
-        target = OMEWriteTarget(
+        node = ZarrNode(
             store_uri=path_to_file_uri(store_path),
-            image_group_path="",
-            array_name="0",
+            path="0",
+            node_type="array",
         )
 
         ensure_ome_store_structure(
-            target=target,
+            node=node,
             axes="YX",
             source_ome=_source_ome_metadata(),
             image_group_paths=[],
         )
         array = create_ome_array(
-            target=target,
+            node=node,
             shape=(16, 16),
             chunks=(8, 8),
             shards=None,
@@ -242,19 +170,19 @@ class TestOMEStoreWriting:
         store_uri = path_to_file_uri(store_path)
 
         for image_group_path in ("img_0", "img_1"):
-            target = OMEWriteTarget(
+            node = ZarrNode(
                 store_uri=store_uri,
-                image_group_path=image_group_path,
-                array_name="0",
+                path=f"{image_group_path}/0",
+                node_type="array",
             )
             ensure_ome_store_structure(
-                target=target,
+                node=node,
                 axes="YX",
                 source_ome=_source_ome_metadata(image_group_path=image_group_path),
                 image_group_paths=["img_0", "img_1"],
             )
             create_ome_array(
-                target=target,
+                node=node,
                 shape=(16, 16),
                 chunks=(8, 8),
                 shards=None,
@@ -267,14 +195,14 @@ class TestOMEStoreWriting:
         validate_zarr_store(store_path)
 
     def test_create_ome_array_returns_existing_array(self, tmp_path):
-        target = OMEWriteTarget(
+        node = ZarrNode(
             store_uri=path_to_file_uri(tmp_path / "prediction.zarr"),
-            image_group_path="img_0",
-            array_name="0",
+            path="img_0/0",
+            node_type="array",
         )
 
         first_array = create_ome_array(
-            target=target,
+            node=node,
             shape=(16, 16),
             chunks=(8, 8),
             shards=None,
@@ -282,7 +210,7 @@ class TestOMEStoreWriting:
             dimension_names=["y", "x"],
         )
         second_array = create_ome_array(
-            target=target,
+            node=node,
             shape=(16, 16),
             chunks=(8, 8),
             shards=None,
@@ -295,15 +223,15 @@ class TestOMEStoreWriting:
     def test_create_ome_array_raises_if_node_is_group(self, tmp_path):
         root = zarr.open_group(tmp_path / "prediction.zarr", mode="a")
         root.create_group("0")
-        target = OMEWriteTarget(
+        node = ZarrNode(
             store_uri=path_to_file_uri(tmp_path / "prediction.zarr"),
-            image_group_path="",
-            array_name="0",
+            path="0",
+            node_type="array",
         )
 
         with pytest.raises(RuntimeError, match="is not an array"):
             create_ome_array(
-                target=target,
+                node=node,
                 shape=(16, 16),
                 chunks=(8, 8),
                 shards=None,
