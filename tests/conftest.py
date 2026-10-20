@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from lightning.pytorch import Callback, Trainer
+from yaozarrs import v05, write
 
 from careamics.config.configuration import Configuration
 from careamics.config.data.data_config import DataConfig
@@ -24,6 +25,126 @@ from careamics.lightning.modules import CAREModule, N2VModule
 from careamics.lightning.utils.load_checkpoint import _create_loaded_exp_name
 
 pytest.register_assert_rewrite("functional.dataset.utils")
+
+
+############################################################
+# Zarr fixtures
+############################################################
+
+
+def _ome_image_metadata() -> v05.Image:
+    """Create metadata for the two-level OME-Zarr test stores."""
+    return v05.Image(
+        multiscales=[
+            v05.Multiscale(
+                name="image",
+                axes=[
+                    v05.SpaceAxis(name="y", unit="micrometer"),
+                    v05.SpaceAxis(name="x", unit="micrometer"),
+                ],
+                datasets=[
+                    v05.Dataset(
+                        path="0",
+                        coordinateTransformations=[
+                            v05.ScaleTransformation(scale=[1.0, 1.0])
+                        ],
+                    ),
+                    v05.Dataset(
+                        path="1",
+                        coordinateTransformations=[
+                            v05.ScaleTransformation(scale=[2.0, 2.0])
+                        ],
+                    ),
+                ],
+            )
+        ]
+    )
+
+
+def _validate_ome_zarr_shape(
+    shape: tuple[int, ...],
+    chunks: tuple[int, ...],
+    shards: tuple[int, ...] | None,
+) -> None:
+    if len(shape) != 2 or len(chunks) != 2:
+        raise ValueError("Expected 2D YX shape and chunks.")
+    if any(size % 2 != 0 for size in shape):
+        raise ValueError("Expected even YX shape for two-level OME-Zarr fixtures.")
+    if shards is not None and len(shards) != len(chunks):
+        raise ValueError("Shards have the wrong length.")
+
+
+def _ome_zarr_datasets(shape: tuple[int, int]) -> list[np.ndarray]:
+    data_0 = np.arange(np.prod(shape), dtype=np.float32).reshape(shape)
+    shape_1 = tuple(size // 2 for size in shape)
+    data_1 = np.arange(np.prod(shape_1), dtype=np.float32).reshape(shape_1)
+    return [data_0, data_1]
+
+
+def create_single_image_ome_zarr(
+    store_path: Path,
+    data: np.ndarray | None = None,
+    *,
+    shape: tuple[int, int] = (16, 16),
+    chunks: tuple[int, int] = (8, 8),
+    shards: tuple[int, ...] | None = None,
+) -> Path:
+    """Create a two-level single-image OME-Zarr test store."""
+    if data is None:
+        _validate_ome_zarr_shape(shape, chunks, shards)
+        datasets = _ome_zarr_datasets(shape)
+    else:
+        datasets = [
+            data,
+            np.arange(
+                np.prod(tuple(size // 2 for size in data.shape)), dtype=np.float32
+            ).reshape(tuple(size // 2 for size in data.shape)),
+        ]
+
+    return write.v05.write_image(
+        store_path,
+        _ome_image_metadata(),
+        datasets=datasets,
+        chunks=chunks,
+        shards=shards,
+    )
+
+
+def create_image_collection_ome_zarr(
+    store_path: Path,
+    images: dict[str, np.ndarray] | None = None,
+    *,
+    shape: tuple[int, int] = (16, 16),
+    chunks: tuple[int, int] = (8, 8),
+    shards: tuple[int, ...] | None = None,
+) -> Path:
+    """Create a two-level two-image OME-Zarr collection test store."""
+    if images is None:
+        _validate_ome_zarr_shape(shape, chunks, shards)
+        datasets_by_image = {
+            name: _ome_zarr_datasets(shape) for name in ("img_0", "img_1")
+        }
+    else:
+        datasets_by_image = {
+            name: [
+                data,
+                np.arange(
+                    np.prod(tuple(size // 2 for size in data.shape)), dtype=np.float32
+                ).reshape(tuple(size // 2 for size in data.shape)),
+            ]
+            for name, data in images.items()
+        }
+
+    return write.v05.write_bioformats2raw(
+        store_path,
+        {
+            name: (_ome_image_metadata(), datasets)
+            for name, datasets in datasets_by_image.items()
+        },
+        chunks=chunks,
+        shards=shards,
+    )
+
 
 # TODO move to compat/conftest.py
 
