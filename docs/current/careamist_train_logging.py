@@ -6,7 +6,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from careamics.careamist import CAREamist
-from careamics.config.factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 rng = np.random.default_rng(seed=0)
 train_data = rng.integers(0, 255, (512, 512)).astype(np.float32)

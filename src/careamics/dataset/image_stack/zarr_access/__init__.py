@@ -16,7 +16,7 @@ from .ome_zarr_write_utils import (
     resolve_ome_output_node,
     to_ome_write_target,
 )
-from .zarr_access_protocol import ZarrAccessProtocol, ZarrNode
+from .zarr_access import ZarrAccess, ZarrNode
 from .zarr_access_utils import (
     file_uri_to_path,
     is_valid_uri,
@@ -28,7 +28,7 @@ from .zarr_python_access import ZarrPythonAccess
 __all__ = [
     "OMEWriteTarget",
     "OMEZarrMetadata",
-    "ZarrAccessProtocol",
+    "ZarrAccess",
     "ZarrNode",
     "ZarrPythonAccess",
     "build_default_ome_metadata",

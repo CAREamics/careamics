@@ -68,7 +68,7 @@ class ZarrNode:
         return f"{self.store_uri}/{self.path}"
 
 
-class ZarrAccessProtocol(Protocol):
+class ZarrAccess(Protocol):
     """Protocol for backend-specific Zarr operations."""
 
     def open_node(

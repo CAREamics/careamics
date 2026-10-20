@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack.zarr_access import (
-    ZarrAccessProtocol,
+    ZarrAccess,
     ZarrNode,
     ZarrPythonAccess,
     create_ome_array,
@@ -319,7 +319,7 @@ class ZarrTileWriteStrategy(WriteStrategy):
         Zarr backend access implementation.
     """
 
-    def __init__(self, access: ZarrAccessProtocol | None = None) -> None:
+    def __init__(self, access: ZarrAccess | None = None) -> None:
         """Constructor.
 
         Parameters

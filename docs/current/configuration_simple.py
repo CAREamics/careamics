@@ -2,7 +2,7 @@
 
 # %%
 # --8<-- [start:all_configs]
-from careamics.config.factories import (
+from careamics.config import (
     create_n2v_config,
     create_care_config,
     create_n2n_config,
@@ -17,7 +17,7 @@ from careamics.config.factories import (
 ################ Noise2Void ################
 # %%
 # --8<-- [start:config_n2v]
-from careamics.config.factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -32,7 +32,7 @@ config = create_n2v_config(
 
 # %%
 # --8<-- [start:config_n2v_steps]
-from careamics.config.factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -48,7 +48,7 @@ config = create_n2v_config(
 
 # %%
 # --8<-- [start:config_n2v_augs]
-from careamics.config.factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -64,7 +64,7 @@ config = create_n2v_config(
 
 # %%
 # --8<-- [start:config_n2v_channels]
-from careamics.config.factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -80,7 +80,7 @@ config = create_n2v_config(
 
 # %%
 # --8<-- [start:config_n2v_val]
-from careamics.config.factories import create_n2v_config
+from careamics.config import create_n2v_config
 
 # create a configuration
 config = create_n2v_config(
@@ -99,7 +99,7 @@ config = create_n2v_config(
 ################# CARE/N2N #################
 # %%
 # --8<-- [start:config_care]
-from careamics.config.factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -114,7 +114,7 @@ config = create_care_config(
 
 # %%
 # --8<-- [start:config_n2n]
-from careamics.config.factories import create_n2n_config
+from careamics.config import create_n2n_config
 
 # create a configuration
 config = create_n2n_config(
@@ -129,7 +129,7 @@ config = create_n2n_config(
 
 # %%
 # --8<-- [start:config_care_steps]
-from careamics.config.factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -145,7 +145,7 @@ config = create_care_config(
 
 # %%
 # --8<-- [start:config_care_augs]
-from careamics.config.factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -161,7 +161,7 @@ config = create_care_config(
 
 # %%
 # --8<-- [start:config_care_channels]
-from careamics.config.factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -177,7 +177,7 @@ config = create_care_config(
 
 # %%
 # --8<-- [start:config_care_out_channels]
-from careamics.config.factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -195,7 +195,7 @@ config = create_care_config(
 
 # %%
 # --8<-- [start:config_care_val]
-from careamics.config.factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
@@ -212,7 +212,7 @@ config = create_care_config(
 
 # %%
 # --8<-- [start:target_axes]
-from careamics.config.factories import create_care_config
+from careamics.config import create_care_config
 
 # create a configuration
 config = create_care_config(
