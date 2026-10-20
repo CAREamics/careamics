@@ -27,6 +27,14 @@ class ResolvedOMEZarrNode:
     node: ZarrNode
     additional_metadata: dict[str, Any]
 
+    def __post_init__(self) -> None:
+        """Ensure that `node_type` has been resolved."""
+        if self.node.node_type is None:
+            raise ValueError(
+                "ResolvedOMEZarrNode requires a ZarrNode with a resolved `node_type` "
+                '("group" or "array").'
+            )
+
 
 @dataclass(frozen=True)
 class OMEZarrMetadata:
