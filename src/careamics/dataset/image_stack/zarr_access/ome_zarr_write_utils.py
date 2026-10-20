@@ -9,7 +9,7 @@ import zarr
 from yaozarrs import v05
 
 from .ome_zarr_utils import default_ome_axes_metadata
-from .zarr_access_protocol import ZarrNode
+from .zarr_access import ZarrNode
 from .zarr_access_utils import file_uri_to_path
 
 # TODO in the near future we need to decouple OME specs generation and Zarr group/array

@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from yaozarrs import validate_ome_object
 from yaozarrs.v05 import Bf2Raw, Dataset, Image, LabelImage, Plate, Series
 
-from .zarr_access_protocol import ZarrNode
+from .zarr_access import ZarrNode
 from .zarr_access_utils import file_uri_to_path
 
 OMEType: TypeAlias = Image | Bf2Raw | Plate | LabelImage | Series
