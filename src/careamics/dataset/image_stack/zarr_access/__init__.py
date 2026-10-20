@@ -1,6 +1,6 @@
 """Zarr access protocols and implementations."""
 
-from .zarr_access_protocol import ZarrAccessProtocol, ZarrNode
+from .zarr_access import ZarrAccess, ZarrNode
 from .zarr_access_utils import (
     file_uri_to_path,
     is_valid_uri,
@@ -10,7 +10,7 @@ from .zarr_access_utils import (
 from .zarr_python_access import ZarrPythonAccess
 
 __all__ = [
-    "ZarrAccessProtocol",
+    "ZarrAccess",
     "ZarrNode",
     "ZarrPythonAccess",
     "file_uri_to_path",

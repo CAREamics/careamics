@@ -8,7 +8,7 @@ from numpy.typing import DTypeLike, NDArray
 from careamics.utils.reshape_array import AxesTransform, get_patch_slices, reshape_patch
 
 from .image_utils.image_stack_utils import pad_patch
-from .zarr_access import ZarrAccessProtocol, ZarrNode, ZarrPythonAccess
+from .zarr_access import ZarrAccess, ZarrNode, ZarrPythonAccess
 
 
 class ZarrImageStack:
@@ -29,7 +29,7 @@ class ZarrImageStack:
         self,
         node: ZarrNode,
         axes: str,
-        access: ZarrAccessProtocol | None = None,
+        access: ZarrAccess | None = None,
     ):
         """Constructor.
 

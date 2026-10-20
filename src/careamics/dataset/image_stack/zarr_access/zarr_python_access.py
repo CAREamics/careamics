@@ -9,7 +9,7 @@ import zarr
 from numpy import asarray
 from numpy.typing import DTypeLike, NDArray
 
-from .zarr_access_protocol import ZarrNode
+from .zarr_access import ZarrNode
 from .zarr_access_utils import file_uri_to_path
 
 
