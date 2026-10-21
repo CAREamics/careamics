@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from .config.configuration import Configuration
-from .config.support import SupportedAlgorithm
+from .config.support import SupportedAlgorithm, SupportedLogger
 from .config.utils.configuration_io import load_configuration
 from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .dataset.image_region_data import ImageRegionData
@@ -161,14 +161,12 @@ class CAREamist:
         )
 
         experiment_logger = self._create_loggers(
+            self.config.training_config.logger,
             self.config.get_safe_experiment_name(),
             self.work_dir,
-            self.config.training_config.use_tensorboard,
-            self.config.training_config.use_wandb,
             self.config,
             self.run_version,
         )
-        print(type(experiment_logger))
 
         self.trainer = Trainer(
             callbacks=[self.prediction_writer, *self.callbacks],
@@ -462,10 +460,9 @@ class CAREamist:
 
     @staticmethod
     def _create_loggers(
+        logger: str | None,
         experiment_name: str,
         work_dir: Path,
-        use_tensorboard: bool,
-        use_wandb: bool,
         config: Configuration,
         version: int = 0,
     ) -> CoLogger:
@@ -473,14 +470,12 @@ class CAREamist:
 
         Parameters
         ----------
+        logger : str | None
+            The logger to use for the experiment, by default None.
         experiment_name : str
             Name of the experiment, used as a parameter to the loggers.
         work_dir : Path
             The working directory, used as a parameter to the loggers.
-        use_tensorboard : bool
-            Whether to use TensorBoard for logging, by default False.
-        use_wandb : bool
-            Whether to use WandB for logging, by default False.
         config : NGConfiguration
             Full CAREamics config logged to Wandb at run initialization.
         version : int, default=0
@@ -491,6 +486,12 @@ class CAREamist:
         list[TensorBoardLogger | WandbLogger | CSVLogger]
             The list of loggers to use during training.
         """
+        if logger is not None:
+            logger = SupportedLogger(logger)
+
+        use_tensorboard = logger == SupportedLogger.TENSORBOARD
+        use_wandb = logger == SupportedLogger.WANDB
+
         return CoLogger(
             experiment_name=experiment_name,
             work_dir=work_dir,
@@ -677,15 +678,14 @@ class CAREamist:
             self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
         )
 
-        # log normalization statistics
-        norm_stats = self.train_datamodule.config.normalization.model_dump()
-        self.trainer.loggers[0].log_hyperparams({"normalization": norm_stats})
+        # log normalization statistics and finalize the logger
+        if isinstance(self.trainer.logger, CoLogger):
+            norm_stats = self.train_datamodule.config.normalization.model_dump()
+            self.trainer.logger.log_hyperparams({"normalization": norm_stats})
+            self.trainer.logger.finish("success")
 
         # disable auto-logging hparams
         self.trainer.enable_autolog_hparams = False
-        # finalize the logger
-        if isinstance(self.trainer.loggers[0], CoLogger):
-            self.trainer.loggers[0].finish("success")
 
     def _build_predict_datamodule(
         self,

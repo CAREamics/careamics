@@ -130,15 +130,8 @@ def default_training_dict(
             else None
         )
 
-    if logger == "tensorboard":
-        use_tensorboard = True
-    elif logger == "wandb":
-        use_wandb = True
-
     return {
         "trainer_params": {} if trainer_params is None else trainer_params,
-        "use_tensorboard": use_tensorboard,
-        "use_wandb": use_wandb,
         "logger": None if logger == "none" else logger,
         "checkpoint_params": checkpoint_params,
         "early_stopping_params": early_stopping_params,
@@ -218,18 +211,8 @@ class TrainingConfig(BaseModel):
     trainer_params: dict = Field(default={})
     """Parameters passed to the PyTorch Lightning Trainer class"""
 
-    use_wandb: bool = False
-    """Whether to use Weights & Biases logger during training."""
-
-    use_tensorboard: bool = False
-    """Whether to use TensorBoard logger during training."""
-
-    logger: Literal["wandb", "tensorboard"] | None = Field(
-        default=None,
-        deprecated="Using `logger` is deprecated, "
-        + "set `use_wandb` or `use_tensorboard` instead.",
-    )
-    """Logger to use during training. If None, no logger will be used. Available
+    logger: Literal["wandb", "tensorboard"] | None = None
+    """Logger to use during training. If None, only CVSLogger will be used. Available
     loggers are defined in SupportedLogger."""
 
     # Only basic callbacks - they may have different defaults for different algorithms

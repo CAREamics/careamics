@@ -283,8 +283,6 @@ def create_advanced_care_config(
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
     early_stopping_params: dict[str, Any] | None = None,
-    use_tensorboard: bool = False,
-    use_wandb: bool = False,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     # reproducibility
     seed: int | None = None,
@@ -403,10 +401,6 @@ def create_advanced_care_config(
     early_stopping_params : dict[str, Any] | None, default=None
         Parameters for the early stopping callback, see PyTorch Lightning documentation
         (`EarlyStopping`) for the list of available parameters.
-    use_tensorboard : bool, default=False
-        Whether to use TensorBoard for logging.
-    use_wandb : bool, default=False
-        Whether to use Weights & Biases for logging.
     logger : Literal["wandb", "tensorboard", "none"], default="none"
         Logger to use (deprecated).
     seed : int | None, default=None
@@ -455,8 +449,6 @@ def create_advanced_n2n_config(
     train_dataloader_params: dict[str, Any] | None = None,
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
-    use_tensorboard: bool = False,
-    use_wandb: bool = False,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     # - reproducibility
     seed: int | None = None,
@@ -572,10 +564,6 @@ def create_advanced_n2n_config(
     checkpoint_params : dict[str, Any] | None, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
-    use_tensorboard : bool, default=False
-        Whether to use TensorBoard for logging.
-    use_wandb : bool, default=False
-        Whether to use Weights & Biases for logging.
     logger : Literal["wandb", "tensorboard", "none"], default="none"
         Logger to use (deprecated).
     seed : int | None, default=None
@@ -627,8 +615,6 @@ def _create_advanced_supervised_config(
     val_dataloader_params: dict[str, Any] | None = None,
     checkpoint_params: dict[str, Any] | None = None,
     early_stopping_params: dict[str, Any] | None = None,
-    use_tensorboard: bool = False,
-    use_wandb: bool = False,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     # reproducibility
     seed: int | None = None,
@@ -746,10 +732,6 @@ def _create_advanced_supervised_config(
     early_stopping_params : dict[str, Any] | None, default=None
         Parameters for the early stopping callback, see PyTorch Lightning documentation
         (`EarlyStopping`) for the list of available parameters.
-    use_tensorboard : bool, default=False
-        Whether to use TensorBoard for logging.
-    use_wandb : bool, default=False
-        Whether to use Weights & Biases for logging.
     logger : Literal["wandb", "tensorboard", "none"], default="none"
         Logger to use (deprecated).
     seed : int | None, default=None
@@ -814,8 +796,6 @@ def _create_advanced_supervised_config(
     training_params = create_training_configuration(
         algorithm=algorithm,
         trainer_params=final_trainer_params,
-        use_tensorboard=use_tensorboard,
-        use_wandb=use_wandb,
         logger=logger,
         checkpoint_params=checkpoint_params,
         early_stopping_params=early_stopping_params,

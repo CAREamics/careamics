@@ -16,8 +16,7 @@ def test_logger(tmp_path: Path):
         batch_size=32,
         num_epochs=5,
         use_n2v2=False,
-        use_tensorboard=True,
-        use_wandb=False,
+        logger="tensorboard",
     )
 
     logger = CoLogger(
