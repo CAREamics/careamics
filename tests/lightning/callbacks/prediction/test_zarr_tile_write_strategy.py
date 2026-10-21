@@ -16,10 +16,25 @@ from careamics.dataset.patching import (
     TiledPatching,
     TileSpecs,
 )
+from careamics.lightning.callbacks.prediction.zarr_write_utils import _add_output_key
 from careamics.utils.reshape_array import AxesTransform, reshape_array
 
 # to comply with ruff line length
 WriteTilesZarr = pd_writer.zarr_tile_write_strategy.ZarrTileWriteStrategy
+
+
+@pytest.mark.parametrize(
+    ("source_name", "expected_name"),
+    [
+        ("input.zarr", "input_output.zarr"),
+        ("input.ome.zarr", "input_output.ome.zarr"),
+    ],
+)
+def test_add_output_key_preserves_ome_zarr_suffix(
+    tmp_path, source_name: str, expected_name: str
+) -> None:
+    assert _add_output_key(tmp_path, tmp_path / source_name) == tmp_path / expected_name
+
 
 # TODO test chunking and sharding errors and handling (e.g. when missing)
 # TODO add test for mismatching C axes between input and tiles
