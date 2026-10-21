@@ -339,6 +339,7 @@ def test_smoke_care_supervised_same_ome_zarr(tmp_path: Path) -> None:
     assert whole_image_output_store.exists()
     validate_zarr_store(whole_image_output_store)
 
+
 @pytest.mark.mps_gh_fail
 def test_smoke_n2v_arrays_to_zarr(tmp_path: Path) -> None:
     """Test that arrays are written as an OME-Zarr collection."""
