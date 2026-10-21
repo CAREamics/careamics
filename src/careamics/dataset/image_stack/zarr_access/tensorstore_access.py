@@ -22,7 +22,7 @@ from pydantic_tensorstore import (
     Zarr3Spec,
 )
 
-from .zarr_access_protocol import ZarrArraySpec, ZarrNode
+from .zarr_access import ZarrArraySpec, ZarrNode
 from .zarr_access_utils import file_uri_to_path
 
 

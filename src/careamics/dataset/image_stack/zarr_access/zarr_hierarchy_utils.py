@@ -4,7 +4,7 @@ from typing import Literal
 
 import zarr
 
-from .zarr_access_protocol import ZarrNode
+from .zarr_access import ZarrNode
 from .zarr_access_utils import file_uri_to_path
 
 

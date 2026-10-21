@@ -9,7 +9,7 @@ import zarr
 from numpy import asarray
 from numpy.typing import DTypeLike, NDArray
 
-from .zarr_access_protocol import ZarrArraySpec, ZarrNode
+from .zarr_access import ZarrArraySpec, ZarrNode
 from .zarr_access_utils import file_uri_to_path
 from .zarr_hierarchy_utils import open_zarr_node
 
@@ -99,7 +99,7 @@ class ZarrPythonAccess:
         node: ZarrNode,
         spec: ZarrArraySpec,
     ) -> None:
-        """Create or open an output array.
+        """Create an output array.
 
         Parameters
         ----------
@@ -107,11 +107,6 @@ class ZarrPythonAccess:
             Output array node.
         spec : ZarrArraySpec
             Output array specification. Parent groups must already exist.
-
-        Returns
-        -------
-        None
-            The array is created or opened in place.
         """
         if node.path == "":
             self._create_or_open_root_array(node, spec)

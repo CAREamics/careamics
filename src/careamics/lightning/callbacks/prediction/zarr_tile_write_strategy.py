@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack.zarr_access import (
-    ZarrAccessProtocol,
+    ZarrAccess,
     ZarrArraySpec,
     ZarrNode,
     ZarrPythonAccess,
@@ -19,7 +19,6 @@ from careamics.dataset.image_stack.zarr_access import (
     is_valid_uri,
     path_to_file_uri,
     resolve_ome_output_node,
-    to_ome_write_target,
     to_zarr_node,
 )
 from careamics.dataset.patching import TileSpecs
@@ -314,16 +313,16 @@ class ZarrTileWriteStrategy(WriteStrategy):
 
     Parameters
     ----------
-    access : ZarrAccessProtocol or None, default=None
+    access : ZarrAccess or None, default=None
         Zarr backend access implementation.
     """
 
-    def __init__(self, access: ZarrAccessProtocol | None = None) -> None:
+    def __init__(self, access: ZarrAccess | None = None) -> None:
         """Constructor.
 
         Parameters
         ----------
-        access : ZarrAccessProtocol or None, default=None
+        access : ZarrAccess or None, default=None
             Zarr backend access implementation.
         """
         self.access = ZarrPythonAccess() if access is None else access
@@ -387,23 +386,22 @@ class ZarrTileWriteStrategy(WriteStrategy):
                 f"Chunks {chunks} and shards {shards} have different lengths."
             )
 
-        ome_target = to_ome_write_target(node)
-        store_key = ome_target.store_uri
+        store_key = node.store_uri
         if store_key not in self._store_image_groups:
             self._store_image_groups[store_key] = set()
-        if ome_target.image_group_path != "":
+        if node.parent_path != "":
             # array is from a OME-NGFF collection, will be written as a collection
-            self._store_image_groups[store_key].add(ome_target.image_group_path)
+            self._store_image_groups[store_key].add(node.parent_path)
 
         source_ome = region.additional_metadata.get("ome")
         ensure_ome_store_structure(
-            target=ome_target,
+            node=node,
             axes=pred_axes,
             source_ome=source_ome if isinstance(source_ome, dict) else None,
             image_group_paths=sorted(self._store_image_groups[store_key]),
         )
         self.access.create_array(
-            node=ome_target.array_node,
+            node=node,
             spec=ZarrArraySpec(
                 shape=tuple(shape),
                 shards=shards,
