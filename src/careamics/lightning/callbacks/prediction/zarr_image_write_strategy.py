@@ -5,8 +5,9 @@ from pathlib import Path
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack.zarr_access import (
-    ZarrAccessProtocol,
+    ZarrAccess,
     ZarrArraySpec,
+    ZarrPythonAccess,
     get_ome_dimension_names,
 )
 from careamics.lightning.prediction import combine_samples
@@ -14,31 +15,42 @@ from careamics.utils.reshape_array import RestoredAxesTransform
 
 from .image_write_utils import get_complete_images
 from .zarr_write_utils import (
-    ZarrWriteStrategyBase,
     auto_chunks,
+    create_array,
     get_zarr_destination,
 )
 
 
-class ZarrImageWriteStrategy(ZarrWriteStrategyBase):
+class ZarrImageWriteStrategy:
     """Write complete image predictions to Zarr.
 
     Parameters
     ----------
-    access : ZarrAccessProtocol or None, default=None
+    access : ZarrAccess or None, default=None
         Zarr backend access implementation.
     """
 
-    def __init__(self, access: ZarrAccessProtocol | None = None) -> None:
+    def __init__(self, access: ZarrAccess | None = None) -> None:
         """Initialize the writer.
 
         Parameters
         ----------
-        access : ZarrAccessProtocol or None, default=None
+        access : ZarrAccess or None, default=None
             Zarr backend access implementation.
         """
-        super().__init__(access)
+        self.access = ZarrPythonAccess() if access is None else access
+        self._store_image_groups: dict[str, set[str]] = {}
         self.image_cache: dict[int, list[ImageRegionData]] = defaultdict(list)
+
+    def set_source_base(self, source_base: Path | None) -> None:
+        """
+        No-op for Zarr writer.
+
+        Parameters
+        ----------
+        source_base : pathlib.Path or None
+            Ignored.
+        """
 
     def write_batch(
         self,
@@ -53,11 +65,6 @@ class ZarrImageWriteStrategy(ZarrWriteStrategyBase):
             Output directory.
         predictions : list[ImageRegionData]
             Decollated predictions.
-
-        Returns
-        -------
-        None
-            Complete images are written in place.
         """
         for prediction in predictions:
             data_idx = prediction.region_spec["data_idx"]
@@ -79,11 +86,6 @@ class ZarrImageWriteStrategy(ZarrWriteStrategyBase):
             Output directory.
         regions : list[ImageRegionData]
             Samples belonging to one image.
-
-        Returns
-        -------
-        None
-            The image is written in place.
         """
         region = regions[0]
 
@@ -129,7 +131,8 @@ class ZarrImageWriteStrategy(ZarrWriteStrategyBase):
 
         source_ome = region.additional_metadata.get("ome")
         node = get_zarr_destination(region, dirpath)
-        self._create_array(
+        create_array(
+            access=self.access,
             region=region,
             node=node,
             spec=ZarrArraySpec(
@@ -145,6 +148,7 @@ class ZarrImageWriteStrategy(ZarrWriteStrategyBase):
                 ),
             ),
             axes=region.target_axes,
+            store_image_groups=self._store_image_groups,
         )
         self.access.write_array_tile(
             node,

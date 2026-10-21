@@ -149,11 +149,6 @@ class ZarrPythonAccess:
             Indexing object selecting the tile destination.
         data : NDArray[Any]
             Data to write.
-
-        Returns
-        -------
-        None
-            This method writes in place.
         """
         with self._zarr_config():
             array = self._require_array(node, mode="a")

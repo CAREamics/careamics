@@ -5,16 +5,14 @@ from pathlib import Path
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack.zarr_access import (
-    ZarrAccessProtocol,
+    ZarrAccess,
     ZarrArraySpec,
     ZarrNode,
-    ZarrPythonAccess,
     ensure_ome_store_structure,
     file_uri_to_path,
     is_valid_uri,
     path_to_file_uri,
     resolve_ome_output_node,
-    to_ome_write_target,
     to_zarr_node,
 )
 
@@ -114,86 +112,51 @@ def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
     raise NotImplementedError(f"Invalid source: {region.source}.")
 
 
-class ZarrWriteStrategyBase:
-    """Shared state and array creation for Zarr write strategies.
+def create_array(
+    *,
+    access: ZarrAccess,
+    region: ImageRegionData,
+    node: ZarrNode,
+    spec: ZarrArraySpec,
+    axes: str,
+    store_image_groups: dict[str, set[str]],
+) -> None:
+    """Create an OME-Zarr output array and its metadata.
 
     Parameters
     ----------
-    access : ZarrAccessProtocol or None, default=None
-        Zarr backend access implementation.
+    access : ZarrAccess
+        Backend used to create the array.
+    region : ImageRegionData
+        Prediction metadata, including source OME metadata.
+    node : ZarrNode
+        Output array node.
+    spec : ZarrArraySpec
+        Output array specification.
+    axes : str
+        Output array axes.
+    store_image_groups : dict[str, set[str]]
+        Image-group paths already registered for each output store. This mapping is
+        updated in place.
     """
-
-    def __init__(self, access: ZarrAccessProtocol | None = None) -> None:
-        """Initialize the writer.
-
-        Parameters
-        ----------
-        access : ZarrAccessProtocol or None, default=None
-            Zarr backend access implementation.
-        """
-        self.access = ZarrPythonAccess() if access is None else access
-        self._store_image_groups: dict[str, set[str]] = {}
-
-    def set_source_base(self, source_base: Path | None) -> None:
-        """Ignore the common source directory for Zarr output.
-
-        Parameters
-        ----------
-        source_base : Path or None
-            Common source directory.
-
-        Returns
-        -------
-        None
-            This method does nothing.
-        """
-        pass
-
-    def _create_array(
-        self,
-        region: ImageRegionData,
-        node: ZarrNode,
-        spec: ZarrArraySpec,
-        axes: str,
-    ) -> None:
-        """Create an OME-Zarr output array.
-
-        Parameters
-        ----------
-        region : ImageRegionData
-            Prediction metadata.
-        node : ZarrNode
-            Output array node.
-        spec : ZarrArraySpec
-            Output array specification.
-        axes : str
-            Output array axes.
-
-        Returns
-        -------
-        None
-            The array and its OME metadata are created in place.
-        """
-        if len(spec.shape) != len(spec.chunks):
-            raise ValueError(
-                f"Shape {spec.shape} and chunks {spec.chunks} have different lengths."
-            )
-        if spec.shards is not None and len(spec.chunks) != len(spec.shards):
-            raise ValueError(
-                f"Chunks {spec.chunks} and shards {spec.shards} have different "
-                "lengths."
-            )
-
-        target = to_ome_write_target(node)
-        image_groups = self._store_image_groups.setdefault(target.store_uri, set())
-        if target.image_group_path != "":
-            image_groups.add(target.image_group_path)
-
-        source_ome = region.additional_metadata.get("ome")
-        ensure_ome_store_structure(
-            target=target,
-            axes=axes,
-            source_ome=source_ome if isinstance(source_ome, dict) else None,
-            image_group_paths=sorted(image_groups),
+    if len(spec.shape) != len(spec.chunks):
+        raise ValueError(
+            f"Shape {spec.shape} and chunks {spec.chunks} have different lengths."
         )
-        self.access.create_array(node=target.array_node, spec=spec)
+    if spec.shards is not None and len(spec.chunks) != len(spec.shards):
+        raise ValueError(
+            f"Chunks {spec.chunks} and shards {spec.shards} have different lengths."
+        )
+
+    image_groups = store_image_groups.setdefault(node.store_uri, set())
+    if node.parent_path != "":
+        image_groups.add(node.parent_path)
+
+    source_ome = region.additional_metadata.get("ome")
+    ensure_ome_store_structure(
+        array_node=node,
+        axes=axes,
+        source_ome=source_ome if isinstance(source_ome, dict) else None,
+        image_group_paths=sorted(image_groups),
+    )
+    access.create_array(node=node, spec=spec)
