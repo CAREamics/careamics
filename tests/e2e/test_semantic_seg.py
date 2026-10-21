@@ -84,10 +84,11 @@ def test_segmentation(tmp_path, n_classes, with_channels, is_3d):
 
     # predict to memory
     pred, _ = careamist.predict(pred_data=train_data)
-    assert pred[0].shape == train_data_tar.shape
+    assert pred[0].shape == (*train_data_tar.shape, n_classes + 1)
 
     # brittle assertion that may break randomly
-    assert set(np.unique(pred[0])) == set(range(n_classes + 1))
+    np.testing.assert_allclose(pred[0].sum(axis=-1), 1.0, atol=1e-6)
+    assert np.all((pred[0] >= 0) & (pred[0] <= 1))
 
     # predict to disk
     careamist.predict_to_disk(pred_data=train_data, prediction_dir=tmp_path)
