@@ -464,8 +464,8 @@ class DataConfig(BaseModel):
     0 on Windows and macOS, `min(cpu_count - 1, 4)` on Linux."""
 
     zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr"
-    """Backend used to read and write Zarr arrays. Only effective if `data_type` is set
-    to `zarr`."""
+    """Backend used to read and write Zarr arrays. Only effective if `data_type` or
+    `write_type` are set to `zarr` during training or prediction, respectively."""
 
     seed: int = Field(default_factory=generate_random_seed, gt=0)
     """Random seed for reproducibility. If not specified, a random seed is generated."""
