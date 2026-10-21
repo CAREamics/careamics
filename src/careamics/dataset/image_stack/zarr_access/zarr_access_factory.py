@@ -3,13 +3,13 @@
 from typing import Literal, TypeAlias
 
 from .tensorstore_access import TensorstoreAccess
-from .zarr_access_protocol import ZarrAccessProtocol
+from .zarr_access import ZarrAccess
 from .zarr_python_access import ZarrPythonAccess
 
 ZarrBackend: TypeAlias = Literal["zarr", "zarrs", "tensorstore"]
 
 
-def create_zarr_access(backend: ZarrBackend) -> ZarrAccessProtocol:
+def create_zarr_access(backend: ZarrBackend) -> ZarrAccess:
     """Create a Zarr access implementation.
 
     Parameters
