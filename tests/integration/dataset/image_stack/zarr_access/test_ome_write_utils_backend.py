@@ -1,3 +1,5 @@
+from functools import partial
+
 import numpy as np
 import pytest
 import zarr
@@ -15,7 +17,11 @@ from tests.unit.dataset.image_stack.zarr_access.test_ome_write_utils import (
     _source_ome_metadata,
 )
 
-BACKENDS = [ZarrPythonAccess, TensorstoreAccess]
+BACKENDS = [
+    pytest.param(ZarrPythonAccess, id="zarr"),
+    pytest.param(partial(ZarrPythonAccess, use_zarrs=True), id="zarrs"),
+    pytest.param(TensorstoreAccess, id="tensorstore"),
+]
 
 
 @pytest.mark.parametrize("access_cls", BACKENDS)

@@ -6,6 +6,7 @@ import argparse
 import csv
 import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from functools import partial
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -22,6 +23,7 @@ BackendFactory = Callable[[], ZarrAccessProtocol]
 BACKENDS: dict[str, BackendFactory] = {
     "zarr": ZarrPythonAccess,
     "tensorstore": TensorstoreAccess,
+    "zarrs": partial(ZarrPythonAccess, use_zarrs=True),
 }
 
 
