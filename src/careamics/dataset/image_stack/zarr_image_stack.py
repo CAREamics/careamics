@@ -10,7 +10,7 @@ from careamics.utils.reshape_array import AxesTransform, get_patch_slices, resha
 
 from .image_utils.image_stack_utils import pad_patch
 from .zarr_access import (
-    ZarrAccessProtocol,
+    ZarrAccess,
     ZarrNode,
     ZarrPythonAccess,
     build_default_ome_metadata,
@@ -28,7 +28,7 @@ class ZarrImageStack:
         Zarr node pointing to an array.
     axes : str
         Axis order (e.g. STCZYX).
-    access : ZarrAccessProtocol or None, default=None
+    access : ZarrAccess or None, default=None
         Zarr backend access implementation.
     additional_metadata : dict[str, Any] or None, default=None
         Additional metadata associated with the array.
@@ -38,7 +38,7 @@ class ZarrImageStack:
         self,
         node: ZarrNode,
         axes: str,
-        access: ZarrAccessProtocol | None = None,
+        access: ZarrAccess | None = None,
         additional_metadata: dict[str, Any] | None = None,
     ):
         """Constructor.
@@ -49,7 +49,7 @@ class ZarrImageStack:
             Zarr node pointing to an array.
         axes : str
             Axis order (e.g. STCZYX).
-        access : ZarrAccessProtocol or None, default=None
+        access : ZarrAccess or None, default=None
             Zarr backend access implementation.
         additional_metadata : dict[str, Any] or None, default=None
             Additional metadata associated with the array.
@@ -61,7 +61,9 @@ class ZarrImageStack:
         )
 
         if resolve_node_type(node).node_type != "array":
-            raise TypeError(f"Node '{node.source}' must point to a zarr.Array.")
+            raise TypeError(
+                f"Node '{node.source}' must point to a zarr array, not a group."
+            )
 
         self._source = node.source
 

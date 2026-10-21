@@ -8,9 +8,13 @@ from numpy.typing import NDArray
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack.zarr_access import (
-    ZarrAccessProtocol,
+    ZarrAccess,
     ZarrArraySpec,
     get_ome_dimension_names,
+    is_valid_uri,
+    path_to_file_uri,
+    resolve_ome_output_node,
+    to_zarr_node,
 )
 from careamics.dataset.patching import TileSpecs
 from careamics.utils.reshape_array import RestoredAxesTransform
@@ -209,20 +213,109 @@ class ZarrTileWriteStrategy(ZarrWriteStrategyBase):
 
     Parameters
     ----------
-    access : ZarrAccessProtocol or None, default=None
+    access : ZarrAccess or None, default=None
         Zarr backend access implementation.
     """
 
-    def __init__(self, access: ZarrAccessProtocol | None = None) -> None:
+    def __init__(self, access: ZarrAccess | None = None) -> None:
         """Constructor.
 
         Parameters
         ----------
-        access : ZarrAccessProtocol or None, default=None
+        access : ZarrAccess or None, default=None
             Zarr backend access implementation.
         """
         super().__init__(access)
         self._current_node_source: str | None = None
+        self._store_image_groups: dict[str, set[str]] = {}
+
+    def set_source_base(self, source_base: Path | None) -> None:
+        """
+        No-op for Zarr writer.
+
+        Parameters
+        ----------
+        source_base : pathlib.Path or None
+            Ignored.
+
+        Returns
+        -------
+        None
+            This method does nothing for Zarr outputs.
+        """
+        pass
+
+    def _create_array(
+        self,
+        region: ImageRegionData,
+        node: ZarrNode,
+        shape: Sequence[int],
+        shards: tuple[int, ...] | None,
+        chunks: tuple[int, ...],
+        pred_axes: str,
+    ) -> None:
+        """Create a new array in an existing zarr store or group.
+
+        Parameters
+        ----------
+        region : ImageRegionData
+            Region to write.
+        node : ZarrNode
+            Output array node.
+        shape : Sequence[int]
+            Shape of the array.
+        shards : tuple[int, ...] or None
+            Shard size for the array.
+        chunks : tuple[int, ...]
+            Chunk size for the array.
+        pred_axes : str
+            Prediction axes.
+
+        Returns
+        -------
+        None
+            The current output array cache is updated in place.
+        """
+        if len(shape) != len(chunks):
+            raise ValueError(
+                f"Shape {shape} and chunks {chunks} have different lengths."
+            )
+
+        if shards is not None and len(chunks) != len(shards):
+            raise ValueError(
+                f"Chunks {chunks} and shards {shards} have different lengths."
+            )
+
+        store_key = node.store_uri
+        if store_key not in self._store_image_groups:
+            self._store_image_groups[store_key] = set()
+        if node.parent_path != "":
+            # array is from a OME-NGFF collection, will be written as a collection
+            self._store_image_groups[store_key].add(node.parent_path)
+
+        source_ome = region.additional_metadata.get("ome")
+        ensure_ome_store_structure(
+            array_node=node,
+            axes=pred_axes,
+            source_ome=source_ome if isinstance(source_ome, dict) else None,
+            image_group_paths=sorted(self._store_image_groups[store_key]),
+        )
+        self.access.create_array(
+            node=node,
+            spec=ZarrArraySpec(
+                shape=tuple(shape),
+                shards=shards,
+                chunks=chunks,
+                dtype=float32,
+                dimension_names=tuple(
+                    get_ome_dimension_names(
+                        pred_axes,
+                        source_ome if isinstance(source_ome, dict) else None,
+                    )
+                ),
+            ),
+        )
+        self._current_node_source = node.source
 
     def write_tile(self, dirpath: Path, region: ImageRegionData) -> None:
         """Write cropped tile to zarr array.
@@ -266,12 +359,6 @@ class ZarrTileWriteStrategy(ZarrWriteStrategyBase):
                 axes=handler.pred_array_axes,
             )
             self._current_node_source = output_node.source
-
-        self.access.write_array_tile(
-            output_node,
-            handler.stitch_slices,
-            handler.restored_crop,
-        )
 
         self.access.write_array_tile(
             output_node,

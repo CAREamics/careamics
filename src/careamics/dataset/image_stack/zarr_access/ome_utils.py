@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from yaozarrs import validate_ome_object
 from yaozarrs.v05 import Bf2Raw, Dataset, Image, LabelImage, Plate, Series
 
-from .zarr_access_protocol import ZarrNode
+from .zarr_access import ZarrNode
 from .zarr_hierarchy_utils import open_zarr_group
 
 OMEType: TypeAlias = Image | Bf2Raw | Plate | LabelImage | Series
@@ -26,6 +26,14 @@ class ResolvedOMEZarrNode:
 
     node: ZarrNode
     additional_metadata: dict[str, Any]
+
+    def __post_init__(self) -> None:
+        """Ensure that `node_type` has been resolved."""
+        if self.node.node_type is None:
+            raise ValueError(
+                "ResolvedOMEZarrNode requires a ZarrNode with a resolved `node_type` "
+                '("group" or "array").'
+            )
 
 
 @dataclass(frozen=True)
