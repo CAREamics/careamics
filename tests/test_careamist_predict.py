@@ -15,6 +15,27 @@ def random_array(shape: tuple[int, ...], seed: int = 42) -> NDArray:
     return (rng.integers(0, 255, shape)).astype(np.float32)
 
 
+def test_predict_warns_when_ome_scale_differs_from_training_config(tmp_path: Path):
+    """Prediction warns when its named OME scale differs from training."""
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(32, 32),
+        batch_size=1,
+        masked_pixel_percentage=1,
+        ome_scale="full-resolution",
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+
+    with pytest.warns(UserWarning, match="differs from the training data"):
+        careamist._build_predict_datamodule(
+            random_array((16, 16)),
+            data_type="array",
+            ome_scale="quarter-resolution",
+        )
+
+
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_arrays_no_tiling(tmp_path: Path, batch_size: int, samples: int):
