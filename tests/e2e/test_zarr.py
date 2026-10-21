@@ -30,7 +30,7 @@ def _train_n2v_model(
     train_data: list[str],
     val_data: list[str],
     zarr_backend: str = "zarr",
-    data_type: str = "zarr"
+    data_type: str = "zarr",
 ) -> CAREamist:
     cfg = create_advanced_n2v_config(
         experiment_name="n2v_zarr",
