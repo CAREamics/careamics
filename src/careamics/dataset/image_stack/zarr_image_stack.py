@@ -61,7 +61,9 @@ class ZarrImageStack:
         )
 
         if resolve_node_type(node).node_type != "array":
-            raise TypeError(f"Node '{node.source}' must point to a zarr array, not a group.")
+            raise TypeError(
+                f"Node '{node.source}' must point to a zarr array, not a group."
+            )
 
         self._source = node.source
 
