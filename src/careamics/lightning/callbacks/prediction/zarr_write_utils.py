@@ -70,7 +70,7 @@ def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
     with name `"{original_name}_output.zarr"` and the array original internal path is
     conserved.
     If the source is another file type, then it is placed in "prediction.zarr" under
-    the path `"{original_file_name_tem}/0"`
+    the path `"{original_file_name_stem}/0"`
 
     Parameters
     ----------
