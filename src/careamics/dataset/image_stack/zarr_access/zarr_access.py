@@ -92,7 +92,7 @@ class ZarrArraySpec:
     dimension_names: tuple[str | None, ...] | None = None
 
 
-class ZarrAccessProtocol(Protocol):
+class ZarrAccess(Protocol):
     """Protocol for backend-specific Zarr operations."""
 
     def get_array_shape(self, node: ZarrNode) -> tuple[int, ...]:

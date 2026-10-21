@@ -14,19 +14,19 @@ repos:
       - id: validate-pyproject
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.6
+    rev: v0.16.10
     hooks:
       - id: ruff
         exclude: "^(docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/.*|scripts/.*|demos/.*)"
 
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 26.5.1
+    rev: 26.10.0
     hooks:
       - id: black
         args: [--target-version=py313]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.3.1
+    rev: v2.4.0
     hooks:
       - id: mypy
         files: "^src/"
@@ -41,7 +41,7 @@ repos:
 
   # check docstrings
   - repo: https://github.com/numpy/numpydoc
-    rev: v1.11.0rc0
+    rev: v1.11.0
     hooks:
       - id: numpydoc-validation
         exclude: "^(tests/.*|docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/.*|src/careamics/losses/lvae/.*|scripts/.*)"
