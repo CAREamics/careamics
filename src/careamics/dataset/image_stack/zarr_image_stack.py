@@ -14,6 +14,7 @@ from .zarr_access import (
     ZarrNode,
     ZarrPythonAccess,
     build_default_ome_metadata,
+    resolve_node_type,
 )
 
 
@@ -59,8 +60,10 @@ class ZarrImageStack:
             {} if additional_metadata is None else dict(additional_metadata)
         )
 
-        if self._access.resolve_node_type(node).node_type != "array":
-            raise TypeError(f"Node '{node.source}' must point to a zarr.Array.")
+        if resolve_node_type(node).node_type != "array":
+            raise TypeError(
+                f"Node '{node.source}' must point to a zarr array, not a group."
+            )
 
         self._source = node.source
 

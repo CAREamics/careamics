@@ -1,18 +1,78 @@
+from typing import Any
+
 import numpy as np
-import pytest
 import zarr
 from yaozarrs import validate_zarr_store
 
 from careamics.dataset.image_stack.zarr_access import (
     ZarrNode,
-    create_ome_array,
     ensure_ome_store_structure,
     get_ome_dimension_names,
     path_to_file_uri,
     resolve_ome_output_node,
 )
+from careamics.dataset.image_stack.zarr_access.ome_write_utils import (
+    _ensure_group,
+    file_uri_to_path,
+)
 
 # --- Test utilities
+
+
+def _create_ome_array(
+    node: ZarrNode,
+    shape: tuple[int, ...],
+    chunks: tuple[int, ...],
+    shards: tuple[int, ...] | None,
+    dtype: Any,
+    dimension_names: list[str],
+) -> zarr.Array:
+    """Create an OME-Zarr array.
+
+    Parameters
+    ----------
+    node : ZarrNode
+        Output array node. Its parent path is the OME image-group path and its
+        basename is the array name.
+    shape : tuple[int, ...]
+        Array shape.
+    chunks : tuple[int, ...]
+        Chunk shape.
+    shards : tuple[int, ...] or None
+        Shard shape.
+    dtype : Any
+        Array dtype.
+    dimension_names : list[str]
+        Dimension names for the array metadata.
+
+    Returns
+    -------
+    zarr.Array
+        Existing or newly created array.
+    """
+    image_group_path = node.parent_path
+    array_name = node.basename
+    store_path = file_uri_to_path(node.store_uri)
+    root = zarr.open_group(store_path, mode="a")
+    group = _ensure_group(root, image_group_path)
+
+    if array_name in group:
+        array = group[array_name]
+        if not isinstance(array, zarr.Array):
+            raise RuntimeError(f"Zarr array '{node.path}' is not an array.")
+        return array
+
+    array = group.create_array(
+        name=array_name,
+        shape=shape,
+        chunks=chunks,
+        shards=shards,
+        dtype=dtype,
+        dimension_names=dimension_names,
+    )
+    if not isinstance(array, zarr.Array):
+        raise RuntimeError(f"Zarr array '{array_name}' is not an array.")
+    return array
 
 
 def _source_ome_metadata(
@@ -148,12 +208,12 @@ class TestOMEStoreWriting:
         )
 
         ensure_ome_store_structure(
-            node=node,
+            array_node=node,
             axes="YX",
             source_ome=_source_ome_metadata(),
             image_group_paths=[],
         )
-        array = create_ome_array(
+        array = _create_ome_array(
             node=node,
             shape=(16, 16),
             chunks=(8, 8),
@@ -176,12 +236,12 @@ class TestOMEStoreWriting:
                 node_type="array",
             )
             ensure_ome_store_structure(
-                node=node,
+                array_node=node,
                 axes="YX",
                 source_ome=_source_ome_metadata(image_group_path=image_group_path),
                 image_group_paths=["img_0", "img_1"],
             )
-            create_ome_array(
+            _create_ome_array(
                 node=node,
                 shape=(16, 16),
                 chunks=(8, 8),
@@ -193,48 +253,3 @@ class TestOMEStoreWriting:
         root = zarr.open_group(store_path, mode="r")
         assert sorted(root["OME"].attrs["ome"]["series"]) == ["img_0", "img_1"]
         validate_zarr_store(store_path)
-
-    def test_create_ome_array_returns_existing_array(self, tmp_path):
-        node = ZarrNode(
-            store_uri=path_to_file_uri(tmp_path / "prediction.zarr"),
-            path="img_0/0",
-            node_type="array",
-        )
-
-        first_array = create_ome_array(
-            node=node,
-            shape=(16, 16),
-            chunks=(8, 8),
-            shards=None,
-            dtype=np.float32,
-            dimension_names=["y", "x"],
-        )
-        second_array = create_ome_array(
-            node=node,
-            shape=(16, 16),
-            chunks=(8, 8),
-            shards=None,
-            dtype=np.float32,
-            dimension_names=["y", "x"],
-        )
-
-        assert second_array.path == first_array.path
-
-    def test_create_ome_array_raises_if_node_is_group(self, tmp_path):
-        root = zarr.open_group(tmp_path / "prediction.zarr", mode="a")
-        root.create_group("0")
-        node = ZarrNode(
-            store_uri=path_to_file_uri(tmp_path / "prediction.zarr"),
-            path="0",
-            node_type="array",
-        )
-
-        with pytest.raises(RuntimeError, match="is not an array"):
-            create_ome_array(
-                node=node,
-                shape=(16, 16),
-                chunks=(8, 8),
-                shards=None,
-                dtype=np.float32,
-                dimension_names=["y", "x"],
-            )
