@@ -185,11 +185,6 @@ class ZarrAccess(Protocol):
             Output array node.
         spec : ZarrArraySpec
             Output array specification. Parent groups must already exist.
-
-        Returns
-        -------
-        None
-            The array is created or opened in place.
         """
         ...
 
@@ -206,10 +201,5 @@ class ZarrAccess(Protocol):
             Indexing object selecting the tile destination.
         data : NDArray[Any]
             Data to write.
-
-        Returns
-        -------
-        None
-            This method writes in place.
         """
         ...
