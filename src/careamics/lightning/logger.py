@@ -1,8 +1,7 @@
 """CoLogger module for CAREamics."""
 
 from pathlib import Path
-from typing import Any, Literal
-from warnings import warn
+from typing import Any
 
 import numpy as np
 import torch
@@ -189,9 +188,12 @@ class CoLogger(Logger):
         step: int | None = None,
         captions: list[str] | None = None,
         normalize: bool = True,
-        axes: Literal["NCHW", "NHWC", "CHW", "HWC", "HW", "WH"] = "NCHW",
     ) -> None:
         """Log images to Tensorboard and/or WANDB.
+
+        Images with 2 channels will have only the first channel logged.
+        Images with more than 3 channels will have only the first 3 channels logged.
+        Images with Z dimension will have only the first slice logged.
 
         Parameters
         ----------
@@ -205,26 +207,50 @@ class CoLogger(Logger):
             A list of captions for the images, by default None.
         normalize : bool, optional
             Whether to normalize the images to [0, 255] range, by default True.
-        axes : Literal["NCHW", "NHWC", "CHW", "HWC", "HW", "WH"], optional
-            The axes of images to log, by default "NCHW".
         """
-        if images.ndim != len(axes):
-            warn(
-                f"The images dimensions ({images.ndim}) "
-                f"must represented in axes {axes}.",
-                stacklevel=2,
+        if isinstance(images, np.ndarray):
+            images = torch.from_numpy(images)
+
+        # canonical axes: BC(Z)YX
+        # number of channels must be 3 or 1
+        channel_idx = 1
+        num_channels = images.shape[channel_idx]
+        if num_channels > 3:
+            # select the first 3 channels
+            images = images.index_select(
+                channel_idx,
+                torch.arange(3, device=images.device),
             )
+        elif num_channels == 2:
+            # select the first channel
+            images = images.index_select(
+                channel_idx,
+                torch.tensor([0], device=images.device),
+            )
+
+        # images must have at most 4 dimensions: (B, C, H, W)
+        # select the first image in case of 3D images
+        if images.ndim > 4:
+            z_idx = 2
+            images = images.index_select(
+                z_idx,
+                torch.tensor([0], device=images.device),
+            ).squeeze(dim=z_idx)
+
+        if normalize:
+            images = self._normalize_images(images)
 
         if self.tb is not None:
             self.tb.experiment.add_images(
-                tag=key, img_tensor=images, global_step=step, dataformats=axes
+                tag=key,
+                img_tensor=images,
+                global_step=step,
+                dataformats="NCHW",
             )
 
         if self.wandb is not None:
             # image stack to image list
             image_list = []
-            if normalize:
-                images = self._normalize_images(images)
             for i in range(len(images)):
                 image_list.append(images[i])
             # handle extra args
@@ -379,23 +405,23 @@ class CoLogger(Logger):
             else:
                 raise ValueError("SummaryWriter `file_writer` is None!")
 
-    def _normalize_images(self, images: NDArray | Tensor) -> Tensor:
+    def _normalize_images(self, images: Tensor) -> Tensor:
         """Normalize images to [0, 255] range and convert to uint8.
 
         Parameters
         ----------
-        images : NDArray | Tensor
-            The images to normalize, either as a PyTorch tensor or a NumPy array.
+        images : Tensor
+            The images to normalize.
 
         Returns
         -------
-        NDArray
-            The normalized images as a NumPy array of type uint8.
+        Tensor
+            The normalized images as a PyTorch tensor of type float32.
         """
-        if isinstance(images, np.ndarray):
-            images = torch.from_numpy(images)
-
-        return (images * 255).to(torch.uint8).to(torch.float32)
+        _min = images.min()
+        _max = images.max()
+        images = (images - _min) * 255 / (_max - _min + 1e-8)
+        return images.to(torch.uint8)
 
     def _wandb_login(self) -> bool:
         """Try login to wandb.

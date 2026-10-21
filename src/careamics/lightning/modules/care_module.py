@@ -21,6 +21,7 @@ from careamics.utils.logging import get_logger
 
 from .module_utils import (
     configure_optimizers,
+    log_images,
     log_training_stats,
     log_validation_stats,
 )
@@ -167,20 +168,15 @@ class CAREModule(L.LightningModule):
         log_validation_stats(
             self, val_loss, batch_size=x.data.shape[0], metrics=self.metrics
         )
-        # log predicted images
-        if batch_idx == 0 and isinstance(self.logger, CoLogger):
+        # log images
+        not_sanity_checking = not self.trainer.sanity_checking
+        if batch_idx == 0 and isinstance(self.logger, CoLogger) and not_sanity_checking:
             n_samples = min(5, x.data.shape[0])
-            self.logger.log_images(  # type: ignore
-                key="Target",
-                images=target.data[:n_samples],
-                step=self.global_step,
-                captions=["Target images"] * n_samples,
-            )
-            self.logger.log_images(  # type: ignore
-                key="Prediction",
-                images=prediction[:n_samples],
-                step=self.global_step,
-                captions=["Predicted images"] * n_samples,
+            log_images(
+                module=self,
+                input_or_target=target.data[:n_samples],  # type: ignore
+                prediction=prediction[:n_samples],
+                is_supervised=True,
             )
 
     def predict_step(
