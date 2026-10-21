@@ -252,7 +252,7 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
 
 
 def test_write_from_array(tmp_path):
-    """Test that writing from an array source raises an error."""
+    """Test that writing from an array source."""
     arrays = [np.random.rand(32, 32).astype(np.float32) for _ in range(2)]
     image_stacks = load_arrays(
         source=arrays,
@@ -281,7 +281,7 @@ def test_write_from_array(tmp_path):
 
 
 def test_write_from_tiff(tmp_path):
-    """Test that writing from a tiff source raises an error."""
+    """Test that writing from a tiff source."""
     # save tiffs
     arrays = [np.random.rand(32, 32).astype(np.float32) for _ in range(2)]
     files = [tmp_path / f"test_{i}.tiff" for i in range(2)]

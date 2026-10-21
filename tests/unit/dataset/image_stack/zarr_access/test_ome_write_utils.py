@@ -1,13 +1,78 @@
+from typing import Any
+
+import numpy as np
+import zarr
+from yaozarrs import validate_zarr_store
+
 from careamics.dataset.image_stack.zarr_access import (
-    OMEWriteTarget,
     ZarrNode,
+    ensure_ome_store_structure,
     get_ome_dimension_names,
     path_to_file_uri,
     resolve_ome_output_node,
-    to_ome_write_target,
+)
+from careamics.dataset.image_stack.zarr_access.ome_write_utils import (
+    _ensure_group,
+    file_uri_to_path,
 )
 
 # --- Test utilities
+
+
+def _create_ome_array(
+    node: ZarrNode,
+    shape: tuple[int, ...],
+    chunks: tuple[int, ...],
+    shards: tuple[int, ...] | None,
+    dtype: Any,
+    dimension_names: list[str],
+) -> zarr.Array:
+    """Create an OME-Zarr array.
+
+    Parameters
+    ----------
+    node : ZarrNode
+        Output array node. Its parent path is the OME image-group path and its
+        basename is the array name.
+    shape : tuple[int, ...]
+        Array shape.
+    chunks : tuple[int, ...]
+        Chunk shape.
+    shards : tuple[int, ...] or None
+        Shard shape.
+    dtype : Any
+        Array dtype.
+    dimension_names : list[str]
+        Dimension names for the array metadata.
+
+    Returns
+    -------
+    zarr.Array
+        Existing or newly created array.
+    """
+    image_group_path = node.parent_path
+    array_name = node.basename
+    store_path = file_uri_to_path(node.store_uri)
+    root = zarr.open_group(store_path, mode="a")
+    group = _ensure_group(root, image_group_path)
+
+    if array_name in group:
+        array = group[array_name]
+        if not isinstance(array, zarr.Array):
+            raise RuntimeError(f"Zarr array '{node.path}' is not an array.")
+        return array
+
+    array = group.create_array(
+        name=array_name,
+        shape=shape,
+        chunks=chunks,
+        shards=shards,
+        dtype=dtype,
+        dimension_names=dimension_names,
+    )
+    if not isinstance(array, zarr.Array):
+        raise RuntimeError(f"Zarr array '{array_name}' is not an array.")
+    return array
 
 
 def _source_ome_metadata(
@@ -31,37 +96,6 @@ def _source_ome_metadata(
 
 
 # --- Unit tests
-
-
-class TestOMEWriteTarget:
-
-    def test_array_node_at_root(self, tmp_path):
-        store_uri = path_to_file_uri(tmp_path / "prediction.zarr")
-        target = OMEWriteTarget(
-            store_uri=store_uri,
-            image_group_path="",
-            array_name="0",
-        )
-
-        assert target.array_node == ZarrNode(
-            store_uri=store_uri,
-            path="0",
-            node_type="array",
-        )
-
-    def test_array_node_in_collection(self, tmp_path):
-        store_uri = path_to_file_uri(tmp_path / "prediction.zarr")
-        target = OMEWriteTarget(
-            store_uri=store_uri,
-            image_group_path="img_0",
-            array_name="0",
-        )
-
-        assert target.array_node == ZarrNode(
-            store_uri=store_uri,
-            path="img_0/0",
-            node_type="array",
-        )
 
 
 class TestResolveOMEOutputNode:
@@ -163,40 +197,59 @@ class TestDimensionNames:
         assert get_ome_dimension_names("YX", source_ome) == ["y", "x"]
 
 
-class TestToOMEWriteTarget:
+class TestOMEStoreWriting:
 
-    def test_root_node(self, tmp_path):
-        store_uri = path_to_file_uri(tmp_path / "prediction.zarr")
-        node = ZarrNode(store_uri=store_uri, path="", node_type="array")
-
-        target = to_ome_write_target(node)
-
-        assert target == OMEWriteTarget(
-            store_uri=store_uri,
-            image_group_path="",
-            array_name="0",
+    def test_single_image_store_validates(self, tmp_path):
+        store_path = tmp_path / "prediction.zarr"
+        node = ZarrNode(
+            store_uri=path_to_file_uri(store_path),
+            path="0",
+            node_type="array",
         )
 
-    def test_single_image_level_node(self, tmp_path):
-        store_uri = path_to_file_uri(tmp_path / "prediction.zarr")
-        node = ZarrNode(store_uri=store_uri, path="1", node_type="array")
-
-        target = to_ome_write_target(node)
-
-        assert target == OMEWriteTarget(
-            store_uri=store_uri,
-            image_group_path="",
-            array_name="1",
+        ensure_ome_store_structure(
+            array_node=node,
+            axes="YX",
+            source_ome=_source_ome_metadata(),
+            image_group_paths=[],
+        )
+        array = _create_ome_array(
+            node=node,
+            shape=(16, 16),
+            chunks=(8, 8),
+            shards=None,
+            dtype=np.float32,
+            dimension_names=["y", "x"],
         )
 
-    def test_collection_node(self, tmp_path):
-        store_uri = path_to_file_uri(tmp_path / "prediction.zarr")
-        node = ZarrNode(store_uri=store_uri, path="img_0/0", node_type="array")
+        assert array.shape == (16, 16)
+        validate_zarr_store(store_path)
 
-        target = to_ome_write_target(node)
+    def test_collection_store_validates(self, tmp_path):
+        store_path = tmp_path / "prediction.zarr"
+        store_uri = path_to_file_uri(store_path)
 
-        assert target == OMEWriteTarget(
-            store_uri=store_uri,
-            image_group_path="img_0",
-            array_name="0",
-        )
+        for image_group_path in ("img_0", "img_1"):
+            node = ZarrNode(
+                store_uri=store_uri,
+                path=f"{image_group_path}/0",
+                node_type="array",
+            )
+            ensure_ome_store_structure(
+                array_node=node,
+                axes="YX",
+                source_ome=_source_ome_metadata(image_group_path=image_group_path),
+                image_group_paths=["img_0", "img_1"],
+            )
+            _create_ome_array(
+                node=node,
+                shape=(16, 16),
+                chunks=(8, 8),
+                shards=None,
+                dtype=np.float32,
+                dimension_names=["y", "x"],
+            )
+
+        root = zarr.open_group(store_path, mode="r")
+        assert sorted(root["OME"].attrs["ome"]["series"]) == ["img_0", "img_1"]
+        validate_zarr_store(store_path)

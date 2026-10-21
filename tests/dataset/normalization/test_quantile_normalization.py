@@ -146,6 +146,7 @@ def test_scalar_config_values():
     assert config.normalization.input_upper_quantile_values is not None
 
 
+# TODO the asserts are not strong enough (the specific quantiles are useless), review
 def test_global_stats_pools_across_channels():
     rng = np.random.default_rng(42)
     ch0 = rng.normal(loc=0, scale=1, size=(128, 128)).astype(np.float32)
@@ -159,8 +160,8 @@ def test_global_stats_pools_across_channels():
         patching={"name": "whole"},
         normalization={
             "name": "quantile",
-            "lower_quantiless": 0.01,
-            "upper_quantiless": 0.99,
+            "lower_quantiles": 0.01,
+            "upper_quantiles": 0.99,
             "per_channel": False,
         },
     )

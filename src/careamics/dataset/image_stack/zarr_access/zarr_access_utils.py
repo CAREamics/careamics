@@ -9,7 +9,7 @@ from urllib.parse import unquote, urlparse
 
 from zarr.storage import StorePath
 
-from .zarr_access_protocol import ZarrNode
+from .zarr_access import ZarrNode
 
 
 def _is_windows_drive(value: str) -> bool:

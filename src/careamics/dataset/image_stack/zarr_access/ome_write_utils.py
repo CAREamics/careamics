@@ -2,49 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 import zarr
 from yaozarrs import v05
 
 from .ome_utils import default_ome_axes_metadata
-from .zarr_access_protocol import ZarrNode
+from .zarr_access import ZarrNode
 from .zarr_access_utils import file_uri_to_path
-
-
-@dataclass(frozen=True)
-class OMEWriteTarget:
-    """Resolved OME-Zarr output target."""
-
-    store_uri: str
-    """URI pointing to the root of a Zarr store."""
-
-    image_group_path: str
-    """Path to the group containing the image. If blank, the root group is used."""
-
-    array_name: str
-    """Name of the array within the image group."""
-
-    @property
-    def array_node(self) -> ZarrNode:
-        """Return the array node for this target.
-
-        Returns
-        -------
-        ZarrNode
-            Array node.
-        """
-        if self.image_group_path == "":
-            path = self.array_name
-        else:
-            path = f"{self.image_group_path}/{self.array_name}"
-
-        return ZarrNode(
-            store_uri=self.store_uri,
-            path=path,
-            node_type="array",
-        )
 
 
 def resolve_ome_output_node(
@@ -112,34 +77,6 @@ def get_ome_dimension_names(
                 return dimension_names
 
     return [axis_name.lower() for axis_name in axes]
-
-
-def to_ome_write_target(node: ZarrNode) -> OMEWriteTarget:
-    """Resolve an OME-Zarr write target from an array node.
-
-    Parameters
-    ----------
-    node : ZarrNode
-        Destination array node.
-
-    Returns
-    -------
-    OMEWriteTarget
-        OME output target.
-    """
-    if node.path == "":
-        return OMEWriteTarget(
-            store_uri=node.store_uri,
-            image_group_path="",
-            array_name="0",
-        )
-
-    image_group_path, _, array_name = node.path.rpartition("/")
-    return OMEWriteTarget(
-        store_uri=node.store_uri,
-        image_group_path=image_group_path,
-        array_name=array_name,
-    )
 
 
 def _ensure_group(root: zarr.Group, group_path: str) -> zarr.Group:
@@ -258,7 +195,7 @@ def _build_collection_metadata(
 
 
 def ensure_ome_store_structure(
-    target: OMEWriteTarget,
+    array_node: ZarrNode,
     axes: str,
     source_ome: dict[str, Any] | None,
     image_group_paths: list[str],
@@ -267,8 +204,9 @@ def ensure_ome_store_structure(
 
     Parameters
     ----------
-    target : OMEWriteTarget
-        Output target.
+    array_node : ZarrNode
+        Output array node. Its parent path is the OME image-group path and its
+        basename is the multiscale array name.
     axes : str
         CAREamics target axes.
     source_ome : dict[str, Any] or None
@@ -281,30 +219,34 @@ def ensure_ome_store_structure(
     None
         Metadata is written in place.
     """
-    store_path = file_uri_to_path(target.store_uri)
+    image_group_path = array_node.parent_path
+    array_name = array_node.basename
+    store_path = file_uri_to_path(array_node.store_uri)
     root = zarr.open_group(store_path, mode="a")
 
-    if target.image_group_path == "":
+    # Image specification
+    if image_group_path == "":
         root.attrs.update(
             _build_image_metadata(
                 axes=axes,
                 source_ome=source_ome,
-                array_name=target.array_name,
+                array_name=array_name,
             )
         )
         return
 
+    # bioformats2raw.layout specification
     root_attrs, ome_group_attrs = _build_collection_metadata(sorted(image_group_paths))
     root.attrs.update(root_attrs)
 
     ome_group = _ensure_group(root, "OME")
     ome_group.attrs.update(ome_group_attrs)
 
-    image_group = _ensure_group(root, target.image_group_path)
+    image_group = _ensure_group(root, image_group_path)
     image_group.attrs.update(
         _build_image_metadata(
             axes=axes,
             source_ome=source_ome,
-            array_name=target.array_name,
+            array_name=array_name,
         )
     )

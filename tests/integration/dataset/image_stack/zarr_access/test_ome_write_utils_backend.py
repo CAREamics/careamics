@@ -6,9 +6,9 @@ import zarr
 from yaozarrs import validate_zarr_store
 
 from careamics.dataset.image_stack.zarr_access import (
-    OMEWriteTarget,
     TensorstoreAccess,
     ZarrArraySpec,
+    ZarrNode,
     ZarrPythonAccess,
     ensure_ome_store_structure,
     path_to_file_uri,
@@ -30,20 +30,20 @@ class TestOMEStoreWriting:
 
     def test_single_image_store_validates(self, tmp_path, access_cls):
         store_path = tmp_path / "prediction.zarr"
-        target = OMEWriteTarget(
+        node = ZarrNode(
             store_uri=path_to_file_uri(store_path),
-            image_group_path="",
-            array_name="0",
+            path="0",
+            node_type="array",
         )
 
         ensure_ome_store_structure(
-            target=target,
+            array_node=node,
             axes="YX",
             source_ome=_source_ome_metadata(),
             image_group_paths=[],
         )
         access_cls().create_array(
-            node=target.array_node,
+            node=node,
             spec=ZarrArraySpec(
                 shape=(16, 16),
                 chunks=(8, 8),
@@ -60,19 +60,19 @@ class TestOMEStoreWriting:
         store_uri = path_to_file_uri(store_path)
 
         for image_group_path in ("img_0", "img_1"):
-            target = OMEWriteTarget(
+            node = ZarrNode(
                 store_uri=store_uri,
-                image_group_path=image_group_path,
-                array_name="0",
+                path=f"{image_group_path}/0",
+                node_type="array",
             )
             ensure_ome_store_structure(
-                target=target,
+                array_node=node,
                 axes="YX",
                 source_ome=_source_ome_metadata(image_group_path=image_group_path),
                 image_group_paths=["img_0", "img_1"],
             )
             access_cls().create_array(
-                node=target.array_node,
+                node=node,
                 spec=ZarrArraySpec(
                     shape=(16, 16),
                     chunks=(8, 8),
