@@ -15,6 +15,7 @@ from .ome_write_utils import (
 )
 from .tensorstore_access import TensorstoreAccess
 from .zarr_access import ZarrAccess, ZarrArraySpec, ZarrNode
+from .zarr_access_factory import ZarrBackend, create_zarr_access
 from .zarr_access_utils import (
     file_uri_to_path,
     is_valid_uri,
@@ -29,10 +30,12 @@ __all__ = [
     "TensorstoreAccess",
     "ZarrAccess",
     "ZarrArraySpec",
+    "ZarrBackend",
     "ZarrNode",
     "ZarrPythonAccess",
     "build_default_ome_metadata",
     "build_ome_metadata",
+    "create_zarr_access",
     "default_ome_axes_metadata",
     "ensure_ome_store_structure",
     "file_uri_to_path",
