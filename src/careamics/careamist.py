@@ -761,9 +761,11 @@ class CAREamist:
         dataloader_params: dict[str, Any] | None = None
         if ome_scale is not None and ome_scale != self.config.data_config.ome_scale:
             warnings.warn(
-                "The requested prediction `ome_scale` differs from the training data "
-                "configuration. Ensure both names refer to the same physical OME-NGFF "
-                "scale; CAREamics cannot verify this automatically.",
+                f"The requested prediction `ome_scale` ({ome_scale}) differs from the "
+                f"training scale ({self.config.data_config.ome_scale}). Ensure both "
+                f"names refer to the same physical OME-NGFF scale. Predicting on a "
+                f"different physical scale than the model was trained on will lead "
+                f"to degraded performances and untrustworthy results.",
                 UserWarning,
                 stacklevel=2,
             )
