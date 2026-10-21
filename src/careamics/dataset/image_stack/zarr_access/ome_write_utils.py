@@ -195,7 +195,7 @@ def _build_collection_metadata(
 
 
 def ensure_ome_store_structure(
-    node: ZarrNode,
+    array_node: ZarrNode,
     axes: str,
     source_ome: dict[str, Any] | None,
     image_group_paths: list[str],
@@ -204,7 +204,7 @@ def ensure_ome_store_structure(
 
     Parameters
     ----------
-    node : ZarrNode
+    array_node : ZarrNode
         Output array node. Its parent path is the OME image-group path and its
         basename is the multiscale array name.
     axes : str
@@ -219,11 +219,12 @@ def ensure_ome_store_structure(
     None
         Metadata is written in place.
     """
-    image_group_path = node.parent_path
-    array_name = node.basename
-    store_path = file_uri_to_path(node.store_uri)
+    image_group_path = array_node.parent_path
+    array_name = array_node.basename
+    store_path = file_uri_to_path(array_node.store_uri)
     root = zarr.open_group(store_path, mode="a")
 
+    # Image specification
     if image_group_path == "":
         root.attrs.update(
             _build_image_metadata(
@@ -234,6 +235,7 @@ def ensure_ome_store_structure(
         )
         return
 
+    # bioformats2raw.layout specification
     root_attrs, ome_group_attrs = _build_collection_metadata(sorted(image_group_paths))
     root.attrs.update(root_attrs)
 
@@ -248,59 +250,3 @@ def ensure_ome_store_structure(
             array_name=array_name,
         )
     )
-
-
-def create_ome_array(
-    node: ZarrNode,
-    shape: tuple[int, ...],
-    chunks: tuple[int, ...],
-    shards: tuple[int, ...] | None,
-    dtype: Any,
-    dimension_names: list[str],
-) -> zarr.Array:
-    """Create or open an OME-Zarr array.
-
-    Parameters
-    ----------
-    node : ZarrNode
-        Output array node. Its parent path is the OME image-group path and its
-        basename is the array name.
-    shape : tuple[int, ...]
-        Array shape.
-    chunks : tuple[int, ...]
-        Chunk shape.
-    shards : tuple[int, ...] or None
-        Shard shape.
-    dtype : Any
-        Array dtype.
-    dimension_names : list[str]
-        Dimension names for the array metadata.
-
-    Returns
-    -------
-    zarr.Array
-        Existing or newly created array.
-    """
-    image_group_path = node.parent_path
-    array_name = node.basename
-    store_path = file_uri_to_path(node.store_uri)
-    root = zarr.open_group(store_path, mode="a")
-    group = _ensure_group(root, image_group_path)
-
-    if array_name in group:
-        array = group[array_name]
-        if not isinstance(array, zarr.Array):
-            raise RuntimeError(f"Zarr array '{node.path}' is not an array.")
-        return array
-
-    array = group.create_array(
-        name=array_name,
-        shape=shape,
-        chunks=chunks,
-        shards=shards,
-        dtype=dtype,
-        dimension_names=dimension_names,
-    )
-    if not isinstance(array, zarr.Array):
-        raise RuntimeError(f"Zarr array '{array_name}' is not an array.")
-    return array

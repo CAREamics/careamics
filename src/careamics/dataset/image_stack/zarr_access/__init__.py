@@ -9,7 +9,6 @@ from .ome_utils import (
     resolve_ome_zarr_nodes,
 )
 from .ome_write_utils import (
-    create_ome_array,
     ensure_ome_store_structure,
     get_ome_dimension_names,
     resolve_ome_output_node,
@@ -34,7 +33,6 @@ __all__ = [
     "ZarrPythonAccess",
     "build_default_ome_metadata",
     "build_ome_metadata",
-    "create_ome_array",
     "default_ome_axes_metadata",
     "ensure_ome_store_structure",
     "file_uri_to_path",

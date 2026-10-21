@@ -395,7 +395,7 @@ class ZarrTileWriteStrategy(WriteStrategy):
 
         source_ome = region.additional_metadata.get("ome")
         ensure_ome_store_structure(
-            node=node,
+            array_node=node,
             axes=pred_axes,
             source_ome=source_ome if isinstance(source_ome, dict) else None,
             image_group_paths=sorted(self._store_image_groups[store_key]),

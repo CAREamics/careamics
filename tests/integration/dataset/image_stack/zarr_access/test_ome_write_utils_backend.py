@@ -31,7 +31,7 @@ class TestOMEStoreWriting:
         )
 
         ensure_ome_store_structure(
-            node=node,
+            array_node=node,
             axes="YX",
             source_ome=_source_ome_metadata(),
             image_group_paths=[],
@@ -60,7 +60,7 @@ class TestOMEStoreWriting:
                 node_type="array",
             )
             ensure_ome_store_structure(
-                node=node,
+                array_node=node,
                 axes="YX",
                 source_ome=_source_ome_metadata(image_group_path=image_group_path),
                 image_group_paths=["img_0", "img_1"],
