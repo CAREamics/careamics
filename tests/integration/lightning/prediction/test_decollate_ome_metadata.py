@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from torch.utils.data import default_collate
 from yaozarrs import v05
 
@@ -90,3 +91,17 @@ def test_decollate_preserves_ome_additional_metadata() -> None:
         assert tuple(
             first.additional_metadata["ome"]["coordinate_transformations"][0]["scale"]
         ) == (1.0, 0.5 + idx, 0.25 + idx)
+
+
+def test_ome_metadata_float_values_are_collated_as_float32() -> None:
+    region = _region("file:///tmp/sample.zarr/0", 0)
+    scale_values = region.additional_metadata["ome"]["coordinate_transformations"][0][
+        "scale"
+    ]
+    assert all(isinstance(value, np.float32) for value in scale_values)
+
+    batch = default_collate([region])
+
+    scale = batch.additional_metadata["ome"]["coordinate_transformations"][0]["scale"]
+
+    assert all(value.dtype == torch.float32 for value in scale)
