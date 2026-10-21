@@ -141,6 +141,7 @@ def create_dataset(
         in_memory=config.in_memory,
         loading=loading,
         zarr_backend=config.zarr_backend,
+        ome_scale=config.ome_scale,
     )
     patch_extractor_type = select_patch_extractor_type(
         data_type=SupportedData(config.data_type), in_memory=config.in_memory
@@ -212,6 +213,7 @@ def create_train_dataset(
         in_memory=config.in_memory,
         loading=loading,
         zarr_backend=config.zarr_backend,
+        ome_scale=config.ome_scale,
     )
     patch_extractor_type = select_patch_extractor_type(
         data_type=SupportedData(config.data_type), in_memory=config.in_memory
@@ -503,6 +505,7 @@ def select_image_stack_loader(
     in_memory: bool,
     loading: ReadFuncLoading | ImageStackLoading | None = None,
     zarr_backend: ZarrBackend = "zarr",
+    ome_scale: str = "0",
 ) -> ImageStackLoader[..., ImageStack]:
     """Select image stack loader function for the given data type and loading options.
 
@@ -516,6 +519,8 @@ def select_image_stack_loader(
         Custom loading spec, required when data_type is custom.
     zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
         Backend used to access Zarr arrays.
+    ome_scale : str, default="0"
+        OME scale to use when loading OME-Zarr files.
 
     Returns
     -------
@@ -548,7 +553,11 @@ def select_image_stack_loader(
                     )
         case SupportedData.ZARR:
             # TODO: in_memory or not
-            return partial(load_zarrs, zarr_backend=zarr_backend)
+            return partial(
+                load_zarrs,
+                zarr_backend=zarr_backend,
+                ome_scale=ome_scale,
+            )
         case SupportedData.CZI:
             # TODO: in_memory or not
             return load_czis

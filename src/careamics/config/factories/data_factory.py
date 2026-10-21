@@ -92,6 +92,7 @@ def create_data_configuration(
     val_dataloader_params: dict[str, Any] | None = None,
     pred_dataloader_params: dict[str, Any] | None = None,
     zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr",
+    ome_scale: str = "0",
     seed: int | None = None,
 ) -> DataConfig:
     """
@@ -144,6 +145,8 @@ def create_data_configuration(
     zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
         Backend used to read and write Zarr arrays, only effective if `data_type` is set
         to `zarr`.
+    ome_scale : str or None, default=None
+        OME scale to use when loading OME-Zarr files.
     seed : int, default=None
         Random seed for reproducibility. If `None`, seed is generated automatically.
 
@@ -172,6 +175,7 @@ def create_data_configuration(
             normalization if normalization is not None else {"name": "mean_std"}
         ),
         "zarr_backend": zarr_backend,
+        "ome_scale": ome_scale,
         "seed": seed,
     }
 
