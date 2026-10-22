@@ -759,7 +759,11 @@ class CAREamist:
             Prediction data module.
         """
         dataloader_params: dict[str, Any] | None = None
-        if ome_scale is not None and ome_scale != self.config.data_config.ome_scale:
+        if (
+            data_type == "zarr"
+            and ome_scale is not None
+            and ome_scale != self.config.data_config.ome_scale
+        ):
             warnings.warn(
                 f"The requested prediction `ome_scale` ({ome_scale}) differs from the "
                 f"training scale ({self.config.data_config.ome_scale}). Ensure both "
@@ -769,6 +773,7 @@ class CAREamist:
                 UserWarning,
                 stacklevel=2,
             )
+
         if num_workers is not None:
             dataloader_params = {"num_workers": num_workers}
 
