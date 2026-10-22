@@ -1,5 +1,6 @@
 """UNet-based segmentation Lightning Module."""
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 import torch
@@ -223,16 +224,23 @@ class SegModule(LightningModule):
         # TODO: add TTA
         prediction = self.model(x.data)
 
-        # Return the probability map. The class dimension must be kept in the output
-        # metadata because segmentation targets do not have a channel dimension.
-        prediction = prediction.softmax(dim=1).cpu().numpy()
+        prediction_output = self.config.prediction_output
+        if prediction_output == "probabilities":
+            # The class dimension must be kept in the output metadata because
+            # segmentation targets do not have a channel dimension.
+            prediction = prediction.softmax(dim=1).cpu().numpy()
 
-        # x.data_shape may be a collated batch of data shapes
-        output_data_shape = list(x.data_shape)
-        output_data_shape[1] = torch.full_like(
-            cast(torch.Tensor, output_data_shape[1]), prediction.shape[1]
-        )
-        output_target_axes = _add_channel_axis(cast(str | list[str], x.target_axes))
+            # x.data_shape may be a collated batch of data shapes.
+            probability_data_shape = list(x.data_shape)
+            probability_data_shape[1] = torch.full_like(
+                cast(torch.Tensor, probability_data_shape[1]), prediction.shape[1]
+            )
+            output_data_shape: Sequence[int] = probability_data_shape
+            output_target_axes = _add_channel_axis(cast(str | list[str], x.target_axes))
+        else:
+            prediction = prediction.argmax(dim=1, keepdim=True).cpu().numpy()
+            output_data_shape = x.data_shape
+            output_target_axes = x.target_axes
 
         output_batch = ImageRegionData(
             data=prediction,

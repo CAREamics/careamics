@@ -9,7 +9,7 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from numpy.typing import NDArray
 
-from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
 from .config.configuration import Configuration
 from .config.support import SupportedAlgorithm, SupportedLogger
 from .config.utils.configuration_io import load_configuration
@@ -24,6 +24,7 @@ from .lightning.callbacks import (
 from .lightning.data import CareamicsDataModule, InputVar
 from .lightning.modules import (
     CAREamicsModule,
+    SegModule,
     create_module,
 )
 from .lightning.prediction import convert_prediction
@@ -44,11 +45,13 @@ logger = get_logger(__name__)
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
+SegPredictionOutput = Literal["mask", "probabilities"]
 
 ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | Configuration[SegAlgorithm]
 )
 
 
@@ -786,6 +789,27 @@ class CAREamist:
             loading=loading,
         )
 
+    # TODO: merge with MSplit method (see feature branch)
+    def _update_model_parameters(
+        self,
+        segmentation_output: SegPredictionOutput | None = None,
+    ) -> None:
+        """Update model parameters.
+
+        Parameters
+        ----------
+        segmentation_output : {"mask", "probabilities"} or None, default=None
+            Prediction output for segmentation models. If None, the value from
+            the algorithm configuration is used.
+        """
+        # for segmentation, update the algorithm parameter in the module
+        if (
+            self.config.algorithm_config.algorithm == "seg"
+            and segmentation_output is not None
+        ):
+            assert isinstance(self.model, SegModule)
+            self.model.config.prediction_output = segmentation_output
+
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
     def predict(  # numpydoc ignore=GL08
@@ -805,6 +829,8 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -825,6 +851,8 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
 
     def predict(
@@ -844,6 +872,8 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: Loading = None,
         checkpoint: str | Path | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> tuple[list[NDArray], list[str]]:
         """
         Predict on data and return the predictions.
@@ -898,6 +928,9 @@ class CAREamist:
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
+        segmentation_output : {"mask", "probabilities"} or None, default=None
+            Prediction output for segmentation models. If None, the value from
+            the algorithm configuration is used.
 
         Returns
         -------
@@ -924,6 +957,8 @@ class CAREamist:
         )
 
         checkpoint = self._get_default_ckpt(checkpoint)
+
+        self._update_model_parameters(segmentation_output=segmentation_output)
 
         try:
             predictions: list[ImageRegionData] = self.trainer.predict(
@@ -993,6 +1028,8 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -1020,6 +1057,8 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> None: ...
 
     def predict_to_disk(
@@ -1046,6 +1085,8 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> None:
         """
         Make predictions on the provided data and save outputs to files.
@@ -1124,6 +1165,10 @@ class CAREamist:
             `write_type` a function to save the data must be passed. See notes below.
         write_func_kwargs : dict of {str: any}, optional
             Additional keyword arguments to be passed to the save function.
+        segmentation_output : {"mask", "probabilities"} or None, default=None
+            Prediction output for segmentation models. If None, the value from
+            the algorithm configuration is used.
+
 
         Raises
         ------
@@ -1187,6 +1232,8 @@ class CAREamist:
             in_memory=in_memory,
             loading=loading,
         )
+
+        self._update_model_parameters(segmentation_output=segmentation_output)
 
         try:
             self.trainer.predict(

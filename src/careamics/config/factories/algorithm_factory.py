@@ -54,6 +54,7 @@ def create_algorithm_configuration(
     optimizer_params: dict[str, Any] | None = None,
     lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
     lr_scheduler_params: dict[str, Any] | None = None,
+    prediction_output: Literal["mask", "probabilities"] | None = None,
 ) -> dict:
     """
     Create a dictionary with the parameters of the algorithm model.
@@ -87,6 +88,8 @@ def create_algorithm_configuration(
     lr_scheduler_params : dict, default=None
         Parameters for the learning rate scheduler, see PyTorch documentation for more
         details.
+    prediction_output : {"mask", "probabilities"}, default=None
+        Default prediction output for segmentation.
 
 
     Returns
@@ -111,7 +114,7 @@ def create_algorithm_configuration(
     if algorithm == "seg" and isinstance(loss, str):
         loss = {"name": loss}
 
-    return {
+    algorithm_config = {
         "algorithm": algorithm,
         "loss": loss,
         "model": unet_model,
@@ -124,3 +127,8 @@ def create_algorithm_configuration(
             "parameters": {} if lr_scheduler_params is None else lr_scheduler_params,
         },
     }
+
+    if algorithm == "seg" and prediction_output is not None:
+        algorithm_config["prediction_output"] = prediction_output
+
+    return algorithm_config

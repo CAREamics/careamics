@@ -126,6 +126,7 @@ def create_seg_config(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     n_channels_in: int | None = None,
+    prediction_output: Literal["mask", "probabilities"] = "mask",
 ) -> SegConfiguration:
     """
     Create a configuration for training a UNet for semantic segmentation.
@@ -172,6 +173,8 @@ def create_seg_config(
         parameter will be ignored if separate validation data is specified for training.
     n_channels_in : int or None, default=None
         Number of input channels.
+    prediction_output : {"mask", "probabilities"}, default="mask"
+        Default output returned during prediction.
 
     Returns
     -------
@@ -194,6 +197,7 @@ def create_advanced_seg_config(
     n_channels_in: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
+    prediction_output: Literal["mask", "probabilities"] = "mask",
     # advanced parameters
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
@@ -265,6 +269,8 @@ def create_advanced_seg_config(
     n_val_patches : int, default=8,
         The number of patches to set aside for validation during training. This
         parameter will be ignored if separate validation data is specified for training.
+    prediction_output : {"mask", "probabilities"}, default="mask"
+        Default output returned during prediction.
     in_memory : bool | None, default=None
         Whether to load all data into memory. This is only supported for 'array',
         'tiff' and 'custom' data types. If `None`, defaults to `True` for 'array',
@@ -372,6 +378,7 @@ def create_advanced_seg_config(
         optimizer_params=optimizer_params,
         lr_scheduler=lr_scheduler,
         lr_scheduler_params=lr_scheduler_params,
+        prediction_output=prediction_output,
     )
 
     # training
