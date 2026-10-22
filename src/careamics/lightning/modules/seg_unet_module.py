@@ -1,6 +1,7 @@
 """UNet-based segmentation Lightning Module."""
 
-from typing import TYPE_CHECKING, Any
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 from lightning.pytorch import LightningModule
@@ -26,6 +27,25 @@ if TYPE_CHECKING:
     from careamics.lightning.data.data_module import CareamicsDataModule
 
 logger = get_logger(__name__)
+
+
+def _add_channel_axis(target_axes: str | list[str]) -> str | list[str]:
+    """Add the channel axis to target axes when it is not already present.
+
+    Parameters
+    ----------
+    target_axes : str or list of str
+        Target axes for an uncollated or collated image region.
+
+    Returns
+    -------
+    str or list of str
+        Target axes containing a channel axis.
+    """
+    if isinstance(target_axes, str):
+        return target_axes if "C" in target_axes else target_axes + "C"
+
+    return [axes if "C" in axes else axes + "C" for axes in target_axes]
 
 
 class SegModule(LightningModule):
@@ -204,23 +224,31 @@ class SegModule(LightningModule):
         # TODO: add TTA
         prediction = self.model(x.data)
 
-        # TODO in the future, we will probably want to also return probability map
-        #   this is currently not possible due to the prediction conversion
-        #   restoring the original target shape
-        # prediction = prediction.softmax(dim=1)
+        prediction_output = self.config.prediction_output
+        if prediction_output == "probabilities":
+            # The class dimension must be kept in the output metadata because
+            # segmentation targets do not have a channel dimension.
+            prediction = prediction.softmax(dim=1).cpu().numpy()
 
-        # TODO step incompatible with returning probabilities
-        # apply argmaxx to get the class
-        prediction = prediction.argmax(dim=1, keepdim=True).cpu().numpy()
+            # x.data_shape may be a collated batch of data shapes.
+            probability_data_shape = list(x.data_shape)
+            probability_data_shape[1] = torch.full_like(
+                cast(torch.Tensor, probability_data_shape[1]), prediction.shape[1]
+            )
+            output_data_shape: Sequence[int] = probability_data_shape
+            output_target_axes = _add_channel_axis(cast(str | list[str], x.target_axes))
+        else:
+            prediction = prediction.argmax(dim=1, keepdim=True).cpu().numpy()
+            output_data_shape = x.data_shape
+            output_target_axes = x.target_axes
 
         output_batch = ImageRegionData(
             data=prediction,
             source=x.source,
-            data_shape=x.data_shape,
+            data_shape=output_data_shape,
             dtype=x.dtype,
             axes=x.axes,
-            # TODO update target axes with a C channel to return probabilities
-            target_axes=x.target_axes,
+            target_axes=cast(str, output_target_axes),  # for mypy
             original_data_shape=x.original_data_shape,
             region_spec=x.region_spec,
             additional_metadata=x.additional_metadata,
