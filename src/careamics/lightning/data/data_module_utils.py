@@ -11,7 +11,7 @@ from typing_extensions import TypeIs
 
 from careamics.config.support import SupportedData as SD
 from careamics.dataset.factory import ImageStackLoading, ReadFuncLoading
-from careamics.dataset.image_stack_loader.zarr_utils import is_valid_uri
+from careamics.dataset.image_stack.zarr_access import is_valid_uri
 
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
