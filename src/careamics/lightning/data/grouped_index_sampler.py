@@ -8,9 +8,10 @@ from numpy.random import Generator, default_rng
 from torch.utils.data import Sampler
 
 from careamics.dataset.dataset import CareamicsDataset
+from careamics.dataset.image_stack import GenericImageStack
 
 
-class GroupedIndexSampler(Sampler):
+class GroupedIndexSampler(Sampler[int]):
     """A PyTorch Sampler that iterates through groups of indices.
 
     The order of the groups and the order of indices within each group are shuffled.
@@ -44,10 +45,11 @@ class GroupedIndexSampler(Sampler):
             self.rng = rng
         # TODO: validate indices are unique across groups
         self.grouped_indices = grouped_indices
+        self.n_indices = sum([len(group) for group in self.grouped_indices])
 
     @classmethod
     def from_dataset(
-        cls, dataset: CareamicsDataset, rng: Generator | None = None
+        cls, dataset: CareamicsDataset[GenericImageStack], rng: Generator | None = None
     ) -> Self:
         """Create the sampler from a CareamicsDataset.
 
@@ -72,6 +74,16 @@ class GroupedIndexSampler(Sampler):
             for i in range(n_data_samples)
         ]
         return cls(grouped_indices=grouped_indices, rng=rng)
+
+    def __len__(self) -> int:
+        """Length of Sampler.
+
+        Returns
+        -------
+        int
+            The length.
+        """
+        return self.n_indices
 
     def __iter__(self) -> Iterator[int]:
         """Iterate over indices with groups and within-group order shuffled.
