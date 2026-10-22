@@ -7,6 +7,9 @@ from numpy.typing import NDArray
 
 from careamics.careamist import CAREamist
 from careamics.config.factories import create_advanced_n2v_config
+from tests.conftest import (
+    create_single_image_ome_zarr,
+)
 
 
 def random_array(shape: tuple[int, ...], seed: int = 42) -> NDArray:
@@ -19,19 +22,19 @@ def test_predict_warns_when_ome_scale_differs_from_training_config(tmp_path: Pat
     """Prediction warns when its named OME scale differs from training."""
     config = create_advanced_n2v_config(
         experiment_name="test",
-        data_type="array",
+        data_type="zarr",
         axes="YX",
         patch_size=(32, 32),
-        batch_size=1,
+        batch_size=8,
         masked_pixel_percentage=1,
         ome_scale="full-resolution",
     )
     careamist = CAREamist(config=config, work_dir=tmp_path)
 
-    with pytest.warns(UserWarning, match="differs from the training data"):
+    with pytest.warns(UserWarning, match="differs from the training scale"):
         careamist._build_predict_datamodule(
-            random_array((16, 16)),
-            data_type="array",
+            create_single_image_ome_zarr(tmp_path / "my_store.ome.zarr"),
+            data_type="zarr",
             ome_scale="quarter-resolution",
         )
 
