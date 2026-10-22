@@ -124,11 +124,6 @@ class TensorstoreAccess:
             Output array node.
         spec : ZarrArraySpec
             Output array specification. Parent groups must already exist.
-
-        Returns
-        -------
-        None
-            The array is created or opened in place.
         """
         store_path = file_uri_to_path(node.store_uri)
         if store_path.exists():
@@ -171,11 +166,6 @@ class TensorstoreAccess:
             Indexing object selecting the tile destination.
         data : NDArray[Any]
             Data to write.
-
-        Returns
-        -------
-        None
-            This method writes in place.
         """
         self._require_array(node, mode="a")[tile_index].write(data).result()
 

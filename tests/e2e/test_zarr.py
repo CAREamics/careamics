@@ -117,6 +117,8 @@ def test_smoke_n2v_plain_zarr_root_array(tmp_path: Path) -> None:
         train_data=[train_uri],
         val_data=[val_uri],
     )
+
+    # tiled prediction to disk
     careamist.predict_to_disk(
         pred_data=[pred_uri],
         prediction_dir="predictions",
@@ -127,6 +129,18 @@ def test_smoke_n2v_plain_zarr_root_array(tmp_path: Path) -> None:
 
     assert output_store.exists()
     validate_zarr_store(output_store)
+
+    # whole image prediction to disk
+    careamist.predict_to_disk(
+        pred_data=[pred_uri],
+        prediction_dir="whole_image_predictions",
+    )
+    whole_image_output_store = (
+        tmp_path / "whole_image_predictions" / "input_image_output.zarr"
+    )
+
+    assert whole_image_output_store.exists()
+    validate_zarr_store(whole_image_output_store)
 
 
 @pytest.mark.mps_gh_fail
@@ -178,6 +192,18 @@ def test_smoke_n2v_single_image_ome_zarr(tmp_path: Path, backend: str) -> None:
         zarr.open_group(tmp_path / "input_image.zarr", mode="r"),
         zarr.open_group(output_store, mode="r"),
     )
+
+    # whole image prediction to disk
+    careamist.predict_to_disk(
+        pred_data=[pred_uri],
+        prediction_dir="whole_image_predictions",
+    )
+    whole_image_output_store = (
+        tmp_path / "whole_image_predictions" / "input_image_output.zarr"
+    )
+
+    assert whole_image_output_store.exists()
+    validate_zarr_store(whole_image_output_store)
 
 
 @pytest.mark.mps_gh_fail
@@ -239,6 +265,18 @@ def test_smoke_n2v_collection_ome_zarr(tmp_path: Path) -> None:
             output_group[image_name],
         )
 
+    # whole image prediction to disk
+    careamist.predict_to_disk(
+        pred_data=[pred_uri],
+        prediction_dir="whole_image_predictions",
+    )
+    whole_image_output_store = (
+        tmp_path / "whole_image_predictions" / "input_collection_output.zarr"
+    )
+
+    assert whole_image_output_store.exists()
+    validate_zarr_store(whole_image_output_store)
+
 
 @pytest.mark.mps_gh_fail
 def test_smoke_care_supervised_same_ome_zarr(tmp_path: Path) -> None:
@@ -295,6 +333,18 @@ def test_smoke_care_supervised_same_ome_zarr(tmp_path: Path) -> None:
     output_store = tmp_path / "predictions" / "pred_supervised_output.zarr"
     assert output_store.exists()
     validate_zarr_store(output_store)
+
+    # whole image prediction to disk
+    careamist.predict_to_disk(
+        pred_data=[pred_input_uri],
+        prediction_dir="whole_image_predictions",
+    )
+    whole_image_output_store = (
+        tmp_path / "whole_image_predictions" / "pred_supervised_output.zarr"
+    )
+
+    assert whole_image_output_store.exists()
+    validate_zarr_store(whole_image_output_store)
 
 
 @pytest.mark.mps_gh_fail
