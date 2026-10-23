@@ -11,12 +11,18 @@ from careamics.config import N2VAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
+from careamics.lightning.logger import CoLogger
 from careamics.losses import n2v_loss
 from careamics.metrics import SIPSNR
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
 
-from .module_utils import configure_optimizers, log_training_stats, log_validation_stats
+from .module_utils import (
+    configure_optimizers,
+    log_images,
+    log_training_stats,
+    log_validation_stats,
+)
 from .n2v_utils import N2VManipulate
 
 logger = get_logger(__name__)
@@ -150,6 +156,16 @@ class N2VModule(L.LightningModule):
         log_validation_stats(
             self, val_loss, batch_size=x_data.shape[0], metrics=self.metrics
         )
+        # log images
+        not_sanity_checking = not self.trainer.sanity_checking
+        if batch_idx == 0 and isinstance(self.logger, CoLogger) and not_sanity_checking:
+            n_samples = min(5, x_data.shape[0])
+            log_images(
+                self,
+                input_or_target=x_masked[:n_samples],
+                prediction=prediction[:n_samples],
+                is_supervised=False,
+            )
 
     def predict_step(
         self,

@@ -6,7 +6,6 @@ from typing import Any, Literal, overload
 
 from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
-from lightning.pytorch.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from numpy.typing import NDArray
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
@@ -22,6 +21,7 @@ from .lightning.callbacks import (
     ProgressBarCallback,
 )
 from .lightning.data import CareamicsDataModule, InputVar
+from .lightning.logger import CoLogger
 from .lightning.modules import (
     CAREamicsModule,
     create_module,
@@ -160,7 +160,7 @@ class CAREamist:
             self.work_dir, enable_writing=False
         )
 
-        experiment_loggers = self._create_loggers(
+        experiment_logger = self._create_loggers(
             self.config.training_config.logger,
             self.config.get_safe_experiment_name(),
             self.work_dir,
@@ -171,7 +171,7 @@ class CAREamist:
         self.trainer = Trainer(
             callbacks=[self.prediction_writer, *self.callbacks],
             default_root_dir=self.work_dir,
-            logger=experiment_loggers,
+            logger=experiment_logger,
             **self.config.training_config.trainer_params or {},
         )
 
@@ -441,6 +441,7 @@ class CAREamist:
                 config.get_safe_experiment_name(),
                 config.training_config,
                 config.data_config,
+                config.project_name,
             ),
         ]
 
@@ -459,19 +460,19 @@ class CAREamist:
 
     @staticmethod
     def _create_loggers(
-        logger: str | None,
+        dl_logger: str | None,
         experiment_name: str,
         work_dir: Path,
         config: Configuration,
         version: int = 0,
-    ) -> list[TensorBoardLogger | WandbLogger | CSVLogger]:
-        """Create loggers for the experiment.
+    ) -> CoLogger:
+        """Create the logger for the experiment.
 
         Parameters
         ----------
-        logger : str | None
-            Logger to use during training. If None, no logger will be used. Available
-            loggers are defined in SupportedLogger.
+        dl_logger : str | None
+            The deep learning logger to use for tracking the experiment,
+            by default None.
         experiment_name : str
             Name of the experiment, used as a parameter to the loggers.
         work_dir : Path
@@ -483,36 +484,20 @@ class CAREamist:
 
         Returns
         -------
-        list[TensorBoardLogger | WandbLogger | CSVLogger]
-            The list of loggers to use during training.
+        CoLogger
+            The logger instance used during training.
         """
-        csv_logger = CSVLogger(
-            name=experiment_name,
-            save_dir=work_dir / "csv_logs",
-            version=version,
+        if dl_logger is not None:
+            dl_logger = SupportedLogger(dl_logger)
+
+        return CoLogger(
+            experiment_name=experiment_name,
+            work_dir=work_dir,
+            config=config,
+            dl_logger=dl_logger,
+            log_version=version,
+            finalize_after_fit=False,
         )
-
-        if logger is not None:
-            logger = SupportedLogger(logger)
-
-        match logger:
-            case SupportedLogger.WANDB:
-                return [
-                    WandbLogger(
-                        name=experiment_name,
-                        save_dir=work_dir / "wandb_logs",
-                        config=config.model_dump(),
-                        version=version,
-                    ),
-                    csv_logger,
-                ]
-            case SupportedLogger.TENSORBOARD:
-                return [
-                    TensorBoardLogger(save_dir=work_dir / "tb_logs", version=version),
-                    csv_logger,
-                ]
-            case _:
-                return [csv_logger]
 
     def _get_checkpoint_root(self) -> Path:
         """Get the root directory for checkpoints.
@@ -682,21 +667,22 @@ class CAREamist:
         # which changes them in order to interrupt training gracefully
         self.trainer.should_stop = False
         self.trainer.limit_val_batches = 1.0  # equivalent to all validation batches
+        # enable auto-logging hparams
+        self.trainer.enable_autolog_hparams = True
 
         _ = seed_everything(self.config.data_config.seed, workers=True)
         self.trainer.fit(
             self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
         )
-        for lgr in self.trainer.loggers:
-            if isinstance(lgr, WandbLogger):
-                import wandb
 
-                norm_stats = self.train_datamodule.config.normalization.model_dump()
-                wandb.run.config.update(
-                    {"normalization": norm_stats}, allow_val_change=True
-                )
-                wandb.finish()
-                break
+        # log normalization statistics and finalize the logger
+        if isinstance(self.trainer.logger, CoLogger):
+            norm_stats = self.train_datamodule.config.normalization.model_dump()
+            self.trainer.logger.log_hyperparams({"normalization": norm_stats})
+            self.trainer.logger.finish("success")
+
+        # disable auto-logging hparams
+        self.trainer.enable_autolog_hparams = False
 
     def _build_predict_datamodule(
         self,
@@ -941,7 +927,7 @@ class CAREamist:
                         " predict(..., tile_size=(64, 64))\n"
                     )
                 elif not tiled:
-                    hint = "Try enabling tiling:" " predict(..., tile_size=(64, 64))\n"
+                    hint = "Try enabling tiling: predict(..., tile_size=(64, 64))\n"
                 elif not at_min_batch:
                     hint = (
                         "Try reducing the batch size:"
@@ -951,8 +937,7 @@ class CAREamist:
                     )
                 else:
                     hint = (
-                        "Try using a smaller tile size:"
-                        " predict(..., tile_size=(...))\n"
+                        "Try using a smaller tile size: predict(..., tile_size=(...))\n"
                     )
                 raise RuntimeError(
                     "\nOut of GPU memory during prediction.\n" + hint
@@ -1334,7 +1319,7 @@ class CAREamist:
             discovered validation metrics.
         """
         return read_csv_logger(
-            self.work_dir / "csv_logs",
+            self.work_dir / "logs" / "csv_logs",
             self.config.get_safe_experiment_name(),
         )
 
