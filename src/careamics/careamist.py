@@ -460,18 +460,19 @@ class CAREamist:
 
     @staticmethod
     def _create_loggers(
-        logger: str | None,
+        dl_logger: str | None,
         experiment_name: str,
         work_dir: Path,
         config: Configuration,
         version: int = 0,
     ) -> CoLogger:
-        """Create loggers for the experiment.
+        """Create the logger for the experiment.
 
         Parameters
         ----------
-        logger : str | None
-            The logger to use for the experiment, by default None.
+        dl_logger : str | None
+            The deep learning logger to use for tracking the experiment,
+            by default None.
         experiment_name : str
             Name of the experiment, used as a parameter to the loggers.
         work_dir : Path
@@ -483,21 +484,17 @@ class CAREamist:
 
         Returns
         -------
-        list[TensorBoardLogger | WandbLogger | CSVLogger]
-            The list of loggers to use during training.
+        CoLogger
+            The logger instance used during training.
         """
-        if logger is not None:
-            logger = SupportedLogger(logger)
-
-        use_tensorboard = logger == SupportedLogger.TENSORBOARD
-        use_wandb = logger == SupportedLogger.WANDB
+        if dl_logger is not None:
+            dl_logger = SupportedLogger(dl_logger)
 
         return CoLogger(
             experiment_name=experiment_name,
             work_dir=work_dir,
             config=config,
-            use_tensorboard=use_tensorboard,
-            use_wandb=use_wandb,
+            dl_logger=dl_logger,
             log_version=version,
             finalize_after_fit=False,
         )

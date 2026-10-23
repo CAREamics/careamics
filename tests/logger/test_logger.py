@@ -23,8 +23,7 @@ def test_logger(tmp_path: Path):
         experiment_name="careamics_testing",
         work_dir=tmp_path,
         config=config,
-        use_tensorboard=True,
-        use_wandb=False,
+        dl_logger="tensorboard",
         log_version=0,
         finalize_after_fit=False,
     )

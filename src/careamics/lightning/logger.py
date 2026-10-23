@@ -38,10 +38,9 @@ class CoLogger(Logger):
         Directory where logs will be saved.
     config : Configuration
         Configuration object containing experiment settings.
-    use_tensorboard : bool, optional
-        Whether to use TensorBoard for logging, by default False.
-    use_wandb : bool, optional
-        Whether to use WandB for logging, by default False.
+    dl_logger : str | None, optional
+        The deep learning logger to use for tracking the experiment, by default None.
+        Supported values are "wandb", "tensorboard", or None.
     log_version : int, optional
         Version number for the logs, by default 0.
     finalize_after_fit : bool, optional
@@ -53,8 +52,7 @@ class CoLogger(Logger):
         experiment_name: str,
         work_dir: Path,
         config: Configuration,
-        use_tensorboard: bool = False,
-        use_wandb: bool = False,
+        dl_logger: str | None = None,
         log_version: int = 0,
         finalize_after_fit: bool = True,
     ) -> None:
@@ -68,10 +66,10 @@ class CoLogger(Logger):
             Directory where logs will be saved.
         config : Configuration
             Configuration object containing experiment settings.
-        use_tensorboard : bool, optional
-            Whether to use TensorBoard for logging, by default False.
-        use_wandb : bool, optional
-            Whether to use WandB for logging, by default False.
+        dl_logger : str | None, optional
+            The deep learning logger to use for tracking the experiment,
+            by default None.
+            Supported values are "wandb", "tensorboard", or None.
         log_version : int, optional
             Version number for the logs, by default 0.
         finalize_after_fit : bool, optional
@@ -106,7 +104,7 @@ class CoLogger(Logger):
         self.loggers.append(self.csv)
 
         self.tb: TensorBoardLogger | None = None
-        if use_tensorboard:
+        if dl_logger == "tensorboard":
             self.tb = TensorBoardLogger(
                 name=self._name, save_dir=self._tb_log_dir, version=self._version
             )
@@ -114,7 +112,7 @@ class CoLogger(Logger):
             self.loggers.append(self.tb)
 
         self.wandb: WandbLogger | None = None
-        if use_wandb:
+        if dl_logger == "wandb":
             is_logged_in = self._wandb_login()
             self.wandb = WandbLogger(
                 name=self._name,

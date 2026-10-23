@@ -461,8 +461,8 @@ def create_advanced_n2v_config(
     checkpoint_params : dict[str, Any] | None, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
-    logger : Literal["wandb", "tensorboard", "none"], default="none"
-        Logger to use (deprecated).
+    logger : {"wandb", "tensorboard", "none"}
+        Logger to use.
     seed : int | None, default=None
         Random seed for reproducibility.
 

@@ -25,8 +25,8 @@ def create_training_configuration(
         Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict
         Parameters for Lightning Trainer class, see PyTorch Lightning documentation.
-    logger : Literal["wandb", "tensorboard", "none"]
-        Logger to use (deprecated).
+    logger : {"wandb", "tensorboard", "none"}
+        Logger to use.
     checkpoint_params : dict, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters. If `None`, then

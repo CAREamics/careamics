@@ -1,5 +1,5 @@
 # logs folder (some tests will create it)
-src/careamics/logs
+**/logs
 
 # image and data
 **/*.zarr
