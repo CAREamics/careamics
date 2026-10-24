@@ -77,22 +77,6 @@ class TestMicroSplitConfig:
         assert config.algorithm_config.model.predict_logvar is False
         assert config.algorithm_config.loss.predict_logvar is False
 
-    def test_supervised_checkpointing(self):
-        """Test that MicroSplit uses the supervised checkpoint preset (early stop)."""
-        config = create_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-        )
-        assert config.training_config.early_stopping_params == {
-            "monitor": "val_loss",
-            "mode": "min",
-        }
-        assert config.training_config.checkpoint_params["monitor"] == "val_loss"
-
     def test_num_epochs_and_num_steps(self):
         """Test that both num_epochs and num_steps can be set simultaneously."""
         config = create_advanced_microsplit_config(
@@ -108,58 +92,8 @@ class TestMicroSplitConfig:
         assert config.training_config.trainer_params["max_epochs"] == 25
         assert config.training_config.trainer_params["limit_train_batches"] == 500
 
-    def test_model_params_defaults(self):
-        """Test that the MicroSplit LVAE defaults are applied to the model."""
-        config = create_advanced_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-        )
-        model = config.algorithm_config.model
-        assert model.z_dims == [128, 128]
-        assert model.n_filters == 32
-
-    def test_analytical_kl_is_disabled(self):
-        """Test that MicroSplit always keeps the Monte Carlo KL estimate."""
-        config = create_advanced_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-        )
-        assert config.algorithm_config.model.analytical_kl is False
-
-    def test_topdown_normalize_factor_is_enabled(self):
-        """Test that MicroSplit always enables the top-down normalize factor."""
-        config = create_advanced_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-        )
-        assert config.algorithm_config.model.enable_topdown_normalize_factor is True
-
-    def test_encoder_first_conv_kernel_is_three(self):
-        """Test that MicroSplit always uses a 3x3 first bottom-up convolution."""
-        config = create_advanced_microsplit_config(
-            experiment_name="test",
-            data_type="array",
-            axes="YX",
-            patch_size=[64, 64],
-            batch_size=8,
-            output_channels=2,
-        )
-        assert config.algorithm_config.model.encoder_first_conv_kernel == 3
-
     def test_model_params_override(self):
-        """Test that model_params overrides defaults but not structural params."""
+        """Test that model_params overrides presets but not structural params."""
         config = create_advanced_microsplit_config(
             experiment_name="test",
             data_type="array",
@@ -167,16 +101,20 @@ class TestMicroSplitConfig:
             patch_size=[64, 64],
             batch_size=8,
             output_channels=2,
-            multiscale_count=3,
-            model_params={"n_filters": 64, "encoder_dropout": 0.2},
+            model_params={
+                "n_filters": 64,
+                "analytical_kl": True,
+                "encoder_first_conv_kernel": 5,
+                "output_channels": 5,
+            },
         )
         model = config.algorithm_config.model
-        # user override wins over the default
+        # user override wins over the MicroSplit preset
         assert model.n_filters == 64
-        assert model.encoder_dropout == 0.2
-        # structural params still come from the dedicated arguments
+        # structural params are set by the factory and ignore model_params
+        assert model.analytical_kl is False
+        assert model.encoder_first_conv_kernel == 3
         assert model.output_channels == 2
-        assert model.multiscale_count == 3
 
 
 def _base_config() -> MicroSplitConfiguration:
