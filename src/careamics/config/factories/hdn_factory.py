@@ -36,7 +36,7 @@ def create_hdn_config(
     The reconstruction likelihood is selected by `use_noise_model`: set it to use the
     noise model likelihood, leave it `False` to learn a Gaussian likelihood
     (DivNoising). The noise model itself is supplied at training time via
-    `CAREamist.train(noise_model=...)` / `HDNModule.set_noise_model`, not here.
+    `CAREamist.train(noise_model=...)` / `HDNModule.set_noise_model`.
 
     See `create_advanced_hdn_config` for more parameters.
 
