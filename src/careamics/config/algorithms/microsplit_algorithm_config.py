@@ -63,7 +63,6 @@ class MicroSplitAlgorithm(BaseModel):
     def validate_constraints(self: Self) -> Self:
         """Validate the algorithm-specific constraints.
 
-
         Returns
         -------
         Self
