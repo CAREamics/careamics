@@ -59,7 +59,7 @@ class CAREamist:
     ----------
     config : Configuration | Path | str, default=None
         CAREamics configuration, or a path to a configuration file. See
-        `careamics.config.ng_factories` for method to build configurations.
+        `careamics.config.factories` for method to build configurations.
     checkpoint_path : Path | str, default=None
         Path to a checkpoint file from which to load the model and configuration.
     bmz_path : Path | str, default=None
@@ -114,7 +114,7 @@ class CAREamist:
         ----------
         config : Configuration | Path | str, default=None
             CAREamics configuration, or a path to a configuration file. See
-            `careamics.config.ng_factories` for method to build configurations. `config`
+            `careamics.config.factories` for method to build configurations. `config`
             is mutually exclusive with `checkpoint_path` and `bmz_path`.
         checkpoint_path : Path | str, default=None
             Path to a checkpoint file from which to load the model and configuration.
@@ -672,7 +672,7 @@ class CAREamist:
             train_data_target=train_data_target,
             val_data_target=val_data_target,
             train_data_mask=filtering_mask,
-            model_constraints=get_model_constraints(self.config.algorithm_config.model),
+            model_constraints=get_model_constraints(self.config.algorithm_config),
             loading=loading,  # type: ignore
         )
 
@@ -782,7 +782,7 @@ class CAREamist:
             data_config=pred_data_config,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
-            model_constraints=get_model_constraints(self.config.algorithm_config.model),
+            model_constraints=get_model_constraints(self.config.algorithm_config),
             loading=loading,
         )
 

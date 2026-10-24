@@ -1,0 +1,201 @@
+"""Segmentation with UNet algorithm configuration."""
+
+from typing import Annotated, Literal, Union
+
+from bioimageio.spec.generic.v0_3 import CiteEntry
+from pydantic import AfterValidator, Field, model_validator
+
+from careamics.config.algorithms.unet_algorithm_config import UNetBasedAlgorithm
+from careamics.config.architectures import UNetConfig
+from careamics.config.losses import (
+    CELossConfig,
+    DiceCELossConfig,
+    DiceLossConfig,
+)
+from careamics.config.validators import (
+    model_without_final_activation,
+    model_without_n2v2,
+)
+from careamics.references.segmentation import (
+    UNET_REF,
+    UNET_SEGMENTATION,
+    UNET_SEGMENTATION_DESCRIPTION,
+)
+
+SegmentationLoss = Annotated[
+    Union[DiceLossConfig, DiceCELossConfig, CELossConfig],
+    Field(discriminator="name"),
+]
+
+
+def _model_with_at_least_2_classes(model: UNetConfig) -> UNetConfig:
+    """Validate that the Unet model has at least two classes.
+
+    Parameters
+    ----------
+    model : UNetConfig
+        Model to validate.
+
+    Returns
+    -------
+    UNetConfig
+        The validated model.
+
+    Raises
+    ------
+    ValueError
+        If the model has less than two classes.
+    """
+    if model.num_classes < 2:
+        raise ValueError(
+            f"U-Net model should have at least 2 classes, including background, "
+            f"got {model.num_classes} classes."
+        )
+
+    return model
+
+
+def _model_with_dependent_channels(model: UNetConfig) -> UNetConfig:
+    """Validate that the Unet model has dependent channels.
+
+    Parameters
+    ----------
+    model : UNetConfig
+        Model to validate.
+
+    Returns
+    -------
+    UNetConfig
+        The validated model.
+
+    Raises
+    ------
+    ValueError
+        If the model has independent channels.
+    """
+    if model.independent_channels:
+        raise ValueError(
+            "U-Net model should have `independent_channels` set to `False`."
+        )
+
+    return model
+
+
+class SegAlgorithm(UNetBasedAlgorithm):
+    """Configuration for segmentation algorithm."""
+
+    algorithm: Literal["seg"] = "seg"
+    """Segmentation algorithm name."""
+
+    loss: SegmentationLoss = DiceCELossConfig()
+    """Segmentation-compatible loss function."""
+
+    model: Annotated[
+        UNetConfig,
+        AfterValidator(model_without_n2v2),
+        AfterValidator(model_without_final_activation),
+        AfterValidator(_model_with_at_least_2_classes),
+        AfterValidator(_model_with_dependent_channels),
+    ]
+    """UNet without a final activation function and without the `n2v2` modifications."""
+
+    @model_validator(mode="after")
+    def class_weights_match_model(self) -> "SegAlgorithm":
+        """Validate that class weights match the model output classes.
+
+        Returns
+        -------
+        SegAlgorithm
+            Validated configuration.
+        """
+        if (
+            self.loss.class_weights is not None
+            and len(self.loss.class_weights) != self.model.num_classes
+        ):
+            raise ValueError(
+                f"Class weights must have length {self.model.num_classes}, which is "
+                f"equal to `n_classes+1` (number of foreground classes + background), "
+                f"got {len(self.loss.class_weights)}."
+            )
+        return self
+
+    def get_algorithm_friendly_name(self) -> str:
+        """
+        Get the friendly name of the algorithm.
+
+        Returns
+        -------
+        str
+            Friendly name.
+        """
+        return UNET_SEGMENTATION
+
+    def get_algorithm_keywords(self) -> list[str]:
+        """
+        Get algorithm keywords.
+
+        Returns
+        -------
+        list[str]
+            List of keywords.
+        """
+        keywords = [
+            "semantic segmentation",
+            "UNet",
+            "3D" if self.model.is_3D() else "2D",
+            "CAREamics",
+            "pytorch",
+        ]
+
+        return keywords
+
+    def get_algorithm_references(self) -> str:
+        """
+        Get the algorithm references.
+
+        This is used to generate the README of the BioImage Model Zoo export.
+
+        Returns
+        -------
+        str
+            Algorithm references.
+        """
+        return UNET_REF.text + " doi: " + str(UNET_REF.doi)
+
+    def get_algorithm_citations(self) -> list[CiteEntry]:
+        """
+        Return a list of citation entries of the current algorithm.
+
+        This is used to generate the model description for the BioImage Model Zoo.
+
+        Returns
+        -------
+        List[CiteEntry]
+            List of citation entries.
+        """
+        return [UNET_REF]
+
+    def get_algorithm_description(self) -> str:
+        """
+        Return a description of the algorithm.
+
+        This method is used to generate the README of the BioImage Model Zoo export.
+
+        Returns
+        -------
+        str
+            Description of the algorithm.
+        """
+        return UNET_SEGMENTATION_DESCRIPTION
+
+    @classmethod
+    def is_supervised(cls) -> bool:
+        """
+        Whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return True

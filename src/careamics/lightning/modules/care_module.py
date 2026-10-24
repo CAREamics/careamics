@@ -57,8 +57,9 @@ class CAREModule(L.LightningModule):
             config = algorithm_config
 
         if not isinstance(config, (CAREAlgorithm, N2NAlgorithm)):
-            raise TypeError(
-                "algorithm_config must be a CAREAlgorithm or a N2NAlgorithm"
+            raise ValueError(
+                f"Parameter `algorithm_config` must be a CAREAlgorithm or N2NAlgorithm "
+                f"Pydantic model (got {type(config).__name__})."
             )
 
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
@@ -68,6 +69,10 @@ class CAREModule(L.LightningModule):
             MSELoss() if self.config.loss == SupportedLoss.MSE else L1Loss()
         )
 
+        # TODO an alternative to logging a SIPSNR per channel would be to remove the
+        # channel mechanism from SIPSNR, have it return a tensor of shape (n_channels,)
+        # and log the channels in an overload of on_validation_epoch_end, similarly to
+        # the segmentation module
         self.metrics: MetricCollection = MetricCollection(
             {
                 f"SIPSNR_{i}": SIPSNR(
@@ -134,7 +139,6 @@ class CAREModule(L.LightningModule):
         torch.Tensor
             The loss value computed for the current batch.
         """
-        # TODO: add validation to determine if target is initialized
         x, target = batch[0], batch[1]
 
         prediction = self.model(x.data)

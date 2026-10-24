@@ -62,6 +62,11 @@ def _normalise_range(gt: Tensor, pred: Tensor) -> tuple[Tensor, Tensor]:
     return gt_rescaled, pred_rescaled
 
 
+# TODO currently in order to log each channel individually, we need to create a single
+# metric per channel and add them together. An alternative would be to remove the
+# channel mechanism here, and force the Lightning Module to overload the
+# on_validation_epoch_end and log the channels individually, similarly to the
+# segmentation module
 class SIPSNR(Metric):
     """Scale Invariant PSNR metric using a global data range.
 
