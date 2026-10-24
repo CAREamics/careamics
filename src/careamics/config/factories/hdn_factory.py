@@ -116,10 +116,6 @@ def create_advanced_hdn_config(
 ) -> HDNConfiguration:
     """Create an advanced configuration for training HDN.
 
-    `predict_logvar` is derived from `use_noise_model`: it is enabled when no noise
-    model is used (DivNoising Gaussian likelihood) and disabled otherwise. The noise
-    model itself is supplied at training time, not through the configuration.
-
     Parameters
     ----------
     experiment_name : str
