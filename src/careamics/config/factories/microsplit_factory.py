@@ -68,9 +68,9 @@ def create_microsplit_config(
 
     Notes
     -----
-    The noise model is not part of the configuration. For denoiSplit
-    (`noise_model_likelihood_weight > 0`), train one with `NoiseModelTrainer` and pass
-    it to `CAREamist.train(noise_model=...)` (or `MicroSplitModule.set_noise_model`).
+    For denoiSplit (`noise_model_likelihood_weight > 0`), train a noise model with
+    `NoiseModelTrainer` and pass it to `CAREamist.train(noise_model=...)` (or
+    `MicroSplitModule.set_noise_model`).
     """
     return create_advanced_microsplit_config(**locals())
 
