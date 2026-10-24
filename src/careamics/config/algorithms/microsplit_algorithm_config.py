@@ -63,10 +63,6 @@ class MicroSplitAlgorithm(BaseModel):
     def validate_constraints(self: Self) -> Self:
         """Validate the algorithm-specific constraints.
 
-        The noise model is not part of the configuration; it is supplied at training
-        time (`CAREamist.train(noise_model=...)` / `MicroSplitModule.set_noise_model`)
-        and validated against the model then. Only config-only constraints are checked
-        here.
 
         Returns
         -------
