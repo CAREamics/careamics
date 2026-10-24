@@ -181,7 +181,7 @@ def create_advanced_microsplit_config(
     noise_model_likelihood_weight : float, default=0.9
         Weight of the noise model likelihood term (denoiSplit). The noise model itself
         is supplied at training time via `CAREamist.train(noise_model=...)` /
-        `MicroSplitModule.set_noise_model`, not through the configuration.
+        `MicroSplitModule.set_noise_model`.
     num_workers : int, default=-1
         Number of workers for data loading.
     trainer_params : dict or None, default=None
