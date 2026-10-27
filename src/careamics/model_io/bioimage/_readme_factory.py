@@ -26,8 +26,9 @@ def _yaml_block(yaml_str: str) -> str:
 def readme_factory(
     model_dir: Path,
     config: Configuration,
-    careamics_version: str,
     data_description: str,
+    careamics_version: str,
+    torch_family_versions: dict[str, str],
 ) -> Path:
     """Create a README file for the model.
 
@@ -40,10 +41,12 @@ def readme_factory(
         Model directory.
     config : Configuration
         CAREamics configuration.
-    careamics_version : str
-        CAREamics version.
     data_description : str
         Description of the data.
+    careamics_version : str
+        CAREamics version.
+    torch_family_versions : dict[str, str]
+        Versions of the torch family libraries.
 
     Returns
     -------
@@ -102,6 +105,14 @@ def readme_factory(
         'uv pip install "careamics[examples]"\n'
         "```\n\n"
     )
+    # PyTorch dependencies' versions
+    description.append("\n### PyTorch dependencies\n\n")
+    description.append(
+        "The following versions of the PyTorch family libraries were used:\n\n"
+    )
+    for key, version in torch_family_versions.items():
+        description.append(f"- `{key}`: {version}\n")
+    description.append("\n\n")
 
     # references
     reference = config.get_algorithm_references()

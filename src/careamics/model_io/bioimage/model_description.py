@@ -29,11 +29,11 @@ from bioimageio.spec.model.v0_5 import (
     WeightsDescr,
 )
 from pydantic import DirectoryPath
-from torch import __version__ as PYTORCH_VERSION
 
+# from torch import __version__ as PYTORCH_VERSION
 from careamics.config.configuration import Configuration
 from careamics.config.data import DataConfig, MeanStdConfig
-from careamics.utils.version import get_careamics_version
+from careamics.utils.version import get_careamics_version, get_torch_family_versions
 
 from ._readme_factory import readme_factory
 
@@ -136,9 +136,7 @@ def _create_inputs_ouputs(
     tuple[InputTensorDescr, OutputTensorDescr]
         Input and output tensor descriptions.
     """
-    input_axes: list[InputAxis] = _create_axes(
-        input_array, data_config, channel_names
-    )  # type: ignore
+    input_axes: list[InputAxis] = _create_axes(input_array, data_config, channel_names)  # type: ignore
     output_axes: list[OutputAxis] = _create_axes(
         output_array, data_config, channel_names, False
     )  # type: ignore
@@ -244,12 +242,15 @@ def create_model_description(
     ModelDescr
         Model description.
     """
+    torch_family_versions = get_torch_family_versions()
+
     # documentation
     doc = readme_factory(
         model_dir,
         config,
-        careamics_version=get_careamics_version(),
         data_description=data_description,
+        careamics_version=get_careamics_version(),
+        torch_family_versions=torch_family_versions,
     )
 
     # authors
@@ -276,7 +277,7 @@ def create_model_description(
         pytorch_state_dict=PytorchStateDictWeightsDescr(
             source=weights_path,
             architecture=architecture_descr,
-            pytorch_version=Version(PYTORCH_VERSION),
+            pytorch_version=Version(torch_family_versions["torch"]),
             dependencies=FileDescr(source=Path(env_path)),
         ),
     )
