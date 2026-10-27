@@ -201,11 +201,6 @@ class CziImageStack:
         ----------
         state : dict[str, Any]
             State from `__getstate__`.
-
-        Returns
-        -------
-        None
-            No return value; instance state is updated in place.
         """
         # Reopen CZI file after unpickling
         self.__dict__.update(state)

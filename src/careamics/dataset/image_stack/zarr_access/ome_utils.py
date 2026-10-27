@@ -6,13 +6,14 @@ import warnings
 from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias
 
+import numpy as np
 import zarr
 from pydantic import ValidationError
 from yaozarrs import validate_ome_object
 from yaozarrs.v05 import Bf2Raw, Dataset, Image, LabelImage, Plate, Series
 
 from .zarr_access import ZarrNode
-from .zarr_access_utils import file_uri_to_path
+from .zarr_hierarchy_utils import open_zarr_group
 
 OMEType: TypeAlias = Image | Bf2Raw | Plate | LabelImage | Series
 
@@ -81,7 +82,7 @@ class OMEZarrMetadata:
             "coordinate_transformations": self.coordinate_transformations,
             "version": self.version,
         }
-        return metadata
+        return _convert_floats_to_float32(metadata)
 
     def to_additional_metadata(self) -> dict[str, Any]:
         """Return the additional metadata payload.
@@ -350,43 +351,32 @@ def _model_to_dict(model: Any) -> dict[str, Any]:
     return model.model_dump(mode="json", by_alias=True, exclude_none=True)
 
 
-# ---
+def _convert_floats_to_float32(value: Any) -> Any:
+    """Convert floating-point values in nested metadata to NumPy float32 values.
 
-
-def _open_group(node: ZarrNode) -> zarr.Group:
-    """Open a group ZarrNode.
+    Float64 tensors are not supported in MPS devices, therefore all OME-NGFF float
+    metadata needs to be converted to float32 to avoid errors when casting them to
+    tensors.
 
     Parameters
     ----------
-    node : ZarrNode
-        Group node to open.
+    value : Any
+        Value.
 
     Returns
     -------
-    zarr.Group
-        Opened group.
-
-    Raises
-    ------
-    ValueError
-        If the ZarrNode does not represent a Zarr group.
+    Any
+        Value with all contained floats converted to float32.
     """
-    store_path = file_uri_to_path(node.store_uri)
-    opened = zarr.open(store_path, mode="r")
-
-    if node.path == "":
-        if not isinstance(opened, zarr.Group):
-            raise ValueError(f"Node '{node.source}' is not a zarr.Group.")
-        return opened
-
-    if not isinstance(opened, zarr.Group):
-        raise ValueError(f"Node '{node.source}' is not a zarr.Group.")
-
-    group = opened[node.path]
-    if not isinstance(group, zarr.Group):
-        raise ValueError(f"Node '{node.source}' is not a zarr.Group.")
-
-    return group
+    if isinstance(value, (float, np.floating)):
+        return np.float32(value)
+    elif isinstance(value, dict):
+        return {key: _convert_floats_to_float32(item) for key, item in value.items()}
+    elif isinstance(value, list):
+        return [_convert_floats_to_float32(item) for item in value]
+    elif isinstance(value, tuple):
+        return tuple(_convert_floats_to_float32(item) for item in value)
+    return value
 
 
 def resolve_ome_zarr_nodes(
@@ -416,7 +406,7 @@ def resolve_ome_zarr_nodes(
             f"Wrong ZarrNode node type, expected `group`, got `{group_node.node_type}`."
         )
 
-    group = _open_group(group_node)
+    group = open_zarr_group(group_node)
     ome_metadata = _get_ome_metadata(group)
     if ome_metadata is None:
         return []

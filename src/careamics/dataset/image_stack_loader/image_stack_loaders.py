@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-import zarr
 from numpy.typing import NDArray
 from zarr.storage import StorePath
 
@@ -16,10 +15,13 @@ from careamics.dataset.image_stack import (
 )
 from careamics.dataset.image_stack.czi_image_stack import CziImageStack
 from careamics.dataset.image_stack.zarr_access import (
+    ZarrBackend,
     ZarrNode,
-    ZarrPythonAccess,
+    create_zarr_access,
     get_ome_array_metadata,
     is_valid_uri,
+    list_array_paths,
+    resolve_node_type,
     resolve_ome_zarr_nodes,
     to_zarr_node,
 )
@@ -133,6 +135,7 @@ def load_custom_file(
 def load_zarrs(
     source: Sequence[str | Path | StorePath],
     axes: str,
+    zarr_backend: ZarrBackend = "zarr",
 ) -> list[ZarrImageStack]:
     """Create a list of ZarrImageStack from a sequence of zarr file paths or URIs.
 
@@ -150,6 +153,8 @@ def load_zarrs(
         Source zarr file paths or URIs.
     axes : str
         Original axes of the data, must be a subset of "STCZYX".
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used for Zarr array I/O.
 
     Returns
     -------
@@ -157,7 +162,7 @@ def load_zarrs(
         Image stacks created from the sources.
     """
     image_stacks: list[ZarrImageStack] = []
-    access = ZarrPythonAccess()
+    access = create_zarr_access(zarr_backend)
 
     for data_source in source:
         data_str = str(data_source)
@@ -169,7 +174,7 @@ def load_zarrs(
 
         # create zarr node and determine whether it is a group or an array
         root_node = to_zarr_node(data_source)
-        root_node = access.resolve_node_type(root_node)
+        root_node = resolve_node_type(root_node)
 
         # if array, instantiate image stack
         if root_node.node_type == "array":
@@ -188,12 +193,6 @@ def load_zarrs(
             continue
 
         # else node is a group, search for sub-arrays
-        opened = access.open_node(root_node, mode="r")
-        if not isinstance(opened, zarr.Group):
-            raise ValueError(
-                f"Content at '{data_str}' is neither a zarr.Group nor a zarr.Array."
-            )
-
         ome_nodes = resolve_ome_zarr_nodes(root_node)
         if len(ome_nodes) > 0:
             for resolved in ome_nodes:
@@ -208,7 +207,7 @@ def load_zarrs(
             continue
 
         # non-OME source
-        array_paths = access.list_array_paths(root_node)
+        array_paths = list_array_paths(root_node)
         array_paths.sort()
 
         for array_path in array_paths:

@@ -5,7 +5,7 @@ import zarr
 from yaozarrs import v05
 
 from careamics.dataset.image_stack.zarr_access import ZarrNode, path_to_file_uri
-from careamics.dataset.image_stack.zarr_access.ome_zarr_utils import (
+from careamics.dataset.image_stack.zarr_access.ome_utils import (
     _get_collection_image_paths,
     _get_ome_metadata,
     _raise_for_unsupported_ome_metadata,
