@@ -56,8 +56,8 @@ def test_write_whole_image(tmp_path: Path, access_cls, source_kind: str) -> None
         additional_metadata = {}
     elif source_kind == "file":
         source = str(tmp_path / "input.tiff")
-        output_store = tmp_path / "prediction.zarr"
-        array_path = "input/0"
+        output_store = tmp_path / "input.ome.zarr"
+        array_path = "0"
         additional_metadata = {}
     else:
         source_store = tmp_path / "input.zarr"

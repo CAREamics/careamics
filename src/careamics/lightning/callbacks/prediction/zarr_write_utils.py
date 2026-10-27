@@ -74,8 +74,8 @@ def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
     If the source is a valid Zarr source URI, then the destination is a new zarr file
     with name `"{original_name}_output.zarr"` and the array original internal path is
     conserved.
-    If the source is another file type, then it is placed in "prediction.zarr" under
-    the path `"{original_file_name_stem}/0"`
+    If the source is another file type, then it is written to an individual
+    `"{original_file_name_stem}.ome.zarr"`.
 
     Parameters
     ----------
@@ -111,8 +111,10 @@ def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
 
     if ".zarr" not in region.source:
         return ZarrNode(
-            store_uri=path_to_file_uri(dirpath / "prediction.zarr"),
-            path=f"{Path(region.source).stem}/0",
+            store_uri=path_to_file_uri(
+                dirpath / f"{Path(region.source).stem}.ome.zarr"
+            ),
+            path="0",
             node_type="array",
         )
 
