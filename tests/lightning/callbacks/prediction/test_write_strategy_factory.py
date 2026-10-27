@@ -14,6 +14,7 @@ from careamics.image_io.write import write_tiff
 from careamics.lightning.callbacks.prediction import (
     ImageWriteStrategy,
     TileWriteStrategy,
+    ZarrImageWriteStrategy,
     ZarrTileWriteStrategy,
     create_write_strategy,
     select_write_extension,
@@ -44,6 +45,13 @@ def test_create_write_strategy_tiff_untiled():
     assert write_strategy.write_func is write_tiff
     assert write_strategy.write_extension == ".tiff"
     assert write_strategy.write_func_kwargs == {}
+
+
+def test_create_write_strategy_zarr_untiled():
+    """Test whole-image Zarr strategy creation."""
+    write_strategy = create_write_strategy(write_type="zarr", tiled=False)
+
+    assert isinstance(write_strategy, ZarrImageWriteStrategy)
 
 
 def test_create_write_strategy_custom_tiled():
