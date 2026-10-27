@@ -56,7 +56,7 @@ def _warn_unused_config_fields(
         Human-readable MicroSplit mode name used in the warning message.
     """
     config_values = config.model_dump()
-    fields = type(config).model_fields
+    fields = MicroSplitDataConfig.model_fields
     # compare against the field default, not `None`: configuration factories set every
     # MicroSplit field explicitly, so `model_fields_set` alone would warn about fields
     # the user never chose.
