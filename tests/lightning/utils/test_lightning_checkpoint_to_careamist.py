@@ -11,19 +11,19 @@ import numpy as np
 import pytest
 import torch
 from lightning.pytorch import Trainer
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 
 from careamics.careamist import CAREamist
 from careamics.config.factories import (
     create_advanced_microsplit_config,
     create_advanced_n2v_config,
 )
-from careamics.lightning import CareamicsDataModule, N2VModule
+from careamics.lightning import CareamicsDataModule, ConfigSaverCallback, N2VModule
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
 
 
-def _trainer(tmp_path: Path) -> tuple[Trainer, ModelCheckpoint]:
-    """Return a Trainer whose only checkpoint callback is ModelCheckpoint."""
+def _trainer(tmp_path: Path, *callbacks: Callback) -> tuple[Trainer, ModelCheckpoint]:
+    """Return a Trainer with a ModelCheckpoint and the given extra callbacks."""
     checkpoint = ModelCheckpoint(
         dirpath=tmp_path / "checkpoints", save_last=True, save_top_k=0
     )
@@ -33,7 +33,7 @@ def _trainer(tmp_path: Path) -> tuple[Trainer, ModelCheckpoint]:
         limit_val_batches=1,
         logger=False,
         enable_progress_bar=False,
-        callbacks=[checkpoint],
+        callbacks=[checkpoint, *callbacks],
     )
     return trainer, checkpoint
 
@@ -88,8 +88,8 @@ def test_n2v_checkpoint_saved_after_predict_keeps_training_stats(
 ) -> None:
     """Test a checkpoint saved after prediction still has the training statistics.
 
-    Prediction replaces the trainer's datamodule. The saved checkpoint must keep
-    the training configuration, including statistics computed during ``fit``.
+    Prediction replaces the trainer's datamodule, so ``ConfigSaverCallback`` must
+    keep the training configuration, including statistics computed during ``fit``.
     """
     rng = np.random.default_rng(0)
     train = rng.random((32, 32)).astype(np.float32)
@@ -107,7 +107,15 @@ def test_n2v_checkpoint_saved_after_predict_keeps_training_stats(
     )
     module = N2VModule(config.algorithm_config)
     datamodule = CareamicsDataModule(config.data_config, train_data=train, val_data=val)
-    trainer, _checkpoint = _trainer(tmp_path)
+    trainer, _checkpoint = _trainer(
+        tmp_path,
+        ConfigSaverCallback(
+            config.version,
+            config.experiment_name,
+            config.training_config,
+            config.data_config,
+        ),
+    )
     trainer.fit(module, datamodule=datamodule)
     training_means = datamodule.hparams["data_config"]["normalization"]["input_means"]
 
