@@ -7,17 +7,14 @@ import math
 import os
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 import torch.nn as nn
 from numpy.typing import NDArray
 
+from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.utils import get_device, get_logger
-
-if TYPE_CHECKING:
-    from careamics.config import GaussianMixtureNMConfig, MultiChannelNMConfig
 
 logger = get_logger(__name__)
 
@@ -249,11 +246,6 @@ class MultiChannelNoiseModel(nn.Module):
         ValueError
             If ``paths`` is empty.
         """
-        from careamics.config.noise_model.noise_model_config import (
-            GaussianMixtureNMConfig,
-            MultiChannelNMConfig,
-        )
-
         if len(paths) == 0:
             raise ValueError("No noise model paths provided.")
         configs = [GaussianMixtureNMConfig.from_npz(Path(p)) for p in paths]
@@ -272,11 +264,6 @@ class MultiChannelNoiseModel(nn.Module):
         MultiChannelNMConfig
             Configuration holding the per-channel trained weights.
         """
-        from careamics.config.noise_model.noise_model_config import (
-            GaussianMixtureNMConfig,
-            MultiChannelNMConfig,
-        )
-
         configs = []
         for ch_idx in range(self._nm_count):
             nm = getattr(self, f"nmodel_{ch_idx}")

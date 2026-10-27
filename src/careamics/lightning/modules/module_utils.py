@@ -9,8 +9,12 @@ import torch
 from torch import nn
 from torchmetrics import MetricCollection
 
+from careamics.config.noise_model import MultiChannelNMConfig
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
-from careamics.models.lvae.noise_models import MultiChannelNoiseModel
+from careamics.models.lvae.noise_models import (
+    MultiChannelNoiseModel,
+    multichannel_noise_model_factory,
+)
 from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -102,10 +106,6 @@ def load_noise_model_from_checkpoint(
     payload = checkpoint.get(NOISE_MODEL_CKPT_KEY)
     if payload is None:
         return None
-    # local imports to avoid importing config at module import time
-    from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-    from careamics.models.lvae.noise_models import multichannel_noise_model_factory
-
     return multichannel_noise_model_factory(MultiChannelNMConfig(**payload))
 
 
