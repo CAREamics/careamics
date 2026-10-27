@@ -4,7 +4,6 @@ import tifffile
 import zarr
 from numpy.typing import NDArray
 
-import careamics.lightning.callbacks.prediction as pd_writer
 from careamics.config.data import DataConfig
 from careamics.dataset.factory import create_dataset
 from careamics.dataset.image_region_data import ImageRegionData
@@ -16,11 +15,16 @@ from careamics.dataset.patching import (
     TiledPatching,
     TileSpecs,
 )
-from careamics.lightning.callbacks.prediction.zarr_write_utils import _add_output_key
+from careamics.lightning.callbacks.prediction.zarr.zarr_tile_write_strategy import (
+    ZarrTileWriteStrategy,
+)
+from careamics.lightning.callbacks.prediction.zarr.zarr_write_utils import (
+    _add_output_key,
+)
 from careamics.utils.reshape_array import AxesTransform, reshape_array
 
 # to comply with ruff line length
-WriteTilesZarr = pd_writer.zarr_tile_write_strategy.ZarrTileWriteStrategy
+WriteTilesZarr = ZarrTileWriteStrategy
 
 
 @pytest.mark.parametrize(

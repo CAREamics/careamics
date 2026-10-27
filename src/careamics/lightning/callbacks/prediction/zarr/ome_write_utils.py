@@ -7,9 +7,11 @@ from typing import Any
 import zarr
 from yaozarrs import v05
 
-from .ome_utils import default_ome_axes_metadata
-from .zarr_access import ZarrNode
-from .zarr_access_utils import file_uri_to_path
+from careamics.dataset.image_stack.zarr_access.ome_utils import (
+    default_ome_axes_metadata,
+)
+from careamics.dataset.image_stack.zarr_access.zarr_access import ZarrNode
+from careamics.dataset.image_stack.zarr_access.zarr_access_utils import file_uri_to_path
 
 
 def resolve_ome_output_node(

@@ -8,13 +8,13 @@ from careamics.dataset.image_stack.zarr_access import (
     ZarrAccess,
     ZarrArraySpec,
     ZarrNode,
-    ensure_ome_store_structure,
     file_uri_to_path,
     is_valid_uri,
     path_to_file_uri,
-    resolve_ome_output_node,
     to_zarr_node,
 )
+
+from .ome_write_utils import ensure_ome_store_structure, resolve_ome_output_node
 
 OUTPUT_KEY = "_output"
 

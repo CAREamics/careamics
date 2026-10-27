@@ -8,12 +8,14 @@ from careamics.dataset.image_stack.zarr_access import (
     ZarrAccess,
     ZarrArraySpec,
     ZarrPythonAccess,
-    get_ome_dimension_names,
+)
+from careamics.lightning.callbacks.prediction.image_write_utils import (
+    get_complete_images,
 )
 from careamics.lightning.prediction import combine_samples
 from careamics.utils.reshape_array import RestoredAxesTransform
 
-from .image_write_utils import get_complete_images
+from .ome_write_utils import get_ome_dimension_names
 from .zarr_write_utils import (
     auto_chunks,
     create_array,

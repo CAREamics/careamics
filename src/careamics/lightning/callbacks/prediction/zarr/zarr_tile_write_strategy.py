@@ -11,11 +11,11 @@ from careamics.dataset.image_stack.zarr_access import (
     ZarrAccess,
     ZarrArraySpec,
     ZarrPythonAccess,
-    get_ome_dimension_names,
 )
 from careamics.dataset.patching import TileSpecs
 from careamics.utils.reshape_array import RestoredAxesTransform
 
+from .ome_write_utils import get_ome_dimension_names
 from .zarr_write_utils import auto_chunks, create_array, get_zarr_destination
 
 

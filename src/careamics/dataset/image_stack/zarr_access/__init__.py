@@ -8,11 +8,6 @@ from .ome_utils import (
     get_ome_array_metadata,
     resolve_ome_zarr_nodes,
 )
-from .ome_write_utils import (
-    ensure_ome_store_structure,
-    get_ome_dimension_names,
-    resolve_ome_output_node,
-)
 from .tensorstore_access import TensorstoreAccess
 from .zarr_access import ZarrAccess, ZarrArraySpec, ZarrNode
 from .zarr_access_factory import ZarrBackend, create_zarr_access
@@ -37,15 +32,12 @@ __all__ = [
     "build_ome_metadata",
     "create_zarr_access",
     "default_ome_axes_metadata",
-    "ensure_ome_store_structure",
     "file_uri_to_path",
     "get_ome_array_metadata",
-    "get_ome_dimension_names",
     "is_valid_uri",
     "list_array_paths",
     "path_to_file_uri",
     "resolve_node_type",
-    "resolve_ome_output_node",
     "resolve_ome_zarr_nodes",
     "to_zarr_node",
 ]
