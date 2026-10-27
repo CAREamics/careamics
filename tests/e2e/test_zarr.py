@@ -349,7 +349,7 @@ def test_smoke_care_supervised_same_ome_zarr(tmp_path: Path) -> None:
 
 @pytest.mark.mps_gh_fail
 def test_smoke_n2v_arrays_to_zarr(tmp_path: Path) -> None:
-    """Test that arrays are written as an OME-Zarr collection."""
+    """Test that arrays are written as individual OME-Zarr stores."""
     rng = np.random.default_rng(42)
     train_images = [rng.integers(0, 255, (32, 32)).astype(np.float32) for _ in range(2)]
 
@@ -363,15 +363,11 @@ def test_smoke_n2v_arrays_to_zarr(tmp_path: Path) -> None:
         tile_overlap=(4, 4),
         write_type="zarr",
     )
-    output_store = tmp_path / "predictions" / "prediction.zarr"
-    assert output_store.exists()
-    validate_zarr_store(output_store)
-
-    # count number of arrays in the store
-    group = zarr.open_group(output_store)
-    assert "OME" in group  # series
-    assert len(list(group["0"].arrays())) == 1
-    assert len(list(group["1"].arrays())) == 1
+    for index in range(len(train_images)):
+        output_store = tmp_path / "predictions" / f"array_{index}.ome.zarr"
+        assert output_store.exists()
+        validate_zarr_store(output_store)
+        assert zarr.open_array(output_store / "0", mode="r").shape == (32, 32)
 
 
 @pytest.mark.mps_gh_fail
@@ -397,12 +393,8 @@ def test_smoke_n2v_tiff_to_zarr(tmp_path: Path) -> None:
         write_type="zarr",
     )
 
-    output_store = tmp_path / "predictions" / "prediction.zarr"
-    assert output_store.exists()
-    validate_zarr_store(output_store)
-
-    # count number of arrays in the store
-    group = zarr.open_group(output_store)
-    assert "OME" in group  # series
     for i in range(len(train_images)):
-        assert len(list(group[f"image_{i}"].arrays())) == 1, f"Failed for image_{i}"
+        output_store = tmp_path / "predictions" / f"image_{i}.ome.zarr"
+        assert output_store.exists()
+        validate_zarr_store(output_store)
+        assert zarr.open_array(output_store / "0", mode="r").shape == (32, 32)

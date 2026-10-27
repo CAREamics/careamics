@@ -69,8 +69,8 @@ def _add_output_key(dirpath: Path, path: str | Path) -> Path:
 def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
     """Resolve the destination array for a prediction.
 
-    If the source is an `"array"`, then it is placed in "prediction.zarr" under the
-    path `"{data_idx}/0".
+    If the source is an `"array"`, then it is written to an individual
+    `"array_{data_idx}.ome.zarr"` store.
     If the source is a valid Zarr source URI, then the destination is a new zarr file
     with name `"{original_name}_output.zarr"` and the array original internal path is
     conserved.
@@ -92,8 +92,8 @@ def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
     if region.source == "array":
         data_idx = region.region_spec["data_idx"]
         return ZarrNode(
-            store_uri=path_to_file_uri(dirpath / "prediction.zarr"),
-            path=f"{data_idx}/0",
+            store_uri=path_to_file_uri(dirpath / f"array_{data_idx}.ome.zarr"),
+            path="0",
             node_type="array",
         )
 

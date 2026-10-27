@@ -289,13 +289,11 @@ def test_write_from_array(tmp_path):
     for region in gen_image_regions("YX", patch_extractor, strategy):
         writer.write_tile(tmp_path, region)
 
-    # check if the stored zarr is close to the input
-    written = zarr.open(tmp_path / "prediction.zarr", mode="r")
-    assert isinstance(written, zarr.Group)
-    for key in written.keys():
-        if key == "OME":
-            continue
-        np.testing.assert_allclose(arrays[int(key)], written[key]["0"][:])
+    # check if each array was written to its own OME-Zarr store
+    for index, array in enumerate(arrays):
+        written = zarr.open(tmp_path / f"array_{index}.ome.zarr", mode="r")
+        assert isinstance(written, zarr.Group)
+        np.testing.assert_allclose(array, written["0"][:])
 
 
 def test_write_from_tiff(tmp_path):

@@ -51,8 +51,8 @@ def test_write_whole_image(tmp_path: Path, access_cls, source_kind: str) -> None
     """Test whole-image output routing and OME-Zarr validity."""
     if source_kind == "array":
         source = "array"
-        output_store = tmp_path / "prediction.zarr"
-        array_path = "0/0"
+        output_store = tmp_path / "array_0.ome.zarr"
+        array_path = "0"
         additional_metadata = {}
     elif source_kind == "file":
         source = str(tmp_path / "input.tiff")
