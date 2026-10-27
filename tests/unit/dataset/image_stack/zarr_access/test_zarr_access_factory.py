@@ -3,8 +3,8 @@
 import pytest
 
 from careamics.dataset.image_stack.zarr_access import (
-    TensorstoreAccess,
-    ZarrPythonAccess,
+    DefaultZarrAccess,
+    TensorstoreZarrAccess,
     create_zarr_access,
 )
 
@@ -12,9 +12,9 @@ from careamics.dataset.image_stack.zarr_access import (
 @pytest.mark.parametrize(
     ("backend", "access_type", "use_zarrs"),
     [
-        pytest.param("zarr", ZarrPythonAccess, False, id="zarr"),
-        pytest.param("zarrs", ZarrPythonAccess, True, id="zarrs"),
-        pytest.param("tensorstore", TensorstoreAccess, None, id="tensorstore"),
+        pytest.param("zarr", DefaultZarrAccess, False, id="zarr"),
+        pytest.param("zarrs", DefaultZarrAccess, True, id="zarrs"),
+        pytest.param("tensorstore", TensorstoreZarrAccess, None, id="tensorstore"),
     ],
 )
 def test_create_zarr_access(backend, access_type, use_zarrs):

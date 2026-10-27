@@ -9,13 +9,13 @@ from yaozarrs import validate_zarr_store
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack.zarr_access import (
-    ZarrPythonAccess,
+    DefaultZarrAccess,
     path_to_file_uri,
 )
 from careamics.lightning.callbacks.prediction import ZarrImageWriteStrategy
 
 BACKENDS = [
-    pytest.param(ZarrPythonAccess, id="zarr"),
+    pytest.param(DefaultZarrAccess, id="zarr"),
 ]
 
 

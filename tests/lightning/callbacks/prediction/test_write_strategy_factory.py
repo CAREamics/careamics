@@ -7,8 +7,8 @@ import pytest
 from numpy.typing import NDArray
 
 from careamics.dataset.image_stack.zarr_access import (
-    TensorstoreAccess,
-    ZarrPythonAccess,
+    DefaultZarrAccess,
+    TensorstoreZarrAccess,
 )
 from careamics.image_io.write import write_tiff
 from careamics.lightning.callbacks.prediction import (
@@ -79,9 +79,9 @@ def test_create_write_strategy_custom_untiled():
 @pytest.mark.parametrize(
     ("backend", "access_type", "use_zarrs"),
     [
-        pytest.param("zarr", ZarrPythonAccess, False, id="zarr"),
-        pytest.param("zarrs", ZarrPythonAccess, True, id="zarrs"),
-        pytest.param("tensorstore", TensorstoreAccess, None, id="tensorstore"),
+        pytest.param("zarr", DefaultZarrAccess, False, id="zarr"),
+        pytest.param("zarrs", DefaultZarrAccess, True, id="zarrs"),
+        pytest.param("tensorstore", TensorstoreZarrAccess, None, id="tensorstore"),
     ],
 )
 def test_create_zarr_write_strategy(backend, access_type, use_zarrs):

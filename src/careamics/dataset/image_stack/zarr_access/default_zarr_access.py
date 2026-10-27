@@ -15,7 +15,7 @@ from .zarr_access_utils import file_uri_to_path
 from .zarr_hierarchy_utils import open_zarr_node
 
 
-class ZarrPythonAccess:
+class DefaultZarrAccess:
     """`zarr`-backed Zarr access.
 
     Parameters

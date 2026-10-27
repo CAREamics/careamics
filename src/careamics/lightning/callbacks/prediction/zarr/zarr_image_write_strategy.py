@@ -5,9 +5,9 @@ from pathlib import Path
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack.zarr_access import (
+    DefaultZarrAccess,
     ZarrAccess,
     ZarrArraySpec,
-    ZarrPythonAccess,
 )
 from careamics.lightning.callbacks.prediction.image_write_utils import (
     get_complete_images,
@@ -40,7 +40,7 @@ class ZarrImageWriteStrategy:
         access : ZarrAccess or None, default=None
             Zarr backend access implementation.
         """
-        self.access = ZarrPythonAccess() if access is None else access
+        self.access = DefaultZarrAccess() if access is None else access
         self._store_image_groups: dict[str, set[str]] = {}
         self.image_cache: dict[int, list[ImageRegionData]] = defaultdict(list)
 

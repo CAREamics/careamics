@@ -1,5 +1,6 @@
 """Zarr access protocols and implementations."""
 
+from .default_zarr_access import DefaultZarrAccess
 from .ome_utils import (
     OMEZarrMetadata,
     build_default_ome_metadata,
@@ -8,7 +9,7 @@ from .ome_utils import (
     get_ome_array_metadata,
     resolve_ome_zarr_nodes,
 )
-from .tensorstore_access import TensorstoreAccess
+from .tensorstore_zarr_access import TensorstoreZarrAccess
 from .zarr_access import ZarrAccess, ZarrArraySpec, ZarrNode
 from .zarr_access_factory import ZarrBackend, create_zarr_access
 from .zarr_access_utils import (
@@ -18,16 +19,15 @@ from .zarr_access_utils import (
     to_zarr_node,
 )
 from .zarr_hierarchy_utils import list_array_paths, resolve_node_type
-from .zarr_python_access import ZarrPythonAccess
 
 __all__ = [
+    "DefaultZarrAccess",
     "OMEZarrMetadata",
-    "TensorstoreAccess",
+    "TensorstoreZarrAccess",
     "ZarrAccess",
     "ZarrArraySpec",
     "ZarrBackend",
     "ZarrNode",
-    "ZarrPythonAccess",
     "build_default_ome_metadata",
     "build_ome_metadata",
     "create_zarr_access",

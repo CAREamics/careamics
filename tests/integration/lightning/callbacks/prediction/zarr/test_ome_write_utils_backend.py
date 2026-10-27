@@ -9,10 +9,10 @@ from tests.unit.lightning.callbacks.prediction.zarr.test_ome_write_utils import 
 from yaozarrs import validate_zarr_store
 
 from careamics.dataset.image_stack.zarr_access import (
-    TensorstoreAccess,
+    DefaultZarrAccess,
+    TensorstoreZarrAccess,
     ZarrArraySpec,
     ZarrNode,
-    ZarrPythonAccess,
     path_to_file_uri,
 )
 from careamics.lightning.callbacks.prediction.zarr.ome_write_utils import (
@@ -20,9 +20,9 @@ from careamics.lightning.callbacks.prediction.zarr.ome_write_utils import (
 )
 
 BACKENDS = [
-    pytest.param(ZarrPythonAccess, id="zarr"),
-    pytest.param(partial(ZarrPythonAccess, use_zarrs=True), id="zarrs"),
-    pytest.param(TensorstoreAccess, id="tensorstore"),
+    pytest.param(DefaultZarrAccess, id="zarr"),
+    pytest.param(partial(DefaultZarrAccess, use_zarrs=True), id="zarrs"),
+    pytest.param(TensorstoreZarrAccess, id="tensorstore"),
 ]
 
 
