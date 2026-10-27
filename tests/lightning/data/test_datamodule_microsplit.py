@@ -145,19 +145,22 @@ def test_predict_builds_basic_dataset_for_generic_config() -> None:
     assert isinstance(datamodule.predict_dataset.patch_constructor, BasicPatchConstr)
 
 
-def test_dictionary_with_microsplit_fields_is_rejected() -> None:
-    """Test a MicroSplit dictionary is rejected rather than silently downgraded.
-
-    Dictionaries are validated as a plain `DataConfig`, which would drop the MicroSplit
-    fields and build a dataset without lateral context.
-    """
-    config_dict = _config().model_dump()
+@pytest.mark.parametrize("drop_multiscale_count", [False, True])
+def test_microsplit_dictionary_is_validated_as_microsplit(
+    drop_multiscale_count: bool,
+) -> None:
+    """Test a dictionary with any MicroSplit field becomes a `MicroSplitDataConfig`."""
+    config_dict = _config(padding_mode="wrap").model_dump()
+    if drop_multiscale_count:
+        del config_dict["multiscale_count"]
     train_input, train_target = _paired_arrays()
 
-    with pytest.raises(ValueError, match="MicroSplit-only field"):
-        CareamicsDataModule(
-            config_dict, train_data=train_input, train_data_target=train_target
-        )
+    datamodule = CareamicsDataModule(
+        config_dict, train_data=train_input, train_data_target=train_target
+    )
+
+    assert isinstance(datamodule.config, MicroSplitDataConfig)
+    assert datamodule.config.padding_mode == "wrap"
 
 
 def test_generic_dictionary_is_accepted() -> None:

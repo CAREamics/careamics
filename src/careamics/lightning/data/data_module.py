@@ -13,6 +13,7 @@ from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.data_config import DataConfig
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
+from careamics.config.factories.config_discriminators import instantiate_data_config
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset import CareamicsDataset
 from careamics.dataset.factory import (
@@ -61,40 +62,6 @@ Data source types, numpy arrays or paths or sequences of either.
 
 _Data = TrainValData[Any] | TrainValSplitData[Any] | PredData[Any]
 """Data for training with validation or validation splitting or data for prediction."""
-
-
-_MICROSPLIT_ONLY_FIELDS = frozenset(MicroSplitDataConfig.model_fields) - frozenset(
-    DataConfig.model_fields
-)
-"""Fields that only exist on `MicroSplitDataConfig`, lost when validating a `dict`."""
-
-
-def _reject_downgraded_subclass_dict(data_config: dict[str, Any]) -> None:
-    """Raise if a dictionary carries MicroSplit fields that would be silently dropped.
-
-    Dictionaries are validated as a plain `DataConfig`, which ignores unknown fields.
-    A MicroSplit dictionary would therefore lose the fields that select the MicroSplit
-    dataset construction, and training would silently run without lateral context.
-
-    Parameters
-    ----------
-    data_config : dict of {str: Any}
-        The data configuration dictionary to check.
-
-    Raises
-    ------
-    ValueError
-        If the dictionary contains any MicroSplit-only field.
-    """
-    found = sorted(_MICROSPLIT_ONLY_FIELDS.intersection(data_config))
-    if found:
-        raise ValueError(
-            f"The data configuration dictionary contains MicroSplit-only field(s) "
-            f"{found}, but dictionaries are validated as a plain `DataConfig`, which "
-            f"would silently drop them and build a non-MicroSplit dataset. Please pass "
-            f"a `MicroSplitDataConfig` instance instead, for instance "
-            f"`create_microsplit_config(...).data_config`."
-        )
 
 
 class CareamicsDataModule(L.LightningDataModule):
@@ -269,8 +236,7 @@ class CareamicsDataModule(L.LightningDataModule):
         if isinstance(data_config, DataConfig):
             self.config = data_config
         else:
-            _reject_downgraded_subclass_dict(data_config)
-            self.config = DataConfig.model_validate(data_config)
+            self.config = instantiate_data_config(data_config)
 
         self.rng = np.random.default_rng(seed=self.config.seed)
 
