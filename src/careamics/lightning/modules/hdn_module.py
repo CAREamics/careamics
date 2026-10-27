@@ -113,7 +113,6 @@ class HDNModule(L.LightningModule):
     ) -> None:
         """Attach a trained noise model for the noise model likelihood.
 
-
         Parameters
         ----------
         noise_model : MultiChannelNoiseModel or sequence of str or Path
@@ -142,7 +141,6 @@ class HDNModule(L.LightningModule):
     def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         """Persist the raw-space noise model into the checkpoint.
 
-
         Parameters
         ----------
         checkpoint : dict
@@ -164,7 +162,6 @@ class HDNModule(L.LightningModule):
 
     def on_fit_start(self) -> None:
         """On fit start hook for HDN module.
-
 
         Raises
         ------

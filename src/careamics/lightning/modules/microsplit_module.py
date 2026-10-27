@@ -111,7 +111,6 @@ class MicroSplitModule(L.LightningModule):
     ) -> None:
         """Attach a trained noise model for the noise model (denoiSplit) likelihood.
 
-
         Parameters
         ----------
         noise_model : MultiChannelNoiseModel or sequence of str or Path

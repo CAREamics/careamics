@@ -104,7 +104,7 @@ class HDNAlgorithm(BaseModel):
             raise ValueError(
                 "HDN with a noise model is not supported in supervised mode. Select the "
                 "`use_noise_model=False` or set `supervised=False`."
-)
+            )
         return self
 
     def __str__(self) -> str:

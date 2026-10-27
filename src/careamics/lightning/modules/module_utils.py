@@ -72,7 +72,6 @@ def save_noise_model_to_checkpoint(
 ) -> None:
     """Store the raw-space noise model into the checkpoint dict.
 
-
     Parameters
     ----------
     raw_noise_model : MultiChannelNoiseModel or None

@@ -122,7 +122,6 @@ class TrainingDataConfigCallback(Callback):
     """
     Write the training data configuration into later checkpoints on this trainer.
 
-
     Parameters
     ----------
     data_config : DataConfig
