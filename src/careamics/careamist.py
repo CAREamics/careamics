@@ -1154,12 +1154,6 @@ class CAREamist:
                 raise ValueError(
                     "A `write_func` must be provided for custom write types."
                 )
-        if write_type == "zarr" and tile_size is None:
-            raise ValueError(
-                "Writing prediction to Zarr is only supported with tiling. Please "
-                "provide a value for `tile_size`, and optionally `tile_overlap`."
-            )
-
         tiled = tile_size is not None
         self.prediction_writer.set_writing_strategy(
             write_type=write_type,
@@ -1167,6 +1161,7 @@ class CAREamist:
             write_func=write_func,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            zarr_backend=self.config.data_config.zarr_backend,
         )
 
         self.prediction_writer.enable_writing(True)

@@ -6,22 +6,24 @@ import argparse
 import csv
 import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from functools import partial
 from pathlib import Path
 from typing import Any, TextIO
 
 from careamics.dataset.image_stack.zarr_access import (
     TensorstoreAccess,
-    ZarrAccessProtocol,
+    ZarrAccess,
     ZarrPythonAccess,
 )
 
 SEED = 24
 
-BackendFactory = Callable[[], ZarrAccessProtocol]
+BackendFactory = Callable[[], ZarrAccess]
 
 BACKENDS: dict[str, BackendFactory] = {
     "zarr": ZarrPythonAccess,
     "tensorstore": TensorstoreAccess,
+    "zarrs": partial(ZarrPythonAccess, use_zarrs=True),
 }
 
 
