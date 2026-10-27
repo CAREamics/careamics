@@ -2,10 +2,7 @@
 
 from .default_zarr_access import DefaultZarrAccess
 from .ome_utils import (
-    OMEZarrMetadata,
     build_default_ome_metadata,
-    build_ome_metadata,
-    default_ome_axes_metadata,
     get_ome_array_metadata,
     resolve_ome_zarr_nodes,
 )
@@ -22,16 +19,13 @@ from .zarr_hierarchy_utils import list_array_paths, resolve_node_type
 
 __all__ = [
     "DefaultZarrAccess",
-    "OMEZarrMetadata",
     "TensorstoreZarrAccess",
     "ZarrAccess",
     "ZarrArraySpec",
     "ZarrBackend",
     "ZarrNode",
     "build_default_ome_metadata",
-    "build_ome_metadata",
     "create_zarr_access",
-    "default_ome_axes_metadata",
     "file_uri_to_path",
     "get_ome_array_metadata",
     "is_valid_uri",
