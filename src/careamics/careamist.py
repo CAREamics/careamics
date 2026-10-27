@@ -655,17 +655,17 @@ class CAREamist:
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
-        noise_model : MultiChannelNoiseModel or list of str or Path, optional
-            Trained noise model for the noise model likelihood (MicroSplit denoiSplit /
-            HDN noise model pathway), as a `MultiChannelNoiseModel` or the per-channel
-            `.npz` paths to load it from. Only used by MicroSplit and HDN; it is a
-            training-time, loss-side artifact and is not stored in the configuration.
-            Produce one with `NoiseModelTrainer` or `CAREamist.train_noise_model`.
+        noise_model : MultiChannelNoiseModel or list of str or Path, default=None
+            Trained noise model for MicroSplit or HDN. Can be passed as a
+            `MultiChannelNoiseModel` or the per-channel
+            `.npz` paths to load it from.
 
         Raises
         ------
         ValueError
-            If train_data is not provided, or if a noise model is provided for an
+            If train_data is not provided.
+        ValueError
+            If a noise model is provided for an
             algorithm that does not support one.
         """
         if train_data is None:

@@ -266,9 +266,6 @@ class MultiChannelNoiseModel(nn.Module):
     def to_config(self) -> MultiChannelNMConfig:
         """Serialize the (raw-space) noise model into a ``MultiChannelNMConfig``.
 
-        Extracts the trained weights and signal bounds from each per-channel model, in
-        channel order. Used to persist the noise model in a checkpoint (separately from
-        the training ``Configuration``) so continued training can restore it.
 
         Returns
         -------

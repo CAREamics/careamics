@@ -100,15 +100,6 @@ def _reject_downgraded_subclass_dict(data_config: dict[str, Any]) -> None:
 class CareamicsDataModule(L.LightningDataModule):
     """Data module for Careamics dataset.
 
-    The type of `data_config` selects how the datasets are constructed: a
-    `MicroSplitDataConfig` builds MicroSplit datasets, with lateral context, through
-    `careamics.dataset.factory.microsplit_factory`, while any other `DataConfig` builds
-    the basic patch datasets used by CARE, N2N, N2V and HDN. Only the paired
-    input/target MicroSplit mode is supported here, so `train_data_target` and
-    `val_data_target` are required, and automatic validation splitting is not
-    available. Note that a `dict` is always validated as a plain `DataConfig`, so a
-    MicroSplit configuration must be passed as a `MicroSplitDataConfig` instance.
-
     Parameters
     ----------
     data_config : DataConfig

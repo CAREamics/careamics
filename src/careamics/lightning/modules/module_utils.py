@@ -63,25 +63,20 @@ def check_noise_model_channels(
         )
 
 
-# Dedicated checkpoint key for the (raw-space) noise model, kept separate from
-# `hyper_parameters` so it is persisted with the checkpoint but not via the
-# training `Configuration`.
+# Dedicated checkpoint key for the (raw-space) noise model
 NOISE_MODEL_CKPT_KEY = "noise_model"
 
 
 def save_noise_model_to_checkpoint(
     raw_noise_model: MultiChannelNoiseModel | None, checkpoint: dict[str, Any]
 ) -> None:
-    """Persist the raw-space noise model into the checkpoint dict.
+    """Store the raw-space noise model into the checkpoint dict.
 
-    The noise model is a frozen, loss-side artifact and is intentionally kept out of
-    the module ``state_dict``; it is stored here under a dedicated key so continued
-    training (resume / fine-tune) can restore it without re-passing it.
 
     Parameters
     ----------
     raw_noise_model : MultiChannelNoiseModel or None
-        The raw-space noise model to persist, or ``None`` to persist nothing.
+        The raw-space noise model to store, or `None` to skip.
     checkpoint : dict
         The checkpoint dictionary to write into.
     """

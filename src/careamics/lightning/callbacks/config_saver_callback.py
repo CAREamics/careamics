@@ -122,12 +122,6 @@ class TrainingDataConfigCallback(Callback):
     """
     Write the training data configuration into later checkpoints on this trainer.
 
-    Lightning copies ``datamodule_hyper_parameters`` from the datamodule currently
-    assigned to ``trainer.datamodule``. During ``fit`` that is the training
-    datamodule, whose hyperparameters already contain ``data_config``. A later
-    ``save_checkpoint`` copies whatever datamodule is assigned then. This callback
-    holds the training ``DataConfig`` and writes that same object on every save.
-    It does not write ``careamics_info``.
 
     Parameters
     ----------

@@ -374,8 +374,7 @@ def create_microsplit_train_val_datasets(
 ) -> tuple[CareamicsDataset[ImageStack], CareamicsDataset[ImageStack]]:
     """Create MicroSplit train and validation datasets from paired input/target data.
 
-    Only the paired input/target MicroSplit mode is supported here, since it is the
-    only mode expressible with the input/target data containers. The synthetic-input
+    Only the paired input/target MicroSplit mode is supported here. Synthetic input
     modes must be built directly with `create_microsplit_dataset`, passing either
     `MultiChannelTarget` or `IndependentTargets`.
 

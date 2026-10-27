@@ -87,12 +87,8 @@ class MicroSplitModule(L.LightningModule):
         self.model: LadderVAE = cast("LadderVAE", model_factory(self.config.model))
         self.loss_func = microsplit_loss
 
-        # The noise model is not part of the configuration; it is injected at training
-        # time via `set_noise_model` (or `CAREamist.train(noise_model=...)`).
-        # `on_fit_start` normalizes the raw model into data space; `None` until then.
-        # It is a frozen, loss-side artifact and is deliberately kept out of the module
-        # `state_dict` (assigned via `object.__setattr__` to avoid nn.Module
-        # registration); it is persisted separately via `on_save_checkpoint`.
+        # These attributes should be kept our of the `state_dict` and nn.Module
+        # registration by setting via `object.__setattr__`
         self._raw_noise_model: MultiChannelNoiseModel | None = None
         self.noise_model: MultiChannelNoiseModel | None = None
         self.predict_logvar: bool = self.config.model.predict_logvar
@@ -115,10 +111,6 @@ class MicroSplitModule(L.LightningModule):
     ) -> None:
         """Attach a trained noise model for the noise model (denoiSplit) likelihood.
 
-        The noise model is a training-time, loss-side artifact and is not part of the
-        configuration. It is validated against the model here and normalized into data
-        space at `on_fit_start`. Provide it before `trainer.fit` (or via
-        `CAREamist.train(noise_model=...)`).
 
         Parameters
         ----------
@@ -141,7 +133,7 @@ class MicroSplitModule(L.LightningModule):
                 UserWarning,
                 stacklevel=2,
             )
-        # keep the noise model out of the module state_dict (see __init__)
+        # avoid nn.Module registration and keep out of `state_dict`
         object.__setattr__(self, "_raw_noise_model", nm)
 
     def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
@@ -167,16 +159,11 @@ class MicroSplitModule(L.LightningModule):
         """
         restored = load_noise_model_from_checkpoint(checkpoint)
         if restored is not None:
+            # avoid nn.Module registration and keep out of `state_dict`
             object.__setattr__(self, "_raw_noise_model", restored)
 
     def on_fit_start(self) -> None:
         """Validate the supervised-training and noise model requirements.
-
-        When the noise model likelihood is used, the injected noise model is normalized
-        into data space using each channel's statistics from the training dataset
-        normalization, which must therefore be `MeanStdNormalization`. Rebuilding the
-        normalized copy from the raw model keeps this hook idempotent (e.g. when
-        resuming from a checkpoint).
 
         Raises
         ------
@@ -221,10 +208,8 @@ class MicroSplitModule(L.LightningModule):
             # target statistics when supervised, input statistics otherwise
             means = normalization.target_means or normalization.input_means
             stds = normalization.target_stds or normalization.input_stds
-            # normalize the injected raw-space model into data space. Rebuilding the
-            # normalized copy from the raw model each fit keeps this hook idempotent
-            # (e.g. when resuming from a checkpoint). Kept out of state_dict (see
-            # __init__).
+            # normalize the noise model
+            # avoid nn.Module registration and keep out of `state_dict`
             object.__setattr__(
                 self,
                 "noise_model",

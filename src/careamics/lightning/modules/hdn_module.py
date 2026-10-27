@@ -89,14 +89,8 @@ class HDNModule(L.LightningModule):
         self.model: LadderVAE = cast("LadderVAE", model_factory(self.config.model))
         self.loss_func = hdn_loss
 
-        # The noise model is not part of the configuration; it is injected at training
-        # time via `set_noise_model` (or `CAREamist.train(noise_model=...)`). The
-        # likelihood is selected by `predict_logvar`: `True` learns a Gaussian
-        # likelihood (no noise model), `False` uses the noise model likelihood (a noise
-        # model must be provided). `on_fit_start` enforces this and normalizes the raw
-        # model into data space. It is a frozen, loss-side artifact and is deliberately
-        # kept out of the module `state_dict` (assigned via `object.__setattr__` to
-        # avoid nn.Module registration); it is persisted via `on_save_checkpoint`.
+        # These attributes should be kept our of the `state_dict` and nn.Module
+        # registration by setting via `object.__setattr__`
         self._raw_noise_model: MultiChannelNoiseModel | None = None
         self.noise_model: MultiChannelNoiseModel | None = None
         self.predict_logvar: bool = self.config.model.predict_logvar
@@ -119,11 +113,6 @@ class HDNModule(L.LightningModule):
     ) -> None:
         """Attach a trained noise model for the noise model likelihood.
 
-        The noise model is a training-time, loss-side artifact and is not part of the
-        configuration. It is validated against the model here and normalized into data
-        space at `on_fit_start`. It is only used when the noise model likelihood is
-        selected (`predict_logvar=False`). Provide it before `trainer.fit` (or via
-        `CAREamist.train(noise_model=...)`).
 
         Parameters
         ----------
@@ -147,14 +136,12 @@ class HDNModule(L.LightningModule):
                 UserWarning,
                 stacklevel=2,
             )
-        # keep the noise model out of the module state_dict (see __init__)
+        # avoid nn.Module registration and keep out of `state_dict`
         object.__setattr__(self, "_raw_noise_model", nm)
 
     def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         """Persist the raw-space noise model into the checkpoint.
 
-        Stored under a dedicated key (not in the ``Configuration``) so continued
-        training can restore it. Prediction never needs it.
 
         Parameters
         ----------
@@ -178,12 +165,6 @@ class HDNModule(L.LightningModule):
     def on_fit_start(self) -> None:
         """On fit start hook for HDN module.
 
-        The likelihood is selected by `predict_logvar`: when `True`, HDN learns a
-        Gaussian likelihood and no noise model is used; when `False`, the injected
-        noise model is transformed into normalized data space using the input
-        statistics from the training dataset normalization. Rebuilding the normalized
-        copy from the raw model each fit keeps this hook idempotent (e.g. when resuming
-        from a checkpoint).
 
         Raises
         ------
@@ -199,7 +180,6 @@ class HDNModule(L.LightningModule):
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
         self._check_target_data(datamodule)
         if self.predict_logvar:
-            # Gaussian (DivNoising) likelihood; no noise model
             return
         if self._raw_noise_model is None:
             raise ValueError(
@@ -216,7 +196,7 @@ class HDNModule(L.LightningModule):
                 "HDN with a noise model requires MeanStdNormalization to recover the "
                 f"data statistics, but got {type(normalization).__name__}."
             )
-        # kept out of state_dict (see __init__); rebuilt from the raw model each fit
+        # avoid nn.Module registration and keep out of `state_dict`
         object.__setattr__(
             self,
             "noise_model",

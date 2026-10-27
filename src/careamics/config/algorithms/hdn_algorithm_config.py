@@ -102,10 +102,9 @@ class HDNAlgorithm(BaseModel):
         """
         if self.supervised and not self.model.predict_logvar:
             raise ValueError(
-                "HDN with a noise model is not supported in supervised mode. Use the "
-                "Gaussian likelihood (`use_noise_model=False`), or set "
-                "`supervised=False`."
-            )
+                "HDN with a noise model is not supported in supervised mode. Select the "
+                "`use_noise_model=False` or set `supervised=False`."
+)
         return self
 
     def __str__(self) -> str:
