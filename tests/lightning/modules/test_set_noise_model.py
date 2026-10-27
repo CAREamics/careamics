@@ -75,15 +75,10 @@ def _hdn_module(use_noise_model: bool) -> HDNModule:
     return HDNModule(config.algorithm_config)
 
 
-# both modules share the injection contract, but differ in how the noise model
-# likelihood is selected and in how many channels they output
 MODULES = [
     pytest.param(lambda: _microsplit_module(output_channels=2), 2, id="microsplit"),
     pytest.param(lambda: _hdn_module(use_noise_model=True), 1, id="hdn"),
 ]
-
-
-# --- set_noise_model, shared contract ----------------------------------------
 
 
 @pytest.mark.parametrize(("make_module", "n_channels"), MODULES)
@@ -128,9 +123,6 @@ def test_set_noise_model_accepts_npz_paths(tmp_path: Path):
     torch.testing.assert_close(loaded.nmodel_1.weight, nm.nmodel_1.weight)
 
 
-# --- likelihood selection -----------------------------------------------------
-
-
 def test_microsplit_set_noise_model_warns_when_unused():
     module = _microsplit_module(output_channels=2, noise_model_likelihood_weight=0.0)
     nm = _multichannel_nm(2)
@@ -147,9 +139,6 @@ def test_hdn_set_noise_model_warns_when_gaussian_likelihood_selected():
         module.set_noise_model(nm)
 
 
-# --- MultiChannelNoiseModel.to_config ----------------------------------------
-
-
 def test_to_config_roundtrip_reproduces_weights():
     nm = _multichannel_nm(2)
 
@@ -158,9 +147,6 @@ def test_to_config_roundtrip_reproduces_weights():
     assert rebuilt is not None
     torch.testing.assert_close(rebuilt.nmodel_0.weight, nm.nmodel_0.weight)
     torch.testing.assert_close(rebuilt.nmodel_1.weight, nm.nmodel_1.weight)
-
-
-# --- checkpoint round trip ----------------------------------------------------
 
 
 def test_microsplit_checkpoint_roundtrip_with_noise_model(tmp_path: Path):

@@ -109,9 +109,7 @@ class TestMicroSplitConfig:
             },
         )
         model = config.algorithm_config.model
-        # user override wins over the MicroSplit preset
         assert model.n_filters == 64
-        # structural params are set by the factory and ignore model_params
         assert model.analytical_kl is False
         assert model.encoder_first_conv_kernel == 3
         assert model.output_channels == 2

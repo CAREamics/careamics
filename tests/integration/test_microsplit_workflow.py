@@ -128,7 +128,7 @@ def _e2e_careamist(tmp_path: Path, output_channels: int = 2) -> CAREamist:
         experiment_name="test_e2e",
         data_type="array",
         axes="SCYX",
-        patch_size=[64, 64],  # the LVAE requires at least 64 pixels in XY
+        patch_size=[64, 64],
         batch_size=2,
         output_channels=output_channels,
         num_epochs=1,
@@ -156,12 +156,10 @@ def _paired_arrays(
 
 def test_train_predict_end_to_end(tmp_path: Path):
     """`CAREamist` trains and predicts with MicroSplit datasets end to end."""
-    # Arrange
     careamist = _e2e_careamist(tmp_path)
     train_input, train_target = _paired_arrays(seed=1)
     val_input, val_target = _paired_arrays(seed=2)
 
-    # Act
     careamist.train(
         train_data=train_input,
         train_data_target=train_target,
@@ -169,28 +167,23 @@ def test_train_predict_end_to_end(tmp_path: Path):
         val_data_target=val_target,
     )
 
-    # Assert: the data module built MicroSplit datasets, not the generic ones
     assert isinstance(
         careamist.train_datamodule.train_dataset.patch_constructor,
         PairedInputTargetMsPatchConstr,
     )
-    # statistics are computed on the principal input, without the lateral context
     normalization = careamist.config.data_config.normalization
     assert len(normalization.input_means) == 1
     assert len(normalization.target_means) == 2
 
-    # Act: tiles must match the training patch size, the LVAE input shape is validated
     predictions, _ = careamist.predict(
         val_input, tile_size=(64, 64), tile_overlap=(32, 32)
     )
 
-    # Assert
     assert np.asarray(predictions[0]).shape == (2, 2, 128, 128)
 
 
 def test_predict_whole_image(tmp_path: Path):
     """MicroSplit prediction works without tiling."""
-    # Arrange
     careamist = _e2e_careamist(tmp_path)
     train_input, train_target = _paired_arrays(seed=1)
     careamist.train(
@@ -200,10 +193,8 @@ def test_predict_whole_image(tmp_path: Path):
         val_data_target=train_target,
     )
 
-    # Act
     predictions, _ = careamist.predict(train_input)
 
-    # Assert
     assert np.asarray(predictions[0]).shape == (2, 2, 128, 128)
 
 

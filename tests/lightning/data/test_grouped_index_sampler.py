@@ -123,7 +123,6 @@ def test_from_paired_microsplit_dataset() -> None:
 
     This is the constructor `CareamicsDataModule` builds for MicroSplit training.
     """
-    # Arrange
     config = MicroSplitDataConfig(
         mode="training",
         data_type="array",
@@ -140,8 +139,6 @@ def test_from_paired_microsplit_dataset() -> None:
         rng=np.random.default_rng(42),
     )
 
-    # Act
     sampler = GroupedIndexSampler.from_dataset(dataset, rng=np.random.default_rng(42))
 
-    # Assert
     assert sorted(sampler.grouped_indices[0]) == list(range(len(dataset)))

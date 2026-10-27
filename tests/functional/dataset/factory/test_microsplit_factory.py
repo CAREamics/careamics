@@ -380,8 +380,6 @@ def _training_config(**kwargs: Any) -> MicroSplitDataConfig:
     return MicroSplitDataConfig(**params)
 
 
-# `data_type` and `multiscale_count` are independent axes, so two cases cover both
-# rather than their full product
 @pytest.mark.parametrize(("data_type", "multiscale_count"), [("array", 3), ("tiff", 1)])
 def test_train_val_datasets_build_paired_constructors(
     tmp_path: Path,
@@ -389,17 +387,14 @@ def test_train_val_datasets_build_paired_constructors(
     multiscale_count: int,
 ) -> None:
     """Test both datasets use the paired constructor and carry lateral context."""
-    # Arrange
     (tmp_path / "train").mkdir()
     (tmp_path / "val").mkdir()
     data, n_channels = _paired_train_val_data(tmp_path, data_type)
     patch_size = (16, 16)
     config = _training_config(data_type=data_type, multiscale_count=multiscale_count)
 
-    # Act
     train_dataset, val_dataset = create_microsplit_train_val_datasets(config, data)
 
-    # Assert
     assert isinstance(train_dataset.patch_constructor, PairedInputTargetMsPatchConstr)
     assert isinstance(val_dataset.patch_constructor, PairedInputTargetMsPatchConstr)
 
@@ -410,16 +405,13 @@ def test_train_val_datasets_build_paired_constructors(
 
 def test_train_val_datasets_convert_validation_config(tmp_path: Path) -> None:
     """Test the validation dataset keeps MicroSplit fields in validating mode."""
-    # Arrange
     (tmp_path / "train").mkdir()
     (tmp_path / "val").mkdir()
     data, _ = _paired_train_val_data(tmp_path)
     config = _training_config(multiscale_count=3, padding_mode="wrap")
 
-    # Act
     _, val_dataset = create_microsplit_train_val_datasets(config, data)
 
-    # Assert
     assert isinstance(val_dataset.config, MicroSplitDataConfig)
     assert val_dataset.config.mode == "validating"
     assert val_dataset.config.multiscale_count == 3
@@ -434,7 +426,6 @@ def test_train_val_datasets_statistics_computed_on_training_data(
     The training dataset must be built before the validation configuration is derived,
     otherwise the validation data would be normalized by its own statistics.
     """
-    # Arrange
     train_target = np.ones((2, 2, 64, 64), dtype=np.float32)
     val_target = np.full((2, 2, 64, 64), 100.0, dtype=np.float32)
     data = TrainValData(
@@ -445,11 +436,8 @@ def test_train_val_datasets_statistics_computed_on_training_data(
     )
     config = _training_config(normalization={"name": "mean_std"})
 
-    # Act
     train_dataset, val_dataset = create_microsplit_train_val_datasets(config, data)
 
-    # Assert: statistics come from the training data (input sums to 2.0), not the
-    # validation data (which would sum to 200.0).
     assert train_dataset.config.normalization.input_means == [2.0]
     assert (
         val_dataset.config.normalization.input_means
@@ -580,8 +568,6 @@ def test_factory_does_not_warn_for_default_values(
         lambda message, *args: warnings.append(message % args),
     )
     data, _ = _dummy_paired_data(tmp_path, "array")
-    # `uncorrelated_channel_prob` is unused by the paired mode, but it is set to its
-    # own default value here, so the user did not really choose it.
     config = _training_config(uncorrelated_channel_prob=0.0)
 
     create_microsplit_dataset(config=config, data=data)

@@ -74,14 +74,11 @@ def test_fit_builds_microsplit_datasets() -> None:
     The `multiscale_count` matrix is covered at the factory level, in
     `tests/functional/dataset/factory/test_microsplit_factory.py`.
     """
-    # Arrange
     multiscale_count = 3
     datamodule = _datamodule(_config(multiscale_count=multiscale_count))
 
-    # Act
     datamodule.setup("fit")
 
-    # Assert
     assert isinstance(
         datamodule.train_dataset.patch_constructor, PairedInputTargetMsPatchConstr
     )
@@ -177,8 +174,6 @@ def test_generic_dictionary_is_accepted() -> None:
 
 def test_sampler_for_non_in_memory_tiff(tmp_path: Path) -> None:
     """Test grouped sampling is used for MicroSplit datasets read from files."""
-    # Arrange
-    # source and target files must share their names, hence the two folders
     input_dir = tmp_path / "inputs"
     target_dir = tmp_path / "targets"
     input_dir.mkdir()
@@ -204,9 +199,7 @@ def test_sampler_for_non_in_memory_tiff(tmp_path: Path) -> None:
         val_data_target=target_paths,
     )
 
-    # Act
     datamodule.setup("fit")
 
-    # Assert
     assert isinstance(datamodule._sampler("train"), GroupedIndexSampler)
     assert next(iter(datamodule.train_dataloader())) is not None
