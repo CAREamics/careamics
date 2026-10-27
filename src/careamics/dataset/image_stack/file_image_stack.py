@@ -200,6 +200,17 @@ class FileImageStack:
         """
         return self.axes
 
+    @property
+    def additional_metadata(self) -> dict[str, Any]:
+        """Format-specific metadata.
+
+        Returns
+        -------
+        dict[str, Any]
+            Additional metadata.
+        """
+        return {}
+
     @classmethod
     def from_tiff(
         cls,

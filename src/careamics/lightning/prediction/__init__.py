@@ -11,6 +11,6 @@ __all__ = [
 from .convert_prediction import (
     combine_samples,
     convert_prediction,
-    decollate_image_region_data,
 )
+from .decollate_utils import decollate_image_region_data
 from .stitch_prediction import stitch_prediction, stitch_single_prediction
