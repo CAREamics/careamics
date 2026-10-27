@@ -6,6 +6,7 @@ import warnings
 from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias
 
+import numpy as np
 import zarr
 from pydantic import ValidationError
 from yaozarrs import validate_ome_object
@@ -81,7 +82,7 @@ class OMEZarrMetadata:
             "coordinate_transformations": self.coordinate_transformations,
             "version": self.version,
         }
-        return metadata
+        return _convert_floats_to_float32(metadata)
 
     def to_additional_metadata(self) -> dict[str, Any]:
         """Return the additional metadata payload.
@@ -348,6 +349,34 @@ def _model_to_dict(model: Any) -> dict[str, Any]:
         Model as a dictionary.
     """
     return model.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+
+def _convert_floats_to_float32(value: Any) -> Any:
+    """Convert floating-point values in nested metadata to NumPy float32 values.
+
+    Float64 tensors are not supported in MPS devices, therefore all OME-NGFF float
+    metadata needs to be converted to float32 to avoid errors when casting them to
+    tensors.
+
+    Parameters
+    ----------
+    value : Any
+        Value.
+
+    Returns
+    -------
+    Any
+        Value with all contained floats converted to float32.
+    """
+    if isinstance(value, (float, np.floating)):
+        return np.float32(value)
+    elif isinstance(value, dict):
+        return {key: _convert_floats_to_float32(item) for key, item in value.items()}
+    elif isinstance(value, list):
+        return [_convert_floats_to_float32(item) for item in value]
+    elif isinstance(value, tuple):
+        return tuple(_convert_floats_to_float32(item) for item in value)
+    return value
 
 
 def resolve_ome_zarr_nodes(
