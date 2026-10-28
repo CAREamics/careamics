@@ -442,6 +442,45 @@ class TestDataloaderParams:
         cfg = DataConfig(**cfg_dict)
         assert cfg.val_dataloader_params["num_workers"] == 5
 
+    @pytest.mark.parametrize(
+        "platform, n_workers, data_type, back_end, expected",
+        [
+            ("Linux", 0, "tiff", "tensorstore", None),
+            ("Linux", 3, "tiff", "tensorstore", None),
+            ("Linux", 0, "zarr", "tensorstore", None),
+            ("Linux", 3, "zarr", "zarrs", None),
+            ("Darwin", 3, "zarr", "tensorstore", None),
+            ("Windows", 3, "zarr", "tensorstore", None),
+            # changes multiprocessing mode
+            ("Linux", 3, "zarr", "tensorstore", "forkserver"),
+        ],
+    )
+    def test_tensorstore_workers_use_forkserver_on_linux(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        platform,
+        n_workers,
+        data_type,
+        back_end,
+        expected,
+    ):
+        """TensorStore dataloaders with workers use forkserver on Linux."""
+        monkeypatch.setattr(
+            "careamics.config.data.data_config.platform.system", lambda: platform
+        )
+        cfg_dict = data_config_dict_testing(
+            data_type=data_type,
+            zarr_backend=back_end,
+            num_workers=n_workers,
+        )
+
+        cfg = DataConfig(**cfg_dict)
+
+        if expected is not None:
+            assert cfg.train_dataloader_params["multiprocessing_context"] == expected
+        else:
+            assert "multiprocessing_context" not in cfg.train_dataloader_params
+
 
 @pytest.mark.parametrize(
     "data_type, axes, patches, expected_error",

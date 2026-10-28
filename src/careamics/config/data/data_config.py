@@ -987,6 +987,34 @@ class DataConfig(BaseModel):
                 params["persistent_workers"] = True
         return self
 
+    @model_validator(mode="after")
+    def set_tensorstore_multiprocessing_context(self: Self) -> Self:
+        """Use `forkserver` for TensorStore-backed dataloaders on Linux.
+
+        Allows using `num_workers>0` with TensorStore.
+
+        Returns
+        -------
+        Self
+            Validated data model with a safe multiprocessing context applied.
+        """
+        if (
+            self.data_type != "zarr"
+            or self.zarr_backend != "tensorstore"
+            or platform.system() != "Linux"
+        ):
+            return self
+
+        for params in (
+            self.train_dataloader_params,
+            self.val_dataloader_params,
+            self.pred_dataloader_params,
+        ):
+            if params["num_workers"] > 0:
+                params["multiprocessing_context"] = "forkserver"
+
+        return self
+
     def __str__(self) -> str:
         """
         Pretty string reprensenting the configuration.
