@@ -5,15 +5,17 @@ from pathlib import Path
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack.zarr_access import (
+    DefaultZarrAccess,
     ZarrAccess,
     ZarrArraySpec,
-    ZarrPythonAccess,
-    get_ome_dimension_names,
+)
+from careamics.lightning.callbacks.prediction.image_write_utils import (
+    get_complete_images,
 )
 from careamics.lightning.prediction import combine_samples
 from careamics.utils.reshape_array import RestoredAxesTransform
 
-from .image_write_utils import get_complete_images
+from .ome_write_utils import get_ome_dimension_names
 from .zarr_write_utils import (
     auto_chunks,
     create_array,
@@ -38,7 +40,7 @@ class ZarrImageWriteStrategy:
         access : ZarrAccess or None, default=None
             Zarr backend access implementation.
         """
-        self.access = ZarrPythonAccess() if access is None else access
+        self.access = DefaultZarrAccess() if access is None else access
         self._store_image_groups: dict[str, set[str]] = {}
         self.image_cache: dict[int, list[ImageRegionData]] = defaultdict(list)
 
