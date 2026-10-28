@@ -118,7 +118,7 @@ class ZarrImageWriteStrategy:
         if image.ndim > 5 and not has_both_ST:
             raise ValueError(
                 f"OME-NGFF only supports a maximum of 5 axes (TCZYX), got "
-                f"{image.ndim}."
+                f"{image.ndim} axes."
             )
 
         # adjust output axes and shape
