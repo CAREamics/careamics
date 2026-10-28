@@ -10,9 +10,9 @@ from careamics.utils.reshape_array import AxesTransform, get_patch_slices, resha
 
 from .image_utils.image_stack_utils import pad_patch
 from .zarr_access import (
+    DefaultZarrAccess,
     ZarrAccess,
     ZarrNode,
-    ZarrPythonAccess,
     build_default_ome_metadata,
     resolve_node_type,
 )
@@ -54,7 +54,7 @@ class ZarrImageStack:
         additional_metadata : dict[str, Any] or None, default=None
             Additional metadata associated with the array.
         """
-        self._access = ZarrPythonAccess() if access is None else access
+        self._access = DefaultZarrAccess() if access is None else access
         self._node = node
         self._additional_metadata = (
             {} if additional_metadata is None else dict(additional_metadata)
