@@ -1,15 +1,13 @@
-from pathlib import Path
-
 import numpy as np
 import pytest
 import tifffile
 import zarr
 from numpy.typing import NDArray
 
-import careamics.lightning.callbacks.prediction as pd_writer
 from careamics.config.data import DataConfig
 from careamics.dataset.factory import create_dataset
 from careamics.dataset.image_region_data import ImageRegionData
+from careamics.dataset.image_stack.zarr_access import file_uri_to_path
 from careamics.dataset.image_stack_loader import load_arrays, load_tiffs
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import (
@@ -17,11 +15,30 @@ from careamics.dataset.patching import (
     TiledPatching,
     TileSpecs,
 )
+from careamics.lightning.callbacks.prediction.zarr.zarr_tile_write_strategy import (
+    ZarrTileWriteStrategy,
+)
+from careamics.lightning.callbacks.prediction.zarr.zarr_write_utils import (
+    _add_output_key,
+)
 from careamics.utils.reshape_array import AxesTransform, reshape_array
 
 # to comply with ruff line length
-WriteTilesZarr = pd_writer.zarr_tile_write_strategy.ZarrTileWriteStrategy
-_auto_chunks = pd_writer.zarr_tile_write_strategy._auto_chunks
+WriteTilesZarr = ZarrTileWriteStrategy
+
+
+@pytest.mark.parametrize(
+    ("source_name", "expected_name"),
+    [
+        ("input.zarr", "input_output.zarr"),
+        ("input.ome.zarr", "input_output.ome.zarr"),
+    ],
+)
+def test_add_output_key_preserves_ome_zarr_suffix(
+    tmp_path, source_name: str, expected_name: str
+) -> None:
+    assert _add_output_key(tmp_path, tmp_path / source_name) == tmp_path / expected_name
+
 
 # TODO test chunking and sharding errors and handling (e.g. when missing)
 # TODO add test for mismatching C axes between input and tiles
@@ -218,8 +235,9 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
         writer.write_tile(tmp_path, region)
 
     for src in source_set:
-        filename = Path(src[len("file://") :]).parent.stem
-        array_name = Path(src[len("file://") :]).name
+        source_path = file_uri_to_path(src)
+        filename = source_path.parent.stem
+        array_name = source_path.name
 
         # check if zarr prediction exists
         zarr_path = tmp_path / f"{filename}_output.zarr"
@@ -230,12 +248,12 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
 
         # check sharding and chunking
         if shards is not None:
-            assert g[array_name].shards == shards
+            assert g[array_name]["0"].shards == shards
         if chunks is not None:
-            assert g[array_name].chunks == chunks
+            assert g[array_name]["0"].chunks == chunks
 
         # pull array
-        pred_array = g[array_name][:]
+        pred_array = g[array_name]["0"][:]
         data_idx = int(array_name.split("_")[-1])
         expected_array = arrays[data_idx]
 
@@ -252,7 +270,7 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
 
 
 def test_write_from_array(tmp_path):
-    """Test that writing from an array source raises an error."""
+    """Test that writing from an array source."""
     arrays = [np.random.rand(32, 32).astype(np.float32) for _ in range(2)]
     image_stacks = load_arrays(
         source=arrays,
@@ -271,18 +289,15 @@ def test_write_from_array(tmp_path):
     for region in gen_image_regions("YX", patch_extractor, strategy):
         writer.write_tile(tmp_path, region)
 
-    # check if the stored zarr is close to the input
-    if writer.current_store is not None:
-        for key in writer.current_store.keys():
-            np.testing.assert_allclose(
-                arrays[int(key)], np.array(writer.current_store[key])
-            )
-    else:
-        raise ValueError("The Zarr tile writer store is None!")
+    # check if each array was written to its own OME-Zarr store
+    for index, array in enumerate(arrays):
+        written = zarr.open(tmp_path / f"array_{index}.ome.zarr", mode="r")
+        assert isinstance(written, zarr.Group)
+        np.testing.assert_allclose(array, written["0"][:])
 
 
 def test_write_from_tiff(tmp_path):
-    """Test that writing from a tiff source raises an error."""
+    """Test that writing from a tiff source."""
     # save tiffs
     arrays = [np.random.rand(32, 32).astype(np.float32) for _ in range(2)]
     files = [tmp_path / f"test_{i}.tiff" for i in range(2)]
@@ -306,11 +321,47 @@ def test_write_from_tiff(tmp_path):
     for region in gen_image_regions("YX", patch_extractor, strategy):
         writer.write_tile(tmp_path, region)
 
-    # check if the stored zarr is close to the input
-    if writer.current_store is not None:
-        for key in writer.current_store.keys():
-            np.testing.assert_allclose(
-                arrays[int(key)], np.array(writer.current_store[key])
-            )
-    else:
-        raise ValueError("The Zarr tile writer store is None!")
+    # check if each source file was written to its own OME-Zarr store
+    for index, _ in enumerate(arrays):
+        written = zarr.open(tmp_path / f"test_{index}.ome.zarr", mode="r")
+        assert isinstance(written, zarr.Group)
+        np.testing.assert_allclose(arrays[index], written["0"][:])
+
+
+def test_write_from_root_array_source(tmp_path):
+    """Test that root-array Zarr sources are written as single-image OME-Zarr."""
+    source_path = tmp_path / "root_input.zarr"
+    source_array = zarr.open_array(
+        source_path, mode="w", shape=(8, 8), dtype=np.float32
+    )
+    source_data = np.arange(64, dtype=np.float32).reshape((8, 8))
+    source_array[...] = source_data
+
+    region = ImageRegionData(
+        data=source_data[None],
+        source=str(source_array.store_path),
+        data_shape=(1, 8, 8),
+        dtype="float32",
+        axes="YX",
+        target_axes="YX",
+        original_data_shape=(8, 8),
+        region_spec=TileSpecs(
+            data_idx=0,
+            sample_idx=0,
+            coords=(0, 0),
+            patch_size=(8, 8),
+            crop_coords=(0, 0),
+            crop_size=(8, 8),
+            stitch_coords=(0, 0),
+            total_tiles=1,
+        ),
+        additional_metadata={"chunks": (8, 8), "shards": None},
+    )
+
+    writer = WriteTilesZarr()
+    writer.write_tile(tmp_path, region)
+
+    output_path = tmp_path / "root_input_output.zarr"
+    written = zarr.open(output_path, mode="r")
+    assert isinstance(written, zarr.Group)
+    np.testing.assert_allclose(written["0"][:], source_data)

@@ -399,7 +399,6 @@ class DataConfig(BaseModel):
     target_axes: str | None = None
     """Optional axes of target data. If `None`, targets use `axes`."""
 
-    # TODO: update docs for stratified patching
     patching: PatchingConfig = Field(..., discriminator="name")
     """Patching strategy to use. Note that `random` is the only supported strategy for
     training, while `tiled` and `whole` are only used for prediction."""
@@ -463,6 +462,14 @@ class DataConfig(BaseModel):
     """Default number of workers for all dataloaders that do not explicitly set
     `num_workers`. Automatically detected based on the current platform:
     0 on Windows and macOS, `min(cpu_count - 1, 4)` on Linux."""
+
+    zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr"
+    """Backend used to read and write Zarr arrays. Only effective if `data_type` or
+    `write_type` are set to `zarr` during training or prediction, respectively."""
+
+    ome_scale: str = Field(default="0", min_length=1)
+    """OME-NGFF scale to use when loading OME-Zarr data. Only effective if `data_type`
+    is set to `zarr` during training or prediction."""
 
     seed: int = Field(default_factory=generate_random_seed, gt=0)
     """Random seed for reproducibility. If not specified, a random seed is generated."""
@@ -1040,6 +1047,7 @@ class DataConfig(BaseModel):
         new_channels: Sequence[int] | Literal["all"] | None = None,
         new_in_memory: bool | None = None,
         new_dataloader_params: dict[str, Any] | None = None,
+        new_ome_scale: str | None = None,
     ) -> DataConfig:
         """
         Convert a training dataset configuration to a different mode.
@@ -1092,6 +1100,8 @@ class DataConfig(BaseModel):
         new_dataloader_params : dict of {str: Any}, default=None
             New dataloader parameters. These will be placed in the
             appropriate dataloader params field depending on the new mode.
+        new_ome_scale : str or None, default=None
+            New OME scale to use when loading OME-Zarr files.
 
         Returns
         -------
@@ -1203,6 +1213,7 @@ class DataConfig(BaseModel):
                 ),
                 "patch_filter": None,
                 "mask_filter": None,
+                "ome_scale": new_ome_scale or self.ome_scale,
             }
         )
 

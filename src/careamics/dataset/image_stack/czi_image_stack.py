@@ -201,11 +201,6 @@ class CziImageStack:
         ----------
         state : dict[str, Any]
             State from `__getstate__`.
-
-        Returns
-        -------
-        None
-            No return value; instance state is updated in place.
         """
         # Reopen CZI file after unpickling
         self.__dict__.update(state)
@@ -266,6 +261,17 @@ class CziImageStack:
         sample_sizes = list(self._sample_axes.values())
         shape_list[s_idx : s_idx + 1] = sample_sizes
         return tuple(shape_list)
+
+    @property
+    def additional_metadata(self) -> dict[str, Any]:
+        """Format-specific metadata.
+
+        Returns
+        -------
+        dict[str, Any]
+            Additional metadata.
+        """
+        return {}
 
     def extract_patch(
         self,

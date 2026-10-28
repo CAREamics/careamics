@@ -4,20 +4,28 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-import zarr
 from numpy.typing import NDArray
 from zarr.storage import StorePath
 
 from careamics.config.validators import check_czi_axes_validity
-from careamics.image_io import ReadFunc
-
-from ..image_stack import (
+from careamics.dataset.image_stack import (
     FileImageStack,
     InMemoryImageStack,
     ZarrImageStack,
 )
-from ..image_stack.czi_image_stack import CziImageStack
-from .zarr_utils import collect_arrays, decipher_zarr_uri, is_ome_zarr, is_valid_uri
+from careamics.dataset.image_stack.czi_image_stack import CziImageStack
+from careamics.dataset.image_stack.zarr_access import (
+    ZarrBackend,
+    ZarrNode,
+    create_zarr_access,
+    get_ome_array_metadata,
+    is_valid_uri,
+    list_array_paths,
+    resolve_node_type,
+    resolve_ome_zarr_nodes,
+    to_zarr_node,
+)
+from careamics.image_io import ReadFunc
 
 if TYPE_CHECKING:
     from careamics.image_io.read import ReadFunc
@@ -123,9 +131,13 @@ def load_custom_file(
     ]
 
 
+# TODO split in sub-routines to clarify OME and non-OME paths
 def load_zarrs(
     source: Sequence[str | Path | StorePath],
     axes: str,
+    *,
+    zarr_backend: ZarrBackend = "zarr",
+    ome_scale: str = "0",
 ) -> list[ZarrImageStack]:
     """Create a list of ZarrImageStack from a sequence of zarr file paths or URIs.
 
@@ -143,81 +155,79 @@ def load_zarrs(
         Source zarr file paths or URIs.
     axes : str
         Original axes of the data, must be a subset of "STCZYX".
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used for Zarr array I/O.
+    ome_scale : str, default="0"
+        OME scale to use when loading OME-Zarr files.
 
     Returns
     -------
-    list of ZarrImageStack
-        A list of ZarrImageStack created from the sources.
+    list[ZarrImageStack]
+        Image stacks created from the sources.
     """
     image_stacks: list[ZarrImageStack] = []
+    access = create_zarr_access(zarr_backend)
 
     for data_source in source:
         data_str = str(data_source)
 
-        # either a path to a zarr file or a uri "file://path/to/zarr/array_path"
-        if data_str.endswith(".zarr"):
-            zarr_group = zarr.open_group(data_str, mode="r")
+        if not (data_str.endswith(".zarr") or is_valid_uri(data_str)):
+            raise ValueError(
+                f"Source '{data_source}' is neither a zarr file nor a valid file URI."
+            )
 
-            # test if ome-zarr (minimum assumption of multiscales)
-            if is_ome_zarr(zarr_group):
-                # TODO placeholder for handling OME-Zarr
-                # - Need to potentially select multiscale level
-                # - Extract axes and compare with provided ones
-                raise NotImplementedError(
-                    "OME-Zarr support is not yet implemented when providing a "
-                    "path to the zarr store. Please provide a file URI to the "
-                    "specific array within the OME-Zarr."
+        # create zarr node and determine whether it is a group or an array
+        root_node = to_zarr_node(data_source)
+        root_node = resolve_node_type(root_node)
+
+        # if array, instantiate image stack
+        if root_node.node_type == "array":
+            image_stacks.append(
+                ZarrImageStack(
+                    node=ZarrNode(
+                        store_uri=root_node.store_uri,
+                        path=root_node.path,
+                        node_type="array",
+                    ),
+                    axes=axes,
+                    access=access,
+                    additional_metadata=get_ome_array_metadata(root_node),
                 )
-            else:
-                # collect all arrays
-                array_paths = collect_arrays(zarr_group)
+            )
+            continue
 
-                # sort names
-                array_paths.sort()
-
-            # instantiate image stacks
-            for array_path in array_paths:
-                image_stacks.append(
-                    ZarrImageStack(group=zarr_group, data_path=array_path, axes=axes)
-                )
-
-        elif is_valid_uri(data_str):
-            # decipher the uri and open the group
-            store_path, parent_path, name = decipher_zarr_uri(data_str)
-
-            zarr_group = zarr.open_group(store_path, path=parent_path, mode="r")
-            content = zarr_group[name]
-
-            # assert if group or array
-            if isinstance(content, zarr.Group):
-                array_paths = collect_arrays(content)
-
-                # sort the names
-                array_paths.sort()
-
-                for array_path in array_paths:
-                    image_stacks.append(
-                        ZarrImageStack(group=content, data_path=array_path, axes=axes)
-                    )
-            else:
-                if not isinstance(content, zarr.Array):
-                    raise TypeError(
-                        f"Content at '{data_str}' is neither a zarr.Group nor "
-                        f"a zarr.Array."
-                    )
-
-                # create image stack from a single array
+        # else node is a group, search for sub-arrays
+        ome_nodes = resolve_ome_zarr_nodes(root_node, level=ome_scale)
+        if len(ome_nodes) > 0:
+            for resolved in ome_nodes:
                 image_stacks.append(
                     ZarrImageStack(
-                        group=zarr_group,
-                        data_path=name,
+                        node=resolved.node,
                         axes=axes,
+                        access=access,
+                        additional_metadata=resolved.additional_metadata,
                     )
                 )
+            continue
 
-        else:
-            raise ValueError(
-                f"Source '{data_source}' is neither a zarr file nor a file URI."
+        # non-OME source
+        array_paths = list_array_paths(root_node)
+        array_paths.sort()
+
+        for array_path in array_paths:
+            full_path = (
+                array_path if root_node.path == "" else f"{root_node.path}/{array_path}"
+            )
+            image_stacks.append(
+                ZarrImageStack(
+                    node=ZarrNode(
+                        store_uri=root_node.store_uri,
+                        path=full_path,
+                        node_type="array",
+                    ),
+                    axes=axes,
+                    access=access,
+                )
             )
 
     return image_stacks

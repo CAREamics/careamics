@@ -686,6 +686,17 @@ def test_max_patch_filter_default_coverage(
     assert config.patch_filter.coverage == expected
 
 
+def test_ome_scale_is_preserved_and_overridden_by_convert_mode():
+    """Named OME scale selection survives conversion and can be changed."""
+    config = DataConfig(**data_config_dict_testing(ome_scale="full-resolution"))
+
+    assert config.convert_mode("validating").ome_scale == "full-resolution"
+    assert (
+        config.convert_mode("predicting", new_ome_scale="quarter-resolution").ome_scale
+        == "quarter-resolution"
+    )
+
+
 class TestConvertMode:
     """Tests for the `convert_mode` method."""
 
@@ -696,6 +707,7 @@ class TestConvertMode:
             mode=TRAINING,
             patching=DEFAULT_PATCHING,
             data_type="tiff",
+            zarr_backend="zarrs",
             axes="SCYX",
             batch_size=5,
             channels=[0, 2],
@@ -709,6 +721,7 @@ class TestConvertMode:
         assert converted_cfg.mode == new_mode
         assert converted_cfg.batch_size == cfg.batch_size
         assert converted_cfg.data_type == cfg.data_type
+        assert converted_cfg.zarr_backend == cfg.zarr_backend
         assert converted_cfg.axes == cfg.axes
         assert converted_cfg.channels == cfg.channels
         assert converted_cfg.in_memory == cfg.in_memory

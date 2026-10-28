@@ -174,6 +174,8 @@ def create_microsplit_dataset(
         data_type=SupportedData(config.data_type),
         in_memory=config.in_memory,
         loading=loading,
+        zarr_backend=config.zarr_backend,
+        ome_scale=config.ome_scale,
     )
     patch_extractor_type = select_patch_extractor_type(
         data_type=SupportedData(config.data_type), in_memory=config.in_memory
@@ -327,6 +329,8 @@ def create_microsplit_pred_dataset(
         data_type=SupportedData(config.data_type),
         in_memory=config.in_memory,
         loading=loading,
+        zarr_backend=config.zarr_backend,
+        ome_scale=config.ome_scale,
     )
     patch_extractor_type = select_patch_extractor_type(
         data_type=SupportedData(config.data_type), in_memory=config.in_memory

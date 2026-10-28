@@ -5,6 +5,7 @@ __all__ = [
     "PredictionWriterCallback",
     "TileWriteStrategy",
     "WriteStrategy",
+    "ZarrImageWriteStrategy",
     "ZarrTileWriteStrategy",
     "create_write_file_path",
     "create_write_strategy",
@@ -26,4 +27,4 @@ from .write_strategy_factory import (
     select_write_extension,
     select_write_func,
 )
-from .zarr_tile_write_strategy import ZarrTileWriteStrategy
+from .zarr import ZarrImageWriteStrategy, ZarrTileWriteStrategy
