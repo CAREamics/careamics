@@ -7,7 +7,11 @@ import zarr
 from numpy.typing import NDArray
 
 from careamics.dataset.image_stack import ZarrImageStack
-from careamics.dataset.image_stack.zarr_access import ZarrNode, to_zarr_node
+from careamics.dataset.image_stack.zarr_access import (
+    DefaultZarrAccess,
+    ZarrNode,
+    to_zarr_node,
+)
 from careamics.utils.reshape_array import channel_slice, reshape_array
 
 # TODO test _reshaped_data_shape
@@ -135,6 +139,45 @@ def test_extract_channels(
         0 : 0 + 8,
     ]
     np.testing.assert_array_equal(patch, expected_patch)
+
+
+def test_extract_patch_zarrs_strict_chunk_crossing_succeeds(tmp_path: Path):
+    """Extract an all-channel, chunk-crossing patch with strict zarrs.
+
+    The spatial slices intentionally start inside a chunk and end inside a
+    later chunk.  All channels are represented by consecutive integer indices
+    rather than an ellipsis, which zarrs supports for this selection.
+    """
+    file_path = tmp_path / "test_zarr.zarr"
+    data_path = "image"
+    shape = (2, 1, 128, 128)
+    data = np.arange(np.prod(shape), dtype=np.uint16).reshape(shape)
+    _ = create_zarr(
+        file_path=file_path,
+        data_path=data_path,
+        data=data,
+        chunks=(1, 1, 64, 64),
+    )
+
+    node = ZarrNode(
+        store_uri=file_path.resolve().as_uri(),
+        path=data_path,
+        node_type="array",
+    )
+    image_stack = ZarrImageStack(
+        node=node,
+        axes="SCYX",
+        access=DefaultZarrAccess(use_zarrs=True),
+    )
+
+    extracted_patch = image_stack.extract_patch(
+        sample_idx=0,
+        channels=None,
+        coords=(3, 5),
+        patch_size=(64, 64),
+    )
+
+    np.testing.assert_array_equal(extracted_patch, data[0, :, 3:67, 5:69])
 
 
 @pytest.mark.parametrize(

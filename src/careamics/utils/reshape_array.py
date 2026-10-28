@@ -935,7 +935,12 @@ def get_patch_slices(
         elif d == "T":
             patch_slice.append(transform.calc_original_T_idx(sample_idx))
         elif d == "C":
-            patch_slice.append(channel_slice(channels))
+            # zarrs does not support ellipsis
+            patch_slice.append(
+                list(range(transformed_shape[1]))
+                if channels is None
+                else channel_slice(channels)
+            )
         elif d == "Z":
             patch_slice.append(slice(coords[0], coords[0] + patch_size[0]))
         elif d == "Y":
