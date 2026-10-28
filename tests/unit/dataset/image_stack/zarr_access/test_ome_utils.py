@@ -212,6 +212,30 @@ def test_resolve_dataset(ome_metadata, level, exp):
         assert found_level == level
 
 
+def test_resolve_dataset_accepts_named_scale():
+    """OME dataset paths are not required to be numeric."""
+    metadata = v05.Image(
+        multiscales=[
+            v05.Multiscale(
+                name="image",
+                axes=IMAGE_METADATA.multiscales[0].axes,
+                datasets=[
+                    v05.Dataset(
+                        path="full-resolution",
+                        coordinateTransformations=[
+                            v05.ScaleTransformation(scale=[1.0, 1.0])
+                        ],
+                    )
+                ],
+            )
+        ]
+    )
+
+    found_level, _ = _resolve_dataset(metadata, "full-resolution")
+
+    assert found_level == "full-resolution"
+
+
 class TestCollectionImagePaths:
 
     def test_get_collection_image_paths_missing(self, single_image_ome_zarr_path):

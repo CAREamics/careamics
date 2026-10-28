@@ -39,6 +39,7 @@ class MicroSplitDataConfig(DataConfig):
         new_channels: Sequence[int] | Literal["all"] | None = None,
         new_in_memory: bool | None = None,
         new_dataloader_params: dict[str, Any] | None = None,
+        new_ome_scale: str | None = None,
     ) -> "MicroSplitDataConfig":
         """Convert mode while preserving MicroSplit-specific fields.
 
@@ -66,6 +67,8 @@ class MicroSplitDataConfig(DataConfig):
             New in-memory loading setting. If `None`, keeps the current setting.
         new_dataloader_params : dict[str, Any] or None, default=None
             New dataloader parameters for the converted mode.
+        new_ome_scale : str or None, default=None
+            New OME scale to use when loading OME-Zarr files.
 
         Returns
         -------
@@ -83,6 +86,7 @@ class MicroSplitDataConfig(DataConfig):
             new_channels=new_channels,
             new_in_memory=new_in_memory,
             new_dataloader_params=new_dataloader_params,
+            new_ome_scale=new_ome_scale,
         )
         model_dict = converted.model_dump()
         model_dict.update(

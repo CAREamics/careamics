@@ -298,7 +298,7 @@ def _resolve_dataset(
     available_levels = [d.path for d in datasets]
     raise ValueError(
         f"OME-Zarr level '{level}' not found in image metadata, available levels are "
-        f"{available_levels}."
+        f"{available_levels}. Set `ome_scale` in the configuration."
     )
 
 
