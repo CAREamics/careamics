@@ -3,24 +3,26 @@ from functools import partial
 import numpy as np
 import pytest
 import zarr
+from tests.unit.lightning.callbacks.prediction.zarr.test_ome_write_utils import (
+    _source_ome_metadata,
+)
 from yaozarrs import validate_zarr_store
 
 from careamics.dataset.image_stack.zarr_access import (
-    TensorstoreAccess,
+    DefaultZarrAccess,
+    TensorstoreZarrAccess,
     ZarrArraySpec,
     ZarrNode,
-    ZarrPythonAccess,
-    ensure_ome_store_structure,
     path_to_file_uri,
 )
-from tests.unit.dataset.image_stack.zarr_access.test_ome_write_utils import (
-    _source_ome_metadata,
+from careamics.lightning.callbacks.prediction.zarr.ome_write_utils import (
+    ensure_ome_store_structure,
 )
 
 BACKENDS = [
-    pytest.param(ZarrPythonAccess, id="zarr"),
-    pytest.param(partial(ZarrPythonAccess, use_zarrs=True), id="zarrs"),
-    pytest.param(TensorstoreAccess, id="tensorstore"),
+    pytest.param(DefaultZarrAccess, id="zarr"),
+    pytest.param(partial(DefaultZarrAccess, use_zarrs=True), id="zarrs"),
+    pytest.param(TensorstoreZarrAccess, id="tensorstore"),
 ]
 
 

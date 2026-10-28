@@ -8,14 +8,14 @@ from numpy.typing import NDArray
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack.zarr_access import (
+    DefaultZarrAccess,
     ZarrAccess,
     ZarrArraySpec,
-    ZarrPythonAccess,
-    get_ome_dimension_names,
 )
 from careamics.dataset.patching import TileSpecs
 from careamics.utils.reshape_array import RestoredAxesTransform
 
+from .ome_write_utils import get_ome_dimension_names
 from .zarr_write_utils import auto_chunks, create_array, get_zarr_destination
 
 
@@ -218,7 +218,7 @@ class ZarrTileWriteStrategy:
         access : ZarrAccess or None, default=None
             Zarr backend access implementation.
         """
-        self.access = ZarrPythonAccess() if access is None else access
+        self.access = DefaultZarrAccess() if access is None else access
         self._current_node_source: str | None = None
         self._store_image_groups: dict[str, set[str]] = {}
 

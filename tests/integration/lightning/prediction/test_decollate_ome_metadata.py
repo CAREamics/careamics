@@ -4,7 +4,7 @@ from torch.utils.data import default_collate
 from yaozarrs import v05
 
 from careamics.dataset.image_region_data import ImageRegionData
-from careamics.dataset.image_stack.zarr_access import build_ome_metadata
+from careamics.dataset.image_stack.zarr_access.ome_utils import build_ome_metadata
 from careamics.lightning.prediction.decollate_utils import (
     decollate_image_region_data,
 )

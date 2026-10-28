@@ -6,14 +6,14 @@ from yaozarrs import validate_zarr_store
 
 from careamics.dataset.image_stack.zarr_access import (
     ZarrNode,
-    ensure_ome_store_structure,
-    get_ome_dimension_names,
     path_to_file_uri,
-    resolve_ome_output_node,
 )
-from careamics.dataset.image_stack.zarr_access.ome_write_utils import (
+from careamics.lightning.callbacks.prediction.zarr.ome_write_utils import (
     _ensure_group,
+    ensure_ome_store_structure,
     file_uri_to_path,
+    get_ome_dimension_names,
+    resolve_ome_output_node,
 )
 
 # --- Test utilities

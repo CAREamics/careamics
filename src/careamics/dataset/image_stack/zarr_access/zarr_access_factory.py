@@ -2,9 +2,9 @@
 
 from typing import Literal, TypeAlias
 
-from .tensorstore_access import TensorstoreAccess
+from .default_zarr_access import DefaultZarrAccess
+from .tensorstore_zarr_access import TensorstoreZarrAccess
 from .zarr_access import ZarrAccess
-from .zarr_python_access import ZarrPythonAccess
 
 ZarrBackend: TypeAlias = Literal["zarr", "zarrs", "tensorstore"]
 
@@ -23,9 +23,9 @@ def create_zarr_access(backend: ZarrBackend) -> ZarrAccess:
         Configured Zarr access implementation.
     """
     if backend == "zarr":
-        return ZarrPythonAccess(use_zarrs=False)
+        return DefaultZarrAccess(use_zarrs=False)
     if backend == "zarrs":
-        return ZarrPythonAccess(use_zarrs=True)
+        return DefaultZarrAccess(use_zarrs=True)
     if backend == "tensorstore":
-        return TensorstoreAccess()
+        return TensorstoreZarrAccess()
     raise ValueError(f"Unsupported Zarr backend '{backend}'.")

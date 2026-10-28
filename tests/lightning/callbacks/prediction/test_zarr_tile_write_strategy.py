@@ -4,7 +4,6 @@ import tifffile
 import zarr
 from numpy.typing import NDArray
 
-import careamics.lightning.callbacks.prediction as pd_writer
 from careamics.config.data import DataConfig
 from careamics.dataset.factory import create_dataset
 from careamics.dataset.image_region_data import ImageRegionData
@@ -16,11 +15,16 @@ from careamics.dataset.patching import (
     TiledPatching,
     TileSpecs,
 )
-from careamics.lightning.callbacks.prediction.zarr_write_utils import _add_output_key
+from careamics.lightning.callbacks.prediction.zarr.zarr_tile_write_strategy import (
+    ZarrTileWriteStrategy,
+)
+from careamics.lightning.callbacks.prediction.zarr.zarr_write_utils import (
+    _add_output_key,
+)
 from careamics.utils.reshape_array import AxesTransform, reshape_array
 
 # to comply with ruff line length
-WriteTilesZarr = pd_writer.zarr_tile_write_strategy.ZarrTileWriteStrategy
+WriteTilesZarr = ZarrTileWriteStrategy
 
 
 @pytest.mark.parametrize(
@@ -285,13 +289,11 @@ def test_write_from_array(tmp_path):
     for region in gen_image_regions("YX", patch_extractor, strategy):
         writer.write_tile(tmp_path, region)
 
-    # check if the stored zarr is close to the input
-    written = zarr.open(tmp_path / "prediction.zarr", mode="r")
-    assert isinstance(written, zarr.Group)
-    for key in written.keys():
-        if key == "OME":
-            continue
-        np.testing.assert_allclose(arrays[int(key)], written[key]["0"][:])
+    # check if each array was written to its own OME-Zarr store
+    for index, array in enumerate(arrays):
+        written = zarr.open(tmp_path / f"array_{index}.ome.zarr", mode="r")
+        assert isinstance(written, zarr.Group)
+        np.testing.assert_allclose(array, written["0"][:])
 
 
 def test_write_from_tiff(tmp_path):
@@ -319,11 +321,11 @@ def test_write_from_tiff(tmp_path):
     for region in gen_image_regions("YX", patch_extractor, strategy):
         writer.write_tile(tmp_path, region)
 
-    # check if the stored zarr is close to the input
-    written = zarr.open(tmp_path / "prediction.zarr", mode="r")
-    assert isinstance(written, zarr.Group)
+    # check if each source file was written to its own OME-Zarr store
     for index, _ in enumerate(arrays):
-        np.testing.assert_allclose(arrays[index], written[f"test_{index}"]["0"][:])
+        written = zarr.open(tmp_path / f"test_{index}.ome.zarr", mode="r")
+        assert isinstance(written, zarr.Group)
+        np.testing.assert_allclose(arrays[index], written["0"][:])
 
 
 def test_write_from_root_array_source(tmp_path):
