@@ -104,13 +104,11 @@ def get_zarr_destination(
     # array source
     if region.source == "array":
         data_idx = region.region_spec["data_idx"]
-        node = ZarrNode(
+        return ZarrNode(
             store_uri=path_to_file_uri(dirpath / f"array_{data_idx}.ome.zarr"),
             path="0",
             node_type="array",
         )
-
-        return node
 
     # valid Zarr URI
     if is_valid_uri(region.source):
@@ -119,25 +117,21 @@ def get_zarr_destination(
             dirpath, file_uri_to_path(source_node.store_uri)
         )
         source_ome = region.additional_metadata.get("ome")
-        node = resolve_ome_output_node(
+        return resolve_ome_output_node(
             source_node=source_node,
             output_store_uri=path_to_file_uri(output_store_path),
             source_ome=source_ome if isinstance(source_ome, dict) else None,
         )
 
-        return node
-
     # file source other than Zarr
     if ".zarr" not in region.source:
-        node = ZarrNode(
+        return ZarrNode(
             store_uri=path_to_file_uri(
                 dirpath / f"{Path(region.source).stem}.ome.zarr"
             ),
             path="0",
             node_type="array",
         )
-
-        return node
 
     raise NotImplementedError(f"Invalid source: {region.source}.")
 
