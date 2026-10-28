@@ -11,6 +11,7 @@ from careamics.dataset.image_stack.zarr_access import (
     DefaultZarrAccess,
     ZarrAccess,
     ZarrArraySpec,
+    ZarrNode,
 )
 from careamics.dataset.patching import TileSpecs
 from careamics.utils.reshape_array import RestoredAxesTransform
@@ -63,6 +64,8 @@ class ZarrTileHandler:
         tile_shape = region.data.shape
         original_shape = region.original_data_shape
         original_axes = region.axes
+        self.original_shape = original_shape
+        self.original_axes = original_axes
         target_axes = region.target_axes
         self.original_chunks = region.additional_metadata.get("chunks", None)
         self.original_shards = region.additional_metadata.get("shards", None)
@@ -72,6 +75,7 @@ class ZarrTileHandler:
         self.crop_size = tile_spec["crop_size"]
         self.stitch_coords = tile_spec["stitch_coords"]
         self.sample_idx = tile_spec["sample_idx"]
+        self.has_both_ST = "S" in target_axes and "T" in target_axes
 
         # get adjusted shapes in original orders
         # axes and shapes may differ in C channel
@@ -99,7 +103,8 @@ class ZarrTileHandler:
         tuple[int, ...]
             Shape of the prediction array after restoring axes.
         """
-        return self.transform.restored_array_shape
+        shape = self.transform.restored_array_shape
+        return shape[1:] if self.has_both_ST else shape
 
     @property
     def pred_array_axes(self) -> str:
@@ -110,7 +115,22 @@ class ZarrTileHandler:
         str
             Axes of the prediction array after restoring axes.
         """
+        if self.has_both_ST:
+            return self.transform.target_axes.replace("S", "")
+
         return self.transform.target_axes
+
+    @property
+    def collection_sample_idx(self) -> int:
+        """Return the S index selecting the image in an ST collection.
+
+        Returns
+        -------
+        int
+            S index for this flattened SxT sample index.
+        """
+        t_size = self.original_shape[self.original_axes.index("T")]
+        return self.sample_idx // t_size
 
     @property
     def pred_chunks(self) -> tuple[int, ...]:
@@ -121,11 +141,13 @@ class ZarrTileHandler:
         tuple[int, ...]
             Chunk sizes of the prediction array after restoring axes.
         """
-        return (
-            self.transform.adjust_shape(self.original_chunks)
-            if self.original_chunks is not None
-            else auto_chunks(self.pred_array_axes, self.pred_array_shape)
-        )
+        if self.original_chunks is not None:
+            if self.has_both_ST:
+                return self.transform.adjust_shape(self.original_chunks)[1:]
+            else:
+                return self.transform.adjust_shape(self.original_chunks)
+
+        return auto_chunks(self.pred_array_axes, self.pred_array_shape)
 
     @property
     def pred_shards(self) -> tuple[int, ...] | None:
@@ -137,11 +159,13 @@ class ZarrTileHandler:
             Shard sizes of the prediction array after restoring axes, or None if not
             available.
         """
-        return (
-            self.transform.adjust_shape(self.original_shards)
-            if self.original_shards is not None
-            else None
-        )
+        if self.original_shards is not None:
+            if self.has_both_ST:
+                return self.transform.adjust_shape(self.original_shards)[1:]
+            else:
+                return self.transform.adjust_shape(self.original_shards)
+
+        return None
 
     @property
     def crop_slices(self) -> tuple[EllipsisType | slice | int, ...]:
@@ -169,11 +193,12 @@ class ZarrTileHandler:
         tuple[slice | int, ...]
             Slices for stitching the tile into the prediction array.
         """
-        return self.transform.stitch_slices(
+        slices = self.transform.stitch_slices(
             self.sample_idx,
             self.stitch_coords,
             self.crop_size,
         )
+        return slices[1:] if self.has_both_ST else slices
 
     @property
     def crop(self) -> NDArray:
@@ -220,6 +245,7 @@ class ZarrTileWriteStrategy:
         """
         self.access = DefaultZarrAccess() if access is None else access
         self._current_node_source: str | None = None
+        self._current_node_path: str | None = None
         self._store_image_groups: dict[str, set[str]] = {}
 
     def set_source_base(self, source_base: Path | None) -> None:
@@ -243,14 +269,24 @@ class ZarrTileWriteStrategy:
         region : ImageRegionData
             Image region data containing tile information.
         """
-        output_node = get_zarr_destination(region, dirpath)
-
         # create a TileHandler to manage the array and tile metadata, cropping,
         # restoring and stitching
         handler = ZarrTileHandler(region)
 
+        # create output node
+        output_node = get_zarr_destination(region, dirpath)
+        if handler.has_both_ST:
+            output_node = ZarrNode(
+                store_uri=output_node.store_uri,
+                path=f"{handler.collection_sample_idx}/0",
+                node_type="array",
+            )
+
         # create array
-        if self._current_node_source != output_node.source:
+        if (
+            self._current_node_source != output_node.source
+            or self._current_node_path != output_node.path
+        ):
             source_ome = region.additional_metadata.get("ome")
             create_array(
                 access=self.access,
@@ -272,6 +308,7 @@ class ZarrTileWriteStrategy:
                 store_image_groups=self._store_image_groups,
             )
             self._current_node_source = output_node.source
+            self._current_node_path = output_node.path
 
         self.access.write_array_tile(
             output_node,

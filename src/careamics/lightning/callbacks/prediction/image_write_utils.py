@@ -18,7 +18,10 @@ def _get_total_samples(prediction: ImageRegionData) -> int:
     """
     if "S" in prediction.axes:
         s_idx = prediction.axes.index("S")
-        return prediction.data_shape[s_idx]
+        total_samples = prediction.data_shape[s_idx]
+        if "T" in prediction.axes:
+            total_samples *= prediction.data_shape[prediction.axes.index("T")]
+        return total_samples
     return 1
 
 

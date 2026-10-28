@@ -188,6 +188,7 @@ class ZarrAccess(Protocol):
         """
         ...
 
+    # TODO not only used to write tile, review signature and name
     def write_array_tile(
         self, node: ZarrNode, tile_index: Any, data: NDArray[Any]
     ) -> None:

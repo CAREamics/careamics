@@ -85,3 +85,41 @@ def test_write_whole_image(tmp_path: Path, access_cls, source_kind: str) -> None
         assert output.shards == (1, 1, 1, 8, 8)
 
     validate_zarr_store(output_store)
+
+
+def test_write_st_image_as_bf2raw_collection(tmp_path: Path) -> None:
+    """ST predictions are split into one OME image per S plane."""
+    regions = [
+        ImageRegionData(
+            data=np.full((1, 8, 8), sample_idx, dtype=np.float32),
+            source="array",
+            data_shape=(2, 3, 8, 8),
+            dtype="float32",
+            axes="STYX",
+            target_axes="STYX",
+            original_data_shape=(2, 3, 8, 8),
+            region_spec={
+                "data_idx": 0,
+                "sample_idx": sample_idx,
+                "coords": (0, 0),
+                "patch_size": (8, 8),
+            },
+            additional_metadata={},
+        )
+        for sample_idx in range(6)
+    ]
+
+    output_store = tmp_path / "array_0.ome.zarr"
+    ZarrImageWriteStrategy().write_batch(tmp_path, regions)
+
+    root = zarr.open_group(output_store, mode="r")
+    assert sorted(root["OME"].attrs["ome"]["series"]) == ["0", "1"]
+    for sample_idx in range(2):
+        output = root[f"{sample_idx}/0"]
+        assert output.shape == (3, 8, 8)
+        expected = np.arange(sample_idx * 3, sample_idx * 3 + 3)[:, None, None]
+        np.testing.assert_array_equal(
+            output[:], np.broadcast_to(expected, output.shape)
+        )
+
+    validate_zarr_store(output_store)

@@ -66,7 +66,9 @@ def _add_output_key(dirpath: Path, path: str | Path) -> Path:
     return dirpath / output_name
 
 
-def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
+def get_zarr_destination(
+    region: ImageRegionData, dirpath: Path, sample_idx: int | None = None
+) -> ZarrNode:
     """Resolve the destination array for a prediction.
 
     If the source is an `"array"`, then it is written to an individual
@@ -77,46 +79,65 @@ def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
     If the source is another file type, then it is written to an individual
     `"{original_file_name_stem}.ome.zarr"`.
 
+    If writing an array
+
     Parameters
     ----------
     region : ImageRegionData
         Prediction metadata.
     dirpath : Path
         Output directory.
+    sample_idx : int or None, default=None
+        S index when writing an ST collection image.
 
     Returns
     -------
     ZarrNode
         Output array node.
     """
+    # if writing a sample collection
+    if sample_idx is not None:
+        # get default store URI
+        store_uri = get_zarr_destination(region, dirpath).store_uri
+        return ZarrNode(store_uri=store_uri, path=f"{sample_idx}/0", node_type="array")
+
+    # array source
     if region.source == "array":
         data_idx = region.region_spec["data_idx"]
-        return ZarrNode(
+        node = ZarrNode(
             store_uri=path_to_file_uri(dirpath / f"array_{data_idx}.ome.zarr"),
             path="0",
             node_type="array",
         )
 
+        return node
+
+    # valid Zarr URI
     if is_valid_uri(region.source):
         source_node = to_zarr_node(region.source)
         output_store_path = _add_output_key(
             dirpath, file_uri_to_path(source_node.store_uri)
         )
         source_ome = region.additional_metadata.get("ome")
-        return resolve_ome_output_node(
+        node = resolve_ome_output_node(
             source_node=source_node,
             output_store_uri=path_to_file_uri(output_store_path),
             source_ome=source_ome if isinstance(source_ome, dict) else None,
         )
 
+        return node
+
+    # file source other than Zarr
     if ".zarr" not in region.source:
-        return ZarrNode(
+        node = ZarrNode(
             store_uri=path_to_file_uri(
                 dirpath / f"{Path(region.source).stem}.ome.zarr"
             ),
             path="0",
             node_type="array",
         )
+
+        return node
 
     raise NotImplementedError(f"Invalid source: {region.source}.")
 
