@@ -8,13 +8,13 @@ from careamics.dataset.image_stack.zarr_access import (
     ZarrAccess,
     ZarrArraySpec,
     ZarrNode,
-    ensure_ome_store_structure,
     file_uri_to_path,
     is_valid_uri,
     path_to_file_uri,
-    resolve_ome_output_node,
     to_zarr_node,
 )
+
+from .ome_write_utils import ensure_ome_store_structure, resolve_ome_output_node
 
 OUTPUT_KEY = "_output"
 
@@ -69,13 +69,13 @@ def _add_output_key(dirpath: Path, path: str | Path) -> Path:
 def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
     """Resolve the destination array for a prediction.
 
-    If the source is an `"array"`, then it is placed in "prediction.zarr" under the
-    path `"{data_idx}/0".
+    If the source is an `"array"`, then it is written to an individual
+    `"array_{data_idx}.ome.zarr"` store.
     If the source is a valid Zarr source URI, then the destination is a new zarr file
     with name `"{original_name}_output.zarr"` and the array original internal path is
     conserved.
-    If the source is another file type, then it is placed in "prediction.zarr" under
-    the path `"{original_file_name_stem}/0"`
+    If the source is another file type, then it is written to an individual
+    `"{original_file_name_stem}.ome.zarr"`.
 
     Parameters
     ----------
@@ -92,8 +92,8 @@ def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
     if region.source == "array":
         data_idx = region.region_spec["data_idx"]
         return ZarrNode(
-            store_uri=path_to_file_uri(dirpath / "prediction.zarr"),
-            path=f"{data_idx}/0",
+            store_uri=path_to_file_uri(dirpath / f"array_{data_idx}.ome.zarr"),
+            path="0",
             node_type="array",
         )
 
@@ -111,8 +111,10 @@ def get_zarr_destination(region: ImageRegionData, dirpath: Path) -> ZarrNode:
 
     if ".zarr" not in region.source:
         return ZarrNode(
-            store_uri=path_to_file_uri(dirpath / "prediction.zarr"),
-            path=f"{Path(region.source).stem}/0",
+            store_uri=path_to_file_uri(
+                dirpath / f"{Path(region.source).stem}.ome.zarr"
+            ),
+            path="0",
             node_type="array",
         )
 

@@ -26,7 +26,7 @@ from .zarr_access import ZarrArraySpec, ZarrNode
 from .zarr_access_utils import file_uri_to_path
 
 
-class TensorstoreAccess:
+class TensorstoreZarrAccess:
     """TensorStore-backed Zarr access."""
 
     def get_array_shape(self, node: ZarrNode) -> tuple[int, ...]:
@@ -134,7 +134,7 @@ class TensorstoreAccess:
                 pass
 
         # note: when sharding, shards are chunks with a specific codec and chunks
-        # become inner chunks, see TensorstoreAccess._codecs
+        # become inner chunks, see TensorstoreZarrAccess._codecs
         metadata = Zarr3Metadata(
             shape=list(spec.shape),
             data_type=str(np_dtype(spec.dtype).name),

@@ -6,15 +6,15 @@ import zarr
 from zarrs import ZarrsCodecPipeline
 
 from careamics.dataset.image_stack.zarr_access import (
-    ZarrPythonAccess,
+    DefaultZarrAccess,
 )
 
 from .test_zarr_access_backends import ARRAYS, GROUP_W_ARRAYS
 
 
-class TestZarrPythonAccess:
+class TestDefaultZarrAccess:
     def test_zarrs_config_is_scoped(self):
-        access = ZarrPythonAccess(use_zarrs=True)
+        access = DefaultZarrAccess(use_zarrs=True)
         original_pipeline = zarr.config.get("codec_pipeline.path")
         original_strict = zarr.config.get("codec_pipeline.strict", None)
 
@@ -36,7 +36,7 @@ class TestZarrPythonAccess:
     )
     def test_require_array(self, zarr_nodes, node_key, expected):
         key, _ = node_key
-        access = ZarrPythonAccess()
+        access = DefaultZarrAccess()
         node = zarr_nodes[key]
         with expected:
             access._require_array(node)

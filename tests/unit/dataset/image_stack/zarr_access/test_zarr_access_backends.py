@@ -5,18 +5,18 @@ import pytest
 import zarr
 
 from careamics.dataset.image_stack.zarr_access import (
-    TensorstoreAccess,
+    DefaultZarrAccess,
+    TensorstoreZarrAccess,
     ZarrArraySpec,
     ZarrNode,
-    ZarrPythonAccess,
 )
 
 # --- Test utilities
 
 BACKENDS = [
-    pytest.param(ZarrPythonAccess, id="zarr"),
-    pytest.param(partial(ZarrPythonAccess, use_zarrs=True), id="zarrs"),
-    pytest.param(TensorstoreAccess, id="tensorstore"),
+    pytest.param(DefaultZarrAccess, id="zarr"),
+    pytest.param(partial(DefaultZarrAccess, use_zarrs=True), id="zarrs"),
+    pytest.param(TensorstoreZarrAccess, id="tensorstore"),
 ]
 
 
