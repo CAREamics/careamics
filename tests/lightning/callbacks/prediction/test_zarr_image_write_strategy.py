@@ -88,6 +88,43 @@ def test_write_whole_image(tmp_path: Path, access_cls, source_kind: str) -> None
     validate_zarr_store(output_store)
 
 
+def test_write_t_only_whole_image(tmp_path: Path) -> None:
+    """Test that all T samples are written."""
+    regions = [
+        ImageRegionData(
+            data=np.full((2, 4, 8, 8), sample_idx, dtype=np.float32),
+            source="array",
+            data_shape=(3, 2, 4, 8, 8),
+            dtype="float32",
+            axes="TCZYX",
+            target_axes="TCZYX",
+            original_data_shape=(3, 2, 4, 8, 8),
+            region_spec={
+                "data_idx": 0,
+                "sample_idx": sample_idx,
+                "coords": (0, 0, 0),
+                "patch_size": (8, 8, 8),
+            },
+            additional_metadata={},
+        )
+        for sample_idx in range(3)
+    ]
+
+    # check that it waits for all Ts to be cached
+    output_store = tmp_path / "array_0.ome.zarr"
+    writer = ZarrImageWriteStrategy()
+    writer.write_batch(tmp_path, regions[:2])
+    assert not output_store.exists()
+    writer.write_batch(tmp_path, regions[2:])
+
+    output = zarr.open_array(output_store / "0", mode="r")
+    expected = np.stack(
+        [np.full((2, 4, 8, 8), index, dtype=np.float32) for index in range(3)]
+    )
+    np.testing.assert_array_equal(output[:], expected)
+    validate_zarr_store(output_store)
+
+
 @pytest.mark.parametrize("source_kind", ["array", "file"])
 def test_write_single_zarrs(tmp_path: Path, source_kind: str) -> None:
     """test that the writer writes separate whole-image Zarr stores."""
