@@ -686,6 +686,17 @@ def test_max_patch_filter_default_coverage(
     assert config.patch_filter.coverage == expected
 
 
+def test_ome_scale_is_preserved_and_overridden_by_convert_mode():
+    """Named OME scale selection survives conversion and can be changed."""
+    config = DataConfig(**data_config_dict_testing(ome_scale="full-resolution"))
+
+    assert config.convert_mode("validating").ome_scale == "full-resolution"
+    assert (
+        config.convert_mode("predicting", new_ome_scale="quarter-resolution").ome_scale
+        == "quarter-resolution"
+    )
+
+
 class TestConvertMode:
     """Tests for the `convert_mode` method."""
 
