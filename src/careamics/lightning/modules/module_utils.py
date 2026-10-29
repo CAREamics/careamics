@@ -81,6 +81,43 @@ def log_validation_stats(
     module.log_dict(metrics, on_step=False, on_epoch=True, batch_size=batch_size)
 
 
+def log_images(
+    module: L.LightningModule,
+    input_or_target: torch.Tensor,
+    prediction: torch.Tensor,
+    is_supervised: bool,
+) -> None:
+    """Log input/target, and prediction images to the logger.
+
+    Parameters
+    ----------
+    module : L.LightningModule
+        The Lightning module to log images for.
+    input_or_target : torch.Tensor
+        The input or target images.
+    prediction : torch.Tensor
+        The predicted images.
+    is_supervised : bool
+        Whether the task is supervised (i.e., target images are available).
+    """
+    # denormalize images before logging
+    normalization = module.trainer.datamodule.train_dataset.normalization  # type: ignore[union-attr]
+    # log images to the logger
+    tag_key = "Target(val)" if is_supervised else "Input(val)"
+    module.logger.log_images(  # type: ignore
+        key=tag_key,
+        images=normalization.denormalize(input_or_target).cpu().numpy(),
+        step=module.global_step,
+        captions=[tag_key] * len(input_or_target),
+    )
+    module.logger.log_images(  # type: ignore
+        key="Prediction(val)",
+        images=normalization.denormalize(prediction).cpu().numpy(),
+        step=module.global_step,
+        captions=["Prediction(val)"] * len(prediction),
+    )
+
+
 def get_optimizer(name: str) -> type[torch.optim.Optimizer]:
     """
     Return the optimizer class given its name.

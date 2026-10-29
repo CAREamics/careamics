@@ -79,6 +79,10 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
     experiment_name: str
     """Name of the experiment, used to name logs and checkpoints."""
 
+    # optional
+    project_name: str | None = None
+    """Name of the project, used to group related experiments."""
+
     # Sub-configurations
     algorithm_config: Annotated[AlgorithmConfig, Field(discriminator="algorithm")]
     """Algorithm configuration, holding all parameters required to configure the
