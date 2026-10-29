@@ -269,63 +269,72 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
         np.testing.assert_allclose(pred_array, expected_array, rtol=1e-5, atol=0)
 
 
-def test_write_from_array(tmp_path):
-    """Test that writing from an array source."""
-    arrays = [np.random.rand(32, 32).astype(np.float32) for _ in range(2)]
-    image_stacks = load_arrays(
-        source=arrays,
-        axes="YX",
-    )
-    patch_extractor = PatchExtractor(image_stacks)
+@pytest.mark.parametrize("source_kind", ["array", "tiff"])
+def test_write_st_collection(tmp_path, source_kind):
+    """Test that writer writes ST input sources as one tiled OME image per S plane."""
+    shape = (2, 3, 32, 32)
+    arrays = [np.arange(np.prod(shape), dtype=np.float32).reshape(shape)]
+    if source_kind == "array":
+        image_stacks = load_arrays(source=arrays, axes="STYX")
+        output_name = "array_0.ome.zarr"
+    else:
+        files = [tmp_path / "input.tiff"]
+        tifffile.imwrite(files[0], arrays[0])
+        image_stacks = load_tiffs(source=files, axes="STYX")
+        output_name = "input.ome.zarr"
 
+    patch_extractor = PatchExtractor(image_stacks)
     strategy = TiledPatching(
-        data_shapes=[image_stacks[0].data_shape] * 2,
-        patch_size=(8, 8),
+        data_shapes=[AxesTransform("STYX", arrays[0].shape).transformed_shape],
+        patch_size=(16, 16),
         overlaps=(4, 4),
     )
 
-    # use writer to write predictions
     writer = WriteTilesZarr()
-    for region in gen_image_regions("YX", patch_extractor, strategy):
+    for region in gen_image_regions("STYX", patch_extractor, strategy):
         writer.write_tile(tmp_path, region)
 
-    # check if each array was written to its own OME-Zarr store
-    for index, array in enumerate(arrays):
-        written = zarr.open(tmp_path / f"array_{index}.ome.zarr", mode="r")
-        assert isinstance(written, zarr.Group)
-        np.testing.assert_allclose(array, written["0"][:])
+    written = zarr.open(tmp_path / output_name, mode="r")
+    for sample_idx in range(2):
+        np.testing.assert_allclose(written[f"{sample_idx}/0"][:], arrays[0][sample_idx])
 
 
-def test_write_from_tiff(tmp_path):
-    """Test that writing from a tiff source."""
-    # save tiffs
-    arrays = [np.random.rand(32, 32).astype(np.float32) for _ in range(2)]
-    files = [tmp_path / f"test_{i}.tiff" for i in range(2)]
-    for file, array in zip(files, arrays, strict=True):
-        tifffile.imwrite(file, array)
+@pytest.mark.parametrize("source_kind", ["array", "tiff"])
+def test_write_single_zarrs(tmp_path, source_kind):
+    """Test that the writer writesSCZYX array/TIFF sources as separate Zarr stores."""
+    shape = (2, 3, 16, 32, 32)
+    arrays = [
+        np.arange(
+            i * np.prod(shape), (i + 1) * np.prod(shape), dtype=np.float32
+        ).reshape(2, 3, 16, 32, 32)
+        for i in range(2)
+    ]
+    if source_kind == "array":
+        image_stacks = load_arrays(source=arrays, axes="SCZYX")
+        output_names = [f"array_{i}.ome.zarr" for i in range(2)]
+    else:
+        files = [tmp_path / f"input_{i}.tiff" for i in range(2)]
+        for file, array in zip(files, arrays, strict=True):
+            tifffile.imwrite(file, array)
+        image_stacks = load_tiffs(source=files, axes="SCZYX")
+        output_names = [f"input_{i}.ome.zarr" for i in range(2)]
 
-    image_stacks = load_tiffs(
-        source=files,
-        axes="YX",
-    )
     patch_extractor = PatchExtractor(image_stacks)
-
     strategy = TiledPatching(
-        data_shapes=[image_stacks[0].data_shape] * 2,
-        patch_size=(8, 8),
-        overlaps=(4, 4),
+        data_shapes=[
+            AxesTransform("SCZYX", array.shape).transformed_shape for array in arrays
+        ],
+        patch_size=(8, 16, 16),
+        overlaps=(2, 4, 4),
     )
 
-    # use writer to write predictions
     writer = WriteTilesZarr()
-    for region in gen_image_regions("YX", patch_extractor, strategy):
+    for region in gen_image_regions("SCZYX", patch_extractor, strategy):
         writer.write_tile(tmp_path, region)
 
-    # check if each source file was written to its own OME-Zarr store
-    for index, _ in enumerate(arrays):
-        written = zarr.open(tmp_path / f"test_{index}.ome.zarr", mode="r")
-        assert isinstance(written, zarr.Group)
-        np.testing.assert_allclose(arrays[index], written["0"][:])
+    for output_name, array in zip(output_names, arrays, strict=True):
+        written = zarr.open(tmp_path / output_name, mode="r")
+        np.testing.assert_allclose(written["0"][:], array)
 
 
 def test_write_from_root_array_source(tmp_path):

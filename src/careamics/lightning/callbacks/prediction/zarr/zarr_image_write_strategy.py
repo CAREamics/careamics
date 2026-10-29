@@ -8,6 +8,7 @@ from careamics.dataset.image_stack.zarr_access import (
     DefaultZarrAccess,
     ZarrAccess,
     ZarrArraySpec,
+    ZarrNode,
 )
 from careamics.lightning.callbacks.prediction.image_write_utils import (
     get_complete_images,
@@ -112,48 +113,74 @@ class ZarrImageWriteStrategy:
                 f"expected order: (S)(T)(C)(Z)YX."
             )
 
-        if image.ndim > 5:
+        # check if we need to split axes in multiple arrays
+        has_both_ST = "S" in region.target_axes and "T" in region.target_axes
+        if image.ndim > 5 and not has_both_ST:
             raise ValueError(
-                f"OME-NGFF (v0.5) only supports a maximum of 5 axes (TCZYX), got "
-                f"{image.ndim}."
+                f"OME-NGFF only supports a maximum of 5 axes (TCZYX), got "
+                f"{image.ndim} axes."
             )
 
-        original_chunks = region.additional_metadata.get("chunks")
-        chunks = (
-            transform.adjust_shape(original_chunks)
-            if original_chunks is not None
-            else auto_chunks(region.target_axes, image.shape)
+        # adjust output axes and shape
+        output_axes = (
+            region.target_axes.replace("S", "") if has_both_ST else region.target_axes
         )
-        original_shards = region.additional_metadata.get("shards")
-        shards = (
-            transform.adjust_shape(original_shards)
-            if original_shards is not None
-            else None
-        )
+        output_shape = image.shape[1:] if has_both_ST else image.shape
 
+        # compute chunks
+        original_chunks = region.additional_metadata.get("chunks")
+        if original_chunks is not None:
+            transformed_chunks = transform.adjust_shape(original_chunks)
+            chunks = transformed_chunks[1:] if has_both_ST else transformed_chunks
+        else:
+            chunks = auto_chunks(output_axes, output_shape)
+
+        # compute shards
+        original_shards = region.additional_metadata.get("shards")
+        if original_shards is not None:
+            transformed_shards = transform.adjust_shape(original_shards)
+            shards = transformed_shards[1:] if has_both_ST else transformed_shards
+        else:
+            shards = None
+
+        # write each sample (ST dimensions) or image
         source_ome = region.additional_metadata.get("ome")
-        node = get_zarr_destination(region, dirpath)
-        create_array(
-            access=self.access,
-            region=region,
-            node=node,
-            spec=ZarrArraySpec(
-                shape=image.shape,
-                chunks=chunks,
-                shards=shards,
-                dtype=image.dtype,
-                dimension_names=tuple(
-                    get_ome_dimension_names(
-                        region.target_axes,
-                        source_ome if isinstance(source_ome, dict) else None,
-                    )
+        base_node = get_zarr_destination(region, dirpath)
+        samples = list(image) if has_both_ST else [image]
+        for sample_idx, sample in enumerate(samples):
+            # choose destination node:
+            #  - array in collection if both S and T are present
+            #  - base array in OME-NGFF Image otherwise
+            if has_both_ST:
+                node = ZarrNode(
+                    store_uri=base_node.store_uri,
+                    path=f"{sample_idx}/0",
+                    node_type="array",
+                )
+            else:
+                node = base_node
+
+            create_array(
+                access=self.access,
+                region=region,
+                node=node,
+                spec=ZarrArraySpec(
+                    shape=sample.shape,
+                    chunks=chunks,
+                    shards=shards,
+                    dtype=sample.dtype,
+                    dimension_names=tuple(
+                        get_ome_dimension_names(
+                            output_axes,
+                            source_ome if isinstance(source_ome, dict) else None,
+                        )
+                    ),
                 ),
-            ),
-            axes=region.target_axes,
-            store_image_groups=self._store_image_groups,
-        )
-        self.access.write_array_tile(
-            node,
-            tuple(slice(None) for _ in image.shape),
-            image,
-        )
+                axes=output_axes,
+                store_image_groups=self._store_image_groups,
+            )
+            self.access.write_array_tile(
+                node,
+                tuple(slice(None) for _ in sample.shape),
+                sample,
+            )

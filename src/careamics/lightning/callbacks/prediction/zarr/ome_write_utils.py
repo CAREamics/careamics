@@ -137,22 +137,43 @@ def _build_image_metadata(
     if source_ome is not None:
         source_axes = source_ome.get("axes")
         if isinstance(source_axes, list):
-            if len(source_axes) != len(axes):
+            if len(source_axes) == len(axes):
+                selected_axes = source_axes
+            elif len(source_axes) == len(axes) + 1 and axes.startswith("T"):
+                selected_axes = source_axes[1:]
+            else:
                 raise ValueError(
                     "OME axis metadata length does not match prediction axes: "
                     f"got {len(source_axes)} metadata axes for '{axes}'."
                 )
+        else:
+            selected_axes = default_axes
 
+        # adjust transforms if we are not writing all axes (e.g. S and T present)
         transforms = source_ome.get("coordinate_transformations")
+        if isinstance(transforms, list) and isinstance(source_axes, list):
+            if len(source_axes) != len(axes):
+                transforms = [
+                    {
+                        **transform,
+                        **{
+                            key: value[1:]
+                            for key in ("scale", "translation")
+                            if isinstance(value := transform.get(key), list)
+                            and len(value) == len(source_axes)
+                        },
+                    }
+                    for transform in transforms
+                ]
     else:
         # source is not OME-NGFF, use defaults
-        source_axes = default_axes
-        transforms = [{"type": "scale", "scale": [1.0] * len(source_axes)}]
+        selected_axes = default_axes
+        transforms = [{"type": "scale", "scale": [1.0] * len(selected_axes)}]
 
     image = v05.Image(
         multiscales=[
             v05.Multiscale(
-                axes=source_axes,
+                axes=selected_axes,
                 datasets=[
                     v05.Dataset(
                         path=array_name,

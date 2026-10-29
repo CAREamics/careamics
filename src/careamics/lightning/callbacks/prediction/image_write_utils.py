@@ -4,7 +4,7 @@ from careamics.dataset.image_region_data import ImageRegionData
 
 
 def _get_total_samples(prediction: ImageRegionData) -> int:
-    """Get the expected total number of samples from data_shape and axes.
+    """Get the expected total number of samples from the original axes and shape.
 
     Parameters
     ----------
@@ -14,12 +14,13 @@ def _get_total_samples(prediction: ImageRegionData) -> int:
     Returns
     -------
     int
-        Total number of samples in the S dimension, or 1 if no S dimension.
+        Product of the S and T dimensions, or 1 if neither is present.
     """
-    if "S" in prediction.axes:
-        s_idx = prediction.axes.index("S")
-        return prediction.data_shape[s_idx]
-    return 1
+    sample_axes = [axis for axis in prediction.axes if axis in "ST"]
+    total_samples = 1
+    for axis in sample_axes:
+        total_samples *= prediction.original_data_shape[prediction.axes.index(axis)]
+    return total_samples
 
 
 def get_complete_images(image_cache: dict[int, list[ImageRegionData]]) -> list[int]:
