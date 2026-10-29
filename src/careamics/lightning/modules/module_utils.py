@@ -103,7 +103,7 @@ def log_images(
     # denormalize images before logging
     normalization = module.trainer.datamodule.train_dataset.normalization  # type: ignore[union-attr]
     # log images to the logger
-    tag_key = "Target" if is_supervised else "Input"
+    tag_key = "Target(val)" if is_supervised else "Input(val)"
     module.logger.log_images(  # type: ignore
         key=tag_key,
         images=normalization.denormalize(input_or_target).cpu().numpy(),
@@ -111,10 +111,10 @@ def log_images(
         captions=[tag_key] * len(input_or_target),
     )
     module.logger.log_images(  # type: ignore
-        key="Prediction",
+        key="Prediction(val)",
         images=normalization.denormalize(prediction).cpu().numpy(),
         step=module.global_step,
-        captions=["Prediction"] * len(prediction),
+        captions=["Prediction(val)"] * len(prediction),
     )
 
 
