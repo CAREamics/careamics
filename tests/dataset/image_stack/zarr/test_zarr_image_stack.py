@@ -181,6 +181,99 @@ def test_extract_patch_zarrs_strict_chunk_crossing_succeeds(tmp_path: Path):
 
 
 @pytest.mark.parametrize(
+    "axes, shape, chunks, sample_idx, coords, patch_size",
+    [
+        pytest.param(
+            "SCYX",
+            (3, 2, 130, 131),
+            (1, 1, 64, 64),
+            2,
+            (3, 5),
+            (65, 66),
+            id="sample-channel-yx",
+        ),
+        pytest.param(
+            "SYXC",
+            (3, 130, 131, 2),
+            (1, 64, 64, 1),
+            1,
+            (5, 3),
+            (65, 66),
+            id="sample-yx-channel",
+        ),
+        pytest.param(
+            "CYXS",
+            (2, 130, 131, 3),
+            (1, 64, 64, 1),
+            2,
+            (7, 9),
+            (32, 65),
+            id="channel-yx-sample",
+        ),
+        pytest.param(
+            "SCZYX",
+            (2, 2, 5, 130, 131),
+            (1, 1, 3, 64, 64),
+            1,
+            (1, 3, 5),
+            (3, 65, 66),
+            id="sample-channel-zyx",
+        ),
+    ],
+)
+def test_extract_patch_zarrs_matches_zarr_for_chunk_crossing_layouts(
+    tmp_path: Path,
+    axes: str,
+    shape: tuple[int, ...],
+    chunks: tuple[int, ...],
+    sample_idx: int,
+    coords: tuple[int, ...],
+    patch_size: tuple[int, ...],
+):
+    """Compare strict zarrs and regular Zarr through ``ZarrImageStack``."""
+    file_path = tmp_path / "test_zarr.zarr"
+    data_path = "image"
+    data = np.arange(np.prod(shape), dtype=np.uint16).reshape(shape)
+    _ = create_zarr(
+        file_path=file_path,
+        data_path=data_path,
+        data=data,
+        chunks=chunks,
+    )
+
+    node = ZarrNode(
+        store_uri=file_path.resolve().as_uri(),
+        path=data_path,
+        node_type="array",
+    )
+    regular_stack = ZarrImageStack(
+        node=node,
+        axes=axes,
+        access=DefaultZarrAccess(use_zarrs=False),
+    )
+    zarrs_stack = ZarrImageStack(
+        node=node,
+        axes=axes,
+        access=DefaultZarrAccess(use_zarrs=True),
+    )
+
+    regular_patch = regular_stack.extract_patch(
+        sample_idx=sample_idx,
+        channels=None,
+        coords=coords,
+        patch_size=patch_size,
+    )
+    zarrs_patch = zarrs_stack.extract_patch(
+        sample_idx=sample_idx,
+        channels=None,
+        coords=coords,
+        patch_size=patch_size,
+    )
+
+    np.testing.assert_array_equal(zarrs_patch, regular_patch)
+
+
+@pytest.mark.parametrize(
     "shape, axes, channels",
     [
         ((2, 3, 64, 64), "SCYX", [0, 4]),
