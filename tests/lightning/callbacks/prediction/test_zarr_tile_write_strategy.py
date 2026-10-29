@@ -272,7 +272,7 @@ def test_write_tile_identity(tmp_path, tiles, axes, shards, chunks, channels):
 @pytest.mark.parametrize("source_kind", ["array", "tiff"])
 def test_write_st_collection(tmp_path, source_kind):
     """Test that writer writes ST input sources as one tiled OME image per S plane."""
-    shape = (2, 3, 16, 32, 32)
+    shape = (2, 3, 32, 32)
     arrays = [np.arange(np.prod(shape), dtype=np.float32).reshape(shape)]
     if source_kind == "array":
         image_stacks = load_arrays(source=arrays, axes="STYX")
