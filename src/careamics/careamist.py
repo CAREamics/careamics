@@ -1,5 +1,6 @@
 """Main interface for training and predicting with CAREamics."""
 
+import warnings
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, overload
@@ -713,6 +714,7 @@ class CAREamist:
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: Loading = None,
+        ome_scale: str | None = None,
     ) -> CareamicsDataModule:
         """Create prediction data module.
 
@@ -748,6 +750,8 @@ class CAREamist:
         loading : Loading, default=None
             Loading strategy for prediction data if data type (either from training
             configuration or specified) is `"custom"`.
+        ome_scale : str or None, default=None
+            OME scale to use when loading OME-Zarr files.
 
         Returns
         -------
@@ -755,6 +759,21 @@ class CAREamist:
             Prediction data module.
         """
         dataloader_params: dict[str, Any] | None = None
+        if (
+            data_type == "zarr"
+            and ome_scale is not None
+            and ome_scale != self.config.data_config.ome_scale
+        ):
+            warnings.warn(
+                f"The requested prediction `ome_scale` ({ome_scale}) differs from the "
+                f"training scale ({self.config.data_config.ome_scale}). Ensure both "
+                f"names refer to the same physical OME-NGFF scale. Predicting on a "
+                f"different physical scale than the model was trained on will lead "
+                f"to degraded performances and untrustworthy results.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         if num_workers is not None:
             dataloader_params = {"num_workers": num_workers}
 
@@ -772,6 +791,7 @@ class CAREamist:
             new_target_axes=output_axes,
             new_channels=channels,
             new_in_memory=in_memory,
+            new_ome_scale=ome_scale,
         )
 
         # validate new data config against the rest of the configuration by triggering
@@ -805,6 +825,7 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
+        ome_scale: str | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -825,6 +846,7 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
+        ome_scale: str | None = None,
     ) -> tuple[list[NDArray], list[str]]: ...
 
     def predict(
@@ -844,6 +866,7 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: Loading = None,
         checkpoint: str | Path | None = None,
+        ome_scale: str | None = None,
     ) -> tuple[list[NDArray], list[str]]:
         """
         Predict on data and return the predictions.
@@ -898,6 +921,8 @@ class CAREamist:
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
+        ome_scale : str or None, default=None
+            OME scale to use when loading OME-Zarr files.
 
         Returns
         -------
@@ -921,6 +946,7 @@ class CAREamist:
             channels=channels,
             in_memory=in_memory,
             loading=loading,
+            ome_scale=ome_scale,
         )
 
         checkpoint = self._get_default_ckpt(checkpoint)
@@ -988,6 +1014,7 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
+        ome_scale: str | None = None,
         # WRITE OPTIONS
         write_type: Literal["tiff", "zarr", "custom"] | None = None,
         write_extension: str | None = None,
@@ -1015,6 +1042,7 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
+        ome_scale: str | None = None,
         # WRITE OPTIONS
         write_type: Literal["tiff", "zarr", "custom"] | None = None,
         write_extension: str | None = None,
@@ -1041,6 +1069,7 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: Loading = None,
         checkpoint: str | Path | None = None,
+        ome_scale: str | None = None,
         # WRITE OPTIONS
         write_type: Literal["tiff", "zarr", "custom"] | None = None,
         write_extension: str | None = None,
@@ -1112,6 +1141,8 @@ class CAREamist:
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
+        ome_scale : str or None, default=None
+            OME scale to use when loading OME-Zarr files.
         write_type : {"tiff", "zarr", "custom"}, optional
             The data type to save as, includes custom. If None, defaults to "zarr"
             when the (effective) prediction `data_type` is "zarr", and "tiff"
@@ -1181,6 +1212,7 @@ class CAREamist:
             channels=channels,
             in_memory=in_memory,
             loading=loading,
+            ome_scale=ome_scale,
         )
 
         try:

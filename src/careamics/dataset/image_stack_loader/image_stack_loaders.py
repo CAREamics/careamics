@@ -135,7 +135,9 @@ def load_custom_file(
 def load_zarrs(
     source: Sequence[str | Path | StorePath],
     axes: str,
+    *,
     zarr_backend: ZarrBackend = "zarr",
+    ome_scale: str = "0",
 ) -> list[ZarrImageStack]:
     """Create a list of ZarrImageStack from a sequence of zarr file paths or URIs.
 
@@ -155,6 +157,8 @@ def load_zarrs(
         Original axes of the data, must be a subset of "STCZYX".
     zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
         Backend used for Zarr array I/O.
+    ome_scale : str, default="0"
+        OME scale to use when loading OME-Zarr files.
 
     Returns
     -------
@@ -193,7 +197,7 @@ def load_zarrs(
             continue
 
         # else node is a group, search for sub-arrays
-        ome_nodes = resolve_ome_zarr_nodes(root_node)
+        ome_nodes = resolve_ome_zarr_nodes(root_node, level=ome_scale)
         if len(ome_nodes) > 0:
             for resolved in ome_nodes:
                 image_stacks.append(
