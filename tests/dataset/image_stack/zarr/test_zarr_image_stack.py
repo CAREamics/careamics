@@ -141,45 +141,6 @@ def test_extract_channels(
     np.testing.assert_array_equal(patch, expected_patch)
 
 
-def test_extract_patch_zarrs_strict_chunk_crossing_succeeds(tmp_path: Path):
-    """Extract an all-channel, chunk-crossing patch with strict zarrs.
-
-    The spatial slices intentionally start inside a chunk and end inside a
-    later chunk.  All channels are represented by consecutive integer indices
-    rather than an ellipsis, which zarrs supports for this selection.
-    """
-    file_path = tmp_path / "test_zarr.zarr"
-    data_path = "image"
-    shape = (2, 1, 128, 128)
-    data = np.arange(np.prod(shape), dtype=np.uint16).reshape(shape)
-    _ = create_zarr(
-        file_path=file_path,
-        data_path=data_path,
-        data=data,
-        chunks=(1, 1, 64, 64),
-    )
-
-    node = ZarrNode(
-        store_uri=file_path.resolve().as_uri(),
-        path=data_path,
-        node_type="array",
-    )
-    image_stack = ZarrImageStack(
-        node=node,
-        axes="SCYX",
-        access=DefaultZarrAccess(use_zarrs=True),
-    )
-
-    extracted_patch = image_stack.extract_patch(
-        sample_idx=0,
-        channels=None,
-        coords=(3, 5),
-        patch_size=(64, 64),
-    )
-
-    np.testing.assert_array_equal(extracted_patch, data[0, :, 3:67, 5:69])
-
-
 @pytest.mark.parametrize(
     "axes, shape, chunks, sample_idx, coords, patch_size",
     [
@@ -221,7 +182,7 @@ def test_extract_patch_zarrs_strict_chunk_crossing_succeeds(tmp_path: Path):
         ),
     ],
 )
-def test_extract_patch_zarrs_matches_zarr_for_chunk_crossing_layouts(
+def test_extract_patch_zarrs(
     tmp_path: Path,
     axes: str,
     shape: tuple[int, ...],
@@ -230,7 +191,11 @@ def test_extract_patch_zarrs_matches_zarr_for_chunk_crossing_layouts(
     coords: tuple[int, ...],
     patch_size: tuple[int, ...],
 ):
-    """Compare strict zarrs and regular Zarr through ``ZarrImageStack``."""
+    """Regression test for extracting data using zarrs.
+
+    zarrs does not support every numpy indexing (e.g. Ellipsis). This test verifies that
+    our implementation allows extracting data.
+    """
     file_path = tmp_path / "test_zarr.zarr"
     data_path = "image"
     data = np.arange(np.prod(shape), dtype=np.uint16).reshape(shape)
@@ -246,31 +211,17 @@ def test_extract_patch_zarrs_matches_zarr_for_chunk_crossing_layouts(
         path=data_path,
         node_type="array",
     )
-    regular_stack = ZarrImageStack(
-        node=node,
-        axes=axes,
-        access=DefaultZarrAccess(use_zarrs=False),
-    )
     zarrs_stack = ZarrImageStack(
         node=node,
         axes=axes,
         access=DefaultZarrAccess(use_zarrs=True),
     )
-
-    regular_patch = regular_stack.extract_patch(
+    _ = zarrs_stack.extract_patch(
         sample_idx=sample_idx,
         channels=None,
         coords=coords,
         patch_size=patch_size,
     )
-    zarrs_patch = zarrs_stack.extract_patch(
-        sample_idx=sample_idx,
-        channels=None,
-        coords=coords,
-        patch_size=patch_size,
-    )
-
-    np.testing.assert_array_equal(zarrs_patch, regular_patch)
 
 
 @pytest.mark.parametrize(

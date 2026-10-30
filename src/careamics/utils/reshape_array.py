@@ -935,7 +935,7 @@ def get_patch_slices(
         elif d == "T":
             patch_slice.append(transform.calc_original_T_idx(sample_idx))
         elif d == "C":
-            # zarrs does not support ellipsis
+            # note: removed ellipsis to maintain compatibility with zarrs (on 10/26)
             patch_slice.append(
                 list(range(transformed_shape[1]))
                 if channels is None
