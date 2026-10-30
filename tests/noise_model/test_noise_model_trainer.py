@@ -15,7 +15,7 @@ from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
 )
-from careamics.noise_model import NoiseModelTrainer
+from careamics.noise_model import NoiseModelTrainer, train_noise_model
 
 
 @pytest.fixture
@@ -217,7 +217,7 @@ def test_get_multichannel_model() -> None:
     multichannel = trainer.get_multichannel_model()
 
     assert isinstance(multichannel, MultiChannelNoiseModel)
-    assert multichannel._nm_cnt == 2
+    assert multichannel._nm_count == 2
 
 
 def test_get_multichannel_model_without_training_raises() -> None:
@@ -769,3 +769,18 @@ def test_diagnose_without_training_raises() -> None:
 
     with pytest.raises(ValueError, match="No noise models available"):
         trainer.diagnose(signal=signal, observation=observation, axes="SCYX")
+
+
+def test_train_noise_model_fits_and_saves(tmp_path: Path) -> None:
+    """Test the `train_noise_model` wrapper fits and saves one model per channel."""
+    rng = np.random.default_rng(42)
+    signal = rng.uniform(0, 255, (4, 2, 16, 16)).astype(np.float32)
+    observation = signal + rng.normal(0, 10, signal.shape).astype(np.float32)
+
+    noise_model = train_noise_model(
+        signal, observation, axes="SCYX", n_epochs=5, save_dir=tmp_path
+    )
+
+    assert isinstance(noise_model, MultiChannelNoiseModel)
+    assert len(noise_model) == 2
+    assert len(list(tmp_path.glob("*.npz"))) == 2
