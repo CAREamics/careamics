@@ -72,29 +72,6 @@ def _warn_unused_config_fields(
         )
 
 
-def _warn_unused_training_config_fields(
-    config: MicroSplitDataConfig,
-    mode_name: str,
-    unused_fields: Sequence[str] = (),
-) -> None:
-    """Warn for MicroSplit training config fields unused by a constructor mode.
-
-    Parameters
-    ----------
-    config : MicroSplitDataConfig
-        Configuration to inspect for explicitly set fields.
-    mode_name : str
-        Human-readable MicroSplit mode name used in the warning message.
-    unused_fields : Sequence[str], default=()
-        Additional fields unused by the selected training constructor.
-    """
-    _warn_unused_config_fields(
-        config,
-        unused_fields,
-        mode_name,
-    )
-
-
 @dataclass
 class MultiChannelTarget(Generic[T]):
     """MicroSplit data with target channels acquired together.
@@ -189,7 +166,6 @@ def create_microsplit_dataset(
     patch_constructor: PatchConstr
     match data:
         case MultiChannelTarget(target_data):
-            _warn_unused_training_config_fields(config, "multiplexed-target mode")
             target_extractor = init_patch_extractor(
                 patch_extractor_type, image_stack_loader, target_data, target_axes
             )
@@ -207,10 +183,10 @@ def create_microsplit_dataset(
                 rng=rng,
             )
         case IndependentTargets(target_channel_data):
-            _warn_unused_training_config_fields(
+            _warn_unused_config_fields(
                 config,
+                ("channels", "uncorrelated_channel_prob"),
                 "separate-target mode",
-                unused_fields=("channels", "uncorrelated_channel_prob"),
             )
             if len(target_channel_data) < 2:
                 raise ValueError(
@@ -236,14 +212,10 @@ def create_microsplit_dataset(
             )
         case PairedInputTarget(input_data, target_data):
             # TODO: currently input data has to have singleton C dimension
-            _warn_unused_training_config_fields(
+            _warn_unused_config_fields(
                 config,
+                ("alpha_ranges", "channels", "uncorrelated_channel_prob"),
                 "paired-input-target mode",
-                unused_fields=(
-                    "alpha_ranges",
-                    "channels",
-                    "uncorrelated_channel_prob",
-                ),
             )
             input_extractor = init_patch_extractor(
                 patch_extractor_type, image_stack_loader, input_data, config.axes
