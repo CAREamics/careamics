@@ -71,8 +71,7 @@ class MicroSplitAlgorithm(BaseModel):
         Raises
         ------
         ValueError
-            If the loss and model configurations are not compatible with the MicroSplit
-            algorithm.
+            If the loss and model configurations are not compatible.
         """
         predict_logvar_consistent(self.model, self.loss)
         return self
