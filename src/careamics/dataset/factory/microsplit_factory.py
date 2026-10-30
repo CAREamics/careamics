@@ -57,9 +57,7 @@ def _warn_unused_config_fields(
     """
     config_values = config.model_dump()
     fields = MicroSplitDataConfig.model_fields
-    # compare against the field default, not `None`: configuration factories set every
-    # MicroSplit field explicitly, so `model_fields_set` alone would warn about fields
-    # the user never chose.
+    # warn about unused fields
     unused_fields = sorted(
         field_name
         for field_name in set(field_names).intersection(config.model_fields_set)
