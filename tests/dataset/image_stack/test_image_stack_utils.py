@@ -55,17 +55,17 @@ def test_channel_slice():
     array = np.arange(np.prod(shape)).reshape(shape)
 
     # Test single channel
-    single_channel = array[channel_slice([3])]
+    single_channel = array[channel_slice([3], shape[0])]
     assert single_channel.shape[0] == 1
     np.testing.assert_array_equal(single_channel, array[3:4])
 
     # Test multiple channels
-    multiple_channels = array[channel_slice([0, 3, 4])]
+    multiple_channels = array[channel_slice([0, 3, 4], shape[0])]
     assert multiple_channels.shape[0] == 3
     np.testing.assert_array_equal(multiple_channels, array[[0, 3, 4]])
 
     # Test all channels
-    all_channels = array[channel_slice(None)]  # only one ellipsis allowed
+    all_channels = array[channel_slice(None, shape[0])]
     assert all_channels.shape[0] == shape[0]
     np.testing.assert_array_equal(all_channels, array)
 
@@ -73,4 +73,4 @@ def test_channel_slice():
 def test_error_empty_channel_slice():
     """Test that channel_slice raises an error for empty channel list."""
     with pytest.raises(ValueError):
-        _ = channel_slice([])
+        _ = channel_slice([], 1)

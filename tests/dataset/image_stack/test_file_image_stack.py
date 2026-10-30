@@ -62,7 +62,7 @@ def test_extract_channels(tmp_path, shape, axes, channels):
 
     expected_patch = data[
         1,
-        channel_slice(channels),
+        channel_slice(channels, shape[1]),
         10 : 10 + 32,
         10 : 10 + 32,
     ]

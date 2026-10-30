@@ -319,7 +319,7 @@ class TestCziImageStackChannels:
 
         expected_patch = data[
             0,
-            channel_slice(channels),
+            channel_slice(channels, shape[1]),
             0,
             0 : 0 + 8,
             0 : 0 + 8,

@@ -142,7 +142,7 @@ class FileImageStack:
             (
                 sample_idx,  # type: ignore
                 # use channel slice so that channel dimension is kept
-                channel_slice(channels),  # type: ignore
+                channel_slice(channels, self.data_shape[1]),  # type: ignore
                 *[
                     slice(
                         np.clip(c, 0, self.data_shape[2 + i]),

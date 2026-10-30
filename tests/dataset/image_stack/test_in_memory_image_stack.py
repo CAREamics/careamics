@@ -54,7 +54,7 @@ def test_extract_channels(array_stack, channels):
 
     expected_patch = data[
         1,
-        channel_slice(channels),
+        channel_slice(channels, data_shape[1]),
         10 : 10 + 32,
         10 : 10 + 32,
     ]

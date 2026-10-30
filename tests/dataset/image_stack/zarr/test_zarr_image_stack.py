@@ -134,7 +134,7 @@ def test_extract_channels(
     assert patch.shape[0] == len(channels) if channels is not None else data.shape[0]
 
     expected_patch = data[
-        channel_slice(channels),
+        channel_slice(channels, shape[0]),
         0 : 0 + 8,
         0 : 0 + 8,
     ]

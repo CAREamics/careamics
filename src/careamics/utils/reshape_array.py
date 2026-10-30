@@ -935,12 +935,7 @@ def get_patch_slices(
         elif d == "T":
             patch_slice.append(transform.calc_original_T_idx(sample_idx))
         elif d == "C":
-            # note: removed ellipsis to maintain compatibility with zarrs (on 10/26)
-            patch_slice.append(
-                list(range(transformed_shape[1]))
-                if channels is None
-                else channel_slice(channels)
-            )
+            patch_slice.append(channel_slice(channels, transformed_shape[1]))
         elif d == "Z":
             patch_slice.append(slice(coords[0], coords[0] + patch_size[0]))
         elif d == "Y":
@@ -955,24 +950,26 @@ def get_patch_slices(
     return tuple(patch_slice)
 
 
-def channel_slice(
-    channels: Sequence[int] | None,
-) -> EllipsisType | Sequence[int]:
+def channel_slice(channels: Sequence[int] | None, n_channels: int) -> Sequence[int]:
     """Create a slice or sequence for indexing channels while preserving dimensions.
 
     Parameters
     ----------
     channels : Sequence[int] | None
         The channel indices to select, or None to select all channels.
+    n_channels : int
+        Total number of channels.
 
     Returns
     -------
-    EllipsisType | Sequence[int]
-        An indexing object that can be used to index the channel dimension while
+    Sequence[int]
+        An indexing sequence that can be used to index the channel dimension while
         preserving it.
     """
     if channels is None:
-        return ...
+        # note: removed ellipsis to maintain compatibility with zarrs (on 10/26)
+        # TODO replace with `...` if removing zarrs
+        return list(range(n_channels))
 
     if len(channels) == 0:
         raise ValueError("Channel index sequence cannot be empty.")
