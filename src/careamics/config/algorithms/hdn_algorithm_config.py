@@ -95,7 +95,7 @@ class HDNAlgorithm(BaseModel):
         Raises
         ------
         ValueError
-            If `supervised` is `True` and the noise model likelihood is selected.
+            If `supervised` is `True` and `use_noise_model` is `False`.
         """
         if self.supervised and not self.model.predict_logvar:
             raise ValueError(
