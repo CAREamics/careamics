@@ -91,8 +91,15 @@ def test_train_noise_model_unsupported_algorithm_raises(tmp_path: Path):
         )
 
 
-def test_train_input_unsupported_algorithm_raises(tmp_path: Path):
-    """`train(noise_model=...)` guards the same way for algorithms without one."""
+def test_train_input_unsupported_algorithm_warns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """`train(noise_model=...)` warns and trains without it for other algorithms."""
+    warnings: list[str] = []
+    monkeypatch.setattr(
+        "careamics.careamist.logger.warning",
+        lambda message, *args: warnings.append(message % args),
+    )
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="array",
@@ -113,8 +120,10 @@ def test_train_input_unsupported_algorithm_raises(tmp_path: Path):
         MultiChannelNMConfig(noise_models=[gmm_config])
     )
 
-    with pytest.raises(ValueError, match="does not support one"):
-        careamist.train(train_data=train_array, noise_model=noise_model)
+    careamist.train(train_data=train_array, noise_model=noise_model)
+
+    assert any("will not be used" in warning for warning in warnings)
+    assert careamist.get_checkpoints()
 
 
 def _e2e_careamist(tmp_path: Path, output_channels: int = 2) -> CAREamist:

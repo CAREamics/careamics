@@ -664,21 +664,19 @@ class CAREamist:
         ------
         ValueError
             If train_data is not provided.
-        ValueError
-            If a noise model is provided for an
-            algorithm that does not support one.
         """
         if train_data is None:
             raise ValueError("Training data must be provided. Provide `train_data`.")
 
         if noise_model is not None:
-            if not hasattr(self.model, "set_noise_model"):
-                raise ValueError(
+            if hasattr(self.model, "set_noise_model"):
+                self.model.set_noise_model(noise_model)
+            else:
+                logger.warning(
                     "A noise model was provided but the "
                     f"{self.config.get_algorithm_friendly_name()} algorithm does not "
-                    "support one (only MicroSplit and HDN do)."
+                    "use one (only MicroSplit and HDN do), so it will not be used."
                 )
-            self.model.set_noise_model(noise_model)
 
         if self.config.is_supervised() and train_data_target is None:
             raise ValueError(
