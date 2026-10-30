@@ -87,9 +87,6 @@ class HDNAlgorithm(BaseModel):
     def validate_supervised_without_noise_model(self: Self) -> Self:
         """Validate that supervised training does not use a noise model.
 
-        The noise model likelihood is selected by `predict_logvar=False`; the noise
-        model itself is supplied at training time.
-
         Returns
         -------
         Self
