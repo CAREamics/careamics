@@ -109,7 +109,76 @@ class TensorstoreZarrAccess:
         NDArray[Any]
             Selected patch data.
         """
-        return asarray(self._require_array(node, mode="r")[patch_index].read().result())
+        array = self._require_array(node, mode="r")
+        # TensorStore does not clamp out-of-bounds slice endpoints
+        patch_index = self._clip_slice_index(patch_index, array.shape)
+        return asarray(array[patch_index].read().result())
+
+    @staticmethod
+    def _clip_slice_index(patch_index: Any, shape: Sequence[int]) -> Any:
+        """Clip positive-step slices to an array's bounds.
+
+        NumPy-style patch extraction permits a slice to extend beyond an array's
+        bounds. TensorStore rejects such slices, so normalize them before applying
+        the index. Integer and advanced indices are left unchanged.
+
+        Parameters
+        ----------
+        patch_index : Any
+            Indexing object selecting a patch.
+        shape : sequence of int
+            Shape of the indexed array.
+
+        Returns
+        -------
+        Any
+            Indexing object with positive-step slices clipped to the array bounds.
+        """
+        if not isinstance(patch_index, tuple):
+            indices = (patch_index,)
+            was_tuple = False
+        else:
+            indices = patch_index
+            was_tuple = True
+
+        ellipsis_position = next(
+            (i for i, index in enumerate(indices) if index is Ellipsis), None
+        )
+        if ellipsis_position is not None:
+            consumed = sum(
+                index is not None and index is not Ellipsis for index in indices
+            )
+            ellipsis_size = max(len(shape) - consumed, 0)
+            indices = (
+                *indices[:ellipsis_position],
+                *(slice(None),) * ellipsis_size,
+                *indices[ellipsis_position + 1 :],
+            )
+
+        # Missing trailing dimensions are equivalent to full slices.
+        consumed = sum(index is not None for index in indices)
+        if consumed < len(shape):
+            indices = (*indices, *(slice(None),) * (len(shape) - consumed))
+
+        clipped: list[Any] = []
+        dimension = 0
+        for index in indices:
+            if index is None:
+                clipped.append(index)
+                continue
+            if isinstance(index, slice):
+                if dimension >= len(shape):
+                    clipped.append(index)
+                elif index.step is None or index.step > 0:
+                    start, stop, step = index.indices(shape[dimension])
+                    clipped.append(slice(start, stop, step))
+                else:
+                    clipped.append(index)
+            else:
+                clipped.append(index)
+            dimension += 1
+
+        return tuple(clipped) if was_tuple else clipped[0]
 
     def create_array(
         self,
