@@ -13,6 +13,42 @@ from .test_zarr_access_backends import ARRAYS, GROUP_W_ARRAYS
 
 
 class TestDefaultZarrAccess:
+    @pytest.mark.parametrize(
+        "array_shape, patch_index, expected",
+        [
+            pytest.param(
+                (8, 2, 128, 129),
+                (0, slice(None), slice(3, 67), slice(5, 69)),
+                (0, [0, 1], slice(3, 67), slice(5, 69)),
+                id="SCYX",
+            ),
+            pytest.param(
+                (8, 128, 129, 2),
+                (0, slice(3, 67), slice(5, 69), slice(None)),
+                (0, slice(3, 67), slice(5, 69), [0, 1]),
+                id="SYXC",
+            ),
+            pytest.param(
+                (2, 128, 129, 8),
+                (slice(None), slice(3, 67), slice(5, 69), 0),
+                ([0, 1], slice(3, 67), slice(5, 69), 0),
+                id="CYXS",
+            ),
+            pytest.param(
+                (8, 2, 4, 128, 129),
+                (0, slice(None), slice(1, 3), slice(3, 67), slice(5, 69)),
+                (0, [0, 1], slice(1, 3), slice(3, 67), slice(5, 69)),
+                id="SCZYX",
+            ),
+        ],
+    )
+    def test_normalize_zarrs_patch_index(self, array_shape, patch_index, expected):
+        normalized = DefaultZarrAccess._normalize_zarrs_patch_index(
+            array_shape, patch_index
+        )
+
+        assert normalized == expected
+
     def test_zarrs_config_is_scoped(self):
         access = DefaultZarrAccess(use_zarrs=True)
         original_pipeline = zarr.config.get("codec_pipeline.path")

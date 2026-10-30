@@ -114,7 +114,41 @@ class DefaultZarrAccess:
             Selected patch data.
         """
         with self._zarr_config():
-            return asarray(self._require_array(node, mode="r")[patch_index])
+            array = self._require_array(node, mode="r")
+            if self._use_zarrs and slice(None) in patch_index:
+                patch_index = self._normalize_zarrs_patch_index(
+                    array.shape, patch_index
+                )
+            return asarray(array[patch_index])
+
+    @staticmethod
+    def _normalize_zarrs_patch_index(
+        array_shape: Sequence[int], patch_index: Any
+    ) -> Any:
+        """Replace an all-channel selector with consecutive indices.
+
+        `patch_index` is generated from `utils.reshape_array.get_patch_slices`.
+        Therefore, it is assumed here that the only possible unbounded slice is that of
+        the channel dimension.
+
+        Parameters
+        ----------
+        array_shape : Sequence[int]
+            Shape of the array being indexed.
+        patch_index : Any
+            Index selecting the patch.
+
+        Returns
+        -------
+        Any
+            Normalized index, or the original index when it is not an
+            all-channel patch index.
+
+        """
+        normalized_index = list(patch_index)
+        channel_axis = patch_index.index(slice(None))
+        normalized_index[channel_axis] = list(range(array_shape[channel_axis]))
+        return tuple(normalized_index)
 
     def create_array(
         self,
