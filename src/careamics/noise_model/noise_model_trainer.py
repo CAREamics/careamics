@@ -661,3 +661,60 @@ class NoiseModelTrainer:
         )
 
         return noise_model, losses
+
+
+def train_noise_model(
+    signal: NDArray,
+    observation: NDArray,
+    axes: str,
+    *,
+    n_gaussian: int = 3,
+    n_coeff: int = 3,
+    min_sigma: float = 125.0,
+    n_epochs: int = 2000,
+    save_dir: Path | str | None = None,
+) -> MultiChannelNoiseModel:
+    """Train a multi-channel noise model from signal-observation pairs.
+
+    Thin convenience wrapper over `NoiseModelTrainer`: it fits one Gaussian-mixture
+    noise model per channel, optionally saves them, and returns the multi-channel
+    noise model, to be passed to `CAREamist.train(noise_model=...)` or
+    `set_noise_model` of the Lightning module.
+
+    The `signal` is a clean/denoised estimate (typically an N2V prediction) and the
+    `observation` is the matching raw noisy data.
+
+    Parameters
+    ----------
+    signal : numpy.ndarray
+        Clean/denoised signal, shape `(S, C, [Z], Y, X)` or `(S, [Z], Y, X)`.
+    observation : numpy.ndarray
+        Noisy observation matching `signal`.
+    axes : str
+        Axes of `signal` and `observation` (e.g. "SCYX").
+    n_gaussian : int, default=3
+        Number of Gaussian components per channel.
+    n_coeff : int, default=3
+        Number of polynomial coefficients for signal-dependent parameters.
+    min_sigma : float, default=125.0
+        Minimum standard deviation for the Gaussian components.
+    n_epochs : int, default=2000
+        Number of training epochs.
+    save_dir : pathlib.Path or str or None, default=None
+        Directory in which to save the per-channel `.npz` noise models. If `None`,
+        the noise models are not saved.
+
+    Returns
+    -------
+    MultiChannelNoiseModel
+        The trained multi-channel noise model.
+    """
+    trainer = NoiseModelTrainer(
+        n_gaussian=n_gaussian, n_coeff=n_coeff, min_sigma=min_sigma
+    )
+    trainer.train_from_pairs(
+        signal=signal, observation=observation, axes=axes, n_epochs=n_epochs
+    )
+    if save_dir is not None:
+        trainer.save(save_dir)
+    return trainer.get_multichannel_model()

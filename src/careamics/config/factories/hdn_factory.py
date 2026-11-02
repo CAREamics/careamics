@@ -12,7 +12,6 @@ from careamics.config.lightning.optimizer_configs import (
     OptimizerConfig,
 )
 from careamics.config.losses.loss_config import HDNLossConfig
-from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
 from .data_factory import create_data_configuration, list_spatial_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
@@ -29,13 +28,15 @@ def create_hdn_config(
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
-    noise_model: MultiChannelNMConfig | None = None,
+    use_noise_model: bool = False,
     supervised: bool = False,
 ) -> HDNConfiguration:
     """Create a configuration for training HDN.
 
-    The reconstruction likelihood is selected from `noise_model`: pass one to use the
-    noise model likelihood, omit it to learn a Gaussian likelihood (DivNoising).
+    The reconstruction likelihood is selected by `use_noise_model`: set it to use the
+    noise model likelihood, leave it `False` to learn a Gaussian likelihood
+    (DivNoising). The noise model itself is supplied at training time via
+    `CAREamist.train(noise_model=...)` / `HDNModule.set_noise_model`.
 
     See `create_advanced_hdn_config` for more parameters.
 
@@ -59,11 +60,12 @@ def create_hdn_config(
         List of augmentations to apply. If `None`, all augmentations are applied.
     n_val_patches : int, default=8
         Number of patches to set aside for validation during training.
-    noise_model : MultiChannelNMConfig or None, default=None
-        Trained noise model. If `None`, the Gaussian (DivNoising) pathway is used.
+    use_noise_model : bool, default=False
+        If `True`, use the noise model likelihood (supply the trained noise model at
+        training time). If `False`, use the Gaussian (DivNoising) pathway.
     supervised : bool, default=False
         Whether to train against target data. If `True`, `train_data_target` must
-        be provided at training time, and `noise_model` must be `None`.
+        be provided at training time, and `use_noise_model` must be `False`.
 
     Returns
     -------
@@ -84,7 +86,7 @@ def create_advanced_hdn_config(
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
-    noise_model: MultiChannelNMConfig | None = None,
+    use_noise_model: bool = False,
     supervised: bool = False,
     # advanced data parameters
     channels: Sequence[int] | None = None,
@@ -114,9 +116,6 @@ def create_advanced_hdn_config(
 ) -> HDNConfiguration:
     """Create an advanced configuration for training HDN.
 
-    `predict_logvar` is derived from `noise_model`: it is enabled when no noise model
-    is provided (DivNoising Gaussian likelihood) and disabled otherwise.
-
     Parameters
     ----------
     experiment_name : str
@@ -137,11 +136,12 @@ def create_advanced_hdn_config(
         List of augmentations to apply. If `None`, all augmentations are applied.
     n_val_patches : int, default=8
         Number of patches to set aside for validation during training.
-    noise_model : MultiChannelNMConfig or None, default=None
-        Trained noise model. If `None`, the Gaussian (DivNoising) pathway is used.
+    use_noise_model : bool, default=False
+        If `True`, use the noise model likelihood (supply the trained noise model at
+        training time). If `False`, use the Gaussian (DivNoising) pathway.
     supervised : bool, default=False
         Whether to train against target data. If `True`, `train_data_target` must
-        be provided at training time, and `noise_model` must be `None`.
+        be provided at training time, and `use_noise_model` must be `False`.
     channels : sequence of int or None, default=None
         List of channels to use. If `None`, all channels are used.
     normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
@@ -197,7 +197,7 @@ def create_advanced_hdn_config(
     HDNConfiguration
         Configuration for training HDN.
     """
-    predict_logvar = noise_model is None
+    predict_logvar = not use_noise_model
     conv_strides = [1, 2, 2] if len(patch_size) == 3 else [2, 2]
 
     loss = HDNLossConfig(
@@ -233,7 +233,6 @@ def create_advanced_hdn_config(
         algorithm="hdn",
         loss=loss,
         model=model,
-        noise_model=noise_model,
         supervised=supervised,
         optimizer=OptimizerConfig(
             name=optimizer,

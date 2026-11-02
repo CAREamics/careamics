@@ -48,3 +48,12 @@ def test_predict_logvar_mismatch(minimum_algorithm_hdn: dict):
     minimum_algorithm_hdn["loss"] = HDNLossConfig(predict_logvar=True)
     with pytest.raises(ValueError):
         HDNAlgorithm(**minimum_algorithm_hdn)
+
+
+def test_supervised_rejects_noise_model(minimum_algorithm_hdn: dict):
+    """Test that supervised HDN rejects the noise model likelihood."""
+    minimum_algorithm_hdn["model"]["predict_logvar"] = False
+    minimum_algorithm_hdn["loss"] = HDNLossConfig(predict_logvar=False)
+    minimum_algorithm_hdn["supervised"] = True
+    with pytest.raises(ValueError, match="supervised mode"):
+        HDNAlgorithm(**minimum_algorithm_hdn)

@@ -1,6 +1,9 @@
 """Hierarchical DivNoising (HDN) Lightning module."""
 
+import warnings
+from collections.abc import Sequence
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import lightning.pytorch as L
@@ -15,18 +18,19 @@ from careamics.dataset.normalization.normalization import Normalization
 from careamics.losses.lvae import hdn_loss
 from careamics.metrics import SIPSNR
 from careamics.models.lvae import LadderVAE
-from careamics.models.lvae.noise_models import (
-    MultiChannelNoiseModel,
-    multichannel_noise_model_factory,
-)
+from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 from careamics.models.model_factory import model_factory
 from careamics.utils.logging import get_logger
 
 from .module_utils import (
+    check_noise_model_channels,
     configure_optimizers,
+    load_noise_model_from_checkpoint,
     log_training_stats,
     log_validation_stats,
     mmse_and_sample_std,
+    resolve_noise_model,
+    save_noise_model_to_checkpoint,
 )
 
 logger = get_logger(__name__)
@@ -85,21 +89,11 @@ class HDNModule(L.LightningModule):
         self.model: LadderVAE = cast("LadderVAE", model_factory(self.config.model))
         self.loss_func = hdn_loss
 
-        self.noise_model: MultiChannelNoiseModel | None = (
-            multichannel_noise_model_factory(self.config.noise_model)
-        )
-
+        # These attributes should be kept our of the `state_dict` and nn.Module
+        # registration by setting via `object.__setattr__`
+        self._raw_noise_model: MultiChannelNoiseModel | None = None
+        self.noise_model: MultiChannelNoiseModel | None = None
         self.predict_logvar: bool = self.config.model.predict_logvar
-        if self.noise_model is None and not self.predict_logvar:
-            raise ValueError(
-                "Without a noise model, HDN learns a Gaussian likelihood and "
-                "requires `predict_logvar=True`."
-            )
-        if self.noise_model is not None and self.predict_logvar:
-            raise ValueError(
-                "With a noise model, HDN uses the noise model likelihood and "
-                "requires `predict_logvar=False`."
-            )
 
         self.metrics: MetricCollection = MetricCollection(
             {
@@ -114,18 +108,67 @@ class HDNModule(L.LightningModule):
 
         self.n_samples: int = 1
 
-    def on_fit_start(self) -> None:
-        """On fit start hook for HDN module.
+    def set_noise_model(
+        self, noise_model: MultiChannelNoiseModel | Sequence[str | Path]
+    ) -> None:
+        """Attach a trained noise model for the noise model likelihood.
 
-        When a noise model is used, it is rebuilt from the (raw-space) configuration
-        and transformed into normalized data space using the input statistics from
-        the training dataset normalization. Rebuilding from the configuration keeps
-        this hook idempotent (e.g. when resuming from a checkpoint).
+        Parameters
+        ----------
+        noise_model : MultiChannelNoiseModel or sequence of str or Path
+            The trained (raw-space) noise model, or the per-channel ``.npz`` paths to
+            load it from.
 
         Raises
         ------
         ValueError
-            If the presence of target data does not match `config.supervised`.
+            If the noise model channel count does not match the model output channels.
+        """
+        nm = resolve_noise_model(noise_model)
+        check_noise_model_channels(nm, self.config.model.output_channels)
+        if self.predict_logvar:
+            warnings.warn(
+                "A noise model was set but HDN is configured for the Gaussian "
+                "likelihood (`predict_logvar=True`), so the noise model will not be "
+                "used. Use `use_noise_model=True` to select the noise model "
+                "likelihood.",
+                UserWarning,
+                stacklevel=2,
+            )
+        # avoid nn.Module registration and keep out of `state_dict`
+        object.__setattr__(self, "_raw_noise_model", nm)
+
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Persist the raw-space noise model into the checkpoint.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint dictionary being saved.
+        """
+        save_noise_model_to_checkpoint(self._raw_noise_model, checkpoint)
+
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Restore the raw-space noise model from the checkpoint, if present.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint dictionary being loaded.
+        """
+        restored = load_noise_model_from_checkpoint(checkpoint)
+        if restored is not None:
+            object.__setattr__(self, "_raw_noise_model", restored)
+
+    def on_fit_start(self) -> None:
+        """On fit start hook for HDN module.
+
+        Raises
+        ------
+        ValueError
+            If the presence of target data does not match `config.supervised`, or if
+            the noise model likelihood is used (`predict_logvar=False`) but no noise
+            model has been provided.
         TypeError
             If a noise model is used with a normalization other than
             `MeanStdNormalization`.
@@ -133,9 +176,14 @@ class HDNModule(L.LightningModule):
         assert self._trainer is not None
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
         self._check_target_data(datamodule)
-        if self.noise_model is None:
+        if self.predict_logvar:
             return
-        assert self.config.noise_model is not None
+        if self._raw_noise_model is None:
+            raise ValueError(
+                "HDN with the noise model likelihood (`predict_logvar=False`) requires "
+                "a noise model. Provide one via `CAREamist.train(noise_model=...)` or "
+                "`HDNModule.set_noise_model(...)`."
+            )
         # The noise model likelihood operates in normalized data space, so the noise
         # model path requires zero-mean/unit-variance normalization to recover the
         # data statistics; other normalizations do not expose input means/stds.
@@ -145,14 +193,17 @@ class HDNModule(L.LightningModule):
                 "HDN with a noise model requires MeanStdNormalization to recover the "
                 f"data statistics, but got {type(normalization).__name__}."
             )
-        raw_noise_model = multichannel_noise_model_factory(self.config.noise_model)
-        assert raw_noise_model is not None
-        self.noise_model = raw_noise_model.get_normalized_copy(
-            [float(normalization.input_means[0])],
-            [float(normalization.input_stds[0])],
+        # avoid nn.Module registration and keep out of `state_dict`
+        object.__setattr__(
+            self,
+            "noise_model",
+            self._raw_noise_model.get_normalized_copy(
+                [float(normalization.input_means[0])],
+                [float(normalization.input_stds[0])],
+            ),
         )
         logger.info(
-            f"Noise model loaded: {len(self.config.noise_model.noise_models)} "
+            f"Noise model loaded: {len(self._raw_noise_model)} "
             f"channel noise model(s). HDN will use the noise model likelihood."
         )
 
