@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 import numpy as np
 from typing_extensions import ParamSpec
@@ -32,7 +32,7 @@ from careamics.models.constraints import (
 )
 
 from .filter_bg import filter_background, filter_background_with_mask
-from .val_split import create_val_split
+from .val_split import create_tilt_axis_split, create_val_split
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -382,6 +382,95 @@ def create_val_split_datasets(
     # val split applied to patching strat
     train_patching, val_patching = create_val_split(
         train_patching, data.n_val_patches, rng=rng
+    )
+
+    patch_constructor = BasicPatchConstr(
+        patching_strategy=val_patching,
+        input_extractor=train_dataset.patch_constructor.input_extractor,
+        target_extractor=train_dataset.patch_constructor.target_extractor,
+        channels=config.channels,
+    )
+    val_dataset: CareamicsDataset[ImageStack] = CareamicsDataset(
+        data_config=config.convert_mode("validating"),
+        patch_constructor=patch_constructor,
+        model_constraints=model_constraints,
+    )
+    return train_dataset, val_dataset
+
+
+def create_tilt_axis_split_datasets(
+    config: DataConfig,
+    data: TrainValSplitData[Any],
+    loading: Loading,
+    tilt_axis: Literal["Y", "X", "Z"] = "Y",
+    validation_fraction: float = 0.1,
+    model_constraints: ModelConstraints | None = None,
+) -> tuple[CareamicsDataset[ImageStack], CareamicsDataset[ImageStack]]:
+    """Create datasets with validation reserved along a tilt axis (cryoCARE).
+
+    The input data is patched with a stratified strategy. A contiguous validation slab
+    is reserved at the high-coordinate end of `tilt_axis` for every image stack and
+    sample. Training patches are restricted to the complementary region.
+
+    This factory method is meant to be used for cryoCARE.
+
+    Parameters
+    ----------
+    config : DataConfig
+        Data configuration. It must describe a training dataset using stratified
+        patching.
+    data : TrainValSplitData
+        Training data and optional targets.
+    loading : ReadFuncLoading or ImageStackLoading or None
+        Loading specification for the input, target, and optional mask data.
+    tilt_axis : str, default="Y"
+        Axis along which to split the volumes. Must be `"Z"`, `"Y"`, or `"X"`.
+    validation_fraction : float, default=0.1
+        Fraction of the selected axis reserved for validation.
+    model_constraints : ModelConstraints, optional
+        If provided, validate the data shapes against the model constraints.
+
+    Returns
+    -------
+    tuple of CareamicsDataset
+        Training and validation datasets.
+
+    Raises
+    ------
+    ValueError
+        If the configuration is not for training or does not use stratified patching.
+    """
+    if config.mode != "training":
+        raise ValueError(
+            f"CAREamicsDataModule configured for {config.mode} cannot be used for "
+            "training. Please create a new CAREamicsDataModule with a configuration "
+            "with mode='training'."
+        )
+    if config.patching.name != "stratified":
+        raise ValueError(
+            "Tilt-axis validation splitting is only compatible with stratified "
+            f"patching. Found {config.patching.name} patching in the configuration."
+        )
+
+    train_dataset = create_train_dataset(
+        config=config,
+        data=data,
+        loading=loading,
+        model_constraints=model_constraints,
+    )
+
+    if not isinstance(train_dataset.patch_constructor, BasicPatchConstr):
+        raise NotImplementedError(
+            "Tilt-axis validation splitting is currently only implemented for basic "
+            "patch construction."
+        )
+    train_patching = train_dataset.patch_constructor.patching_strategy
+    assert isinstance(train_patching, StratifiedPatching)
+
+    train_patching, val_patching = create_tilt_axis_split(
+        train_patching,
+        tilt_axis=tilt_axis,
+        validation_fraction=validation_fraction,
     )
 
     patch_constructor = BasicPatchConstr(
