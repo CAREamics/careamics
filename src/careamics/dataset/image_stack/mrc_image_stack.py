@@ -204,6 +204,9 @@ class MrcImageStack:
                 permissive=True,
             )
 
+    # TODO currently no mechanism to close the images
+    # - make sure it is compatible with num_workers>0
+    # - test on various platforms
     def close(self) -> None:
         """Close the active MRC memory map.
 
