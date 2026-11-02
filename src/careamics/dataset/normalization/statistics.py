@@ -343,13 +343,13 @@ def resolve_normalization_config(
         A resolved configuration with all statistics populated.
     """
     has_target = patch_constructor.target_shapes is not None
+    stats: StatsDict = {}
     if isinstance(norm_config, NoNormConfig):
         return norm_config
 
     elif isinstance(norm_config, MeanStdConfig):
         compute_input = norm_config.needs_computation()
         compute_target = has_target and norm_config.target_needs_computation()
-
         if compute_input or compute_target:
             stats = _compute_mean_std(
                 patch_constructor,
@@ -358,22 +358,25 @@ def resolve_normalization_config(
                 compute_target=compute_target,
             )
 
-            if compute_input:
-                input_means, input_stds = stats["input"]
-                norm_config.set_input_stats(input_means.tolist(), input_stds.tolist())
+        if compute_input:
+            input_means, input_stds = stats["input"]
+            norm_config.set_input_stats(input_means.tolist(), input_stds.tolist())
 
-            if compute_target and "target" in stats:
-                target_means, target_stds = stats["target"]
-                norm_config.set_target_stats(
-                    target_means.tolist(), target_stds.tolist()
-                )
+        if norm_config.target_mode == "same_as_input":
+            assert norm_config.input_means is not None
+            assert norm_config.input_stds is not None
+            norm_config.set_target_stats(
+                norm_config.input_means.copy(), norm_config.input_stds.copy()
+            )
+        elif compute_target and "target" in stats:
+            target_means, target_stds = stats["target"]
+            norm_config.set_target_stats(target_means.tolist(), target_stds.tolist())
 
         return norm_config
 
     elif isinstance(norm_config, MinMaxConfig):
         compute_input = norm_config.needs_computation()
         compute_target = has_target and norm_config.target_needs_computation()
-
         if compute_input or compute_target:
             stats = _compute_min_max(
                 patch_constructor,
@@ -382,22 +385,25 @@ def resolve_normalization_config(
                 compute_target=compute_target,
             )
 
-            if compute_input:
-                input_mins, input_maxes = stats["input"]
-                norm_config.set_input_range(input_mins.tolist(), input_maxes.tolist())
+        if compute_input:
+            input_mins, input_maxes = stats["input"]
+            norm_config.set_input_range(input_mins.tolist(), input_maxes.tolist())
 
-            if compute_target and "target" in stats:
-                target_mins, target_maxes = stats["target"]
-                norm_config.set_target_range(
-                    target_mins.tolist(), target_maxes.tolist()
-                )
+        if norm_config.target_mode == "same_as_input":
+            assert norm_config.input_mins is not None
+            assert norm_config.input_maxes is not None
+            norm_config.set_target_range(
+                norm_config.input_mins.copy(), norm_config.input_maxes.copy()
+            )
+        elif compute_target and "target" in stats:
+            target_mins, target_maxes = stats["target"]
+            norm_config.set_target_range(target_mins.tolist(), target_maxes.tolist())
 
         return norm_config
 
     elif isinstance(norm_config, QuantileConfig):
         compute_input = norm_config.needs_computation()
         compute_target = has_target and norm_config.target_needs_computation()
-
         if compute_input or compute_target:
             stats = _compute_quantiles(
                 patch_constructor,
@@ -407,17 +413,24 @@ def resolve_normalization_config(
                 compute_target=compute_target,
             )
 
-            if compute_input:
-                lower_values, upper_values = stats["input"]
-                norm_config.set_input_quantile_values(
-                    lower_values.tolist(), upper_values.tolist()
-                )
+        if compute_input:
+            lower_values, upper_values = stats["input"]
+            norm_config.set_input_quantile_values(
+                lower_values.tolist(), upper_values.tolist()
+            )
 
-            if compute_target and "target" in stats:
-                target_lower, target_upper = stats["target"]
-                norm_config.set_target_quantile_values(
-                    target_lower.tolist(), target_upper.tolist()
-                )
+        if norm_config.target_mode == "same_as_input":
+            assert norm_config.input_lower_quantile_values is not None
+            assert norm_config.input_upper_quantile_values is not None
+            norm_config.set_target_quantile_values(
+                norm_config.input_lower_quantile_values.copy(),
+                norm_config.input_upper_quantile_values.copy(),
+            )
+        elif compute_target and "target" in stats:
+            target_lower, target_upper = stats["target"]
+            norm_config.set_target_quantile_values(
+                target_lower.tolist(), target_upper.tolist()
+            )
 
         return norm_config
 
