@@ -81,8 +81,8 @@ def default_training_dict(
         Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict, optional
         Parameters for Lightning Trainer class, by default None.
-    logger : {"wandb", "tensorboard", "none"}, optional
-        Logger to use, by default "none".
+    logger : {"wandb", "tensorboard", "none"}
+        Logger to use.
     checkpoint_params : dict, optional
         Parameters for the checkpoint callback, by default None. If None, then default
         parameters are applied based on the algorithm.
@@ -206,7 +206,7 @@ class TrainingConfig(BaseModel):
     """Parameters passed to the PyTorch Lightning Trainer class"""
 
     logger: Literal["wandb", "tensorboard"] | None = None
-    """Logger to use during training. If None, no logger will be used. Available
+    """Logger to use during training. If None, only CVSLogger will be used. Available
     loggers are defined in SupportedLogger."""
 
     # Only basic callbacks - they may have different defaults for different algorithms
@@ -301,7 +301,7 @@ class TrainingConfig(BaseModel):
         return user_params
 
     def __str__(self) -> str:
-        """Pretty string reprensenting the configuration.
+        """Pretty string representing the configuration.
 
         Returns
         -------
