@@ -7,6 +7,7 @@ from lightning.pytorch import Callback, Trainer
 
 from careamics.config.configuration import Configuration
 from careamics.config.data.data_config import DataConfig
+from careamics.config.data.normalization_config import MeanStdConfig
 from careamics.config.factories import (
     create_advanced_care_config,
     create_advanced_n2v_config,
@@ -480,8 +481,7 @@ def checkpoint(
             patch_size=[16, 16],
             batch_size=2,
             masked_pixel_percentage=0.4,
-            normalization="mean_std",
-            normalization_params={"input_means": [0.5], "input_stds": [0.3]},
+            normalization=MeanStdConfig(input_means=[0.5], input_stds=[0.3]),
             num_workers=0,
             num_steps=1,
         )
@@ -495,13 +495,12 @@ def checkpoint(
             axes="YX",
             patch_size=[16, 16],
             batch_size=2,
-            normalization="mean_std",
-            normalization_params={
-                "input_means": [0.5],
-                "input_stds": [0.3],
-                "target_means": [0.5],
-                "target_stds": [0.3],
-            },
+            normalization=MeanStdConfig(
+                input_means=[0.5],
+                input_stds=[0.3],
+                target_means=[0.5],
+                target_stds=[0.3],
+            ),
         )
         data = {
             "train_data": train_data,

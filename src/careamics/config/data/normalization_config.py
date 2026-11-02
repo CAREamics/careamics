@@ -1,7 +1,7 @@
 """Pydantic models for normalization strategies."""
 
 import warnings
-from typing import Annotated, Any, Literal, Self, Union
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -1054,6 +1054,6 @@ class NoNormConfig(BaseModel):
 
 
 NormalizationConfig = Annotated[
-    Union[MeanStdConfig, NoNormConfig, QuantileConfig, MinMaxConfig],
+    MeanStdConfig | NoNormConfig | QuantileConfig | MinMaxConfig,
     Discriminator("name"),
 ]
