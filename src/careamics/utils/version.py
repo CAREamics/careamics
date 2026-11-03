@@ -36,3 +36,22 @@ def get_careamics_version() -> str:
 
     # Remove any local version identifier
     return ".".join(parts[:3])
+
+
+def get_torch_family_versions() -> dict[str, str]:
+    """Get versions of the PyTorch family libraries.
+
+    Returns
+    -------
+    dict[str, str]
+        Dictionary with library names as keys and their versions as values.
+    """
+    import lightning as L
+    import torch
+    import torchvision
+
+    return {
+        "torch": torch.__version__,
+        "torchvision": torchvision.__version__,
+        "lightning": L.__version__,
+    }
