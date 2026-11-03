@@ -2,6 +2,7 @@ from pathlib import Path
 
 import mrcfile
 import numpy as np
+from torch.utils.data import DataLoader, Dataset
 
 from careamics.dataset.image_stack import MrcImageStack
 from careamics.dataset.patch_constructor.metadata_utils import get_image_metadata
@@ -10,6 +11,22 @@ from careamics.dataset.patch_constructor.metadata_utils import get_image_metadat
 def _write_mrc(path: Path, data: np.ndarray) -> None:
     with mrcfile.new(path, overwrite=True) as mrc:
         mrc.set_data(data)
+
+
+class _MrcPatchDataset(Dataset):
+    def __init__(self, image_stack: MrcImageStack):
+        self.image_stack = image_stack
+
+    def __len__(self) -> int:
+        return 4
+
+    def __getitem__(self, index: int) -> np.ndarray:
+        return self.image_stack.extract_patch(
+            sample_idx=0,
+            channels=None,
+            coords=(index, 1, 2),
+            patch_size=(1, 2, 2),
+        )
 
 
 def test_mrc_image_stack_extracts_memory_mapped_patch(tmp_path: Path):
@@ -48,3 +65,24 @@ def test_mrc_image_stack_extracts_memory_mapped_patch(tmp_path: Path):
 
     image_stack.close()
     assert not image_stack.is_loaded
+
+
+def test_mrc_image_stack_can_be_read_by_multiple_workers(tmp_path: Path):
+    data = np.arange(4 * 5 * 6, dtype=np.float32).reshape(4, 5, 6)
+    path = tmp_path / "volume.mrc"
+    _write_mrc(path, data)
+
+    image_stack = MrcImageStack(path, axes="ZYX")
+    loader = DataLoader(
+        _MrcPatchDataset(image_stack),
+        batch_size=None,
+        num_workers=2,
+        multiprocessing_context="spawn",
+    )
+
+    patches = list(loader)
+
+    assert len(patches) == 4
+    for index, patch in enumerate(patches):
+        expected = data[index : index + 1, 1:3, 2:4][np.newaxis]
+        np.testing.assert_array_equal(patch.numpy(), expected)

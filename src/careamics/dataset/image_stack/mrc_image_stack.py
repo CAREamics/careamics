@@ -219,6 +219,10 @@ class MrcImageStack:
             self._mrc.close()
             self._mrc = None
 
+    def __del__(self) -> None:
+        """Close the mrc file handle when the instance is destroyed."""
+        self.close()
+
     def extract_patch(
         self,
         sample_idx: int,
