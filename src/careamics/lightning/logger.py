@@ -1,5 +1,6 @@
 """CoLogger module for CAREamics."""
 
+import importlib.util
 from pathlib import Path
 from typing import Any
 
@@ -15,13 +16,32 @@ from torch import Tensor
 from careamics.config.configuration import Configuration
 from careamics.config.utils.configuration_io import save_configuration
 
-try:
+
+def _wandb_is_available() -> bool:
+    """Check if WandB is available.
+
+    Returns
+    -------
+    bool
+        True if WandB is available, False otherwise.
+    """
+    return importlib.util.find_spec("wandb") is not None
+
+
+def _tb_is_available() -> bool:
+    """Check if TensorBoard is available.
+
+    Returns
+    -------
+    bool
+        True if TensorBoard is available, False otherwise.
+    """
+    return importlib.util.find_spec("tensorboard") is not None
+
+
+if _tb_is_available():
     from torch.utils.tensorboard import SummaryWriter
     from torch.utils.tensorboard.summary import hparams
-
-except ImportError:
-    from tensorboardX import SummaryWriter
-    from tensorboardX.summary import hparams
 
 
 class CoLogger(Logger):
@@ -105,6 +125,11 @@ class CoLogger(Logger):
 
         self.tb: TensorBoardLogger | None = None
         if dl_logger == "tensorboard":
+            if not _tb_is_available():
+                raise ImportError(
+                    "TensorBoard is not installed. "
+                    "Please install it to use the TensorBoard logger."
+                )
             self.tb = TensorBoardLogger(
                 name=self._name, save_dir=self._tb_log_dir, version=self._version
             )
@@ -113,6 +138,10 @@ class CoLogger(Logger):
 
         self.wandb: WandbLogger | None = None
         if dl_logger == "wandb":
+            if not _wandb_is_available():
+                raise ImportError(
+                    "Wandb is not installed. Please install it to use the Wandb logger."
+                )
             is_logged_in = self._wandb_login()
             self.wandb = WandbLogger(
                 name=self._name,
