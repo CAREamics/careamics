@@ -258,6 +258,7 @@ def create_advanced_care_config(
     patch_size: Sequence[int],
     batch_size: int,
     # optional parameters
+    project_name: str | None = None,
     num_epochs: int = 30,
     num_steps: int | None = None,
     n_channels_in: int | None = None,
@@ -324,6 +325,8 @@ def create_advanced_care_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    project_name : str | None, default=None
+        Name of the project, used to group related experiments.
     num_epochs : int, default=30
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
@@ -393,7 +396,7 @@ def create_advanced_care_config(
     early_stopping_params : dict[str, Any] | None, default=None
         Parameters for the early stopping callback, see PyTorch Lightning documentation
         (`EarlyStopping`) for the list of available parameters.
-    logger : Literal["wandb", "tensorboard", "none"], default="none"
+    logger : {"wandb", "tensorboard", "none"}
         Logger to use.
     seed : int | None, default=None
         Random seed for reproducibility.
@@ -415,6 +418,7 @@ def create_advanced_n2n_config(
     patch_size: Sequence[int],
     batch_size: int,
     # optional parameters
+    project_name: str | None = None,
     num_epochs: int = 30,
     num_steps: int | None = None,
     n_channels_in: int | None = None,
@@ -480,6 +484,8 @@ def create_advanced_n2n_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    project_name : str | None, default=None
+        Name of the project, used to group related experiments.
     num_epochs : int, default=30
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
@@ -546,7 +552,7 @@ def create_advanced_n2n_config(
     checkpoint_params : dict[str, Any] | None, default=None
         Parameters for the checkpoint callback, see PyTorch Lightning documentation
         (`ModelCheckpoint`) for the list of available parameters.
-    logger : Literal["wandb", "tensorboard", "none"], default="none"
+    logger : {"wandb", "tensorboard", "none"}
         Logger to use.
     seed : int | None, default=None
         Random seed for reproducibility.
@@ -570,6 +576,7 @@ def _create_advanced_supervised_config(
     patch_size: Sequence[int],
     batch_size: int,
     # optional parameters
+    project_name: str | None = None,
     num_epochs: int = 30,
     num_steps: int | None = None,
     n_channels_in: int | None = None,
@@ -638,6 +645,8 @@ def _create_advanced_supervised_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
+    project_name : str | None, default=None
+        Name of the project, used to group related experiments.
     num_epochs : int, default=30
         Number of epochs to train for. If provided, this will be added to
         trainer_params.
@@ -704,7 +713,7 @@ def _create_advanced_supervised_config(
     early_stopping_params : dict[str, Any] | None, default=None
         Parameters for the early stopping callback, see PyTorch Lightning documentation
         (`EarlyStopping`) for the list of available parameters.
-    logger : Literal["wandb", "tensorboard", "none"], default="none"
+    logger : {"wandb", "tensorboard", "none"}
         Logger to use.
     seed : int | None, default=None
         Random seed for reproducibility.
@@ -778,6 +787,7 @@ def _create_advanced_supervised_config(
 
     return {
         "experiment_name": experiment_name,
+        "project_name": project_name,
         "algorithm_config": algorithm_params,
         "data_config": data_config,
         "training_config": training_params,
