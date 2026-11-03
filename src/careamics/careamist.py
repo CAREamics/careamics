@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, overload
+from typing import Any, Literal, TypeAlias, overload
 
 from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
@@ -52,7 +52,7 @@ logger = get_logger(__name__)
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
-NoiseModelInput = MultiChannelNoiseModel | list[str | Path]
+NoiseModelInput: TypeAlias = MultiChannelNoiseModel | list[str | Path]
 OutputType = tuple[list[NDArray], list[str]]
 OutputTypeWithUncertainty = tuple[list[NDArray], list[NDArray], list[str]]
 PredictStepOutput = ImageRegionData | tuple[ImageRegionData, ImageRegionData | None]

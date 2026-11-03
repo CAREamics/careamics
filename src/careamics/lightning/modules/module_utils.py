@@ -26,7 +26,8 @@ def resolve_noise_model(
     """Resolve a noise model argument into a runtime ``MultiChannelNoiseModel``.
 
     Accepts either an already-built ``MultiChannelNoiseModel`` (returned as-is) or a
-    sequence of per-channel ``.npz`` paths (loaded via ``MultiChannelNoiseModel.from_npz``).
+    sequence of per-channel ``.npz`` paths (loaded via
+    ``MultiChannelNoiseModel.from_npz``).
 
     Parameters
     ----------
