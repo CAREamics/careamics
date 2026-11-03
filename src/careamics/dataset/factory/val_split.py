@@ -16,28 +16,25 @@ def create_tilt_axis_split(
 ) -> tuple[StratifiedPatching, FixedPatching]:
     """Create train and validation patching strategies split along a spatial axis.
 
-    The validation region is a contiguous slab at the high-coordinate end of the
-    selected axis. Training patches are restricted to the complementary low-coordinate
-    region. Grid cells that could produce a patch crossing the boundary are excluded
-    from training and validation. This keeps the two datasets spatially disjoint, at
-    the cost of potentially leaving a narrow unused region when the boundary does not
-    align with the patch grid.
+    Grid cells that could produce a patch crossing the boundary between train and val
+    are excluded from training and validation.
 
     Parameters
     ----------
     stratified_patching : StratifiedPatching
-        Patching strategy to split. It is modified in place by excluding regions from
-        training, as in :func:`create_val_split`.
+        Patching strategy to split.
     tilt_axis : str
-        Axis along which to split the volume. Must be ``"Z"``, ``"Y"``, or ``"X"``.
+        Axis along which to split the volume. Must be `"Z"`, `"Y"`, or `"X"`.
     validation_fraction : float
         Fraction of the selected spatial axis reserved for validation. The validation
         slab is placed at the high-coordinate end of the axis.
 
     Returns
     -------
-    tuple of StratifiedPatching and FixedPatching
-        The modified training strategy and a fixed validation strategy.
+    StratifiedPatching
+        Modified training strategy.
+    FixedPatching
+        Fixed validation strategy.
 
     Raises
     ------
