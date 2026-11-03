@@ -8,22 +8,13 @@ likelihood objects.
 
 from typing import Any, Dict, Protocol
 
+import lightning.pytorch as L
 import ml_collections
 import numpy as np
-import lightning.pytorch as L
 import torch
 import torchvision.transforms.functional as F
 
 from careamics.models.lvae.lvae import LadderVAE
-
-
-# TODO: Remove this after migrating to new lightning module in careamics.lightning.lightning_module
-class LikelihoodModule(Protocol):
-    """Protocol for backward compatibility."""
-
-    pass
-
-
 from careamics.models.lvae.utils import (
     LossType,
     compute_batch_mean,
