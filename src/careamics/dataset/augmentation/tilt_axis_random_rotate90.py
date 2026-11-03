@@ -79,11 +79,11 @@ class TiltAxisRandomRotate90(Transform):
         dict[str, numpy.ndarray]]
             Additional transformed arrays.
         """
-        self._validate_patch(patch)
+        self._validate_patch(patch, self.tilt_axis)
         if target is not None:
-            self._validate_patch(target)
+            self._validate_patch(target, self.tilt_axis)
         for array in additional_arrays.values():
-            self._validate_patch(array)
+            self._validate_patch(array, self.tilt_axis)
 
         if self.rng.random() > self.p:
             return patch, target, additional_arrays
@@ -101,18 +101,25 @@ class TiltAxisRandomRotate90(Transform):
         return patch_transformed, target_transformed, additional_transformed
 
     @staticmethod
-    def _validate_patch(patch: NDArray) -> None:
-        """Validate that an array is a cubic CZYX patch.
+    def _validate_patch(patch: NDArray, tilt_axis: Literal["Z", "Y", "X"]) -> None:
+        """Validate that an array is a CZYX patch rotatable around ``tilt_axis``.
 
         Parameters
         ----------
         patch : np.ndarray
             Array to validate.
+        tilt_axis : {"Z", "Y", "X"}
+            Spatial axis perpendicular to the rotation plane.
         """
         if patch.ndim != 4:
             raise ValueError("Tilt-axis rotation requires a 4D CZYX patch.")
-        if not (patch.shape[-3] == patch.shape[-2] == patch.shape[-1]):
-            raise ValueError("Tilt-axis rotation requires a cubic spatial patch.")
+
+        rotation_axes = TiltAxisRandomRotate90._ROTATION_AXES[tilt_axis]
+        if patch.shape[rotation_axes[0]] != patch.shape[rotation_axes[1]]:
+            raise ValueError(
+                "Tilt-axis rotation requires equal dimensions on the two axes "
+                "perpendicular to the tilt axis."
+            )
 
     @staticmethod
     def _apply(patch: NDArray, n_rot: int, axes: tuple[int, int]) -> NDArray:
