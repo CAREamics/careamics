@@ -8,7 +8,6 @@ from numpy.typing import NDArray
 from careamics.careamist import CAREamist
 from careamics.config.factories import create_advanced_n2v_config
 from careamics.config.factories.hdn_factory import create_hdn_config
-
 from tests.conftest import (
     create_single_image_ome_zarr,
 )
