@@ -16,6 +16,11 @@ import matplotlib.pyplot as plt
 DEFAULT_INPUT = Path(__file__).parent / "results.csv"
 DEFAULT_OUTPUT_DIR = Path(__file__).parent / "plots"
 Stats = tuple[float, float]
+BACKEND_COLORS = {
+    "tensorstore": "#1f77b4",  # blue
+    "zarrs": "#2ca02c",  # green
+    "zarr": "#ff7f0e",  # orange
+}
 
 
 def read_rows(path: Path) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
@@ -62,7 +67,7 @@ def plot_metric(
     """Plot median metric with individual repeat values."""
     backends = sorted({key[0] for key in stats})
     contexts = sorted({key[2] for key in stats})
-    colors = dict(zip(backends, plt.get_cmap("tab10").colors, strict=False))
+    colors = {backend: BACKEND_COLORS.get(backend, "#7f7f7f") for backend in backends}
     fig, axes = plt.subplots(
         1,
         len(contexts),

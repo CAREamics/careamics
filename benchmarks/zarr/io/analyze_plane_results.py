@@ -16,6 +16,11 @@ import matplotlib.pyplot as plt
 DEFAULT_INPUT = Path(__file__).parent / "results" / "plane_results.csv"
 DEFAULT_OUTPUT_DIR = Path(__file__).parent / "results" / "plane_plots"
 Stats = tuple[float, float]
+BACKEND_COLORS = {
+    "tensorstore": "#1f77b4",  # blue
+    "zarrs": "#2ca02c",  # green
+    "zarr": "#ff7f0e",  # orange
+}
 
 
 def read_rows(path: Path) -> list[dict[str, str]]:
@@ -68,7 +73,7 @@ def plot_operation(
         sharey=True,
         squeeze=False,
     )
-    colors = dict(zip(backends, plt.get_cmap("tab10").colors, strict=False))
+    colors = {backend: BACKEND_COLORS.get(backend, "#7f7f7f") for backend in backends}
     x = range(len(chunks))
     for axis, shard in zip(axes.flat, shards, strict=True):
         for backend in backends:

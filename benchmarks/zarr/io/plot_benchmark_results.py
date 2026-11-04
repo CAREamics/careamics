@@ -24,6 +24,11 @@ DEFAULT_RESULTS = (
     RESULTS_DIR / "read_results.csv",
     RESULTS_DIR / "write_results.csv",
 )
+BACKEND_COLORS = {
+    "tensorstore": "#1f77b4",  # blue
+    "zarrs": "#2ca02c",  # green
+    "zarr": "#ff7f0e",  # orange
+}
 
 
 def read_results(path: Path) -> list[dict[str, str]]:
@@ -222,7 +227,7 @@ def plot_results(
         sharey=True,
         squeeze=False,
     )
-    colors = dict(zip(backends, plt.get_cmap("tab10").colors, strict=False))
+    colors = {backend: BACKEND_COLORS.get(backend, "#7f7f7f") for backend in backends}
     styles = dict(zip(chunks, cycle(LINE_STYLES), strict=False))
     markers = dict(zip(chunks, cycle(MARKERS), strict=False))
 
