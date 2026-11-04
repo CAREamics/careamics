@@ -41,15 +41,17 @@ group = zarr_file.create_group("others")
 array_2 = group.create_array("array_2", data=np.random.rand(128, 128))
 array_3 = group.create_array("array_3", data=np.random.rand(128, 128))
 
+zarr_uri = zarr_path.resolve().as_uri()
+
 # different ways to specify training data
 train_from_zarr = zarr_path  # (1)!
-train_from_group = str(group.store_path)  # (2)!
-train_from_array = str(array_root_1.store_path)  # (3)!
+train_from_group = f"{zarr_uri}/others"  # (2)!
+train_from_array = f"{zarr_uri}/array_1"  # (3)!
 train_from_list = [  # (4)!
-    str(array_root_1.store_path),
-    str(array_root_2.store_path),
-    str(array_2.store_path),
-    str(array_3.store_path),
+    f"{zarr_uri}/array_1",
+    f"{zarr_uri}/array_2",
+    f"{zarr_uri}/others/array_2",
+    f"{zarr_uri}/others/array_3",
 ]
 # --8<-- [end:zarr]
 

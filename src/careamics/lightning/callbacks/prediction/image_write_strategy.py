@@ -11,6 +11,7 @@ from careamics.lightning.prediction import (
 )
 
 from .file_path_utils import create_write_file_path
+from .image_write_utils import get_complete_images
 from .write_strategy import WriteStrategy
 
 
@@ -116,49 +117,6 @@ class ImageWriteStrategy(WriteStrategy):
 
         self._write_complete_images(dirpath)
 
-    def _get_total_samples(self, prediction: ImageRegionData) -> int:
-        """
-        Get the expected total number of samples from data_shape and axes.
-
-        Parameters
-        ----------
-        prediction : ImageRegionData
-            A prediction containing metadata about the original data.
-
-        Returns
-        -------
-        int
-            Total number of samples in the S dimension, or 1 if no S dimension.
-        """
-        if "S" in prediction.axes:
-            s_idx = prediction.axes.index("S")
-            return prediction.data_shape[s_idx]
-        return 1
-
-    def _get_complete_images(self) -> list[int]:
-        """
-        Get data indices where all samples have been collected.
-
-        Returns
-        -------
-        list of int
-            Data indices of complete images in the cache.
-        """
-        complete_images = []
-        for data_idx in self.image_cache.keys():
-            total_samples = self._get_total_samples(self.image_cache[data_idx][0])
-
-            if len(self.image_cache[data_idx]) == total_samples:
-                complete_images.append(data_idx)
-            elif len(self.image_cache[data_idx]) > total_samples:
-                raise ValueError(
-                    f"More samples cached for data_idx {data_idx} than expected. "
-                    f"Expected {total_samples}, found "
-                    f"{len(self.image_cache[data_idx])}."
-                )
-
-        return complete_images
-
     def _write_complete_images(self, dirpath: Path) -> None:
         """
         Write complete images from cache and clear them.
@@ -168,7 +126,7 @@ class ImageWriteStrategy(WriteStrategy):
         dirpath : Path
             Path to directory to save predictions to.
         """
-        complete_images = self._get_complete_images()
+        complete_images = get_complete_images(self.image_cache)
 
         for data_idx in complete_images:
             cached_preds = self.image_cache.pop(data_idx)

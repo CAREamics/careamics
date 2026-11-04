@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Any, TypedDict
 
-from careamics.dataset.image_stack import ImageStack, ZarrImageStack
+from careamics.dataset.image_stack import ImageStack
 
 
 class ImageMetadata(TypedDict):
@@ -20,7 +20,7 @@ class ImageMetadata(TypedDict):
     original_data_shape : Sequence[int]
         Original source data shape.
     additional_metadata : dict[str, Any]
-        Format-specific metadata, such as chunking for zarr data.
+        Format-specific metadata.
     """
 
     source: str
@@ -30,7 +30,6 @@ class ImageMetadata(TypedDict):
     additional_metadata: dict[str, Any]
 
 
-# TODO: perhaps this should be a method on the image stacks themselves
 def get_image_metadata(image_stack: ImageStack) -> ImageMetadata:
     """Return metadata for an image stack.
 
@@ -44,21 +43,10 @@ def get_image_metadata(image_stack: ImageStack) -> ImageMetadata:
     ImageMetadata
         Metadata for the image stack.
     """
-    # additional metadata for zarr image stacks
-    if isinstance(image_stack, ZarrImageStack):
-        additional_metadata: dict[str, Any] = {
-            "chunks": image_stack.chunks,
-        }
-
-        if image_stack.shards is not None:
-            additional_metadata["shards"] = image_stack.shards
-    else:
-        additional_metadata = {}
-
     return {
         "source": str(image_stack.source),
         "dtype": str(image_stack.data_dtype),
         "data_shape": image_stack.data_shape,
         "original_data_shape": image_stack.original_data_shape,
-        "additional_metadata": additional_metadata,
+        "additional_metadata": dict(image_stack.additional_metadata),
     }

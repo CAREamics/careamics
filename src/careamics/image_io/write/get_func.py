@@ -1,7 +1,7 @@
 """Module to get write functions."""
 
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Literal, Protocol, TypeAlias
 
 from numpy.typing import NDArray
 
@@ -9,7 +9,7 @@ from careamics.config.support import SupportedData
 
 from .tiff import write_tiff
 
-SupportedWriteType = Literal["tiff", "zarr", "custom"]
+SupportedWriteType: TypeAlias = Literal["tiff", "zarr", "custom"]
 
 
 # This is very strict, arguments have to be called file_path & img
