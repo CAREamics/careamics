@@ -3,7 +3,7 @@
 from typing import Annotated, Literal, Self
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import AfterValidator, ConfigDict, model_validator
+from pydantic import AfterValidator, ConfigDict, Field, model_validator
 
 from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.architectures import UNetConfig
@@ -40,6 +40,16 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
     loss: Literal["pn2v"] = "pn2v"
     """PN2V loss function (uses N2V loss with noise model)."""
 
+    monitor_metric: Literal["train_loss", "train_loss_epoch", "val_loss"] = "val_loss"
+    """Metric to monitor for the learning rate scheduler."""
+
+    sample_scale: float = Field(default=10.0, gt=0)
+    """Scale applied to normalized network outputs before denormalization.
+
+    Matches the upstream PN2V ``outScaling``. The loss and the MMSE estimate both use
+    these scaled, denormalized samples.
+    """
+
     n2v_config: N2VManipulateConfig = N2VManipulateConfig()
 
     noise_model: GaussianMixtureNMConfig
@@ -47,8 +57,8 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
 
     model: Annotated[
         UNetConfig,
-        # AfterValidator(model_matching_in_out_channels),
-        # TODO for pn2v channel handling needs to be changed
+        # `num_classes` is the number of prior samples, so it is not tied to
+        # `in_channels`. Do not apply `model_matching_in_out_channels`.
         AfterValidator(model_without_final_activation),
     ]
 
@@ -243,3 +253,15 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
             return STRUCT_PN2V_DESCRIPTION
         else:
             return PN2V_DESCRIPTION
+
+    @classmethod
+    def is_supervised(cls) -> bool:
+        """
+        Return whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return False
