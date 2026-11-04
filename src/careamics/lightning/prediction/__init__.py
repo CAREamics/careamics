@@ -15,7 +15,6 @@ from .convert_prediction import (
     combine_samples,
     convert_predict_outputs,
     convert_prediction,
-    decollate_image_region_data,
     prediction_region,
     uncertainty_region,
 )
