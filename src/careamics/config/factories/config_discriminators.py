@@ -4,9 +4,19 @@ from typing import Annotated, Any, Union
 
 from pydantic import Discriminator, Tag, TypeAdapter
 
-from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from careamics.config.algorithms import (
+    CAREAlgorithm,
+    COSDDAlgorithm,
+    HDNAlgorithm,
+    MicroSplitAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+)
 from careamics.config.configuration import Configuration
+from careamics.config.cosdd_configuration import COSDDConfiguration
 from careamics.config.data.normalization_config import NormalizationConfig
+from careamics.config.hdn_configuration import HDNConfiguration
+from careamics.config.microsplit_configuration import MicroSplitConfiguration
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import SupportedAlgorithm
 
@@ -59,6 +69,9 @@ Config = Annotated[
         Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
         Annotated[Configuration, Tag(SupportedAlgorithm.N2N)],
+        Annotated[HDNConfiguration, Tag(SupportedAlgorithm.HDN)],
+        Annotated[MicroSplitConfiguration, Tag(SupportedAlgorithm.MICROSPLIT)],
+        Annotated[COSDDConfiguration, Tag(SupportedAlgorithm.COSDD)],
     ],
     Discriminator(_config_discriminator),
 ]
@@ -68,6 +81,9 @@ AlgorithmConfig = Annotated[
         Annotated[N2VAlgorithm, Tag(SupportedAlgorithm.N2V)],
         Annotated[CAREAlgorithm, Tag(SupportedAlgorithm.CARE)],
         Annotated[N2NAlgorithm, Tag(SupportedAlgorithm.N2N)],
+        Annotated[HDNAlgorithm, Tag(SupportedAlgorithm.HDN)],
+        Annotated[MicroSplitAlgorithm, Tag(SupportedAlgorithm.MICROSPLIT)],
+        Annotated[COSDDAlgorithm, Tag(SupportedAlgorithm.COSDD)],
     ],
     Discriminator(_algo_discriminator),
 ]

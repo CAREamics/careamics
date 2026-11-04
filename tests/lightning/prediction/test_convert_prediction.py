@@ -7,6 +7,7 @@ from torch.utils.data.dataloader import default_collate
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.lightning.prediction import (
     combine_samples,
+    convert_predict_outputs,
     convert_prediction,
     decollate_image_region_data,
 )
@@ -210,3 +211,62 @@ class TestConvertPrediction:
         """Test `convert_arrays` with "array" sources returns an empty list."""
         _, sources = convert_prediction(batches, tiled=False)
         assert sources == []
+
+
+class TestConvertPredictOutputs:
+    @pytest.fixture
+    def batches(self) -> list[ImageRegionData]:
+        """Batches of `ImageRegionData` with a channel dimension.
+
+        Returns
+        -------
+        list of ImageRegionData
+            List of collated batches, two samples per batch.
+        """
+        batches = []
+        for b in range(5):
+            batch = []
+            for i in range(4):
+                data_idx = (b * 4 + i) // 10
+                batch.append(
+                    ImageRegionData(
+                        source=f"{data_idx}.tiff",
+                        data=data_idx * np.ones((1, 32, 32)).astype(np.float32),
+                        data_shape=(10, 1, 32, 32),
+                        dtype="float32",
+                        axes="SCYX",
+                        target_axes="SCYX",
+                        region_spec={
+                            "data_idx": data_idx,
+                            "sample_idx": (b * 4 + i) % 10,
+                            "coords": (0, 0),
+                            "patch_size": (32, 32),
+                        },
+                        additional_metadata={},
+                        original_data_shape=(10, 1, 32, 32),
+                    )
+                )
+            batches.append(default_collate(batch))
+        return batches
+
+    def test_without_uncertainty(self, batches: list[ImageRegionData]) -> None:
+        """Test that outputs without uncertainty return None uncertainties."""
+        predictions, uncertainties, sources = convert_predict_outputs(
+            batches, tiled=False
+        )
+        assert uncertainties is None
+        assert len(predictions) == 2
+        assert predictions[0].shape == (10, 1, 32, 32)
+        assert sources == ["0.tiff", "1.tiff"]
+
+    def test_with_uncertainty(self, batches: list[ImageRegionData]) -> None:
+        """Test that outputs with uncertainty return converted uncertainties."""
+        outputs = [(batch, batch._replace(data=batch.data + 1)) for batch in batches]
+        predictions, uncertainties, sources = convert_predict_outputs(
+            outputs, tiled=False
+        )
+        assert uncertainties is not None
+        assert len(predictions) == len(uncertainties) == 2
+        for prediction, uncertainty in zip(predictions, uncertainties, strict=True):
+            np.testing.assert_array_equal(uncertainty, prediction + 1)
+        assert sources == ["0.tiff", "1.tiff"]
