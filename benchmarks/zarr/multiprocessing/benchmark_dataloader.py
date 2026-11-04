@@ -17,6 +17,7 @@ import argparse
 import csv
 import json
 import multiprocessing as mp
+import random
 import subprocess
 import sys
 import tempfile
@@ -34,6 +35,7 @@ DEFAULT_SHAPE = (8, 1, 1024, 1024)
 DEFAULT_CHUNKS = (1, 1, 64, 64)
 DEFAULT_OUTPUT = Path("benchmarks/zarr/multiprocessing/results.csv")
 SEED = 24
+CASE_ORDER_SEED = 24
 
 RESULT_FIELDS = (
     "backend",
@@ -50,6 +52,8 @@ RESULT_FIELDS = (
     "batches_per_second",
     "samples_per_second",
     "batch_shape",
+    "case_index",
+    "case_order_seed",
     "error",
 )
 
@@ -242,12 +246,21 @@ def run_case(case: dict[str, Any]) -> dict[str, Any]:
     workers = case["workers"]
     requested_context = case["context"]
     persistent_workers = case["persistent_workers"]
+    selected_context = effective_context(requested_context, backend, workers)
 
-    if workers > 0 and requested_context != "auto":
-        if requested_context not in mp.get_all_start_methods():
+    if workers > 0 and backend == "tensorstore" and selected_context == "fork":
+        return {
+            **case,
+            "effective_context": selected_context,
+            "status": "skipped",
+            "error": "TensorStore with fork is unsafe; use spawn or forkserver.",
+        }
+
+    if workers > 0:
+        if selected_context not in mp.get_all_start_methods():
             return {
                 **case,
-                "effective_context": requested_context,
+                "effective_context": selected_context,
                 "status": "skipped",
                 "error": "multiprocessing context is unavailable",
             }
@@ -273,8 +286,8 @@ def run_case(case: dict[str, Any]) -> dict[str, Any]:
             "num_workers": workers,
             "persistent_workers": persistent_workers if workers > 0 else False,
         }
-        if workers > 0 and requested_context != "auto":
-            loader_kwargs["multiprocessing_context"] = requested_context
+        if workers > 0:
+            loader_kwargs["multiprocessing_context"] = selected_context
 
         first_batch_start = time.perf_counter()
         loader = DataLoader(dataset, **loader_kwargs)
@@ -295,7 +308,7 @@ def run_case(case: dict[str, Any]) -> dict[str, Any]:
         batch_size = int(batch_data.shape[0])
         return {
             **case,
-            "effective_context": effective_context(requested_context, backend, workers),
+            "effective_context": selected_context,
             "status": "ok",
             "dataset_build_seconds": dataset_build_seconds,
             "first_batch_seconds": first_batch_seconds,
@@ -426,14 +439,14 @@ def run_sweep(args: argparse.Namespace) -> list[dict[str, Any]]:
         if not store_path.exists():
             create_store(store_path, args.shape, args.chunks)
 
-    rows: list[dict[str, Any]] = []
-    try:
-        for backend in args.backends:
-            for workers in args.workers:
-                contexts = ("auto",) if workers == 0 else args.contexts
-                for context in contexts:
-                    for repeat in range(args.repeats):
-                        case = {
+    cases: list[dict[str, Any]] = []
+    for backend in args.backends:
+        for workers in args.workers:
+            contexts = ("auto",) if workers == 0 else args.contexts
+            for context in contexts:
+                for repeat in range(args.repeats):
+                    cases.append(
+                        {
                             "backend": backend,
                             "workers": workers,
                             "context": context,
@@ -445,11 +458,20 @@ def run_sweep(args: argparse.Namespace) -> list[dict[str, Any]]:
                             "warmup_batches": args.warmup_batches,
                             "measure_batches": args.measure_batches,
                         }
-                        print(
-                            f"{backend=} {workers=} {context=} {repeat=}",
-                            file=sys.stderr,
-                        )
-                        rows.append(run_case_subprocess(case, args.timeout))
+                    )
+    random.Random(args.case_order_seed).shuffle(cases)
+
+    rows: list[dict[str, Any]] = []
+    try:
+        for case_index, case in enumerate(cases):
+            case["case_index"] = case_index
+            case["case_order_seed"] = args.case_order_seed
+            print(
+                f"{case['backend']=} {case['workers']=} {case['context']=} "
+                f"{case['repeat']=} {case_index=}",
+                file=sys.stderr,
+            )
+            rows.append(run_case_subprocess(case, args.timeout))
     finally:
         if temporary_directory is not None:
             temporary_directory.cleanup()
@@ -477,6 +499,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--shape", type=parse_shape, default=DEFAULT_SHAPE)
     parser.add_argument("--chunks", type=parse_shape, default=DEFAULT_CHUNKS)
     parser.add_argument("--timeout", type=float, default=120.0)
+    parser.add_argument("--case-order-seed", type=int, default=CASE_ORDER_SEED)
     parser.add_argument("--store", type=Path)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--case", action="store_true", help=argparse.SUPPRESS)

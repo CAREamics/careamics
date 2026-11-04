@@ -49,11 +49,12 @@ def stats_by_configuration(
 
 def plot_operation(
     stats: dict[tuple[str, str, str, str], Stats],
+    rows: list[dict[str, str]],
     operation: str,
     output: Path,
     dpi: int,
 ) -> None:
-    """Plot median MiB/s by chunk size, with one panel per shard size."""
+    """Plot medians and individual repeat values by chunk size."""
     shards = sorted({key[3] for key in stats if key[0] == operation})
     backends = sorted({key[1] for key in stats if key[0] == operation})
     chunks = sorted(
@@ -77,21 +78,35 @@ def plot_operation(
             if any(entry is None for entry in entries):
                 continue
             values = [entry[0] for entry in entries if entry is not None]
-            deviations = [entry[1] for entry in entries if entry is not None]
-            axis.errorbar(
+            axis.plot(
                 x,
                 values,
-                yerr=deviations,
                 marker="o",
                 color=colors[backend],
                 label=backend,
-                capsize=3,
             )
+            for position, chunk in enumerate(chunks):
+                samples = [
+                    float(row["mib_per_second"])
+                    for row in rows
+                    if row["operation"] == operation
+                    and row["backend"] == backend
+                    and row["chunks"] == chunk
+                    and row["shards"] == shard
+                ]
+                axis.scatter(
+                    [position] * len(samples),
+                    samples,
+                    color=colors[backend],
+                    alpha=0.45,
+                    s=18,
+                    zorder=3,
+                )
         axis.set_title(f"Shards: {shard}")
         axis.set_xticks(list(x), chunks)
         axis.set_xlabel("Chunks")
         axis.grid(axis="y", alpha=0.25)
-    axes[0, 0].set_ylabel("Median throughput (MiB/s)\n(error bars: ±1 SD)")
+    axes[0, 0].set_ylabel("Median throughput (MiB/s)\n(points: individual repeats)")
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="outside lower center", ncols=len(labels))
     fig.suptitle(f"Whole-plane {operation} benchmark")
@@ -156,6 +171,7 @@ def main() -> None:
     for operation in ("read", "write"):
         plot_operation(
             stats,
+            rows,
             operation,
             args.output_dir / f"plane_{operation}_mib_per_second.png",
             args.dpi,
