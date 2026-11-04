@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from careamics.dataset.image_stack.zarr_access import (
-    TensorstoreAccess,
+    DefaultZarrAccess,
+    TensorstoreZarrAccess,
     ZarrAccess,
-    ZarrPythonAccess,
 )
 
 SEED = 24
@@ -21,9 +21,9 @@ SEED = 24
 BackendFactory = Callable[[], ZarrAccess]
 
 BACKENDS: dict[str, BackendFactory] = {
-    "zarr": ZarrPythonAccess,
-    "tensorstore": TensorstoreAccess,
-    "zarrs": partial(ZarrPythonAccess, use_zarrs=True),
+    "zarr": DefaultZarrAccess,
+    "tensorstore": TensorstoreZarrAccess,
+    "zarrs": partial(DefaultZarrAccess, use_zarrs=True),
 }
 
 
