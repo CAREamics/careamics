@@ -85,3 +85,22 @@ def zarr_nodes(tmp_path_factory):
             store_uri=root_array_store.as_uri(), path="", node_type="array"
         ),
     }
+
+
+@pytest.fixture
+def odd_shape_zarr_node(tmp_path: Path):
+    """Return an SCYX array and node with odd-size."""
+    store_path = tmp_path / "chunk_crossing.zarr"
+    shape = (2, 2, 130, 131)
+    data = np.arange(np.prod(shape), dtype=np.uint16).reshape(shape)
+    zarr.create_array(
+        store_path,
+        data=data,
+        chunks=(1, 1, 64, 64),
+        zarr_format=3,
+    )
+
+    return (
+        ZarrNode(store_uri=store_path.as_uri(), node_type="array"),
+        data,
+    )

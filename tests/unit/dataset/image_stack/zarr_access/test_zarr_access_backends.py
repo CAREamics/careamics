@@ -120,6 +120,17 @@ class TestZarrAccess:
         assert isinstance(patch, np.ndarray)
         np.testing.assert_array_equal(patch, expected)
 
+    def test_read_chunk_crossing_all_channel_patch(
+        self, odd_shape_zarr_node, access_cls
+    ):
+        """Test reading across chunks"""
+        node, data = odd_shape_zarr_node
+        patch_index = (1, slice(None, None, None), slice(3, 68), slice(5, 71))
+
+        patch = access_cls().read_array_patch(node, patch_index)
+
+        np.testing.assert_array_equal(patch, data[1, :, 3:68, 5:71])
+
     def test_create_array_root_array(self, tmp_path, access_cls):
         access = access_cls()
         store_path = tmp_path / "root_output.zarr"
