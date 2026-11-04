@@ -42,21 +42,3 @@ def to_numpy(lst: Union[str, list]) -> np.ndarray:
     if isinstance(lst, str):
         lst = ast.literal_eval(lst)
     return np.asarray(lst)
-
-
-def to_torch(lst: Union[str, list]) -> torch.Tensor:
-    """Deserialize list or string representing a list into `torch.Tensor`.
-
-    Parameters
-    ----------
-    lst : Union[str, list]
-        List or string representing a list swith the array content to be deserialized.
-
-    Returns
-    -------
-    torch.Tensor
-        The deserialized tensor.
-    """
-    if isinstance(lst, str):
-        lst = ast.literal_eval(lst)
-    return torch.tensor(lst)
