@@ -1043,7 +1043,7 @@ class CAREamist:
         checkpoint: str | Path | None = None,
         n_predictions: int | None = None,
         ome_scale: str | None = None,
-    ) -> tuple[list[NDArray], list[str]]:
+    ) -> OutputType | OutputTypeWithUncertainty:
         """
         Predict on data and return the predictions.
 
