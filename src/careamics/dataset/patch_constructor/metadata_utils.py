@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Any, TypedDict
 
-from careamics.dataset.image_stack import ImageStack, ZarrImageStack
+from careamics.dataset.image_stack import ImageStack, MrcImageStack, ZarrImageStack
 
 
 class ImageMetadata(TypedDict):
@@ -31,6 +31,8 @@ class ImageMetadata(TypedDict):
 
 
 # TODO: perhaps this should be a method on the image stacks themselves
+# - currently Zarr decision (chunks and shards) are done here but that belongs to
+#   the image stack
 def get_image_metadata(image_stack: ImageStack) -> ImageMetadata:
     """Return metadata for an image stack.
 
@@ -44,9 +46,12 @@ def get_image_metadata(image_stack: ImageStack) -> ImageMetadata:
     ImageMetadata
         Metadata for the image stack.
     """
-    # additional metadata for zarr image stacks
-    if isinstance(image_stack, ZarrImageStack):
-        additional_metadata: dict[str, Any] = {
+    # additional metadata for format-specific image stacks
+    additional_metadata: dict[str, Any]
+    if isinstance(image_stack, MrcImageStack):
+        additional_metadata = image_stack.additional_metadata
+    elif isinstance(image_stack, ZarrImageStack):
+        additional_metadata = {
             "chunks": image_stack.chunks,
         }
 
