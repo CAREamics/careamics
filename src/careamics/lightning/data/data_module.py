@@ -12,6 +12,8 @@ from torch.utils.data import DataLoader, Sampler
 from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data.data_config import DataConfig
+from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
+from careamics.config.factories.config_discriminators import instantiate_data_config
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset import CareamicsDataset
 from careamics.dataset.factory import (
@@ -21,6 +23,8 @@ from careamics.dataset.factory import (
     ReadFuncLoading,
     TrainValData,
     TrainValSplitData,
+    create_microsplit_pred_dataset_from_data,
+    create_microsplit_train_val_datasets,
     create_pred_dataset,
     create_train_val_datasets,
     create_val_split_datasets,
@@ -228,7 +232,7 @@ class CareamicsDataModule(L.LightningDataModule):
         if isinstance(data_config, DataConfig):
             self.config = data_config
         else:
-            self.config = DataConfig.model_validate(data_config)
+            self.config = instantiate_data_config(data_config)
 
         self.rng = np.random.default_rng(seed=self.config.seed)
 
@@ -278,6 +282,12 @@ class CareamicsDataModule(L.LightningDataModule):
                 return
 
             if isinstance(self._data, TrainValSplitData):
+                if isinstance(self.config, MicroSplitDataConfig):
+                    raise NotImplementedError(
+                        "Automatic validation splitting is not implemented for "
+                        "MicroSplit. Please provide explicit validation data through "
+                        "`val_data` and `val_data_target`."
+                    )
                 self.train_dataset, self.val_dataset = create_val_split_datasets(
                     self.config,
                     self._data,
@@ -286,9 +296,21 @@ class CareamicsDataModule(L.LightningDataModule):
                     self.model_constraints,
                 )
             elif isinstance(self._data, TrainValData):
-                self.train_dataset, self.val_dataset = create_train_val_datasets(
-                    self.config, self._data, self.loading, self.model_constraints
-                )
+                if isinstance(self.config, MicroSplitDataConfig):
+                    (
+                        self.train_dataset,
+                        self.val_dataset,
+                    ) = create_microsplit_train_val_datasets(
+                        self.config,
+                        self._data,
+                        self.loading,
+                        self.rng,
+                        self.model_constraints,
+                    )
+                else:
+                    self.train_dataset, self.val_dataset = create_train_val_datasets(
+                        self.config, self._data, self.loading, self.model_constraints
+                    )
             else:
                 raise ValueError("Training and validation data has not been provided.")
 
@@ -299,9 +321,14 @@ class CareamicsDataModule(L.LightningDataModule):
             if not isinstance(self._data, PredData):
                 raise ValueError("No data has been provided for prediction.")
 
-            self.predict_dataset = create_pred_dataset(
-                self.config, self._data, self.loading, self.model_constraints
-            )
+            if isinstance(self.config, MicroSplitDataConfig):
+                self.predict_dataset = create_microsplit_pred_dataset_from_data(
+                    self.config, self._data, self.loading, self.model_constraints
+                )
+            else:
+                self.predict_dataset = create_pred_dataset(
+                    self.config, self._data, self.loading, self.model_constraints
+                )
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
