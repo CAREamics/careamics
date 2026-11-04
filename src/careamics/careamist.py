@@ -2,14 +2,20 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, overload
+from typing import Any, Literal, TypeAlias, overload
 
 from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from numpy.typing import NDArray
 
-from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from .config.algorithms import (
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+)
 from .config.configuration import Configuration
+from .config.hdn_configuration import HDNConfiguration
+from .config.microsplit_configuration import MicroSplitConfiguration
 from .config.support import SupportedAlgorithm, SupportedLogger
 from .config.utils.configuration_io import load_configuration
 from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
@@ -26,7 +32,7 @@ from .lightning.modules import (
     CAREamicsModule,
     create_module,
 )
-from .lightning.prediction import convert_prediction
+from .lightning.prediction import convert_predict_outputs
 from .lightning.utils import (
     TrainingReport,
     load_config_from_checkpoint,
@@ -35,6 +41,8 @@ from .lightning.utils import (
 )
 from .model_io.bmz_io import load_from_bmz
 from .models import get_model_constraints
+from .models.lvae.noise_models import MultiChannelNoiseModel
+from .noise_model import train_noise_model
 from .utils import get_logger, get_run_version
 from .utils.reshape_array import reshape_array
 
@@ -44,11 +52,17 @@ logger = get_logger(__name__)
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
+NoiseModelInput: TypeAlias = MultiChannelNoiseModel | list[str | Path]
+OutputType = tuple[list[NDArray], list[str]]
+OutputTypeWithUncertainty = tuple[list[NDArray], list[NDArray], list[str]]
+PredictStepOutput = ImageRegionData | tuple[ImageRegionData, ImageRegionData | None]
 
 ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | HDNConfiguration
+    | MicroSplitConfiguration
 )
 
 
@@ -574,6 +588,7 @@ class CAREamist:
         # ADVANCED PARAMS
         filtering_mask: InputVar | None = None,
         loading: ReadFuncLoading | None = None,
+        noise_model: NoiseModelInput | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -588,6 +603,7 @@ class CAREamist:
         # ADVANCED PARAMS
         filtering_mask: Any | None = None,
         loading: ImageStackLoading = ...,
+        noise_model: NoiseModelInput | None = None,
     ) -> None: ...
 
     def train(
@@ -601,6 +617,7 @@ class CAREamist:
         # ADVANCED PARAMS
         filtering_mask: Any | None = None,
         loading: Loading = None,
+        noise_model: NoiseModelInput | None = None,
     ) -> None:
         """Train the model on the provided data.
 
@@ -623,6 +640,10 @@ class CAREamist:
             Loading strategy to use for the prediction data. May be a ReadFuncLoading or
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
+        noise_model : MultiChannelNoiseModel or list of str or Path, default=None
+            Trained noise model for MicroSplit or HDN. Can be passed as a
+            `MultiChannelNoiseModel` or the per-channel
+            `.npz` paths to load it from.
 
         Raises
         ------
@@ -631,6 +652,16 @@ class CAREamist:
         """
         if train_data is None:
             raise ValueError("Training data must be provided. Provide `train_data`.")
+
+        if noise_model is not None:
+            if hasattr(self.model, "set_noise_model"):
+                self.model.set_noise_model(noise_model)
+            else:
+                logger.warning(
+                    "A noise model was provided but the "
+                    f"{self.config.get_algorithm_friendly_name()} algorithm does not "
+                    "use one (only MicroSplit and HDN do), so it will not be used."
+                )
 
         if self.config.is_supervised() and train_data_target is None:
             raise ValueError(
@@ -683,6 +714,79 @@ class CAREamist:
 
         # disable auto-logging hparams
         self.trainer.enable_autolog_hparams = False
+
+    def train_noise_model(
+        self,
+        signal: NDArray,
+        observation: NDArray,
+        axes: str,
+        *,
+        n_gaussian: int = 3,
+        n_coeff: int = 3,
+        min_sigma: float = 125.0,
+        n_epochs: int = 2000,
+        save: bool = True,
+    ) -> MultiChannelNoiseModel:
+        """Train a noise model and attach it for the noise model likelihood.
+
+        This is a thin convenience wrapper over
+        `careamics.noise_model.train_noise_model`: it fits one Gaussian-mixture noise
+        model per channel from `(signal, observation)` pairs, optionally saves the
+        trained models under `work_dir/noise_models`, attaches the result to the
+        underlying module (so a subsequent `train()` needs nothing else), and returns
+        it for inspection.
+
+        The `signal` is a clean/denoised estimate (typically an N2V prediction) and the
+        `observation` is the matching raw noisy data. Only MicroSplit and HDN use noise
+        models.
+
+        Parameters
+        ----------
+        signal : numpy.ndarray
+            Clean/denoised signal, shape `(S, C, [Z], Y, X)` or `(S, [Z], Y, X)`.
+        observation : numpy.ndarray
+            Noisy observation matching `signal`.
+        axes : str
+            Axes of `signal` and `observation` (e.g. "SCYX"); both are reshaped to
+            the canonical `SC(Z)YX` order before fitting.
+        n_gaussian : int, default=3
+            Number of Gaussian components per channel.
+        n_coeff : int, default=3
+            Number of polynomial coefficients for signal-dependent parameters.
+        min_sigma : float, default=125.0
+            Minimum standard deviation for the Gaussian components.
+        n_epochs : int, default=2000
+            Number of training epochs.
+        save : bool, default=True
+            Whether to save the trained noise models under `work_dir/noise_models`.
+
+        Returns
+        -------
+        MultiChannelNoiseModel
+            The trained multi-channel noise model, also attached to the module.
+
+        Raises
+        ------
+        ValueError
+            If the current algorithm does not support a noise model.
+        """
+        if not hasattr(self.model, "set_noise_model"):
+            raise ValueError(
+                f"The {self.config.get_algorithm_friendly_name()} algorithm does not "
+                "support a noise model (only MicroSplit and HDN do)."
+            )
+        noise_model = train_noise_model(
+            signal,
+            observation,
+            axes,
+            n_gaussian=n_gaussian,
+            n_coeff=n_coeff,
+            min_sigma=min_sigma,
+            n_epochs=n_epochs,
+            save_dir=self.work_dir / "noise_models" if save else None,
+        )
+        self.model.set_noise_model(noise_model)
+        return noise_model
 
     def _build_predict_datamodule(
         self,
@@ -762,7 +866,8 @@ class CAREamist:
 
         # validate new data config against the rest of the configuration by triggering
         # the model level validation
-        self.config.model_copy().data_config = pred_data_config
+        config_copy: Any = self.config.model_copy()
+        config_copy.data_config = pred_data_config
 
         return CareamicsDataModule(
             data_config=pred_data_config,
@@ -772,8 +877,48 @@ class CAREamist:
             loading=loading,
         )
 
+    def _configure_sampling(self, n_predictions: int | None) -> None:
+        """Set how many stochastic predictions the model draws per input.
+
+        Parameters
+        ----------
+        n_predictions : int or None
+            Number of predictions to draw and average, or None to draw a single one.
+
+        Raises
+        ------
+        ValueError
+            If `n_predictions` is 1, as the uncertainty across a single prediction
+            is undefined.
+        ValueError
+            If `n_predictions` is set but the algorithm is deterministic.
+        """
+        model: Any = self.model
+        is_model_stochastic = hasattr(model, "n_samples")
+
+        if n_predictions is None:
+            if is_model_stochastic:
+                model.n_samples = 1
+            return
+
+        if n_predictions < 2:
+            raise ValueError(
+                f"`n_predictions` must be at least 2, got {n_predictions}: the "
+                f"uncertainty across a single prediction is undefined. Omit "
+                f"`n_predictions` to draw a single prediction without uncertainty."
+            )
+
+        if not is_model_stochastic:
+            raise ValueError(
+                f"`n_predictions` is not supported by "
+                f"{self.config.algorithm_config.algorithm}: it is deterministic and "
+                f"returns the same prediction on every pass. Omit `n_predictions`."
+            )
+
+        model.n_samples = n_predictions
+
     # see comment on train func for a description of why we have these two overloads
-    @overload  # constrained input data type for supported data or ReadFuncLoading
+    @overload  # constrained input data type, single prediction
     def predict(  # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
@@ -791,9 +936,10 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
-    ) -> tuple[list[NDArray], list[str]]: ...
+        n_predictions: None = None,
+    ) -> OutputType: ...
 
-    @overload  # any data input is allowed for ImageStackLoading
+    @overload  # any data input is allowed for ImageStackLoading, single prediction
     def predict(  # numpydoc ignore=GL08
         self,
         # BASIC PARAMS
@@ -811,7 +957,48 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
-    ) -> tuple[list[NDArray], list[str]]: ...
+        n_predictions: None = None,
+    ) -> OutputType: ...
+
+    @overload  # constrained input data type, averaged predictions with uncertainty
+    def predict(  # numpydoc ignore=GL08
+        self,
+        # BASIC PARAMS
+        pred_data: InputVar,
+        *,
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: ReadFuncLoading | None = None,
+        checkpoint: str | Path | None = None,
+        n_predictions: int,
+    ) -> OutputTypeWithUncertainty: ...
+
+    @overload  # any data input, averaged predictions with uncertainty
+    def predict(  # numpydoc ignore=GL08
+        self,
+        # BASIC PARAMS
+        pred_data: Any,
+        *,
+        batch_size: int | None = None,
+        tile_size: tuple[int, ...] | None = None,
+        tile_overlap: tuple[int, ...] | None = (48, 48),
+        axes: str | None = None,
+        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        # ADVANCED PARAMS
+        num_workers: int | None = None,
+        channels: Sequence[int] | Literal["all"] | None = None,
+        in_memory: bool | None = None,
+        loading: ImageStackLoading = ...,
+        checkpoint: str | Path | None = None,
+        n_predictions: int,
+    ) -> OutputTypeWithUncertainty: ...
 
     def predict(
         self,
@@ -830,7 +1017,8 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: Loading = None,
         checkpoint: str | Path | None = None,
-    ) -> tuple[list[NDArray], list[str]]:
+        n_predictions: int | None = None,
+    ) -> OutputType | OutputTypeWithUncertainty:
         """
         Predict on data and return the predictions.
 
@@ -884,17 +1072,33 @@ class CAREamist:
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
+        n_predictions : int, optional
+            Number of stochastic predictions to draw per input and average into the
+            returned prediction. When set, the per-pixel standard deviation across
+            those predictions is also returned, as an uncertainty estimate in the
+            units of the prediction. Must be at least 2, and is only supported by
+            the sampling-based algorithms (HDN and MicroSplit). Note that the
+            estimate is the spread of the drawn predictions alone: it excludes the
+            likelihood variance and so under-estimates the total uncertainty.
 
         Returns
         -------
         tuple of (list of NDArray, list of str)
-            Predictions made by the model and their source identifiers.
+            Predictions made by the model and their source identifiers, when
+            `n_predictions` is not set.
+        tuple of (list of NDArray, list of NDArray, list of str)
+            Predictions, their uncertainty estimates and their source identifiers,
+            when `n_predictions` is set.
 
         Raises
         ------
         ValueError
             If tile overlap is not specified when tile_size is provided.
+        ValueError
+            If `n_predictions` is 1, or the algorithm is deterministic.
         """
+        self._configure_sampling(n_predictions)
+
         datamodule = self._build_predict_datamodule(
             pred_data,
             batch_size=batch_size,
@@ -912,7 +1116,7 @@ class CAREamist:
         checkpoint = self._get_default_ckpt(checkpoint)
 
         try:
-            predictions: list[ImageRegionData] = self.trainer.predict(
+            predictions: list[PredictStepOutput] = self.trainer.predict(
                 model=self.model, datamodule=datamodule, ckpt_path=checkpoint
             )  # type: ignore[assignment]
         except RuntimeError as e:
@@ -943,14 +1147,15 @@ class CAREamist:
                     "\nOut of GPU memory during prediction.\n" + hint
                 ) from e
             raise
-        tiled = tile_size is not None
-        predictions_output, sources = convert_prediction(
-            predictions,
-            tiled=tiled,
-            restore_shape=True,
+
+        predictions_output, uncertainty_output, sources = convert_predict_outputs(
+            predictions, tiled=tile_size is not None
         )
 
-        return predictions_output, sources
+        if uncertainty_output is None:
+            return predictions_output, sources
+
+        return predictions_output, uncertainty_output, sources
 
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type for supported data or ReadFuncLoading
@@ -978,6 +1183,7 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        n_predictions: int | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -1005,6 +1211,7 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        n_predictions: int | None = None,
     ) -> None: ...
 
     def predict_to_disk(
@@ -1031,6 +1238,7 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        n_predictions: int | None = None,
     ) -> None:
         """
         Make predictions on the provided data and save outputs to files.
@@ -1109,6 +1317,11 @@ class CAREamist:
             `write_type` a function to save the data must be passed. See notes below.
         write_func_kwargs : dict of {str: any}, optional
             Additional keyword arguments to be passed to the save function.
+        n_predictions : int, optional
+            Number of stochastic predictions to draw per input and average into the
+            written prediction. Must be at least 2, and is only supported by the
+            sampling-based algorithms (HDN and MicroSplit). The uncertainty across
+            those predictions is not currently written.
 
         Raises
         ------
@@ -1116,6 +1329,8 @@ class CAREamist:
             If `write_type` is custom and `write_extension` is None.
         ValueError
             If `write_type` is custom and `write_func` is None.
+        ValueError
+            If `n_predictions` is 1, or the algorithm is deterministic.
         """
         if write_func_kwargs is None:
             write_func_kwargs = {}
@@ -1155,6 +1370,7 @@ class CAREamist:
         )
 
         self.prediction_writer.enable_writing(True)
+        self._configure_sampling(n_predictions)
 
         checkpoint = self._get_default_ckpt(checkpoint)
 

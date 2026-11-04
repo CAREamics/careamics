@@ -8,6 +8,7 @@ import tifffile
 
 from careamics.careamist import CAREamist
 from careamics.config.factories.care_n2n_factory import create_advanced_care_config
+from careamics.config.factories.hdn_factory import create_hdn_config
 from careamics.config.factories.n2v_factory import create_advanced_n2v_config
 
 
@@ -58,6 +59,55 @@ def test_train_error_no_target_data(tmp_path: Path):
             train_data=train_array,
             train_data_target=train_target_array,
             val_data=val_array,
+        )
+
+
+@pytest.mark.mps_gh_fail
+def test_train_hdn_supervised(tmp_path: Path):
+    """Test that a supervised HDN trains against target data."""
+    train_array = random_array((2, 64, 64), seed=0)
+    target_array = random_array((2, 64, 64), seed=1)
+    config = create_hdn_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SYX",
+        patch_size=(64, 64),
+        batch_size=2,
+        num_epochs=1,
+        supervised=True,
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+
+    careamist.train(
+        train_data=train_array,
+        train_data_target=target_array,
+        val_data=train_array,
+        val_data_target=target_array,
+    )
+
+    predicted, _ = careamist.predict(train_array)
+    assert predicted[0].shape == (2, 64, 64)
+
+
+def test_train_hdn_unsupervised_rejects_target(tmp_path: Path):
+    """Test that an unsupervised HDN rejects target data."""
+    train_array = random_array((2, 64, 64))
+    config = create_hdn_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SYX",
+        patch_size=(64, 64),
+        batch_size=2,
+        num_epochs=1,
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+
+    with pytest.raises(ValueError, match="supervised=True"):
+        careamist.train(
+            train_data=train_array,
+            train_data_target=train_array,
+            val_data=train_array,
+            val_data_target=train_array,
         )
 
 
