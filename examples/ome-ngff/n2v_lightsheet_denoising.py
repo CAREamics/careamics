@@ -28,6 +28,7 @@ def create_config(backend: str = "zarr", num_epochs: int = 50):
         n_channels=2,
         independent_channels=True,
         zarr_backend=backend,
+        num_workers=0,
     )
 
 
