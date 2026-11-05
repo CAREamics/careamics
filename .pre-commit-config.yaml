@@ -44,7 +44,7 @@ repos:
     rev: v1.11.0
     hooks:
       - id: numpydoc-validation
-        exclude: "^(tests/.*|docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/noise_models.py|src/careamics/losses/lvae/.*|scripts/.*|benchmarks/.*)"
+        exclude: "^(tests/.*|docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/noise_models.py|src/careamics/losses/lvae/.*|scripts/.*|benchmarks/.*|examples/.*)"
         # data_module: overloads and config params (val_percentage etc.) don't match signature; see https://github.com/numpy/numpydoc/issues/559
 
   # # jupyter linting and formatting

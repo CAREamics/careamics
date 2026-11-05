@@ -16,6 +16,21 @@ from careamics.config.factories import create_advanced_n2v_config
 from careamics.plotting import plot_loss
 
 
+def create_config(backend: str = "zarr", num_epochs: int = 50):
+    """Create the light-sheet N2V configuration for a Zarr backend."""
+    return create_advanced_n2v_config(
+        experiment_name="n2v_lightsheet_denoising",
+        data_type="zarr",
+        axes="TCZYX",
+        patch_size=(32, 128, 128),
+        batch_size=6,
+        num_epochs=num_epochs,
+        n_channels=2,
+        independent_channels=True,
+        zarr_backend=backend,
+    )
+
+
 def download_data() -> Path:
     """Download example data.
 
@@ -51,16 +66,7 @@ def main() -> None:
 
     path_to_zarr = download_data()
 
-    config = create_advanced_n2v_config(
-        experiment_name="n2v_lightsheet_denoising",
-        data_type="zarr",
-        axes="TCZYX",
-        patch_size=(32, 128, 128),
-        batch_size=6,
-        num_epochs=50,
-        n_channels=2,
-        independent_channels=True,
-    )
+    config = create_config()
     careamist = CAREamist(config=config, work_dir=root)
     careamist.train(train_data=path_to_zarr)
 
