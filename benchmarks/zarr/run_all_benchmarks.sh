@@ -38,6 +38,15 @@ read -r -a PLANE_SHARD_ARGS <<< "${PLANE_SHARDS}"
 read -r -a BACKEND_ARGS <<< "${BACKENDS}"
 read -r -a WORKER_ARGS <<< "${WORKERS}"
 
+# benchmark_careamics_io.py accepts one comma-separated value for each list
+# option, unlike the lower-level benchmark scripts which use argparse nargs.
+PATCH_SIZE_LIST=$(IFS=,; echo "${PATCH_SIZE_ARGS[*]}")
+TILE_SIZE_LIST=$(IFS=,; echo "${TILE_SIZE_ARGS[*]}")
+CHUNK_LIST=$(IFS=,; echo "${CHUNK_ARGS[*]}")
+SHARD_LIST=$(IFS=,; echo "${SHARD_ARGS[*]}")
+BACKEND_LIST=$(IFS=,; echo "${BACKEND_ARGS[*]}")
+WORKER_LIST=$(IFS=,; echo "${WORKER_ARGS[*]}")
+
 mkdir -p "${OUTPUT_DIR}" "${OUTPUT_DIR}/plots" "${OUTPUT_DIR}/logs"
 export MPLCONFIGDIR="${MPLCONFIGDIR:-${OUTPUT_DIR}/matplotlib}"
 mkdir -p "${MPLCONFIGDIR}"
@@ -74,12 +83,12 @@ run_logged careamics_io \
     uv run python "${SCRIPT_DIR}/benchmark_careamics_io.py" \
     --output-dir "${OUTPUT_DIR}/careamics_io" \
     --array-shape "${ARRAY_SHAPE}" \
-    --patch-sizes "${PATCH_SIZE_ARGS[@]}" \
-    --tile-sizes "${TILE_SIZE_ARGS[@]}" \
-    --chunks "${CHUNK_ARGS[@]}" \
-    --shards "${SHARD_ARGS[@]}" \
-    --backends "${BACKEND_ARGS[@]}" \
-    --workers "${WORKER_ARGS[@]}" \
+    --patch-sizes "${PATCH_SIZE_LIST}" \
+    --tile-sizes "${TILE_SIZE_LIST}" \
+    --chunks "${CHUNK_LIST}" \
+    --shards "${SHARD_LIST}" \
+    --backends "${BACKEND_LIST}" \
+    --workers "${WORKER_LIST}" \
     --repeats "${REPEATS}" \
     --warmups "${WARMUPS}" \
     --measure-batches "${MEASURE_BATCHES}"
