@@ -2,6 +2,7 @@
 
 __all__ = [
     "CAREAlgorithm",
+    "CryoCAREAlgorithm",
     "DataConfig",
     "GaussianMixtureNMConfig",
     "HDNAlgorithm",
@@ -41,6 +42,7 @@ __all__ = [
 
 from .algorithms import (
     CAREAlgorithm,
+    CryoCAREAlgorithm,
     HDNAlgorithm,
     MicroSplitAlgorithm,
     N2NAlgorithm,
