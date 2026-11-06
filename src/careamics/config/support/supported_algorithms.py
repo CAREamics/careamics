@@ -23,6 +23,9 @@ class SupportedAlgorithm(StrEnum):
     """Noise2Noise algorithm, a self-supervised denoising scheme based on comparing
     noisy images of the same sample."""
 
+    CRYOCARE = "cryocare"
+    """cryoCARE Noise2Noise denoising algorithm for cryo-electron tomography."""
+
     MUSPLIT = "musplit"  # TODO remove
     """An image splitting approach based on ladder VAE architectures."""
 
