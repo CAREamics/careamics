@@ -9,7 +9,7 @@ import warnings
 from collections.abc import Sequence
 from enum import StrEnum
 from pprint import pformat
-from typing import Annotated, Any, Literal, Self, Union
+from typing import Annotated, Any, Generic, Literal, Self, Union
 
 import numpy as np
 from pydantic import (
@@ -21,8 +21,13 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from typing_extensions import TypeVar
 
-from careamics.config.augmentations import XYFlipConfig, XYRandomRotate90Config
+from careamics.config.augmentations import (
+    DefaultAugs,
+    XYFlipConfig,
+    XYRandomRotate90Config,
+)
 from careamics.config.support import SupportedData
 from careamics.config.utils.random import generate_random_seed
 from careamics.config.validators import check_axes_validity, check_czi_axes_validity
@@ -56,6 +61,12 @@ from .patching_strategies import (
 #       leverage Pydantic to add validation directly to the declaration of each field?
 
 logger = get_logger("DataConfig")
+
+
+DataInputFormat = Literal["array", "tiff", "zarr", "czi", "mrc", "custom"]
+
+
+AugmentationT = TypeVar("AugmentationT", default=DefaultAugs)
 
 
 def _is_3D(axes: str, data_type: SupportedData) -> bool:
@@ -370,7 +381,7 @@ def _default_filter_coverage(is_3d: bool) -> float:
     return 1 / (2**ndims)
 
 
-class DataConfig(BaseModel):
+class DataConfig(BaseModel, Generic[AugmentationT]):
     """Next-Generation Dataset configuration.
 
     DataConfig are used for both training and prediction, with the patching strategy
@@ -390,7 +401,7 @@ class DataConfig(BaseModel):
     mode: Mode
     """Dataset mode, either training, validating or predicting."""
 
-    data_type: Literal["array", "tiff", "zarr", "czi", "custom"]
+    data_type: DataInputFormat
     """Type of input data."""
 
     axes: str
@@ -436,7 +447,7 @@ class DataConfig(BaseModel):
     Coverage is automatically set to 1/(2**ndims) based on data dimensionality
     where ndims is determined from axes. Only available in `training` mode."""
 
-    augmentations: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
+    augmentations: Sequence[AugmentationT] = Field(
         default=(
             XYFlipConfig(),
             XYRandomRotate90Config(),
@@ -1043,7 +1054,7 @@ class DataConfig(BaseModel):
         new_patch_size: Sequence[int] | None = None,
         overlap_size: Sequence[int] | None = None,
         new_batch_size: int | None = None,
-        new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        new_data_type: DataInputFormat | None = None,
         new_axes: str | None = None,
         new_target_axes: str | None = None,
         new_channels: Sequence[int] | Literal["all"] | None = None,
@@ -1088,7 +1099,7 @@ class DataConfig(BaseModel):
             patching.
         new_batch_size : int, default=None
             New batch size.
-        new_data_type : Literal['array', 'tiff', 'zarr', 'czi', 'custom'], default=None
+        new_data_type : DataInputFormat, default=None
             New data type.
         new_axes : str, default=None
             New axes.

@@ -24,16 +24,10 @@ class SupportedAlgorithm(StrEnum):
     noisy images of the same sample."""
 
     CRYOCARE = "cryocare"
-    """cryoCARE Noise2Noise denoising algorithm for cryo-electron tomography."""
-
-    MUSPLIT = "musplit"  # TODO remove
-    """An image splitting approach based on ladder VAE architectures."""
+    """CryoCARE denoising algorithm for cryo-electron tomography."""
 
     MICROSPLIT = "microsplit"
-    """A micro-level image splitting approach based on ladder VAE architectures."""
-
-    DENOISPLIT = "denoisplit"
-    """An image splitting and denoising approach based on ladder VAE architectures."""
+    """An image splitting approach based on ladder VAE architectures."""
 
     HDN = "hdn"
     """Hierarchical Denoising Network, an unsupervised denoising algorithm"""

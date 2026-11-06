@@ -10,11 +10,15 @@ from careamics.dataset.augmentation.compose import Compose
 
 
 @pytest.mark.parametrize(
-    ("tilt_axis", "axes"),
-    [("Z", (-2, -1)), ("Y", (-3, -1)), ("X", (-3, -2))],
+    ("tilt_axis", "axes", "shape"),
+    [
+        ("Z", (-2, -1), (1, 5, 3, 3)),
+        ("Y", (-3, -1), (1, 3, 5, 3)),
+        ("X", (-3, -2), (1, 3, 3, 5)),
+    ],
 )
-def test_tilt_axis_rotation(ordered_array, tilt_axis, axes) -> None:
-    patch = ordered_array((1, 3, 3, 3))
+def test_tilt_axis_rotation(ordered_array, tilt_axis, axes, shape) -> None:
+    patch = ordered_array(shape)
     target = patch + 100
     additional = patch + 200
     transform = TiltAxisRandomRotate90(tilt_axis, p=1, seed=42)
@@ -29,13 +33,13 @@ def test_tilt_axis_rotation(ordered_array, tilt_axis, axes) -> None:
     assert np.array_equal(arrays["mask"], np.rot90(additional, expected_k, axes=axes))
 
 
-def test_tilt_axis_rotation_requires_cubic_3d_patch(ordered_array) -> None:
+def test_tilt_axis_rotation_requires_czyx_patch(ordered_array) -> None:
     transform = TiltAxisRandomRotate90("Z")
 
     with pytest.raises(ValueError, match="4D CZYX"):
         transform(ordered_array((1, 3, 3)))
-    with pytest.raises(ValueError, match="cubic"):
-        transform(ordered_array((1, 2, 3, 3)))
+    with pytest.raises(ValueError, match="equal dimensions"):
+        transform(ordered_array((1, 2, 3, 4)))
 
 
 def test_swap_input_target(ordered_array) -> None:

@@ -14,6 +14,7 @@ from .config.algorithms import (
     N2VAlgorithm,
 )
 from .config.configuration import Configuration
+from .config.data import DataInputFormat
 from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
 from .config.support import SupportedAlgorithm, SupportedLogger
@@ -64,6 +65,8 @@ ConfigurationType = (
     | HDNConfiguration
     | MicroSplitConfiguration
 )
+
+DataOutputFormat = Literal["tiff", "zarr", "custom"]
 
 
 class CAREamist:
@@ -240,21 +243,21 @@ class CAREamist:
 
     @staticmethod
     def _default_write_type(
-        write_type: Literal["tiff", "zarr", "custom"] | None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
-    ) -> Literal["tiff", "zarr", "custom"]:
+        write_type: DataOutputFormat | None,
+        data_type: DataInputFormat,
+    ) -> DataOutputFormat:
         """Default the write type from the prediction data type.
 
         Parameters
         ----------
-        write_type : {"tiff", "zarr", "custom"} or None
+        write_type : DataOutputFormat or None
             The write type requested by the user, or None to infer it.
-        data_type : {"array", "tiff", "zarr", "czi", "custom"}
+        data_type : DataInputFormat
             The (effective) prediction data type.
 
         Returns
         -------
-        {"tiff", "zarr", "custom"}
+        DataOutputFormat
             The resolved write type.
         """
         if write_type is not None:
@@ -267,7 +270,7 @@ class CAREamist:
     @staticmethod
     def _predict_in_memory(
         in_memory: bool | None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+        data_type: DataInputFormat,
     ) -> bool | None:
         """Resolve the `in_memory` setting for prediction.
 
@@ -279,7 +282,7 @@ class CAREamist:
         ----------
         in_memory : bool or None
             The `in_memory` value requested by the user, or None to infer it.
-        data_type : {"array", "tiff", "zarr", "czi", "custom"}
+        data_type : DataInputFormat
             The (effective) prediction data type.
 
         Returns
@@ -798,7 +801,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
@@ -825,8 +828,9 @@ class CAREamist:
         output_axes : str | None, default=None
             Output axes used for reshaping prediction. If None, uses `target_axes` from
             the training configuration.
-        data_type : {"array", "tiff", "zarr", "czi", "custom"} | None, default=None
+        data_type : DataInputFormat | None
             Data type for prediction. If None, uses training configuration data type.
+            Default is `None`.
         num_workers : int | None, default=None
             Number of workers for data loading during prediction.
         channels : Sequence[int] | Literal["all"] | None, default=None
@@ -929,7 +933,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -950,7 +954,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -970,7 +974,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -990,7 +994,7 @@ class CAREamist:
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -1010,7 +1014,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -1171,7 +1175,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -1179,7 +1183,7 @@ class CAREamist:
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] | None = None,
+        write_type: DataOutputFormat | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
@@ -1199,7 +1203,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -1207,7 +1211,7 @@ class CAREamist:
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] | None = None,
+        write_type: DataOutputFormat | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
@@ -1226,7 +1230,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -1234,7 +1238,7 @@ class CAREamist:
         loading: Loading = None,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] | None = None,
+        write_type: DataOutputFormat | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
@@ -1305,7 +1309,7 @@ class CAREamist:
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
-        write_type : {"tiff", "zarr", "custom"}, optional
+        write_type : DataOutputFormat, optional
             The data type to save as, includes custom. If None, defaults to "zarr"
             when the (effective) prediction `data_type` is "zarr", and "tiff"
             otherwise.
