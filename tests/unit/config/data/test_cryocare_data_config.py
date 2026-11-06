@@ -5,6 +5,10 @@ from pydantic import ValidationError
 
 from careamics.config import CryoCAREDataConfig
 from careamics.config.data.normalization_config import NoNormConfig
+from careamics.config.data.patching_strategies import (
+    FixedRandomPatchingConfig,
+    WholePatchingConfig,
+)
 
 
 def _cryocare_data(**kwargs) -> dict:
@@ -91,12 +95,40 @@ def test_non_training_config_uses_no_augmentations() -> None:
 
 
 def test_training_requires_stratified_patching() -> None:
-    """Reject non-stratified patching for CryoCARE training and validation."""
-    for mode, patching in (
-        ("training", {"name": "random", "patch_size": (32, 32, 32)}),
-        ("validating", {"name": "fixed_random", "patch_size": (32, 32, 32)}),
-    ):
-        with pytest.raises(ValidationError, match="require stratified patching"):
-            CryoCAREDataConfig(
-                **_cryocare_data(mode=mode, patching=patching),
-            )
+    """Reject non-stratified patching for CryoCARE training."""
+    with pytest.raises(ValidationError, match="requires stratified patching"):
+        CryoCAREDataConfig(
+            **_cryocare_data(
+                patching={"name": "random", "patch_size": (32, 32, 32)},
+            ),
+        )
+
+
+def test_validation_accepts_fixed_random_patching() -> None:
+    """Accept fixed random patching for CryoCARE validation."""
+    config = CryoCAREDataConfig(
+        **_cryocare_data(
+            mode="validating",
+            patching={"name": "fixed_random", "patch_size": (32, 32, 32)},
+        ),
+    )
+
+    assert isinstance(config.patching, FixedRandomPatchingConfig)
+    assert config.augmentations == []
+
+
+@pytest.mark.parametrize("mode", ["validating", "predicting"])
+def test_convert_mode_preserves_cryocare_fields(mode: str) -> None:
+    """Preserve CryoCARE fields when converting the training config."""
+    config = CryoCAREDataConfig(**_cryocare_data())
+
+    converted = config.convert_mode(mode)  # type: ignore[arg-type]
+
+    assert isinstance(converted, CryoCAREDataConfig)
+    assert converted.tilt_axis == config.tilt_axis
+    assert converted.validation_fraction == config.validation_fraction
+    assert converted.augmentations == []
+    if mode == "validating":
+        assert isinstance(converted.patching, FixedRandomPatchingConfig)
+    else:
+        assert isinstance(converted.patching, WholePatchingConfig)

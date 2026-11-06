@@ -1060,7 +1060,7 @@ class DataConfig(BaseModel, Generic[AugmentationT]):
         new_channels: Sequence[int] | Literal["all"] | None = None,
         new_in_memory: bool | None = None,
         new_dataloader_params: dict[str, Any] | None = None,
-    ) -> DataConfig:
+    ) -> DataConfig[AugmentationT]:
         """
         Convert a training dataset configuration to a different mode.
 

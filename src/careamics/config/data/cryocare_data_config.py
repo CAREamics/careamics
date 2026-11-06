@@ -1,7 +1,7 @@
 """CryoCARE-specific data configuration."""
 
 from collections.abc import Sequence
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 
@@ -11,7 +11,7 @@ from careamics.config.augmentations import (
     TiltAxisRandomRotate90Config,
 )
 
-from .data_config import DataConfig, Mode
+from .data_config import DataConfig, DataInputFormat, Mode
 from .patching_strategies import StratifiedPatchingConfig
 
 
@@ -109,7 +109,7 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
 
     @model_validator(mode="after")
     def validate_training_patching(self) -> "CryoCAREDataConfig":
-        """Require stratified patching for CryoCARE training and validation.
+        """Require stratified patching for CryoCARE training.
 
         Returns
         -------
@@ -119,13 +119,13 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
         Raises
         ------
         ValueError
-            If a training or validation configuration does not use stratified patching.
+            If a training configuration does not use stratified patching.
         """
-        if self.mode in (Mode.TRAINING, Mode.VALIDATING) and not isinstance(
+        if self.mode == Mode.TRAINING and not isinstance(
             self.patching, StratifiedPatchingConfig
         ):
             raise ValueError(
-                "CryoCARE training and validation require stratified patching, got "
+                "CryoCARE training requires stratified patching, got "
                 f"'{self.patching.name}'."
             )
         return self
@@ -210,3 +210,67 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
                 "parameter."
             )
         return value
+
+    def convert_mode(
+        self: Self,
+        new_mode: Literal["validating", "predicting"],
+        new_patch_size: Sequence[int] | None = None,
+        overlap_size: Sequence[int] | None = None,
+        new_batch_size: int | None = None,
+        new_data_type: DataInputFormat | None = None,
+        new_axes: str | None = None,
+        new_target_axes: str | None = None,
+        new_channels: Sequence[int] | Literal["all"] | None = None,
+        new_in_memory: bool | None = None,
+        new_dataloader_params: dict[str, Any] | None = None,
+    ) -> "CryoCAREDataConfig":
+        """Convert mode while preserving CryoCARE-specific fields.
+
+        Parameters
+        ----------
+        new_mode : Literal["validating", "predicting"]
+            The new dataset mode.
+        new_patch_size : Sequence[int] or None, default=None
+            New patch size for validation or tiled prediction.
+        overlap_size : Sequence[int] or None, default=None
+            Tile overlap, required when ``new_patch_size`` is specified for prediction.
+        new_batch_size : int or None, default=None
+            New batch size.
+        new_data_type : DataInputFormat or None, default=None
+            New data type.
+        new_axes : str or None, default=None
+            New axes.
+        new_target_axes : str or None, default=None
+            New target axes.
+        new_channels : Sequence[int], "all" or None, default=None
+            New channel selection.
+        new_in_memory : bool or None, default=None
+            New in-memory loading setting.
+        new_dataloader_params : dict of {str: Any} or None, default=None
+            New dataloader parameters.
+
+        Returns
+        -------
+        CryoCAREDataConfig
+            Converted configuration with CryoCARE-specific fields preserved.
+        """
+        converted = super().convert_mode(
+            new_mode=new_mode,
+            new_patch_size=new_patch_size,
+            overlap_size=overlap_size,
+            new_batch_size=new_batch_size,
+            new_data_type=new_data_type,
+            new_axes=new_axes,
+            new_target_axes=new_target_axes,
+            new_channels=new_channels,
+            new_in_memory=new_in_memory,
+            new_dataloader_params=new_dataloader_params,
+        )
+        model_dict = converted.model_dump()
+        model_dict.update(
+            {
+                "tilt_axis": self.tilt_axis,
+                "validation_fraction": self.validation_fraction,
+            }
+        )
+        return CryoCAREDataConfig(**model_dict)
