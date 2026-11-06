@@ -12,11 +12,12 @@ CAREamics always writes a CSV log of training and validation metrics. In additio
 All training artefacts are written under the `work_dir` passed to the `CAREamist` (the current working directory by default), with the following layout:
 
 ```
-work_dir/
-├── csv_logs/<experiment_name>/version_<n>/metrics.csv
-├── tb_logs/lightning_logs/version_<n>/             # if logger="tensorboard"
-├── wandb_logs/                                     # if logger="wandb"
-└── checkpoints/<experiment_name>_<n>/
+work_dir
+├─ logs
+│   ├── csv_logs/<experiment_name>/version_<n>/metrics.csv
+│   ├── tb_logs/<experiment_name>/version_<n>/         # if logger="tensorboard"
+│   ├── wandb_logs/                                    # if logger="wandb"
+└─ checkpoints/<experiment_name>_<n>/
 ```
 
 A new `version_<n>` directory is created each time training is re-run with the same `experiment_name`.

@@ -212,6 +212,11 @@ class MeanStdConfig(BaseModel):
             if len(self.input_means) != len(self.input_stds):
                 raise ValueError("input_means and input_stds must have same length.")
 
+        if self.target_mode == "same_as_input" and self.input_means is not None:
+            assert self.input_stds is not None
+            object.__setattr__(self, "target_means", self.input_means.copy())
+            object.__setattr__(self, "target_stds", self.input_stds.copy())
+
         if (self.target_means is None) != (self.target_stds is None):
             raise ValueError(
                 "target_means and target_stds must be both provided or both None."
@@ -278,6 +283,9 @@ class MeanStdConfig(BaseModel):
         """
         object.__setattr__(self, "input_means", means)
         object.__setattr__(self, "input_stds", stds)
+        if self.target_mode == "same_as_input":
+            object.__setattr__(self, "target_means", means.copy())
+            object.__setattr__(self, "target_stds", stds.copy())
         self.__class__.model_validate(self)
 
     def set_target_stats(self, means: list[float], stds: list[float]) -> None:
@@ -519,6 +527,22 @@ class QuantileConfig(BaseModel):
                         f"input_upper_quantile_values[{i}] ({upper})"
                     )
 
+        if (
+            self.target_mode == "same_as_input"
+            and self.input_lower_quantile_values is not None
+        ):
+            assert self.input_upper_quantile_values is not None
+            object.__setattr__(
+                self,
+                "target_lower_quantile_values",
+                self.input_lower_quantile_values.copy(),
+            )
+            object.__setattr__(
+                self,
+                "target_upper_quantile_values",
+                self.input_upper_quantile_values.copy(),
+            )
+
         if (self.target_lower_quantile_values is None) != (
             self.target_upper_quantile_values is None
         ):
@@ -549,6 +573,7 @@ class QuantileConfig(BaseModel):
                         f"target_lower_quantile_values[{i}] ({lower}) must be less "
                         f"than target_upper_quantile_values[{i}] ({upper})"
                     )
+
         return self
 
     @model_validator(mode="after")
@@ -612,6 +637,9 @@ class QuantileConfig(BaseModel):
         """
         object.__setattr__(self, "input_lower_quantile_values", lower)
         object.__setattr__(self, "input_upper_quantile_values", upper)
+        if self.target_mode == "same_as_input":
+            object.__setattr__(self, "target_lower_quantile_values", lower.copy())
+            object.__setattr__(self, "target_upper_quantile_values", upper.copy())
         self.__class__.model_validate(self)
 
     def set_target_quantile_values(
@@ -855,6 +883,11 @@ class MinMaxConfig(BaseModel):
                         f"target_maxes[{i}] ({max_val})"
                     )
 
+        if self.target_mode == "same_as_input" and self.input_mins is not None:
+            assert self.input_maxes is not None
+            object.__setattr__(self, "target_mins", self.input_mins.copy())
+            object.__setattr__(self, "target_maxes", self.input_maxes.copy())
+
         return self
 
     @model_validator(mode="after")
@@ -913,6 +946,9 @@ class MinMaxConfig(BaseModel):
         """
         object.__setattr__(self, "input_mins", mins)
         object.__setattr__(self, "input_maxes", maxes)
+        if self.target_mode == "same_as_input":
+            object.__setattr__(self, "target_mins", mins.copy())
+            object.__setattr__(self, "target_maxes", maxes.copy())
         self.__class__.model_validate(self)
 
     def set_target_range(self, mins: list[float], maxes: list[float]) -> None:

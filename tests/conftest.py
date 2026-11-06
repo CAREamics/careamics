@@ -21,6 +21,7 @@ from careamics.lightning.callbacks.config_saver_callback import (
     ConfigSaverCallback,
 )
 from careamics.lightning.data.data_module import CareamicsDataModule
+from careamics.lightning.logger import CoLogger
 from careamics.lightning.modules import CAREModule, N2VModule
 from careamics.lightning.utils.load_checkpoint import _create_loaded_exp_name
 
@@ -99,57 +100,23 @@ def minimum_algorithm_supervised() -> dict:
     return algorithm
 
 
-# TODO: wrong! need to update/remove this fixture
 @pytest.fixture
-def minimum_algorithm_musplit() -> dict:
-    """Create a minimum algorithm dictionary.
+def minimum_algorithm_hdn() -> dict:
+    """Create a minimum HDN algorithm dictionary.
 
     Returns
     -------
     dict
-        A minimum algorithm example.
+        A minimum HDN algorithm example.
     """
     # create dictionary
     algorithm = {
-        "algorithm_type": "vae",
-        "algorithm": "musplit",  # TODO temporary
-        "loss": "musplit",
+        "algorithm": "hdn",
+        "loss": {"loss_type": "hdn"},
         "model": {
             "architecture": "LVAE",
             "z_dims": (128, 128, 128),
-            "multiscale_count": 2,
-            "predict_logvar": "pixelwise",
         },
-        "likelihood": {
-            "type": "GaussianLikelihoodConfig",
-        },
-    }
-
-    return algorithm
-
-
-# TODO: wrong! need to update/remove this fixture
-@pytest.fixture
-def minimum_algorithm_denoisplit() -> dict:
-    """Create a minimum algorithm dictionary.
-
-    Returns
-    -------
-    dict
-        A minimum algorithm example.
-    """
-    # create dictionary
-    algorithm = {
-        "algorithm_type": "vae",
-        "algorithm": "denoisplit",
-        "loss": "denoisplit",
-        "model": {
-            "architecture": "LVAE",
-            "z_dims": (128, 128, 128),
-            "multiscale_count": 2,
-        },
-        "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
-        "noise_model": "MultiChannelNMConfig",
     }
 
     return algorithm
@@ -167,15 +134,12 @@ def minimum_algorithm_microsplit() -> dict:
     # create dictionary
     algorithm = {
         "algorithm": "microsplit",
-        "loss": "microsplit",
+        "loss": {"loss_type": "microsplit"},
         "model": {
             "architecture": "LVAE",
             "z_dims": (128, 128, 128),
             "multiscale_count": 2,
-            "predict_logvar": "pixelwise",
-        },
-        "likelihood": {
-            "type": "GaussianLikelihoodConfig",
+            "predict_logvar": True,
         },
     }
 
@@ -408,13 +372,11 @@ def minimum_lvae_params():
         "encoder_conv_strides": [2, 2],
         "decoder_conv_strides": [2, 2],
         "z_dims": [128, 128, 128, 128],
-        "encoder_n_filters": 64,
-        "decoder_n_filters": 64,
+        "n_filters": 64,
         "encoder_dropout": 0.1,
         "decoder_dropout": 0.1,
         "nonlinearity": "ELU",
         "predict_logvar": "pixelwise",
-        "analytical_kl": False,
     }
 
 
@@ -443,7 +405,7 @@ def _checkpoint_trainer(request):
         else:
             info_callback = None
             callbacks = []
-        return Trainer(max_epochs=1, callbacks=callbacks), info_callback
+        return Trainer(max_epochs=1, callbacks=callbacks, logger=False), info_callback
 
     return _get_trainer_and_info
 
@@ -514,6 +476,12 @@ def checkpoint(
     module = module_cls(config.algorithm_config)
     dmodule = CareamicsDataModule(data_config=config.data_config, **data)
     trainer, info_callback = _checkpoint_trainer(request.param, config.data_config)
+    logger = CoLogger(
+        experiment_name=config.experiment_name,
+        work_dir=tmp_path,
+        config=config,
+    )
+    trainer.loggers.append(logger)
     trainer.fit(model=module, datamodule=dmodule)
     ckpt_path = tmp_path / "checkpoint_test_fixture.ckpt"
     trainer.save_checkpoint(ckpt_path)

@@ -167,6 +167,101 @@ def create_extra_element_dicts(norm: dict[str, Any]) -> list[dict[str, Any]]:
     return dict_lst
 
 
+@pytest.mark.parametrize(
+    ("norm", "input_stats", "target_fields"),
+    [
+        (
+            "mean_std",
+            {"input_means": [1.0], "input_stds": [2.0]},
+            ("target_means", "target_stds"),
+        ),
+        (
+            "mean_std",
+            {
+                "input_means": [1.0],
+                "input_stds": [2.0],
+                "target_means": [2.0],
+                "target_stds": [5.0],
+            },
+            ("target_means", "target_stds"),
+        ),
+        (
+            "min_max",
+            {
+                "input_mins": [1.0],
+                "input_maxes": [2.0],
+                "target_mins": [2.0],
+                "target_maxes": [5.0],
+            },
+            ("target_mins", "target_maxes"),
+        ),
+        (
+            "min_max",
+            {"input_mins": [1.0], "input_maxes": [2.0]},
+            ("target_mins", "target_maxes"),
+        ),
+        (
+            "quantile",
+            {
+                "input_lower_quantile_values": [1.0],
+                "input_upper_quantile_values": [2.0],
+            },
+            ("target_lower_quantile_values", "target_upper_quantile_values"),
+        ),
+        (
+            "quantile",
+            {
+                "input_lower_quantile_values": [1.0],
+                "input_upper_quantile_values": [2.0],
+                "target_lower_quantile_values": [3.0],
+                "target_upper_quantile_values": [5.0],
+            },
+            ("target_lower_quantile_values", "target_upper_quantile_values"),
+        ),
+    ],
+)
+def test_same_as_input_mirrors_input_statistics(
+    norm: str, input_stats: dict[str, list[float]], target_fields: tuple[str, str]
+) -> None:
+    """Test that same-as-input derive target statistics from input statistics."""
+    config = instantiate_norm_config(
+        {"name": norm, "target_mode": "same_as_input", **input_stats}
+    )
+
+    assert getattr(config, target_fields[0]) == [1.0]
+    assert getattr(config, target_fields[1]) == [2.0]
+
+
+@pytest.mark.parametrize(
+    ("config", "setter", "fields"),
+    [
+        (
+            MeanStdConfig(target_mode="same_as_input"),
+            "set_input_stats",
+            ("target_means", "target_stds"),
+        ),
+        (
+            MinMaxConfig(target_mode="same_as_input"),
+            "set_input_range",
+            ("target_mins", "target_maxes"),
+        ),
+        (
+            QuantileConfig(target_mode="same_as_input"),
+            "set_input_quantile_values",
+            ("target_lower_quantile_values", "target_upper_quantile_values"),
+        ),
+    ],
+)
+def test_same_as_input_setters_mirror_statistics(
+    config: Any, setter: str, fields: tuple[str, str]
+) -> None:
+    """Updating input statistics also updates derived target statistics."""
+    getattr(config, setter)([3.0], [4.0])
+
+    assert getattr(config, fields[0]) == [3.0]
+    assert getattr(config, fields[1]) == [4.0]
+
+
 def _swap_keys(d: dict[str, Any], key1: str, key2: str) -> dict[str, Any]:
     """Swap the values of two keys in a dict."""
     new_dict = d.copy()

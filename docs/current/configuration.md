@@ -355,7 +355,9 @@ By default, channels are trained independently. This means that the channels do 
 ### Normalization
 
 CAREamics offers various normalization methods that can be set using the `normalization`
-and `normalization_params` parameters. The normalization is applied to any patch or
+parameter. It accepts either a method name (`"mean_std"`, `"quantile"`, `"min_max"`, or
+`"none"`) or a corresponding Pydantic normalization configuration such as
+`MeanStdConfig`, `MinMaxConfig` or `QuantileConfig`. The normalization is applied to any patch or
 image before applying the model, therefore it is applied in both training and prediction.
 For more details on the available normalization methods and their parameters, refer to the
 [Code reference]() section.
@@ -365,17 +367,40 @@ The various normalizations are the following:
 
 | Method | Optional parameters|
 |----------|----------|
-| `mean_std` | `per_channel=True`, `skip_target=False`, `input_means`, `input_stds`,`target_means`, `target_stds`|
-| `quantile` | `per_channel=True`, `skip_target=False`, `lower_quantile=[0.01]`, `upper_quantile=[0.99]` , `input_lower_quantile_values`, `input_upper_quantile_values`, `target_lower_quantile_values`, `target_upper_quantile_values`|
-| `minmax`    | `per_channel=True`, `skip_target=False`, `input_mins`, `input_maxes` , `target_mins`, `target_maxes`|
+| `mean_std` | `per_channel=True`, `target_mode="independent"`, `input_means`, `input_stds`, `target_means`, `target_stds`|
+| `quantile` | `per_channel=True`, `target_mode="independent"`, `lower_quantiles=[0.01]`, `upper_quantiles=[0.99]`, `input_lower_quantile_values`, `input_upper_quantile_values`, `target_lower_quantile_values`, `target_upper_quantile_values`|
+| `min_max` | `per_channel=True`, `target_mode="independent"`, `input_mins`, `input_maxes`, `target_mins`, `target_maxes`|
 | `none` | No parameters |
+
+For methods with targets, `target_mode="independent"` computes target statistics
+separately, `target_mode="same_as_input"` reuses the input statistics, and
+`target_mode="none"` disables target normalization.
 
 !!! note "Noise2Void and targets"
 
     While normalization methods have parameters for the targets, there is no target in Noise2Void and these parameters will not be used.
 
 
-The `quantile` normalization has two parameters, `lower_quantile` and `upper_quantile`, that are set by default to `0.01` and `0.99` respectively. These parameters can be changed by passing them in `normalization_params` as dictionary. By default, `mean_std` normalization is applied, which correspond to zero-mean, unit-variance normalization. To disable normalization, set `normalization="none"`
+To use default parameters and compute the statistics at run time, simply pass the name of the normalization method:
+
+=== "Noise2Void"
+    
+    ```python title="Specifying the normalization method"
+    --8<-- "current/configuration_advanced.py:adv_config_n2v_norm_str"
+    ```
+
+=== "CARE/N2N"
+    
+    ```python title="Specifying the normalization method"
+    --8<-- "current/configuration_advanced.py:adv_config_care_norm_str"
+    ```
+
+
+The `quantile` normalization has two parameters, `lower_quantiles` and `upper_quantiles`,
+which are set by default to `0.01` and `0.99` respectively. These parameters can be
+changed by passing a `QuantileConfig` to `normalization`. By default, `mean_std`
+normalization is applied, which corresponds to zero-mean, unit-variance normalization.
+To disable normalization, set `normalization="none"`.
 
 === "Noise2Void"
     
@@ -383,8 +408,8 @@ The `quantile` normalization has two parameters, `lower_quantile` and `upper_qua
     --8<-- "current/configuration_advanced.py:adv_config_n2v_norm"
     ```
 
-    1. The normalization method is choosen by passing `normalization`.
-    2. It is possible to change default parameters (here for `quantile`). Alternatively, pre-computed. normalization parameters can be passed here.
+    1. The normalization method is chosen by passing a `QuantileConfig` to `normalization`.
+    2. The quantile levels can be customized in the Pydantic configuration.
 
 === "CARE/N2N"
 
@@ -392,15 +417,17 @@ The `quantile` normalization has two parameters, `lower_quantile` and `upper_qua
     --8<-- "current/configuration_advanced.py:adv_config_care_norm"
     ```
 
-    1. The normalization method is choosen by passing `normalization`.
-    2. It is possible to change default parameters (here for `quantile`). Alternatively, pre-computed. normalization parameters can be passed here.
+    1. The normalization method is chosen by passing a `QuantileConfig` to `normalization`.
+    2. The quantile levels can be customized in the Pydantic configuration.
 
 
-!!! note "Passing pre-computed normalization parameters"
+!!! note "Passing pre-computed normalization statistics"
 
-    If the normalization parameters (e.g. `input_means` and `input_stds`) are `None` in the configuration, then the dataset will compute them over the entire training dataset. 
+    If the normalization statistics (e.g. `input_means` and `input_stds`) are `None` in the configuration, then the dataset will compute them over the entire training dataset. 
 
-    However, if you have pre-computed normalization parameters, you can pass them in the configuration using the `normalization_params` parameter. This can save time during training, as the dataset will not need to compute them.
+    However, if you have pre-computed normalization statistics, you can pass them in a
+    Pydantic normalization configuration through the `normalization` parameter. This
+    can save time during training, as the dataset will not need to compute them.
 
 
 === "Noise2Void"
@@ -409,8 +436,8 @@ The `quantile` normalization has two parameters, `lower_quantile` and `upper_qua
     --8<-- "current/configuration_advanced.py:adv_config_n2v_norm_params"
     ```
 
-    1. Here we are selecting the zero-mean unit-variance normalization, which is the default.
-    2. We pass pre-computed parameters.
+    1. Here we select `MeanStdConfig`, which specifies zero-mean unit-variance normalization.
+    2. We pass pre-computed input statistics.
 
 === "CARE/N2N"
 
@@ -418,12 +445,16 @@ The `quantile` normalization has two parameters, `lower_quantile` and `upper_qua
     --8<-- "current/configuration_advanced.py:adv_config_care_norm_params"
     ```
 
-    1. Here we are selecting the zero-mean unit-variance normalization, which is the default.
-    2. We pass pre-computed parameters.
-    3. In CARE and N2N, we can also pass pre-computed target statistics. For N2N they should actually be the same as the input ones.
+    1. Here we select `MeanStdConfig`, which specifies zero-mean unit-variance normalization.
+    2. We pass pre-computed input statistics.
+    3. In CARE and N2N, we can also pass pre-computed target statistics. Set
+       `target_mode="same_as_input"` when target statistics should reuse the input
+       statistics.
 
 
-In the presence of channels, all parameters that are passed to `normalization_params` should have a value for each channel, unless `per_channel` is set to `False`. By default, `per_channel` is set to `True`.
+In the presence of channels, all per-channel values in the Pydantic normalization
+configuration should have one value for each channel, unless `per_channel` is set to
+`False`. By default, `per_channel` is set to `True`.
 
 
 === "Noise2Void"
@@ -451,7 +482,7 @@ In the presence of channels, all parameters that are passed to `normalization_pa
 
 ### Choosing a logger
 
-By default, CAREamics uses the CSV logger from PyTorch Lightning, saving all the loss and metrics to a csv file. In addition, we can use more advanced logging tools, such as [WandB](https://wandb.ai/) or [Tensorboard](https://www.tensorflow.org/tensorboard). To use these loggers, simply set the `logger` parameter to `"wandb"` or `"tensorboard"`.
+By default, CAREamics uses the CSV logger from PyTorch Lightning, saving all the loss and metrics to a csv file. In addition, we can use more advanced logging tools, such as [WandB](https://wandb.ai/) or [Tensorboard](https://www.tensorflow.org/tensorboard). To use these loggers, simply set the `logger="wandb` or `logger="tensorboard"`.
 
 
 

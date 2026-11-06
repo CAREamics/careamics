@@ -1,16 +1,19 @@
 """
 Lightning Module for LadderVAE.
+
+DEPRECATED: This module is part of the old LVAE training code and needs to be updated
+to work with the refactored microsplit loss computation that no longer uses
+likelihood objects.
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, Protocol
 
+import lightning.pytorch as L
 import ml_collections
 import numpy as np
-import lightning.pytorch as L
 import torch
 import torchvision.transforms.functional as F
 
-from careamics.models.lvae.likelihoods import LikelihoodModule
 from careamics.models.lvae.lvae import LadderVAE
 from careamics.models.lvae.utils import (
     LossType,

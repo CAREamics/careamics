@@ -362,13 +362,7 @@ def resolve_normalization_config(
             input_means, input_stds = stats["input"]
             norm_config.set_input_stats(input_means.tolist(), input_stds.tolist())
 
-        if norm_config.target_mode == "same_as_input":
-            assert norm_config.input_means is not None
-            assert norm_config.input_stds is not None
-            norm_config.set_target_stats(
-                norm_config.input_means.copy(), norm_config.input_stds.copy()
-            )
-        elif compute_target and "target" in stats:
+        if compute_target and "target" in stats:
             target_means, target_stds = stats["target"]
             norm_config.set_target_stats(target_means.tolist(), target_stds.tolist())
 
@@ -389,13 +383,7 @@ def resolve_normalization_config(
             input_mins, input_maxes = stats["input"]
             norm_config.set_input_range(input_mins.tolist(), input_maxes.tolist())
 
-        if norm_config.target_mode == "same_as_input":
-            assert norm_config.input_mins is not None
-            assert norm_config.input_maxes is not None
-            norm_config.set_target_range(
-                norm_config.input_mins.copy(), norm_config.input_maxes.copy()
-            )
-        elif compute_target and "target" in stats:
+        if compute_target and "target" in stats:
             target_mins, target_maxes = stats["target"]
             norm_config.set_target_range(target_mins.tolist(), target_maxes.tolist())
 
@@ -419,14 +407,7 @@ def resolve_normalization_config(
                 lower_values.tolist(), upper_values.tolist()
             )
 
-        if norm_config.target_mode == "same_as_input":
-            assert norm_config.input_lower_quantile_values is not None
-            assert norm_config.input_upper_quantile_values is not None
-            norm_config.set_target_quantile_values(
-                norm_config.input_lower_quantile_values.copy(),
-                norm_config.input_upper_quantile_values.copy(),
-            )
-        elif compute_target and "target" in stats:
+        if compute_target and "target" in stats:
             target_lower, target_upper = stats["target"]
             norm_config.set_target_quantile_values(
                 target_lower.tolist(), target_upper.tolist()

@@ -50,7 +50,7 @@ config = create_advanced_n2v_config(
 )
 # --8<-- [end:adv_config_n2v_ind_channels]
 # %%
-# --8<-- [start:adv_config_n2v_norm]
+# --8<-- [start:adv_config_n2v_norm_str]
 from careamics.config import create_advanced_n2v_config
 
 # create a configuration
@@ -61,14 +61,31 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    normalization="quantile",  # (1)!
-    normalization_params={"lower_quantiles": [0.01], "upper_quantiles": [0.99]},  # (2)!
+    normalization="min_max",
+)
+# --8<-- [end:adv_config_n2v_norm_str]
+# %%
+# --8<-- [start:adv_config_n2v_norm]
+from careamics.config import QuantileConfig, create_advanced_n2v_config
+
+# create a configuration
+config = create_advanced_n2v_config(
+    experiment_name="adv_n2v_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    normalization=QuantileConfig(
+        lower_quantiles=[0.01],  # (2)!
+        upper_quantiles=[0.99],
+    ),
 )
 # --8<-- [end:adv_config_n2v_norm]
 
 # %%
 # --8<-- [start:adv_config_n2v_norm_params]
-from careamics.config import create_advanced_n2v_config
+from careamics.config import MeanStdConfig, create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -78,13 +95,15 @@ config = create_advanced_n2v_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    normalization="mean_std",  # (1)!
-    normalization_params={"input_means": [158.95], "input_stds": [10.21]},  # (2)!
+    normalization=MeanStdConfig(  # (1)!
+        input_means=[158.95],  # (2)!
+        input_stds=[10.21],
+    ),
 )
 # --8<-- [end:adv_config_n2v_norm_params]
 # %%
 # --8<-- [start:adv_config_n2v_norm_ch]
-from careamics.config import create_advanced_n2v_config
+from careamics.config import QuantileConfig, create_advanced_n2v_config
 
 # create a configuration
 config = create_advanced_n2v_config(
@@ -95,12 +114,11 @@ config = create_advanced_n2v_config(
     batch_size=8,
     num_epochs=30,
     n_channels=2,  # (2)!
-    normalization="quantile",
-    normalization_params={
-        "lower_quantiles": [0.01, 0.03],  # (3)!
-        "upper_quantiles": [0.99, 0.99],
-        "per_channel": True,  # (4)!
-    },
+    normalization=QuantileConfig(
+        lower_quantiles=[0.01, 0.03],  # (3)!
+        upper_quantiles=[0.99, 0.99],
+        per_channel=True,  # (4)!
+    ),
 )
 # --8<-- [end:adv_config_n2v_norm_ch]
 # %%
@@ -198,8 +216,9 @@ config = create_advanced_care_config(
     independent_channels=False,  # (3)!
 )
 # --8<-- [end:adv_config_care_ind_channels]
+
 # %%
-# --8<-- [start:adv_config_care_norm]
+# --8<-- [start:adv_config_care_norm_str]
 from careamics.config import create_advanced_care_config
 
 # create a configuration
@@ -210,14 +229,32 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    normalization="quantile",  # (1)!
-    normalization_params={"lower_quantiles": [0.01], "upper_quantiles": [0.99]},  # (2)!
+    normalization="min_max",
+)
+# --8<-- [end:adv_config_care_norm_str]
+
+# %%
+# --8<-- [start:adv_config_care_norm]
+from careamics.config import QuantileConfig, create_advanced_care_config
+
+# create a configuration
+config = create_advanced_care_config(
+    experiment_name="adv_care_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    normalization=QuantileConfig(
+        lower_quantiles=[0.01],  # (2)!
+        upper_quantiles=[0.99],
+    ),
 )
 # --8<-- [end:adv_config_care_norm]
 
 # %%
 # --8<-- [start:adv_config_care_norm_params]
-from careamics.config import create_advanced_care_config
+from careamics.config import MeanStdConfig, create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -227,18 +264,17 @@ config = create_advanced_care_config(
     patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
-    normalization="mean_std",  # (1)!
-    normalization_params={
-        "input_means": [158.95],  # (2)!
-        "input_stds": [10.21],
-        "target_means": [121.35],  # (3)!
-        "target_stds": [15.78],
-    },
+    normalization=MeanStdConfig(  # (1)!
+        input_means=[158.95],  # (2)!
+        input_stds=[10.21],
+        target_means=[121.35],  # (3)!
+        target_stds=[15.78],
+    ),
 )
 # --8<-- [end:adv_config_care_norm_params]
 # %%
 # --8<-- [start:adv_config_care_norm_ch]
-from careamics.config import create_advanced_care_config
+from careamics.config import QuantileConfig, create_advanced_care_config
 
 # create a configuration
 config = create_advanced_care_config(
@@ -249,12 +285,11 @@ config = create_advanced_care_config(
     batch_size=8,
     num_epochs=30,
     n_channels_in=2,  # (2)!
-    normalization="quantile",
-    normalization_params={
-        "lower_quantiles": [0.01, 0.03],  # (3)!
-        "upper_quantiles": [0.99, 0.99],
-        "per_channel": True,  # (4)!
-    },
+    normalization=QuantileConfig(
+        lower_quantiles=[0.01, 0.03],  # (3)!
+        upper_quantiles=[0.99, 0.99],
+        per_channel=True,  # (4)!
+    ),
 )
 # --8<-- [end:adv_config_care_norm_ch]
 
