@@ -6,6 +6,7 @@ from typing import Any, Literal
 from careamics.config.algorithms import MicroSplitAlgorithm
 from careamics.config.architectures import LVAEConfig
 from careamics.config.data import MicroSplitDataConfig
+from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
@@ -13,6 +14,7 @@ from careamics.config.lightning.optimizer_configs import (
 from careamics.config.losses.loss_config import MicroSplitLossConfig
 from careamics.config.microsplit_configuration import MicroSplitConfiguration
 
+from .config_discriminators import instantiate_norm_config
 from .data_factory import create_data_configuration
 from .factory_utils import assemble_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
@@ -89,8 +91,9 @@ def create_advanced_microsplit_config(
     n_val_patches: int = 8,
     # advanced data parameters
     channels: Sequence[int] | None = None,
-    normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
-    normalization_params: dict[str, Any] | None = None,
+    normalization: (
+        Literal["mean_std", "min_max", "quantile", "none"] | NormalizationConfig
+    ) = "mean_std",
     in_memory: bool | None = None,
     multiscale_count: int = 3,
     padding_mode: Literal["reflect", "wrap"] = "reflect",
@@ -145,10 +148,9 @@ def create_advanced_microsplit_config(
         Number of patches to set aside for validation during training.
     channels : sequence of int or None, default=None
         List of channels to use. If `None`, all channels are used.
-    normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
-        Normalization strategy.
-    normalization_params : dict or None, default=None
-        Additional normalization parameters.
+    normalization : {"mean_std", "min_max", "quantile", "none"} or NormalizationConfig
+        Normalization strategy or complete normalization configuration. Default is
+        `"mean_std"`.
     in_memory : bool or None, default=None
         Whether to load all data into memory.
     multiscale_count : int, default=3
@@ -262,9 +264,11 @@ def create_advanced_microsplit_config(
         ),
     )
 
-    norm_config = {"name": normalization}
-    if normalization_params is not None:
-        norm_config.update(normalization_params)
+    norm_config = (
+        instantiate_norm_config({"name": normalization})
+        if isinstance(normalization, str)
+        else normalization
+    )
 
     base_data_config = create_data_configuration(
         data_type=data_type,
