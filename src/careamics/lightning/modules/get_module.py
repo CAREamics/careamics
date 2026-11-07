@@ -6,6 +6,7 @@ from careamics.config import (
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
 )
 from careamics.config.algorithms.unet_algorithm_config import UNetBasedAlgorithm
 from careamics.config.support import SupportedAlgorithm
@@ -14,11 +15,16 @@ from .care_module import CAREModule
 from .hdn_module import HDNModule
 from .microsplit_module import MicroSplitModule
 from .n2v_module import N2VModule
+from .pn2v_module import PN2VModule
 
 CAREamicsModuleCls = (
-    type[N2VModule] | type[CAREModule] | type[HDNModule] | type[MicroSplitModule]
+    type[N2VModule]
+    | type[CAREModule]
+    | type[PN2VModule]
+    | type[HDNModule]
+    | type[MicroSplitModule]
 )
-CAREamicsModule = N2VModule | CAREModule | HDNModule | MicroSplitModule
+CAREamicsModule = N2VModule | CAREModule | PN2VModule | HDNModule | MicroSplitModule
 CAREamicsAlgorithm = UNetBasedAlgorithm | HDNAlgorithm | MicroSplitAlgorithm
 
 
@@ -45,6 +51,8 @@ def create_module(algorithm_config: CAREamicsAlgorithm) -> CAREamicsModule:
         return CAREModule(algorithm_config)
     elif isinstance(algorithm_config, N2VAlgorithm):
         return N2VModule(algorithm_config)
+    elif isinstance(algorithm_config, PN2VAlgorithm):
+        return PN2VModule(algorithm_config)
     elif isinstance(algorithm_config, HDNAlgorithm):
         return HDNModule(algorithm_config)
     elif isinstance(algorithm_config, MicroSplitAlgorithm):
@@ -81,6 +89,8 @@ def get_module_cls(algorithm: SupportedAlgorithm) -> CAREamicsModuleCls:
             return CAREModule
         case SupportedAlgorithm.N2V:
             return N2VModule
+        case SupportedAlgorithm.PN2V:
+            return PN2VModule
         case SupportedAlgorithm.HDN:
             return HDNModule
         case SupportedAlgorithm.MICROSPLIT:

@@ -10,6 +10,7 @@ from .get_module import (
 from .hdn_module import HDNModule
 from .microsplit_module import MicroSplitModule
 from .n2v_module import N2VModule
+from .pn2v_module import PN2VModule
 
 __all__ = [
     "CAREModule",
@@ -18,6 +19,7 @@ __all__ = [
     "HDNModule",
     "MicroSplitModule",
     "N2VModule",
+    "PN2VModule",
     "create_module",
     "get_module_cls",
 ]
