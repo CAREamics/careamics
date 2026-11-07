@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Any, Literal, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 
 from careamics.config.augmentations import (
     CryoCAREAugs,
@@ -11,35 +11,8 @@ from careamics.config.augmentations import (
     TiltAxisRandomRotate90Config,
 )
 
-from .data_config import DataConfig
+from .data_config import DataConfig, DataInputFormat, Mode
 from .patching_strategies import StratifiedPatchingConfig
-
-
-def _rotation_is_compatible(
-    tilt_axis: Literal["X", "Y", "Z"],
-    patch_size: Sequence[int],
-) -> bool:
-    """Check whether a tilt-axis rotation can be applied to a patch.
-
-    Parameters
-    ----------
-    tilt_axis : Literal["X", "Y", "Z"]
-        Axis perpendicular to the rotation plane.
-    patch_size : Sequence[int]
-        Patch size.
-
-    Returns
-    -------
-    bool
-        Whether the two dimensions perpendicular to the tilt axis are equal.
-    """
-    spatial_patch_size = dict(zip("ZYX", patch_size, strict=True))
-    rotation_axes = {
-        "Z": ("Y", "X"),
-        "Y": ("Z", "X"),
-        "X": ("Z", "Y"),
-    }[tilt_axis]
-    return spatial_patch_size[rotation_axes[0]] == spatial_patch_size[rotation_axes[1]]
 
 
 def _create_default_augmentations(
@@ -60,8 +33,15 @@ def _create_default_augmentations(
     list of CryoCARE augmentations
         Input-target swapping and, when compatible, tilt-axis rotation.
     """
+    spatial_patch_size = dict(zip("ZYX", patch_size, strict=True))
+    rotation_axes = {
+        "Z": ("Y", "X"),
+        "Y": ("Z", "X"),
+        "X": ("Z", "Y"),
+    }[tilt_axis]
+
     augmentations: list[CryoCAREAugs] = [SwapInputTargetConfig()]
-    if _rotation_is_compatible(tilt_axis, patch_size):
+    if spatial_patch_size[rotation_axes[0]] == spatial_patch_size[rotation_axes[1]]:
         augmentations.insert(
             0,
             TiltAxisRandomRotate90Config(tilt_axis=tilt_axis),
@@ -71,12 +51,7 @@ def _create_default_augmentations(
 
 
 class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
-    """Data configuration for CryoCARE training.
-
-    CryoCARE operates on single-channel 3D tomograms and uses stratified sampling.
-    Its input-target swapping and tilt-axis rotations are intentionally kept out of
-    the generic :class:`DataConfig`.
-    """
+    """Data configuration for CryoCARE."""
 
     tilt_axis: Literal["Y", "X", "Z"]
     """Physical axis about which the specimen was rotated during acquisition."""
@@ -85,19 +60,14 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
     """Fraction of the reconstructed stack that should be used validation. Train and
     validation are split along the `tilt_axis`."""
 
-    patching: StratifiedPatchingConfig
-    """Stratified 3D patching required by CryoCARE."""
-
-    channels: None = Field(default=None)
-    """CryoCARE does not support channel selection."""
-
     augmentations: Sequence[CryoCAREAugs] = Field(default_factory=tuple)
-    """CryoCARE-specific augmentations."""
+    """CryoCARE-specific augmentations. This parameter is automatically populated and
+    cannot be set by users. Any supplied value will overwritten."""
 
     @model_validator(mode="before")
     @classmethod
-    def set_default_augmentations(cls, value: Any) -> Any:
-        """Set default augmentations when none were supplied.
+    def set_augmentations(cls, value: Any) -> Any:
+        """Generate augmentations from the tilt axis and patch size.
 
         Parameters
         ----------
@@ -107,10 +77,15 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
         Returns
         -------
         Any
-            Raw configuration with default augmentations when applicable.
+            Raw configuration with generated augmentations when applicable.
         """
-        if not isinstance(value, dict) or "augmentations" in value:
+        if not isinstance(value, dict):
             return value
+
+        if value.get("mode") != Mode.TRAINING:
+            updated = value.copy()
+            updated["augmentations"] = []
+            return updated
 
         required = ("tilt_axis", "axes", "patching")
         if not all(key in value for key in required):
@@ -123,6 +98,8 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
             else patching.patch_size
         )
 
+        # overwrite augmentations to ensure compatibility between patch size, tilt axis,
+        # and random rotation augmentations
         updated = value.copy()
         updated["augmentations"] = _create_default_augmentations(
             tilt_axis=value["tilt_axis"],
@@ -131,36 +108,26 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
         return updated
 
     @model_validator(mode="after")
-    def validate_rotation_augmentations(self: Self) -> Self:
-        """Validate configured tilt-axis rotations against the patch size.
+    def validate_training_patching(self) -> "CryoCAREDataConfig":
+        """Require stratified patching for CryoCARE training.
 
         Returns
         -------
-        Self
+        CryoCAREDataConfig
             Validated CryoCARE data configuration.
 
         Raises
         ------
         ValueError
-            If a configured tilt-axis rotation is incompatible with the patch size.
+            If a training configuration does not use stratified patching.
         """
-        for augmentation in self.augmentations:
-            if isinstance(augmentation, TiltAxisRandomRotate90Config):
-                if augmentation.tilt_axis != self.tilt_axis:
-                    raise ValueError(
-                        f"Tilt-axis is different in configuration (got "
-                        f"{self.tilt_axis}) and in augmentation (got "
-                        f"{augmentation.tilt_axis}."
-                    )
-
-                if not _rotation_is_compatible(
-                    augmentation.tilt_axis,
-                    self.patching.patch_size,
-                ):
-                    raise ValueError(
-                        "TiltAxisRandomRotate90 requires equal patch dimensions "
-                        f"perpendicular to tilt axis '{augmentation.tilt_axis}'."
-                    )
+        if self.mode == Mode.TRAINING and not isinstance(
+            self.patching, StratifiedPatchingConfig
+        ):
+            raise ValueError(
+                "CryoCARE training requires stratified patching, got "
+                f"'{self.patching.name}'."
+            )
         return self
 
     @field_validator("axes", mode="after")
@@ -210,3 +177,100 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
         if "C" in value:
             raise ValueError(f"Axes must not contain `C`, got {value}.")
         return value
+
+    @field_validator("channels", mode="after")
+    @classmethod
+    def validate_channels(
+        cls,
+        value: Sequence[int] | None,
+        info: ValidationInfo,
+    ) -> Sequence[int] | None:
+        """Validate that channel selection is disabled.
+
+        Parameters
+        ----------
+        value : sequence of int or None
+            Channel selection.
+        info : ValidationInfo
+            Validation information.
+
+        Returns
+        -------
+        sequence of int or None
+            The validated channel selection.
+
+        Raises
+        ------
+        ValueError
+            If channels are selected.
+        """
+        if value is not None:
+            raise ValueError(
+                "CryoCARE does not support channel selection, remove `channel` "
+                "parameter."
+            )
+        return value
+
+    def convert_mode(
+        self: Self,
+        new_mode: Literal["validating", "predicting"],
+        new_patch_size: Sequence[int] | None = None,
+        overlap_size: Sequence[int] | None = None,
+        new_batch_size: int | None = None,
+        new_data_type: DataInputFormat | None = None,
+        new_axes: str | None = None,
+        new_target_axes: str | None = None,
+        new_channels: Sequence[int] | Literal["all"] | None = None,
+        new_in_memory: bool | None = None,
+        new_dataloader_params: dict[str, Any] | None = None,
+    ) -> "CryoCAREDataConfig":
+        """Convert mode while preserving CryoCARE-specific fields.
+
+        Parameters
+        ----------
+        new_mode : Literal["validating", "predicting"]
+            The new dataset mode.
+        new_patch_size : Sequence[int] or None, default=None
+            New patch size for validation or tiled prediction.
+        overlap_size : Sequence[int] or None, default=None
+            Tile overlap, required when ``new_patch_size`` is specified for prediction.
+        new_batch_size : int or None, default=None
+            New batch size.
+        new_data_type : DataInputFormat or None, default=None
+            New data type.
+        new_axes : str or None, default=None
+            New axes.
+        new_target_axes : str or None, default=None
+            New target axes.
+        new_channels : Sequence[int], "all" or None, default=None
+            New channel selection.
+        new_in_memory : bool or None, default=None
+            New in-memory loading setting.
+        new_dataloader_params : dict of {str: Any} or None, default=None
+            New dataloader parameters.
+
+        Returns
+        -------
+        CryoCAREDataConfig
+            Converted configuration with CryoCARE-specific fields preserved.
+        """
+        converted = super().convert_mode(
+            new_mode=new_mode,
+            new_patch_size=new_patch_size,
+            overlap_size=overlap_size,
+            new_batch_size=new_batch_size,
+            new_data_type=new_data_type,
+            new_axes=new_axes,
+            new_target_axes=new_target_axes,
+            new_channels=new_channels,
+            new_in_memory=new_in_memory,
+            new_dataloader_params=new_dataloader_params,
+        )
+        model_dict = converted.model_dump()
+        model_dict.update(
+            {
+                "tilt_axis": self.tilt_axis,
+                "validation_fraction": self.validation_fraction,
+            }
+        )
+        return CryoCAREDataConfig(**model_dict)

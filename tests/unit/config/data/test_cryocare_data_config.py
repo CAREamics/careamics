@@ -4,10 +4,11 @@ import pytest
 from pydantic import ValidationError
 
 from careamics.config import CryoCAREDataConfig
-from careamics.config.augmentations import (
-    TiltAxisRandomRotate90Config,
-)
 from careamics.config.data.normalization_config import NoNormConfig
+from careamics.config.data.patching_strategies import (
+    FixedRandomPatchingConfig,
+    WholePatchingConfig,
+)
 
 
 def _cryocare_data(**kwargs) -> dict:
@@ -40,6 +41,12 @@ def test_cryocare_data_constraints(overrides: dict) -> None:
         CryoCAREDataConfig(**_cryocare_data(**overrides))
 
 
+def test_channels_must_be_none() -> None:
+    """Reject channel selection for CryoCARE."""
+    with pytest.raises(ValidationError, match="does not support channel selection"):
+        CryoCAREDataConfig(**_cryocare_data(channels=[0]))
+
+
 def test_default_augmentations_include_rotation_for_compatible_patch() -> None:
     """Add rotation and swapping when the patch supports the tilt-axis rotation."""
     config = CryoCAREDataConfig(**_cryocare_data())
@@ -65,30 +72,63 @@ def test_default_augmentations_only_swap_for_incompatible_patch() -> None:
     ]
 
 
-def test_explicit_empty_augmentations_are_preserved() -> None:
-    """Do not add defaults when augmentations are explicitly disabled."""
+def test_augmentations_are_derived_from_configuration() -> None:
+    """Ignore supplied augmentations and derive them from CryoCARE parameters."""
     config = CryoCAREDataConfig(**_cryocare_data(augmentations=[]))
+
+    assert [augmentation.name for augmentation in config.augmentations] == [
+        "TiltAxisRandomRotate90",
+        "SwapInputTarget",
+    ]
+
+
+def test_non_training_config_uses_no_augmentations() -> None:
+    """Disable CryoCARE training augmentations outside training mode."""
+    config = CryoCAREDataConfig(
+        **_cryocare_data(
+            mode="predicting",
+            patching={"name": "whole"},
+        )
+    )
 
     assert config.augmentations == []
 
 
-def test_rejects_rotation_with_different_tilt_axis() -> None:
-    """Reject rotations whose tilt axis differs from the data configuration."""
-    with pytest.raises(ValidationError, match="different"):
+def test_training_requires_stratified_patching() -> None:
+    """Reject non-stratified patching for CryoCARE training."""
+    with pytest.raises(ValidationError, match="requires stratified patching"):
         CryoCAREDataConfig(
             **_cryocare_data(
-                augmentations=[TiltAxisRandomRotate90Config(tilt_axis="Y")]
-            )
+                patching={"name": "random", "patch_size": (32, 32, 32)},
+            ),
         )
 
 
-def test_rejects_rotation_with_incompatible_patch() -> None:
-    """Reject rotations when perpendicular patch dimensions are unequal."""
-    with pytest.raises(ValidationError, match="equal patch dimensions"):
-        CryoCAREDataConfig(
-            **_cryocare_data(
-                tilt_axis="Y",
-                patching={"name": "stratified", "patch_size": (16, 32, 32)},
-                augmentations=[TiltAxisRandomRotate90Config(tilt_axis="Y")],
-            )
-        )
+def test_validation_accepts_fixed_random_patching() -> None:
+    """Accept fixed random patching for CryoCARE validation."""
+    config = CryoCAREDataConfig(
+        **_cryocare_data(
+            mode="validating",
+            patching={"name": "fixed_random", "patch_size": (32, 32, 32)},
+        ),
+    )
+
+    assert isinstance(config.patching, FixedRandomPatchingConfig)
+    assert config.augmentations == []
+
+
+@pytest.mark.parametrize("mode", ["validating", "predicting"])
+def test_convert_mode_preserves_cryocare_fields(mode: str) -> None:
+    """Preserve CryoCARE fields when converting the training config."""
+    config = CryoCAREDataConfig(**_cryocare_data())
+
+    converted = config.convert_mode(mode)  # type: ignore[arg-type]
+
+    assert isinstance(converted, CryoCAREDataConfig)
+    assert converted.tilt_axis == config.tilt_axis
+    assert converted.validation_fraction == config.validation_fraction
+    assert converted.augmentations == []
+    if mode == "validating":
+        assert isinstance(converted.patching, FixedRandomPatchingConfig)
+    else:
+        assert isinstance(converted.patching, WholePatchingConfig)
