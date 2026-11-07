@@ -12,6 +12,7 @@ from .config.algorithms import (
     CAREAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
 )
 from .config.configuration import Configuration
 from .config.hdn_configuration import HDNConfiguration
@@ -61,6 +62,7 @@ ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | Configuration[PN2VAlgorithm]
     | HDNConfiguration
     | MicroSplitConfiguration
 )
@@ -549,6 +551,7 @@ class CAREamist:
         if self.config.algorithm_config.algorithm in [
             SupportedAlgorithm.N2V,
             SupportedAlgorithm.N2N,
+            SupportedAlgorithm.PN2V,
         ]:
             if checkpoint == "best":
                 raise ValueError(
