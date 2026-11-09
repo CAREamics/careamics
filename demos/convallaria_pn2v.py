@@ -1,7 +1,8 @@
 """Run the Convallaria PN2V GMM protocol and record PSNR.
 
 Calibration fits a Gaussian mixture on the static diaphragm stack. Bootstrap
-trains N2V on the noisy movie and fits the same trainer on that prediction.
+trains N2V on the noisy movie and fits a Gaussian mixture on its prediction of the
+full movie, with the upstream percentile range and clipping.
 Both PN2V runs predict the MMSE image. Metrics are appended to ``metrics.log``.
 Sample frames are saved next to the noisy input and the mean ground truth.
 """
@@ -25,6 +26,7 @@ from lightning.pytorch import seed_everything
 from careamics import CAREamist, NoiseModelTrainer
 from careamics.config import create_advanced_n2v_config, create_advanced_pn2v_config
 from careamics.config.noise_model import GaussianMixtureNMConfig
+from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "demos" / "Convallaria_diaphragm"
@@ -37,10 +39,19 @@ CALIBRATION_NAME = "20190726_tl_50um_500msec_wf_130EM_FD.tif"
 SAMPLE_FRAMES = (0, 50, 99)
 CROP = 512
 
-MODEL_PARAMS = {"depth": 3, "num_channels_init": 64}
+# Upstream UNet has no normalization layers. With BatchNorm, the PN2V prior widens at
+# bright pixels until the GMM mixture weights overflow and the loss turns NaN.
+MODEL_PARAMS = {"depth": 3, "num_channels_init": 64, "use_batch_norm": False}
+# Upstream takes `stepsPerEpoch` optimizer steps per epoch, each on a virtual batch
+# of 20 patches: PN2V 200 x 5 x 20 = 20 000 patches, N2V 200 x 10 x 20 = 40 000.
+# `num_steps` counts batches, so it is upstream `stepsPerEpoch` x accumulation.
+# PN2V keeps 800 samples per pixel: 20 patches need over 24 GB of GPU memory, 5 need
+# about 10 GB. Without BatchNorm the split does not change the gradient.
+PATCHES_PER_STEP = 20
+PN2V_BATCH_SIZE = 5
+PN2V_ACCUMULATE = PATCHES_PER_STEP // PN2V_BATCH_SIZE
 TRAINER_PARAMS = {
-    "accumulate_grad_batches": 20,
-    "accelerator": "mps",
+    "accelerator": "auto",
     "devices": 1,
 }
 SCHEDULER_PARAMS = {"factor": 0.5, "patience": 10}
@@ -136,6 +147,56 @@ def train_gmm(signal: np.ndarray, observation: np.ndarray) -> GaussianMixtureNMC
     return trainer.get_config().noise_models[0]
 
 
+def train_bootstrap_gmm(
+    signal: np.ndarray, observation: np.ndarray
+) -> GaussianMixtureNMConfig:
+    """Fit the bootstrap GMM like upstream ``1b_CreateNoiseModel_Bootstrap``.
+
+    The signal range is the 0.5 and 99.5 percentiles of the N2V prediction, and
+    only pairs whose signal lies inside that range are used for the fit. With the
+    raw min and max the fitted mixture weights overflow for network outputs beyond
+    about four, which PN2V reaches in its first optimizer steps.
+
+    Parameters
+    ----------
+    signal : np.ndarray
+        N2V prediction of the full noisy movie, ``SYX``.
+    observation : np.ndarray
+        Noisy movie, same shape as ``signal``.
+
+    Returns
+    -------
+    GaussianMixtureNMConfig
+        Trained single-channel noise model.
+    """
+    lower, upper = 0.5, 99.5
+    config = GaussianMixtureNMConfig(
+        min_signal=float(np.percentile(signal, lower)),
+        max_signal=float(np.percentile(signal, upper)),
+        n_gaussian=3,
+        n_coeff=2,
+        min_sigma=50.0,
+    )
+    noise_model = GaussianMixtureNoiseModel(config)
+    noise_model.fit(
+        signal=signal,
+        observation=observation,
+        learning_rate=1e-1,
+        batch_size=250000,
+        n_epochs=2000,
+        lower_clip=lower,
+        upper_clip=upper,
+    )
+    return GaussianMixtureNMConfig(
+        weight=noise_model.weight.detach().cpu().numpy(),
+        min_signal=config.min_signal,
+        max_signal=config.max_signal,
+        n_gaussian=config.n_gaussian,
+        n_coeff=config.n_coeff,
+        min_sigma=config.min_sigma,
+    )
+
+
 def _normalization(noisy: np.ndarray) -> dict[str, list[float]]:
     """Global mean and standard deviation of the noisy movie.
 
@@ -188,16 +249,16 @@ def train_pn2v(
         data_type="array",
         axes="SYX",
         patch_size=[96, 96],
-        batch_size=1,
+        batch_size=PN2V_BATCH_SIZE,
         noise_model=noise_model,
         num_epochs=200,
-        num_steps=5,
+        num_steps=5 * PN2V_ACCUMULATE,
         num_classes=800,
         n_channels=1,
         roi_size=5,
         masked_pixel_percentage=3.125,
         model_params=MODEL_PARAMS,
-        trainer_params=TRAINER_PARAMS,
+        trainer_params={**TRAINER_PARAMS, "accumulate_grad_batches": PN2V_ACCUMULATE},
         optimizer_params={"lr": 1e-3},
         lr_scheduler_params=SCHEDULER_PARAMS,
         normalization_params=normalization,
@@ -226,7 +287,10 @@ def predict_frames(engine: CAREamist, noisy: np.ndarray) -> np.ndarray:
     """
     crops = np.stack([noisy[index, :CROP, :CROP] for index in SAMPLE_FRAMES])
     logger.info("Predicting frames %s", SAMPLE_FRAMES)
-    predicted, _ = engine.predict(crops)
+    # Upstream tiles with 192 and overlap 48. 800 samples per pixel need small tiles.
+    predicted, _ = engine.predict(
+        crops, batch_size=1, tile_size=(192, 192), tile_overlap=(48, 48)
+    )
     return as_syx(predicted[0]).astype(np.float32)
 
 
@@ -407,7 +471,7 @@ def main() -> None:
         data_type="array",
         axes="SYX",
         patch_size=[96, 96],
-        batch_size=1,
+        batch_size=PATCHES_PER_STEP,
         num_epochs=200,
         num_steps=10,
         n_channels=1,
@@ -423,13 +487,13 @@ def main() -> None:
     )
     n2v_engine = CAREamist(n2v_config, work_dir=RUN_DIR)
     n2v_engine.train(train_data=train_stack, val_data=val_stack)
-    n2v_prediction = predict_frames(n2v_engine, noisy)
-
-    logger.info("Fitting bootstrap GMM on the sample frames")
-    sample_observations = np.stack(
-        [noisy[index, :CROP, :CROP] for index in SAMPLE_FRAMES]
+    logger.info("Predicting N2V pseudo ground truth on the full movie")
+    n2v_prediction, _ = n2v_engine.predict(
+        noisy, batch_size=8, tile_size=(256, 256), tile_overlap=(48, 48)
     )
-    bootstrap_nm = train_gmm(n2v_prediction, sample_observations)
+
+    logger.info("Fitting bootstrap GMM")
+    bootstrap_nm = train_bootstrap_gmm(as_syx(n2v_prediction[0]), noisy)
     logger.info("Training bootstrap PN2V")
     bootstrap_engine = train_pn2v(
         bootstrap_nm,
