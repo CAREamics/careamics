@@ -17,7 +17,7 @@ def main() -> None:
     """Load a CryoCARE checkpoint and save a paired prediction as TIFF."""
     example_dir = Path(__file__).parent
     output_dir = Path("cryocare_example_outputs")
-    checkpoint_path = output_dir / "checkpoints" / "last.ckpt"
+    checkpoint_path = output_dir / "checkpoints" / "epoch=199-step=11000.ckpt"
     even_path = example_dir / "data" / "Tomo110_even.mrc"
     odd_path = example_dir / "data" / "Tomo110_odd.mrc"
     prediction_path = output_dir / "Tomo110_denoised.tiff"
