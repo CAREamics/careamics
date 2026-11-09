@@ -20,6 +20,7 @@ from careamics.dataset.image_stack_loader import (
     load_custom_file,
     load_czis,
     load_iter_tiff,
+    load_mrcs,
     load_tiffs,
     load_zarrs,
 )
@@ -543,6 +544,9 @@ def select_image_stack_loader(
         case SupportedData.ZARR:
             # TODO: in_memory or not
             return load_zarrs
+        case SupportedData.MRC:
+            # TODO: in_memory or not
+            return load_mrcs
         case SupportedData.CZI:
             # TODO: in_memory or not
             return load_czis

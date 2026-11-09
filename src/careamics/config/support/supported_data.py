@@ -28,6 +28,7 @@ class SupportedData(StrEnum):
     CZI = "czi"
     CUSTOM = "custom"
     ZARR = "zarr"
+    MRC = "mrc"
 
     # TODO remove?
     @classmethod
@@ -86,6 +87,8 @@ class SupportedData(StrEnum):
             return "*.zarr"
         elif data_type == cls.CZI:
             return "*.czi"
+        elif data_type == cls.MRC:
+            return "*.mrc"
         elif data_type == cls.CUSTOM:
             return "*.*"
         else:
@@ -114,6 +117,8 @@ class SupportedData(StrEnum):
             return ".czi"
         elif data_type == cls.ZARR:
             return ".zarr"
+        elif data_type == cls.MRC:
+            return ".mrc"
         elif data_type == cls.CUSTOM:
             # TODO: improve this message
             raise NotImplementedError("Custom extensions have to be passed elsewhere.")
