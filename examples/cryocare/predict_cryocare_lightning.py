@@ -65,12 +65,7 @@ def main() -> None:
             f"Expected one predicted volume, got {len(predictions)} volumes."
         )
 
-    prediction = np.asarray(predictions[0])
-    if prediction.ndim != 3:
-        raise ValueError(
-            "Expected a restored 3D ZYX prediction, "
-            f"but received shape {prediction.shape}."
-        )
+    prediction = predictions[0].squeeze()
 
     prediction_path.parent.mkdir(parents=True, exist_ok=True)
     tifffile.imwrite(
