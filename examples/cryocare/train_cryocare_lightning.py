@@ -9,6 +9,7 @@ from pathlib import Path
 
 import lightning.pytorch as L
 import numpy as np
+import tifffile
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics import __version__
@@ -17,6 +18,7 @@ from careamics.config.algorithms.cryocare_algorithm_config import CryoCAREAlgori
 from careamics.config.lightning.training_configuration import TrainingConfig
 from careamics.lightning import CareamicsDataModule, ConfigSaverCallback
 from careamics.lightning.modules import CryoCAREModule
+from careamics.lightning.prediction import convert_prediction
 
 
 def make_synthetic_pair(
@@ -48,20 +50,19 @@ def main() -> None:
     output_dir = Path("cryocare_example_outputs")
     output_dir.mkdir(exist_ok=True)
 
-    train_even, train_odd = make_synthetic_pair((64, 64, 64), seed=0)
-    val_even, val_odd = make_synthetic_pair((64, 64, 64), seed=1)
+    train_even = Path("data") / "Tomo110_even.mrc"
+    train_odd = Path("data") / "Tomo110_odd.mrc"
 
     algorithm_config = CryoCAREAlgorithm()
     data_config = CryoCAREDataConfig(
         mode="training",
-        data_type="array",
+        data_type="mrc",
         axes="ZYX",
         tilt_axis="Y",
         validation_fraction=0.1,
-        patching={"name": "stratified", "patch_size": (32, 32, 32)},
-        batch_size=2,
+        patching={"name": "stratified", "patch_size": (72, 72, 72)},
+        batch_size=16,
         n_val_patches=0,
-        num_workers=0,
         normalization=MeanStdConfig(
             per_channel=False,
             target_mode="same_as_input",
@@ -69,10 +70,7 @@ def main() -> None:
     )
     training_config = TrainingConfig(
         trainer_params={
-            "devices": 1,
-            "max_epochs": 1,
-            "limit_train_batches": 2,
-            "enable_model_summary": False,
+            "max_epochs": 200,
         },
         checkpoint_params={"save_last": True},
         early_stopping_params=None,
@@ -83,8 +81,6 @@ def main() -> None:
         data_config=data_config,
         train_data=train_even,
         train_data_target=train_odd,
-        val_data=val_even,
-        val_data_target=val_odd,
     )
 
     callbacks = [
@@ -110,14 +106,25 @@ def main() -> None:
 
     # CryoCARE prediction averages the model output for both reconstructions. The
     # prediction datamodule therefore receives the even and odd volumes as a pair.
-    prediction_data_config = data_config.convert_mode("predicting")
+    prediction_data_config = data_config.convert_mode(
+        "predicting",
+        new_patch_size=(72, 72, 72),
+    )
     prediction_data_module = CareamicsDataModule(
         data_config=prediction_data_config,
-        pred_data=val_even,
-        pred_data_target=val_odd,
+        pred_data=train_even,
+        pred_data_target=train_odd,
     )
-    predictions = trainer.predict(model, datamodule=prediction_data_module)
-    print(f"Predicted {len(predictions)} paired batches.")
+    prediction_batches = trainer.predict(model, datamodule=prediction_data_module)
+    predictions, _ = convert_prediction(prediction_batches, tiled=False)
+    prediction = predictions[0]
+
+    prediction_path = output_dir / "Tomo110_denoised.tiff"
+    tifffile.imwrite(
+        prediction_path, prediction.astype(np.float32), metadata={"axes": "ZYX"}
+    )
+    print(f"Predicted {len(prediction_batches)} paired batches.")
+    print(f"Saved prediction to {prediction_path}.")
 
 
 if __name__ == "__main__":
