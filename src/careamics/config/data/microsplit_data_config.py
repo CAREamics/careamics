@@ -78,7 +78,7 @@ class MicroSplitDataConfig(DataConfig[DefaultAugs]):
         MicroSplitDataConfig
             Converted configuration with relevant MicroSplit-specific fields preserved.
         """
-        converted = super().convert_mode(
+        model_dict = self._get_converted_model_dict(
             new_mode=new_mode,
             new_patch_size=new_patch_size,
             overlap_size=overlap_size,
@@ -90,7 +90,6 @@ class MicroSplitDataConfig(DataConfig[DefaultAugs]):
             new_in_memory=new_in_memory,
             new_dataloader_params=new_dataloader_params,
         )
-        model_dict = converted.model_dump()
         model_dict.update(
             {
                 "multiscale_count": self.multiscale_count,
