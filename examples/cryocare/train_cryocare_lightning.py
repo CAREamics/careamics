@@ -106,8 +106,7 @@ def main() -> None:
     # CryoCARE prediction averages the model output for both reconstructions. The
     # prediction datamodule therefore receives the even and odd volumes as a pair.
     prediction_data_config = data_config.convert_mode(
-        "predicting",
-        new_patch_size=(72, 72, 72),
+        "predicting", new_patch_size=(72, 72, 72), overlap_size=(32, 32, 32)
     )
     prediction_data_module = CareamicsDataModule(
         data_config=prediction_data_config,
