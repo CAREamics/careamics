@@ -47,6 +47,12 @@ def test_channels_must_be_none() -> None:
         CryoCAREDataConfig(**_cryocare_data(channels=[0]))
 
 
+def test_target_axes_must_match_input_axes() -> None:
+    """Reject target axes that differ from input axes."""
+    with pytest.raises(ValidationError, match="target axes to match input axes"):
+        CryoCAREDataConfig(**_cryocare_data(target_axes="YX"))
+
+
 def test_default_augmentations_include_rotation_for_compatible_patch() -> None:
     """Add rotation and swapping when the patch supports the tilt-axis rotation."""
     config = CryoCAREDataConfig(**_cryocare_data())
@@ -132,3 +138,19 @@ def test_convert_mode_preserves_cryocare_fields(mode: str) -> None:
         assert isinstance(converted.patching, FixedRandomPatchingConfig)
     else:
         assert isinstance(converted.patching, WholePatchingConfig)
+
+
+@pytest.mark.parametrize(
+    "conversion_kwargs",
+    [
+        {"new_axes": "ZYX"},
+        {"new_target_axes": "ZYX"},
+        {"new_channels": "all"},
+    ],
+)
+def test_convert_mode_rejects_unsupported_changes(conversion_kwargs: dict) -> None:
+    """Reject changes to axes and channels during CryoCARE conversion."""
+    config = CryoCAREDataConfig(**_cryocare_data())
+
+    with pytest.raises(ValueError, match="does not support changing"):
+        config.convert_mode("predicting", **conversion_kwargs)

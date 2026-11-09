@@ -11,7 +11,11 @@ from careamics.config.augmentations import (
     TiltAxisRandomRotate90Config,
 )
 
-from .data_config import DataConfig, DataInputFormat, Mode
+from .data_config import (
+    DataConfig,
+    DataInputFormat,
+    Mode,
+)
 from .patching_strategies import StratifiedPatchingConfig
 
 
@@ -180,6 +184,39 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
             raise ValueError(f"Axes must not contain `C`, got {value}.")
         return value
 
+    @field_validator("target_axes", mode="after")
+    @classmethod
+    def target_axes_match_axes(
+        cls,
+        value: str | None,
+        info: ValidationInfo,
+    ) -> str | None:
+        """Validate that target axes match input axes.
+
+        Parameters
+        ----------
+        value : str or None
+            Target axes. ``None`` means that input axes are used.
+        info : ValidationInfo
+            Validation information containing the input axes.
+
+        Returns
+        -------
+        str or None
+            The validated target axes.
+
+        Raises
+        ------
+        ValueError
+            If target axes differ from input axes.
+        """
+        if value is not None and value != info.data["axes"]:
+            raise ValueError(
+                "CryoCARE requires target axes to match input axes, got "
+                f"target axes '{value}' and input axes '{info.data['axes']}'."
+            )
+        return value
+
     @field_validator("channels", mode="after")
     @classmethod
     def validate_channels(
@@ -241,11 +278,11 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
         new_data_type : DataInputFormat or None, default=None
             New data type.
         new_axes : str or None, default=None
-            New axes.
+            New axes are not permitted.
         new_target_axes : str or None, default=None
-            New target axes.
+            New target axes are not permitted.
         new_channels : Sequence[int], "all" or None, default=None
-            New channel selection.
+            New channel selection is not permitted.
         new_in_memory : bool or None, default=None
             New in-memory loading setting.
         new_dataloader_params : dict of {str: Any} or None, default=None
@@ -256,7 +293,18 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
         CryoCAREDataConfig
             Converted configuration with CryoCARE-specific fields preserved.
         """
-        converted = super().convert_mode(
+        unsupported_changes = {
+            "new_axes": new_axes,
+            "new_target_axes": new_target_axes,
+            "new_channels": new_channels,
+        }
+        for name, value in unsupported_changes.items():
+            if value is not None:
+                raise ValueError(
+                    f"CryoCARE does not support changing `{name}` during conversion."
+                )
+
+        model_dict = self._get_converted_model_dict(
             new_mode=new_mode,
             new_patch_size=new_patch_size,
             overlap_size=overlap_size,
@@ -268,7 +316,6 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
             new_in_memory=new_in_memory,
             new_dataloader_params=new_dataloader_params,
         )
-        model_dict = converted.model_dump()
 
         # add back the cryoCARE specific parameters
         model_dict.update(
