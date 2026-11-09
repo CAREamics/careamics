@@ -15,11 +15,11 @@ from .data_config import DataConfig, DataInputFormat, Mode
 from .patching_strategies import StratifiedPatchingConfig
 
 
-def _create_default_augmentations(
+def _create_augmentations(
     tilt_axis: Literal["X", "Y", "Z"],
     patch_size: Sequence[int],
 ) -> list[CryoCAREAugs]:
-    """Create default CryoCARE augmentations.
+    """Create CryoCARE augmentations.
 
     Parameters
     ----------
@@ -62,7 +62,7 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
 
     augmentations: Sequence[CryoCAREAugs] = Field(default_factory=tuple)
     """CryoCARE-specific augmentations. This parameter is automatically populated and
-    cannot be set by users. Any supplied value will overwritten."""
+    cannot be set by users. Any supplied value will be overwritten."""
 
     @model_validator(mode="before")
     @classmethod
@@ -87,6 +87,8 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
             updated["augmentations"] = []
             return updated
 
+        # before validator, so we need to check everyting is there
+        # otherwise return and let normal validation fail
         required = ("tilt_axis", "axes", "patching")
         if not all(key in value for key in required):
             return value
@@ -101,7 +103,7 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
         # overwrite augmentations to ensure compatibility between patch size, tilt axis,
         # and random rotation augmentations
         updated = value.copy()
-        updated["augmentations"] = _create_default_augmentations(
+        updated["augmentations"] = _create_augmentations(
             tilt_axis=value["tilt_axis"],
             patch_size=patch_size,
         )
@@ -267,6 +269,8 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
             new_dataloader_params=new_dataloader_params,
         )
         model_dict = converted.model_dump()
+
+        # add back the cryoCARE specific parameters
         model_dict.update(
             {
                 "tilt_axis": self.tilt_axis,
