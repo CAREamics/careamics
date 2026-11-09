@@ -2,6 +2,7 @@
 
 __all__ = [
     "ImageWriteStrategy",
+    "MrcImageWriteStrategy",
     "MrcTileWriteStrategy",
     "PredictionWriterCallback",
     "TileWriteStrategy",
@@ -16,6 +17,7 @@ __all__ = [
 
 from .file_path_utils import create_write_file_path
 from .image_write_strategy import ImageWriteStrategy
+from .mrc_image_write_strategy import MrcImageWriteStrategy
 from .mrc_tile_write_strategy import MrcTileWriteStrategy
 from .prediction_writer_callback import (
     PredictionWriterCallback,

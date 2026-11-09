@@ -6,6 +6,7 @@ from careamics.config.support import SupportedData
 from careamics.image_io import SupportedWriteType, WriteFunc, get_write_func
 
 from .image_write_strategy import ImageWriteStrategy
+from .mrc_image_write_strategy import MrcImageWriteStrategy
 from .mrc_tile_write_strategy import MrcTileWriteStrategy
 from .tile_write_strategy import TileWriteStrategy
 from .write_strategy import WriteStrategy
@@ -59,15 +60,18 @@ def create_write_strategy(
 
     write_strategy: WriteStrategy
     if not tiled:
-        write_func = select_write_func(write_type=write_type, write_func=write_func)
-        write_extension = select_write_extension(
-            write_type=write_type, write_extension=write_extension
-        )
-        write_strategy = ImageWriteStrategy(
-            write_func=write_func,
-            write_extension=write_extension,
-            write_func_kwargs=write_func_kwargs,
-        )
+        if write_type == "mrc":
+            write_strategy = MrcImageWriteStrategy()
+        else:
+            write_func = select_write_func(write_type=write_type, write_func=write_func)
+            write_extension = select_write_extension(
+                write_type=write_type, write_extension=write_extension
+            )
+            write_strategy = ImageWriteStrategy(
+                write_func=write_func,
+                write_extension=write_extension,
+                write_func_kwargs=write_func_kwargs,
+            )
     else:
         write_strategy = _create_tiled_write_strategy(
             write_type=write_type,
