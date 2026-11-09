@@ -34,7 +34,11 @@ def main() -> None:
         data_type="mrc",
         axes="ZYX",
         tilt_axis="Y",
-        patching={"name": "whole"},
+        patching={
+            "name": "tiled",
+            "patch_size": (72, 72, 72),
+            "overlaps": (32, 32, 32),
+        },
         batch_size=1,
         normalization=MeanStdConfig(
             per_channel=False,
