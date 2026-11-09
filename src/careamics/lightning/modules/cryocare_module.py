@@ -6,14 +6,13 @@ from typing import TYPE_CHECKING, Any
 import lightning as L
 import torch
 from torch import nn
-from torch.nn import L1Loss, MSELoss
+from torch.nn import MSELoss
 from torchmetrics import MetricCollection
 
 from careamics.config import CryoCAREAlgorithm
 from careamics.config.factories.config_discriminators import (
     instantiate_algorithm_config,
 )
-from careamics.config.support import SupportedLoss
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.lightning.logger import CoLogger
@@ -67,10 +66,7 @@ class CryoCAREModule(L.LightningModule):
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
 
-        # TODO which loss? use a loss factory
-        self.loss_func: Callable = (
-            MSELoss() if self.config.loss == SupportedLoss.MSE else L1Loss()
-        )
+        self.loss_func: Callable = MSELoss()
 
         self.metrics: MetricCollection = MetricCollection(
             {
