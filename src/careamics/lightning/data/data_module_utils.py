@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Literal
+from warnings import warn
 
 from numpy import ndarray
 from numpy.typing import NDArray
@@ -222,7 +223,8 @@ def validate_source_target_files(src_files: list[Path], tar_files: list[Path]) -
     """
     Validate source and target path lists.
 
-    The two lists should have the same number of files, and the filenames should match.
+    The two lists must have the same number of files. When multiple files are passed,
+    files are paired according to their order in the two lists.
 
     Parameters
     ----------
@@ -235,8 +237,6 @@ def validate_source_target_files(src_files: list[Path], tar_files: list[Path]) -
     ------
     ValueError
         If the number of files in source and target folders is not the same.
-    ValueError
-        If some filenames in Train and target folders are not the same.
     """
     # check equal length
     if len(src_files) != len(tar_files):
@@ -245,13 +245,17 @@ def validate_source_target_files(src_files: list[Path], tar_files: list[Path]) -
             f"of target files ({len(tar_files)})."
         )
 
-    # check identical names
     src_names = {f.name for f in src_files}
     tar_names = {f.name for f in tar_files}
     difference = src_names.symmetric_difference(tar_names)
 
-    if len(difference) > 0:
-        raise ValueError(f"Source and target files have different names: {difference}.")
+    if len(src_files) > 1 and len(difference) > 0:
+        warn(
+            "Source and target files have different names. Files will be paired "
+            "according to their order.",
+            UserWarning,
+            stacklevel=2,
+        )
 
 
 def list_files_in_directory(
