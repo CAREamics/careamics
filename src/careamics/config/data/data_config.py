@@ -390,7 +390,7 @@ class DataConfig(BaseModel):
     mode: Mode
     """Dataset mode, either training, validating or predicting."""
 
-    data_type: Literal["array", "tiff", "zarr", "czi", "custom"]
+    data_type: Literal["array", "tiff", "zarr", "czi", "mrc", "custom"]
     """Type of input data."""
 
     axes: str

@@ -241,7 +241,7 @@ class CAREamist:
     @staticmethod
     def _default_write_type(
         write_type: Literal["tiff", "zarr", "custom"] | None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+        data_type: Literal["array", "tiff", "zarr", "mrc", "czi", "custom"],
     ) -> Literal["tiff", "zarr", "custom"]:
         """Default the write type from the prediction data type.
 
@@ -267,7 +267,7 @@ class CAREamist:
     @staticmethod
     def _predict_in_memory(
         in_memory: bool | None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+        data_type: Literal["array", "tiff", "zarr", "mrc", "czi", "custom"],
     ) -> bool | None:
         """Resolve the `in_memory` setting for prediction.
 
@@ -279,7 +279,7 @@ class CAREamist:
         ----------
         in_memory : bool or None
             The `in_memory` value requested by the user, or None to infer it.
-        data_type : {"array", "tiff", "zarr", "czi", "custom"}
+        data_type : {"array", "tiff", "zarr", "mrc", "czi", "custom"}
             The (effective) prediction data type.
 
         Returns
