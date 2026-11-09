@@ -1,6 +1,7 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
-from typing import TYPE_CHECKING, cast
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,6 +13,65 @@ from .stitch_prediction import group_tiles_by_key, stitch_prediction
 
 if TYPE_CHECKING:
     from torch import Tensor
+
+
+def _decollate_metadata(value: Any, index: int, batch_size: int) -> Any:
+    """Decollate nested metadata produced by ``default_collate``.
+
+    Parameters
+    ----------
+    value : Any
+        Collated metadata value.
+    index : int
+        Batch element to extract.
+    batch_size : int
+        Number of elements in the batch.
+
+    Returns
+    -------
+    Any
+        Metadata belonging to one batch element.
+    """
+    if isinstance(value, Mapping):
+        return {
+            key: _decollate_metadata(item, index, batch_size)
+            for key, item in value.items()
+        }
+
+    # ``default_collate`` stacks scalar metadata into a tensor whose first dimension
+    # is the batch dimension. Structured values are converted back to Python values.
+    if hasattr(value, "shape") and hasattr(value, "__getitem__"):
+        selected = value[index]
+        if hasattr(selected, "ndim") and selected.ndim == 0:
+            return selected.item()
+        if hasattr(selected, "tolist"):
+            return selected.tolist()
+        return selected
+
+    if isinstance(value, list):
+        if len(value) == 0:
+            return []
+
+        # Tuples and lists in the original metadata are transposed by
+        # ``default_collate``. For example, a tuple ``(1, 2)`` becomes two tensors
+        # of shape ``(B,)``; a list of labels becomes a list of tuples of length B.
+        if all(
+            isinstance(item, (list, tuple)) and len(item) == batch_size
+            for item in value
+        ):
+            return tuple(item[index] for item in value)
+
+        if all(
+            hasattr(item, "shape") or isinstance(item, (Mapping, list, tuple))
+            for item in value
+        ):
+            return tuple(_decollate_metadata(item, index, batch_size) for item in value)
+
+        # A list of per-sample values is indexed directly.
+        if len(value) == batch_size:
+            return value[index]
+
+    return value
 
 
 PredictStepOutput = ImageRegionData | tuple[ImageRegionData, ImageRegionData | None]
@@ -128,11 +188,10 @@ def decollate_image_region_data(
         # unpack region spec irrespective of whether it is a PatchSpecs or TileSpecs
         region_spec = _decollate_batch_dict(batch.region_spec, i)
 
-        # handle additional metadata
-        # currently only zarr chunks and shards may be stored there, as tuples.
-        # TODO if additional metadata becomes used for anything else, this function
-        # call may not be appropriate anymore.
-        additional_metadata = _decollate_batch_dict(batch.additional_metadata, i)
+        # Handle nested format-specific metadata, such as the MRC header.
+        additional_metadata = _decollate_metadata(
+            batch.additional_metadata, i, batch_size
+        )
 
         # data shape
         assert isinstance(batch.data_shape, list)

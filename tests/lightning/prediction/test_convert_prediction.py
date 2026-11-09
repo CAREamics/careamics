@@ -196,6 +196,40 @@ def test_decollate_image_region_data(n_batch) -> None:
         )
 
 
+def test_decollate_nested_metadata() -> None:
+    """Test that nested format-specific metadata is decollated."""
+    batch = [
+        ImageRegionData(
+            source="volume.mrc",
+            data=np.ones((1, 4, 4), dtype=np.float32),
+            data_shape=(4, 4),
+            dtype="float32",
+            axes="YX",
+            target_axes="YX",
+            region_spec={
+                "data_idx": index,
+                "sample_idx": 0,
+                "coords": (0, 0),
+                "patch_size": (4, 4),
+            },
+            additional_metadata={
+                "mrc": {
+                    "nx": 4,
+                    "cella": {"x": 1.5},
+                    "label": ("label", ""),
+                }
+            },
+            original_data_shape=(4, 4),
+        )
+        for index in range(2)
+    ]
+
+    decollated = decollate_image_region_data(default_collate(batch))
+
+    for region in decollated:
+        assert region.additional_metadata == batch[0].additional_metadata
+
+
 class TestConvertPrediction:
     @pytest.mark.parametrize("source_name", ["file"])  # injected in fixture
     def test_convert_arrays(self, batches: list[ImageRegionData]) -> None:

@@ -58,7 +58,7 @@ def main() -> None:
         enable_checkpointing=False,
     )
     prediction_batches = trainer.predict(model, datamodule=data_module)
-    predictions, _ = convert_prediction(prediction_batches, tiled=False)
+    predictions, _ = convert_prediction(prediction_batches, tiled=True)
 
     if len(predictions) != 1:
         raise ValueError(
