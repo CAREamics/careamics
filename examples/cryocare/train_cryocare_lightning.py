@@ -62,7 +62,6 @@ def main() -> None:
         validation_fraction=0.1,
         patching={"name": "stratified", "patch_size": (72, 72, 72)},
         batch_size=16,
-        n_val_patches=0,
         normalization=MeanStdConfig(
             per_channel=False,
             target_mode="same_as_input",
