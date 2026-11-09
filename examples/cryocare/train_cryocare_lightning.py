@@ -50,8 +50,8 @@ def main() -> None:
     output_dir = Path("cryocare_example_outputs")
     output_dir.mkdir(exist_ok=True)
 
-    train_even = Path("data") / "Tomo110_even.mrc"
-    train_odd = Path("data") / "Tomo110_odd.mrc"
+    train_even = Path(__file__).parent / "data" / "Tomo110_even.mrc"
+    train_odd = train_even.parent / "Tomo110_odd.mrc"
 
     algorithm_config = CryoCAREAlgorithm()
     data_config = CryoCAREDataConfig(
