@@ -26,7 +26,7 @@ class UNetBasedAlgorithm(BaseModel):
 
     Attributes
     ----------
-    algorithm : {"n2v", "care", "n2n", "pn2v"}
+    algorithm : {"n2v", "care", "n2n", "pn2v", "cryocare"}
         Algorithm to use.
     loss : {"n2v", "mae", "mse"}
         Loss function to use.
@@ -53,7 +53,7 @@ class UNetBasedAlgorithm(BaseModel):
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "care", "n2n", "pn2v"]
+    algorithm: Literal["n2v", "care", "n2n", "pn2v", "cryocare"]
     """Algorithm name, as defined in SupportedAlgorithm."""
 
     loss: Literal["n2v", "mae", "mse", "pn2v"]

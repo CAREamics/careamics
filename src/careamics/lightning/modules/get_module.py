@@ -2,6 +2,7 @@
 
 from careamics.config import (
     CAREAlgorithm,
+    CryoCAREAlgorithm,
     HDNAlgorithm,
     MicroSplitAlgorithm,
     N2NAlgorithm,
@@ -11,15 +12,22 @@ from careamics.config.algorithms.unet_algorithm_config import UNetBasedAlgorithm
 from careamics.config.support import SupportedAlgorithm
 
 from .care_module import CAREModule
+from .cryocare_module import CryoCAREModule
 from .hdn_module import HDNModule
 from .microsplit_module import MicroSplitModule
 from .n2v_module import N2VModule
 
 CAREamicsModuleCls = (
-    type[N2VModule] | type[CAREModule] | type[HDNModule] | type[MicroSplitModule]
+    type[N2VModule]
+    | type[CAREModule]
+    | type[CryoCAREModule]
+    | type[HDNModule]
+    | type[MicroSplitModule]
 )
-CAREamicsModule = N2VModule | CAREModule | HDNModule | MicroSplitModule
-CAREamicsAlgorithm = UNetBasedAlgorithm | HDNAlgorithm | MicroSplitAlgorithm
+CAREamicsModule = N2VModule | CAREModule | CryoCAREModule | HDNModule | MicroSplitModule
+CAREamicsAlgorithm = (
+    UNetBasedAlgorithm | HDNAlgorithm | MicroSplitAlgorithm | CryoCAREAlgorithm
+)
 
 
 def create_module(algorithm_config: CAREamicsAlgorithm) -> CAREamicsModule:
@@ -41,7 +49,9 @@ def create_module(algorithm_config: CAREamicsAlgorithm) -> CAREamicsModule:
     NotImplementedError
         If the chosen algorithm is not yet supported.
     """
-    if isinstance(algorithm_config, CAREAlgorithm | N2NAlgorithm):
+    if isinstance(algorithm_config, CryoCAREAlgorithm):
+        return CryoCAREModule(algorithm_config)
+    elif isinstance(algorithm_config, CAREAlgorithm | N2NAlgorithm):
         return CAREModule(algorithm_config)
     elif isinstance(algorithm_config, N2VAlgorithm):
         return N2VModule(algorithm_config)
@@ -79,6 +89,8 @@ def get_module_cls(algorithm: SupportedAlgorithm) -> CAREamicsModuleCls:
     match algorithm:
         case SupportedAlgorithm.CARE | SupportedAlgorithm.N2N:
             return CAREModule
+        case SupportedAlgorithm.CRYOCARE:
+            return CryoCAREModule
         case SupportedAlgorithm.N2V:
             return N2VModule
         case SupportedAlgorithm.HDN:

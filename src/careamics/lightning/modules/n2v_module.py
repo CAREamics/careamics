@@ -8,7 +8,9 @@ from torch import nn
 from torchmetrics import MetricCollection
 
 from careamics.config import N2VAlgorithm
-from careamics.config.factories.algorithm_factory import algorithm_factory
+from careamics.config.factories.config_discriminators import (
+    instantiate_algorithm_config,
+)
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.lightning.logger import CoLogger
@@ -53,7 +55,7 @@ class N2VModule(L.LightningModule):
         super().__init__()
 
         if isinstance(algorithm_config, dict):
-            config = algorithm_factory(algorithm_config)
+            config = instantiate_algorithm_config(algorithm_config)
         else:
             config = algorithm_config
 
