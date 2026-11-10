@@ -1,5 +1,6 @@
 """Train and predict with CryoCARE through the CAREamist API."""
 
+from datetime import datetime
 from pathlib import Path
 
 from careamics import CAREamist
@@ -10,10 +11,11 @@ def main() -> None:
     """Train CryoCARE on an odd/even MRC pair and export an MRC prediction."""
     example_dir = Path(__file__).parent
     output_dir = Path("cryocare_example_outputs")
+    prediction_dir = Path("predictions") / datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    even_path = example_dir / "Tomo110_even.mrc"
-    odd_path = example_dir / "Tomo110_odd.mrc"
-    prediction_path = output_dir / "predictions" / "Tomo110_even.mrc"
+    even_path = example_dir / "data" / "Tomo110_even.mrc"
+    odd_path = example_dir / "data" / "Tomo110_odd.mrc"
+    prediction_path = output_dir / prediction_dir / "Tomo110_even.mrc"
 
     # The main training parameters are exposed here for easy adjustment.
     patch_size = (72, 72, 72)
@@ -45,7 +47,7 @@ def main() -> None:
     careamist.predict_to_disk(
         pred_data=even_path,
         pred_data_target=odd_path,
-        prediction_dir="predictions",
+        prediction_dir=prediction_dir,
         tile_size=patch_size,
         tile_overlap=(32, 32, 32),
         checkpoint="last",
