@@ -12,5 +12,5 @@ class CryoCAREConfiguration(Configuration):
     algorithm_config: CryoCAREAlgorithm
     """CryoCARE algorithm configuration."""
 
-    data_config: CryoCAREDataConfig
+    data_config: CryoCAREDataConfig  # type: ignore[assignment]
     """CryoCARE data configuration."""
