@@ -68,7 +68,7 @@ ConfigurationType = (
     | MicroSplitConfiguration
 )
 
-DataOutputFormat = Literal["tiff", "zarr", "custom"]
+DataOutputFormat = Literal["tiff", "zarr", "mrc", "custom"]
 
 
 class CAREamist:

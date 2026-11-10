@@ -235,3 +235,20 @@ class PredictionWriterCallback(BasePredictionWriter):
                 "No write strategy defined for `PredictionWriterCallback`, cannot write"
                 " predictions. Call `set_writing_strategy` to pass a write strategy."
             )
+
+    def on_predict_epoch_end(
+        self, trainer: Trainer, pl_module: LightningModule
+    ) -> None:
+        """Close writers that hold resources after prediction completes.
+
+        Parameters
+        ----------
+        trainer : lightning.pytorch.Trainer
+            Active prediction trainer.
+        pl_module : lightning.pytorch.LightningModule
+            Active prediction module.
+        """
+        if self.write_strategy is not None:
+            close = getattr(self.write_strategy, "close", None)
+            if close is not None:
+                close()
