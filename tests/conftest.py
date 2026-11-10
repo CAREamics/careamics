@@ -348,6 +348,66 @@ def pre_trained(tmp_path):
 
 
 @pytest.fixture
+def lvae_pre_trained(tmp_path):
+    """Fixture to create a pre-trained CAREamist MicroSplit(LVAE) model."""
+    from careamics.careamist import CAREamist
+    from careamics.config.factories import create_advanced_microsplit_config
+
+    # data
+    signal_data = np.random.rand(1, 128, 128)
+    noisy_data = signal_data + 0.1 * np.random.randn(1, 128, 128)
+
+    # create configuration
+    patch_size = [64, 64]
+    config = create_advanced_microsplit_config(
+        experiment_name="msplit_test",
+        data_type="array",
+        in_memory=True,
+        axes="YX",
+        output_channels=1,
+        patch_size=patch_size,
+        batch_size=2,
+        num_epochs=2,
+        multiscale_count=1,
+        predict_logvar=True,
+        gaussian_likelihood_weight=0.0,
+    )
+
+    # instantiate CAREamist
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+
+    # train noise model
+    noise_model = careamist.train_noise_model(
+        signal=signal_data,
+        observation=noisy_data,
+        axes="SYX",
+        n_epochs=200,
+        save=True,
+    )
+
+    # check that the noise model was trained
+    assert noise_model is not None
+    noise_model_path: Path = tmp_path / "noise_models" / "noise_model_ch0.npz"
+    assert noise_model_path.exists()
+
+    # train CAREamist
+    careamist.train(
+        train_data=list(noisy_data),
+        train_data_target=list(signal_data),
+        val_data=list(noisy_data),
+        val_data_target=list(signal_data),
+    )
+
+    # check that the checkpoint exists
+    pre_trained_path: Path = (
+        tmp_path / "checkpoints" / "msplit_test_0" / "msplit_test_last.ckpt"
+    )
+    assert pre_trained_path.exists()
+
+    return pre_trained_path
+
+
+@pytest.fixture
 def create_dummy_noise_model(
     n_gaussians: int = 3,
     n_coeffs: int = 3,

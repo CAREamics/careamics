@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import torch
 from bioimageio.spec import InvalidDescr, load_description
 from torch import Tensor
@@ -34,13 +35,17 @@ def test_state_dict_io(tmp_path, ordered_array, pre_trained):
     np.testing.assert_almost_equal(predicted_loaded[0], predicted, decimal=3)
 
 
-def test_bmz_io(tmp_path, ordered_array, pre_trained):
+@pytest.mark.parametrize("model_path_fixture", ["pre_trained", "lvae_pre_trained"])
+def test_bmz_io(request, tmp_path, ordered_array, model_path_fixture):
     """Test exporting and loading to the BMZ."""
     # training data
-    train_array = ordered_array((32, 32))
+    train_array = ordered_array((64, 64))
+
+    # get the actual model path from the fixture name
+    model_path = request.getfixturevalue(model_path_fixture)
 
     # instantiate CAREamist
-    careamist = CAREamist(checkpoint_path=pre_trained, work_dir=tmp_path)
+    careamist = CAREamist(checkpoint_path=model_path, work_dir=tmp_path)
 
     # predict (no tiling and no tta)
     predicted_output, _ = careamist.predict(train_array)
