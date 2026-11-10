@@ -80,6 +80,14 @@ def test_bmz_io(request, tmp_path, ordered_array, model_path_fixture):
     # compare predictions
     with torch.no_grad():
         torch_array = Tensor(train_array[np.newaxis, np.newaxis, ...])
-        predicted = careamist.model.forward(torch_array).numpy().squeeze()
-        predicted_loaded = model.forward(torch_array).numpy().squeeze()
+        predicted = careamist.model.forward(torch_array)
+        predicted_loaded = model.forward(torch_array)
+        # lvae output is a tuple, so we take the first element
+        if isinstance(predicted, tuple):
+            predicted = predicted[0]
+        if isinstance(predicted_loaded, tuple):
+            predicted_loaded = predicted_loaded[0]
+
+    predicted = predicted.numpy().squeeze()
+    predicted_loaded = predicted_loaded.numpy().squeeze()
     np.testing.assert_almost_equal(predicted_loaded, predicted, decimal=3)
