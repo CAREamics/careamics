@@ -72,6 +72,7 @@ def test_segmentation(tmp_path, n_classes, with_channels, is_3d):
         num_epochs=4,
         n_channels_in=3 if with_channels else None,
         n_classes=n_classes,
+        prediction_output="mask",
     )
 
     careamist = CAREamist(config=cfg, work_dir=tmp_path)
@@ -89,8 +90,31 @@ def test_segmentation(tmp_path, n_classes, with_channels, is_3d):
     # brittle assertion that may break randomly
     assert set(np.unique(pred[0])) == set(range(n_classes + 1))
 
+    probabilities, _ = careamist.predict(
+        pred_data=train_data,
+        segmentation_output="probabilities",
+    )
+    assert probabilities[0].shape == (*train_data_tar.shape, n_classes + 1)
+    np.testing.assert_allclose(probabilities[0].sum(axis=-1), 1.0, atol=1e-6)
+    assert np.all((probabilities[0] >= 0) & (probabilities[0] <= 1))
+
     # predict to disk
-    careamist.predict_to_disk(pred_data=train_data, prediction_dir=tmp_path)
-    assert (tmp_path / "array_0.tiff").exists()
-    array_from_disk = imread(tmp_path / "array_0.tiff")
+    mask_dir = tmp_path / "masks"
+    careamist.predict_to_disk(
+        pred_data=train_data, prediction_dir=mask_dir, segmentation_output="mask"
+    )
+    assert (mask_dir / "array_0.tiff").exists()
+    array_from_disk = imread(mask_dir / "array_0.tiff")
     np.testing.assert_array_almost_equal(pred[0], array_from_disk)
+
+    # predict probabilities to disk
+    probabilities_dir = tmp_path / "probabilities"
+    careamist.predict_to_disk(
+        pred_data=train_data,
+        prediction_dir=probabilities_dir,
+        segmentation_output="probabilities",
+    )
+    probabilities_from_disk = imread(probabilities_dir / "array_0.tiff")
+    assert probabilities_from_disk.shape == probabilities[0].shape
+    np.testing.assert_allclose(probabilities_from_disk.sum(axis=-1), 1.0, atol=1e-6)
+    assert np.all((probabilities_from_disk >= 0) & (probabilities_from_disk <= 1))

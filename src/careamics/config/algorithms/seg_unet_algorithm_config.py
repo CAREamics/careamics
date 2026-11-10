@@ -87,6 +87,9 @@ class SegAlgorithm(UNetBasedAlgorithm):
     algorithm: Literal["seg"] = "seg"
     """Segmentation algorithm name."""
 
+    prediction_output: Literal["mask", "probabilities"] = "mask"
+    """Default output returned during prediction."""
+
     loss: SegmentationLoss = DiceCELossConfig()
     """Segmentation-compatible loss function."""
 
