@@ -14,6 +14,7 @@ from .config.algorithms import (
     N2VAlgorithm,
 )
 from .config.configuration import Configuration
+from .config.cryocare_configuration import CryoCAREConfiguration
 from .config.data import DataInputFormat
 from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
@@ -62,6 +63,7 @@ ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | CryoCAREConfiguration
     | HDNConfiguration
     | MicroSplitConfiguration
 )

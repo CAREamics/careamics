@@ -68,6 +68,12 @@ class CryoCAREDataConfig(DataConfig[CryoCAREAugs]):
     """CryoCARE-specific augmentations. This parameter is automatically populated and
     cannot be set by users. Any supplied value will be overwritten."""
 
+    # TODO in cryocare example, num validation patches created is 120
+    # - are they all used in CSBDeep?
+    # - does it matter to have as many?
+    n_val_patches: int = Field(default=50, ge=20)
+    """The number of patches to set aside for validation during training."""
+
     @model_validator(mode="before")
     @classmethod
     def set_augmentations(cls, value: Any) -> Any:

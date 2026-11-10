@@ -15,6 +15,7 @@ from careamics.config.algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
 )
+from careamics.config.augmentations import DefaultAugs
 from careamics.config.data import DataConfig
 from careamics.config.lightning.training_configuration import (
     TrainingConfig,
@@ -88,7 +89,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: DataConfig
+    data_config: DataConfig[DefaultAugs]
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
