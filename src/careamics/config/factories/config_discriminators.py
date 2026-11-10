@@ -13,6 +13,7 @@ from careamics.config.algorithms import (
     N2VAlgorithm,
 )
 from careamics.config.configuration import Configuration
+from careamics.config.cryocare_configuration import CryoCAREConfiguration
 from careamics.config.data.cryocare_data_config import CryoCAREDataConfig
 from careamics.config.data.data_config import DataConfig
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
@@ -105,7 +106,7 @@ Config = Annotated[
         Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
         Annotated[Configuration, Tag(SupportedAlgorithm.N2N)],
-        Annotated[Configuration, Tag(SupportedAlgorithm.CRYOCARE)],
+        Annotated[CryoCAREConfiguration, Tag(SupportedAlgorithm.CRYOCARE)],
         Annotated[HDNConfiguration, Tag(SupportedAlgorithm.HDN)],
         Annotated[MicroSplitConfiguration, Tag(SupportedAlgorithm.MICROSPLIT)],
     ],

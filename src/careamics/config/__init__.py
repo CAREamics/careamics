@@ -3,6 +3,7 @@
 __all__ = [
     "CAREAlgorithm",
     "CryoCAREAlgorithm",
+    "CryoCAREConfiguration",
     "CryoCAREDataConfig",
     "DataConfig",
     "GaussianMixtureNMConfig",
@@ -47,6 +48,7 @@ from .algorithms import (
     UNetBasedAlgorithm,
 )
 from .architectures import LVAEConfig, UNetConfig
+from .cryocare_configuration import CryoCAREConfiguration
 from .data import (
     CryoCAREDataConfig,
     DataConfig,

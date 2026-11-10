@@ -88,7 +88,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: DataConfig
+    data_config: DataConfig[Any]
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
