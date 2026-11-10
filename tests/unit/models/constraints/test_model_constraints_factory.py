@@ -53,5 +53,5 @@ def test_get_model_constraints_lvae(algorithm):
 
 def test_get_model_constraints_unsupported_raises():
     """An unsupported architecture raises a `ValueError`."""
-    with pytest.raises(ValueError, match="is not supported"):
-        get_model_constraints(SimpleNamespace(name="Unknown", model="ViT"))
+    with pytest.raises(ValueError, match="has no corresponding model"):
+        get_model_constraints(SimpleNamespace(algorithm="Unknown", model="ViT"))
