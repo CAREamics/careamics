@@ -9,10 +9,14 @@ from numpy.typing import NDArray
 from careamics.image_io.write import write_tiff
 from careamics.lightning.callbacks.prediction import (
     ImageWriteStrategy,
+    MrcImageWriteStrategy,
     TileWriteStrategy,
     create_write_strategy,
     select_write_extension,
     select_write_func,
+)
+from careamics.lightning.callbacks.prediction.mrc_tile_write_strategy import (
+    MrcTileWriteStrategy,
 )
 
 
@@ -39,6 +43,20 @@ def test_create_write_strategy_tiff_untiled():
     assert write_strategy.write_func is write_tiff
     assert write_strategy.write_extension == ".tiff"
     assert write_strategy.write_func_kwargs == {}
+
+
+def test_create_write_strategy_mrc_untiled():
+    """Test write strategy creation for whole-image MRC."""
+    write_strategy = create_write_strategy(write_type="mrc", tiled=False)
+
+    assert isinstance(write_strategy, MrcImageWriteStrategy)
+
+
+def test_create_write_strategy_mrc_tiled():
+    """Test write strategy creation for tiled MRC."""
+    write_strategy = create_write_strategy(write_type="mrc", tiled=True)
+
+    assert isinstance(write_strategy, MrcTileWriteStrategy)
 
 
 def test_create_write_strategy_custom_tiled():
