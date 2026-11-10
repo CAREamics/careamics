@@ -130,7 +130,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(  # numpydoc ignore=GL08
         self,
-        data_config: DataConfig | dict[str, Any],
+        data_config: DataConfig[Any] | dict[str, Any],
         *,
         train_data: InputVar | None = None,
         train_data_target: InputVar | None = None,
@@ -147,7 +147,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(  # numpydoc ignore=GL08
         self,
-        data_config: DataConfig | dict[str, Any],
+        data_config: DataConfig[Any] | dict[str, Any],
         *,
         train_data: Any | None = None,
         train_data_target: Any | None = None,
@@ -162,7 +162,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: DataConfig | dict[str, Any],
+        data_config: DataConfig[Any] | dict[str, Any],
         *,
         train_data: Any | None = None,
         train_data_target: Any | None = None,

@@ -9,7 +9,7 @@ from careamics.config.lightning.training_configuration import (
 
 
 def create_training_configuration(
-    algorithm: Literal["care", "n2n", "n2v", "hdn", "microsplit"],
+    algorithm: Literal["care", "n2n", "cryocare", "n2v", "hdn", "microsplit"],
     trainer_params: dict,
     logger: Literal["wandb", "tensorboard", "none"],
     checkpoint_params: dict[str, Any] | None = None,

@@ -2,7 +2,9 @@ import pytest
 import torch
 from onnx import checker
 
-from careamics.config.factories.algorithm_factory import algorithm_factory
+from careamics.config.factories.config_discriminators import (
+    instantiate_algorithm_config,
+)
 from careamics.lightning.modules import get_module_cls
 
 
@@ -37,7 +39,7 @@ def test_onnx_export(tmp_path, algorithm, architecture, conv_dim, n2v2, loss, sh
             else {"strategy": "median"} if n2v2 else {"strategy": "uniform"}
         ),
     }
-    algo_config = algorithm_factory(algo_config)
+    algo_config = instantiate_algorithm_config(algo_config)
     model = get_module_cls(algo_config.algorithm)(algo_config)
     model.model.eval()
 
