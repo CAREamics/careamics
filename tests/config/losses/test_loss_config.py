@@ -1,9 +1,8 @@
 """Tests for LVAE loss configuration classes."""
 
 import pytest
-from pydantic import ValidationError
-
 from careamics.config.losses.loss_config import HDNLossConfig
+from pydantic import ValidationError
 
 
 def test_loss_types_are_fixed_per_subclass() -> None:

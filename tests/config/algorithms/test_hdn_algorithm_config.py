@@ -1,9 +1,9 @@
 # TODO - revisit: tests do not follow the new test organization and style
 import pytest
+from careamics.config.losses.loss_config import HDNLossConfig
 
 from careamics.config.algorithms import HDNAlgorithm
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import HDNLossConfig
 
 
 def test_instantiation(minimum_algorithm_hdn: dict):
