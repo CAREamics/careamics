@@ -99,9 +99,22 @@ def test_segmentation(tmp_path, n_classes, with_channels, is_3d):
     assert np.all((probabilities[0] >= 0) & (probabilities[0] <= 1))
 
     # predict to disk
+    mask_dir = tmp_path / "masks"
     careamist.predict_to_disk(
-        pred_data=train_data, prediction_dir=tmp_path, segmentation_output="mask"
+        pred_data=train_data, prediction_dir=mask_dir, segmentation_output="mask"
     )
-    assert (tmp_path / "array_0.tiff").exists()
-    array_from_disk = imread(tmp_path / "array_0.tiff")
+    assert (mask_dir / "array_0.tiff").exists()
+    array_from_disk = imread(mask_dir / "array_0.tiff")
     np.testing.assert_array_almost_equal(pred[0], array_from_disk)
+
+    # predict probabilities to disk
+    probabilities_dir = tmp_path / "probabilities"
+    careamist.predict_to_disk(
+        pred_data=train_data,
+        prediction_dir=probabilities_dir,
+        segmentation_output="probabilities",
+    )
+    probabilities_from_disk = imread(probabilities_dir / "array_0.tiff")
+    assert probabilities_from_disk.shape == probabilities[0].shape
+    np.testing.assert_allclose(probabilities_from_disk.sum(axis=-1), 1.0, atol=1e-6)
+    assert np.all((probabilities_from_disk >= 0) & (probabilities_from_disk <= 1))
