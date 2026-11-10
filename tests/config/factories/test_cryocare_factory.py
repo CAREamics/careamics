@@ -60,8 +60,8 @@ def test_augmentations_and_channels_are_not_factory_parameters() -> None:
     ]
 
 
-@pytest.mark.parametrize("n_val_patches", [0, -1])
-def test_validation_patches_must_be_positive(n_val_patches: int) -> None:
-    """Reject configurations without validation patches."""
-    with pytest.raises(ValueError, match="positive number of validation patches"):
+@pytest.mark.parametrize("n_val_patches", [0, 19])
+def test_validation_patches_must_be_at_least_twenty(n_val_patches: int) -> None:
+    """Reject fewer than twenty validation patches."""
+    with pytest.raises(ValueError, match="greater than or equal to 20"):
         _create_config(n_val_patches=n_val_patches)
