@@ -16,14 +16,16 @@ class SupportedLoss(StrEnum):
         Noise2Void loss.
     PN2V : str
         Probabilistic Noise2Void loss.
+    HDN : str
+        Hierarchical DivNoising loss.
+    MICROSPLIT : str
+        MicroSplit loss.
     CE : str
         Cross-Entropy loss.
     DICE : str
         Dice loss.
     DICE_CE : str
         Combined Dice and Cross-Entropy loss.
-    HDN : str
-        Hierarchical DivNoising loss.
     """
 
     # --- CARE and Noise2Noise losses
@@ -41,9 +43,4 @@ class SupportedLoss(StrEnum):
 
     # --- VAE losses
     HDN = "hdn"
-    MUSPLIT = "musplit"
     MICROSPLIT = "microsplit"
-    DENOISPLIT = "denoisplit"
-    DENOISPLIT_MUSPLIT = (
-        "denoisplit_musplit"  # TODO refac losses, leave only microsplit
-    )

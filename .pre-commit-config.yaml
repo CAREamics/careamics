@@ -9,28 +9,28 @@ ci:
 
 repos:
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: '0.26'
+    rev: 'v0.27'
     hooks:
       - id: validate-pyproject
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.10
+    rev: v0.17.3
     hooks:
       - id: ruff
-        exclude: "^(docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/.*|scripts/.*|demos/.*)"
+        exclude: "^(docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/noise_models.py|scripts/.*|demos/.*)"
 
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 26.10.0
+    rev: 26.10.1
     hooks:
       - id: black
         args: [--target-version=py313]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.4.0
+    rev: v2.4.1
     hooks:
       - id: mypy
         files: "^src/"
-        exclude: "^(docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/.*|src/careamics/config/likelihood_model.py|src/careamics/losses/lvae/.*)"
+        exclude: "^(docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/noise_models.py|src/careamics/config/likelihood_model.py|src/careamics/losses/lvae/.*)"
         args: ["--config-file", "mypy.ini"]
         additional_dependencies:
           - numpy
@@ -44,7 +44,7 @@ repos:
     rev: v1.11.0
     hooks:
       - id: numpydoc-validation
-        exclude: "^(tests/.*|docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/.*|src/careamics/losses/lvae/.*|scripts/.*)"
+        exclude: "^(tests/.*|docs/.*|src/careamics/lvae_training/.*|src/careamics/models/lvae/noise_models.py|src/careamics/losses/lvae/.*|scripts/.*)"
         # data_module: overloads and config params (val_percentage etc.) don't match signature; see https://github.com/numpy/numpydoc/issues/559
 
   # # jupyter linting and formatting

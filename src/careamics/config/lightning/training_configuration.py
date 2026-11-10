@@ -62,7 +62,7 @@ class SelfSupervisedCheckpointing:
 
 
 def default_training_dict(
-    algorithm: Literal["care", "n2n", "n2v", "seg"],
+    algorithm: Literal["care", "n2n", "n2v", "hdn", "microsplit", "seg"],
     trainer_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     checkpoint_params: dict[str, Any] | None = None,
@@ -77,12 +77,12 @@ def default_training_dict(
 
     Parameters
     ----------
-    algorithm : {"care", "n2n", "n2v", "seg"}
+    algorithm : {"care", "n2n", "n2v", "hdn", "microsplit", "seg"}
         Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict, optional
         Parameters for Lightning Trainer class, by default None.
-    logger : {"wandb", "tensorboard", "none"}, optional
-        Logger to use, by default "none".
+    logger : {"wandb", "tensorboard", "none"}
+        Logger to use.
     checkpoint_params : dict, optional
         Parameters for the checkpoint callback, by default None. If None, then default
         parameters are applied based on the algorithm.
@@ -100,13 +100,16 @@ def default_training_dict(
     # user parameters take precedence over defaults
     # since resulting checkpointing behaviour depends on complex interactions between
     # parameters, we keep either user defined or the defaults
+    # supervised algorithms monitor a meaningful validation loss, self-supervised ones
+    # compare noisy pixels to noisy pixels and cannot be monitored by a metric
+    ranks_by_val_loss = algorithm in ("care", "microsplit", "hdn", "seg")
+    supervised = algorithm in ("care", "microsplit", "seg")
+
     if checkpoint_params is None:
         # select default checkpointing preset based on algorithm
         default_ckpt_preset = (
             SupervisedCheckpointing
-            if algorithm == "care" or algorithm == "seg"
-            # since Noise2Noise is comparing noisy pixels to other noisy pixels, it
-            # cannot be monitored based on a metric, we use the self-supervised preset
+            if ranks_by_val_loss
             else SelfSupervisedCheckpointing
         )
         default_checkpoint = asdict(default_ckpt_preset())
@@ -120,7 +123,7 @@ def default_training_dict(
                 "monitor": monitor_metric,
                 "mode": "min",
             }
-            if algorithm == "care"
+            if supervised
             else None
         )
 
@@ -206,7 +209,7 @@ class TrainingConfig(BaseModel):
     """Parameters passed to the PyTorch Lightning Trainer class"""
 
     logger: Literal["wandb", "tensorboard"] | None = None
-    """Logger to use during training. If None, no logger will be used. Available
+    """Logger to use during training. If None, only CVSLogger will be used. Available
     loggers are defined in SupportedLogger."""
 
     # Only basic callbacks - they may have different defaults for different algorithms
@@ -301,7 +304,7 @@ class TrainingConfig(BaseModel):
         return user_params
 
     def __str__(self) -> str:
-        """Pretty string reprensenting the configuration.
+        """Pretty string representing the configuration.
 
         Returns
         -------
