@@ -3,7 +3,9 @@ from contextlib import nullcontext
 import pytest
 
 from careamics.config.architectures import UNetConfig
-from careamics.models.constraints import CryoCAREUNetConstraints
+from careamics.models.constraints.cryocare_unet_constraints import (
+    CryoCAREUNetConstraints,
+)
 
 
 @pytest.fixture
