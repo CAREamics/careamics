@@ -1,9 +1,9 @@
 # TODO - revisit: tests do not follow the new test organization and style
 import pytest
-from careamics.config.losses.loss_config import MicroSplitLossConfig
 
 from careamics.config.algorithms import MicroSplitAlgorithm
 from careamics.config.architectures import LVAEConfig
+from careamics.config.losses import MicroSplitLossConfig
 
 
 def test_instantiation():
