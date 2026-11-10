@@ -11,7 +11,7 @@ from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.patching import TileSpecs
 from careamics.utils.reshape_array import RestoredAxesTransform
 
-from .file_path_utils import create_write_file_path
+from .file_path_utils import create_write_file_path, remove_even_odd_suffix
 from .write_strategy import WriteStrategy
 
 _OUTPUT_HEADER_FIELDS = {"nx", "ny", "nz", "mode", "mx", "my", "mz"}
@@ -178,6 +178,9 @@ class MrcTileWriteStrategy(WriteStrategy):
         if region.source == "array" or source.stem == "array":
             postfix = f"_{region.region_spec['data_idx']}"
             source = Path("array.mrc")
+        else:
+            # for cryoCARE, we want to remove "odd" or "even"
+            source = remove_even_odd_suffix(source)
         return create_write_file_path(
             dirpath=dirpath,
             file_path=source,

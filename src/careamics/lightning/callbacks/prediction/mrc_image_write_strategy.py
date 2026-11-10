@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 
 from careamics.lightning.prediction import combine_samples
 
-from .file_path_utils import create_write_file_path
+from .file_path_utils import create_write_file_path, remove_even_odd_suffix
 from .image_write_strategy import ImageWriteStrategy
 from .mrc_tile_write_strategy import _OUTPUT_HEADER_FIELDS, _set_header_field
 
@@ -79,7 +79,8 @@ class MrcImageWriteStrategy(ImageWriteStrategy):
             axes = cached_preds[0].target_axes
 
             for image, source in zip(images, sources, strict=True):
-                source_path = Path(source)
+                # for cryoCARE, we want to remove "odd" or "even"
+                source_path = remove_even_odd_suffix(Path(source))
                 postfix = f"_{data_idx}" if source_path.stem == "array" else ""
                 file_path = create_write_file_path(
                     dirpath=dirpath,

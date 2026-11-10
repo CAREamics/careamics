@@ -11,11 +11,12 @@ __all__ = [
     "create_write_file_path",
     "create_write_strategy",
     "decollate_image_region_data",
+    "remove_even_odd_suffix",
     "select_write_extension",
     "select_write_func",
 ]
 
-from .file_path_utils import create_write_file_path
+from .file_path_utils import create_write_file_path, remove_even_odd_suffix
 from .image_write_strategy import ImageWriteStrategy
 from .mrc_image_write_strategy import MrcImageWriteStrategy
 from .mrc_tile_write_strategy import MrcTileWriteStrategy
