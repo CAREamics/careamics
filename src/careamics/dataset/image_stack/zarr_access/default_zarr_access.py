@@ -14,6 +14,65 @@ from .zarr_access import ZarrArraySpec, ZarrNode
 from .zarr_access_utils import file_uri_to_path
 from .zarr_hierarchy_utils import open_zarr_node
 
+# --- Zarrs reading utilities
+
+
+def _normalize_zarrs_patch_index(
+    patch_index: Any,
+) -> Any:
+    """Replace integer indices with slices.
+
+    `patch_index` is generated from `utils.reshape_array.get_patch_slices`.
+
+    Parameters
+    ----------
+    patch_index : Any
+        Index selecting the patch.
+
+    Returns
+    -------
+    Any
+        Normalized index.
+
+    """
+    normalized_index = []
+    for index in patch_index:
+        if isinstance(index, int):
+            normalized_index.append(slice(index, index + 1))
+        else:
+            normalized_index.append(index)
+    return tuple(normalized_index)
+
+
+def _read_zarrs_patch(array: zarr.Array, patch_index: Any) -> NDArray[Any]:
+    """Read a patch using zarrs-compatible indexing.
+
+    Parameters
+    ----------
+    array : zarr.Array
+        Array from which to read the patch.
+    patch_index : Any
+        Indexing object selecting the patch to read.
+
+    Returns
+    -------
+    NDArray[Any]
+        Selected patch data.
+    """
+    integer_idx = tuple(
+        index
+        for index, patch_idx in enumerate(patch_index)
+        if isinstance(patch_idx, int)
+    )
+    normalized_index = _normalize_zarrs_patch_index(patch_index)
+    patch = asarray(array[normalized_index])
+
+    # remove superfluous singleton dimension
+    return patch.squeeze(axis=integer_idx) if integer_idx else patch
+
+
+# --- Zarr/zarrs access
+
 
 class DefaultZarrAccess:
     """`zarr`-backed Zarr access.
@@ -115,40 +174,9 @@ class DefaultZarrAccess:
         """
         with self._zarr_config():
             array = self._require_array(node, mode="r")
-            if self._use_zarrs and slice(None) in patch_index:
-                patch_index = self._normalize_zarrs_patch_index(
-                    array.shape, patch_index
-                )
+            if self._use_zarrs:
+                return _read_zarrs_patch(array, patch_index)
             return asarray(array[patch_index])
-
-    @staticmethod
-    def _normalize_zarrs_patch_index(
-        array_shape: Sequence[int], patch_index: Any
-    ) -> Any:
-        """Replace an all-channel selector with consecutive indices.
-
-        `patch_index` is generated from `utils.reshape_array.get_patch_slices`.
-        Therefore, it is assumed here that the only possible unbounded slice is that of
-        the channel dimension.
-
-        Parameters
-        ----------
-        array_shape : Sequence[int]
-            Shape of the array being indexed.
-        patch_index : Any
-            Index selecting the patch.
-
-        Returns
-        -------
-        Any
-            Normalized index, or the original index when it is not an
-            all-channel patch index.
-
-        """
-        normalized_index = list(patch_index)
-        channel_axis = patch_index.index(slice(None))
-        normalized_index[channel_axis] = list(range(array_shape[channel_axis]))
-        return tuple(normalized_index)
 
     def create_array(
         self,
