@@ -75,19 +75,23 @@ def _create_axes(
     # batch is always present
     axes_model: list[AxisBase] = [BatchAxis()]
 
+    num_channels = 1
     if "C" in data_config.axes:
-        if channel_names is not None:
-            axes_model.append(
-                ChannelAxis(channel_names=[Identifier(name) for name in channel_names])
-            )
-        else:
-            raise ValueError(
-                f"Channel names must be provided if channel axis is present, axes: "
-                f"{data_config.axes}."
-            )
-    else:
+        num_channels = array.shape[data_config.axes.index("C") + 1]  # +1 for Batch dim
+
+    if num_channels == 1:
         # singleton channel
         axes_model.append(ChannelAxis(channel_names=[Identifier("channel")]))
+    else:
+        if channel_names is None:
+            channel_names = [f"channel_{i}" for i in range(num_channels)]
+            print(
+                f"No `channel_names` was provided. "
+                f"Using default channel names: {channel_names}"
+            )
+        axes_model.append(
+            ChannelAxis(channel_names=[Identifier(name) for name in channel_names])
+        )
 
     # spatial axes
     for ind, axes in enumerate(spatial_axes):
@@ -136,10 +140,12 @@ def _create_inputs_ouputs(
     tuple[InputTensorDescr, OutputTensorDescr]
         Input and output tensor descriptions.
     """
-    input_axes: list[InputAxis] = _create_axes(input_array, data_config, channel_names)  # type: ignore
-    output_axes: list[OutputAxis] = _create_axes(
+    input_axes: list[InputAxis] = _create_axes(  # type: ignore
+        input_array, data_config, channel_names
+    )
+    output_axes: list[OutputAxis] = _create_axes(  # type: ignore
         output_array, data_config, channel_names, False
-    )  # type: ignore
+    )
 
     # mean and std
     if isinstance(data_config.normalization, MeanStdConfig):
@@ -189,6 +195,28 @@ def _create_inputs_ouputs(
         return input_descr, output_descr
     else:
         raise ValueError("Mean and std cannot be None.")
+
+
+def _get_model_import_from(architecture: str) -> str:
+    """Get the import statement for the given model architecture.
+
+    Parameters
+    ----------
+    architecture : str
+        Model architecture name.
+
+    Returns
+    -------
+    str
+        Import path for the model architecture.
+
+    """
+    if architecture == "UNet":
+        return "careamics.models.unet"
+    elif architecture == "LVAE":
+        return "careamics.model_io.bioimage._lvae"
+
+    raise ValueError(f"Unsupported architecture: {architecture}")
 
 
 def create_model_description(
@@ -267,9 +295,11 @@ def create_model_description(
     )
 
     # weights description
+    model_arch = config.algorithm_config.model.architecture
+    import_from = _get_model_import_from(model_arch)
     architecture_descr = ArchitectureFromLibraryDescr(
-        import_from="careamics.models.unet",
-        callable=f"{config.algorithm_config.model.architecture}",
+        import_from=import_from,
+        callable=f"{model_arch}",
         kwargs=config.algorithm_config.model.model_dump(),
     )
 
