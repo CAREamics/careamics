@@ -523,7 +523,7 @@ and the other one does not). In this case, you can set the `target_axes` paramet
 It obeys the same rules as the `axes` parameter.
 
 ```python title="Target axes"
---8<-- "current/configuration_n2v.py:target_axes"
+--8<-- "current/configuration_simple.py:target_axes"
 ```
 
 1. In this example, the target for CARE does not have a channel dimension.

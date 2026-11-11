@@ -209,7 +209,6 @@ config = create_care_config(
 )
 # --8<-- [end:config_care_val]
 
-
 # %%
 # --8<-- [start:target_axes]
 from careamics.config import create_care_config
