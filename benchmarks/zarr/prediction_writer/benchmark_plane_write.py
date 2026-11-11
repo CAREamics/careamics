@@ -35,7 +35,7 @@ DEFAULT_CHUNKS = ((64, 64), (128, 128), (256, 256))
 DEFAULT_SHARDS = (None, (256, 256), (512, 512))
 DEFAULT_OUTPUT = (
     Path(__file__).parents[1]
-    / "result"
+    / "results"
     / "prediction_writer"
     / "plane_write_results.csv"
 )

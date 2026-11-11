@@ -14,9 +14,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 DEFAULT_INPUT = (
-    Path(__file__).parents[1] / "result" / "plane_io" / "plane_io_results.csv"
+    Path(__file__).parents[1] / "results" / "plane_io" / "plane_io_results.csv"
 )
-DEFAULT_OUTPUT_DIR = Path(__file__).parents[1] / "result" / "plane_io"
+DEFAULT_OUTPUT_DIR = Path(__file__).parents[1] / "results" / "plane_io"
 Stats = tuple[float, float]
 BACKEND_COLORS = {
     "tensorstore": "#1f77b4",  # blue

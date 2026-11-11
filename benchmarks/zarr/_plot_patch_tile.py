@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 METRICS = ("mib_per_second", "patches_per_second", "tiles_per_second")
 LINE_STYLES = ("-", "--", ":", "-.")
 MARKERS = ("o", "s", "^", "D", "v", "P", "X")
-RESULTS_DIR = Path(__file__).parent / "result" / "patch_reading"
+RESULTS_DIR = Path(__file__).parent / "results" / "patch_reading"
 DEFAULT_RESULTS = (RESULTS_DIR / "patch_reading_results.csv",)
 BACKEND_COLORS = {
     "tensorstore": "#1f77b4",  # blue

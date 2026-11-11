@@ -14,10 +14,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 DEFAULT_INPUT = (
-    Path(__file__).parents[1] / "result" / "data_loader" / "data_loader_results.csv"
+    Path(__file__).parents[1] / "results" / "data_loader" / "data_loader_results.csv"
 )
 DEFAULT_OUTPUT = (
-    Path(__file__).parents[1] / "result" / "data_loader" / "data_loader.png"
+    Path(__file__).parents[1] / "results" / "data_loader" / "data_loader.png"
 )
 
 

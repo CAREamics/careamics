@@ -37,7 +37,10 @@ DEFAULT_CHUNKS = ((64, 64), (128, 128), (256, 256))
 DEFAULT_SHARDS = (None, (256, 256), (512, 512))
 DEFAULT_PATCH_SIZES = ((64, 64), (128, 128), (256, 256))
 DEFAULT_OUTPUT = (
-    Path(__file__).parents[1] / "result" / "patch_reading" / "patch_reading_results.csv"
+    Path(__file__).parents[1]
+    / "results"
+    / "patch_reading"
+    / "patch_reading_results.csv"
 )
 RESULT_FIELDS = (
     "backend",

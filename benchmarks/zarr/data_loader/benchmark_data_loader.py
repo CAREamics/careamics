@@ -26,10 +26,11 @@ SHARDS = (1, 1, 512, 512)
 PATCH_SIZE = 128
 PATCHES = 128
 BATCH_SIZE = 8
+WARMUP_BATCHES = 1
 REPEATS = 3
 SEED = 24
 DEFAULT_OUTPUT = (
-    Path(__file__).parents[1] / "result" / "data_loader" / "data_loader_results.csv"
+    Path(__file__).parents[1] / "results" / "data_loader" / "data_loader_results.csv"
 )
 RESULT_FIELDS = (
     "backend",
@@ -96,9 +97,10 @@ def build_dataset(store: Path, backend: str, workers: int) -> Any:
         train_dataloader_params={"shuffle": False},
     )
     dataset = create_dataset(config, inputs=[store], targets=None)
-    if len(dataset) < PATCHES:
+    required_patches = PATCHES + WARMUP_BATCHES * BATCH_SIZE
+    if len(dataset) < required_patches:
         raise RuntimeError(
-            f"Dataset contains {len(dataset)} patches; {PATCHES} are required."
+            f"Dataset contains {len(dataset)} patches; {required_patches} are required."
         )
     return dataset, config
 
@@ -119,7 +121,7 @@ def run_case(case: dict[str, Any]) -> dict[str, Any]:
         from torch.utils.data._utils.collate import default_collate
 
         dataset, config = build_dataset(Path(case["store"]), backend, workers)
-        subset = Subset(dataset, range(PATCHES))
+        subset = Subset(dataset, range(PATCHES + WARMUP_BATCHES * BATCH_SIZE))
         loader_kwargs: dict[str, Any] = {
             "batch_size": config.batch_size,
             "shuffle": False,
@@ -134,9 +136,10 @@ def run_case(case: dict[str, Any]) -> dict[str, Any]:
         iterator = iter(loader)
         next(iterator)
         first_batch_seconds = time.perf_counter() - started
+        measured_started = time.perf_counter()
         for _ in iterator:
             pass
-        total_seconds = time.perf_counter() - started
+        total_seconds = time.perf_counter() - measured_started
 
         result.update(
             {

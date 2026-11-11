@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 
 DEFAULT_INPUT = (
     Path(__file__).parents[1]
-    / "result"
+    / "results"
     / "prediction_writer"
     / "plane_write_results.csv"
 )
-DEFAULT_OUTPUT_DIR = Path(__file__).parents[1] / "result" / "prediction_writer"
+DEFAULT_OUTPUT_DIR = Path(__file__).parents[1] / "results" / "prediction_writer"
 Stats = tuple[float, float]
 BACKEND_COLORS = {
     "tensorstore": "#1f77b4",  # blue

@@ -24,7 +24,7 @@ def main() -> None:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(__file__).parents[1] / "result" / "train_predict",
+        default=Path(__file__).parents[1] / "results" / "train_predict",
     )
     parser.add_argument("--output-csv", type=Path)
     parser.add_argument(

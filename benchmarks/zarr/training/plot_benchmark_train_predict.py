@@ -15,12 +15,12 @@ import matplotlib.pyplot as plt
 
 DEFAULT_INPUT = (
     Path(__file__).parents[1]
-    / "result"
+    / "results"
     / "train_predict"
     / "lightsheet_training_results.csv"
 )
 DEFAULT_OUTPUT = (
-    Path(__file__).parents[1] / "result" / "train_predict" / "train_predict.png"
+    Path(__file__).parents[1] / "results" / "train_predict" / "train_predict.png"
 )
 
 
