@@ -79,7 +79,7 @@ prediction.
     When the path to an OME-NGFF store is provided, CAREamics detects the OME
     metadata, loads the selected multiscale dataset, and creates one image stack for
     each image in a collection. The selected dataset defaults to scale `"0"` and can
-    be changed with the `ome_scale` [configuration parameter](data.md/zarr-and-ome-ngff-parameters)..
+    be changed with the `ome_scale` [configuration parameter](./configuration.md#zarr-and-ome-ngff-parameters)..
 
     OME-NGFF stores can be passed by their store path or by a `file://` URI to a
     specific group or array. Axes still need to be provided through the `axes`
@@ -100,7 +100,7 @@ prediction.
         CAREamics uses [zarr-python](https://zarr.readthedocs.io/en/stable/) by default,
         but can use [Tensorstore](https://google.github.io/tensorstore/) and
         [zarrs](https://zarrs-python.readthedocs.io/en/latest/) using the `zarr_backend`
-        parameter in the [configuration](data.md/zarr-and-ome-ngff-parameters).
+        parameter in the [configuration](./configuration.md#zarr-and-ome-ngff-parameters).
 
 === "Plain Zarr"
 
