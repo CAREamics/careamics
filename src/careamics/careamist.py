@@ -876,7 +876,8 @@ class CAREamist:
             loading=loading,
         )
 
-    # TODO: merge with MSplit method (see feature branch)
+    # TODO: merge _configure_sampling in? We may need a general model update
+    # mechanism, see #1148
     def _update_model_parameters(
         self,
         segmentation_output: SegPredictionOutput | None = None,
