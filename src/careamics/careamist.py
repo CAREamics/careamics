@@ -1003,7 +1003,6 @@ class CAREamist:
         checkpoint: str | Path | None = None,
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int,
-        segmentation_output: SegPredictionOutput | None = None,
     ) -> OutputTypeWithUncertainty: ...
 
     @overload  # any data input, averaged predictions with uncertainty
@@ -1025,7 +1024,6 @@ class CAREamist:
         checkpoint: str | Path | None = None,
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int,
-        segmentation_output: SegPredictionOutput | None = None,
     ) -> OutputTypeWithUncertainty: ...
 
     def predict(
