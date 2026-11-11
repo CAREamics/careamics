@@ -3,7 +3,7 @@ import pytest
 
 from careamics.config.algorithms import MicroSplitAlgorithm
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import MicroSplitLossConfig
+from careamics.config.losses import MicroSplitLossConfig
 
 
 def test_instantiation():
