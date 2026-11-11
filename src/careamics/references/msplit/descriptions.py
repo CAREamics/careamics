@@ -1,9 +1,9 @@
 """CAREamics MicroSplit model descriptions."""
 
-MSPLIT = "MicroSplit"
+MICROSPLIT = "MicroSplit"
 
 
-MSPLIT_DESCRIPTION = (
+MICROSPLIT_DESCRIPTION = (
     "MicroSplit is adeep learning-based computational multiplexing method "
     "that enables multiple cellular structures to be imaged simultaneously "
     "in a single fluorescent channel and then computationally unmixed. "

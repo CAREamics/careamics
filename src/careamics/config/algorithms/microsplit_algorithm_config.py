@@ -19,19 +19,24 @@ from careamics.config.validators import (
     lvae_spatial_shape_valid,
     predict_logvar_consistent,
 )
-
-MICROSPLIT = "MicroSplit"
-
-MICROSPLIT_DESCRIPTION = """MicroSplit is a self-supervised deep learning method for
-microscopy image splitting that combines the strengths of both denoising and
-representation learning approaches."""
-
-MICROSPLIT_REF = CiteEntry(
-    text='Prakash, M., Delbracio, M., Milanfar, P., Jug, F. 2022. "Interpretable '
-    'Unsupervised Diversity Denoising and Artefact Removal." The International '
-    "Conference on Learning Representations (ICLR).",
-    doi="10.1561/2200000056",
+from careamics.references.msplit import (
+    MICROSPLIT,
+    MICROSPLIT_DESCRIPTION,
+    MICROSPLIT_REF,
 )
+
+# MICROSPLIT = "MicroSplit"
+
+# MICROSPLIT_DESCRIPTION = """MicroSplit is a self-supervised deep learning method for
+# microscopy image splitting that combines the strengths of both denoising and
+# representation learning approaches."""
+
+# MICROSPLIT_REF = CiteEntry(
+#     text='Prakash, M., Delbracio, M., Milanfar, P., Jug, F. 2022. "Interpretable '
+#     'Unsupervised Diversity Denoising and Artefact Removal." The International '
+#     "Conference on Learning Representations (ICLR).",
+#     doi="10.1561/2200000056",
+# )
 
 
 class MicroSplitAlgorithm(BaseModel):
@@ -126,7 +131,7 @@ class MicroSplitAlgorithm(BaseModel):
         str
             Algorithm references.
         """
-        return MICROSPLIT_REF.text + " doi: " + MICROSPLIT_REF.doi
+        return MICROSPLIT_REF.text + " doi: " + str(MICROSPLIT_REF.doi)
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """

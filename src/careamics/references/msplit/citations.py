@@ -2,7 +2,7 @@
 
 from bioimageio.spec.model.v0_5 import CiteEntry, Doi
 
-MSPLIT_REF = CiteEntry(
+MICROSPLIT_REF = CiteEntry(
     text="Ashesh, A., Carrara, F., Zubarev, I. et al. "
     "MicroSplit: semantic unmixing of fluorescent microscopy data. "
     "Nat Methods 23, 1047-1057 (2026).",
