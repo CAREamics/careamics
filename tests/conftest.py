@@ -354,8 +354,8 @@ def lvae_pre_trained(tmp_path):
     from careamics.config.factories import create_advanced_microsplit_config
 
     # data
-    signal_data = np.random.rand(1, 128, 128)
-    noisy_data = signal_data + 0.1 * np.random.randn(1, 128, 128)
+    signal_data = np.arange(64 * 64).reshape((64, 64)).astype(np.float32)
+    noisy_data = signal_data + 0.1
 
     # create configuration
     patch_size = [64, 64]
@@ -371,6 +371,7 @@ def lvae_pre_trained(tmp_path):
         multiscale_count=1,
         predict_logvar=True,
         gaussian_likelihood_weight=0.0,
+        seed=13,
     )
 
     # instantiate CAREamist
@@ -380,8 +381,8 @@ def lvae_pre_trained(tmp_path):
     noise_model = careamist.train_noise_model(
         signal=signal_data,
         observation=noisy_data,
-        axes="SYX",
-        n_epochs=200,
+        axes="YX",
+        n_epochs=100,
         save=True,
     )
 
@@ -392,10 +393,10 @@ def lvae_pre_trained(tmp_path):
 
     # train CAREamist
     careamist.train(
-        train_data=list(noisy_data),
-        train_data_target=list(signal_data),
-        val_data=list(noisy_data),
-        val_data_target=list(signal_data),
+        train_data=[noisy_data],
+        train_data_target=[signal_data],
+        val_data=[noisy_data],
+        val_data_target=[signal_data],
     )
 
     # check that the checkpoint exists
