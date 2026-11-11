@@ -18,6 +18,24 @@ config = create_advanced_n2v_config(
     in_memory=True,
 )
 # --8<-- [end:adv_config_n2v_in_memory]
+
+# %%
+# --8<-- [start:adv_config_n2v_zarr]
+from careamics.config import create_advanced_n2v_config
+
+# configure Zarr and OME-NGFF loading
+config = create_advanced_n2v_config(
+    experiment_name="adv_n2v_zarr",
+    data_type="zarr",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    zarr_backend="zarr",  # (1)!
+    ome_scale="full-resolution",  # (2)!
+)
+# --8<-- [end:adv_config_n2v_zarr]
+
 # %%
 # --8<-- [start:adv_config_n2v_subchannels]
 from careamics.config import create_advanced_n2v_config

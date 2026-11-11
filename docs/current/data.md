@@ -60,49 +60,73 @@ explicitly.
     more details.
 
 
-## Zarr
+## OME-NGFF and Zarr
 
 Zarr is a chunked format allowing to train on very large data without having to load
 it in memory. Because a Zarr file can hold multiple arrays, and can have arbitrary
 organization, we defined a flexible way to specify which data should be used.
 
+[OME-NGFF](https://ngff.openmicroscopy.org/specifications/index.html) is a community
+standard for modern bioimage storage built on top of Zarr. An OME-NGFF compliant Zarr
+file includes particular metadata and follows a specific organization.
+
 There are three ways to specify which array(s) should be used for training or
-prediction:
+prediction.
 
-- Pointing to a Zarr file (`path/to/file.zarr`)
-- Pointing to a single Zarr group using a URI (`file://path/to/file.zarr/group_name`)
-- Pointing to a single Zarr array using a URI (`file://path/to/file.zarr/group_name/array_name`)
+=== "OME-NGFF"
 
-All these options are valid, and multiple can be bundled together in a list. The only constraints 
-is that the list must contain only URIs or only paths to Zarr files, but not a mix of both. Zarr 
-URIs can be constructed by getting a reference to a group or array, and calling
-`group.store_path` or `array.store_path`.
+    CAREamics supports both OME-NGFF image stores and bioformats2raw image collections.
+    When the path to an OME-NGFF store is provided, CAREamics detects the OME
+    metadata, loads the selected multiscale dataset, and creates one image stack for
+    each image in a collection. The selected dataset defaults to scale `"0"` and can
+    be changed with the `ome_scale` [configuration parameter](data.md/zarr-and-ome-ngff-parameters)..
 
-In the following example, we construct a Zarr file with arrays in different hierarchy
-levels, and showcase various ways to specify which array should be used for training.
+    OME-NGFF stores can be passed by their store path or by a `file://` URI to a
+    specific group or array. Axes still need to be provided through the `axes`
+    parameter, they are not inferred automatically from the OME-NGFF metadata.
 
-```python title="Using Zarr""
---8<-- "current/data.py:zarr"
-```
+    !!! warning "OME-NGFF version"
 
-1. Only `array_1` and `array_2` will be loaded.
-2. Only arrays in `others`, i.e. `array_2` and `array_3`, will be loaded.
-3. Only `array_1` will be loaded.
-4. All arrays will be loaded, as they are all specified in the list.
+        CAREamics is currently compatible with `v0.5`.
 
-!!! note "OME-Zarr"
+    !!! warning "Unsupported OME-NGFF layouts"
 
-    Currently, we are ignoring whether a file is an OME-Zarr or not. As a result,
-    simply passing a path to the Zarr file will fail, since CAREamics will expect
-    arrays in the root of the file. 
+        CAREamics currently supports a single multiscale pyramid per image. Plate/HCS and
+        label hierarchies are not supported. If OME metadata is malformed, CAREamics
+        warns and falls back to generic Zarr loading.
 
-    Therefore, to use an OME-Zarr file, you need to specify the URI to the array
-    you want to train on.
+    !!! note "Zarr backends"
 
-    In the near future, we will add full OME-Zarr support.
+        CAREamics uses [zarr-python](https://zarr.readthedocs.io/en/stable/) by default,
+        but can use [Tensorstore](https://google.github.io/tensorstore/) and
+        [zarrs](https://zarrs-python.readthedocs.io/en/latest/) using the `zarr_backend`
+        parameter in the [configuration](data.md/zarr-and-ome-ngff-parameters).
+
+=== "Plain Zarr"
+
+    - Pointing to a Zarr file (`path/to/file.zarr`)
+    - Pointing to a single Zarr group using a URI (`file://path/to/file.zarr/group_name`)
+    - Pointing to a single Zarr array using a URI (`file://path/to/file.zarr/group_name/array_name`)
+
+    All these options are valid, and multiple can be bundled together in a list. The only constraint
+    is that the list must contain only URIs or only paths to Zarr files, but not a mix of both. Zarr
+    URIs can be constructed by getting a reference to a group or array, and calling
+    `group.store_path` or `array.store_path`.
+
+    In the following example, we construct a Zarr file with arrays in different hierarchy
+    levels, and showcase various ways to specify which array should be used for training.
+
+    ```python title="Using Zarr""
+    --8<-- "current/data.py:zarr"
+    ```
+
+    1. Only `array_1` and `array_2` will be loaded.
+    2. Only arrays in `others`, i.e. `array_2` and `array_3`, will be loaded.
+    3. Only `array_1` will be loaded.
+    4. All arrays will be loaded, as they are all specified in the list.
 
 
-!!! warning "Multiscales OME-Zarr and Noise2Void"
+!!! warning "Multiscale OME-NGFF data and Noise2Void"
 
     Noise2Void is very sensitive to the noise distribution in the data, if a an image
     has been downscaled, correlations may have been introduced in the noise, causing
