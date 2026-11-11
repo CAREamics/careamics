@@ -3,7 +3,7 @@ import pytest
 
 from careamics.config.algorithms import HDNAlgorithm
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import HDNLossConfig
+from careamics.config.losses import HDNLossConfig
 
 
 def test_instantiation(minimum_algorithm_hdn: dict):
