@@ -9,11 +9,7 @@ from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from numpy.typing import NDArray
 
-from .config.algorithms import (
-    CAREAlgorithm,
-    N2NAlgorithm,
-    N2VAlgorithm,
-)
+from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
 from .config.configuration import Configuration
 from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
@@ -31,6 +27,7 @@ from .lightning.data import CareamicsDataModule, InputVar
 from .lightning.logger import CoLogger
 from .lightning.modules import (
     CAREamicsModule,
+    SegModule,
     create_module,
 )
 from .lightning.prediction import convert_predict_outputs
@@ -53,6 +50,7 @@ logger = get_logger(__name__)
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
+SegPredictionOutput = Literal["mask", "probabilities"]
 NoiseModelInput: TypeAlias = MultiChannelNoiseModel | list[str | Path]
 OutputType = tuple[list[NDArray], list[str]]
 OutputTypeWithUncertainty = tuple[list[NDArray], list[NDArray], list[str]]
@@ -62,6 +60,7 @@ ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | Configuration[SegAlgorithm]
     | HDNConfiguration
     | MicroSplitConfiguration
 )
@@ -74,7 +73,7 @@ class CAREamist:
     ----------
     config : Configuration | Path | str, default=None
         CAREamics configuration, or a path to a configuration file. See
-        `careamics.config.ng_factories` for method to build configurations.
+        `careamics.config.factories` for method to build configurations.
     checkpoint_path : Path | str, default=None
         Path to a checkpoint file from which to load the model and configuration.
     bmz_path : Path | str, default=None
@@ -129,7 +128,7 @@ class CAREamist:
         ----------
         config : Configuration | Path | str, default=None
             CAREamics configuration, or a path to a configuration file. See
-            `careamics.config.ng_factories` for method to build configurations. `config`
+            `careamics.config.factories` for method to build configurations. `config`
             is mutually exclusive with `checkpoint_path` and `bmz_path`.
         checkpoint_path : Path | str, default=None
             Path to a checkpoint file from which to load the model and configuration.
@@ -689,7 +688,7 @@ class CAREamist:
             train_data_target=train_data_target,
             val_data_target=val_data_target,
             train_data_mask=filtering_mask,
-            model_constraints=get_model_constraints(self.config.algorithm_config.model),
+            model_constraints=get_model_constraints(self.config.algorithm_config),
             loading=loading,  # type: ignore
         )
 
@@ -893,9 +892,31 @@ class CAREamist:
             data_config=pred_data_config,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
-            model_constraints=get_model_constraints(self.config.algorithm_config.model),
+            model_constraints=get_model_constraints(self.config.algorithm_config),
             loading=loading,
         )
+
+    # TODO: merge _configure_sampling in? We may need a general model update
+    # mechanism, see #1148
+    def _update_model_parameters(
+        self,
+        segmentation_output: SegPredictionOutput | None = None,
+    ) -> None:
+        """Update model parameters.
+
+        Parameters
+        ----------
+        segmentation_output : {"mask", "probabilities"} or None, default=None
+            Prediction output for segmentation models. If None, the value from
+            the algorithm configuration is used.
+        """
+        # for segmentation, update the algorithm parameter in the module
+        if (
+            self.config.algorithm_config.algorithm == "seg"
+            and segmentation_output is not None
+        ):
+            assert isinstance(self.model, SegModule)
+            self.model.config.prediction_output = segmentation_output
 
     def _configure_sampling(self, n_predictions: int | None) -> None:
         """Set how many stochastic predictions the model draws per input.
@@ -956,8 +977,10 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
-        n_predictions: None = None,
         ome_scale: str | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        n_predictions: None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> OutputType: ...
 
     @overload  # any data input is allowed for ImageStackLoading, single prediction
@@ -978,8 +1001,10 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
-        n_predictions: None = None,
         ome_scale: str | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        n_predictions: None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> OutputType: ...
 
     @overload  # constrained input data type, averaged predictions with uncertainty
@@ -999,8 +1024,9 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
-        n_predictions: int,
         ome_scale: str | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        n_predictions: int,
     ) -> OutputTypeWithUncertainty: ...
 
     @overload  # any data input, averaged predictions with uncertainty
@@ -1020,8 +1046,9 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
-        n_predictions: int,
         ome_scale: str | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        n_predictions: int,
     ) -> OutputTypeWithUncertainty: ...
 
     def predict(
@@ -1041,8 +1068,10 @@ class CAREamist:
         in_memory: bool | None = None,
         loading: Loading = None,
         checkpoint: str | Path | None = None,
-        n_predictions: int | None = None,
         ome_scale: str | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
+        n_predictions: int | None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> OutputType | OutputTypeWithUncertainty:
         """
         Predict on data and return the predictions.
@@ -1097,6 +1126,8 @@ class CAREamist:
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
+        ome_scale : str or None, default=None
+            OME scale to use when loading OME-Zarr files.
         n_predictions : int, default=None
             Number of stochastic predictions to draw per input and average into the
             returned prediction. When set, the per-pixel standard deviation across
@@ -1105,8 +1136,8 @@ class CAREamist:
             the sampling-based algorithms (HDN and MicroSplit). Note that the
             estimate is the spread of the drawn predictions alone: it excludes the
             likelihood variance and so under-estimates the total uncertainty.
-        ome_scale : str or None, default=None
-            OME scale to use when loading OME-Zarr files.
+        segmentation_output : {"mask", "probabilities"} or None, default=None
+            Prediction output for segmentation models. If None, the value from
 
         Returns
         -------
@@ -1142,6 +1173,8 @@ class CAREamist:
         )
 
         checkpoint = self._get_default_ckpt(checkpoint)
+
+        self._update_model_parameters(segmentation_output=segmentation_output)
 
         try:
             predictions: list[PredictStepOutput] = self.trainer.predict(
@@ -1212,7 +1245,9 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -1241,7 +1276,9 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> None: ...
 
     def predict_to_disk(
@@ -1269,7 +1306,9 @@ class CAREamist:
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> None:
         """
         Make predictions on the provided data and save outputs to files.
@@ -1355,6 +1394,9 @@ class CAREamist:
             written prediction. Must be at least 2, and is only supported by the
             sampling-based algorithms (HDN and MicroSplit). The uncertainty across
             those predictions is not currently written.
+        segmentation_output : {"mask", "probabilities"} or None, default=None
+            Prediction output for segmentation models. If None, the value from
+            the algorithm configuration is used.
 
         Raises
         ------
@@ -1417,6 +1459,8 @@ class CAREamist:
             loading=loading,
             ome_scale=ome_scale,
         )
+
+        self._update_model_parameters(segmentation_output=segmentation_output)
 
         try:
             self.trainer.predict(
