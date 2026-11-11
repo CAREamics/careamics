@@ -14,6 +14,8 @@ from careamics import CAREamist
 from careamics.config.factories import create_advanced_n2v_config
 
 NUM_EPOCHS = 20
+LIGHTSHEET_MEANS = [142.04916, 139.26782]
+LIGHTSHEET_STDS = [110.89664791, 116.43430758]
 DATA_URL = "https://zenodo.org/records/22078388/files/001-small-lowT.zip?download=1"
 DATA_HASH = "5069b9606d646f810e9f0b899d98916d8366bfb14bc74765774c1d4df4a5fe80"
 
@@ -92,6 +94,11 @@ def main() -> None:
                     num_epochs=NUM_EPOCHS,
                     n_channels=2,
                     independent_channels=True,
+                    normalization="mean_std",
+                    normalization_params={
+                        "input_means": LIGHTSHEET_MEANS,
+                        "input_stds": LIGHTSHEET_STDS,
+                    },
                     zarr_backend=backend,
                     num_workers=0,
                 )
