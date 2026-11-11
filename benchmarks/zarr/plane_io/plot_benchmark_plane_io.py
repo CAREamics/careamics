@@ -13,8 +13,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-DEFAULT_INPUT = Path(__file__).parent / "results" / "plane_results.csv"
-DEFAULT_OUTPUT_DIR = Path(__file__).parent / "results" / "plane_plots"
+DEFAULT_INPUT = (
+    Path(__file__).parents[1] / "result" / "plane_io" / "plane_io_results.csv"
+)
+DEFAULT_OUTPUT_DIR = Path(__file__).parents[1] / "result" / "plane_io"
 Stats = tuple[float, float]
 BACKEND_COLORS = {
     "tensorstore": "#1f77b4",  # blue
@@ -38,14 +40,14 @@ def read_rows(path: Path) -> list[dict[str, str]]:
 def stats_by_configuration(
     rows: list[dict[str, str]],
 ) -> dict[tuple[str, str, str, str], Stats]:
-    """Aggregate repeats into median throughput and sample standard deviation."""
+    """Aggregate repeats into mean throughput and sample standard deviation."""
     values: defaultdict[tuple[str, str, str, str], list[float]] = defaultdict(list)
     for row in rows:
         key = (row["operation"], row["backend"], row["chunks"], row["shards"])
         values[key].append(float(row["mib_per_second"]))
     return {
         key: (
-            statistics.median(samples),
+            statistics.mean(samples),
             statistics.stdev(samples) if len(samples) > 1 else 0.0,
         )
         for key, samples in values.items()
@@ -59,7 +61,7 @@ def plot_operation(
     output: Path,
     dpi: int,
 ) -> None:
-    """Plot medians and individual repeat values by chunk size."""
+    """Plot means with standard-deviation bands by chunk size."""
     shards = sorted({key[3] for key in stats if key[0] == operation})
     backends = sorted({key[1] for key in stats if key[0] == operation})
     chunks = sorted(
@@ -82,7 +84,10 @@ def plot_operation(
             ]
             if any(entry is None for entry in entries):
                 continue
-            values = [entry[0] for entry in entries if entry is not None]
+            values = [
+                entry[0] if entry is not None else float("nan") for entry in entries
+            ]
+            deviations = [entry[1] if entry is not None else 0.0 for entry in entries]
             axis.plot(
                 x,
                 values,
@@ -90,28 +95,24 @@ def plot_operation(
                 color=colors[backend],
                 label=backend,
             )
-            for position, chunk in enumerate(chunks):
-                samples = [
-                    float(row["mib_per_second"])
-                    for row in rows
-                    if row["operation"] == operation
-                    and row["backend"] == backend
-                    and row["chunks"] == chunk
-                    and row["shards"] == shard
-                ]
-                axis.scatter(
-                    [position] * len(samples),
-                    samples,
-                    color=colors[backend],
-                    alpha=0.45,
-                    s=18,
-                    zorder=3,
-                )
+            axis.fill_between(
+                x,
+                [
+                    value - deviation
+                    for value, deviation in zip(values, deviations, strict=True)
+                ],
+                [
+                    value + deviation
+                    for value, deviation in zip(values, deviations, strict=True)
+                ],
+                color=colors[backend],
+                alpha=0.12,
+            )
         axis.set_title(f"Shards: {shard}")
         axis.set_xticks(list(x), chunks)
         axis.set_xlabel("Chunks")
         axis.grid(axis="y", alpha=0.25)
-    axes[0, 0].set_ylabel("Median throughput (MiB/s)\n(points: individual repeats)")
+    axes[0, 0].set_ylabel("Mean speed (MiB/s) ± SD")
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="outside lower center", ncols=len(labels))
     fig.suptitle(f"Whole-plane {operation} benchmark")

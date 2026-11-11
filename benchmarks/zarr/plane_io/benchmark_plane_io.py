@@ -11,6 +11,9 @@ from time import perf_counter
 
 import numpy as np
 import zarr
+
+sys.path.insert(0, str(Path(__file__).parents[1]))
+
 from _benchmark_utils import (
     BACKENDS,
     SEED,
@@ -28,7 +31,9 @@ from careamics.dataset.image_stack.zarr_access import ZarrArraySpec, ZarrNode
 DEFAULT_ARRAY_SHAPE = (2048, 2048)
 DEFAULT_CHUNKS = ((64, 64), (128, 128), (256, 256))
 DEFAULT_SHARDS = (None, (256, 256), (512, 512))
-DEFAULT_OUTPUT = Path(__file__).parent / "results" / "plane_results.csv"
+DEFAULT_OUTPUT = (
+    Path(__file__).parents[1] / "result" / "plane_io" / "plane_io_results.csv"
+)
 RESULT_FIELDS = (
     "operation",
     "backend",

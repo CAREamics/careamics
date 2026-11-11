@@ -11,6 +11,9 @@ from time import perf_counter
 from typing import cast
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).parents[1]))
+
 from _benchmark_utils import (
     BACKENDS,
     SEED,
@@ -35,7 +38,9 @@ DEFAULT_CHUNKS = ((64, 64), (128, 128), (256, 256))
 DEFAULT_SHARDS = (None, (256, 256), (512, 512))
 DEFAULT_TILE_SIZES = ((128, 128), (256, 256))
 TILE_OVERLAP = (48, 48)
-DEFAULT_OUTPUT = Path(__file__).parent / "results" / "write_results.csv"
+DEFAULT_OUTPUT = (
+    Path(__file__).parents[1] / "result" / "tile_writing" / "tile_writing_results.csv"
+)
 RESULT_FIELDS = (
     "backend",
     "array_shape",

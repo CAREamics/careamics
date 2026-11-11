@@ -16,44 +16,6 @@ from careamics.config.factories import create_advanced_n2v_config
 from careamics.plotting import plot_loss
 
 
-def create_config(backend: str = "zarr", num_epochs: int = 50):
-    """Create the light-sheet N2V configuration for a Zarr backend."""
-    return create_advanced_n2v_config(
-        experiment_name="n2v_lightsheet_denoising",
-        data_type="zarr",
-        axes="TCZYX",
-        patch_size=(32, 128, 128),
-        batch_size=6,
-        num_epochs=num_epochs,
-        n_channels=2,
-        independent_channels=True,
-        zarr_backend=backend,
-        num_workers=0,
-    )
-
-
-def download_data() -> Path:
-    """Download example data.
-
-    Returns
-    -------
-    Path
-        Path to data.
-    """
-    file_list = pooch.retrieve(
-        "https://zenodo.org/records/22078388/files/001-small-lowT.zip?download=1",
-        known_hash=("5069b9606d646f810e9f0b899d98916d8366bfb14bc74765774c1d4df4a5fe80"),
-        processor=pooch.Unzip(),
-        path=Path(__file__).parent / "data",
-    )
-
-    for f in file_list:
-        if f.endswith("raw.ome.zarr/zarr.json"):
-            return Path(f).parent
-
-    return f
-
-
 def main() -> None:
     """Configure CAREamics for 3D light-sheet denoising.
 
@@ -62,12 +24,33 @@ def main() -> None:
     None
         The CAREamist application is initialized.
     """
-    root = Path(".") / "n2v_training"
+    root = Path("n2v_training")
     root.mkdir(exist_ok=True, parents=True)
 
-    path_to_zarr = download_data()
+    downloaded_files = pooch.retrieve(
+        "https://zenodo.org/records/22078388/files/001-small-lowT.zip?download=1",
+        known_hash="5069b9606d646f810e9f0b899d98916d8366bfb14bc74765774c1d4df4a5fe80",
+        processor=pooch.Unzip(),
+        path=Path(__file__).parent / "data",
+    )
+    path_to_zarr = next(
+        Path(file).parent
+        for file in downloaded_files
+        if file.endswith("raw.ome.zarr/zarr.json")
+    )
 
-    config = create_config()
+    config = create_advanced_n2v_config(
+        experiment_name="n2v_lightsheet_denoising",
+        data_type="zarr",
+        axes="TCZYX",
+        patch_size=(32, 128, 128),
+        batch_size=6,
+        num_epochs=50,
+        n_channels=2,
+        independent_channels=True,
+        zarr_backend="zarr",
+        num_workers=0,
+    )
     careamist = CAREamist(config=config, work_dir=root)
     careamist.train(train_data=path_to_zarr)
 

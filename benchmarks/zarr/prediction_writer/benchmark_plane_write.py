@@ -11,6 +11,9 @@ from time import perf_counter
 
 import numpy as np
 import zarr
+
+sys.path.insert(0, str(Path(__file__).parents[1]))
+
 from _benchmark_utils import (
     BACKENDS,
     SEED,
@@ -30,7 +33,12 @@ from careamics.lightning.callbacks.prediction import ZarrImageWriteStrategy
 DEFAULT_ARRAY_SHAPE = (2048, 2048)
 DEFAULT_CHUNKS = ((64, 64), (128, 128), (256, 256))
 DEFAULT_SHARDS = (None, (256, 256), (512, 512))
-DEFAULT_OUTPUT = Path(__file__).parent / "results" / "image_write_results.csv"
+DEFAULT_OUTPUT = (
+    Path(__file__).parents[1]
+    / "result"
+    / "prediction_writer"
+    / "plane_write_results.csv"
+)
 RESULT_FIELDS = (
     "backend",
     "array_shape",

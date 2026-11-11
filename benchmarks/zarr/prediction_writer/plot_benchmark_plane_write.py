@@ -13,8 +13,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-DEFAULT_INPUT = Path(__file__).parent / "results" / "image_write_results.csv"
-DEFAULT_OUTPUT_DIR = Path(__file__).parent / "results" / "image_write_plots"
+DEFAULT_INPUT = (
+    Path(__file__).parents[1]
+    / "result"
+    / "prediction_writer"
+    / "plane_write_results.csv"
+)
+DEFAULT_OUTPUT_DIR = Path(__file__).parents[1] / "result" / "prediction_writer"
 Stats = tuple[float, float]
 BACKEND_COLORS = {
     "tensorstore": "#1f77b4",  # blue
@@ -39,14 +44,14 @@ def read_rows(path: Path) -> list[dict[str, str]]:
 def stats_by_configuration(
     rows: list[dict[str, str]],
 ) -> dict[tuple[str, str, str], Stats]:
-    """Aggregate repeats into median throughput and sample standard deviation."""
+    """Aggregate repeats into mean throughput and sample standard deviation."""
     values: defaultdict[tuple[str, str, str], list[float]] = defaultdict(list)
     for row in rows:
         key = (row["backend"], row["chunks"], row["shards"])
         values[key].append(float(row["mib_per_second"]))
     return {
         key: (
-            statistics.median(samples),
+            statistics.mean(samples),
             statistics.stdev(samples) if len(samples) > 1 else 0.0,
         )
         for key, samples in values.items()
@@ -66,7 +71,7 @@ def plot_results(
     output: Path,
     dpi: int,
 ) -> None:
-    """Plot median image-write throughput and individual repeats."""
+    """Plot mean image-write throughput with standard-deviation bands."""
     shards = sorted({key[2] for key in stats})
     backends = sorted({key[0] for key in stats})
     chunks = sort_shapes({key[1] for key in stats})
@@ -84,37 +89,35 @@ def plot_results(
             entries = [stats.get((backend, chunk, shard)) for chunk in chunks]
             if any(entry is None for entry in entries):
                 continue
-            medians = [entry[0] for entry in entries if entry is not None]
+            means = [
+                entry[0] if entry is not None else float("nan") for entry in entries
+            ]
+            deviations = [entry[1] if entry is not None else 0.0 for entry in entries]
             axis.plot(
                 x,
-                medians,
+                means,
                 marker="o",
                 color=colors[backend],
                 label=backend,
             )
-            for position, chunk in enumerate(chunks):
-                samples = [
-                    float(row["mib_per_second"])
-                    for row in rows
-                    if row["backend"] == backend
-                    and row["chunks"] == chunk
-                    and row["shards"] == shard
-                ]
-                axis.scatter(
-                    [position] * len(samples),
-                    samples,
-                    color=colors[backend],
-                    alpha=0.45,
-                    s=18,
-                    zorder=3,
-                )
+            axis.fill_between(
+                x,
+                [
+                    value - deviation
+                    for value, deviation in zip(means, deviations, strict=True)
+                ],
+                [
+                    value + deviation
+                    for value, deviation in zip(means, deviations, strict=True)
+                ],
+                color=colors[backend],
+                alpha=0.12,
+            )
         axis.set_title(f"Shards: {shard}")
         axis.set_xticks(list(x), chunks)
         axis.set_xlabel("Chunks")
         axis.grid(axis="y", alpha=0.25)
-    axes[0, 0].set_ylabel(
-        "Median image-write throughput (MiB/s)\n(points: individual repeats)"
-    )
+    axes[0, 0].set_ylabel("Mean speed (MiB/s) ± SD")
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="outside lower center", ncols=len(labels))
     fig.suptitle("CAREamics whole-image OME-NGFF write benchmark")

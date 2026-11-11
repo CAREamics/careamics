@@ -19,11 +19,8 @@ import matplotlib.pyplot as plt
 METRICS = ("mib_per_second", "patches_per_second", "tiles_per_second")
 LINE_STYLES = ("-", "--", ":", "-.")
 MARKERS = ("o", "s", "^", "D", "v", "P", "X")
-RESULTS_DIR = Path(__file__).parent / "results"
-DEFAULT_RESULTS = (
-    RESULTS_DIR / "read_results.csv",
-    RESULTS_DIR / "write_results.csv",
-)
+RESULTS_DIR = Path(__file__).parent / "result" / "patch_reading"
+DEFAULT_RESULTS = (RESULTS_DIR / "patch_reading_results.csv",)
 BACKEND_COLORS = {
     "tensorstore": "#1f77b4",  # blue
     "zarrs": "#2ca02c",  # green
@@ -100,8 +97,8 @@ def select_metric(rows: Sequence[Mapping[str, str]], requested: str | None) -> s
 
 def aggregate_results(
     rows: Sequence[Mapping[str, str]], metric: str, kind: str
-) -> dict[tuple[str, ...], float]:
-    """Aggregate repeated measurements using their median.
+) -> dict[tuple[str, ...], tuple[float, float]]:
+    """Aggregate repeated measurements using mean and sample standard deviation.
 
     Parameters
     ----------
@@ -114,15 +111,21 @@ def aggregate_results(
 
     Returns
     -------
-    dict[tuple[str, ...], float]
-        Median throughput keyed by configuration and backend.
+    dict[tuple[str, ...], tuple[float, float]]
+        Mean and standard deviation keyed by configuration and backend.
     """
     fields = configuration_fields(kind)
     values: defaultdict[tuple[str, ...], list[float]] = defaultdict(list)
     for row in rows:
         key = tuple(row[field] for field in (*fields, "backend"))
         values[key].append(float(row[metric]))
-    return {key: statistics.median(samples) for key, samples in values.items()}
+    return {
+        key: (
+            statistics.mean(samples),
+            statistics.stdev(samples) if len(samples) > 1 else 0.0,
+        )
+        for key, samples in values.items()
+    }
 
 
 def configuration_fields(kind: str) -> tuple[str, ...]:
@@ -177,9 +180,9 @@ def metric_label(metric: str) -> str:
         Human-readable label.
     """
     labels = {
-        "mib_per_second": "Throughput (MiB/s)",
-        "patches_per_second": "Patches/s",
-        "tiles_per_second": "Tiles/s",
+        "mib_per_second": "Speed (MiB/s)",
+        "patches_per_second": "Speed (patches/s)",
+        "tiles_per_second": "Speed (tiles/s)",
     }
     return labels[metric]
 
@@ -191,7 +194,7 @@ def plot_results(
     output: Path,
     dpi: int,
 ) -> None:
-    """Plot median throughput by backend and storage layout.
+    """Plot mean throughput with standard-deviation bands.
 
     Parameters
     ----------
@@ -214,9 +217,11 @@ def plot_results(
     aggregated = aggregate_results(rows, metric, kind)
     shards = list(dict.fromkeys(row["shards"] for row in rows))
     backends = list(dict.fromkeys(row["backend"] for row in rows))
-    chunks = list(dict.fromkeys(row["chunks"] for row in rows))
-    x_labels = list(dict.fromkeys(axis_label(row, kind) for row in rows))
-    x_positions = range(len(x_labels))
+    chunks = sorted(
+        {row["chunks"] for row in rows},
+        key=lambda value: tuple(int(part) for part in value.split("x")),
+    )
+    sizes = list(dict.fromkeys(axis_label(row, kind) for row in rows))
 
     ncols = min(3, len(shards))
     nrows = math.ceil(len(shards) / ncols)
@@ -228,15 +233,15 @@ def plot_results(
         squeeze=False,
     )
     colors = {backend: BACKEND_COLORS.get(backend, "#7f7f7f") for backend in backends}
-    styles = dict(zip(chunks, cycle(LINE_STYLES), strict=False))
-    markers = dict(zip(chunks, cycle(MARKERS), strict=False))
+    styles = dict(zip(sizes, cycle(LINE_STYLES), strict=False))
+    markers = dict(zip(sizes, cycle(MARKERS), strict=False))
 
     fields = configuration_fields(kind)
     array_shapes = list(dict.fromkeys(row["array_shape"] for row in rows))
     if len(array_shapes) != 1:
         raise ValueError("Plot one array shape per CSV file.")
 
-    lookup: dict[tuple[str, str, str, str], float] = {}
+    lookup: dict[tuple[str, str, str, str], tuple[float, float]] = {}
     for key, value in aggregated.items():
         config = dict(zip((*fields, "backend"), key, strict=True))
         label = (
@@ -248,28 +253,47 @@ def plot_results(
 
     for shard, axis in zip(shards, axes.flat, strict=False):
         for backend in backends:
-            for chunk in chunks:
-                values = [
-                    lookup.get((shard, backend, chunk, label)) for label in x_labels
-                ]
+            for size in sizes:
+                values = [lookup.get((shard, backend, chunk, size)) for chunk in chunks]
                 if all(value is None for value in values):
                     continue
+                means = [
+                    value[0] if value is not None else math.nan for value in values
+                ]
+                deviations = [
+                    value[1] if value is not None else 0.0 for value in values
+                ]
                 axis.plot(
-                    x_positions,
-                    values,
+                    range(len(chunks)),
+                    means,
                     color=colors[backend],
-                    linestyle=styles[chunk],
-                    marker=markers[chunk],
-                    label=f"{backend}, chunks {chunk}",
+                    linestyle=styles[size],
+                    marker=markers[size],
+                    label=f"{backend}, {size}",
+                )
+                lower = [
+                    mean - deviation
+                    for mean, deviation in zip(means, deviations, strict=True)
+                ]
+                upper = [
+                    mean + deviation
+                    for mean, deviation in zip(means, deviations, strict=True)
+                ]
+                axis.fill_between(
+                    range(len(chunks)),
+                    lower,
+                    upper,
+                    color=colors[backend],
+                    alpha=0.12,
                 )
         axis.set_title(f"Shards: {shard}")
-        axis.set_xticks(list(x_positions), x_labels)
+        axis.set_xticks(list(range(len(chunks))), chunks)
         axis.grid(axis="y", alpha=0.25)
-        axis.set_xlabel("Patch size" if kind == "read" else "Tile size / overlap")
+        axis.set_xlabel("Chunks")
 
     for axis in list(axes.flat)[len(shards) :]:
         axis.set_visible(False)
-    axes[0, 0].set_ylabel(metric_label(metric))
+    axes[0, 0].set_ylabel(f"Mean {metric_label(metric)} ± SD")
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="outside lower center", ncols=min(3, len(labels)))
     fig.suptitle(
@@ -321,14 +345,16 @@ def summarize_results(
     """
     aggregated = aggregate_results(rows, metric, kind)
     fields = configuration_fields(kind)
-    by_config: defaultdict[tuple[str, ...], dict[str, float]] = defaultdict(dict)
+    by_config: defaultdict[tuple[str, ...], dict[str, tuple[float, float]]] = (
+        defaultdict(dict)
+    )
     for key, value in aggregated.items():
         by_config[key[:-1]][key[-1]] = value
 
     backends = list(dict.fromkeys(row["backend"] for row in rows))
     wins = dict.fromkeys(backends, 0)
     for measurements in by_config.values():
-        winner = max(measurements, key=measurements.__getitem__)
+        winner = max(measurements, key=lambda backend: measurements[backend][0])
         wins[winner] += 1
 
     lines = [
@@ -340,11 +366,11 @@ def summarize_results(
     ]
     for backend in backends:
         samples = [
-            values[backend] for values in by_config.values() if backend in values
+            values[backend][0] for values in by_config.values() if backend in values
         ]
         best_key, best_value = max(
             (
-                (config, values[backend])
+                (config, values[backend][0])
                 for config, values in by_config.items()
                 if backend in values
             ),
@@ -354,7 +380,7 @@ def summarize_results(
             f"{field}={value}" for field, value in zip(fields, best_key, strict=True)
         )
         lines.append(
-            f"- {backend}: median {statistics.median(samples):.3f}; "
+            f"- {backend}: mean {statistics.mean(samples):.3f}; "
             f"fastest in {wins[backend]}/{len(by_config)} configurations; "
             f"best {best_value:.3f} ({details})."
         )
@@ -370,9 +396,9 @@ def summarize_results(
         if backend == baseline:
             continue
         ratios = [
-            values[backend] / values[baseline]
+            values[backend][0] / values[baseline][0]
             for values in by_config.values()
-            if backend in values and baseline in values and values[baseline] > 0
+            if backend in values and baseline in values and values[baseline][0] > 0
         ]
         if not ratios:
             lines.append(f"- {backend}: no comparable configurations.")
@@ -395,7 +421,7 @@ def build_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("results", type=Path, nargs="*", default=DEFAULT_RESULTS)
-    parser.add_argument("--output-dir", type=Path, default=Path("benchmark_plots"))
+    parser.add_argument("--output-dir", type=Path, default=RESULTS_DIR)
     parser.add_argument("--metric", choices=METRICS)
     parser.add_argument("--baseline", default="zarr")
     parser.add_argument("--format", choices=("png", "pdf", "svg"), default="png")
