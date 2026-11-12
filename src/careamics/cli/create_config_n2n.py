@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+"""Script for the CLI. Creates a N2N configuration file."""
+
 import argparse
 import os
 from pathlib import Path
@@ -15,6 +17,7 @@ def without_none(kwargs: dict[str, Any]) -> dict[str, Any]:
 
 
 def create_config_n2n():
+    """Function for CLI command to create a N2N configuration file."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."

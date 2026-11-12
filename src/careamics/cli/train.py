@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+"""Script for the CLI. Runs training."""
+
 import argparse
 import json
 from pathlib import Path
@@ -16,6 +18,25 @@ def without_none(kwargs):
 
 
 def get_checkpoint_record_data(careamist: CAREamist) -> dict[str, Any]:
+    """Get a record of the checkpoints produced during training.
+
+    Parameters
+    ----------
+    careamist : CAREamist
+        A CAREamist instance that has been used for training.
+
+    Returns
+    -------
+    dict[str, Any]
+        Contains a record of the checkpoints produced during training.
+
+    Raises
+    ------
+    ValueError
+        If no checkpoints were found.
+    ValueError
+        If the monitoring mode in `ModelCheckpoint` is not `"min"` or `"max"`.
+    """
     model_ckpt_callback = careamist.trainer.checkpoint_callback
     assert isinstance(model_ckpt_callback, ModelCheckpoint)
 
@@ -63,6 +84,13 @@ def get_checkpoint_record_data(careamist: CAREamist) -> dict[str, Any]:
 
 
 def save_checkpoint_record(careamist: CAREamist) -> None:
+    """Save a `checkpoint_record.json` file.
+
+    Parameters
+    ----------
+    careamist : CAREamist
+        A CAREamist instance that has been used for training.
+    """
     model_ckpt_callback = careamist.trainer.checkpoint_callback
     assert isinstance(model_ckpt_callback, ModelCheckpoint)
     assert model_ckpt_callback.dirpath is not None  # CAREamist always sets this
@@ -74,6 +102,7 @@ def save_checkpoint_record(careamist: CAREamist) -> None:
 
 
 def train():
+    """Function for the CLI to run training."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+"""Script for the CLI. Runs prediction."""
+
 import argparse
 from pathlib import Path
 from typing import Any
@@ -13,7 +15,7 @@ def without_none(kwargs: dict[str, Any]) -> dict[str, Any]:
 
 
 def predict():
-    """Function to denoised a dataset according to a pretrained model using careamics"""
+    """Function for the CLI to run prediction."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ckpt_path", type=Path, required=True, help="Path to pretrained model"
