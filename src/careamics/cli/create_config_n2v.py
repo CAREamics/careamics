@@ -5,9 +5,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from careamics import CAREamist
 from careamics.config import create_advanced_n2v_config
-from careamics.config.configuration import Configuration
 from careamics.config.support import SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 
@@ -16,21 +14,7 @@ def without_none(kwargs: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in kwargs.items() if value is not None}
 
 
-def train_model(
-    train_path: str,
-    config: Configuration,
-    work_dir: str,
-    val_path: str | None = None,
-):
-    """Function to train a model"""
-    careamist = CAREamist(config=config, work_dir=work_dir)
-    careamist.train(
-        train_data=train_path,
-        **without_none({"val_data": val_path}),
-    )
-
-
-if __name__ == "__main__":
+def create_config_n2v():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."
@@ -78,3 +62,7 @@ if __name__ == "__main__":
         ),
     )
     save_configuration(config, os.path.join(args.output_path, "careamics.yaml"))
+
+
+if __name__ == "__main__":
+    create_config_n2v()

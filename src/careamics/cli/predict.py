@@ -2,7 +2,7 @@
 
 import argparse
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from careamics import CAREamist
 from careamics.config.support import SupportedData
@@ -12,36 +12,8 @@ def without_none(kwargs: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in kwargs.items() if value is not None}
 
 
-def prediction_careamist(
-    ckpt_path: Path,
-    data_path: str,
-    batch_size: int,
-    tile_size: tuple[int, ...],
-    tile_overlap: tuple[int, ...],
-    axes: str,
-    data_type: SupportedData,
-    write_type: Literal["tiff", "zarr", "custom"],
-    output_path: Path,
-):
+def predict():
     """Function to denoised a dataset according to a pretrained model using careamics"""
-    careamics_pretrained = CAREamist(checkpoint_path=ckpt_path)
-    careamics_pretrained.predict_to_disk(
-        pred_data=data_path,
-        prediction_dir=output_path / "predictions",
-        **without_none(
-            {
-                "batch_size": batch_size,
-                "tile_size": tile_size,
-                "tile_overlap": tile_overlap,
-                "axes": axes,
-                "data_type": data_type if data_type is None else data_type.value,
-                "write_type": write_type,
-            }
-        ),
-    )
-
-
-if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ckpt_path", type=Path, required=True, help="Path to pretrained model"
@@ -69,14 +41,24 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    prediction_careamist(
-        args.ckpt_path,
-        args.data,
-        args.batch_size,
-        args.tile_size,
-        args.tile_overlap,
-        args.axes,
-        args.data_type,
-        args.write_type,
-        args.output_path,
+    careamics_pretrained = CAREamist(checkpoint_path=args.ckpt_path)
+    careamics_pretrained.predict_to_disk(
+        pred_data=args.data,
+        prediction_dir=args.output_path / "predictions",
+        **without_none(
+            {
+                "batch_size": args.batch_size,
+                "tile_size": args.tile_size,
+                "tile_overlap": args.tile_overlap,
+                "axes": args.axes,
+                "data_type": (
+                    args.data_type if args.data_type is None else args.data_type.value
+                ),
+                "write_type": args.write_type,
+            }
+        ),
     )
+
+
+if __name__ == "__main__":
+    predict()

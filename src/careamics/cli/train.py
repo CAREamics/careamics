@@ -73,7 +73,7 @@ def save_checkpoint_record(careamist: CAREamist) -> None:
         json.dump(data, f, indent=2)
 
 
-if __name__ == "__main__":
+def train():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."
@@ -106,3 +106,7 @@ if __name__ == "__main__":
         **without_none({"val_data": args.val_data, "val_data_target": args.val_target}),
     )
     save_checkpoint_record(careamist)
+
+
+if __name__ == "__main__":
+    train()

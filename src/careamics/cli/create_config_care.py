@@ -14,7 +14,7 @@ def without_none(kwargs: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in kwargs.items() if value is not None}
 
 
-if __name__ == "__main__":
+def create_config_care():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."
@@ -62,3 +62,7 @@ if __name__ == "__main__":
         ),
     )
     save_configuration(config, os.path.join(args.output_path, "careamics.yaml"))
+
+
+if __name__ == "__main__":
+    create_config_care()
