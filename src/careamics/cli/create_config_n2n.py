@@ -4,6 +4,7 @@
 
 import argparse
 import os
+from collections.abc import Sequence
 from pathlib import Path
 
 from careamics.cli.cli_utils import without_none
@@ -12,8 +13,14 @@ from careamics.config.support import SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 
 
-def create_config_n2n():
-    """Function for CLI command to create a N2N configuration file."""
+def create_config_n2n(argv: Sequence[str] | None = None) -> None:
+    """Create and save an N2N configuration.
+
+    Parameters
+    ----------
+    argv : Sequence[str] or None, default=None
+        Arguments to be parsed by argparse.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."
@@ -40,7 +47,7 @@ def create_config_n2n():
     parser.add_argument("--n_channels_out", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     config = create_n2n_config(
         experiment_name=args.experiment_name,

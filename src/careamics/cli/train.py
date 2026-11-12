@@ -4,6 +4,7 @@
 
 import argparse
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -98,8 +99,14 @@ def save_checkpoint_record(careamist: CAREamist) -> None:
         json.dump(data, f, indent=2)
 
 
-def train():
-    """Function for the CLI to run training."""
+def train(argv: Sequence[str] | None = None) -> None:
+    """Run training from the command line.
+
+    Parameters
+    ----------
+    argv : Sequence[str] or None, default=None
+        Arguments to be parsed by argparse.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."
@@ -119,7 +126,7 @@ def train():
     )
     # TODO: add filtering mask?
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     config = load_configuration(args.config)
     # TODO: have to make sure that checkpoint callback is saving last checkpoint?
