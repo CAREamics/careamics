@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from careamics.config import create_advanced_n2n_config
+from careamics.config import create_n2n_config
 from careamics.config.support import SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 
@@ -43,7 +43,7 @@ def create_config_n2n():
 
     args = parser.parse_args()
 
-    config = create_advanced_n2n_config(
+    config = create_n2n_config(
         experiment_name=args.experiment_name,
         data_type=args.data_type.value,
         axes=args.axes,
