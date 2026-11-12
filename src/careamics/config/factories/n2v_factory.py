@@ -124,6 +124,7 @@ def create_n2v_config(
     n_val_patches: int = 8,
     use_n2v2: bool = False,
     n_channels: int | None = None,
+    seed: int | None = None,
 ) -> N2VConfiguration:
     """
     Create a configuration for training N2V.
@@ -171,6 +172,8 @@ def create_n2v_config(
         Whether to use N2V2.
     n_channels : int or None, default=None
         Number of channels (in and out).
+    seed : int or None, default=None
+        Random seed for reproducibility. If `None`, a random seed is generated.
 
     Returns
     -------
@@ -189,6 +192,7 @@ def create_n2v_config(
         n_val_patches=n_val_patches,
         use_n2v2=use_n2v2,
         n_channels=n_channels,
+        seed=seed,
     )
 
 
