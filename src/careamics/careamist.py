@@ -945,6 +945,7 @@ class CAREamist:
         # BASIC PARAMS
         pred_data: InputVar,
         *,
+        pred_data_target: InputVar | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
@@ -968,6 +969,7 @@ class CAREamist:
         # BASIC PARAMS
         pred_data: Any,
         *,
+        pred_data_target: Any | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
@@ -991,6 +993,7 @@ class CAREamist:
         # BASIC PARAMS
         pred_data: InputVar,
         *,
+        pred_data_target: InputVar | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
@@ -1012,6 +1015,7 @@ class CAREamist:
         # BASIC PARAMS
         pred_data: Any,
         *,
+        pred_data_target: Any | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
@@ -1032,6 +1036,7 @@ class CAREamist:
         # BASIC PARAMS
         pred_data: InputVar,
         *,
+        pred_data_target: InputVar | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
@@ -1068,6 +1073,8 @@ class CAREamist:
         ----------
         pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
             Data to predict on. Can be a single item or a sequence of paths/arrays.
+        pred_data_target : Any, optional
+            Optional target paired with `pred_data`.
         batch_size : int, optional
             Batch size for prediction. If not provided, uses the training configuration
             batch size.
@@ -1133,6 +1140,7 @@ class CAREamist:
 
         datamodule = self._build_predict_datamodule(
             pred_data,
+            pred_data_target=pred_data_target,
             batch_size=batch_size,
             tile_size=tile_size,
             tile_overlap=tile_overlap,
@@ -1306,7 +1314,7 @@ class CAREamist:
         pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
             Data to predict on. Can be a single item or a sequence of paths/arrays.
         pred_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these
-            Prediction data target, by default None.
+            Optional target paired with `pred_data`.
         prediction_dir : Path | str, default="predictions"
             The path to save the prediction results to. If `prediction_dir` is an
             absolute path, it will be used as-is. If it is a relative path, it will
