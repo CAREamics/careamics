@@ -1,5 +1,5 @@
 """LVAE model package."""
 
-__all__ = ["LadderVAE"]
+__all__ = ["LVAE"]
 
-from .lvae import LadderVAE
+from .lvae import LVAE
