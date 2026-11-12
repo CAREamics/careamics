@@ -10,7 +10,7 @@ from careamics.config import create_hdn_config
 from careamics.config.support import SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 
-from .cli_utils import without_none
+from careamics.cli.cli_utils import without_none
 
 
 def create_config_hdn(argv: Sequence[str] | None = None) -> None:
