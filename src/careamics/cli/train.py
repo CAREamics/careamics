@@ -12,9 +12,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from careamics import CAREamist
 from careamics.config.utils.configuration_io import load_configuration
 
-
-def without_none(kwargs):
-    return {key: value for key, value in kwargs.items() if value is not None}
+from .cli_utils import without_none
 
 
 def get_checkpoint_record_data(careamist: CAREamist) -> dict[str, Any]:

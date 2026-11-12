@@ -5,15 +5,12 @@
 import argparse
 import os
 from pathlib import Path
-from typing import Any
 
 from careamics.config import create_n2v_config
 from careamics.config.support import SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 
-
-def without_none(kwargs: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in kwargs.items() if value is not None}
+from .cli_utils import without_none
 
 
 def create_config_n2v():

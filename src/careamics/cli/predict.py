@@ -4,14 +4,11 @@
 
 import argparse
 from pathlib import Path
-from typing import Any
 
 from careamics import CAREamist
 from careamics.config.support import SupportedData
 
-
-def without_none(kwargs: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in kwargs.items() if value is not None}
+from .cli_utils import without_none
 
 
 def predict():
