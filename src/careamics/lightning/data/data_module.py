@@ -3,10 +3,11 @@
 import copy
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, TypeVar, overload
+from typing import Any, Literal, TypeVar, cast, overload
 
 import lightning.pytorch as L
 import numpy as np
+import torch
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, Sampler
 from torch.utils.data._utils.collate import default_collate
@@ -344,6 +345,43 @@ class CareamicsDataModule(L.LightningDataModule):
     def _save_hparams(self) -> None:
         """Save configuration in hyperparameters."""
         self.hparams.update(data_config=self.config.model_dump(mode="json"))
+
+    def transfer_batch_to_device(
+        self,
+        batch: tuple[ImageRegionData, ...],
+        device: torch.device,
+        dataloader_idx: int,
+    ) -> tuple[ImageRegionData, ...]:
+        """Move the data tensors of a batch to the device.
+
+        During training and validation, the metadata stays on the CPU. The default
+        Lightning transfer walks every metadata entry of the batch at each step.
+
+        Parameters
+        ----------
+        batch : tuple of ImageRegionData
+            The batch from the dataloader.
+        device : torch.device
+            The target device.
+        dataloader_idx : int
+            The index of the dataloader that produced the batch.
+
+        Returns
+        -------
+        tuple of ImageRegionData
+            The batch with the `data` field of each element on the device.
+        """
+        if self.trainer is not None and self.trainer.predicting:
+            return super().transfer_batch_to_device(batch, device, dataloader_idx)
+        non_blocking = device.type not in ("cpu", "mps")
+        return type(batch)(
+            region._replace(
+                data=cast(torch.Tensor, region.data).to(
+                    device, non_blocking=non_blocking
+                )
+            )
+            for region in batch
+        )
 
     def train_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
         """
