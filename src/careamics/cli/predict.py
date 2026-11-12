@@ -4,21 +4,31 @@
 
 import argparse
 from pathlib import Path
+from typing import Literal
 
 from careamics import CAREamist
-from careamics.cli.cli_utils import add_subcommand_parser, without_none
+from careamics.cli.cli_utils import Subcommand, SubcommandFunc, without_none
 from careamics.config.support import SupportedData
 
 
-def register_predict_parser(subparsers: argparse._SubParsersAction) -> None:
+def register_command_predict(
+    subparsers: argparse._SubParsersAction,
+    func_registry: dict[Subcommand, SubcommandFunc],
+) -> None:
     """Register the predict subcommand.
 
     Parameters
     ----------
     subparsers : argparse._SubParsersAction
         Subparsers to which the predict parser is added.
+    func_registry : dict[Subcommand, SubcommandFunc]
+        The registry that will be updated to contain the function that should be called
+        by the subcommand.
     """
-    parser = add_subcommand_parser(subparsers, "predict", help="Run prediction.")
+    command_name: Literal["predict"] = "predict"
+    func_registry[command_name] = predict
+
+    parser = subparsers.add_parser(command_name, help="Run prediction.")
     parser.add_argument(
         "--ckpt_path", type=Path, required=True, help="Path to pretrained model"
     )
