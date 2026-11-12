@@ -952,7 +952,7 @@ def get_patch_slices(
 
 def channel_slice(
     channels: Sequence[int] | None,
-) -> EllipsisType | Sequence[int]:
+) -> slice | Sequence[int]:
     """Create a slice or sequence for indexing channels while preserving dimensions.
 
     Parameters
@@ -962,12 +962,12 @@ def channel_slice(
 
     Returns
     -------
-    EllipsisType | Sequence[int]
+    slice | Sequence[int]
         An indexing object that can be used to index the channel dimension while
         preserving it.
     """
     if channels is None:
-        return ...
+        return slice(None, None, None)
 
     if len(channels) == 0:
         raise ValueError("Channel index sequence cannot be empty.")
