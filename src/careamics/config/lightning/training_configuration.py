@@ -106,7 +106,6 @@ def default_training_dict(
     supervised = algorithm in ("care", "microsplit", "seg")
     # algorithms considered self-supervised: n2v, n2n, cryocare
 
-
     if checkpoint_params is None:
         # select default checkpointing preset based on algorithm
         default_ckpt_preset = (
