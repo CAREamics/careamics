@@ -30,6 +30,7 @@ def create_hdn_config(
     n_val_patches: int = 8,
     use_noise_model: bool = False,
     supervised: bool = False,
+    seed: int | None = None,
 ) -> HDNConfiguration:
     """Create a configuration for training HDN.
 
@@ -66,6 +67,8 @@ def create_hdn_config(
     supervised : bool, default=False
         Whether to train against target data. If `True`, `train_data_target` must
         be provided at training time, and `use_noise_model` must be `False`.
+    seed : int or None, default=None
+        Random seed for reproducibility.
 
     Returns
     -------
