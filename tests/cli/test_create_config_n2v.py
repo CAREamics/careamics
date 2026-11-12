@@ -1,11 +1,12 @@
-from careamics.cli.create_config_n2v import create_config_n2v
+from careamics.cli.main import main
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.utils.configuration_io import load_configuration
 
 
 def test_create_n2v_config(tmp_path):
-    create_config_n2v(
+    main(
         [
+            "config-n2v",
             "--output_path",
             str(tmp_path),
             "--experiment_name",

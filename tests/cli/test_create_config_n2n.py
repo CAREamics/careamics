@@ -1,11 +1,12 @@
-from careamics.cli.create_config_n2n import create_config_n2n
+from careamics.cli.main import main
 from careamics.config.configuration import Configuration
 from careamics.config.utils.configuration_io import load_configuration
 
 
 def test_create_n2n_config(tmp_path):
-    create_config_n2n(
+    main(
         [
+            "config-n2n",
             "--output_path",
             str(tmp_path),
             "--experiment_name",

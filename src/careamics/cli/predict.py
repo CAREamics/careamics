@@ -3,23 +3,22 @@
 """Script for the CLI. Runs prediction."""
 
 import argparse
-from collections.abc import Sequence
 from pathlib import Path
 
 from careamics import CAREamist
-from careamics.cli.cli_utils import without_none
+from careamics.cli.cli_utils import add_subcommand_parser, without_none
 from careamics.config.support import SupportedData
 
 
-def predict(argv: Sequence[str] | None = None) -> None:
-    """Run prediction from the command line.
+def register_predict_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Register the predict subcommand.
 
     Parameters
     ----------
-    argv : Sequence[str] or None, default=None
-        Arguments to be parsed by argparse.
+    subparsers : argparse._SubParsersAction
+        Subparsers to which the predict parser is added.
     """
-    parser = argparse.ArgumentParser()
+    parser = add_subcommand_parser(subparsers, "predict", help="Run prediction.")
     parser.add_argument(
         "--ckpt_path", type=Path, required=True, help="Path to pretrained model"
     )
@@ -44,8 +43,16 @@ def predict(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "--write_type", choices=["tiff", "zarr", "custom"], default=None
     )
-    args = parser.parse_args(argv)
 
+
+def predict(args: argparse.Namespace) -> None:
+    """Run prediction from the command line.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+    """
     careamics_pretrained = CAREamist(checkpoint_path=args.ckpt_path)
     careamics_pretrained.predict_to_disk(
         pred_data=args.data,
@@ -63,7 +70,3 @@ def predict(argv: Sequence[str] | None = None) -> None:
             }
         ),
     )
-
-
-if __name__ == "__main__":
-    predict()

@@ -1,7 +1,7 @@
 import numpy as np
 import tifffile
 
-from careamics.cli.train import train
+from careamics.cli.main import main
 from careamics.config import create_n2v_config
 from careamics.config.utils.configuration_io import save_configuration
 
@@ -24,8 +24,9 @@ def test_train(tmp_path):
     config_path = save_configuration(config, tmp_path / "careamics.yaml")
     output_path = tmp_path / "output"
 
-    train(
+    main(
         [
+            "train",
             "--output_path",
             str(output_path),
             "--config",

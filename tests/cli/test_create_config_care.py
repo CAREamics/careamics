@@ -1,11 +1,12 @@
-from careamics.cli.create_config_care import create_config_care
+from careamics.cli.main import main
 from careamics.config.configuration import Configuration
 from careamics.config.utils.configuration_io import load_configuration
 
 
 def test_create_care_config(tmp_path):
-    create_config_care(
+    main(
         [
+            "config-care",
             "--output_path",
             str(tmp_path),
             "--experiment_name",

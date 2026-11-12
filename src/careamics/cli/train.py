@@ -4,14 +4,13 @@
 
 import argparse
 import json
-from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics import CAREamist
-from careamics.cli.cli_utils import without_none
+from careamics.cli.cli_utils import add_subcommand_parser, without_none
 from careamics.config.utils.configuration_io import load_configuration
 
 
@@ -99,15 +98,15 @@ def save_checkpoint_record(careamist: CAREamist) -> None:
         json.dump(data, f, indent=2)
 
 
-def train(argv: Sequence[str] | None = None) -> None:
-    """Run training from the command line.
+def register_train_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Register the train subcommand.
 
     Parameters
     ----------
-    argv : Sequence[str] or None, default=None
-        Arguments to be parsed by argparse.
+    subparsers : argparse._SubParsersAction
+        Subparsers to which the train parser is added.
     """
-    parser = argparse.ArgumentParser()
+    parser = add_subcommand_parser(subparsers, "train", help="Run training.")
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."
     )
@@ -126,8 +125,15 @@ def train(argv: Sequence[str] | None = None) -> None:
     )
     # TODO: add filtering mask?
 
-    args = parser.parse_args(argv)
 
+def train(args: argparse.Namespace) -> None:
+    """Run training from the command line.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+    """
     config = load_configuration(args.config)
     # TODO: have to make sure that checkpoint callback is saving last checkpoint?
     # TODO: export last/best checkpoint name?
@@ -139,7 +145,3 @@ def train(argv: Sequence[str] | None = None) -> None:
         **without_none({"val_data": args.val_data, "val_data_target": args.val_target}),
     )
     save_checkpoint_record(careamist)
-
-
-if __name__ == "__main__":
-    train()

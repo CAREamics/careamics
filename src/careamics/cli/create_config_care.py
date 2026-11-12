@@ -4,24 +4,27 @@
 
 import argparse
 import os
-from collections.abc import Sequence
 from pathlib import Path
 
-from careamics.cli.cli_utils import without_none
+from careamics.cli.cli_utils import add_subcommand_parser, without_none
 from careamics.config import create_care_config
 from careamics.config.support import SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 
 
-def create_config_care(argv: Sequence[str] | None = None) -> None:
-    """Create and save a CARE configuration.
+def register_config_care_parser(
+    subparsers: argparse._SubParsersAction,
+) -> None:
+    """Register the config-care subcommand.
 
     Parameters
     ----------
-    argv : Sequence[str] or None, default=None
-        Arguments to be parsed by argparse.
+    subparsers : argparse._SubParsersAction
+        Subparsers to which the config-care parser is added.
     """
-    parser = argparse.ArgumentParser()
+    parser = add_subcommand_parser(
+        subparsers, "config-care", help="Create a CARE configuration."
+    )
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."
     )
@@ -47,8 +50,15 @@ def create_config_care(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--n_channels_out", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
 
-    args = parser.parse_args(argv)
 
+def create_config_care(args: argparse.Namespace) -> None:
+    """Create and save a CARE configuration.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+    """
     config = create_care_config(
         experiment_name=args.experiment_name,
         data_type=args.data_type.value,
@@ -68,7 +78,3 @@ def create_config_care(argv: Sequence[str] | None = None) -> None:
         ),
     )
     save_configuration(config, os.path.join(args.output_path, "careamics.yaml"))
-
-
-if __name__ == "__main__":
-    create_config_care()
