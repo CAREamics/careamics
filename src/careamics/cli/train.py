@@ -10,9 +10,8 @@ from typing import Any
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics import CAREamist
+from careamics.cli.cli_utils import without_none
 from careamics.config.utils.configuration_io import load_configuration
-
-from .cli_utils import without_none
 
 
 def get_checkpoint_record_data(careamist: CAREamist) -> dict[str, Any]:

@@ -6,9 +6,8 @@ import argparse
 from pathlib import Path
 
 from careamics import CAREamist
+from careamics.cli.cli_utils import without_none
 from careamics.config.support import SupportedData
-
-from .cli_utils import without_none
 
 
 def predict():
