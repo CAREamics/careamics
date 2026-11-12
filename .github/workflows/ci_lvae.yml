@@ -45,4 +45,4 @@ jobs:
 
       - name: 🧪 Run tests
         # does not run doctests
-        run: uv run pytest tests --color=yes -m lvae
+        run: uv run pytest tests --color=yes -m "lvae"
