@@ -26,7 +26,7 @@ class Compose:
 
     Parameters
     ----------
-    transform_list : list[SPATIAL_TRANSFORMS_UNION]
+    transform_list : list[AllAugs]
         A list of dictionaries where each dictionary contains the name of a
         transform and its parameters.
 
@@ -41,7 +41,7 @@ class Compose:
 
         Parameters
         ----------
-        transform_list : list[SPATIAL_TRANSFORMS_UNION]
+        transform_list : list[AllAugs]
             A list of dictionaries where each dictionary contains the name of a
             transform and its parameters.
         """
