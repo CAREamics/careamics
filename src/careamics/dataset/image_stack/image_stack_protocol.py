@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Protocol, TypeVar, Union
+from typing import Any, Literal, Protocol, TypeVar, Union
 
 import numpy as np
 from numpy.typing import DTypeLike, NDArray
@@ -24,6 +24,8 @@ class ImageStack(Protocol):
         The original shape of the data before it is transformed.
     original_axes: str
         The original axes order before the data is transformed.
+    additional_metadata: dict[str, Any]
+        Format-specific metadata associated with the image stack.
     """
 
     @property
@@ -49,6 +51,11 @@ class ImageStack(Protocol):
     @property
     def original_axes(self) -> str:
         """Original axes of the data."""
+        ...
+
+    @property
+    def additional_metadata(self) -> dict[str, Any]:
+        """Format-specific metadata."""
         ...
 
     def extract_patch(

@@ -271,6 +271,8 @@ def create_advanced_care_config(
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
+    zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr",
+    ome_scale: str = "0",
     # lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -372,6 +374,11 @@ def create_advanced_care_config(
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used to read and write Zarr arrays, only effective if `data_type` is set
+        to `zarr`.
+    ome_scale : str, default="0"
+        OME scale to use when loading OME-Zarr files.
     num_workers : int, default=-1
         Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
@@ -438,6 +445,8 @@ def create_advanced_n2n_config(
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
+    zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr",
+    ome_scale: str = "0",
     # - Lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -538,6 +547,11 @@ def create_advanced_n2n_config(
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used to read and write Zarr arrays, only effective if `data_type` is set
+        to `zarr`.
+    ome_scale : str, default="0"
+        OME scale to use when loading OME-Zarr files.
     num_workers : int, default=-1
         Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
@@ -603,6 +617,8 @@ def _create_advanced_supervised_config(
     normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
     normalization_params: dict[str, Any] | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
+    zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr",
+    ome_scale: str = "0",
     # lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -703,6 +719,11 @@ def _create_advanced_supervised_config(
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used to read and write Zarr arrays, only effective if `data_type` is set
+        to `zarr`.
+    ome_scale : str, default="0"
+        OME scale to use when loading OME-Zarr files.
     num_workers : int, default=-1
         Number of workers for data loading. Use `-1` to automatically choose based
         on the number of available CPUs. Unless explicitly overridden in
@@ -768,6 +789,8 @@ def _create_advanced_supervised_config(
         num_workers=num_workers,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
+        zarr_backend=zarr_backend,
+        ome_scale=ome_scale,
         seed=seed,
     )
 
