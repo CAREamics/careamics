@@ -62,8 +62,6 @@ that the patch size only refers to spatial axes (`X`, `Y` and optionally `Z`). T
 - `num_epochs`: The number of epochs to train for. Note that in the case of large
 datasets, you might want to also set the [number of steps parameter](#reducing-the-number-of-steps).
 
-
-
 !!! note "Training with `T` as depth axis"
 
     If you want to use your `T` axis as the depth axis, simply relabel it as `Z`. If you are using `data_type="czi"`, then you can also use
@@ -207,7 +205,6 @@ possibility.
 
     If `target_axes` is not set, it is assumed to be the same as `axes`. If
     `n_channels_out` is not set and `target_axes` has a "C" dimension, then it is set to the same value as `n_channels_in`, otherwise it is set to 1.
-
 
 
 ### Number of validation patches
@@ -497,6 +494,26 @@ The `num_workers` parameter controls the number of workers used to load the data
 !!! note "Which value to choose?"
 
     A general rule of thumb is to set the number of workers to the number of CPU cores available. `num_workers=0` means that the data loading will be done in the main process, which can be a bottleneck but can also be necessary in certain environments (e.g. Windows without the possibility to [use multi-processing](https://docs.pytorch.org/docs/stable/notes/windows.html#multiprocessing-error-without-if-clause-protection)).
+
+
+### Zarr and OME-NGFF parameters
+
+When `data_type="zarr"`, two additional parameters control Zarr access and OME-NGFF
+scale selection:
+
+```python title="Configure Zarr and OME-NGFF"
+--8<-- "current/configuration_advanced.py:adv_config_n2v_zarr"
+```
+
+1. `zarr_backend` selects the Zarr I/O implementation. The available backends are
+   `"zarr"` (default), `"zarrs"` (strict `zarrs` codec pipeline), and
+   `"tensorstore"` (TensorStore).
+2. `ome_scale` is the OME-NGFF dataset path to load. It defaults to `"0"`, but can
+   also be a named path such as `"full-resolution"`. It is used only for Zarr data.
+
+The selected `zarr_backend` is also used when writing Zarr prediction outputs. See
+[Writing Zarr / OME-NGFF predictions](./careamist_predicting.md#writing-zarr--ome-ngff-predictions)
+for details.
 
 
 ### Setting a seed
