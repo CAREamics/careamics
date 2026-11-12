@@ -13,6 +13,7 @@ from careamics.config.algorithms import (
     SegAlgorithm,
 )
 from careamics.config.configuration import Configuration
+from careamics.config.data.cryocare_data_config import CryoCAREDataConfig
 from careamics.config.data.data_config import DataConfig
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
 from careamics.config.data.normalization_config import NormalizationConfig
@@ -25,6 +26,10 @@ from careamics.config.support import SupportedAlgorithm
 OTHERS = "others"
 
 _MICROSPLIT_DATA_FIELDS = frozenset(MicroSplitDataConfig.model_fields) - frozenset(
+    DataConfig.model_fields
+)
+
+_CRYOCARE_DATA_FIELDS = frozenset(CryoCAREDataConfig.model_fields) - frozenset(
     DataConfig.model_fields
 )
 
@@ -89,6 +94,8 @@ def _data_discriminator(data: Any) -> str | None:
         return None
     if _MICROSPLIT_DATA_FIELDS.intersection(data):
         return SupportedAlgorithm.MICROSPLIT
+    if _CRYOCARE_DATA_FIELDS.intersection(data):
+        return SupportedAlgorithm.CRYOCARE
     return OTHERS
 
 
@@ -121,6 +128,7 @@ AlgorithmConfig = Annotated[
 DataCfg = Annotated[
     Union[
         Annotated[MicroSplitDataConfig, Tag(SupportedAlgorithm.MICROSPLIT)],
+        Annotated[CryoCAREDataConfig, Tag(SupportedAlgorithm.CRYOCARE)],
         Annotated[DataConfig, Tag(OTHERS)],
     ],
     Discriminator(_data_discriminator),

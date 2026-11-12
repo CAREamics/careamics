@@ -230,7 +230,7 @@ class CareamicsDataModule(L.LightningDataModule):
         super().__init__()
 
         if isinstance(data_config, DataConfig):
-            self.config = data_config
+            self.config: DataConfig[Any] = data_config
         else:
             self.config = instantiate_data_config(data_config)
 
