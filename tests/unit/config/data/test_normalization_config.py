@@ -21,7 +21,10 @@ NORMS_W_NONE_CLASSES = [MeanStdConfig, MinMaxConfig, QuantileConfig, NoNormConfi
 
 
 def create_norm_dict(
-    norm: str, length: int = 2, per_channel: bool = True, skip_target: bool = False
+    norm: str,
+    length: int = 2,
+    per_channel: bool = True,
+    target_mode: str = "independent",
 ) -> dict[str, Any]:
     """Create a normalization config dictionary with all optional parameters.
 
@@ -37,8 +40,8 @@ def create_norm_dict(
         The length of the list parameters (e.g. input_means, input_stds, etc.).
     per_channel : bool, optional
         Whether the normalization parameters are specified per channel.
-    skip_target : bool, optional
-        Whether to skip target normalization.
+    target_mode : str, optional
+        How target normalization statistics are selected.
 
     Returns
     -------
@@ -50,7 +53,7 @@ def create_norm_dict(
             return {
                 "name": norm,
                 "per_channel": per_channel,
-                "skip_target": skip_target,
+                "target_mode": target_mode,
                 "input_means": [0 for _ in range(length)],
                 "input_stds": [1 for _ in range(length)],
                 "target_means": [0 for _ in range(length)],
@@ -60,7 +63,7 @@ def create_norm_dict(
             return {
                 "name": norm,
                 "per_channel": per_channel,
-                "skip_target": skip_target,
+                "target_mode": target_mode,
                 "lower_quantiles": [0.01 for _ in range(length)],
                 "upper_quantiles": [0.99 for _ in range(length)],
                 "input_lower_quantile_values": [0 for _ in range(length)],
@@ -72,7 +75,7 @@ def create_norm_dict(
             return {
                 "name": norm,
                 "per_channel": per_channel,
-                "skip_target": skip_target,
+                "target_mode": target_mode,
                 "input_mins": [0 for _ in range(length)],
                 "input_maxes": [1 for _ in range(length)],
                 "target_mins": [0 for _ in range(length)],
@@ -107,7 +110,7 @@ def create_pruned_dicts(norm: dict[str, Any]) -> list[dict[str, Any]]:
         raise ValueError("NoNorm is not compatible with this function.")
 
     # no need to prune those
-    protected_keys = {"name", "per_channel", "skip_target"}
+    protected_keys = {"name", "per_channel", "target_mode"}
 
     if norm["name"] == "quantile":
         # these cannot be `None``
@@ -151,7 +154,7 @@ def create_extra_element_dicts(norm: dict[str, Any]) -> list[dict[str, Any]]:
         raise ValueError("NoNorm is not compatible with this function.")
 
     # no need to prune those
-    protected_keys = {"name", "per_channel", "skip_target"}
+    protected_keys = {"name", "per_channel", "target_mode"}
 
     # create dicts with one optional parameter removed
     dict_lst = []
@@ -162,6 +165,101 @@ def create_extra_element_dicts(norm: dict[str, Any]) -> list[dict[str, Any]]:
             dict_lst.append(new_dict)
 
     return dict_lst
+
+
+@pytest.mark.parametrize(
+    ("norm", "input_stats", "target_fields"),
+    [
+        (
+            "mean_std",
+            {"input_means": [1.0], "input_stds": [2.0]},
+            ("target_means", "target_stds"),
+        ),
+        (
+            "mean_std",
+            {
+                "input_means": [1.0],
+                "input_stds": [2.0],
+                "target_means": [2.0],
+                "target_stds": [5.0],
+            },
+            ("target_means", "target_stds"),
+        ),
+        (
+            "min_max",
+            {
+                "input_mins": [1.0],
+                "input_maxes": [2.0],
+                "target_mins": [2.0],
+                "target_maxes": [5.0],
+            },
+            ("target_mins", "target_maxes"),
+        ),
+        (
+            "min_max",
+            {"input_mins": [1.0], "input_maxes": [2.0]},
+            ("target_mins", "target_maxes"),
+        ),
+        (
+            "quantile",
+            {
+                "input_lower_quantile_values": [1.0],
+                "input_upper_quantile_values": [2.0],
+            },
+            ("target_lower_quantile_values", "target_upper_quantile_values"),
+        ),
+        (
+            "quantile",
+            {
+                "input_lower_quantile_values": [1.0],
+                "input_upper_quantile_values": [2.0],
+                "target_lower_quantile_values": [3.0],
+                "target_upper_quantile_values": [5.0],
+            },
+            ("target_lower_quantile_values", "target_upper_quantile_values"),
+        ),
+    ],
+)
+def test_same_as_input_mirrors_input_statistics(
+    norm: str, input_stats: dict[str, list[float]], target_fields: tuple[str, str]
+) -> None:
+    """Test that same-as-input derive target statistics from input statistics."""
+    config = instantiate_norm_config(
+        {"name": norm, "target_mode": "same_as_input", **input_stats}
+    )
+
+    assert getattr(config, target_fields[0]) == [1.0]
+    assert getattr(config, target_fields[1]) == [2.0]
+
+
+@pytest.mark.parametrize(
+    ("config", "setter", "fields"),
+    [
+        (
+            MeanStdConfig(target_mode="same_as_input"),
+            "set_input_stats",
+            ("target_means", "target_stds"),
+        ),
+        (
+            MinMaxConfig(target_mode="same_as_input"),
+            "set_input_range",
+            ("target_mins", "target_maxes"),
+        ),
+        (
+            QuantileConfig(target_mode="same_as_input"),
+            "set_input_quantile_values",
+            ("target_lower_quantile_values", "target_upper_quantile_values"),
+        ),
+    ],
+)
+def test_same_as_input_setters_mirror_statistics(
+    config: Any, setter: str, fields: tuple[str, str]
+) -> None:
+    """Updating input statistics also updates derived target statistics."""
+    getattr(config, setter)([3.0], [4.0])
+
+    assert getattr(config, fields[0]) == [3.0]
+    assert getattr(config, fields[1]) == [4.0]
 
 
 def _swap_keys(d: dict[str, Any], key1: str, key2: str) -> dict[str, Any]:
@@ -380,8 +478,10 @@ def test_validate_size(norm, n_channels_in, n_channels_out, exp_error):
         )
     ),
 )
-def test_validate_size_skipped_target(norm, n_channels_in, n_channels_out):
-    """Test that validate_size does not raise an error when skip_target is True.
+def test_validate_size_without_target_normalization(
+    norm, n_channels_in, n_channels_out
+):
+    """Test that validate_size does not raise when target normalization is disabled.
 
     For instance, we ask to validate with 3 output channels, but min_max normalization's
     target_maxes has length 2.
@@ -390,7 +490,7 @@ def test_validate_size_skipped_target(norm, n_channels_in, n_channels_out):
     n_channels_out.
     """
     # instantiate the configuration and validate it
-    cfg = instantiate_norm_config(create_norm_dict(norm, length=2, skip_target=True))
+    cfg = instantiate_norm_config(create_norm_dict(norm, length=2, target_mode="none"))
     cfg.validate_size(n_channels_in, n_channels_out)
 
 

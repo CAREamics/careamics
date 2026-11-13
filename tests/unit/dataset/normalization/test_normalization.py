@@ -26,7 +26,10 @@ def get_arrays(dims: Literal[2, 3]) -> tuple[np.ndarray, np.ndarray]:
 
 
 def get_norm_parameters(
-    norm: str, arr_in: np.ndarray, arr_tar: np.ndarray, skipt_target: bool = False
+    norm: str,
+    arr_in: np.ndarray,
+    arr_tar: np.ndarray,
+    target_mode: str = "independent",
 ) -> dict[str, Any]:
     """Generate normalization parameters."""
     norm_dict = {}
@@ -36,27 +39,51 @@ def get_norm_parameters(
                 "name": norm,
                 "input_means": [arr_in.mean()],
                 "input_stds": [arr_in.std()],
-                "target_means": [arr_tar.mean()],
-                "target_stds": [arr_tar.std()],
-                "skip_target": skipt_target,
+                "target_means": (
+                    [arr_tar.mean()]
+                    if target_mode != "same_as_input"
+                    else [arr_in.mean()]
+                ),
+                "target_stds": (
+                    [arr_tar.std()]
+                    if target_mode != "same_as_input"
+                    else [arr_in.std()]
+                ),
+                "target_mode": target_mode,
             }
         case "quantile":
             norm_dict = {
                 "name": norm,
                 "input_lower_quantile_values": [np.quantile(arr_in, 0.01)],
                 "input_upper_quantile_values": [np.quantile(arr_in, 0.99)],
-                "target_lower_quantile_values": [np.quantile(arr_tar, 0.01)],
-                "target_upper_quantile_values": [np.quantile(arr_tar, 0.99)],
-                "skip_target": skipt_target,
+                "target_lower_quantile_values": (
+                    [np.quantile(arr_tar, 0.2)]
+                    if target_mode != "same_as_input"
+                    else [np.quantile(arr_in, 0.01)]
+                ),
+                "target_upper_quantile_values": (
+                    [np.quantile(arr_tar, 0.8)]
+                    if target_mode != "same_as_input"
+                    else [np.quantile(arr_in, 0.99)]
+                ),
+                "target_mode": target_mode,
             }
         case "min_max":
             norm_dict = {
                 "name": norm,
                 "input_mins": [arr_in.min()],
                 "input_maxes": [arr_in.max()],
-                "target_mins": [arr_tar.min()],
-                "target_maxes": [arr_tar.max()],
-                "skip_target": skipt_target,
+                "target_mins": (
+                    [arr_tar.min()]
+                    if target_mode != "same_as_input"
+                    else [arr_in.min()]
+                ),
+                "target_maxes": (
+                    [arr_tar.max()]
+                    if target_mode != "same_as_input"
+                    else [arr_in.max()]
+                ),
+                "target_mode": target_mode,
             }
         case _:
             raise ValueError(f"Unknown normalization strategy: {norm}")
@@ -92,10 +119,10 @@ def test_normalization_changes_range(norm, dim):
 
 
 @pytest.mark.parametrize("norm", NORMS)
-def test_skip_target(norm):
-    """Test that target range is not affected when skip_target is True."""
+def test_no_target_normalization(norm):
+    """Test that target data is unchanged when target normalization is disabled."""
     arr_in, arr_tar = get_arrays(2)
-    norm_params = get_norm_parameters(norm, arr_in, arr_tar, skipt_target=True)
+    norm_params = get_norm_parameters(norm, arr_in, arr_tar, target_mode="none")
     norm_func = create_normalization(norm_params)
     assert norm_func.skip_target
 
@@ -106,3 +133,17 @@ def test_skip_target(norm):
     # mean-std will normalize to have mean 0 and std 1, range ~[-1.7, 1.7]
     assert (arr_in_norm.max() - arr_in_norm.min()) < 4
     np.testing.assert_almost_equal(arr_tar_norm, arr_tar)
+
+
+@pytest.mark.parametrize("norm", NORMS)
+def test_same_as_input_uses_input_statistics(norm):
+    """Test that target statistics are copied from input statistics."""
+    arr_in, arr_tar = get_arrays(2)
+    norm_params = get_norm_parameters(
+        norm, arr_in, arr_tar, target_mode="same_as_input"
+    )
+    norm_func = create_normalization(norm_params)
+
+    # normalize arrays, using input as target as well
+    arr_in_norm, arr_tar_norm = norm_func(arr_in, arr_in)
+    np.testing.assert_almost_equal(arr_in_norm, arr_tar_norm)

@@ -6,6 +6,7 @@ from collections.abc import Callable
 import pytest
 
 from careamics.config.configuration import Configuration
+from careamics.config.data.normalization_config import QuantileConfig
 from careamics.config.data.patch_filter import MeanStdPatchFilterConfig
 from careamics.config.factories import (
     create_advanced_care_config,
@@ -144,8 +145,7 @@ def test_orthogonal_params(
         n_val_patches=n_val,
         in_memory=in_memory,
         patch_filter_config=patch_filter,
-        normalization=norm,
-        normalization_params=norm_params,
+        normalization=QuantileConfig(**norm_params),
         trainer_params=trainer_params,
         model_params=model_params,
         optimizer=optimizer,
