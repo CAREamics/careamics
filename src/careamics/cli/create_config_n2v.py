@@ -25,7 +25,7 @@ def add_args_config_n2v(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--experiment_name", type=str, required=True, help="name of the experiment."
     )
-    parser.add_argument("--data_type", choice=["tiff", "zarr", "czi"], required=True)
+    parser.add_argument("--data_type", choices=["tiff", "zarr", "czi"], required=True)
     parser.add_argument("--axes", type=str, required=True)
     parser.add_argument(
         "--patch_size", nargs="+", type=int, required=True, help="2D or 3D"
