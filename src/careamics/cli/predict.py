@@ -39,8 +39,21 @@ def add_args_predict(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--axes", type=str, default=None)
     parser.add_argument("--data_type", type=SupportedData, default=None)
+    parser.add_argument("--write_type", choices=["tiff", "zarr"], default=None)
     parser.add_argument(
-        "--write_type", choices=["tiff", "zarr", "custom"], default=None
+        "--n_predictions",
+        type=int,
+        default=None,
+        help=(
+            "Only used by sampling based algorithms (e.g. MicroSplit or HDN), number "
+            "of stochastic samples to draw and average to create the final prediction."
+        ),
+    )
+    parser.add_argument(
+        "--segmentation_output",
+        choices=["mask", "probabilities"],
+        default=None,
+        help="Prediction output for segmentation models.",
     )
 
 

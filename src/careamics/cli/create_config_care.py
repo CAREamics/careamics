@@ -8,7 +8,6 @@ from pathlib import Path
 
 from careamics.cli.cli_utils import without_none
 from careamics.config import create_care_config
-from careamics.config.support import SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 
 
@@ -26,7 +25,7 @@ def add_args_config_care(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--experiment_name", type=str, required=True, help="name of the experiment."
     )
-    parser.add_argument("--data_type", type=SupportedData, required=True)
+    parser.add_argument("--data_type", choice=["tiff", "zarr", "czi"], required=True)
     parser.add_argument("--axes", type=str, required=True)
     parser.add_argument(
         "--patch_size", nargs="+", type=int, required=True, help="2D or 3D"
@@ -56,7 +55,7 @@ def create_config_care(args: argparse.Namespace) -> None:
     """
     config = create_care_config(
         experiment_name=args.experiment_name,
-        data_type=args.data_type.value,
+        data_type=args.data_type,
         axes=args.axes,
         patch_size=args.patch_size,
         batch_size=args.batch_size,

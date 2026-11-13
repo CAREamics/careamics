@@ -122,6 +122,12 @@ def add_args_train(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--val_target", type=str, default=None, help="Path to validation target data."
     )
+    parser.add_argument(
+        "--noise_model",
+        type=str,
+        default=None,
+        help="Path to trained noise model, only used by MicroSpilt and HDN.",
+    )
     # TODO: add filtering mask?
 
 
@@ -141,6 +147,12 @@ def train(args: argparse.Namespace) -> None:
     careamist.train(
         train_data=args.train_data,
         train_data_target=args.train_target,
-        **without_none({"val_data": args.val_data, "val_data_target": args.val_target}),
+        **without_none(
+            {
+                "val_data": args.val_data,
+                "val_data_target": args.val_target,
+                "noise_model": args.noise_model,
+            }
+        ),
     )
     save_checkpoint_record(careamist)
