@@ -73,7 +73,7 @@ def get_checkpoint_record_data(
     Raises
     ------
     ValueError
-        If no checkpoints are known or the monitoring mode is unsupported.
+        If the monitoring mode is unsupported.
     """
     if model_checkpoint.dirpath is None:
         raise ValueError("ModelCheckpoint.dirpath must be set.")
@@ -101,11 +101,6 @@ def get_checkpoint_record_data(
 
     checkpoint_paths = get_checkpoints(Path(model_checkpoint.dirpath))
     data["checkpoints"] = [path.name for path in checkpoint_paths]
-    if not data["checkpoints"]:
-        raise ValueError(
-            "No checkpoints found. Ensure that model checkpointing has been "
-            "configured correctly."
-        )
 
     # select checkpoint
     match (len(data["checkpoints"]), selected_checkpoint):
@@ -115,7 +110,7 @@ def get_checkpoint_record_data(
             # selecting last saved in-case saving each epoch has not been configured.
             data["selected"] = data["checkpoints"][-1]
         case _, "best":
-            data[selected_checkpoint]
+            data["selected"] = data[selected_checkpoint]
         case _, _:
             # should not be reachable
             raise ValueError("Error selecting checkpoint.")
@@ -168,7 +163,7 @@ class CheckpointRecordCallback(Callback):
             Checkpoint type selected by default for prediction.
         """
         super().__init__()
-        self.selected_checkpoint = selected_checkpoint
+        self.selected_checkpoint: Literal["best", "last"] = selected_checkpoint
 
     def on_save_checkpoint(
         self, trainer: Trainer, pl_module: LightningModule, checkpoint: dict[str, Any]
