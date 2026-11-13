@@ -14,166 +14,6 @@ CHECKPOINT_RECORD_FILENAME = "checkpoint_record.json"
 CHECKPOINT_RECORD_BACKUP_FILENAME = "checkpoint_record.json.bak"
 
 
-def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
-    """Return existing checkpoint paths in the order that they were added.
-
-    Parameters
-    ----------
-    checkpoint_dir : pathlib.Path
-        Directory containing checkpoint files.
-
-    Returns
-    -------
-    list of pathlib.Path
-        Existing recorded checkpoints followed by new checkpoints.
-    """
-    record_path = checkpoint_dir / CHECKPOINT_RECORD_FILENAME
-    recorded_paths: list[Path] = []
-    last_path: Path | None = None
-    if record_path.exists():
-        with record_path.open() as file:
-            record = json.load(file)
-
-        # extract recorded checkpoints; remove those that do not exist
-        recorded_names: list[str] = record.get("checkpoints", [])
-        recorded_paths = [
-            checkpoint_path
-            for name in recorded_names
-            if (checkpoint_path := (checkpoint_dir / name)).is_file()
-        ]
-        last_name = record.get("last", None)
-        if last_name is not None:
-            last_path = checkpoint_dir / last_name
-
-    # find any new paths not present in the record
-    existing_paths = sorted(
-        checkpoint_dir.glob("*.ckpt"), key=lambda path: path.stat().st_ctime_ns
-    )
-    new_paths = [path for path in existing_paths if path not in recorded_paths]
-
-    # update the record
-    updated_paths = recorded_paths + new_paths
-
-    # ensure last checkpoint is always last
-    if last_path is not None:
-        try:
-            last_idx = updated_paths.index(last_path)
-        except ValueError as e:
-            raise ValueError(
-                f"Last checkpoint path '{last_path}' not found in checkpoint directory."
-            ) from e
-        updated_paths.pop(last_idx)
-        updated_paths.append(last_path)
-
-    return updated_paths
-
-
-def _score_value(score: Any) -> Any:
-    """Return a JSON-serializable checkpoint score.
-
-    Parameters
-    ----------
-    score : Any
-        Checkpoint score, which may be a scalar tensor.
-
-    Returns
-    -------
-    Any
-        JSON-serializable score.
-    """
-    return score.item() if hasattr(score, "item") else score
-
-
-def get_checkpoint_record_data(
-    model_checkpoint: ModelCheckpoint,
-    selected_checkpoint: Literal["best", "last"],
-) -> dict[str, Any]:
-    """Get a record of checkpoints produced during training.
-
-    Parameters
-    ----------
-    model_checkpoint : lightning.pytorch.callbacks.ModelCheckpoint
-        Callback managing the training checkpoints.
-    selected_checkpoint : {"best", "last"}
-        Checkpoint type selected by default for prediction.
-
-    Returns
-    -------
-    dict[str, Any]
-        Checkpoint paths, scores, monitoring settings, and default selection.
-
-    Raises
-    ------
-    ValueError
-        If the monitoring mode is unsupported.
-    """
-    if model_checkpoint.dirpath is None:
-        raise ValueError("ModelCheckpoint.dirpath must be set.")
-
-    last = model_checkpoint.last_model_path
-    best = model_checkpoint.best_model_path
-    data: dict[str, Any] = {
-        "last": Path(last).name if last else None,
-        "best": Path(best).name if best else None,
-        "monitor": model_checkpoint.monitor,
-        "mode": model_checkpoint.mode,
-    }
-
-    best_k = [
-        {"name": Path(path).name, "score": _score_value(score)}
-        for path, score in model_checkpoint.best_k_models.items()
-    ]
-    if data["mode"] == "min":
-        best_k.sort(key=lambda checkpoint: checkpoint["score"])
-    elif data["mode"] == "max":
-        best_k.sort(key=lambda checkpoint: checkpoint["score"], reverse=True)
-    else:
-        raise ValueError(f"Unrecognized checkpoint monitoring mode: {data['mode']}")
-    data["best_k"] = best_k
-
-    checkpoint_paths = get_checkpoints(Path(model_checkpoint.dirpath))
-    data["checkpoints"] = [path.name for path in checkpoint_paths]
-
-    match (len(data["checkpoints"]), selected_checkpoint):
-        case 0, _:
-            data["selected"] = None
-        case _, "last":
-            data["selected"] = data["checkpoints"][-1]
-        case _, "best":
-            data["selected"] = data[selected_checkpoint]
-        case _, _:
-            raise ValueError("Error selecting checkpoint.")
-
-    return data
-
-
-def save_checkpoint_record(
-    model_checkpoint: ModelCheckpoint,
-    selected_checkpoint: Literal["best", "last"],
-) -> None:
-    """Save a checkpoint record, backing up an existing record first.
-
-    Parameters
-    ----------
-    model_checkpoint : lightning.pytorch.callbacks.ModelCheckpoint
-        Callback managing the training checkpoints.
-    selected_checkpoint : {"best", "last"}
-        Checkpoint type selected by default for prediction.
-    """
-    if model_checkpoint.dirpath is None:
-        raise ValueError("ModelCheckpoint.dirpath must be set.")
-
-    checkpoint_dir = Path(model_checkpoint.dirpath)
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    record_path = checkpoint_dir / CHECKPOINT_RECORD_FILENAME
-    if record_path.exists():
-        shutil.copy2(record_path, checkpoint_dir / CHECKPOINT_RECORD_BACKUP_FILENAME)
-
-    data = get_checkpoint_record_data(model_checkpoint, selected_checkpoint)
-    with record_path.open("w") as file:
-        json.dump(data, file, indent=2)
-
-
 class CheckpointRecordLogger(Logger):
     """Save a JSON record after checkpointing and refresh it after successful training.
 
@@ -262,3 +102,163 @@ class CheckpointRecordLogger(Logger):
         self._checkpoint_callback = None
         if checkpoint_callback is not None:
             save_checkpoint_record(checkpoint_callback, self.selected_checkpoint)
+
+
+def save_checkpoint_record(
+    model_checkpoint: ModelCheckpoint,
+    selected_checkpoint: Literal["best", "last"],
+) -> None:
+    """Save a checkpoint record, backing up an existing record first.
+
+    Parameters
+    ----------
+    model_checkpoint : lightning.pytorch.callbacks.ModelCheckpoint
+        Callback managing the training checkpoints.
+    selected_checkpoint : {"best", "last"}
+        Checkpoint type selected by default for prediction.
+    """
+    if model_checkpoint.dirpath is None:
+        raise ValueError("ModelCheckpoint.dirpath must be set.")
+
+    checkpoint_dir = Path(model_checkpoint.dirpath)
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    record_path = checkpoint_dir / CHECKPOINT_RECORD_FILENAME
+    if record_path.exists():
+        shutil.copy2(record_path, checkpoint_dir / CHECKPOINT_RECORD_BACKUP_FILENAME)
+
+    data = get_checkpoint_record_data(model_checkpoint, selected_checkpoint)
+    with record_path.open("w") as file:
+        json.dump(data, file, indent=2)
+
+
+def get_checkpoint_record_data(
+    model_checkpoint: ModelCheckpoint,
+    selected_checkpoint: Literal["best", "last"],
+) -> dict[str, Any]:
+    """Get a record of checkpoints produced during training.
+
+    Parameters
+    ----------
+    model_checkpoint : lightning.pytorch.callbacks.ModelCheckpoint
+        Callback managing the training checkpoints.
+    selected_checkpoint : {"best", "last"}
+        Checkpoint type selected by default for prediction.
+
+    Returns
+    -------
+    dict[str, Any]
+        Checkpoint paths, scores, monitoring settings, and default selection.
+
+    Raises
+    ------
+    ValueError
+        If the monitoring mode is unsupported.
+    """
+    if model_checkpoint.dirpath is None:
+        raise ValueError("ModelCheckpoint.dirpath must be set.")
+
+    last = model_checkpoint.last_model_path
+    best = model_checkpoint.best_model_path
+    data: dict[str, Any] = {
+        "last": Path(last).name if last else None,
+        "best": Path(best).name if best else None,
+        "monitor": model_checkpoint.monitor,
+        "mode": model_checkpoint.mode,
+    }
+
+    best_k = [
+        {"name": Path(path).name, "score": _score_value(score)}
+        for path, score in model_checkpoint.best_k_models.items()
+    ]
+    if data["mode"] == "min":
+        best_k.sort(key=lambda checkpoint: checkpoint["score"])
+    elif data["mode"] == "max":
+        best_k.sort(key=lambda checkpoint: checkpoint["score"], reverse=True)
+    else:
+        raise ValueError(f"Unrecognized checkpoint monitoring mode: {data['mode']}")
+    data["best_k"] = best_k
+
+    checkpoint_paths = get_checkpoints(Path(model_checkpoint.dirpath))
+    data["checkpoints"] = [path.name for path in checkpoint_paths]
+
+    match (len(data["checkpoints"]), selected_checkpoint):
+        case 0, _:
+            data["selected"] = None
+        case _, "last":
+            data["selected"] = data["checkpoints"][-1]
+        case _, "best":
+            data["selected"] = data[selected_checkpoint]
+        case _, _:
+            raise ValueError("Error selecting checkpoint.")
+
+    return data
+
+
+def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
+    """Return existing checkpoint paths in the order that they were added.
+
+    Parameters
+    ----------
+    checkpoint_dir : pathlib.Path
+        Directory containing checkpoint files.
+
+    Returns
+    -------
+    list of pathlib.Path
+        Existing recorded checkpoints followed by new checkpoints.
+    """
+    record_path = checkpoint_dir / CHECKPOINT_RECORD_FILENAME
+    recorded_paths: list[Path] = []
+    last_path: Path | None = None
+    if record_path.exists():
+        with record_path.open() as file:
+            record = json.load(file)
+
+        # extract recorded checkpoints; remove those that do not exist
+        recorded_names: list[str] = record.get("checkpoints", [])
+        recorded_paths = [
+            checkpoint_path
+            for name in recorded_names
+            if (checkpoint_path := (checkpoint_dir / name)).is_file()
+        ]
+        last_name = record.get("last", None)
+        if last_name is not None:
+            last_path = checkpoint_dir / last_name
+
+    # find any new paths not present in the record
+    existing_paths = sorted(
+        checkpoint_dir.glob("*.ckpt"), key=lambda path: path.stat().st_ctime_ns
+    )
+    new_paths = [path for path in existing_paths if path not in recorded_paths]
+
+    # update the record
+    updated_paths = recorded_paths + new_paths
+
+    # ensure last checkpoint is always last
+    if last_path is not None:
+        try:
+            last_idx = updated_paths.index(last_path)
+        except ValueError as e:
+            raise ValueError(
+                f"Last checkpoint path '{last_path}' not found in checkpoint directory."
+            ) from e
+        updated_paths.pop(last_idx)
+        updated_paths.append(last_path)
+
+    return updated_paths
+
+
+def _score_value(score: Any) -> Any:
+    """Return a JSON-serializable checkpoint score.
+
+    Parameters
+    ----------
+    score : Any
+        Checkpoint score, which may be a scalar tensor.
+
+    Returns
+    -------
+    Any
+        JSON-serializable score.
+    """
+    return score.item() if hasattr(score, "item") else score
