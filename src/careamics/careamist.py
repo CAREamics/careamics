@@ -18,16 +18,16 @@ from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .dataset.image_region_data import ImageRegionData
 from .image_io import WriteFunc
 from .lightning.callbacks import (
-    CheckpointRecordCallback,
     ConfigSaverCallback,
     PredictionWriterCallback,
     ProgressBarCallback,
 )
-from .lightning.callbacks.checkpoint_record_callback import (
-    get_checkpoints as get_checkpoint_paths,
-)
 from .lightning.data import CareamicsDataModule, InputVar
 from .lightning.logger import CoLogger
+from .lightning.loggers import CheckpointRecordLogger
+from .lightning.loggers.checkpoint_record_logger import (
+    get_checkpoints as get_checkpoint_paths,
+)
 from .lightning.modules import (
     CAREamicsModule,
     SegModule,
@@ -184,11 +184,17 @@ class CAREamist:
             self.config,
             self.run_version,
         )
+        checkpoint_record_logger = CheckpointRecordLogger(
+            "last"
+            if self.config.algorithm_config.algorithm
+            in (SupportedAlgorithm.N2V, SupportedAlgorithm.N2N)
+            else "best"
+        )
 
         self.trainer = Trainer(
             callbacks=[self.prediction_writer, *self.callbacks],
             default_root_dir=self.work_dir,
-            logger=experiment_logger,
+            logger=[experiment_logger, checkpoint_record_logger],
             **self.config.training_config.trainer_params or {},
         )
 
@@ -434,18 +440,10 @@ class CAREamist:
                     "training configuration (see TrainingConfig)."
                 )
 
-            if isinstance(
-                c,
-                (
-                    CheckpointRecordCallback,
-                    ConfigSaverCallback,
-                    ProgressBarCallback,
-                ),
-            ):
+            if isinstance(c, (ConfigSaverCallback, ProgressBarCallback)):
                 raise ValueError(
-                    "`CheckpointRecordCallback`, `ConfigSaverCallback`, and "
-                    "`ProgressBarCallback` are defined internally and should not be "
-                    "passed as callbacks."
+                    "`ConfigSaverCallback` and `ProgressBarCallback` are defined "
+                    "internally and should not be passed as callbacks."
                 )
 
         checkpoint_callback = ModelCheckpoint(
@@ -461,12 +459,6 @@ class CAREamist:
         )
         internal_callbacks: list[Callback] = [
             checkpoint_callback,
-            CheckpointRecordCallback(
-                "last"
-                if config.algorithm_config.algorithm
-                in (SupportedAlgorithm.N2V, SupportedAlgorithm.N2N)
-                else "best"
-            ),
             ConfigSaverCallback(
                 config.version,
                 config.get_safe_experiment_name(),
