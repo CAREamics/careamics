@@ -12,11 +12,10 @@ from lightning.pytorch.utilities import rank_zero_only
 
 CHECKPOINT_RECORD_FILENAME = "checkpoint_record.json"
 CHECKPOINT_RECORD_BACKUP_FILENAME = "checkpoint_record.json.bak"
-CHECKPOINTS_RECORD_FILENAME = "checkpoints_record.json"
 
 
 def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
-    """Return checkpoint paths from a record or ordered by creation time.
+    """Return checkpoint paths ordered by creation time.
 
     Parameters
     ----------
@@ -26,15 +25,8 @@ def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
     Returns
     -------
     list of pathlib.Path
-        Recorded checkpoint paths, or checkpoint paths ordered from oldest to newest.
+        Checkpoint paths ordered from oldest to newest.
     """
-    for filename in (CHECKPOINT_RECORD_FILENAME, CHECKPOINTS_RECORD_FILENAME):
-        record_path = checkpoint_dir / filename
-        if record_path.exists():
-            with record_path.open() as file:
-                record = json.load(file)
-            return [checkpoint_dir / name for name in record["checkpoints"]]
-
     return sorted(checkpoint_dir.glob("*.ckpt"), key=lambda path: path.stat().st_ctime)
 
 

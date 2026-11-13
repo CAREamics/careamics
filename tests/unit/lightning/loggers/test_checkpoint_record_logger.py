@@ -76,8 +76,13 @@ def test_after_save_checkpoint_backs_up_existing_record(
     checkpoint_dir = Path(model_checkpoint.dirpath)
     record_path = checkpoint_dir / CHECKPOINT_RECORD_FILENAME
     original_record = record_path.read_text()
+    new_checkpoint = checkpoint_dir / "experiment_epoch_03.ckpt"
+    new_checkpoint.touch()
 
     logger.after_save_checkpoint(model_checkpoint)
 
     backup_path = checkpoint_dir / CHECKPOINT_RECORD_BACKUP_FILENAME
     assert backup_path.read_text() == original_record
+    with record_path.open() as file:
+        updated_record = json.load(file)
+    assert new_checkpoint.name in updated_record["checkpoints"]

@@ -1497,13 +1497,12 @@ class CAREamist:
     def get_checkpoints(self) -> list[Path]:
         """Return the paths of available checkpoints.
 
-        Uses the checkpoint record when available. Otherwise, scans the checkpoint
-        directory and orders checkpoint paths by creation time.
+        Scans the checkpoint directory and orders checkpoint paths by creation time.
 
         Returns
         -------
         list of Path
-            Checkpoint paths in recorded or creation order.
+            Checkpoint paths ordered from oldest to newest.
         """
         return get_checkpoint_paths(self._get_checkpoint_root())
 
