@@ -1,11 +1,6 @@
 """CLI utilities."""
 
-import argparse
-from collections.abc import Callable
-from typing import Any, Literal
-
-SubcommandFunc = Callable[[argparse.Namespace], None]
-Subcommand = Literal["train", "predict", "config-care", "config-n2v", "config-n2n"]
+from typing import Any
 
 
 def without_none(args: dict[str, Any]) -> dict[str, Any]:

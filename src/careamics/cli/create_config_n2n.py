@@ -5,32 +5,21 @@
 import argparse
 import os
 from pathlib import Path
-from typing import Literal
 
-from careamics.cli.cli_utils import Subcommand, SubcommandFunc, without_none
+from careamics.cli.cli_utils import without_none
 from careamics.config import create_n2n_config
 from careamics.config.support import SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 
 
-def register_command_config_n2n(
-    subparsers: argparse._SubParsersAction,
-    func_registry: dict[Subcommand, SubcommandFunc],
-) -> None:
-    """Register the config-n2n subcommand.
+def add_args_config_n2n(parser: argparse.ArgumentParser) -> None:
+    """Add arguments for the config-n2n subcommand.
 
     Parameters
     ----------
-    subparsers : argparse._SubParsersAction
-        Subparsers to which the config-n2n parser is added.
-    func_registry : dict[Subcommand, SubcommandFunc]
-        The registry that will be updated to contain the function that should be called
-        by the subcommand.
+    parser : argparse.ArgumentParser
+        Parser to which the config-n2n arguments are added.
     """
-    command_name: Literal["config-n2n"] = "config-n2n"
-    func_registry[command_name] = create_config_n2n
-
-    parser = subparsers.add_parser(command_name, help="Create an N2N configuration.")
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."
     )

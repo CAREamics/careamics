@@ -5,12 +5,12 @@
 import argparse
 import json
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics import CAREamist
-from careamics.cli.cli_utils import Subcommand, SubcommandFunc, without_none
+from careamics.cli.cli_utils import without_none
 from careamics.config.utils.configuration_io import load_configuration
 
 
@@ -98,24 +98,14 @@ def save_checkpoint_record(careamist: CAREamist) -> None:
         json.dump(data, f, indent=2)
 
 
-def register_command_train(
-    subparsers: argparse._SubParsersAction,
-    func_registry: dict[Subcommand, SubcommandFunc],
-) -> None:
-    """Register the train subcommand.
+def add_args_train(parser: argparse.ArgumentParser) -> None:
+    """Add arguments for the train subcommand.
 
     Parameters
     ----------
-    subparsers : argparse._SubParsersAction
-        Subparsers to which the train parser is added.
-    func_registry : dict[Subcommand, SubcommandFunc]
-        The registry that will be updated to contain the function that should be called
-        by the subcommand.
+    parser : argparse.ArgumentParser
+        Parser to which the train arguments are added.
     """
-    command_name: Literal["train"] = "train"
-    func_registry[command_name] = train
-
-    parser = subparsers.add_parser(command_name, help="Run training.")
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."
     )
