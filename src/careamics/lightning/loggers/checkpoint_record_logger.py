@@ -137,7 +137,7 @@ def save_checkpoint_record(
 
 
 class CheckpointRecordLogger(Logger):
-    """Save a JSON record after Lightning saves a model checkpoint.
+    """Save a JSON record after checkpointing and refresh it after successful training.
 
     Parameters
     ----------
@@ -154,7 +154,8 @@ class CheckpointRecordLogger(Logger):
             Checkpoint type selected by default for prediction.
         """
         super().__init__()
-        self.selected_checkpoint = selected_checkpoint
+        self.selected_checkpoint: Literal["best", "last"] = selected_checkpoint
+        self._checkpoint_callback: ModelCheckpoint | None = None
 
     @property
     def name(self) -> str:
@@ -208,3 +209,18 @@ class CheckpointRecordLogger(Logger):
             Callback that saved the model checkpoint.
         """
         save_checkpoint_record(checkpoint_callback, self.selected_checkpoint)
+        self._checkpoint_callback = checkpoint_callback
+
+    @rank_zero_only
+    def finalize(self, status: str) -> None:
+        """Refresh the checkpoint record after training.
+
+        Parameters
+        ----------
+        status : str
+            Training completion status supplied by Lightning.
+        """
+        checkpoint_callback = self._checkpoint_callback
+        self._checkpoint_callback = None
+        if checkpoint_callback is not None:
+            save_checkpoint_record(checkpoint_callback, self.selected_checkpoint)
