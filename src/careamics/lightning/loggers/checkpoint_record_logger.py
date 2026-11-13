@@ -27,7 +27,10 @@ def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
     list of pathlib.Path
         Checkpoint paths ordered from oldest to newest.
     """
-    return sorted(checkpoint_dir.glob("*.ckpt"), key=lambda path: path.stat().st_ctime)
+    return sorted(
+        checkpoint_dir.glob("*.ckpt"),
+        key=lambda path: path.stat().st_ctime_ns,
+    )
 
 
 def _score_value(score: Any) -> Any:
