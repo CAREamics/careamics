@@ -12,7 +12,7 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import HDNLossConfig
+from careamics.config.losses import HDNLossConfig
 
 from .config_discriminators import instantiate_norm_config
 from .data_factory import create_data_configuration, list_spatial_augmentations

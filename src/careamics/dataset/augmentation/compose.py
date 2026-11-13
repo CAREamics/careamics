@@ -5,11 +5,19 @@ from typing import Union, cast
 from numpy.typing import NDArray
 
 from careamics.config.augmentations import SPATIAL_TRANSFORMS_UNION
-from careamics.dataset.augmentation import Transform, XYFlip, XYRandomRotate90
+from careamics.dataset.augmentation import (
+    SwapInputTarget,
+    TiltAxisRandomRotate90,
+    Transform,
+    XYFlip,
+    XYRandomRotate90,
+)
 
 ALL_TRANSFORMS = {
     "XYFlip": XYFlip,
     "XYRandomRotate90": XYRandomRotate90,
+    "TiltAxisRandomRotate90": TiltAxisRandomRotate90,
+    "SwapInputTarget": SwapInputTarget,
 }
 
 

@@ -11,7 +11,7 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import MicroSplitLossConfig
+from careamics.config.losses import MicroSplitLossConfig
 from careamics.config.microsplit_configuration import MicroSplitConfiguration
 
 from .config_discriminators import instantiate_norm_config
