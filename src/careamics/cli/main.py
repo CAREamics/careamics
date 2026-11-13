@@ -21,55 +21,6 @@ Subcommand = Literal["train", "predict", "config-care", "config-n2v", "config-n2
 AddArgsFunc = Callable[[argparse.ArgumentParser], None]
 
 
-# closure captures the shared registration state
-def get_registration_func(
-    parser: argparse.ArgumentParser, func_registry: dict[Subcommand, SubcommandFunc]
-):
-    """Create a function that registers subcommand parsers and functions.
-
-    Parameters
-    ----------
-    parser : argparse.ArgumentParser
-        Main CLI parser.
-    func_registry : dict[Subcommand, SubcommandFunc]
-        Registry populated with each subcommand's execution function.
-
-    Returns
-    -------
-    Callable
-        Function used to register subcommands.
-    """
-    subparsers = parser.add_subparsers(dest="subcommand", required=True)
-
-    def register_command(
-        command_name: Subcommand,
-        command_func: SubcommandFunc,
-        add_parser_args: AddArgsFunc,
-        **parser_kwargs: Any,
-    ) -> None:
-        """Register a subcommand parser and its command function.
-
-        Parameters
-        ----------
-        command_name : Subcommand
-            Name of the subcommand.
-        command_func : SubcommandFunc
-            Function that runs the subcommand.
-        add_parser_args : AddArgsFunc
-            Function that adds the subcommand arguments to its parser.
-        **parser_kwargs : Any
-            Additional arguments passed to `subparsers.add_parser`.
-        """
-        # create subparser and add arguments
-        subparser = subparsers.add_parser(command_name, **parser_kwargs)
-        add_parser_args(subparser)
-
-        # register function in dict
-        func_registry[command_name] = command_func
-
-    return register_command
-
-
 def main(argv: Sequence[str] | None = None) -> None:
     """Run the CAREamics command-line interface.
 
@@ -122,6 +73,55 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     subcommand_func = func_registry[args.subcommand]
     subcommand_func(args)
+
+
+# closure captures the shared registration state
+def get_registration_func(
+    parser: argparse.ArgumentParser, func_registry: dict[Subcommand, SubcommandFunc]
+):
+    """Create a function that registers subcommand parsers and functions.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Main CLI parser.
+    func_registry : dict[Subcommand, SubcommandFunc]
+        Registry populated with each subcommand's execution function.
+
+    Returns
+    -------
+    Callable
+        Function used to register subcommands.
+    """
+    subparsers = parser.add_subparsers(dest="subcommand", required=True)
+
+    def register_command(
+        command_name: Subcommand,
+        command_func: SubcommandFunc,
+        add_parser_args: AddArgsFunc,
+        **parser_kwargs: Any,
+    ) -> None:
+        """Register a subcommand parser and its command function.
+
+        Parameters
+        ----------
+        command_name : Subcommand
+            Name of the subcommand.
+        command_func : SubcommandFunc
+            Function that runs the subcommand.
+        add_parser_args : AddArgsFunc
+            Function that adds the subcommand arguments to its parser.
+        **parser_kwargs : Any
+            Additional arguments passed to `subparsers.add_parser`.
+        """
+        # create subparser and add arguments
+        subparser = subparsers.add_parser(command_name, **parser_kwargs)
+        add_parser_args(subparser)
+
+        # register function in dict
+        func_registry[command_name] = command_func
+
+    return register_command
 
 
 if __name__ == "__main__":
