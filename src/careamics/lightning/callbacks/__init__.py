@@ -1,6 +1,7 @@
 """Callbacks module."""
 
 __all__ = [
+    "CheckpointRecordCallback",
     "ConfigSaverCallback",
     "PredictionStoppedException",
     "PredictionWriterCallback",
@@ -9,6 +10,7 @@ __all__ = [
 ]
 
 
+from .checkpoint_record_callback import CheckpointRecordCallback
 from .config_saver_callback import ConfigSaverCallback
 from .prediction import PredictionWriterCallback
 from .progress_bar_callback import ProgressBarCallback
