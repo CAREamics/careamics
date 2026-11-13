@@ -24,6 +24,10 @@ from .lightning.callbacks import (
 )
 from .lightning.data import CareamicsDataModule, InputVar
 from .lightning.logger import CoLogger
+from .lightning.loggers import CheckpointRecordLogger
+from .lightning.loggers.checkpoint_record_logger import (
+    get_checkpoints as get_checkpoint_paths,
+)
 from .lightning.modules import (
     CAREamicsModule,
     SegModule,
@@ -180,11 +184,17 @@ class CAREamist:
             self.config,
             self.run_version,
         )
+        checkpoint_record_logger = CheckpointRecordLogger(
+            "last"
+            if self.config.algorithm_config.algorithm
+            in (SupportedAlgorithm.N2V, SupportedAlgorithm.N2N)
+            else "best"
+        )
 
         self.trainer = Trainer(
             callbacks=[self.prediction_writer, *self.callbacks],
             default_root_dir=self.work_dir,
-            logger=experiment_logger,
+            logger=[experiment_logger, checkpoint_record_logger],
             **self.config.training_config.trainer_params or {},
         )
 
@@ -432,7 +442,7 @@ class CAREamist:
 
             if isinstance(c, (ConfigSaverCallback, ProgressBarCallback)):
                 raise ValueError(
-                    "`CareamicsCheckpointInfo` and `ProgressBar` callbacks are defined "
+                    "`ConfigSaverCallback` and `ProgressBarCallback` are defined "
                     "internally and should not be passed as callbacks."
                 )
 
@@ -1485,24 +1495,17 @@ class CAREamist:
             self.prediction_writer.enable_writing(False)
 
     def get_checkpoints(self) -> list[Path]:
-        """Return the filenames of available checkpoints.
+        """Return the paths of available checkpoints.
 
-        Scans the checkpoint directory and returns checkpoint filenames sorted
-        by epoch number.
+        Preserves the checkpoint record order, removes missing checkpoints, and appends
+        newly discovered checkpoints. The last checkpoint is placed at the end.
 
         Returns
         -------
         list of Path
-            Checkpoint paths sorted by epoch number. The last checkpoint
-            (if present) is appended at the end.
+            Available checkpoint paths in checkpoint record order.
         """
-        checkpoint_dir = self._get_checkpoint_root()
-        epoch_checkpoints = sorted(
-            p for p in checkpoint_dir.glob("*.ckpt") if not p.stem.endswith("_last")
-        )
-        last = list(checkpoint_dir.glob("*_last.ckpt"))
-
-        return epoch_checkpoints + last
+        return get_checkpoint_paths(self._get_checkpoint_root())
 
     def export_to_bmz(
         self,
