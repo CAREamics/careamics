@@ -179,6 +179,7 @@ markers = [
     "lvae: marks tests as testing lvae",
     "e2e: marks longer running end-to-end tests",
     "czi: marks tests using czi files",
+    "cli: marks tests for the command-line interface",
 ]
 
 # https://coverage.readthedocs.io/en/6.4/config.html
