@@ -39,7 +39,6 @@ from .lightning.utils import (
 from .model_io.bmz_io import load_from_bmz
 from .models import get_model_constraints
 from .models.lvae.noise_models import MultiChannelNoiseModel
-from .noise_model import train_noise_model
 from .utils import get_logger, get_run_version
 from .utils.reshape_array import reshape_array
 
@@ -713,79 +712,6 @@ class CAREamist:
 
         # disable auto-logging hparams
         self.trainer.enable_autolog_hparams = False
-
-    def train_noise_model(
-        self,
-        signal: NDArray,
-        observation: NDArray,
-        axes: str,
-        *,
-        n_gaussian: int = 3,
-        n_coeff: int = 3,
-        min_sigma: float = 125.0,
-        n_epochs: int = 2000,
-        save: bool = True,
-    ) -> MultiChannelNoiseModel:
-        """Train a noise model and attach it for the noise model likelihood.
-
-        This is a thin convenience wrapper over
-        `careamics.noise_model.train_noise_model`: it fits one Gaussian-mixture noise
-        model per channel from `(signal, observation)` pairs, optionally saves the
-        trained models under `work_dir/noise_models`, attaches the result to the
-        underlying module (so a subsequent `train()` needs nothing else), and returns
-        it for inspection.
-
-        The `signal` is a clean/denoised estimate (typically an N2V prediction) and the
-        `observation` is the matching raw noisy data. Only MicroSplit and HDN use noise
-        models.
-
-        Parameters
-        ----------
-        signal : numpy.ndarray
-            Clean/denoised signal, shape `(S, C, [Z], Y, X)` or `(S, [Z], Y, X)`.
-        observation : numpy.ndarray
-            Noisy observation matching `signal`.
-        axes : str
-            Axes of `signal` and `observation` (e.g. "SCYX"); both are reshaped to
-            the canonical `SC(Z)YX` order before fitting.
-        n_gaussian : int, default=3
-            Number of Gaussian components per channel.
-        n_coeff : int, default=3
-            Number of polynomial coefficients for signal-dependent parameters.
-        min_sigma : float, default=125.0
-            Minimum standard deviation for the Gaussian components.
-        n_epochs : int, default=2000
-            Number of training epochs.
-        save : bool, default=True
-            Whether to save the trained noise models under `work_dir/noise_models`.
-
-        Returns
-        -------
-        MultiChannelNoiseModel
-            The trained multi-channel noise model, also attached to the module.
-
-        Raises
-        ------
-        ValueError
-            If the current algorithm does not support a noise model.
-        """
-        if not hasattr(self.model, "set_noise_model"):
-            raise ValueError(
-                f"The {self.config.get_algorithm_friendly_name()} algorithm does not "
-                "support a noise model (only MicroSplit and HDN do)."
-            )
-        noise_model = train_noise_model(
-            signal,
-            observation,
-            axes,
-            n_gaussian=n_gaussian,
-            n_coeff=n_coeff,
-            min_sigma=min_sigma,
-            n_epochs=n_epochs,
-            save_dir=self.work_dir / "noise_models" if save else None,
-        )
-        self.model.set_noise_model(noise_model)
-        return noise_model
 
     def _build_predict_datamodule(
         self,
