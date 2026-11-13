@@ -139,7 +139,11 @@ def get_checkpoint_record_data(
             "configured correctly."
         )
 
-    data["selected"] = data[selected_checkpoint]
+    data["selected"] = (
+        data["checkpoints"][-1]
+        if selected_checkpoint == "last"
+        else data[selected_checkpoint]
+    )
     return data
 
 
@@ -160,6 +164,7 @@ def save_checkpoint_record(
         raise ValueError("ModelCheckpoint.dirpath must be set.")
 
     checkpoint_dir = Path(model_checkpoint.dirpath)
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
     record_path = checkpoint_dir / CHECKPOINT_RECORD_FILENAME
     if record_path.exists():
         shutil.copy2(record_path, checkpoint_dir / CHECKPOINT_RECORD_BACKUP_FILENAME)

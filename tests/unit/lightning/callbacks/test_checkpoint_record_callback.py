@@ -18,16 +18,17 @@ from careamics.lightning.callbacks.checkpoint_record_callback import (
 @pytest.fixture
 def model_checkpoint(tmp_path: Path) -> Mock:
     """Create a mocked model checkpoint callback."""
+    checkpoint_dir = tmp_path / "checkpoints" / "experiment_0"
     callback = Mock(spec=ModelCheckpoint)
-    callback.dirpath = tmp_path
-    callback.last_model_path = str(tmp_path / "experiment_last.ckpt")
-    callback.best_model_path = str(tmp_path / "experiment_epoch_02.ckpt")
+    callback.dirpath = checkpoint_dir
+    callback.last_model_path = str(checkpoint_dir / "experiment_last.ckpt")
+    callback.best_model_path = str(checkpoint_dir / "experiment_epoch_02.ckpt")
     callback.monitor = "val_loss"
     callback.mode = "min"
     callback.save_top_k = 2
     callback.best_k_models = {
-        str(tmp_path / "experiment_epoch_01.ckpt"): 0.4,
-        str(tmp_path / "experiment_epoch_02.ckpt"): 0.2,
+        str(checkpoint_dir / "experiment_epoch_01.ckpt"): 0.4,
+        str(checkpoint_dir / "experiment_epoch_02.ckpt"): 0.2,
     }
     return callback
 
@@ -41,13 +42,14 @@ def trainer(model_checkpoint: Mock) -> Mock:
     return trainer
 
 
-def test_on_save_checkpoint_creates_record(tmp_path: Path, trainer: Mock) -> None:
+def test_on_save_checkpoint_creates_record(trainer: Mock) -> None:
     """Test that the checkpoint hook creates a JSON record."""
     callback = CheckpointRecordCallback("best")
 
     callback.on_save_checkpoint(trainer, Mock(), {})
 
-    with (tmp_path / CHECKPOINT_RECORD_FILENAME).open() as file:
+    checkpoint_dir = Path(trainer.checkpoint_callback.dirpath)
+    with (checkpoint_dir / CHECKPOINT_RECORD_FILENAME).open() as file:
         record = json.load(file)
     assert record == {
         "last": "experiment_last.ckpt",
@@ -68,15 +70,16 @@ def test_on_save_checkpoint_creates_record(tmp_path: Path, trainer: Mock) -> Non
 
 
 def test_on_save_checkpoint_backs_up_existing_record(
-    tmp_path: Path, trainer: Mock
+    trainer: Mock,
 ) -> None:
     """Test that a subsequent checkpoint hook backs up the previous record."""
     callback = CheckpointRecordCallback("best")
     callback.on_save_checkpoint(trainer, Mock(), {})
-    record_path = tmp_path / CHECKPOINT_RECORD_FILENAME
+    checkpoint_dir = Path(trainer.checkpoint_callback.dirpath)
+    record_path = checkpoint_dir / CHECKPOINT_RECORD_FILENAME
     original_record = record_path.read_text()
 
     callback.on_save_checkpoint(trainer, Mock(), {})
 
-    backup_path = tmp_path / CHECKPOINT_RECORD_BACKUP_FILENAME
+    backup_path = checkpoint_dir / CHECKPOINT_RECORD_BACKUP_FILENAME
     assert backup_path.read_text() == original_record
