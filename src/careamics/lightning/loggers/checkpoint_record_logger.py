@@ -41,7 +41,9 @@ def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
             for name in recorded_names
             if (checkpoint_path := (checkpoint_dir / name)).is_file()
         ]
-        last_path = checkpoint_dir / record.get("last")
+        last_name = record.get("last", None)
+        if last_name is not None:
+            last_path = checkpoint_dir / last_name
 
     # find any new paths not present in the record
     existing_paths = sorted(
@@ -54,7 +56,12 @@ def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
 
     # ensure last checkpoint is always last
     if last_path is not None:
-        last_idx = updated_paths.index(last_path)
+        try:
+            last_idx = updated_paths.index(last_path)
+        except ValueError as e:
+            raise ValueError(
+                f"Last checkpoint path '{last_path}' not found in checkpoint directory."
+            ) from e
         updated_paths.pop(last_idx)
         updated_paths.append(last_path)
 
