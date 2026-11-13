@@ -30,6 +30,17 @@ def model_checkpoint(tmp_path: Path) -> Mock:
         str(checkpoint_dir / "experiment_epoch_01.ckpt"): 0.4,
         str(checkpoint_dir / "experiment_epoch_02.ckpt"): 0.2,
     }
+
+    k_best_model_names = list(callback.best_k_models.keys())
+    # create empty mock checkpoint files
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    with open(k_best_model_names[0], "w"):
+        ...
+    with open(k_best_model_names[1], "w"):
+        ...
+    with open(callback.last_model_path, "w"):
+        ...
+
     return callback
 
 
