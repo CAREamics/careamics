@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Development Commands
 
-- **Install dependencies**: `uv sync --extra dev --extra examples` (requires uv and pre-commit)
+- **Install dependencies**: `uv sync --dev --extra examples` (requires uv and pre-commit)
 - **Run all checks**: `uv run pre-commit run --all-files`
 - **Run tests**: `uv run pytest`
 
@@ -60,14 +60,37 @@ patching strategies, defining how patches are sampled from image stacks.
 
 Similarly, normalizations and filtering are implemented as protocols.
 
-**Models (`careamics/lightning/dataset/lightning_modules`)**
+**Models (`careamics/lightning/modules`)**
 
 All algorithm-specific Lightning modules are implemented here and share reusable code
 via composition.
 
-**Lightning utilities (`careamics/lightning/dataset`)**
+**Lightning utilities (`careamics/lightning`)**
 
-Other useful Lightning components such as callbacks, losses etc. are implemented here.
+Other useful Lightning components such as data modules, callbacks etc. are implemented here.
+
+## Style
+
+Code must follow conventions stipulated in the [STYLE_GUIDE.md](STYLE_GUIDE.md).
+
+## Documentation
+
+### Docstrings
+
+Docstrings should not be overly verbose and should stive to describe behaviour rather than implementation. 
+Do not use a conversational tone or filler words such as "just" or "genuinely". 
+If asked to update the behaviour of a class, method or function, do not mention that the behaviour has been updated in the docstring, only describe the new behaviour.
+
+### Comments
+
+Use comments sparingly, code should strive to be self documenting in its function/class/variable names and structure. 
+When code gets more complicated comments can be used to help readers understand what is happening. They can be used, for example amongst other things, to:
+- remind readers of a side effect of a function that is being called,
+- describe what a variable is for if it is not immediately clear in the first few lines following its declaration,
+- outline how an implemented algorithm works.
+- justify a particular design choice.
+
+When comments are used they should still aim to not be overly verbose.
 
 ## Contributing
 
