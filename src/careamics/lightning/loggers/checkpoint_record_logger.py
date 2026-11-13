@@ -15,7 +15,7 @@ CHECKPOINT_RECORD_BACKUP_FILENAME = "checkpoint_record.json.bak"
 
 
 def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
-    """Return checkpoint paths ordered by creation time.
+    """Return existing checkpoint paths in the order that they were added.
 
     Parameters
     ----------
@@ -25,12 +25,40 @@ def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
     Returns
     -------
     list of pathlib.Path
-        Checkpoint paths ordered from oldest to newest.
+        Existing recorded checkpoints followed by new checkpoints.
     """
-    return sorted(
-        checkpoint_dir.glob("*.ckpt"),
-        key=lambda path: path.stat().st_ctime_ns,
+    record_path = checkpoint_dir / CHECKPOINT_RECORD_FILENAME
+    recorded_paths: list[Path] = []
+    last_path: Path | None = None
+    if record_path.exists():
+        with record_path.open() as file:
+            record = json.load(file)
+
+        # extract recorded checkpoints; remove those that do not exist
+        recorded_names: list[str] = record.get("checkpoints", [])
+        recorded_paths = [
+            checkpoint_path
+            for name in recorded_names
+            if (checkpoint_path := (checkpoint_dir / name)).is_file()
+        ]
+        last_path = checkpoint_dir / record.get("last")
+
+    # find any new paths not present in the record
+    existing_paths = sorted(
+        checkpoint_dir.glob("*.ckpt"), key=lambda path: path.stat().st_ctime_ns
     )
+    new_paths = [path for path in existing_paths if path not in recorded_paths]
+
+    # update the record
+    updated_paths = recorded_paths + new_paths
+
+    # ensure last checkpoint is always last
+    if last_path is not None:
+        last_idx = updated_paths.index(last_path)
+        updated_paths.pop(last_idx)
+        updated_paths.append(last_path)
+
+    return updated_paths
 
 
 def _score_value(score: Any) -> Any:

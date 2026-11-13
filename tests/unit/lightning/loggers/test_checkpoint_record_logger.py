@@ -8,9 +8,13 @@ import pytest
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics.lightning.loggers import CheckpointRecordLogger
+from careamics.lightning.loggers import (
+    checkpoint_record_logger as checkpoint_record_logger_module,
+)
 from careamics.lightning.loggers.checkpoint_record_logger import (
     CHECKPOINT_RECORD_BACKUP_FILENAME,
     CHECKPOINT_RECORD_FILENAME,
+    get_checkpoints,
 )
 
 
@@ -40,13 +44,28 @@ def model_checkpoint(tmp_path: Path) -> Mock:
     return callback
 
 
-def test_after_save_checkpoint_creates_record(model_checkpoint: Mock) -> None:
+def test_after_save_checkpoint_creates_record(
+    model_checkpoint: Mock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that the post-save hook creates a JSON record."""
     logger = CheckpointRecordLogger("best")
+    checkpoint_dir = Path(model_checkpoint.dirpath)
+    checkpoint_paths = [
+        checkpoint_dir / "experiment_epoch_01.ckpt",
+        checkpoint_dir / "experiment_epoch_02.ckpt",
+        checkpoint_dir / "experiment_last.ckpt",
+    ]
+    # using monkey patch to ensure the checkpoints are always returned in this order
+    # creation time ordering is not reliable on all machines.
+    monkeypatch.setattr(
+        checkpoint_record_logger_module,
+        "get_checkpoints",
+        lambda *_args, **_kwargs: checkpoint_paths,
+    )
 
     logger.after_save_checkpoint(model_checkpoint)
 
-    checkpoint_dir = Path(model_checkpoint.dirpath)
     with (checkpoint_dir / CHECKPOINT_RECORD_FILENAME).open() as file:
         record = json.load(file)
     assert record == {
@@ -86,6 +105,37 @@ def test_after_save_checkpoint_backs_up_existing_record(
     with record_path.open() as file:
         updated_record = json.load(file)
     assert new_checkpoint.name in updated_record["checkpoints"]
+
+
+def test_get_checkpoints_updates_checkpoint_list(tmp_path: Path) -> None:
+    """Test that the checkpoint list is updated correctly."""
+
+    (tmp_path / "experiment_epoch_01.ckpt").touch()
+    (tmp_path / "experiment_epoch_02.ckpt").touch()
+    (tmp_path / "experiment_last.ckpt").touch()
+    # create dummy record
+    record = {
+        "last": "experiment_last.ckpt",
+        "checkpoints": [
+            "experiment_epoch_01.ckpt",
+            "deleted_checkpoint.ckpt",
+            "experiment_epoch_02.ckpt",
+        ],
+    }
+    (tmp_path / CHECKPOINT_RECORD_FILENAME).write_text(json.dumps(record))
+
+    # simulate another saving event
+    (tmp_path / "experiment_epoch_03.ckpt").touch()
+    (tmp_path / "experiment_last.ckpt").touch()
+
+    # the deleted checkpoint should be removed and last should always remain last
+    checkpoint_paths = get_checkpoints(checkpoint_dir=tmp_path)
+    assert [path.name for path in checkpoint_paths] == [
+        "experiment_epoch_01.ckpt",
+        "experiment_epoch_02.ckpt",
+        "experiment_epoch_03.ckpt",
+        "experiment_last.ckpt",
+    ]
 
 
 def test_finalize_removes_deleted_checkpoint_from_record(
