@@ -52,42 +52,6 @@ def _score_value(score: Any) -> Any:
     return score.item() if hasattr(score, "item") else score
 
 
-def _checkpoint_names(model_checkpoint: ModelCheckpoint) -> list[str]:
-    """Return all known checkpoint names in creation order.
-
-    Parameters
-    ----------
-    model_checkpoint : lightning.pytorch.callbacks.ModelCheckpoint
-        Callback managing the training checkpoints.
-
-    Returns
-    -------
-    list of str
-        Names of all known checkpoints.
-    """
-    if model_checkpoint.dirpath is None:
-        raise ValueError("ModelCheckpoint.dirpath must be set.")
-
-    checkpoints = get_checkpoints(Path(model_checkpoint.dirpath))
-
-    if model_checkpoint.monitor is not None:
-        known_paths = list(model_checkpoint.best_k_models)
-    elif model_checkpoint.save_top_k == 1:
-        known_paths = [model_checkpoint.best_model_path]
-    else:
-        known_paths = [model_checkpoint.best_model_path]
-        known_paths.extend(str(path) for path in checkpoints)
-
-    known_paths.append(model_checkpoint.last_model_path)
-    paths = list(dict.fromkeys(Path(path) for path in known_paths if path))
-    existing_paths = sorted(
-        (path for path in paths if path.exists()),
-        key=lambda path: path.stat().st_ctime,
-    )
-    pending_paths = [path for path in paths if not path.exists()]
-    return [path.name for path in existing_paths + pending_paths]
-
-
 def get_checkpoint_record_data(
     model_checkpoint: ModelCheckpoint,
     selected_checkpoint: Literal["best", "last"],
@@ -111,6 +75,9 @@ def get_checkpoint_record_data(
     ValueError
         If no checkpoints are known or the monitoring mode is unsupported.
     """
+    if model_checkpoint.dirpath is None:
+        raise ValueError("ModelCheckpoint.dirpath must be set.")
+
     last = model_checkpoint.last_model_path
     best = model_checkpoint.best_model_path
     data: dict[str, Any] = {
@@ -132,18 +99,27 @@ def get_checkpoint_record_data(
         raise ValueError(f"Unrecognized checkpoint monitoring mode: {data['mode']}")
     data["best_k"] = best_k
 
-    data["checkpoints"] = _checkpoint_names(model_checkpoint)
+    checkpoint_paths = get_checkpoints(Path(model_checkpoint.dirpath))
+    data["checkpoints"] = [path.name for path in checkpoint_paths]
     if not data["checkpoints"]:
         raise ValueError(
             "No checkpoints found. Ensure that model checkpointing has been "
             "configured correctly."
         )
 
-    data["selected"] = (
-        data["checkpoints"][-1]
-        if selected_checkpoint == "last"
-        else data[selected_checkpoint]
-    )
+    # select checkpoint
+    match (len(data["checkpoints"]), selected_checkpoint):
+        case 0, _:
+            data["selected"] = None
+        case _, "last":
+            # selecting last saved in-case saving each epoch has not been configured.
+            data["selected"] = data["checkpoints"][-1]
+        case _, "best":
+            data[selected_checkpoint]
+        case _, _:
+            # should not be reachable
+            raise ValueError("Error selecting checkpoint.")
+
     return data
 
 
