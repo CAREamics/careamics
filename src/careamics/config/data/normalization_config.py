@@ -1093,3 +1093,5 @@ NormalizationConfig = Annotated[
     MeanStdConfig | NoNormConfig | QuantileConfig | MinMaxConfig,
     Discriminator("name"),
 ]
+
+NormalizationStr = Literal["mean_std", "min_max", "quantile", "none"]

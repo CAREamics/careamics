@@ -5,7 +5,10 @@ from typing import Any, Literal
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm
 from careamics.config.configuration import Configuration
-from careamics.config.data.normalization_config import NormalizationConfig
+from careamics.config.data.normalization_config import (
+    NormalizationConfig,
+    NormalizationStr,
+)
 from careamics.utils import get_logger
 
 from .algorithm_factory import create_algorithm_configuration
@@ -276,9 +279,7 @@ def create_advanced_care_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = False,
-    normalization: (
-        Literal["mean_std", "min_max", "quantile", "none"] | NormalizationConfig
-    ) = "mean_std",
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     # lightning parameters
     num_workers: int = -1,
@@ -367,7 +368,7 @@ def create_advanced_care_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=False
         Whether to train all channels independently.
-    normalization : str or NormalizationConfig, default="mean_std"
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
         Normalization strategy to use, or a normalization configuration.
     patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
@@ -436,9 +437,7 @@ def create_advanced_n2n_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = True,
-    normalization: (
-        Literal["mean_std", "min_max", "quantile", "none"] | NormalizationConfig
-    ) = "mean_std",
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     # - Lightning parameters
     num_workers: int = -1,
@@ -526,7 +525,7 @@ def create_advanced_n2n_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=True
         Whether to train all channels independently.
-    normalization : str or NormalizationConfig, default="mean_std"
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
         Normalization strategy to use, or a normalization configuration.
     patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
@@ -594,9 +593,7 @@ def _create_advanced_supervised_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = False,
-    normalization: (
-        Literal["mean_std", "min_max", "quantile", "none"] | NormalizationConfig
-    ) = "mean_std",
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     # lightning parameters
     num_workers: int = -1,
@@ -684,7 +681,7 @@ def _create_advanced_supervised_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=False
         Whether to train all channels independently.
-    normalization : str or NormalizationConfig, default="mean_std"
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
         Normalization strategy to use, or a normalization configuration.
     patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the

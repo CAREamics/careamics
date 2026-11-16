@@ -5,7 +5,10 @@ from typing import Any, Literal
 
 from careamics.config.algorithms import N2VAlgorithm
 from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
-from careamics.config.data.normalization_config import NormalizationConfig
+from careamics.config.data.normalization_config import (
+    NormalizationConfig,
+    NormalizationStr,
+)
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
@@ -307,9 +310,7 @@ def create_advanced_n2v_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = True,
-    normalization: (
-        Literal["mean_std", "min_max", "quantile", "none"] | NormalizationConfig
-    ) = "mean_std",
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     # n2v specific
     use_n2v2: bool = False,
@@ -416,7 +417,7 @@ def create_advanced_n2v_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=True
         Whether to train all channels independently.
-    normalization : str or NormalizationConfig, default="mean_std"
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
         Normalization strategy to use, or a normalization configuration.
     patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the

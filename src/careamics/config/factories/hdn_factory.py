@@ -6,7 +6,10 @@ from typing import Any, Literal
 from careamics.config.algorithms import HDNAlgorithm
 from careamics.config.architectures import LVAEConfig
 from careamics.config.augmentations import XYFlipConfig, XYRandomRotate90Config
-from careamics.config.data.normalization_config import NormalizationConfig
+from careamics.config.data.normalization_config import (
+    NormalizationConfig,
+    NormalizationStr,
+)
 from careamics.config.hdn_configuration import HDNConfiguration
 from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
@@ -92,9 +95,7 @@ def create_advanced_hdn_config(
     supervised: bool = False,
     # advanced data parameters
     channels: Sequence[int] | None = None,
-    normalization: (
-        Literal["mean_std", "min_max", "quantile", "none"] | NormalizationConfig
-    ) = "mean_std",
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     in_memory: bool | None = None,
     # model parameters
     output_channels: int = 1,
@@ -147,9 +148,8 @@ def create_advanced_hdn_config(
         be provided at training time, and `use_noise_model` must be `False`.
     channels : sequence of int or None, default=None
         List of channels to use. If `None`, all channels are used.
-    normalization : {"mean_std", "min_max", "quantile", "none"} or NormalizationConfig
-        Normalization strategy or complete normalization configuration. Default is
-        `"mean_std"`.
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
+        Normalization strategy or complete normalization configuration.
     in_memory : bool or None, default=None
         Whether to load all data into memory.
     output_channels : int, default=1
