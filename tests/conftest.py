@@ -479,13 +479,9 @@ def checkpoint(
             patch_size=[16, 16],
             batch_size=2,
             n_classes=3,
-            normalization="mean_std",
-            normalization_params={
-                "input_means": [0.5],
-                "input_stds": [0.3],
-                "target_means": [0.5],
-                "target_stds": [0.3],
-            },
+            normalization=MeanStdConfig(
+                input_means=[0.5], input_stds=[0.3], target_mode="none"
+            ),
         )
         data = {
             "train_data": train_data,
