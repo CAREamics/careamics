@@ -8,6 +8,11 @@ from careamics.cli.create_config_care import (
     add_args_config_care,
     create_config_care,
 )
+from careamics.cli.create_config_hdn import add_args_config_hdn, create_config_hdn
+from careamics.cli.create_config_msplit import (
+    add_args_config_msplit,
+    create_config_msplit,
+)
 from careamics.cli.create_config_n2n import (
     add_args_config_n2n,
     create_config_n2n,
@@ -17,7 +22,15 @@ from careamics.cli.predict import add_args_predict, predict
 from careamics.cli.train import add_args_train, train
 
 SubcommandFunc = Callable[[argparse.Namespace], None]
-Subcommand = Literal["train", "predict", "config-care", "config-n2v", "config-n2n"]
+Subcommand = Literal[
+    "train",
+    "predict",
+    "config-care",
+    "config-n2v",
+    "config-n2n",
+    "config-hdn",
+    "config-msplit",
+]
 AddArgsFunc = Callable[[argparse.ArgumentParser], None]
 
 
@@ -67,6 +80,18 @@ def main(argv: Sequence[str] | None = None) -> None:
         create_config_n2n,
         add_args_config_n2n,
         help="Create an N2N configuration.",
+    )
+    register_command(
+        "config-hdn",
+        create_config_hdn,
+        add_args_config_hdn,
+        help="Create an HDN configuration.",
+    )
+    register_command(
+        "config-msplit",
+        create_config_msplit,
+        add_args_config_msplit,
+        help="Create a MicroSplit configuration.",
     )
 
     args = parser.parse_args(argv)

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-"""Create an HDN configuration from command-line arguments."""
+"""Script for the CLI. Creates an HDN configuration file."""
 
 import argparse
-from collections.abc import Sequence
+import os
 from pathlib import Path
 
 from careamics.cli.cli_utils import without_none
@@ -12,15 +12,14 @@ from careamics.config.support import SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 
 
-def create_config_hdn(argv: Sequence[str] | None = None) -> None:
-    """Create and save an HDN configuration.
+def add_args_config_hdn(parser: argparse.ArgumentParser) -> None:
+    """Add arguments for the config-hdn subcommand.
 
     Parameters
     ----------
-    argv : Sequence[str]
-        Arguments to be parsed by argparse.
+    parser : argparse.ArgumentParser
+        Parser to which the config-hdn arguments are added.
     """
-    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to save the output files."
     )
@@ -47,8 +46,15 @@ def create_config_hdn(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--channels", nargs="+", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
 
-    args = parser.parse_args(argv)
 
+def create_config_hdn(args: argparse.Namespace) -> None:
+    """Create and save an HDN configuration.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+    """
     config = create_hdn_config(
         experiment_name=args.experiment_name,
         data_type=args.data_type.value,
@@ -68,8 +74,4 @@ def create_config_hdn(argv: Sequence[str] | None = None) -> None:
             }
         ),
     )
-    save_configuration(config, args.output_path / "careamics.yaml")
-
-
-if __name__ == "__main__":
-    create_config_hdn()
+    save_configuration(config, os.path.join(args.output_path, "careamics.yaml"))

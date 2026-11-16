@@ -1,27 +1,25 @@
 #!/usr/bin/env python3
 
-"""Create a MicroSplit configuration from command-line arguments."""
+"""Script for the CLI. Creates a MicroSplit configuration file."""
 
 import argparse
-from collections.abc import Sequence
+import os
 from pathlib import Path
 
+from careamics.cli.cli_utils import without_none
 from careamics.config import create_microsplit_config
 from careamics.config.support import SupportedData
 from careamics.config.utils.configuration_io import save_configuration
 
-from .cli_utils import without_none
 
-
-def create_config_msplit(argv: Sequence[str] | None = None) -> None:
-    """Create a MicroSplit configuration from command-line arguments.
+def add_args_config_msplit(parser: argparse.ArgumentParser) -> None:
+    """Add arguments for the config-msplit subcommand.
 
     Parameters
     ----------
-    argv : Sequence[str] | None, optional
-        Command-line arguments to parse.
+    parser : argparse.ArgumentParser
+        Parser to which the config-msplit arguments are added.
     """
-    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path",
         type=Path,
@@ -68,8 +66,15 @@ def create_config_msplit(argv: Sequence[str] | None = None) -> None:
     )
     parser.add_argument("--seed", type=int, default=None)
 
-    args = parser.parse_args(argv)
 
+def create_config_msplit(args: argparse.Namespace) -> None:
+    """Create and save a MicroSplit configuration.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+    """
     config = create_microsplit_config(
         experiment_name=args.experiment_name,
         data_type=args.data_type.value,
@@ -89,8 +94,4 @@ def create_config_msplit(argv: Sequence[str] | None = None) -> None:
             }
         ),
     )
-    save_configuration(config, args.output_path / "careamics.yaml")
-
-
-if __name__ == "__main__":
-    create_config_msplit()
+    save_configuration(config, os.path.join(args.output_path, "careamics.yaml"))

@@ -1,11 +1,12 @@
-from careamics.cli.create_config_hdn import create_config_hdn
+from careamics.cli.main import main
 from careamics.config.hdn_configuration import HDNConfiguration
 from careamics.config.utils.configuration_io import load_configuration
 
 
 def test_create_hdn_config(tmp_path):
-    create_config_hdn(
+    main(
         [
+            "config-hdn",
             "--output_path",
             str(tmp_path),
             "--experiment_name",
