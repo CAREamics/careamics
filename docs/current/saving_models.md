@@ -27,8 +27,7 @@ while `<experiment_name>_last.ckpt` is the checkpoint from the final epoch.
 ### Listing checkpoints
 
 The `get_checkpoints` method returns the available checkpoint paths in checkpoint record
-order. Missing checkpoints are removed, newly discovered checkpoints are appended, and
-the last checkpoint is placed at the end.
+order.
 
 ```python title="Listing checkpoints"
 --8<-- "current/saving_models.py:get_checkpoints"

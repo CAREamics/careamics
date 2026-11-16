@@ -77,7 +77,7 @@ Code must follow conventions stipulated in the [STYLE_GUIDE.md](STYLE_GUIDE.md).
 
 ### Docstrings
 
-Docstrings should not be overly verbose and should stive to describe behaviour rather than implementation. 
+Docstrings should not be overly verbose and should strive to describe behaviour rather than implementation. 
 Do not use a conversational tone or filler words such as "just" or "genuinely". 
 If asked to update the behaviour of a class, method or function, do not mention that the behaviour has been updated in the docstring, only describe the new behaviour.
 
