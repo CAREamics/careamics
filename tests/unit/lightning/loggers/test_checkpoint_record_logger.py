@@ -21,9 +21,9 @@ from careamics.lightning.loggers.checkpoint_record_logger import (
 )
 
 
-def create_model_checkpoint(tmp_path: Path, mode: str) -> Mock:
+def create_model_checkpoint(root_save_dir: Path, mode: str) -> Mock:
     """Create a mocked model checkpoint callback."""
-    checkpoint_dir = tmp_path / "checkpoints" / "experiment_0"
+    checkpoint_dir = root_save_dir / "checkpoints" / "experiment_0"
     callback = Mock(spec=ModelCheckpoint)
     callback.dirpath = checkpoint_dir
     callback.last_model_path = str(checkpoint_dir / "experiment_last.ckpt")
@@ -46,9 +46,7 @@ def create_model_checkpoint(tmp_path: Path, mode: str) -> Mock:
     return callback
 
 
-pytest.mark.parametrize("mode", ["min", "max", "unrecognized"])
-
-
+@pytest.mark.parametrize("mode", ["min", "max", "unrecognized"])
 def test_after_save_checkpoint_creates_record(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
@@ -84,27 +82,26 @@ def test_after_save_checkpoint_creates_record(
     with expected_error:
         logger.after_save_checkpoint(model_checkpoint)
 
-    with (checkpoint_dir / CHECKPOINT_RECORD_FILENAME).open() as file:
-        record = json.load(file)
-    assert record == {
-        "last": "experiment_last.ckpt",
-        "best": "experiment_epoch_02.ckpt",
-        "monitor": "val_loss",
-        "mode": model_checkpoint.mode,
-        "best_k": best_k,
-        "checkpoints": [
-            "experiment_epoch_01.ckpt",
-            "experiment_epoch_02.ckpt",
-            "experiment_last.ckpt",
-        ],
-        "selected": "experiment_epoch_02.ckpt",
-    }
+        with (checkpoint_dir / CHECKPOINT_RECORD_FILENAME).open() as file:
+            record = json.load(file)
+        assert record == {
+            "last": "experiment_last.ckpt",
+            "best": "experiment_epoch_02.ckpt",
+            "monitor": "val_loss",
+            "mode": model_checkpoint.mode,
+            "best_k": best_k,
+            "checkpoints": [
+                "experiment_epoch_01.ckpt",
+                "experiment_epoch_02.ckpt",
+                "experiment_last.ckpt",
+            ],
+            "selected": "experiment_epoch_02.ckpt",
+        }
 
 
-def test_after_save_checkpoint_backs_up_existing_record(
-    model_checkpoint: Mock,
-) -> None:
+def test_after_save_checkpoint_backs_up_existing_record(tmp_path: Path) -> None:
     """Test that a subsequent checkpoint save backs up the previous record."""
+    model_checkpoint = create_model_checkpoint(tmp_path, mode="min")
     logger = CheckpointRecordLogger("best")
     logger.after_save_checkpoint(model_checkpoint)
     checkpoint_dir = Path(model_checkpoint.dirpath)
@@ -162,10 +159,9 @@ def test_no_checkpoints_record(tmp_path: Path):
     assert data["selected"] is None
 
 
-def test_finalize_removes_deleted_checkpoint_from_record(
-    model_checkpoint: Mock,
-) -> None:
+def test_finalize_removes_deleted_checkpoint_from_record(tmp_path: Path) -> None:
     """Test that finalization removes checkpoint paths deleted after saving."""
+    model_checkpoint = create_model_checkpoint(tmp_path, mode="min")
     logger = CheckpointRecordLogger("best")
     logger.after_save_checkpoint(model_checkpoint)
     deleted_checkpoint = Path(next(iter(model_checkpoint.best_k_models)))
@@ -179,8 +175,9 @@ def test_finalize_removes_deleted_checkpoint_from_record(
     assert deleted_checkpoint.name not in finalized_record["checkpoints"]
 
 
-def test_dirpath_not_configured_error(model_checkpoint: Mock):
+def test_dirpath_not_configured_error(tmp_path: Path):
     """Test there is an error if ModelCheckpoint.dirpath is None."""
+    model_checkpoint = create_model_checkpoint(root_save_dir=tmp_path, mode="min")
     model_checkpoint.dirpath = None
     with pytest.raises(ValueError, match="`dirpath` configured"):
         save_checkpoint_record(model_checkpoint, "best")
