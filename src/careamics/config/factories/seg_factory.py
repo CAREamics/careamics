@@ -7,6 +7,7 @@ from careamics.config.seg_configuration import SegConfiguration
 from careamics.utils import get_logger
 
 from .algorithm_factory import create_algorithm_configuration
+from .config_discriminators import instantiate_norm_config
 from .data_factory import (
     SupportedPatchFilterConfig,
     create_data_configuration,
@@ -39,8 +40,6 @@ def _get_norm_dict_with_target_skipped(
     norm_config: dict[str, Any] = {"name": normalization}
 
     if normalization != "none":
-        norm_config["skip_target"] = True
-
         if normalization_params is not None:
             if (
                 "skip_target" in normalization_params
@@ -55,6 +54,9 @@ def _get_norm_dict_with_target_skipped(
                 )
                 del normalization_params["skip_target"]
             norm_config.update(normalization_params)
+
+        # no target segmentation
+        norm_config["target_mode"] = "none"
 
     return norm_config
 
@@ -354,7 +356,7 @@ def create_advanced_seg_config(
         target_axes=_get_expected_target_axes(axes),
         augmentations=assemble_augmentations(augmentations, seed),
         n_val_patches=n_val_patches,
-        normalization=norm_config,
+        normalization=instantiate_norm_config(norm_config),
         patch_filter_config=patch_filter_config,
         channels=channels,
         in_memory=in_memory,
