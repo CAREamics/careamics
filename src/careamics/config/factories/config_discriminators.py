@@ -11,6 +11,7 @@ from careamics.config.algorithms import (
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    SegAlgorithm,
 )
 from careamics.config.configuration import Configuration
 from careamics.config.cosdd_configuration import COSDDConfiguration
@@ -20,6 +21,7 @@ from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.hdn_configuration import HDNConfiguration
 from careamics.config.microsplit_configuration import MicroSplitConfiguration
 from careamics.config.n2v_configuration import N2VConfiguration
+from careamics.config.seg_configuration import SegConfiguration
 from careamics.config.support import SupportedAlgorithm
 
 OTHERS = "others"
@@ -97,6 +99,7 @@ def _data_discriminator(data: Any) -> str | None:
 Config = Annotated[
     Union[
         Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],
+        Annotated[SegConfiguration, Tag(SupportedAlgorithm.SEG)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
         Annotated[Configuration, Tag(SupportedAlgorithm.N2N)],
         Annotated[HDNConfiguration, Tag(SupportedAlgorithm.HDN)],
@@ -111,6 +114,7 @@ AlgorithmConfig = Annotated[
         Annotated[N2VAlgorithm, Tag(SupportedAlgorithm.N2V)],
         Annotated[CAREAlgorithm, Tag(SupportedAlgorithm.CARE)],
         Annotated[N2NAlgorithm, Tag(SupportedAlgorithm.N2N)],
+        Annotated[SegAlgorithm, Tag(SupportedAlgorithm.SEG)],
         Annotated[HDNAlgorithm, Tag(SupportedAlgorithm.HDN)],
         Annotated[MicroSplitAlgorithm, Tag(SupportedAlgorithm.MICROSPLIT)],
         Annotated[COSDDAlgorithm, Tag(SupportedAlgorithm.COSDD)],

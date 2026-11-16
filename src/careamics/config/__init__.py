@@ -10,7 +10,6 @@ __all__ = [
     "HDNAlgorithm",
     "HDNLossConfig",
     "LVAEConfig",
-    "LVAELossConfig",
     "MaxPatchFilterConfig",
     "MeanStdPatchFilterConfig",
     "MicroSplitAlgorithm",
@@ -20,6 +19,7 @@ __all__ = [
     "N2NAlgorithm",
     "N2VAlgorithm",
     "PN2VAlgorithm",
+    "SegAlgorithm",
     "ShannonPatchFilterConfig",
     "UNetBasedAlgorithm",
     "UNetConfig",
@@ -29,6 +29,7 @@ __all__ = [
     "create_advanced_microsplit_config",
     "create_advanced_n2n_config",
     "create_advanced_n2v_config",
+    "create_advanced_seg_config",
     "create_care_config",
     "create_cosdd_config",
     "create_data_configuration",
@@ -36,6 +37,7 @@ __all__ = [
     "create_microsplit_config",
     "create_n2n_config",
     "create_n2v_config",
+    "create_seg_config",
     "create_structn2v_config",
 ]
 
@@ -47,6 +49,7 @@ from .algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
     PN2VAlgorithm,
+    SegAlgorithm,
     UNetBasedAlgorithm,
 )
 from .architectures import COSDDConfig, LVAEConfig, UNetConfig
@@ -65,16 +68,18 @@ from .factories import (
     create_advanced_microsplit_config,
     create_advanced_n2n_config,
     create_advanced_n2v_config,
+    create_advanced_seg_config,
     create_care_config,
     create_cosdd_config,
     create_hdn_config,
     create_microsplit_config,
     create_n2n_config,
     create_n2v_config,
+    create_seg_config,
     create_structn2v_config,
 )
 from .factories.data_factory import create_data_configuration
-from .losses.loss_config import HDNLossConfig, LVAELossConfig, MicroSplitLossConfig
+from .losses import HDNLossConfig, MicroSplitLossConfig
 from .noise_model import (
     GaussianMixtureNMConfig,
     MultiChannelNMConfig,
