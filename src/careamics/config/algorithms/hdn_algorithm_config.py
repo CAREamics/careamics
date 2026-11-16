@@ -11,7 +11,7 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import HDNLossConfig
+from careamics.config.losses import HDNLossConfig
 from careamics.config.validators import (
     lvae_conv_strides_valid,
     lvae_depth_valid,

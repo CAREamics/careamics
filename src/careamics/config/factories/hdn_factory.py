@@ -11,7 +11,7 @@ from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import HDNLossConfig
+from careamics.config.losses import HDNLossConfig
 
 from .data_factory import create_data_configuration, list_spatial_augmentations
 from .training_factory import create_training_configuration, update_trainer_params

@@ -15,6 +15,7 @@ from careamics.config.algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
     PN2VAlgorithm,
+    SegAlgorithm,
 )
 from careamics.config.data import DataConfig
 from careamics.config.lightning.training_configuration import (
@@ -31,6 +32,7 @@ AlgorithmConfig = TypeVar(
     N2NAlgorithm,
     N2VAlgorithm,
     PN2VAlgorithm,
+    SegAlgorithm,
 )
 
 
@@ -179,7 +181,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
         if not hasattr(self.data_config.patching, "patch_size"):
             return self
 
-        model_constraints = get_model_constraints(self.algorithm_config.model)
+        model_constraints = get_model_constraints(self.algorithm_config)
         model_constraints.validate_spatial_shape(self.data_config.patching.patch_size)
 
         return self
@@ -195,7 +197,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
             Validated configuration.
         """
         if self.data_config.channels is not None:
-            model_constraints = get_model_constraints(self.algorithm_config.model)
+            model_constraints = get_model_constraints(self.algorithm_config)
             model_constraints.validate_input_channels(len(self.data_config.channels))
 
         return self
@@ -328,7 +330,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
 
     def is_supervised(self) -> bool:
         """
-        Return whether the algorithm is supervised.
+        Whether the algorithm is supervised.
 
         This is true for CARE and N2N, and false for N2V. This is used to determine
         whether a target is required for training.
