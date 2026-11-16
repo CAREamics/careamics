@@ -1,6 +1,7 @@
 """Tests for the checkpoint record logger."""
 
 import json
+from contextlib import nullcontext as no_error
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -14,12 +15,13 @@ from careamics.lightning.loggers import (
 from careamics.lightning.loggers.checkpoint_record_logger import (
     CHECKPOINT_RECORD_BACKUP_FILENAME,
     CHECKPOINT_RECORD_FILENAME,
+    get_checkpoint_record_data,
     get_checkpoints,
+    save_checkpoint_record,
 )
 
 
-@pytest.fixture
-def model_checkpoint(tmp_path: Path) -> Mock:
+def create_model_checkpoint(tmp_path: Path, mode: str) -> Mock:
     """Create a mocked model checkpoint callback."""
     checkpoint_dir = tmp_path / "checkpoints" / "experiment_0"
     callback = Mock(spec=ModelCheckpoint)
@@ -27,7 +29,7 @@ def model_checkpoint(tmp_path: Path) -> Mock:
     callback.last_model_path = str(checkpoint_dir / "experiment_last.ckpt")
     callback.best_model_path = str(checkpoint_dir / "experiment_epoch_02.ckpt")
     callback.monitor = "val_loss"
-    callback.mode = "min"
+    callback.mode = mode
     callback.save_top_k = 2
     callback.best_k_models = {
         str(checkpoint_dir / "experiment_epoch_01.ckpt"): 0.4,
@@ -44,11 +46,14 @@ def model_checkpoint(tmp_path: Path) -> Mock:
     return callback
 
 
+pytest.mark.parametrize("mode", ["min", "max", "unrecognized"])
+
+
 def test_after_save_checkpoint_creates_record(
-    model_checkpoint: Mock,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
     """Test that the post-save hook creates a JSON record."""
+    model_checkpoint = create_model_checkpoint(tmp_path, mode)
     logger = CheckpointRecordLogger("best")
     checkpoint_dir = Path(model_checkpoint.dirpath)
     checkpoint_paths = [
@@ -63,8 +68,21 @@ def test_after_save_checkpoint_creates_record(
         "get_checkpoints",
         lambda *_args, **_kwargs: checkpoint_paths,
     )
+    best_k = [
+        {"name": "experiment_epoch_02.ckpt", "score": 0.2},
+        {"name": "experiment_epoch_01.ckpt", "score": 0.4},
+    ]
 
-    logger.after_save_checkpoint(model_checkpoint)
+    expected_error = no_error()
+    if model_checkpoint.mode == "max":
+        best_k = best_k[::-1]
+    elif model_checkpoint.mode not in ["min", "max"]:
+        expected_error = pytest.raises(
+            ValueError, match="Unrecognized checkpoint monitoring mode"
+        )
+
+    with expected_error:
+        logger.after_save_checkpoint(model_checkpoint)
 
     with (checkpoint_dir / CHECKPOINT_RECORD_FILENAME).open() as file:
         record = json.load(file)
@@ -72,11 +90,8 @@ def test_after_save_checkpoint_creates_record(
         "last": "experiment_last.ckpt",
         "best": "experiment_epoch_02.ckpt",
         "monitor": "val_loss",
-        "mode": "min",
-        "best_k": [
-            {"name": "experiment_epoch_02.ckpt", "score": 0.2},
-            {"name": "experiment_epoch_01.ckpt", "score": 0.4},
-        ],
+        "mode": model_checkpoint.mode,
+        "best_k": best_k,
         "checkpoints": [
             "experiment_epoch_01.ckpt",
             "experiment_epoch_02.ckpt",
@@ -138,6 +153,15 @@ def test_get_checkpoints_updates_checkpoint_list(tmp_path: Path) -> None:
     ]
 
 
+def test_no_checkpoints_record(tmp_path: Path):
+    model_checkpoint = create_model_checkpoint(tmp_path, "min")
+    model_checkpoint.best_k_models = {}
+    model_checkpoint.best_model_path = ""
+
+    data = get_checkpoint_record_data(model_checkpoint, "best")
+    assert data["selected"] is None
+
+
 def test_finalize_removes_deleted_checkpoint_from_record(
     model_checkpoint: Mock,
 ) -> None:
@@ -153,3 +177,17 @@ def test_finalize_removes_deleted_checkpoint_from_record(
     with record_path.open() as file:
         finalized_record = json.load(file)
     assert deleted_checkpoint.name not in finalized_record["checkpoints"]
+
+
+def test_dirpath_not_configured_error(model_checkpoint: Mock):
+    """Test there is an error if ModelCheckpoint.dirpath is None."""
+    model_checkpoint.dirpath = None
+    with pytest.raises(ValueError, match="`dirpath` configured"):
+        save_checkpoint_record(model_checkpoint, "best")
+
+
+# just to increase test coverage
+def test_logger_identity() -> None:
+    """Test required abstract properties of logger."""
+    logger = CheckpointRecordLogger("best")
+    assert (logger.name, logger.version) == ("checkpoint_record", 0)

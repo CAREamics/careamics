@@ -35,48 +35,6 @@ class CheckpointRecordLogger(Logger):
         self.selected_checkpoint: Literal["best", "last"] = selected_checkpoint
         self._checkpoint_callback: ModelCheckpoint | None = None
 
-    @property
-    def name(self) -> str:
-        """Return the logger name.
-
-        Returns
-        -------
-        str
-            Logger name.
-        """
-        return "checkpoint_record"
-
-    @property
-    def version(self) -> int:
-        """Return the logger version.
-
-        Returns
-        -------
-        int
-            Logger version.
-        """
-        return 0
-
-    def log_hyperparams(self, params: dict[str, Any] | Namespace) -> None:
-        """Ignore hyperparameters.
-
-        Parameters
-        ----------
-        params : dict[str, Any] or argparse.Namespace
-            Hyperparameters supplied by Lightning.
-        """
-
-    def log_metrics(self, metrics: dict[str, float], step: int | None = None) -> None:
-        """Ignore metrics.
-
-        Parameters
-        ----------
-        metrics : dict[str, float]
-            Metrics supplied by Lightning.
-        step : int | None, default=None
-            Training step associated with the metrics.
-        """
-
     @rank_zero_only
     def after_save_checkpoint(self, checkpoint_callback: ModelCheckpoint) -> None:
         """Save the checkpoint record after a checkpoint is written.
@@ -89,6 +47,8 @@ class CheckpointRecordLogger(Logger):
         save_checkpoint_record(checkpoint_callback, self.selected_checkpoint)
         self._checkpoint_callback = checkpoint_callback
 
+    # important to implement
+    # (checkpoints may have been deleted since the last `after_save_checkpoints` call)
     @rank_zero_only
     def finalize(self, status: str) -> None:
         """Refresh the checkpoint record after training.
@@ -102,6 +62,52 @@ class CheckpointRecordLogger(Logger):
         self._checkpoint_callback = None
         if checkpoint_callback is not None:
             save_checkpoint_record(checkpoint_callback, self.selected_checkpoint)
+
+    # required abstract property
+    @property
+    def name(self) -> str:
+        """Return the logger name.
+
+        Returns
+        -------
+        str
+            Logger name.
+        """
+        return "checkpoint_record"
+
+    # required abstract property
+    @property
+    def version(self) -> int:
+        """Return the logger version.
+
+        Returns
+        -------
+        int
+            Logger version.
+        """
+        return 0
+
+    # required abstract method
+    def log_hyperparams(self, params: dict[str, Any] | Namespace) -> None:
+        """Ignore hyperparameters.
+
+        Parameters
+        ----------
+        params : dict[str, Any] or argparse.Namespace
+            Hyperparameters supplied by Lightning.
+        """
+
+    # required abstract method
+    def log_metrics(self, metrics: dict[str, float], step: int | None = None) -> None:
+        """Ignore metrics.
+
+        Parameters
+        ----------
+        metrics : dict[str, float]
+            Metrics supplied by Lightning.
+        step : int | None, default=None
+            Training step associated with the metrics.
+        """
 
 
 def save_checkpoint_record(
@@ -118,7 +124,11 @@ def save_checkpoint_record(
         Checkpoint type selected by default for prediction.
     """
     if model_checkpoint.dirpath is None:
-        raise ValueError("ModelCheckpoint.dirpath must be set.")
+        # Error is only relevant for users of the lightning API
+        raise ValueError(
+            "Lightning's `ModelCheckpoint` must have `dirpath` configured to log a "
+            "checkpoint record."
+        )
 
     checkpoint_dir = Path(model_checkpoint.dirpath)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -189,6 +199,7 @@ def get_checkpoint_record_data(
         case _, "best":
             data["selected"] = data[selected_checkpoint]
         case _, _:
+            # should not be reachable
             raise ValueError("Error selecting checkpoint.")
 
     return data
@@ -215,6 +226,7 @@ def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
             record = json.load(file)
 
         # extract recorded checkpoints; remove those that do not exist
+        # (checkpoints bumped out of the top k may be deleted.)
         recorded_names: list[str] = record.get("checkpoints", [])
         recorded_paths = [
             checkpoint_path
@@ -235,6 +247,7 @@ def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
     updated_paths = recorded_paths + new_paths
 
     # ensure last checkpoint is always last
+    # (it won't appear as a new checkpoint if it is overwritten with the same name)
     if last_path is not None:
         try:
             last_idx = updated_paths.index(last_path)
