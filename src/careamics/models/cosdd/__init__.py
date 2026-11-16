@@ -1,4 +1,8 @@
-"""COSDD networks, ported from https://github.com/krulllab/COSDD."""
+"""COSDD networks.
+
+Ported from https://github.com/krulllab/COSDD, MIT License,
+Copyright (c) 2023 krulllab.
+"""
 
 __all__ = [
     "COSDDNetworks",
