@@ -4,6 +4,5 @@ HDN = "Hierarchical DivNoising"
 
 HDN_DESCRIPTION = (
     "HDN leverages a hierarchical VAE to perform image "
-    "restoration. It is designed to be interpretable and unsupervised, "
-    "making it suitable for a wide range of microscopy images."
+    "restoration, providing uncertainty estimates, and capable of removing correlated noise."
 )
