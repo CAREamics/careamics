@@ -1569,10 +1569,19 @@ class CAREamist:
             Paths to the cover images.
         channel_names : list of str, default=None
             Channel names.
+
+        Raises
+        ------
+        NotImplementedError
+            If the algorithm is PN2V.
         """
         import numpy as np
 
         from .model_io import export_to_bmz
+        from .model_io.bmz_io import check_bmz_export_supported
+
+        # fail before the prediction
+        check_bmz_export_supported(self.config)
 
         output_patch, _ = self.predict(
             pred_data=input_array,
