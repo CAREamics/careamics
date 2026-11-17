@@ -3,6 +3,13 @@
 Ported from (https://github.com/krulllab/COSDD, `models/nn.py`), MIT License,
 Copyright (c) 2023 krulllab.
 
+`ResidualBlock`, `GateLayer`, `MergeLayer`, `BottomUpLayer`, `TopDownLayer` and
+`NormalStochasticBlock` have the same names as classes in `careamics.models.lvae`
+(HDN, MicroSplit), but they are not interchangeable: their signatures and outputs
+differ (e.g. `NormalStochasticBlock` here returns the parameters of q(z|x) and p(z),
+and `LadderVAE` computes the KL divergence), and they implement COSDD specifics
+(activation checkpointing, `scale_initialisation`, the COSDD downsampling scheme).
+They are kept as a close port so that the networks match the reference.
 """
 
 from collections.abc import Callable, Sequence
