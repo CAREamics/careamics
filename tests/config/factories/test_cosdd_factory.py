@@ -3,6 +3,7 @@
 import pytest
 
 from careamics.config import (
+    COSDDAlgorithm,
     COSDDConfiguration,
     create_advanced_cosdd_config,
     create_cosdd_config,
@@ -109,6 +110,21 @@ def test_optimization_parameters():
     assert algorithm_config.lr_scheduler.name == "StepLR"
     assert algorithm_config.lr_scheduler.parameters == {"step_size": 10}
     assert algorithm_config.n_grad_batches == 2
+
+
+@pytest.mark.parametrize(
+    "lr_scheduler_params, expected",
+    [(None, {"factor": 0.1, "patience": 25}), ({"patience": 5}, {"patience": 5})],
+)
+def test_plateau_scheduler_parameters(lr_scheduler_params, expected):
+    """Test that `ReduceLROnPlateau` defaults to the `COSDDAlgorithm` parameters."""
+    config = _create(lr_scheduler_params=lr_scheduler_params)
+    lr_scheduler = config.algorithm_config.lr_scheduler
+
+    assert lr_scheduler.name == "ReduceLROnPlateau"
+    assert lr_scheduler.parameters == expected
+    if lr_scheduler_params is None:
+        assert lr_scheduler == COSDDAlgorithm.model_fields["lr_scheduler"].default
 
 
 def test_augmentations():
