@@ -311,3 +311,33 @@ def test_pn2v_multichannel_train_and_predict(
     assert np.isfinite(predicted[0]).all()
     # each channel is predicted in the intensity range of its own input channel
     assert predicted[0][:, 1].mean() > predicted[0][:, 0].mean() + 500
+
+
+def test_careamist_train_noise_model_attaches_to_pn2v(tmp_path: Path) -> None:
+    """`CAREamist.train_noise_model` fits a PN2V noise model and attaches it."""
+    rng = np.random.default_rng(0)
+    signal = rng.uniform(0, 255, (4, 16, 16)).astype(np.float32)
+    observation = signal + rng.normal(0, 10, signal.shape).astype(np.float32)
+    engine = CAREamist(_pn2v_config(), work_dir=tmp_path)
+
+    noise_model = engine.train_noise_model(
+        signal,
+        observation,
+        axes="SYX",
+        n_gaussian=1,
+        n_coeff=2,
+        n_epochs=2,
+        save=False,
+        lower_clip=0.5,
+        upper_clip=99.5,
+    )
+
+    assert engine.model._raw_noise_model is noise_model
+    expected = np.float32(np.percentile(signal, [0.5, 99.5]))
+    np.testing.assert_array_equal(
+        [
+            noise_model.nmodel_0.min_signal.item(),
+            noise_model.nmodel_0.max_signal.item(),
+        ],
+        expected,
+    )
