@@ -11,6 +11,7 @@ from torchmetrics import MetricCollection
 
 from careamics.config.noise_model import MultiChannelNMConfig
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
+from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
     multichannel_noise_model_factory,
@@ -108,6 +109,26 @@ def load_noise_model_from_checkpoint(
     if payload is None:
         return None
     return multichannel_noise_model_factory(MultiChannelNMConfig(**payload))
+
+
+def warn_ignored_target(module: L.LightningModule, algorithm_name: str) -> None:
+    """Warn that a self-supervised algorithm ignores the training targets.
+
+    Parameters
+    ----------
+    module : L.LightningModule
+        The Lightning module being fitted, attached to a trainer with a
+        `CareamicsDataModule`.
+    algorithm_name : str
+        Algorithm name used in the warning.
+    """
+    datamodule = module.trainer.datamodule  # type: ignore[attr-defined]
+    assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
+    if datamodule._data.train_data_target is not None:
+        logger.warning(
+            f"{algorithm_name} is a self-supervised algorithm, arguments passed to "
+            "`train_data_target` will be ignored.",
+        )
 
 
 def log_training_stats(module: L.LightningModule, loss: Any, batch_size: int) -> None:

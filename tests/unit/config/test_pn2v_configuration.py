@@ -75,3 +75,29 @@ def test_pn2v_normalization_validated_against_input_channels(normalization):
     cfg = instantiate_config(config)
 
     assert cfg.data_config.normalization.name == normalization["name"]
+
+
+@pytest.mark.parametrize(
+    "metric, rejected",
+    [("train_loss", False), ("train_loss_epoch", False), ("val_loss", True)],
+)
+def test_pn2v_monitor_with_no_validation(metric: str, rejected: bool):
+    """Without validation patches, PN2V must monitor a training metric."""
+    config = _pn2v_dict(
+        algo_kwargs={"monitor_metric": metric},
+        data_kwargs={"n_val_patches": 0},
+    )
+
+    if rejected:
+        with pytest.raises(ValueError, match="No validation data"):
+            instantiate_config(config)
+    else:
+        instantiate_config(config)
+
+
+def test_pn2v_target_axes_must_be_none():
+    """PN2V rejects target axes, like N2V."""
+    config = _pn2v_dict(data_kwargs={"target_axes": "YX"})
+
+    with pytest.raises(ValueError, match="PN2V does not support"):
+        instantiate_config(config)
