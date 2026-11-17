@@ -1560,6 +1560,12 @@ class CAREamist:
         NotImplementedError
             If the model is a COSDD model.
         """
+        # fail before running a prediction
+        if isinstance(self.config, COSDDConfiguration):
+            raise NotImplementedError(
+                "Export to the BioImage Model Zoo is not implemented for COSDD."
+            )
+
         import numpy as np
 
         from .model_io import export_to_bmz

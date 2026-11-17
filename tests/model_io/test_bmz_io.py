@@ -107,3 +107,30 @@ def test_bmz_export_cosdd_not_implemented(tmp_path):
             input_array=array,
             output_array=array,
         )
+
+
+def test_careamist_bmz_export_cosdd_not_implemented(tmp_path, monkeypatch):
+    """Test that `CAREamist` refuses to export COSDD before predicting."""
+    config = create_advanced_cosdd_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(16, 16),
+        model_params={"s_code_channels": 8, "n_layers": 2, "checkpointed": False},
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+
+    def _predict(*args, **kwargs):
+        pytest.fail("`export_to_bmz` predicted before checking the algorithm.")
+
+    monkeypatch.setattr(careamist, "predict", _predict)
+
+    with pytest.raises(NotImplementedError, match="COSDD"):
+        careamist.export_to_bmz(
+            path_to_archive=tmp_path / "model.zip",
+            friendly_model_name="COSDD",
+            input_array=np.zeros((16, 16), dtype=np.float32),
+            authors=[{"name": "Amod", "affiliation": "El"}],
+            general_description="A COSDD model.",
+            data_description="My data.",
+        )
