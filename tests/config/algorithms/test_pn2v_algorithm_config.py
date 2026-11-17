@@ -1,22 +1,13 @@
-import pytest
+"""Tests for the PN2V algorithm configuration."""
 
 from careamics.config.algorithms import PN2VAlgorithm
 
 
-def test_pn2v_requires_noise_model():
-    """Check that PN2V algorithm fails without a noise model."""
-    model = {
-        "architecture": "UNet",
-        "in_channels": 1,
-        "num_classes": 1,
-        "n2v2": False,
-    }
+def test_pn2v_algorithm_has_no_noise_model_field():
+    """The noise model is a runtime object, not a configuration field."""
+    algorithm = PN2VAlgorithm(
+        model={"architecture": "UNet", "in_channels": 1, "num_classes": 4}
+    )
 
-    # Test that PN2V algorithm fails without noise model
-    with pytest.raises(ValueError):
-        PN2VAlgorithm(
-            algorithm="pn2v",
-            loss="n2v",
-            model=model,
-            # Missing noise_model parameter
-        )
+    assert "noise_model" not in PN2VAlgorithm.model_fields
+    assert "noise_model" not in algorithm.model_dump()

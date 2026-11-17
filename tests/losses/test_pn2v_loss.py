@@ -1,39 +1,22 @@
 """Test PN2V loss function."""
 
-from pathlib import Path
-
-import numpy as np
 import torch
 
-from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.losses import pn2v_loss
-from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
+from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 
 
-# TODO rewrite
-def test_pn2v_loss_basic(tmp_path: Path, create_dummy_noise_model):
-    """Test that PN2V loss function works with basic inputs."""
-    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
-
+def test_pn2v_loss_basic(pn2v_noise_model: MultiChannelNoiseModel):
+    """The PN2V loss is a finite scalar."""
     batch_size, height, width = 2, 32, 32
+    generator = torch.Generator().manual_seed(0)
 
-    samples = torch.randn(batch_size, 1, height, width)
-    labels = torch.randn(batch_size, 1, height, width)
-    masks = torch.randint(0, 2, (batch_size, 1, height, width)).float()
+    samples = torch.randn(batch_size, 4, height, width, generator=generator)
+    labels = torch.randn(batch_size, 1, height, width, generator=generator)
+    masks = torch.randint(0, 2, (batch_size, 1, height, width), generator=generator)
 
-    # Create a noise model config
-    nm_config = GaussianMixtureNMConfig(
-        model_type="GaussianMixtureNoiseModel", path=tmp_path / "dummy_noise_model.npz"
-    )
+    loss_value = pn2v_loss(samples, labels, masks.float(), pn2v_noise_model.nmodel_0)
 
-    # TODO Create noise model (we'll need to mock this properly)
-    # For now, create a simple mock
-    noise_model = GaussianMixtureNoiseModel(nm_config)
-
-    # Test that loss function can be called
-    try:
-        loss_value = pn2v_loss(samples, labels, masks, noise_model)
-        assert isinstance(loss_value, torch.Tensor)
-        assert loss_value.dim() == 0  # Should be a scalar
-    except Exception:
-        raise
+    assert isinstance(loss_value, torch.Tensor)
+    assert loss_value.dim() == 0
+    assert torch.isfinite(loss_value)
