@@ -5,15 +5,12 @@ __all__ = [
     "CareamicsDataModule",
     "ConfigSaverCallback",
     "ImageStackLoading",
-    "MicroSplitDataModule",
     "N2VModule",
     "PredictionStoppedException",
     "ProgressBarCallback",
     "ReadFuncLoading",
     "StopPredictionCallback",
     "convert_prediction",
-    "create_microsplit_predict_datamodule",
-    "create_microsplit_train_datamodule",
     "load_config_from_checkpoint",
     "load_module_from_checkpoint",
 ]
@@ -28,11 +25,8 @@ from .callbacks import (
     StopPredictionCallback,
 )
 from .data import CareamicsDataModule
-from .data.microsplit_data_module import (
-    MicroSplitDataModule,
-    create_microsplit_predict_datamodule,
-    create_microsplit_train_datamodule,
-)
+
+# exporting for lightning-API user's convenience
 from .modules import CAREModule, N2VModule
 from .prediction import convert_prediction
 from .utils import load_config_from_checkpoint, load_module_from_checkpoint
