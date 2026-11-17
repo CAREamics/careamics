@@ -19,6 +19,7 @@ def test_defaults():
     assert config.lr_scheduler.name == "ReduceLROnPlateau"
     assert config.lr_scheduler.parameters == {"factor": 0.1, "patience": 25}
     assert config.n_grad_batches == 4
+    assert config.direct_prediction is None
     assert not config.is_supervised()
 
 

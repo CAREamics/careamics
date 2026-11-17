@@ -460,6 +460,14 @@ def test_predict_cosdd(tmp_path: Path):
     assert predicted[0].shape == (2, 32, 32)
     np.testing.assert_array_equal(predicted[0], predicted_again[0])
 
+    # a single signal sample, stochastic
+    careamist.model.config.direct_prediction = False
+    predicted, _ = careamist.predict(train_array)
+    predicted_again, _ = careamist.predict(train_array)
+    assert predicted[0].shape == (2, 32, 32)
+    assert not np.array_equal(predicted[0], predicted_again[0])
+    careamist.model.config.direct_prediction = None
+
     # average of samples, with their spread as uncertainty
     predicted, uncertainty, _ = careamist.predict(train_array, n_predictions=3)
     assert predicted[0].shape == (2, 32, 32)
