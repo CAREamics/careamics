@@ -49,7 +49,8 @@ def get_downsampling(input_shape: Sequence[int], n_layers: int) -> list[list[int
     """Compute the binary downsampling of each layer along each spatial axis.
 
     Each axis is halved at most `floor(log2(size)) - 1` times. Layers that do not
-    downsample are spread out by removing downsampling from every other layer.
+    downsample are spread out by removing downsampling from every other layer first,
+    then from the remaining layers.
 
     Parameters
     ----------
@@ -63,19 +64,17 @@ def get_downsampling(input_shape: Sequence[int], n_layers: int) -> list[list[int
     list of list of int
         Binary downsampling, of shape (n_layers, len(input_shape)).
     """
-    num_halves = [math.floor(math.log2(s)) - 1 for s in input_shape]
-    difference = [max(n_layers - nh, 0) for nh in num_halves]
-    n_dim = len(input_shape)
-    downsampling = [[1 for _ in range(n_dim)] for _ in range(n_layers)]
-    for i in range(n_dim):
-        j = 0
-        while difference[i] > 0:
-            for k in range(n_layers // 2):
-                downsampling[j + k * 2][i] = 0
-                difference[i] -= 1
-                if difference[i] == 0:
-                    break
-            j += 1
+    # order in which downsampling is removed: even layers, odd layers, then the last
+    # layer if `n_layers` is odd
+    half = n_layers // 2
+    order = [2 * k for k in range(half)] + [2 * k + 1 for k in range(half)]
+    order += list(range(2 * half, n_layers))
+
+    downsampling = [[1] * len(input_shape) for _ in range(n_layers)]
+    for i, size in enumerate(input_shape):
+        num_halves = math.floor(math.log2(size)) - 1
+        for j in order[: max(n_layers - num_halves, 0)]:
+            downsampling[j][i] = 0
 
     return downsampling
 

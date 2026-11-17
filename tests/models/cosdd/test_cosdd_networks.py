@@ -52,7 +52,7 @@ def test_get_downsampling(input_shape, n_layers, expected):
 
 
 @pytest.mark.parametrize("input_shape", [(2, 2), (8, 64), (16, 32, 256), (5, 33)])
-@pytest.mark.parametrize("n_layers", [2, 4, 8, 14])
+@pytest.mark.parametrize("n_layers", [2, 3, 4, 5, 8, 14])
 def test_get_downsampling_count(input_shape, n_layers):
     """Test that each axis is halved at most floor(log2(size)) - 1 times."""
     downsampling = get_downsampling(input_shape, n_layers)
