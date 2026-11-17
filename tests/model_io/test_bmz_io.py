@@ -1,9 +1,11 @@
 import numpy as np
+import pytest
 import torch
 from bioimageio.spec import InvalidDescr, load_description
 from torch import Tensor
 
 from careamics import CAREamist
+from careamics.config.factories import create_advanced_pn2v_config
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.model_io.bmz_io import _export_state_dict, _load_state_dict
 from careamics.utils.version import get_careamics_version
@@ -78,3 +80,52 @@ def test_bmz_io(tmp_path, ordered_array, pre_trained):
         predicted = careamist.model.forward(torch_array).numpy().squeeze()
         predicted_loaded = model.forward(torch_array).numpy().squeeze()
     np.testing.assert_almost_equal(predicted_loaded, predicted, decimal=3)
+
+
+def _pn2v_careamist(tmp_path) -> CAREamist:
+    """Return an untrained PN2V `CAREamist`."""
+    config = create_advanced_pn2v_config(
+        experiment_name="pn2v_bmz",
+        data_type="array",
+        axes="YX",
+        patch_size=(32, 32),
+        batch_size=2,
+        n_prior_samples=2,
+        model_params={"depth": 2, "num_channels_init": 8},
+    )
+    return CAREamist(config, work_dir=tmp_path)
+
+
+def test_export_to_bmz_rejects_pn2v(tmp_path):
+    """PN2V cannot be exported: the UNet outputs prior samples, not the MMSE."""
+    careamist = _pn2v_careamist(tmp_path)
+    array = np.zeros((1, 1, 32, 32), dtype=np.float32)
+
+    with pytest.raises(NotImplementedError, match="PN2V"):
+        export_to_bmz(
+            model=careamist.model,
+            config=careamist.config,
+            path_to_archive=tmp_path / "model.zip",
+            model_name="PN2V",
+            general_description="PN2V.",
+            data_description="My data.",
+            authors=[{"name": "Amod", "affiliation": "El"}],
+            input_array=array,
+            output_array=array,
+        )
+    assert not (tmp_path / "model.zip").exists()
+
+
+def test_careamist_export_to_bmz_rejects_pn2v_before_predict(tmp_path):
+    """`CAREamist.export_to_bmz` fails before it predicts the example output."""
+    careamist = _pn2v_careamist(tmp_path)
+
+    with pytest.raises(NotImplementedError, match="PN2V"):
+        careamist.export_to_bmz(
+            path_to_archive=tmp_path / "model.zip",
+            friendly_model_name="PN2V",
+            input_array=np.zeros((32, 32), dtype=np.float32),
+            authors=[{"name": "Amod", "affiliation": "El"}],
+            general_description="PN2V.",
+            data_description="My data.",
+        )
