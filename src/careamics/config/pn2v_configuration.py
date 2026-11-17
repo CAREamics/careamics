@@ -21,6 +21,23 @@ class PN2VConfiguration(Configuration):
     algorithm_config: PN2VAlgorithm
 
     @model_validator(mode="after")
+    def validate_norm_against_channels(self: Self) -> Self:
+        """Validate the normalization against the input channels only.
+
+        Overrides `Configuration.validate_norm_against_channels`. The `num_classes`
+        outputs of PN2V are prior samples of the input channels, not separate output
+        channels, and they are denormalized with the input statistics.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+        """
+        n_channels = self.algorithm_config.model.get_num_input_channels()
+        self.data_config.normalization.validate_size(n_channels, n_channels)
+        return self
+
+    @model_validator(mode="after")
     def target_axes_must_be_none(self: Self) -> Self:
         """Ensure PN2V does not use separate target axes.
 

@@ -40,3 +40,38 @@ def test_pn2v_mask_pixel_percentage():
     )
     with pytest.raises(ValueError, match="blind-spot"):
         instantiate_config(config)
+
+
+@pytest.mark.parametrize("independent_channels", [True, False])
+def test_pn2v_multichannel_config(independent_channels: bool):
+    """Two input channels with four prior samples each instantiate."""
+    config = _pn2v_dict(
+        n_channels_in=2,
+        n_channels_out=8,
+        axes="CYX",
+        data_kwargs={"channels": [0, 1]},
+    )
+    config["algorithm_config"]["model"]["independent_channels"] = independent_channels
+
+    cfg = instantiate_config(config)
+
+    assert isinstance(cfg, PN2VConfiguration)
+    assert cfg.algorithm_config.n_prior_samples == 4
+
+
+@pytest.mark.parametrize(
+    "normalization",
+    [
+        {"name": "quantile", "per_channel": True},
+        {"name": "mean_std", "input_means": [1.0], "input_stds": [2.0]},
+        {"name": "min_max", "input_mins": [0.0], "input_maxes": [10.0]},
+    ],
+)
+def test_pn2v_normalization_validated_against_input_channels(normalization):
+    """Prior samples are not output channels: per-channel normalization only has to
+    match the input channels."""
+    config = _pn2v_dict(data_kwargs={"normalization": normalization})
+
+    cfg = instantiate_config(config)
+
+    assert cfg.data_config.normalization.name == normalization["name"]

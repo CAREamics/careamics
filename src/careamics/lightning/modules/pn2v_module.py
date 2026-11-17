@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import lightning as L
 import torch
+from lightning.pytorch.trainer.states import TrainerFn
 from torch import nn
 from torchmetrics import MetricCollection
 
@@ -13,8 +14,15 @@ from careamics.config import PN2VAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
+from careamics.dataset.normalization import (
+    MeanStdNormalization,
+    NoNormalization,
+    RangeNormalization,
+)
 from careamics.dataset.normalization.normalization import Normalization
+from careamics.dataset.normalization.utils import broadcast_stats
 from careamics.losses import pn2v_loss
+from careamics.losses.n2v_losses import pn2v_likelihoods
 from careamics.metrics import SIPSNR
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
@@ -42,30 +50,43 @@ if TYPE_CHECKING:
 def pn2v_mmse(
     samples: torch.Tensor,
     observations: torch.Tensor,
-    noise_model: GaussianMixtureNoiseModel,
+    noise_model: GaussianMixtureNoiseModel | MultiChannelNoiseModel,
 ) -> torch.Tensor:
-    """Likelihood-weighted mean of prior samples.
+    """Likelihood-weighted mean of the prior samples of each channel.
 
-    ``samples`` is ``(batch, K, ...)`` and ``observations`` broadcasts over the sample
-    axis. The result is the MMSE estimate used for the reported denoised image.
+    The samples are channel-major: input channel `c` owns the samples
+    `[c * K, (c + 1) * K)`, and they are weighted with the noise model of channel `c`.
+    The result is the MMSE estimate used for the denoised image.
 
     Parameters
     ----------
     samples : torch.Tensor
-        Denormalized prior samples, shape ``(batch, K, ...)``.
+        Denormalized prior samples, shape `(B, C * K, ...)`.
     observations : torch.Tensor
-        Denormalized noisy observations, shape ``(batch, 1, ...)``.
-    noise_model : GaussianMixtureNoiseModel
-        Noise model used to evaluate ``p(observation | sample)``.
+        Denormalized noisy observations, shape `(B, C, ...)`.
+    noise_model : GaussianMixtureNoiseModel or MultiChannelNoiseModel
+        Noise model with one channel per observation channel. A single
+        `GaussianMixtureNoiseModel` is only valid for one channel.
 
     Returns
     -------
     torch.Tensor
-        MMSE estimate, shape ``(batch, 1, ...)``.
+        MMSE estimate, shape `(B, C, ...)`.
     """
-    likelihoods = noise_model.likelihood(observations, samples)
-    return torch.sum(likelihoods * samples, dim=1, keepdim=True) / torch.sum(
-        likelihoods, dim=1, keepdim=True
+    likelihoods = pn2v_likelihoods(samples, observations, noise_model)
+    n_samples = samples.shape[1] // observations.shape[1]
+    return torch.cat(
+        [
+            torch.sum(
+                channel_likelihoods
+                * samples[:, channel * n_samples : (channel + 1) * n_samples],
+                dim=1,
+                keepdim=True,
+            )
+            / torch.sum(channel_likelihoods, dim=1, keepdim=True)
+            for channel, channel_likelihoods in enumerate(likelihoods)
+        ],
+        dim=1,
     )
 
 
@@ -76,6 +97,11 @@ class PN2VModule(L.LightningModule):
     with `set_noise_model` (or `CAREamist.train(noise_model=...)`) before training or
     prediction. The noise model is saved in the checkpoints, outside the
     `state_dict`, and restored when a checkpoint is loaded.
+
+    The UNet predicts `K` prior samples per pixel and input channel. The outputs are
+    channel-major: input channel `c` owns the outputs `[c * K, (c + 1) * K)`, and
+    is evaluated with the noise model of channel `c`. Predictions are the MMSE
+    estimates, one per input channel.
 
     Parameters
     ----------
@@ -111,15 +137,23 @@ class PN2VModule(L.LightningModule):
         # registered as a submodule and stays out of the `state_dict`.
         self._raw_noise_model: MultiChannelNoiseModel | None = None
 
-        # One diagnostic metric on the prior mean. Paper PSNR is computed outside
-        # this module, on the MMSE prediction.
+        # Per-channel input statistics used to denormalize samples and observations,
+        # cached at the start of each stage. They are plain attributes, not buffers,
+        # so they are not saved in the `state_dict`.
+        self._denorm_offset: torch.Tensor | None = None
+        self._denorm_scale: torch.Tensor | None = None
+
+        # Diagnostic metric on the prior mean of each channel. The PSNR of the MMSE
+        # prediction is computed outside this module.
+        n_channels = self.config.model.in_channels
         self.metrics: MetricCollection = MetricCollection(
             {
-                "SIPSNR_0": SIPSNR(
-                    n_channels=1,
-                    output_channel=0,
+                f"SIPSNR_{i}": SIPSNR(
+                    n_channels=n_channels,
+                    output_channel=i,
                     use_scale_invariance=True,
                 )
+                for i in range(n_channels)
             }
         )
 
@@ -173,16 +207,16 @@ class PN2VModule(L.LightningModule):
         if restored is not None:
             object.__setattr__(self, "_raw_noise_model", restored)
 
-    def _noise_model(self) -> GaussianMixtureNoiseModel:
-        """Return the noise model of the input channel.
+    def _noise_model(self) -> MultiChannelNoiseModel:
+        """Return the noise model.
 
         This is a method and not a property, so that `hasattr` does not hide the
         error.
 
         Returns
         -------
-        GaussianMixtureNoiseModel
-            Noise model of the input channel.
+        MultiChannelNoiseModel
+            Noise model, one channel per input channel.
 
         Raises
         ------
@@ -194,16 +228,143 @@ class PN2VModule(L.LightningModule):
                 "PN2V requires a noise model. Provide one with "
                 "`CAREamist.train(noise_model=...)` or `PN2VModule.set_noise_model`."
             )
-        return cast(GaussianMixtureNoiseModel, self._raw_noise_model.nmodel_0)
+        return self._raw_noise_model
 
-    def _noise_model_to_device(self) -> None:
-        """Check that a noise model is set and move it to the module device."""
-        self._noise_model()
-        assert self._raw_noise_model is not None
-        self._raw_noise_model.to_device(self.device)
+    def _cache_denormalization(self, normalization: Normalization) -> None:
+        """Cache the per-channel input statistics of `normalization`.
+
+        Samples and observations are always denormalized with the input statistics,
+        also when the dataset has target statistics: the samples are predictions of
+        the input. The arithmetic matches the `denormalize` method of each
+        normalization.
+
+        Parameters
+        ----------
+        normalization : Normalization
+            Normalization of the dataset of the current stage.
+
+        Raises
+        ------
+        TypeError
+            If the normalization type is not supported.
+        """
+        n_channels = self.config.model.in_channels
+        if isinstance(normalization, MeanStdNormalization):
+            means = broadcast_stats(normalization.input_means, n_channels, "means")
+            stds = broadcast_stats(normalization.input_stds, n_channels, "stds")
+            offset = torch.tensor(means, dtype=torch.float32)
+            scale = torch.tensor(stds, dtype=torch.float32) + normalization.eps
+        elif isinstance(normalization, RangeNormalization):
+            mins = broadcast_stats(normalization.input_mins, n_channels, "mins")
+            maxes = broadcast_stats(normalization.input_maxes, n_channels, "maxes")
+            offset = torch.tensor(mins, dtype=torch.float32)
+            scale = torch.tensor(maxes, dtype=torch.float32) - offset
+        elif isinstance(normalization, NoNormalization):
+            offset = torch.zeros(n_channels, dtype=torch.float32)
+            scale = torch.ones(n_channels, dtype=torch.float32)
+        else:
+            raise TypeError(
+                f"PN2V does not support the normalization "
+                f"{type(normalization).__name__}."
+            )
+        self._denorm_offset = offset.to(self.device)
+        self._denorm_scale = scale.to(self.device)
+
+    def _denormalize(self, array: torch.Tensor, n_samples: int = 1) -> torch.Tensor:
+        """Denormalize a channel-major array with the cached input statistics.
+
+        Parameters
+        ----------
+        array : torch.Tensor
+            Normalized array, shape `(B, C * n_samples, ...)`.
+        n_samples : int, default=1
+            Number of consecutive channels per input channel.
+
+        Returns
+        -------
+        torch.Tensor
+            Denormalized array, same shape as `array`, in `float32`.
+
+        Raises
+        ------
+        RuntimeError
+            If the statistics have not been cached.
+        """
+        if self._denorm_offset is None or self._denorm_scale is None:
+            raise RuntimeError(
+                "The normalization statistics are not set. They are read from the "
+                "datamodule at the start of fit, validation and prediction."
+            )
+        n_channels = self.config.model.in_channels
+        batch, spatial = array.shape[0], array.shape[2:]
+        stats_shape = (1, n_channels, 1) + (1,) * len(spatial)
+        scale = self._denorm_scale.to(array.device).view(stats_shape)
+        offset = self._denorm_offset.to(array.device).view(stats_shape)
+        grouped = array.to(dtype=torch.float32).reshape(
+            batch, n_channels, n_samples, *spatial
+        )
+        return (grouped * scale + offset).reshape(array.shape)
+
+    def _prior_mean(self, prediction: torch.Tensor) -> torch.Tensor:
+        """Mean of the scaled prior samples of each channel, in normalized space.
+
+        Parameters
+        ----------
+        prediction : torch.Tensor
+            Network output, shape `(B, C * K, ...)`.
+
+        Returns
+        -------
+        torch.Tensor
+            Prior mean, shape `(B, C, ...)`.
+        """
+        batch, spatial = prediction.shape[0], prediction.shape[2:]
+        samples = (prediction * self.config.sample_scale).reshape(
+            batch, self.config.model.in_channels, self.config.n_prior_samples, *spatial
+        )
+        return samples.mean(dim=2)
+
+    def _denormalized_samples(
+        self, prediction: torch.Tensor, original: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Scale network outputs, then denormalize samples and original pixels.
+
+        Parameters
+        ----------
+        prediction : torch.Tensor
+            Network output in normalized space, shape `(B, C * K, ...)`.
+        original : torch.Tensor
+            Original noisy patch in normalized space, shape `(B, C, ...)`.
+
+        Returns
+        -------
+        tuple of torch.Tensor
+            Denormalized prior samples and denormalized observations.
+        """
+        samples = self._denormalize(
+            prediction * self.config.sample_scale, self.config.n_prior_samples
+        )
+        observations = self._denormalize(original)
+        return samples, observations
+
+    def _start_stage(self, normalization: Normalization | None) -> None:
+        """Check the noise model, move it to the device and cache the statistics.
+
+        Parameters
+        ----------
+        normalization : Normalization or None
+            Normalization of the dataset of the stage. If `None`, the cached
+            statistics are kept.
+        """
+        self._noise_model().to_device(self.device)
+        if normalization is not None:
+            self._cache_denormalization(normalization)
 
     def on_fit_start(self) -> None:
-        """On fit start hook for the PN2V module."""
+        """Check the noise model and cache the training statistics.
+
+        The training statistics are also used for validation during fit.
+        """
         assert self._trainer is not None
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
         assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
@@ -212,15 +373,23 @@ class PN2VModule(L.LightningModule):
                 "PN2V is a self-supervised algorithm, arguments passed to "
                 "`train_data_target` will be ignored.",
             )
-        self._noise_model_to_device()
+        self._start_stage(datamodule.train_dataset.normalization)  # type: ignore[union-attr]
 
     def on_validation_start(self) -> None:
-        """On validation start hook for the PN2V module."""
-        self._noise_model_to_device()
+        """Check the noise model, and cache the validation statistics.
+
+        During fit, the training statistics cached in `on_fit_start` are kept.
+        """
+        normalization = None
+        if self.trainer.state.fn == TrainerFn.VALIDATING:
+            datamodule = self.trainer.datamodule  # type: ignore[attr-defined]
+            normalization = datamodule.val_dataset.normalization
+        self._start_stage(normalization)
 
     def on_predict_start(self) -> None:
-        """On predict start hook for the PN2V module."""
-        self._noise_model_to_device()
+        """Check the noise model and cache the prediction statistics."""
+        datamodule = self.trainer.datamodule  # type: ignore[attr-defined]
+        self._start_stage(datamodule.predict_dataset.normalization)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -236,55 +405,9 @@ class PN2VModule(L.LightningModule):
         Returns
         -------
         torch.Tensor
-            Network output, one channel per prior sample.
+            Network output, `K` prior samples per input channel, channel-major.
         """
         return self.model(x)
-
-    def _normalization(self) -> Normalization:
-        """Return the normalization used by the active dataloader.
-
-        Returns
-        -------
-        Normalization
-            Normalization of the dataset for the current trainer stage.
-
-        Raises
-        ------
-        RuntimeError
-            If that dataset has not been set up.
-        """
-        datamodule = self.trainer.datamodule
-        if self.trainer.predicting:
-            dataset = datamodule.predict_dataset
-        elif self.trainer.validating:
-            dataset = datamodule.val_dataset
-        else:
-            dataset = datamodule.train_dataset
-        if dataset is None:
-            raise RuntimeError("No dataset is available to denormalize PN2V samples.")
-        return dataset.normalization
-
-    def _denormalized_samples(
-        self, prediction: torch.Tensor, original: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Scale network outputs, then denormalize samples and original pixels.
-
-        Parameters
-        ----------
-        prediction : torch.Tensor
-            Network output in normalized space.
-        original : torch.Tensor
-            Original noisy patch in normalized space.
-
-        Returns
-        -------
-        tuple of torch.Tensor
-            Denormalized prior samples and denormalized observations.
-        """
-        normalization = self._normalization()
-        samples = normalization.denormalize(prediction * self.config.sample_scale)
-        observations = normalization.denormalize(original)
-        return samples, observations
 
     def training_step(
         self,
@@ -335,7 +458,7 @@ class PN2VModule(L.LightningModule):
         prediction = self.model(x_masked)
         samples, observations = self._denormalized_samples(prediction, x_original)
         val_loss = self.loss_func(samples, observations, mask, self._noise_model())
-        prior_mean = prediction.mean(dim=1, keepdim=True)
+        prior_mean = self._prior_mean(prediction)
         self.metrics(prior_mean, x_original)
         log_validation_stats(
             self, val_loss, batch_size=x_data.shape[0], metrics=self.metrics
@@ -348,7 +471,8 @@ class PN2VModule(L.LightningModule):
     ) -> ImageRegionData:
         """Prediction step.
 
-        The returned image is the MMSE estimate, not the mean of the prior samples.
+        The returned image is the MMSE estimate of each input channel, not the mean of
+        the prior samples.
 
         Parameters
         ----------
@@ -360,7 +484,8 @@ class PN2VModule(L.LightningModule):
         Returns
         -------
         ImageRegionData
-            MMSE prediction in the original intensity range.
+            MMSE prediction in the original intensity range, one channel per input
+            channel.
         """
         x = batch[0]
         x_data = cast(torch.Tensor, x.data)
