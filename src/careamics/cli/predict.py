@@ -45,8 +45,10 @@ def add_args_predict(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=None,
         help=(
-            "Only used by sampling based algorithms (e.g. MicroSplit or HDN), number "
-            "of stochastic samples to draw and average to create the final prediction."
+            "Number of stochastic predictions (at least 2) to draw and average, for "
+            "sampling-based algorithms (HDN, MicroSplit, COSDD). If omitted, a single "
+            "prediction is made; by default, COSDD then uses its direct denoiser if "
+            "one was trained."
         ),
     )
     parser.add_argument(
