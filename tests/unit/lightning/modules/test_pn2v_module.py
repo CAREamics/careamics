@@ -7,7 +7,10 @@ import pytest
 import torch
 
 from careamics import CAREamist
-from careamics.config.factories import create_advanced_pn2v_config
+from careamics.config.factories import (
+    create_advanced_n2v_config,
+    create_advanced_pn2v_config,
+)
 from careamics.dataset.normalization import (
     MeanStdNormalization,
     NoNormalization,
@@ -337,3 +340,17 @@ def test_careamist_train_noise_model_attaches_to_pn2v(tmp_path: Path) -> None:
         ],
         expected,
     )
+
+
+def test_pn2v_module_rejects_other_algorithms():
+    """Like the other UNet modules, a wrong configuration raises a `ValueError`."""
+    n2v_config = create_advanced_n2v_config(
+        experiment_name="n2v",
+        data_type="array",
+        axes="YX",
+        patch_size=[32, 32],
+        batch_size=2,
+    )
+
+    with pytest.raises(ValueError, match="must be a PN2VAlgorithm"):
+        PN2VModule(n2v_config.algorithm_config)  # type: ignore[arg-type]

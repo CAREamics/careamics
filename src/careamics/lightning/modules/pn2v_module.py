@@ -13,7 +13,6 @@ from torchmetrics import MetricCollection
 from careamics.config import PN2VAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.dataset import ImageRegionData
-from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.dataset.normalization import (
     MeanStdNormalization,
     NoNormalization,
@@ -40,6 +39,7 @@ from .module_utils import (
     log_validation_stats,
     resolve_noise_model,
     save_noise_model_to_checkpoint,
+    warn_ignored_target,
 )
 from .n2v_utils import N2VManipulate
 
@@ -127,7 +127,10 @@ class PN2VModule(L.LightningModule):
             config = algorithm_config
 
         if not isinstance(config, PN2VAlgorithm):
-            raise TypeError("algorithm_config must be a PN2VAlgorithm")
+            raise ValueError(
+                f"Parameter `algorithm_config` must be a PN2VAlgorithm Pydantic model "
+                f"(got {type(config).__name__})."
+            )
 
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
@@ -368,13 +371,8 @@ class PN2VModule(L.LightningModule):
         The training statistics are also used for validation during fit.
         """
         assert self._trainer is not None
+        warn_ignored_target(self, "PN2V")
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
-        assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
-        if datamodule._data.train_data_target is not None:
-            logger.warning(
-                "PN2V is a self-supervised algorithm, arguments passed to "
-                "`train_data_target` will be ignored.",
-            )
         self._start_stage(datamodule.train_dataset.normalization)  # type: ignore[union-attr]
 
     def on_validation_start(self) -> None:
