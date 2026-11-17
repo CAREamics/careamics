@@ -51,3 +51,23 @@ def test_pn2v_rejects_invalid_prior_samples(
                 "num_classes": num_classes,
             }
         )
+
+
+def test_pn2v_sample_scale_must_be_positive():
+    """The sample scale multiplies the network outputs and must be positive."""
+    with pytest.raises(ValueError):
+        PN2VAlgorithm(
+            model={"architecture": "UNet", "num_classes": 4},
+            sample_scale=0.0,
+        )
+
+
+def test_pn2v2_requires_median_strategy():
+    """PN2V2 uses the median pixel manipulation, like N2V2."""
+    model = {"architecture": "UNet", "num_classes": 4, "n2v2": True}
+
+    with pytest.raises(ValueError, match="median"):
+        PN2VAlgorithm(model=model)
+
+    algorithm = PN2VAlgorithm(model=model, n2v_config={"strategy": "median"})
+    assert algorithm.get_algorithm_friendly_name() == "PN2V2"

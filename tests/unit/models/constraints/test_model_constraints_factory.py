@@ -8,6 +8,7 @@ from careamics.config.algorithms import (
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
     SegAlgorithm,
 )
 from careamics.config.architectures import LVAEConfig, UNetConfig
@@ -24,6 +25,14 @@ def test_get_model_constraints_unet(algorithm):
     """UNet configs are dispatched to `UNetConstraints`."""
     constraints = get_model_constraints(
         algorithm(model=UNetConfig(architecture="UNet"))
+    )
+    assert isinstance(constraints, UNetConstraints)
+
+
+def test_get_model_constraints_pn2v():
+    """PN2V UNet configs, with prior samples as outputs, use `UNetConstraints`."""
+    constraints = get_model_constraints(
+        PN2VAlgorithm(model=UNetConfig(architecture="UNet", num_classes=800))
     )
     assert isinstance(constraints, UNetConstraints)
 
