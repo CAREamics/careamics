@@ -5,6 +5,8 @@ Adapted from the COSDD reference implementation
 Copyright (c) 2023 krulllab.
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import partial
 from typing import TYPE_CHECKING, Any, cast
 
@@ -30,6 +32,28 @@ logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from careamics.lightning.data.data_module import CareamicsDataModule
+
+
+@contextmanager
+def _eval_mode(module: torch.nn.Module) -> Iterator[None]:
+    """Put a module in evaluation mode and restore its previous mode on exit.
+
+    Parameters
+    ----------
+    module : torch.nn.Module
+        Module to put in evaluation mode.
+
+    Yields
+    ------
+    None
+        Control is yielded while the module is in evaluation mode.
+    """
+    was_training = module.training
+    module.eval()
+    try:
+        yield
+    finally:
+        module.train(was_training)
 
 
 class COSDDModule(L.LightningModule):
@@ -456,10 +480,10 @@ class COSDDModule(L.LightningModule):
         dict of {str: torch.Tensor}
             Generated noisy images (`x`) and their clean signal (`s`).
         """
-        self.eval()
-        s_code = self.vae.sample_from_prior(n_imgs)
-        s = self.s_decoder(s_code)
-        x = self.ar_decoder.sample(s_code)
+        with _eval_mode(self):
+            s_code = self.vae.sample_from_prior(n_imgs)
+            s = self.s_decoder(s_code)
+            x = self.ar_decoder.sample(s_code)
         if normalization is not None:
             s = normalization.denormalize(s)
             x = normalization.denormalize(x)
@@ -485,10 +509,10 @@ class COSDDModule(L.LightningModule):
         dict of {str: torch.Tensor}
             Noisy reconstruction (`x_hat`) and signal sample (`s_hat`).
         """
-        self.eval()
-        s_code = self.vae(x)["s_code"]
-        s_hat = self.s_decoder(s_code)
-        x_hat = self.ar_decoder.sample(s_code)
+        with _eval_mode(self):
+            s_code = self.vae(x)["s_code"]
+            s_hat = self.s_decoder(s_code)
+            x_hat = self.ar_decoder.sample(s_code)
         if normalization is not None:
             s_hat = normalization.denormalize(s_hat)
             x_hat = normalization.denormalize(x_hat)
