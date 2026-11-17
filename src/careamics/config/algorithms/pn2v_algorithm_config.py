@@ -3,11 +3,10 @@
 from typing import Annotated, Literal, Self
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import AfterValidator, ConfigDict, model_validator
+from pydantic import AfterValidator, ConfigDict, Field, model_validator
 
 from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.architectures import UNetConfig
-from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.config.support import SupportedPixelManipulation
 from careamics.config.validators import (
     model_without_final_activation,
@@ -29,8 +28,51 @@ from careamics.references.pn2v import (
 from .unet_algorithm_config import UNetBasedAlgorithm
 
 
+def _model_predicts_prior_samples(model: UNetConfig) -> UNetConfig:
+    """Validate that the UNet predicts at least 2 prior samples per input channel.
+
+    The outputs are channel-major: input channel `c` owns the outputs
+    `[c * K, (c + 1) * K)`, with `K = num_classes // in_channels`.
+
+    Parameters
+    ----------
+    model : UNetConfig
+        Model to validate.
+
+    Returns
+    -------
+    UNetConfig
+        The validated model.
+
+    Raises
+    ------
+    ValueError
+        If `num_classes` is not a multiple of `in_channels`, or if there are fewer
+        than 2 prior samples per input channel.
+    """
+    n_inputs, n_outputs = model.in_channels, model.num_classes
+    if n_outputs % n_inputs != 0:
+        raise ValueError(
+            f"PN2V predicts the same number of prior samples for each input channel, "
+            f"so `num_classes` ({n_outputs}) must be a multiple of `in_channels` "
+            f"({n_inputs})."
+        )
+    if n_outputs // n_inputs < 2:
+        raise ValueError(
+            f"PN2V needs at least 2 prior samples per input channel, but "
+            f"`num_classes={n_outputs}` and `in_channels={n_inputs}` give "
+            f"{n_outputs // n_inputs}. The PN2V paper uses 800 samples."
+        )
+    return model
+
+
 class PN2VAlgorithm(UNetBasedAlgorithm):
-    """PN2V Algorithm configuration."""
+    """PN2V Algorithm configuration.
+
+    The UNet predicts `n_prior_samples` prior samples per pixel and input channel, so
+    `model.num_classes = model.in_channels * n_prior_samples`. The outputs are
+    channel-major: input channel `c` owns the outputs `[c * K, (c + 1) * K)`.
+    """
 
     model_config = ConfigDict(validate_assignment=True)
 
@@ -38,19 +80,43 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
     """PN2V Algorithm name."""
 
     loss: Literal["pn2v"] = "pn2v"
-    """PN2V loss function (uses N2V loss with noise model)."""
+    """PN2V loss: negative log of the noise model likelihood of the masked pixels,
+    averaged over the prior samples.
+
+    The noise model is not part of the configuration. Pass it to
+    `CAREamist.train(noise_model=...)` or `PN2VModule.set_noise_model`.
+    """
+
+    monitor_metric: Literal["train_loss", "train_loss_epoch", "val_loss"] = "val_loss"
+    """Metric to monitor for the learning rate scheduler."""
+
+    sample_scale: float = Field(default=10.0, gt=0)
+    """Scale applied to normalized network outputs before denormalization.
+
+    Matches the upstream PN2V ``outScaling``. The loss and the MMSE estimate both use
+    these scaled, denormalized samples.
+    """
 
     n2v_config: N2VManipulateConfig = N2VManipulateConfig()
 
-    noise_model: GaussianMixtureNMConfig
-    """Noise model configuration for probabilistic denoising."""
-
     model: Annotated[
         UNetConfig,
-        # AfterValidator(model_matching_in_out_channels),
-        # TODO for pn2v channel handling needs to be changed
+        # `num_classes` is the number of prior samples times the number of input
+        # channels. Do not apply `model_matching_in_out_channels`.
         AfterValidator(model_without_final_activation),
+        AfterValidator(_model_predicts_prior_samples),
     ]
+
+    @property
+    def n_prior_samples(self) -> int:
+        """Number of prior samples predicted per pixel and input channel.
+
+        Returns
+        -------
+        int
+            `model.num_classes // model.in_channels`.
+        """
+        return self.model.num_classes // self.model.in_channels
 
     @model_validator(mode="after")
     def validate_n2v2(self) -> Self:
@@ -243,3 +309,15 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
             return STRUCT_PN2V_DESCRIPTION
         else:
             return PN2V_DESCRIPTION
+
+    @classmethod
+    def is_supervised(cls) -> bool:
+        """
+        Return whether the algorithm is supervised.
+
+        Returns
+        -------
+        bool
+            Whether the algorithm is supervised.
+        """
+        return False

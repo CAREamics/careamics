@@ -8,7 +8,13 @@ from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from numpy.typing import NDArray
 
-from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
+from .config.algorithms import (
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    PN2VAlgorithm,
+    SegAlgorithm,
+)
 from .config.configuration import Configuration
 from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
@@ -59,6 +65,7 @@ ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | Configuration[PN2VAlgorithm]
     | Configuration[SegAlgorithm]
     | HDNConfiguration
     | MicroSplitConfiguration
@@ -529,9 +536,9 @@ class CAREamist:
     def _get_default_ckpt(self, checkpoint: str | Path | None) -> str | Path:
         """Get default checkpoint to use for prediction based on the algorithm.
 
-        Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
-        based on validation loss, therefore this method returns "last" for these
-        algorithms and "best" for others.
+        Noise2Void and Noise2Noise use the self-supervised checkpointing preset, which
+        does not rank checkpoints by validation loss, so this method returns "last" for
+        them and "best" for the other algorithms.
 
         Parameters
         ----------
@@ -640,7 +647,7 @@ class CAREamist:
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
         noise_model : MultiChannelNoiseModel or list of str or Path, default=None
-            Trained noise model for MicroSplit or HDN. Can be passed as a
+            Trained noise model for PN2V, HDN or MicroSplit. Can be passed as a
             `MultiChannelNoiseModel` or the per-channel
             `.npz` paths to load it from.
 
@@ -659,7 +666,8 @@ class CAREamist:
                 logger.warning(
                     "A noise model was provided but the "
                     f"{self.config.get_algorithm_friendly_name()} algorithm does not "
-                    "use one (only MicroSplit and HDN do), so it will not be used."
+                    "use one (only PN2V, HDN and MicroSplit do), so it will not be "
+                    "used."
                 )
 
         if self.config.is_supervised() and train_data_target is None:
@@ -725,6 +733,8 @@ class CAREamist:
         min_sigma: float = 125.0,
         n_epochs: int = 2000,
         save: bool = True,
+        lower_clip: float = 0.0,
+        upper_clip: float = 100.0,
     ) -> MultiChannelNoiseModel:
         """Train a noise model and attach it for the noise model likelihood.
 
@@ -736,8 +746,8 @@ class CAREamist:
         it for inspection.
 
         The `signal` is a clean/denoised estimate (typically an N2V prediction) and the
-        `observation` is the matching raw noisy data. Only MicroSplit and HDN use noise
-        models.
+        `observation` is the matching raw noisy data. Only PN2V, HDN and MicroSplit use
+        noise models.
 
         Parameters
         ----------
@@ -758,6 +768,12 @@ class CAREamist:
             Number of training epochs.
         save : bool, default=True
             Whether to save the trained noise models under `work_dir/noise_models`.
+        lower_clip : float, default=0.0
+            Lower signal percentile. It sets the lower bound of the noise model signal
+            range, and pairs with a signal below it are not used.
+        upper_clip : float, default=100.0
+            Upper signal percentile. It sets the upper bound of the noise model signal
+            range, and pairs with a signal above it are not used.
 
         Returns
         -------
@@ -772,7 +788,7 @@ class CAREamist:
         if not hasattr(self.model, "set_noise_model"):
             raise ValueError(
                 f"The {self.config.get_algorithm_friendly_name()} algorithm does not "
-                "support a noise model (only MicroSplit and HDN do)."
+                "support a noise model (only PN2V, HDN and MicroSplit do)."
             )
         noise_model = train_noise_model(
             signal,
@@ -783,6 +799,8 @@ class CAREamist:
             min_sigma=min_sigma,
             n_epochs=n_epochs,
             save_dir=self.work_dir / "noise_models" if save else None,
+            lower_clip=lower_clip,
+            upper_clip=upper_clip,
         )
         self.model.set_noise_model(noise_model)
         return noise_model
@@ -1105,8 +1123,9 @@ class CAREamist:
             configuration.
         checkpoint : str or Path, optional
             Checkpoint to load before making predictions. Can be "best", "last", or a
-            path to a specific checkpoint. If None, uses the last checkpoint from
-            training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
+            path to a specific checkpoint. If None, uses the last checkpoint for
+            Noise2Void and Noise2Noise, which do not rank checkpoints by validation
+            loss, and the best checkpoint for the other algorithms.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
         n_predictions : int, optional
             Number of stochastic predictions to draw per input and average into the
@@ -1350,8 +1369,9 @@ class CAREamist:
             configuration.
         checkpoint : str or Path, default=None
             Checkpoint to load before making predictions. Can be "best", "last", or a
-            path to a specific checkpoint. If None, uses the last checkpoint from
-            training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
+            path to a specific checkpoint. If None, uses the last checkpoint for
+            Noise2Void and Noise2Noise, which do not rank checkpoints by validation
+            loss, and the best checkpoint for the other algorithms.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
         write_type : {"tiff", "zarr", "custom"}, optional
             The data type to save as, includes custom. If None, defaults to "zarr"
@@ -1550,10 +1570,19 @@ class CAREamist:
             Paths to the cover images.
         channel_names : list of str, default=None
             Channel names.
+
+        Raises
+        ------
+        NotImplementedError
+            If the algorithm is PN2V.
         """
         import numpy as np
 
         from .model_io import export_to_bmz
+        from .model_io.bmz_io import check_bmz_export_supported
+
+        # fail before the prediction
+        check_bmz_export_supported(self.config)
 
         output_patch, _ = self.predict(
             pred_data=input_array,

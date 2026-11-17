@@ -179,3 +179,49 @@ def unet_config_dict_testing(
             mode, data_type, axes, patching, patch_size, **(data_kwargs or {})
         ),
     }
+
+
+def gaussian_noise_model_testing(n_channels: int = 1):
+    """Return a deterministic Gaussian noise model with `n_channels` channels.
+
+    Each channel is a Gaussian mixture with one Gaussian, a linear polynomial and
+    zero weights. Its mean is the signal and its variance is `1 + signal / 100`,
+    clamped from below at `min_sigma=100`. For signals up to 9900 the likelihood is
+    therefore exactly `N(observation; signal, variance=100)`, plus the `1e-10`
+    tolerance of the noise model.
+
+    Parameters
+    ----------
+    n_channels : int, default=1
+        Number of channels of the noise model.
+
+    Returns
+    -------
+    MultiChannelNoiseModel
+        Raw-space noise model with `n_channels` identical channels.
+    """
+    import numpy as np
+
+    from careamics.config.noise_model import (
+        GaussianMixtureNMConfig,
+        MultiChannelNMConfig,
+    )
+    from careamics.models.lvae.noise_models import multichannel_noise_model_factory
+
+    configs = [
+        GaussianMixtureNMConfig(
+            weight=np.zeros((3, 2), dtype=np.float32),
+            n_gaussian=1,
+            n_coeff=2,
+            min_signal=0.0,
+            max_signal=100.0,
+            min_sigma=100.0,
+            channel_index=channel,
+        )
+        for channel in range(n_channels)
+    ]
+    noise_model = multichannel_noise_model_factory(
+        MultiChannelNMConfig(noise_models=configs)
+    )
+    assert noise_model is not None
+    return noise_model

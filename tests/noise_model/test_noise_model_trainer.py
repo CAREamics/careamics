@@ -784,3 +784,75 @@ def test_train_noise_model_fits_and_saves(tmp_path: Path) -> None:
     assert isinstance(noise_model, MultiChannelNoiseModel)
     assert len(noise_model) == 2
     assert len(list(tmp_path.glob("*.npz"))) == 2
+
+
+def _signal_range(noise_model: GaussianMixtureNoiseModel) -> tuple[float, float]:
+    """Return the signal range of a trained noise model."""
+    return float(noise_model.min_signal.item()), float(noise_model.max_signal.item())
+
+
+def test_train_from_pairs_default_clip_uses_signal_min_max() -> None:
+    """Without percentiles the signal range is the signal min and max."""
+    gen = np.random.default_rng(3)
+    signal = gen.uniform(0, 255, (4, 16, 16)).astype(np.float32)
+    observation = signal + gen.normal(0, 5, signal.shape).astype(np.float32)
+
+    trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2)
+    (noise_model,) = trainer.train_from_pairs(
+        signal=signal, observation=observation, axes="SYX", n_epochs=2
+    )
+
+    assert _signal_range(noise_model) == (float(signal.min()), float(signal.max()))
+
+
+@pytest.mark.parametrize("global_signal_range", [False, True])
+def test_train_from_pairs_clip_sets_percentile_range(global_signal_range: bool):
+    """`lower_clip` and `upper_clip` set the signal range to signal percentiles."""
+    gen = np.random.default_rng(4)
+    signal = gen.uniform(0, 255, (4, 16, 16)).astype(np.float32)
+    observation = signal + gen.normal(0, 5, signal.shape).astype(np.float32)
+
+    trainer = NoiseModelTrainer(
+        n_gaussian=1, n_coeff=2, global_signal_range=global_signal_range
+    )
+    (noise_model,) = trainer.train_from_pairs(
+        signal=signal,
+        observation=observation,
+        axes="SYX",
+        n_epochs=2,
+        lower_clip=0.5,
+        upper_clip=99.5,
+    )
+
+    expected = np.float32(np.percentile(signal, [0.5, 99.5]))
+    np.testing.assert_array_equal(_signal_range(noise_model), expected)
+    assert expected[0] > signal.min() and expected[1] < signal.max()
+
+
+@pytest.mark.parametrize("lower_clip, upper_clip", [(-1, 99), (1, 101), (50, 50)])
+def test_train_from_pairs_rejects_invalid_clip(lower_clip, upper_clip) -> None:
+    """The percentiles must satisfy `0 <= lower_clip < upper_clip <= 100`."""
+    signal = np.ones((2, 8, 8), dtype=np.float32)
+
+    with pytest.raises(ValueError, match="lower_clip < upper_clip"):
+        NoiseModelTrainer().train_from_pairs(
+            signal=signal,
+            observation=signal,
+            axes="SYX",
+            lower_clip=lower_clip,
+            upper_clip=upper_clip,
+        )
+
+
+def test_train_noise_model_passes_clip() -> None:
+    """`train_noise_model` forwards the percentiles to the trainer."""
+    gen = np.random.default_rng(5)
+    signal = gen.uniform(0, 255, (4, 16, 16)).astype(np.float32)
+    observation = signal + gen.normal(0, 5, signal.shape).astype(np.float32)
+
+    noise_model = train_noise_model(
+        signal, observation, axes="SYX", n_epochs=2, lower_clip=1.0, upper_clip=99.0
+    )
+
+    expected = np.float32(np.percentile(signal, [1.0, 99.0]))
+    np.testing.assert_array_equal(_signal_range(noise_model.nmodel_0), expected)

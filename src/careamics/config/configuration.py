@@ -14,6 +14,7 @@ from careamics.config.algorithms import (
     CAREAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
     SegAlgorithm,
 )
 from careamics.config.data import DataConfig
@@ -26,7 +27,12 @@ from careamics.models import (
 )
 
 AlgorithmConfig = TypeVar(
-    "AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
+    "AlgorithmConfig",
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    PN2VAlgorithm,
+    SegAlgorithm,
 )
 
 
