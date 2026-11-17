@@ -181,16 +181,19 @@ def test_direct_prediction_requires_direct_denoiser(train_array):
         _trainer().predict(module, datamodule=datamodule)
 
 
-def test_generation():
+@pytest.mark.parametrize("noise_direction", ["x", "none"])
+def test_generation(noise_direction):
     """Test generating images from the prior and reconstructing images."""
-    module = COSDDModule(_config().algorithm_config)
+    module = COSDDModule(_config(noise_direction=noise_direction).algorithm_config)
 
     generated = module.sample_prior(2)
     assert generated["x"].shape == generated["s"].shape == (2, 1, 16, 16)
+    assert generated["x"].std() > 0
 
     reconstructed = module.reconstruct(torch.randn(2, 1, 24, 24))
     assert reconstructed["x_hat"].shape == (2, 1, 24, 24)
     assert reconstructed["s_hat"].shape == (2, 1, 24, 24)
+    assert reconstructed["x_hat"].std() > 0
 
 
 @pytest.mark.mps_gh_fail
