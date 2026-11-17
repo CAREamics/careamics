@@ -6,6 +6,9 @@ Paper settings (Salmon & Krull, WACV 2025, supplementary 2.1 and 3):
 256 x 256 crops, batch 4 x 4 accumulated batches, Adamax lr 2e-3,
 ReduceLROnPlateau (factor 0.1, patience 50), early stopping after 100 epochs.
 
+The dataset is downloaded to `--data-dir`, and the run is saved in
+`--runs-dir`/`--experiment-name`.
+
 Example:
     python cosdd_train.py --dataset conva --experiment-name cosdd_conva_large
     python cosdd_train.py --dataset conva --experiment-name smoke --smoke
@@ -17,12 +20,10 @@ import time
 from pathlib import Path
 
 import numpy as np
-from cosdd_data import load, train_val_split
+from cosdd_data import DATA_DIR, load, train_val_split
 
 from careamics import CAREamist
 from careamics.config.factories import create_advanced_cosdd_config
-
-RUNS_DIR = Path("/group/jug/Igor/cosdd/runs")
 
 MODELS = {
     "large": {"n_layers": 14, "s_code_channels": 128},
@@ -32,10 +33,18 @@ MODELS = {
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse the command line arguments.
+
+    Returns
+    -------
+    argparse.Namespace
+        Parsed arguments.
+    """
     p = argparse.ArgumentParser()
     p.add_argument("--dataset", required=True, choices=["conva", "actin"])
     p.add_argument("--experiment-name", required=True)
-    p.add_argument("--runs-dir", type=Path, default=RUNS_DIR)
+    p.add_argument("--data-dir", type=Path, default=DATA_DIR)
+    p.add_argument("--runs-dir", type=Path, default=Path("runs"))
     p.add_argument(
         "--model",
         default=None,
@@ -66,6 +75,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Train COSDD and save the run information."""
     args = parse_args()
     if args.model is None:
         args.model = "tiny" if args.smoke else "large"
@@ -74,7 +84,7 @@ def main() -> None:
         args.num_steps = 5
         args.max_time = None
 
-    data = load(args.dataset)
+    data = load(args.dataset, args.data_dir)
     frames = data.train[:8] if args.smoke else data.train
     train_idx, val_idx = train_val_split(len(frames), seed=args.seed)
     print(

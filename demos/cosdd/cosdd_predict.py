@@ -1,8 +1,8 @@
 """Denoise the test set with a trained COSDD model and compute PSNR.
 
 Example:
-    python cosdd_predict.py --run-dir /group/jug/Igor/cosdd/runs/cosdd_conva_large
-    python cosdd_predict.py --run-dir /group/jug/Igor/cosdd/runs/smoke --smoke
+    python cosdd_predict.py --run-dir runs/cosdd_conva_large
+    python cosdd_predict.py --run-dir runs/smoke --smoke
 """
 
 import argparse
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 import tifffile
-from cosdd_data import PAPER_PSNR, load
+from cosdd_data import DATA_DIR, PAPER_PSNR, load
 from numpy.typing import NDArray
 
 from careamics import CAREamist
@@ -20,8 +20,16 @@ from careamics.metrics.metrics import psnr, scale_invariant_psnr
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse the command line arguments.
+
+    Returns
+    -------
+    argparse.Namespace
+        Parsed arguments.
+    """
     p = argparse.ArgumentParser()
     p.add_argument("--run-dir", type=Path, required=True)
+    p.add_argument("--data-dir", type=Path, default=DATA_DIR)
     p.add_argument(
         "--checkpoint",
         default="last",
@@ -35,6 +43,20 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_checkpoint(run_dir: Path, which: str) -> Path:
+    """Return the path of the checkpoint to predict with.
+
+    Parameters
+    ----------
+    run_dir : Path
+        Directory of the training run.
+    which : str
+        "last", "best" or the path of a checkpoint.
+
+    Returns
+    -------
+    Path
+        Path of the checkpoint.
+    """
     if which in ("last", "best"):
         info = json.loads((run_dir / "run_info.json").read_text())
         return Path(info[f"{which}_model_path"])
@@ -42,6 +64,22 @@ def resolve_checkpoint(run_dir: Path, which: str) -> Path:
 
 
 def frame_psnrs(gt: NDArray, pred: NDArray) -> tuple[float, float]:
+    """Compute the PSNR and scale-invariant PSNR averaged over the frames.
+
+    Parameters
+    ----------
+    gt : NDArray
+        Ground truth frames, (S, Y, X).
+    pred : NDArray
+        Predicted frames, (S, Y, X).
+
+    Returns
+    -------
+    float
+        Mean PSNR.
+    float
+        Mean scale-invariant PSNR.
+    """
     plain = [
         psnr(g, p, data_range=float(g.max() - g.min()))
         for g, p in zip(gt, pred, strict=True)
@@ -51,10 +89,11 @@ def frame_psnrs(gt: NDArray, pred: NDArray) -> tuple[float, float]:
 
 
 def main() -> None:
+    """Denoise the test set and save the predictions and metrics."""
     args = parse_args()
     ckpt = resolve_checkpoint(args.run_dir, args.checkpoint)
     info = json.loads((args.run_dir / "run_info.json").read_text())
-    data = load(info["dataset"])
+    data = load(info["dataset"], args.data_dir)
     test, gt = data.test, data.gt
     if args.smoke:
         test, gt = test[:4], gt[:4]
