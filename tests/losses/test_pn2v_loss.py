@@ -1,5 +1,7 @@
 """Test PN2V loss function."""
 
+import math
+
 import numpy as np
 import pytest
 import torch
@@ -104,3 +106,39 @@ def test_pn2v_loss_rejects_mismatched_noise_model():
         pn2v_loss(samples, labels, masks, MultiChannelNoiseModel([_random_gmm(0)]))
     with pytest.raises(ValueError, match="multiple"):
         pn2v_loss(torch.rand(1, 3, 4, 4), labels, masks, _random_gmm(0))
+
+
+def test_pn2v_loss_known_value(pn2v_noise_model: MultiChannelNoiseModel):
+    """With `N(obs; s, 100)`, two samples at distances 0 and 10 from the observation
+    give `-log(p0 * (1 + exp(-1/2)) / 2)`, with `p0 = 1 / sqrt(2 pi 100)`."""
+    samples = torch.tensor([0.0, 10.0]).view(1, 2, 1, 1)
+    observations = torch.zeros(1, 1, 1, 1)
+    masks = torch.ones_like(observations)
+
+    loss = pn2v_loss(samples, observations, masks, pn2v_noise_model)
+
+    p0 = 1 / math.sqrt(2 * math.pi * 100)
+    expected = -math.log(p0 * (1 + math.exp(-0.5)) / 2)
+    torch.testing.assert_close(loss, torch.tensor(expected))
+    assert loss.item() == pytest.approx(3.4406, abs=1e-4)
+
+
+def test_pn2v_loss_ignores_unmasked_pixels(pn2v_noise_model: MultiChannelNoiseModel):
+    """Only masked pixels contribute: changing unmasked pixels leaves the loss as is."""
+    generator = torch.Generator().manual_seed(3)
+    samples = torch.rand(2, 4, 8, 8, generator=generator) * 100
+    observations = torch.rand(2, 1, 8, 8, generator=generator) * 100
+    masks = torch.zeros_like(observations)
+    masks[:, :, ::3, ::3] = 1
+    unmasked = masks.expand_as(samples) == 0
+
+    loss = pn2v_loss(samples, observations, masks, pn2v_noise_model)
+    garbage_samples = torch.where(unmasked, torch.full_like(samples, 5000), samples)
+    garbage_observations = torch.where(
+        masks == 0, torch.full_like(observations, -300), observations
+    )
+    garbage_loss = pn2v_loss(
+        garbage_samples, garbage_observations, masks, pn2v_noise_model
+    )
+
+    assert torch.equal(loss, garbage_loss)
