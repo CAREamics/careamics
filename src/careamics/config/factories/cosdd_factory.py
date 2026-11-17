@@ -187,7 +187,8 @@ def create_advanced_cosdd_config(
         Learning rate scheduler.
     lr_scheduler_params : dict or None, default=None
         Learning rate scheduler parameters. If `None` and `lr_scheduler` is
-        `ReduceLROnPlateau`, `{"factor": 0.1, "patience": 25}` is used.
+        `ReduceLROnPlateau`, the `COSDDAlgorithm` default is used
+        (`{"factor": 0.1, "patience": 25}`).
     train_dataloader_params : dict or None, default=None
         Parameters for the training dataloader.
     val_dataloader_params : dict or None, default=None
@@ -226,15 +227,16 @@ def create_advanced_cosdd_config(
         }
     )
 
-    if lr_scheduler_params is None and lr_scheduler == "ReduceLROnPlateau":
-        lr_scheduler_params = {"factor": 0.1, "patience": 25}
+    # without parameters, ReduceLROnPlateau uses the COSDDAlgorithm default
+    scheduler: dict[str, LrSchedulerConfig] = {}
+    if lr_scheduler != "ReduceLROnPlateau" or lr_scheduler_params is not None:
+        scheduler["lr_scheduler"] = LrSchedulerConfig(
+            name=lr_scheduler, parameters=lr_scheduler_params or {}
+        )
 
     algorithm_config = COSDDAlgorithm(
         model=model,
         optimizer=OptimizerConfig(name=optimizer, parameters=optimizer_params or {}),
-        lr_scheduler=LrSchedulerConfig(
-            name=lr_scheduler, parameters=lr_scheduler_params or {}
-        ),
         n_grad_batches=n_grad_batches,
     )
 
@@ -243,6 +245,7 @@ def create_advanced_cosdd_config(
         norm_config.update(normalization_params)
 
     data_config = create_data_configuration(
+        **scheduler,
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
