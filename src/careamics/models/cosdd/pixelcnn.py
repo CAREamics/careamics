@@ -230,7 +230,14 @@ class PixelCNN(nn.Module):
             device=s_code.device,
         )
 
-        if self.noise_direction == "x":
+        if self.noise_direction == "none":
+            # kernel size 1 and masked centre: pixels are independent given s_code
+            params = self(image, s_code)
+            logweights, loc, log_scale = self.extract_params(params)
+            scale = nn.functional.softplus(log_scale)
+            logweights = nn.functional.log_softmax(logweights, dim=-1)
+            image = sample_mixture_model(logweights, loc, scale)
+        elif self.noise_direction == "x":
             for i in range(s_code.shape[-1]):
                 params = self(image[..., : i + 1], s_code[..., : i + 1])
                 logweights, loc, log_scale = self.extract_params(params[..., i : i + 1])

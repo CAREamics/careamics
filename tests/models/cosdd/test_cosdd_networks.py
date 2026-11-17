@@ -190,10 +190,10 @@ def test_pixelcnn_loglikelihood_and_sample(n_channels, noise_direction):
     assert log_p.shape == x.shape
     assert torch.isfinite(log_p).all()
 
-    if noise_direction != "none":
-        sample = ar_decoder.sample(s_code)
-        assert sample.shape == x.shape
-        assert sample.device == s_code.device
+    sample = ar_decoder.sample(s_code)
+    assert sample.shape == x.shape
+    assert sample.device == s_code.device
+    assert sample.std() > 0
 
 
 def test_s_decoder():
