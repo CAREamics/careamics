@@ -536,9 +536,9 @@ class CAREamist:
     def _get_default_ckpt(self, checkpoint: str | Path | None) -> str | Path:
         """Get default checkpoint to use for prediction based on the algorithm.
 
-        Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
-        based on validation loss, therefore this method returns "last" for these
-        algorithms and "best" for others.
+        Noise2Void and Noise2Noise use the self-supervised checkpointing preset, which
+        does not rank checkpoints by validation loss, so this method returns "last" for
+        them and "best" for the other algorithms.
 
         Parameters
         ----------
@@ -555,7 +555,6 @@ class CAREamist:
         if self.config.algorithm_config.algorithm in [
             SupportedAlgorithm.N2V,
             SupportedAlgorithm.N2N,
-            SupportedAlgorithm.PN2V,
         ]:
             if checkpoint == "best":
                 raise ValueError(
@@ -1124,8 +1123,9 @@ class CAREamist:
             configuration.
         checkpoint : str or Path, optional
             Checkpoint to load before making predictions. Can be "best", "last", or a
-            path to a specific checkpoint. If None, uses the last checkpoint from
-            training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
+            path to a specific checkpoint. If None, uses the last checkpoint for
+            Noise2Void and Noise2Noise, which do not rank checkpoints by validation
+            loss, and the best checkpoint for the other algorithms.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
         n_predictions : int, optional
             Number of stochastic predictions to draw per input and average into the
@@ -1369,8 +1369,9 @@ class CAREamist:
             configuration.
         checkpoint : str or Path, default=None
             Checkpoint to load before making predictions. Can be "best", "last", or a
-            path to a specific checkpoint. If None, uses the last checkpoint from
-            training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
+            path to a specific checkpoint. If None, uses the last checkpoint for
+            Noise2Void and Noise2Noise, which do not rank checkpoints by validation
+            loss, and the best checkpoint for the other algorithms.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
         write_type : {"tiff", "zarr", "custom"}, optional
             The data type to save as, includes custom. If None, defaults to "zarr"
