@@ -28,8 +28,51 @@ from careamics.references.pn2v import (
 from .unet_algorithm_config import UNetBasedAlgorithm
 
 
+def _model_predicts_prior_samples(model: UNetConfig) -> UNetConfig:
+    """Validate that the UNet predicts at least 2 prior samples per input channel.
+
+    The outputs are channel-major: input channel `c` owns the outputs
+    `[c * K, (c + 1) * K)`, with `K = num_classes // in_channels`.
+
+    Parameters
+    ----------
+    model : UNetConfig
+        Model to validate.
+
+    Returns
+    -------
+    UNetConfig
+        The validated model.
+
+    Raises
+    ------
+    ValueError
+        If `num_classes` is not a multiple of `in_channels`, or if there are fewer
+        than 2 prior samples per input channel.
+    """
+    n_inputs, n_outputs = model.in_channels, model.num_classes
+    if n_outputs % n_inputs != 0:
+        raise ValueError(
+            f"PN2V predicts the same number of prior samples for each input channel, "
+            f"so `num_classes` ({n_outputs}) must be a multiple of `in_channels` "
+            f"({n_inputs})."
+        )
+    if n_outputs // n_inputs < 2:
+        raise ValueError(
+            f"PN2V needs at least 2 prior samples per input channel, but "
+            f"`num_classes={n_outputs}` and `in_channels={n_inputs}` give "
+            f"{n_outputs // n_inputs}. The PN2V paper uses 800 samples."
+        )
+    return model
+
+
 class PN2VAlgorithm(UNetBasedAlgorithm):
-    """PN2V Algorithm configuration."""
+    """PN2V Algorithm configuration.
+
+    The UNet predicts `n_prior_samples` prior samples per pixel and input channel, so
+    `model.num_classes = model.in_channels * n_prior_samples`. The outputs are
+    channel-major: input channel `c` owns the outputs `[c * K, (c + 1) * K)`.
+    """
 
     model_config = ConfigDict(validate_assignment=True)
 
@@ -58,10 +101,22 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
 
     model: Annotated[
         UNetConfig,
-        # `num_classes` is the number of prior samples, so it is not tied to
-        # `in_channels`. Do not apply `model_matching_in_out_channels`.
+        # `num_classes` is the number of prior samples times the number of input
+        # channels. Do not apply `model_matching_in_out_channels`.
         AfterValidator(model_without_final_activation),
+        AfterValidator(_model_predicts_prior_samples),
     ]
+
+    @property
+    def n_prior_samples(self) -> int:
+        """Number of prior samples predicted per pixel and input channel.
+
+        Returns
+        -------
+        int
+            `model.num_classes // model.in_channels`.
+        """
+        return self.model.num_classes // self.model.in_channels
 
     @model_validator(mode="after")
     def validate_n2v2(self) -> Self:
