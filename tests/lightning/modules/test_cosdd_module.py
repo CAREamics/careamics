@@ -113,6 +113,34 @@ def test_training(train_array, use_direct_denoiser):
 
 
 @pytest.mark.mps_gh_fail
+def test_training_and_prediction_checkpointed(train_array):
+    """Test training and prediction with activation checkpointing (the default)."""
+    config = _config(
+        model_params={"s_code_channels": 8, "n_layers": 2, "checkpointed": True}
+    )
+    assert config.algorithm_config.model.checkpointed
+    module = COSDDModule(config.algorithm_config)
+    datamodule = CareamicsDataModule(
+        data_config=config.data_config, train_data=train_array
+    )
+    trainer = _trainer(limit_train_batches=2)
+
+    trainer.fit(module, datamodule=datamodule)
+    assert torch.isfinite(trainer.callback_metrics["train_loss_epoch"])
+
+    module.n_samples = 2
+    pred_config = config.data_config.convert_mode("predicting")
+    datamodule = CareamicsDataModule(data_config=pred_config, pred_data=train_array)
+    outputs = trainer.predict(module, datamodule=datamodule)
+
+    assert outputs is not None
+    for prediction, uncertainty in outputs:
+        assert prediction.data.shape == (2, 1, 32, 32)
+        assert np.isfinite(prediction.data).all()
+        assert uncertainty is not None
+
+
+@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize("n_grad_batches, n_updates", [(1, 3), (2, 2), (3, 1), (4, 1)])
 def test_gradient_accumulation(train_array, n_grad_batches, n_updates):
     """Test that weights are updated every `n_grad_batches` and on the last batch.
