@@ -184,6 +184,7 @@ def log_images(
     input_or_target: torch.Tensor,
     prediction: torch.Tensor,
     is_supervised: bool,
+    denormalize: Callable[[torch.Tensor], torch.Tensor] | None = None,
 ) -> None:
     """Log input/target, and prediction images to the logger.
 
@@ -197,20 +198,25 @@ def log_images(
         The predicted images.
     is_supervised : bool
         Whether the task is supervised (i.e., target images are available).
+    denormalize : callable or None, default=None
+        Function that denormalizes the images. If `None`, the `denormalize` method of
+        the training dataset normalization is used.
     """
     # denormalize images before logging
-    normalization = module.trainer.datamodule.train_dataset.normalization  # type: ignore[union-attr]
+    if denormalize is None:
+        normalization = module.trainer.datamodule.train_dataset.normalization  # type: ignore[union-attr]
+        denormalize = normalization.denormalize
     # log images to the logger
     tag_key = "Target(val)" if is_supervised else "Input(val)"
     module.logger.log_images(  # type: ignore
         key=tag_key,
-        images=normalization.denormalize(input_or_target).cpu().numpy(),
+        images=denormalize(input_or_target).cpu().numpy(),
         step=module.global_step,
         captions=[tag_key] * len(input_or_target),
     )
     module.logger.log_images(  # type: ignore
         key="Prediction(val)",
-        images=normalization.denormalize(prediction).cpu().numpy(),
+        images=denormalize(prediction).cpu().numpy(),
         step=module.global_step,
         captions=["Prediction(val)"] * len(prediction),
     )
