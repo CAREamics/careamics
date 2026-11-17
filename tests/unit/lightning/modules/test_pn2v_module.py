@@ -29,12 +29,8 @@ def _pn2v_config(tmp_name: str = "pn2v_module", **kwargs):
         "batch_size": 2,
         "num_epochs": 1,
         "num_steps": 1,
-        "num_classes": 2,
-        "model_params": {
-            "depth": 2,
-            "num_channels_init": 8,
-            "use_batch_norm": False,
-        },
+        "n_prior_samples": 2,
+        "model_params": {"depth": 2, "num_channels_init": 8},
         "n_val_patches": 1,
         "masked_pixel_percentage": 5,
         "roi_size": 5,
@@ -74,7 +70,7 @@ def test_create_module_returns_pn2v_module():
         axes="YX",
         patch_size=[32, 32],
         batch_size=1,
-        num_classes=2,
+        n_prior_samples=2,
         model_params={"depth": 2, "num_channels_init": 8},
     )
 
@@ -220,7 +216,7 @@ def test_pn2v_mmse_multichannel_is_per_channel():
 def test_denormalization_matches_normalization(normalization):
     """With one channel, samples and observations are denormalized exactly like the
     `denormalize` method of the dataset normalization."""
-    module = PN2VModule(_pn2v_config(num_classes=6).algorithm_config)
+    module = PN2VModule(_pn2v_config(n_prior_samples=6).algorithm_config)
     generator = torch.Generator().manual_seed(0)
     prediction = torch.randn(2, 6, 8, 8, generator=generator)
     original = torch.randn(2, 1, 8, 8, generator=generator)
@@ -253,7 +249,7 @@ def test_denormalization_per_channel(per_channel: bool):
     """Channel `c` and its samples use the statistics of input channel `c`; global
     statistics apply to every channel."""
     config = _pn2v_config(
-        axes="SCYX", n_channels=2, num_classes=6, normalization="min_max"
+        axes="SCYX", n_channels=2, n_prior_samples=3, normalization="min_max"
     )
     module = PN2VModule(config.algorithm_config)
     mins, maxes = ([0.0, 100.0], [10.0, 300.0]) if per_channel else ([5.0], [25.0])
@@ -275,7 +271,7 @@ def test_denormalization_per_channel(per_channel: bool):
 
 def test_set_noise_model_multichannel_rejects_single_channel():
     """A two-channel PN2V model needs a two-channel noise model."""
-    config = _pn2v_config(axes="SCYX", n_channels=2, num_classes=4)
+    config = _pn2v_config(axes="SCYX", n_channels=2, n_prior_samples=2)
     module = PN2VModule(config.algorithm_config)
 
     with pytest.raises(ValueError, match="one noise model channel per input channel"):
@@ -296,7 +292,7 @@ def test_pn2v_multichannel_train_and_predict(
         "pn2v_multichannel",
         axes="SCYX",
         n_channels=2,
-        num_classes=8,
+        n_prior_samples=4,
         independent_channels=independent_channels,
     )
     engine = CAREamist(config, work_dir=tmp_path)
