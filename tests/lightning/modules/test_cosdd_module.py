@@ -114,22 +114,52 @@ def test_training(train_array, use_direct_denoiser):
 
 
 @pytest.mark.mps_gh_fail
-@pytest.mark.parametrize("n_grad_batches, updated", [(1, True), (2, False)])
-def test_gradient_accumulation(train_array, n_grad_batches, updated):
-    """Test that weights are only updated every `n_grad_batches` batches."""
+@pytest.mark.parametrize("n_grad_batches, n_updates", [(1, 3), (2, 2), (3, 1), (4, 1)])
+def test_gradient_accumulation(train_array, n_grad_batches, n_updates):
+    """Test that weights are updated every `n_grad_batches` and on the last batch.
+
+    Updating on the last batch of the epoch ensures that no gradient is carried over
+    to the next epoch.
+    """
     config = _config(n_grad_batches=n_grad_batches)
     module = COSDDModule(config.algorithm_config)
     datamodule = CareamicsDataModule(
         data_config=config.data_config, train_data=train_array
     )
-    trainer = _trainer(limit_train_batches=1, limit_val_batches=0)
-    initial = [p.detach().clone() for p in module.s_decoder.parameters()]
+    trainer = _trainer(limit_train_batches=3, limit_val_batches=0)
 
     trainer.fit(module, datamodule=datamodule)
 
-    final = list(module.s_decoder.parameters())
-    changed = any(not torch.equal(a, b) for a, b in zip(initial, final, strict=True))
-    assert changed == updated
+    # Lightning counts the step of each of the 3 optimizers (direct denoiser)
+    assert trainer.global_step == 3 * n_updates
+    assert all(p.grad is None for p in module.parameters())
+
+
+@pytest.mark.mps_gh_fail
+def test_plateau_schedulers_step_after_validation(train_array):
+    """Test that `ReduceLROnPlateau` schedulers only step in epochs with validation.
+
+    They must not step on the validation losses of a previous epoch.
+    """
+    config = _config()
+    module = COSDDModule(config.algorithm_config)
+    datamodule = CareamicsDataModule(
+        data_config=config.data_config, train_data=train_array
+    )
+    trainer = _trainer(
+        max_epochs=3,
+        check_val_every_n_epoch=2,
+        limit_train_batches=1,
+        limit_val_batches=1,
+    )
+
+    trainer.fit(module, datamodule=datamodule)
+
+    schedulers = module.lr_schedulers()
+    assert len(schedulers) == 3
+    for scheduler in schedulers:
+        assert isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau)
+        assert scheduler.last_epoch == 1
 
 
 @pytest.mark.parametrize("use_direct_denoiser", [True, False])
