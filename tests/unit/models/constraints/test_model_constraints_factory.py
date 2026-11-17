@@ -4,14 +4,16 @@ import pytest
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
+    COSDDAlgorithm,
     HDNAlgorithm,
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
     SegAlgorithm,
 )
-from careamics.config.architectures import LVAEConfig, UNetConfig
+from careamics.config.architectures import COSDDConfig, LVAEConfig, UNetConfig
 from careamics.models.constraints import (
+    COSDDConstraints,
     LVAEConstraints,
     SegUNetConstraints,
     UNetConstraints,
@@ -49,6 +51,14 @@ def test_get_model_constraints_lvae(algorithm):
         algorithm(model=LVAEConfig(architecture="LVAE"))
     )
     assert isinstance(constraints, LVAEConstraints)
+
+
+def test_get_model_constraints_cosdd():
+    """COSDD configs are dispatched to `COSDDConstraints`."""
+    constraints = get_model_constraints(
+        COSDDAlgorithm(model=COSDDConfig(architecture="COSDD"))
+    )
+    assert isinstance(constraints, COSDDConstraints)
 
 
 def test_get_model_constraints_unsupported_raises():
