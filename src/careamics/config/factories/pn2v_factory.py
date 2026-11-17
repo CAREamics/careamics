@@ -29,16 +29,19 @@ def create_pn2v_config(
     n_val_patches: int = 8,
     use_n2v2: bool = False,
     n_channels: int | None = None,
-    num_classes: int | None = None,
+    n_prior_samples: int = 800,
 ) -> PN2VConfiguration:
     """
     Create a configuration for training PN2V.
 
-    `num_classes` is the number of prior samples predicted per pixel. It is independent
-    of `n_channels`. The Convallaria GMM protocol uses `num_classes=800`.
+    The UNet predicts `n_prior_samples` prior samples per pixel and input channel, so it
+    has `n_channels * n_prior_samples` outputs. The PN2V paper uses 800 samples.
 
     The noise model is not part of the configuration. Pass it to
-    `CAREamist.train(noise_model=...)` or `PN2VModule.set_noise_model`.
+    `CAREamist.train(noise_model=...)` or `PN2VModule.set_noise_model`, with one
+    noise model channel per input channel.
+
+    See `create_advanced_pn2v_config` for more parameters.
 
     Parameters
     ----------
@@ -63,9 +66,9 @@ def create_pn2v_config(
     use_n2v2 : bool, default=False
         Whether to use the N2V2 manipulation strategy and architecture changes.
     n_channels : int or None, default=None
-        Number of input channels.
-    num_classes : int or None, default=None
-        Number of prior samples. Defaults to the number of input channels.
+        Number of input channels. Required if "C" is in `axes`.
+    n_prior_samples : int, default=800
+        Number of prior samples predicted per pixel and channel.
 
     Returns
     -------
@@ -84,7 +87,7 @@ def create_pn2v_config(
         n_val_patches=n_val_patches,
         use_n2v2=use_n2v2,
         n_channels=n_channels,
-        num_classes=num_classes,
+        n_prior_samples=n_prior_samples,
     )
 
 
@@ -94,10 +97,11 @@ def create_advanced_pn2v_config(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
+    project_name: str | None = None,
     num_epochs: int = 30,
     num_steps: int | None = None,
     n_channels: int | None = None,
-    num_classes: int | None = None,
+    n_prior_samples: int = 800,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     in_memory: bool | None = None,
@@ -131,9 +135,20 @@ def create_advanced_pn2v_config(
     """
     Create a PN2V configuration.
 
+    The UNet predicts `n_prior_samples` prior samples per pixel and input channel, so it
+    has `n_channels * n_prior_samples` outputs. They are channel-major: input channel
+    `c` owns the outputs `[c * n_prior_samples, (c + 1) * n_prior_samples)`. With
+    `independent_channels=True`, each input channel has its own network.
+
     UNet depth and initial filter count are set through `model_params`
-    (`depth`, `num_channels_init`). `num_classes` is the prior-sample head and is not
-    required to match the number of input channels.
+    (`depth`, `num_channels_init`). Batch normalization is off by default, as in the
+    original PN2V UNet: with batch normalization, the prior widens at bright pixels
+    and the training loss can become NaN. Set `model_params={"use_batch_norm": True}`
+    to use it.
+
+    The noise model is not part of the configuration. Pass it to
+    `CAREamist.train(noise_model=...)` or `PN2VModule.set_noise_model`, with one
+    noise model channel per input channel.
 
     Parameters
     ----------
@@ -147,14 +162,17 @@ def create_advanced_pn2v_config(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
+    project_name : str or None, default=None
+        Name of the project, used to group related experiments.
     num_epochs : int, default=30
         Number of epochs to train for.
     num_steps : int or None, default=None
         Number of batches in one epoch (`limit_train_batches`).
     n_channels : int or None, default=None
-        Number of input channels.
-    num_classes : int or None, default=None
-        Number of prior samples. Defaults to the number of input channels.
+        Number of input channels. Required if "C" is in `axes`. If `channels` is
+        specified, the number of channels is inferred from its length.
+    n_prior_samples : int, default=800
+        Number of prior samples predicted per pixel and channel.
     augmentations : sequence of {"x_flip", "y_flip", "rotate_90"} or None, default=None
         Augmentations to apply. `None` applies the N2V defaults.
     n_val_patches : int, default=8
@@ -164,8 +182,8 @@ def create_advanced_pn2v_config(
     channels : sequence of int or None, default=None
         Channel indices to use.
     independent_channels : bool, default=True
-        Whether to process input channels independently. With one input channel this
-        does not change the UNet.
+        Whether to process input channels with independent networks. With one input
+        channel this does not change the UNet.
     normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
         Normalization strategy.
     normalization_params : dict or None, default=None
@@ -189,7 +207,8 @@ def create_advanced_pn2v_config(
     trainer_params : dict or None, default=None
         Extra Lightning Trainer parameters, such as `accumulate_grad_batches`.
     model_params : dict or None, default=None
-        Extra UNet parameters, such as `depth` and `num_channels_init`.
+        Extra UNet parameters, such as `depth` and `num_channels_init`. Batch
+        normalization is off unless `use_batch_norm=True` is passed.
     optimizer : {"Adam", "Adamax", "SGD"}, default="Adam"
         Optimizer name.
     optimizer_params : dict or None, default=None
@@ -220,7 +239,11 @@ def create_advanced_pn2v_config(
         seed = generate_random_seed()
 
     n_channels = _validate_n2v_channel_dim(axes, channels, n_channels)
-    n_output = n_channels if num_classes is None else num_classes
+
+    # The original PN2V UNet has no normalization layers. With batch normalization,
+    # the prior widens at bright pixels until the noise model mixture weights
+    # overflow and the loss becomes NaN. The copy also keeps the caller's dict as is.
+    model_params = {"use_batch_norm": False, **(model_params or {})}
 
     norm_config = {"name": normalization}
     if normalization_params is not None:
@@ -249,7 +272,7 @@ def create_advanced_pn2v_config(
         loss="pn2v",
         independent_channels=independent_channels,
         n_channels_in=n_channels,
-        n_channels_out=n_output,
+        n_channels_out=n_channels * n_prior_samples,
         use_n2v2=use_n2v2,
         model_params=model_params,
         optimizer=optimizer,
@@ -282,6 +305,7 @@ def create_advanced_pn2v_config(
 
     return PN2VConfiguration(
         experiment_name=experiment_name,
+        project_name=project_name,
         algorithm_config=PN2VAlgorithm(**algorithm_params),
         data_config=data_config,
         training_config=training_params,
