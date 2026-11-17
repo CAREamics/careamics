@@ -74,14 +74,14 @@ def main() -> None:
 
     if model.direct_denoiser is not None:
         t0 = time.time()
-        model.direct_pred = True
+        model.config.direct_prediction = True
         pred, _ = careamist.predict(test, **predict_kwargs)
         estimates["direct"] = pred[0]
         timings["direct"] = time.time() - t0
 
     # a single random sample: sampling path with n_samples = 1
     t0 = time.time()
-    model.direct_pred = False
+    model.config.direct_prediction = False
     pred, _ = careamist.predict(test, **predict_kwargs)
     estimates["sample"] = pred[0]
     timings["sample"] = time.time() - t0
@@ -93,7 +93,7 @@ def main() -> None:
         timings[f"mmse{n}"] = time.time() - t0
         if n == max(args.n_samples):
             tifffile.imwrite(out_dir / f"mmse{n}_std.tif", std[0].astype(np.float32))
-    model.direct_pred = model.direct_denoiser is not None
+    model.config.direct_prediction = None
 
     metrics = {}
     paper = PAPER_PSNR[data.name]

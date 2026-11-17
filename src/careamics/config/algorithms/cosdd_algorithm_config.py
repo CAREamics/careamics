@@ -49,6 +49,13 @@ class COSDDAlgorithm(BaseModel):
     weights. COSDD uses manual optimization, so the Lightning Trainer
     `accumulate_grad_batches` parameter is not supported."""
 
+    direct_prediction: bool | None = None
+    """Whether a single prediction (without `n_predictions`) uses the direct
+    denoiser. If `None`, the direct denoiser is used if one was trained, otherwise a
+    signal sample is drawn. If `True`, prediction fails if no direct denoiser was
+    trained. If `False`, a signal sample is always drawn. Several predictions
+    (`n_predictions`) always average signal samples."""
+
     def __str__(self) -> str:
         """Pretty string representing the configuration.
 

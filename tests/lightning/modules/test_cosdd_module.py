@@ -78,7 +78,6 @@ def test_configure_optimizers(use_direct_denoiser):
 
     optimizers, schedulers = module.configure_optimizers()
     assert len(optimizers) == len(schedulers) == (3 if use_direct_denoiser else 2)
-    assert module.direct_pred == use_direct_denoiser
 
     # all trainable parameters are optimized, exactly once
     optimized = [p for opt in optimizers for g in opt.param_groups for p in g["params"]]
@@ -202,13 +201,65 @@ def test_direct_prediction_is_deterministic(train_array):
 def test_direct_prediction_requires_direct_denoiser(train_array):
     """Test that the direct prediction fails without a direct denoiser."""
     config = _config(use_direct_denoiser=False)
+    config.algorithm_config.direct_prediction = True
     module = COSDDModule(config.algorithm_config)
-    module.direct_pred = True
     pred_config = config.data_config.convert_mode("predicting")
     datamodule = CareamicsDataModule(data_config=pred_config, pred_data=train_array)
 
     with pytest.raises(ValueError, match="direct denoiser"):
         _trainer().predict(module, datamodule=datamodule)
+
+
+def test_prediction_without_direct_prediction(train_array):
+    """Test that disabling direct prediction draws a signal sample."""
+    config = _config()
+    module = COSDDModule(config.algorithm_config)
+    module.config.direct_prediction = False
+    pred_config = config.data_config.convert_mode("predicting")
+    datamodule = CareamicsDataModule(data_config=pred_config, pred_data=train_array)
+    trainer = _trainer()
+
+    first = trainer.predict(module, datamodule=datamodule)
+    second = trainer.predict(module, datamodule=datamodule)
+
+    assert first is not None and second is not None
+    prediction, uncertainty = first[0]
+    assert prediction.data.shape == (2, 1, 32, 32)
+    assert uncertainty is None
+    assert not np.array_equal(prediction.data, second[0][0].data)
+
+
+@pytest.mark.parametrize(
+    "use_direct_denoiser, direct_prediction, deterministic",
+    [
+        (True, None, True),
+        (True, True, True),
+        (True, False, False),
+        (False, None, False),
+    ],
+)
+def test_forward(use_direct_denoiser, direct_prediction, deterministic):
+    """Test that `forward` follows `direct_prediction`."""
+    config = _config(use_direct_denoiser=use_direct_denoiser)
+    config.algorithm_config.direct_prediction = direct_prediction
+    module = COSDDModule(config.algorithm_config).eval()
+    x = torch.randn(2, 1, 24, 24)
+
+    with torch.no_grad():
+        first, second = module(x), module(x)
+
+    assert first.shape == x.shape
+    assert torch.equal(first, second) == deterministic
+
+
+def test_forward_requires_direct_denoiser():
+    """Test that `forward` fails with direct prediction and no direct denoiser."""
+    config = _config(use_direct_denoiser=False)
+    config.algorithm_config.direct_prediction = True
+    module = COSDDModule(config.algorithm_config)
+
+    with pytest.raises(ValueError, match="direct denoiser"):
+        module(torch.randn(1, 1, 16, 16))
 
 
 @pytest.mark.parametrize("noise_direction", ["x", "none"])

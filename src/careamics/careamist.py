@@ -1118,8 +1118,9 @@ class CAREamist:
             the sampling-based algorithms (HDN, MicroSplit and COSDD). Note that the
             estimate is the spread of the drawn predictions alone: it excludes the
             likelihood variance and so under-estimates the total uncertainty. For
-            COSDD trained with a direct denoiser, omitting `n_predictions` uses the
-            direct denoiser instead of sampling.
+            COSDD, omitting `n_predictions` uses the direct denoiser if one was
+            trained, instead of sampling. Set `direct_prediction` in the algorithm
+            configuration of the model (`CAREamist.model.config`) to change this.
         segmentation_output : {"mask", "probabilities"} or None, default=None
             Prediction output for segmentation models. If None, the value from
             the algorithm configuration is used.

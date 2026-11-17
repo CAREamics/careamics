@@ -73,10 +73,10 @@ class COSDDModule(L.LightningModule):
     on the last batch of each epoch, so that no gradient is carried over to the next
     epoch.
 
-    At prediction, if `n_samples` is 1 and a direct denoiser was trained (and
-    `direct_pred` is `True`), the direct denoiser is used. Otherwise, `n_samples`
-    signal samples are drawn and averaged, and their standard deviation is returned
-    as an uncertainty estimate if `n_samples > 1`.
+    At prediction, if `n_samples` is 1, the direct denoiser is used according to the
+    `direct_prediction` field of the configuration (by default, if one was trained).
+    Otherwise, `n_samples` signal samples are drawn and averaged, and their standard
+    deviation is returned as an uncertainty estimate if `n_samples > 1`.
 
     Parameters
     ----------
@@ -119,9 +119,6 @@ class COSDDModule(L.LightningModule):
         self.n_samples: int = 1
         """Number of signal samples averaged at prediction."""
 
-        self.direct_pred: bool = self.direct_denoiser is not None
-        """Whether to use the direct denoiser at prediction when `n_samples` is 1."""
-
         self._validated: bool = False
         """Whether validation ran since the schedulers were last stepped."""
 
@@ -136,6 +133,51 @@ class COSDDModule(L.LightningModule):
                 "COSDD is an unsupervised algorithm, arguments passed to "
                 "`train_data_target` will be ignored.",
             )
+
+    def _predicts_directly(self) -> bool:
+        """Whether a single prediction uses the direct denoiser.
+
+        Returns
+        -------
+        bool
+            Whether to use the direct denoiser, as set by `direct_prediction` in the
+            configuration.
+
+        Raises
+        ------
+        ValueError
+            If `direct_prediction` is `True` but no direct denoiser was trained.
+        """
+        direct_prediction = self.config.direct_prediction
+        if direct_prediction is None:
+            return self.direct_denoiser is not None
+        if direct_prediction and self.direct_denoiser is None:
+            raise ValueError(
+                "No direct denoiser was trained, set `direct_prediction` to `False` "
+                "or `None` in the algorithm configuration to draw signal samples "
+                "instead."
+            )
+        return direct_prediction
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Denoise normalized images.
+
+        The direct denoiser is used according to `direct_prediction` in the
+        configuration, otherwise a single signal sample is drawn.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Normalized noisy images, shape (B, C, [Z], Y, X).
+
+        Returns
+        -------
+        torch.Tensor
+            Denoised images in normalized space.
+        """
+        if self._predicts_directly():
+            return self.direct_denoiser_forward(x)
+        return self.s_decoder(self.vae(x)["s_code"])
 
     def vae_forward(self, x: torch.Tensor) -> dict[str, Any]:
         """Encode the input and predict the noise model parameters.
@@ -438,13 +480,8 @@ class COSDDModule(L.LightningModule):
         normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
 
         std: torch.Tensor | None
-        if self.n_samples == 1 and self.direct_pred:
-            if self.direct_denoiser is None:
-                raise ValueError(
-                    "No direct denoiser was trained, set `direct_pred` to False to "
-                    "average signal samples instead."
-                )
-            s_direct = self.direct_denoiser(x_data)
+        if self.n_samples == 1 and self._predicts_directly():
+            s_direct = self.direct_denoiser_forward(x_data)
             mean, std = normalization.denormalize(s_direct.float()), None
         else:
             mean, std = mmse_and_sample_std(
