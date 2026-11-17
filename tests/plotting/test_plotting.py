@@ -5,10 +5,7 @@ import numpy as np
 
 from careamics.config import GaussianMixtureNMConfig
 from careamics.lightning.utils import Series, TrainingReport
-from careamics.models.lvae.noise_models import (
-    GaussianMixtureNoiseModel,
-    create_histogram,
-)
+from careamics.noise_model import GaussianMixtureNoiseModel, create_histogram
 from careamics.plotting import (
     plot_autocorrelation,
     plot_loss,

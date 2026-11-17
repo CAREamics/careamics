@@ -24,7 +24,7 @@ from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNM
 from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
     PairedInputTargetMsPatchConstr,
 )
-from careamics.models.lvae.noise_models import (
+from careamics.noise_model import (
     MultiChannelNoiseModel,
     multichannel_noise_model_factory,
 )

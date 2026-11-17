@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from numpy.typing import NDArray
 
-from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
+from careamics.noise_model import GaussianMixtureNoiseModel
 
 from .utils import get_plot_file_path
 

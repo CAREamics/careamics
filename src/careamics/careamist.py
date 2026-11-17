@@ -38,8 +38,8 @@ from .lightning.utils import (
 )
 from .model_io.bmz_io import load_from_bmz
 from .models import get_model_constraints
-from .models.lvae.noise_models import MultiChannelNoiseModel
 from .noise_model import train_noise_model
+from .noise_model.noise_models import MultiChannelNoiseModel
 from .utils import get_logger, get_run_version
 from .utils.reshape_array import reshape_array
 

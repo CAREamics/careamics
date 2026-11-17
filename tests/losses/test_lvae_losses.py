@@ -28,7 +28,7 @@ from careamics.losses.lvae.lvae_losses import (
     get_kl_divergence_loss,
     microsplit_loss,
 )
-from careamics.models.lvae.noise_models import multichannel_noise_model_factory
+from careamics.noise_model import multichannel_noise_model_factory
 
 if TYPE_CHECKING:
     pass

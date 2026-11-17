@@ -13,7 +13,7 @@ from careamics.config.losses import MicroSplitLossConfig
 from careamics.dataset.factory import TrainValData
 from careamics.dataset.normalization.mean_std_normalization import MeanStdNormalization
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
-from careamics.models.lvae.noise_models import (
+from careamics.noise_model import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
     multichannel_noise_model_factory,

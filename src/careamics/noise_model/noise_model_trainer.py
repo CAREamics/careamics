@@ -11,10 +11,10 @@ from numpy.typing import NDArray
 
 from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-from careamics.models.lvae.noise_models import (
+from careamics.noise_model.create_histogram import create_histogram
+from careamics.noise_model.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
-    create_histogram,
 )
 from careamics.utils.logging import get_logger
 from careamics.utils.reshape_array import reshape_array, restore_array
