@@ -39,7 +39,7 @@ def test_default_training_dict(algo, checkpoint_params):
     TrainingConfig(**config)
 
 
-@pytest.mark.parametrize("algo", ["care", "n2n", "n2v", "hdn", "microsplit"])
+@pytest.mark.parametrize("algo", ["care", "n2n", "n2v", "pn2v", "hdn", "microsplit"])
 def test_default_training_factory(algo):
     """Tests that the default training factory can be created."""
     validated_dict = {
@@ -53,7 +53,7 @@ def test_default_training_factory(algo):
     assert isinstance(config, TrainingConfig)
 
     # check the algorithm defaults
-    if algo in ("care", "hdn", "microsplit"):
+    if algo in ("care", "pn2v", "hdn", "microsplit"):
         assert config.checkpoint_params == asdict(SupervisedCheckpointing())
     else:
         assert config.checkpoint_params == asdict(SelfSupervisedCheckpointing())

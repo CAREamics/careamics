@@ -354,3 +354,24 @@ def test_pn2v_module_rejects_other_algorithms():
 
     with pytest.raises(ValueError, match="must be a PN2VAlgorithm"):
         PN2VModule(n2v_config.algorithm_config)  # type: ignore[arg-type]
+
+
+def test_pn2v_checkpoints_ranked_by_val_loss(
+    tmp_path: Path, pn2v_noise_model: MultiChannelNoiseModel
+) -> None:
+    """PN2V keeps the best checkpoints by `val_loss` and predicts with the best one
+    by default."""
+    data = np.random.default_rng(0).random((2, 32, 32), dtype=np.float32) * 100
+    config = _pn2v_config("pn2v_best", num_epochs=2)
+    engine = CAREamist(config, work_dir=tmp_path)
+
+    engine.train(train_data=data, noise_model=pn2v_noise_model)
+
+    assert config.training_config.checkpoint_params["monitor"] == "val_loss"
+    best = Path(engine.trainer.checkpoint_callback.best_model_path)
+    assert best.is_file() and not best.stem.endswith("_last")
+    assert engine._get_default_ckpt(None) == "best"
+
+    predicted, _ = engine.predict(data)
+    from_best, _ = engine.predict(data, checkpoint=best)
+    np.testing.assert_array_equal(predicted[0], from_best[0])
