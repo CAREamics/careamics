@@ -173,12 +173,17 @@ def create_advanced_cosdd_config(
     model_params : dict or None, default=None
         Additional `COSDDConfig` parameters.
     n_grad_batches : int, default=4
-        Number of batches over which gradients are accumulated.
+        Number of batches over which gradients are accumulated. The Lightning
+        `global_step` advances by 2 (3 with the direct denoiser) every
+        `n_grad_batches` batches, see `trainer_params`.
     num_workers : int, default=-1
         Number of workers for data loading.
     trainer_params : dict or None, default=None
         Parameters for the PyTorch Lightning Trainer, e.g. `max_time` or
-        `precision`.
+        `precision`. Lightning counts each of the 2 (3 with the direct denoiser)
+        optimizer steps of an update in `global_step`: `max_steps` advances by that
+        many every `n_grad_batches` batches. `accumulate_grad_batches` and
+        `gradient_clip_val` are not supported.
     optimizer : {"Adam", "Adamax", "SGD"}, default="Adamax"
         Optimizer name.
     optimizer_params : dict or None, default=None
@@ -194,7 +199,9 @@ def create_advanced_cosdd_config(
     val_dataloader_params : dict or None, default=None
         Parameters for the validation dataloader.
     checkpoint_params : dict or None, default=None
-        Parameters for the checkpoint callback.
+        Parameters for the checkpoint callback. As for `max_steps`,
+        `every_n_train_steps` counts each of the 2 (3 with the direct denoiser)
+        optimizer steps of an update, so it should be a multiple of that number.
     early_stopping_params : dict or None, default=None
         Parameters for the early stopping callback. If `None`, training stops when
         the validation loss has not improved for 50 epochs.

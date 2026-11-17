@@ -127,6 +127,28 @@ def test_plateau_scheduler_parameters(lr_scheduler_params, expected):
         assert lr_scheduler == COSDDAlgorithm.model_fields["lr_scheduler"].default
 
 
+@pytest.mark.parametrize(
+    "trainer_params, match",
+    [
+        ({"accumulate_grad_batches": 2}, "n_grad_batches"),
+        ({"gradient_clip_val": 1.0}, "gradient_clip_val"),
+    ],
+)
+def test_unsupported_trainer_params(trainer_params, match):
+    """Test that Trainer parameters of automatic optimization are rejected."""
+    with pytest.raises(ValueError, match=match):
+        _create(trainer_params=trainer_params)
+
+
+@pytest.mark.parametrize("use_direct_denoiser, n_optimizers", [(True, 3), (False, 2)])
+def test_max_steps_warning(use_direct_denoiser, n_optimizers):
+    """Test that `max_steps` warns that each optimizer step is counted."""
+    with pytest.warns(UserWarning, match=f"each of the {n_optimizers} COSDD"):
+        _create(
+            trainer_params={"max_steps": 300}, use_direct_denoiser=use_direct_denoiser
+        )
+
+
 def test_augmentations():
     """Test that flips are allowed and rotations only for uncorrelated noise."""
     config = _create(augmentations=["x_flip", "y_flip"])
