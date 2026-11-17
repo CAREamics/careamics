@@ -21,6 +21,11 @@ class COSDDAlgorithm(BaseModel):
     learning rate scheduler built from `optimizer` and `lr_scheduler`: the Ladder VAE
     with the autoregressive noise decoder, the signal decoder and, optionally, the
     direct denoiser.
+
+    COSDD uses manual optimization, and Lightning counts the step of each optimizer
+    in `global_step`: it advances by 2 (3 with the direct denoiser) every
+    `n_grad_batches` batches. This applies to the Lightning Trainer `max_steps` and to
+    the checkpoint `every_n_train_steps` parameters.
     """
 
     model_config = ConfigDict(
@@ -46,8 +51,10 @@ class COSDDAlgorithm(BaseModel):
 
     n_grad_batches: int = Field(default=4, ge=1)
     """Number of batches over which gradients are accumulated before updating the
-    weights. COSDD uses manual optimization, so the Lightning Trainer
-    `accumulate_grad_batches` parameter is not supported."""
+    weights. The weights are also updated on the last batch of each epoch. COSDD uses
+    manual optimization, so the Lightning Trainer `accumulate_grad_batches` parameter
+    is not supported. Each update advances the Lightning `global_step` by 2 (3 with
+    the direct denoiser)."""
 
     direct_prediction: bool | None = None
     """Whether a single prediction (without `n_predictions`) uses the direct

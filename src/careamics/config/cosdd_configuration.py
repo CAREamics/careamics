@@ -1,5 +1,6 @@
 """Configuration for COSDD."""
 
+import warnings
 from typing import Self
 
 from pydantic import model_validator
@@ -86,6 +87,48 @@ class COSDDConfiguration(Configuration):
                 f"Random 90 degree rotations swap the X and Y axes and are not "
                 f"compatible with noise correlated along {noise_direction}. Remove "
                 f"the rotation augmentation."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_trainer_params(self: Self) -> Self:
+        """Validate the Lightning Trainer parameters against manual optimization.
+
+        A warning is raised if `max_steps` is set, as Lightning counts the step of
+        each COSDD optimizer.
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+
+        Raises
+        ------
+        ValueError
+            If the Trainer `accumulate_grad_batches` is not 1.
+        ValueError
+            If the Trainer `gradient_clip_val` is set.
+        """
+        params = self.training_config.trainer_params
+        if params.get("accumulate_grad_batches", 1) != 1:
+            raise ValueError(
+                "COSDD uses manual optimization: set `n_grad_batches` in the "
+                "algorithm configuration instead of the Trainer "
+                "`accumulate_grad_batches`."
+            )
+        if params.get("gradient_clip_val"):
+            raise ValueError(
+                "COSDD uses manual optimization and does not support the Trainer "
+                "`gradient_clip_val`."
+            )
+        if params.get("max_steps", -1) not in (-1, None):
+            n_optimizers = 3 if self.algorithm_config.model.use_direct_denoiser else 2
+            warnings.warn(
+                f"The Trainer `max_steps` counts each of the {n_optimizers} COSDD "
+                f"optimizer steps of a weight update: training stops after "
+                f"`max_steps / {n_optimizers}` updates, each made every "
+                f"`n_grad_batches` batches.",
+                stacklevel=2,
             )
         return self
 
