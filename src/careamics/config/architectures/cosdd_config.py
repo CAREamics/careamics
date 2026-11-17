@@ -64,7 +64,9 @@ class COSDDConfig(ArchitectureConfig):
     samples (MMSE), `L1` their coordinate-wise median."""
 
     checkpointed: bool = True
-    """Whether to use activation checkpointing, trading speed for GPU memory."""
+    """Whether to use activation checkpointing in the Ladder VAE, the signal decoder
+    and the direct denoiser, trading speed for GPU memory. As in the reference
+    implementation, the autoregressive decoder is not checkpointed."""
 
     @field_validator("input_shape")
     @classmethod
