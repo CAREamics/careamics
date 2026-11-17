@@ -734,6 +734,8 @@ class CAREamist:
         min_sigma: float = 125.0,
         n_epochs: int = 2000,
         save: bool = True,
+        lower_clip: float = 0.0,
+        upper_clip: float = 100.0,
     ) -> MultiChannelNoiseModel:
         """Train a noise model and attach it for the noise model likelihood.
 
@@ -767,6 +769,12 @@ class CAREamist:
             Number of training epochs.
         save : bool, default=True
             Whether to save the trained noise models under `work_dir/noise_models`.
+        lower_clip : float, default=0.0
+            Lower signal percentile. It sets the lower bound of the noise model signal
+            range, and pairs with a signal below it are not used.
+        upper_clip : float, default=100.0
+            Upper signal percentile. It sets the upper bound of the noise model signal
+            range, and pairs with a signal above it are not used.
 
         Returns
         -------
@@ -792,6 +800,8 @@ class CAREamist:
             min_sigma=min_sigma,
             n_epochs=n_epochs,
             save_dir=self.work_dir / "noise_models" if save else None,
+            lower_clip=lower_clip,
+            upper_clip=upper_clip,
         )
         self.model.set_noise_model(noise_model)
         return noise_model
