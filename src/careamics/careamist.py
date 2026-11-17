@@ -648,7 +648,7 @@ class CAREamist:
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
         noise_model : MultiChannelNoiseModel or list of str or Path, default=None
-            Trained noise model for MicroSplit or HDN. Can be passed as a
+            Trained noise model for PN2V, HDN or MicroSplit. Can be passed as a
             `MultiChannelNoiseModel` or the per-channel
             `.npz` paths to load it from.
 
@@ -667,7 +667,8 @@ class CAREamist:
                 logger.warning(
                     "A noise model was provided but the "
                     f"{self.config.get_algorithm_friendly_name()} algorithm does not "
-                    "use one (only MicroSplit and HDN do), so it will not be used."
+                    "use one (only PN2V, HDN and MicroSplit do), so it will not be "
+                    "used."
                 )
 
         if self.config.is_supervised() and train_data_target is None:
@@ -744,8 +745,8 @@ class CAREamist:
         it for inspection.
 
         The `signal` is a clean/denoised estimate (typically an N2V prediction) and the
-        `observation` is the matching raw noisy data. Only MicroSplit and HDN use noise
-        models.
+        `observation` is the matching raw noisy data. Only PN2V, HDN and MicroSplit use
+        noise models.
 
         Parameters
         ----------
@@ -780,7 +781,7 @@ class CAREamist:
         if not hasattr(self.model, "set_noise_model"):
             raise ValueError(
                 f"The {self.config.get_algorithm_friendly_name()} algorithm does not "
-                "support a noise model (only MicroSplit and HDN do)."
+                "support a noise model (only PN2V, HDN and MicroSplit do)."
             )
         noise_model = train_noise_model(
             signal,

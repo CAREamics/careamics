@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from careamics.config.algorithms import PN2VAlgorithm
-from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.config.pn2v_configuration import PN2VConfiguration
 from careamics.config.utils.random import generate_random_seed
 
@@ -24,7 +23,6 @@ def create_pn2v_config(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    noise_model: GaussianMixtureNMConfig,
     num_epochs: int = 30,
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
@@ -39,6 +37,9 @@ def create_pn2v_config(
     `num_classes` is the number of prior samples predicted per pixel. It is independent
     of `n_channels`. The Convallaria GMM protocol uses `num_classes=800`.
 
+    The noise model is not part of the configuration. Pass it to
+    `CAREamist.train(noise_model=...)` or `PN2VModule.set_noise_model`.
+
     Parameters
     ----------
     experiment_name : str
@@ -51,8 +52,6 @@ def create_pn2v_config(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
-    noise_model : GaussianMixtureNMConfig
-        Trained Gaussian mixture noise model.
     num_epochs : int, default=30
         Number of epochs to train for.
     num_steps : int or None, default=None
@@ -79,7 +78,6 @@ def create_pn2v_config(
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        noise_model=noise_model,
         num_epochs=num_epochs,
         num_steps=num_steps,
         augmentations=augmentations,
@@ -96,7 +94,6 @@ def create_advanced_pn2v_config(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    noise_model: GaussianMixtureNMConfig,
     num_epochs: int = 30,
     num_steps: int | None = None,
     n_channels: int | None = None,
@@ -150,8 +147,6 @@ def create_advanced_pn2v_config(
         Size of the patches along the spatial dimensions.
     batch_size : int
         Batch size.
-    noise_model : GaussianMixtureNMConfig
-        Trained Gaussian mixture noise model.
     num_epochs : int, default=30
         Number of epochs to train for.
     num_steps : int or None, default=None
@@ -272,7 +267,6 @@ def create_advanced_pn2v_config(
     )
     algorithm_params["monitor_metric"] = monitor_metric
     algorithm_params["sample_scale"] = sample_scale
-    algorithm_params["noise_model"] = noise_model
 
     final_trainer_params = update_trainer_params(
         trainer_params=trainer_params,

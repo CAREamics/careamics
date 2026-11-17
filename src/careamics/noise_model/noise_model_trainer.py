@@ -1,4 +1,4 @@
-"""Noise model trainer for MicroSplit."""
+"""Trainer for the Gaussian mixture noise models of PN2V, HDN and MicroSplit."""
 
 from __future__ import annotations
 

@@ -7,7 +7,6 @@ from pydantic import AfterValidator, ConfigDict, Field, model_validator
 
 from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
 from careamics.config.architectures import UNetConfig
-from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.config.support import SupportedPixelManipulation
 from careamics.config.validators import (
     model_without_final_activation,
@@ -38,7 +37,12 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
     """PN2V Algorithm name."""
 
     loss: Literal["pn2v"] = "pn2v"
-    """PN2V loss function (uses N2V loss with noise model)."""
+    """PN2V loss: negative log of the noise model likelihood of the masked pixels,
+    averaged over the prior samples.
+
+    The noise model is not part of the configuration. Pass it to
+    `CAREamist.train(noise_model=...)` or `PN2VModule.set_noise_model`.
+    """
 
     monitor_metric: Literal["train_loss", "train_loss_epoch", "val_loss"] = "val_loss"
     """Metric to monitor for the learning rate scheduler."""
@@ -51,9 +55,6 @@ class PN2VAlgorithm(UNetBasedAlgorithm):
     """
 
     n2v_config: N2VManipulateConfig = N2VManipulateConfig()
-
-    noise_model: GaussianMixtureNMConfig
-    """Noise model configuration for probabilistic denoising."""
 
     model: Annotated[
         UNetConfig,

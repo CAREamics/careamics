@@ -4,17 +4,13 @@ import pytest
 
 from careamics.config.algorithms import PN2VAlgorithm
 from careamics.config.factories.config_discriminators import instantiate_config
-from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.config.pn2v_configuration import PN2VConfiguration
 from tests.utils import unet_config_dict_testing
 
 
 def _pn2v_dict(**kwargs):
     """Return a dictionary that instantiates as PN2VConfiguration."""
-    algo_kwargs = {
-        "loss": "pn2v",
-        "noise_model": GaussianMixtureNMConfig().model_dump(),
-    }
+    algo_kwargs = {"loss": "pn2v"}
     algo_kwargs.update(kwargs.pop("algo_kwargs", {}))
     return unet_config_dict_testing(
         algorithm="pn2v",
@@ -34,14 +30,6 @@ def test_pn2v_config_instantiation():
     assert cfg.algorithm_config.model.num_classes == 4
     assert cfg.algorithm_config.sample_scale == 10.0
     assert cfg.is_supervised() is False
-
-
-def test_pn2v_requires_noise_model():
-    """A PN2V configuration without a noise model is rejected."""
-    config = _pn2v_dict()
-    del config["algorithm_config"]["noise_model"]
-    with pytest.raises(ValueError):
-        instantiate_config(config)
 
 
 def test_pn2v_mask_pixel_percentage():
