@@ -21,6 +21,7 @@ from careamics.dataset.normalization import (
 )
 from careamics.dataset.normalization.normalization import Normalization
 from careamics.dataset.normalization.utils import broadcast_stats
+from careamics.lightning.logger import CoLogger
 from careamics.losses import pn2v_loss
 from careamics.losses.n2v_losses import pn2v_likelihoods
 from careamics.metrics import SIPSNR
@@ -34,6 +35,7 @@ from careamics.utils.logging import get_logger
 from .module_utils import (
     configure_optimizers,
     load_noise_model_from_checkpoint,
+    log_images,
     log_training_stats,
     log_validation_stats,
     resolve_noise_model,
@@ -463,6 +465,17 @@ class PN2VModule(L.LightningModule):
         log_validation_stats(
             self, val_loss, batch_size=x_data.shape[0], metrics=self.metrics
         )
+
+        not_sanity_checking = not self.trainer.sanity_checking
+        if batch_idx == 0 and isinstance(self.logger, CoLogger) and not_sanity_checking:
+            n_samples = min(5, x_data.shape[0])
+            log_images(
+                self,
+                input_or_target=x_masked[:n_samples],
+                prediction=prior_mean[:n_samples],
+                is_supervised=False,
+                denormalize=self._denormalize,
+            )
 
     def predict_step(
         self,
