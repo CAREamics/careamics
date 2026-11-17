@@ -37,3 +37,7 @@ class SupportedAlgorithm(StrEnum):
     HDN = "hdn"
     """Hierarchical DivNoising, an unsupervised denoising algorithm capable of removing
     structured noise."""
+
+    COSDD = "cosdd"
+    """COrrelated and Signal-Dependent Denoising, an unsupervised denoiser for
+    signal-dependent and spatially correlated noise."""

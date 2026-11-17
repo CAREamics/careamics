@@ -120,7 +120,19 @@ def export_to_bmz(
         Paths to the cover images.
     channel_names : Optional[list[str]], optional
         Channel names, by default None.
+
+    Raises
+    ------
+    NotImplementedError
+        If the model is a COSDD model.
+    ValueError
+        If `path_to_archive` does not point to a zip file.
     """
+    if config.algorithm_config.model.architecture == SupportedArchitecture.COSDD:
+        raise NotImplementedError(
+            "Export to the BioImage Model Zoo is not implemented for COSDD."
+        )
+
     path_to_archive = Path(path_to_archive)
 
     if path_to_archive.suffix != ".zip":
