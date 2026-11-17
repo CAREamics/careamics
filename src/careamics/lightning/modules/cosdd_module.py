@@ -45,7 +45,9 @@ class COSDDModule(L.LightningModule):
       (`dd_loss`).
 
     Each network is updated by its own optimizer, using manual optimization with
-    gradient accumulation over `n_grad_batches` batches.
+    gradient accumulation over `n_grad_batches` batches. The weights are also updated
+    on the last batch of each epoch, so that no gradient is carried over to the next
+    epoch.
 
     At prediction, if `n_samples` is 1 and a direct denoiser was trained (and
     `direct_pred` is `True`), the direct denoiser is used. Otherwise, `n_samples`
@@ -96,8 +98,12 @@ class COSDDModule(L.LightningModule):
         self.direct_pred: bool = self.direct_denoiser is not None
         """Whether to use the direct denoiser at prediction when `n_samples` is 1."""
 
+        self._validated: bool = False
+        """Whether validation ran since the schedulers were last stepped."""
+
     def on_fit_start(self) -> None:
         """On fit start hook for COSDD module."""
+        self._validated = False
         assert self._trainer is not None
         datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
         assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
@@ -245,7 +251,10 @@ class COSDDModule(L.LightningModule):
         x = cast(torch.Tensor, batch[0].data)
         batch_size = x.shape[0]
         optimizers = cast(list[Any], self.optimizers())
-        update = (batch_idx + 1) % self.n_grad_batches == 0
+        # also step on the last batch, so that a partial group of accumulated
+        # gradients does not leak into the next epoch
+        last_batch = self.trainer.is_last_batch
+        update = (batch_idx + 1) % self.n_grad_batches == 0 or last_batch
 
         vae_out = self.vae_forward(x)
         vae_losses = self.vae_loss(x, vae_out)
@@ -298,21 +307,27 @@ class COSDDModule(L.LightningModule):
                 optimizers[2].step()
                 optimizers[2].zero_grad()
 
+    def on_validation_epoch_end(self) -> None:
+        """Record that the validation losses were computed for this epoch."""
+        if not self.trainer.sanity_checking:
+            self._validated = True
+
     def on_train_epoch_end(self) -> None:
         """Step the learning rate schedulers.
 
         `ReduceLROnPlateau` schedulers monitor the validation loss of their network
-        and are not stepped if it has not been computed.
+        and are only stepped in epochs in which validation ran.
         """
         schedulers = cast(list[Any], self.lr_schedulers())
         monitored = ["val_loss", "val_sd_loss", "val_dd_loss"]
         for scheduler, metric in zip(schedulers, monitored, strict=False):
             if isinstance(scheduler, ReduceLROnPlateau):
                 value = self.trainer.callback_metrics.get(metric)
-                if value is not None:
+                if self._validated and value is not None:
                     scheduler.step(value)
             else:
                 scheduler.step()
+        self._validated = False
 
     def validation_step(
         self,
