@@ -6,6 +6,7 @@ from careamics.config.factories import (
     create_advanced_microsplit_config,
     create_microsplit_config,
 )
+from careamics.config.losses import MicroSplitLossConfig
 from careamics.config.microsplit_configuration import MicroSplitConfiguration
 
 # TODO refactor similarly to https://github.com/CAREamics/careamics/pull/1005
@@ -27,6 +28,25 @@ class TestMicroSplitConfig:
         assert isinstance(config, MicroSplitConfiguration)
         assert isinstance(config.algorithm_config, MicroSplitAlgorithm)
         assert isinstance(config.data_config, MicroSplitDataConfig)
+        assert config.algorithm_config.loss.gaussian_likelihood_weight == pytest.approx(
+            0.1
+        )
+        assert config.algorithm_config.loss.noise_model_likelihood_weight == 0.9
+
+    def test_use_noise_model_false_configures_gaussian_likelihood(self):
+        """Test that the simple noise-model switch configures a Gaussian loss."""
+        config = create_advanced_microsplit_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            output_channels=2,
+            use_noise_model=False,
+        )
+        assert config.algorithm_config.loss.gaussian_likelihood_weight == 1.0
+        assert config.algorithm_config.loss.noise_model_likelihood_weight == 0.0
+        assert config.algorithm_config.model.predict_logvar is True
 
     def test_multiscale_count_propagated(self):
         """Test that multiscale_count is set on both the model and data config."""
@@ -44,6 +64,10 @@ class TestMicroSplitConfig:
 
     def test_loss_weights_propagated(self):
         """Test that the loss weights are set on the loss config."""
+        loss = MicroSplitLossConfig(
+            gaussian_likelihood_weight=0.3,
+            noise_model_likelihood_weight=0.7,
+        )
         config = create_advanced_microsplit_config(
             experiment_name="test",
             data_type="array",
@@ -51,8 +75,7 @@ class TestMicroSplitConfig:
             patch_size=[64, 64],
             batch_size=8,
             output_channels=2,
-            gaussian_likelihood_weight=0.3,
-            noise_model_likelihood_weight=0.7,
+            loss=loss,
         )
         assert config.algorithm_config.loss.gaussian_likelihood_weight == 0.3
         assert config.algorithm_config.loss.noise_model_likelihood_weight == 0.7
@@ -70,12 +93,28 @@ class TestMicroSplitConfig:
             patch_size=[64, 64],
             batch_size=8,
             output_channels=2,
-            predict_logvar=False,
-            gaussian_likelihood_weight=0.0,
-            noise_model_likelihood_weight=1.0,
+            loss=MicroSplitLossConfig(
+                gaussian_likelihood_weight=0.0,
+                noise_model_likelihood_weight=1.0,
+                predict_logvar=False,
+            ),
         )
         assert config.algorithm_config.model.predict_logvar is False
         assert config.algorithm_config.loss.predict_logvar is False
+
+    def test_loss_and_use_noise_model_are_mutually_exclusive(self):
+        """Test that explicit loss settings cannot be combined with the switch."""
+        with pytest.raises(ValueError, match="cannot be passed conjointly"):
+            create_advanced_microsplit_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                output_channels=2,
+                use_noise_model=True,
+                loss=MicroSplitLossConfig(),
+            )
 
     def test_num_epochs_and_num_steps(self):
         """Test that both num_epochs and num_steps can be set simultaneously."""
@@ -139,8 +178,7 @@ def test_normalization_none_rejected():
             batch_size=8,
             output_channels=2,
             multiscale_count=1,
-            gaussian_likelihood_weight=1.0,
-            noise_model_likelihood_weight=0.0,
+            use_noise_model=False,
             normalization="none",
         )
 
@@ -156,8 +194,7 @@ def test_alpha_ranges_must_match_output_channels():
             batch_size=8,
             output_channels=2,
             multiscale_count=1,
-            gaussian_likelihood_weight=1.0,
-            noise_model_likelihood_weight=0.0,
+            use_noise_model=False,
             alpha_ranges=[(0.0, 1.0)],
         )
 
