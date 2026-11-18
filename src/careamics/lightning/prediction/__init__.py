@@ -15,8 +15,8 @@ from .convert_prediction import (
     combine_samples,
     convert_predict_outputs,
     convert_prediction,
-    decollate_image_region_data,
     prediction_region,
     uncertainty_region,
 )
+from .decollate_utils import decollate_image_region_data
 from .stitch_prediction import stitch_prediction, stitch_single_prediction

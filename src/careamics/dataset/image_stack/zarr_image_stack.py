@@ -1,14 +1,21 @@
 """ImageStack implementation for Zarr-backed images."""
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
-import zarr
 from numpy.typing import DTypeLike, NDArray
 
 from careamics.utils.reshape_array import AxesTransform, get_patch_slices, reshape_patch
 
 from .image_utils.image_stack_utils import pad_patch
+from .zarr_access import (
+    DefaultZarrAccess,
+    ZarrAccess,
+    ZarrNode,
+    build_default_ome_metadata,
+    resolve_node_type,
+)
 
 
 class ZarrImageStack:
@@ -17,58 +24,61 @@ class ZarrImageStack:
 
     Parameters
     ----------
-    group : zarr.Group
-        Zarr group containing the array.
-    data_path : str
-        Path to the array within the group.
+    node : ZarrNode
+        Zarr node pointing to an array.
     axes : str
         Axis order (e.g. STCZYX).
+    access : ZarrAccess or None, default=None
+        Zarr backend access implementation.
+    additional_metadata : dict[str, Any] or None, default=None
+        Additional metadata associated with the array.
     """
 
-    def __init__(self, group: zarr.Group, data_path: str, axes: str):
+    def __init__(
+        self,
+        node: ZarrNode,
+        axes: str,
+        access: ZarrAccess | None = None,
+        additional_metadata: dict[str, Any] | None = None,
+    ):
         """Constructor.
 
         Parameters
         ----------
-        group : zarr.Group
-            Zarr group containing the array.
-        data_path : str
-            Path to the array within the group.
+        node : ZarrNode
+            Zarr node pointing to an array.
         axes : str
             Axis order (e.g. STCZYX).
+        access : ZarrAccess or None, default=None
+            Zarr backend access implementation.
+        additional_metadata : dict[str, Any] or None, default=None
+            Additional metadata associated with the array.
         """
-        if not isinstance(group, zarr.Group):
-            raise TypeError(f"group must be a zarr.Group instance, got {type(group)}.")
+        self._access = DefaultZarrAccess() if access is None else access
+        self._node = node
+        self._additional_metadata = (
+            {} if additional_metadata is None else dict(additional_metadata)
+        )
 
-        self._group = group
-        self._store = str(group.store_path)
-        try:
-            self._array = group[data_path]
-        except KeyError as e:
-            raise ValueError(
-                f"Did not find array at '{data_path}' in store '{self._store}'."
-            ) from e
-
-        if not isinstance(self._array, zarr.Array):
+        if resolve_node_type(node).node_type != "array":
             raise TypeError(
-                f"data at path '{data_path}' must be a zarr.Array instance, "
-                f"got {type(self._array)}."
+                f"Node '{node.source}' must point to a zarr array, not a group."
             )
 
-        self._source = self._array.store_path
+        self._source = node.source
 
         # TODO: validate axes
         #   - must contain XY
         #   - must be subset of STCZYX
         self._original_axes = axes
-        self._original_data_shape: tuple[int, ...] = self._array.shape
+        self._original_data_shape = self._access.get_array_shape(node)
         self.data_shape = AxesTransform(
             axes, self._original_data_shape
         ).transformed_shape
 
-        self._data_dtype = self._array.dtype
-        self._chunk_size = self._array.chunks
-        self._shard_size = self._array.shards
+        self._data_dtype = self._access.get_array_dtype(node)
+        self._chunk_size = self._access.get_array_chunks(node)
+        self._shard_size = self._access.get_array_shards(node)
 
     @property
     def source(self) -> str:
@@ -106,6 +116,29 @@ class ZarrImageStack:
             Shard size per dimension, or None.
         """
         return self._shard_size
+
+    @property
+    def additional_metadata(self) -> dict[str, Any]:
+        """Format-specific metadata.
+
+        Returns
+        -------
+        dict[str, Any]
+            Additional metadata for the Zarr array.
+        """
+        metadata = dict(self._additional_metadata)
+        if "ome" not in metadata:
+            metadata["ome"] = build_default_ome_metadata(
+                self._node,
+                self._original_axes,
+            ).to_dict()
+
+        metadata["chunks"] = self.chunks
+
+        if self.shards is not None:
+            metadata["shards"] = self.shards
+
+        return metadata
 
     @property
     def data_dtype(self) -> DTypeLike:
@@ -174,7 +207,7 @@ class ZarrImageStack:
             patch_size,
         )
 
-        patch_data: NDArray = self._array[patch_slice]  # type: ignore
+        patch_data: NDArray = self._access.read_array_patch(self._node, patch_slice)
         patch_data = reshape_patch(patch_data, self._original_axes)
         patch = pad_patch(coords, patch_size, self.data_shape, patch_data)
         return patch
