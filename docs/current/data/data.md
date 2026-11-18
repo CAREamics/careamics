@@ -17,7 +17,7 @@ passed as is to the `CAREamist` (list or single array).
 ## TIFF
 
 As TIFF are widely used, they are the most common use case of CAREamics. TIFF loading
-is compatible with [in-memory training](./configuration.md#training-in-memory). If the
+is compatible with [in-memory training](../configuration.md#training-in-memory). If the
 data is too large to fit in memory, CAREamics will train by loading files from disk,
 one at a time and cycle through them to extract patches. While slower, this ensure that
 training is performed over the entire set of files.
@@ -38,7 +38,7 @@ as depth axis (as `Z`).
 - `T` and `Z` are mutually exclusive.
 
 ```python title="Using CZI""
---8<-- "current/data.py:czi"
+--8<-- "current/data/data.py:czi"
 ```
 
 1. We set the data type to `czi`.
@@ -56,7 +56,7 @@ explicitly.
 
     This example is valid for CARE and Noise2Noise, albeit with their respective
     function to create a configuration and the difference in number of channels
-    parameter naming. See the [configuration](./configuration.md#channels) section for
+    parameter naming. See the [configuration](../configuration.md#simple-configuration) section for
     more details.
 
 
@@ -82,7 +82,7 @@ In the following example, we construct a Zarr file with arrays in different hier
 levels, and showcase various ways to specify which array should be used for training.
 
 ```python title="Using Zarr""
---8<-- "current/data.py:zarr"
+--8<-- "current/data/data.py:zarr"
 ```
 
 1. Only `array_1` and `array_2` will be loaded.
@@ -125,10 +125,10 @@ This uses the same mechanism as training on in-memory TIFF files. A simple funct
 - a list of paths, or
 - a path to a directory.
 
-See the [Custom Read Function Tutorial](../tutorials/custom_data.md#custom-read-function) for an example on using a custom read function.
+See the [Custom Read Function Tutorial](../../tutorials/custom_data.md#custom-read-function) for an example on using a custom read function.
 
 ### Custom Image Stack Loader
 
 Training and predicting on a custom memory-mapped or chunked file format is more complex, but it enables training without loading an entire image file into memory at once. In involves implementing an [`ImageStack`][careamics.dataset.image_stack.ImageStack] class and an [`ImageStackLoader`][careamics.dataset.image_stack_loader] function to load the image stacks. The custom loading function can be implemented to accept any input type which will allow the same input type to be passed to training and prediction.
 
-See the [Custom Image Stack & Loader Tutorial](../tutorials/custom_data.md#custom-image-stack-loader) for an example on using a custom read function.
+See the [Custom Image Stack & Loader Tutorial](../../tutorials/custom_data.md#custom-image-stack-loader) for an example on using a custom read function.

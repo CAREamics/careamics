@@ -18,7 +18,7 @@ Using precomputed masks is relatively simple, the masks in the same format as th
 === "Noise2Void"
     
     ```python title="Specifying a mask for Noise2Void training"
-    --8<-- "current/careamist_training.py:train_n2v_mask"
+    --8<-- "current/careamist/careamist_training.py:train_n2v_mask"
     ```
  
     1. The mask is passed alongside the data.
@@ -26,7 +26,7 @@ Using precomputed masks is relatively simple, the masks in the same format as th
 === "CARE/N2N"
 
     ```python title="Specifying a mask for CARE training"
-    --8<-- "current/careamist_training.py:train_care_mask"
+    --8<-- "current/careamist/careamist_training.py:train_care_mask"
     ```
     
     1. The mask is passed alongside the data.

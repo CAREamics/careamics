@@ -30,7 +30,7 @@ The `get_checkpoints` method returns the available checkpoint paths, sorted by e
 number, with the last checkpoint (if present) appended at the end.
 
 ```python title="Listing checkpoints"
---8<-- "current/saving_models.py:get_checkpoints"
+--8<-- "current/saving_models/saving_models.py:get_checkpoints"
 ```
 
 ### Reloading a checkpoint
@@ -39,10 +39,10 @@ A `CAREamist` can be recreated from any checkpoint path, for instance to run pre
 in a new session.
 
 ```python title="Reloading from a checkpoint"
---8<-- "current/saving_models.py:reload"
+--8<-- "current/saving_models/saving_models.py:reload"
 ```
 
-See [Predicting with CAREamics](./careamist_predicting.md) for how to select the best or
+See [Predicting with CAREamics](../careamist/careamist_predicting.md) for how to select the best or
 last checkpoint at prediction time.
 
 ## Exporting to the BioImage Model Zoo
@@ -59,4 +59,4 @@ Ilastik and deepImageJ.
 
 For a complete walkthrough of every argument, the archive contents, model validation and
 loading a model back, see the
-[Exporting to the BioImage Model Zoo](../tutorials/export_to_bmz.md) tutorial.
+[Exporting to the BioImage Model Zoo](../../tutorials/export_to_bmz.md) tutorial.

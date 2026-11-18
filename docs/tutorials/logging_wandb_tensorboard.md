@@ -1,7 +1,7 @@
 # Logging with WandB and TensorBoard
 
 CAREamics writes a CSV log of the training and validation metrics (see the
-[Logging guide](../current/careamist_train_logging.md)). You can also save
+[Logging guide](../current/careamist/careamist_train_logging.md)). You can also save
 these metrics to [Weights & Biases](https://wandb.ai/) or
 [TensorBoard](https://www.tensorflow.org/tensorboard) by passing `logger="wandb"` or
 `logger="tensorboard"` to the advanced configuration factory. 

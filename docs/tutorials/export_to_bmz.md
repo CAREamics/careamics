@@ -6,7 +6,7 @@ produces a self-contained `.zip` archive that can be shared, uploaded to the Zoo
 consumed by other tools such as Fiji, Ilastik and deepImageJ.
 
 This tutorial assumes you already have a trained `CAREamist`. See
-[Saving and exporting models](../current/saving_models.md) for a shorter overview.
+[Saving and exporting models](../current/saving_models/saving_models.md) for a shorter overview.
 
 ## A minimal export
 

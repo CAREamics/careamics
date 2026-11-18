@@ -23,4 +23,4 @@ config_path = save_configuration(config, "careamics_config.yml")
 
 # load the configuration
 loaded_config = load_configuration(config_path)
-# --8<-- [end:config]
+# --8<-- [end:save_load]

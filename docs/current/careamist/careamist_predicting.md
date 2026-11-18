@@ -9,7 +9,7 @@ Prediction can be performed right after training, re-using the same `CAREamist` 
 or by creating a new one with a path to a checkpoint:
 
 ```python title="Starting from a checkpoint"
---8<-- "current/careamist_predicting.py:pred_start"
+--8<-- "current/careamist/careamist_predicting.py:pred_start"
 ```
 
 ## Returning predictions
@@ -18,7 +18,7 @@ The simplest form of prediction is to call `predict`, which returns the predicti
 their sources.
 
 ```python title="Prediction"
---8<-- "current/careamist_predicting.py:pred"
+--8<-- "current/careamist/careamist_predicting.py:pred"
 ```
 
 The `predict` method returns both a list of arrays corresponding to the predictions and
@@ -28,7 +28,7 @@ otherwise passed as `numpy` arrays, then the source can be ignored, since it is 
 list:
 
 ```python title="Prediction from arrays"
---8<-- "current/careamist_predicting.py:pred_empty_source"
+--8<-- "current/careamist/careamist_predicting.py:pred_empty_source"
 ```
 
 !!! note "Dimensions of the prediction"
@@ -53,7 +53,7 @@ For odd-sized or large images, tiling should be used. Tiling is enabled by passi
 a `tile_size` to the prediction method.
 
 ```python title="Prediction"
---8<-- "current/careamist_predicting.py:pred_tiled"
+--8<-- "current/careamist/careamist_predicting.py:pred_tiled"
 ```
 
 1. The `tile_size` need not be equal to the training patch size.
@@ -89,7 +89,7 @@ During prediction, you can change the dataloading parameters by passing them to 
 `predict` method. The parameters `batch_size` and `num_workers` can be set through the `predict` function arguments, while any other parameters have to be changed through the configuration.
 
 ```python title="Prediction"
---8<-- "current/careamist_predicting.py:pred_dataloader"
+--8<-- "current/careamist/careamist_predicting.py:pred_dataloader"
 ```
 
 ### Data parameters
@@ -104,7 +104,7 @@ time-points. We need to set `new_axes` to `SYX` to specify the new axes order. W
 need to specify the new axes and `data_type`. Finally, we do not want to train in-memory.
 
 ```python title="Prediction"
---8<-- "current/careamist_predicting.py:pred_data_params"
+--8<-- "current/careamist/careamist_predicting.py:pred_data_params"
 ```
 
 1. Now, data is a path.
@@ -136,7 +136,7 @@ It can be either a path to a checkpoint file or one of the keywords specified by
 PyTorch Lightning (typically `"best"` or `"last"`, see [documentation](https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict)).
 
 ```python title="Prediction with checkpoint"
---8<-- "current/careamist_predicting.py:pred_checkpoint"
+--8<-- "current/careamist/careamist_predicting.py:pred_checkpoint"
 ```
 
 !!! warning "Noise2Void and Noise2Noise"
@@ -152,7 +152,7 @@ Prediction can also be saved directly to disk. This is particularly useful for l
 number of files that may not fit in memory.
 
 ```python title="Predict directly to the disk"
---8<-- "current/careamist_predicting.py:pred_to_disk"
+--8<-- "current/careamist/careamist_predicting.py:pred_to_disk"
 ```
 
 1. Optional, if not provided the predictions will be saved in the working directory,
@@ -183,7 +183,7 @@ number of files that may not fit in memory.
 You can also select a different write type that the default or from the source data.
 
 ```python title="Predict with a different type"
---8<-- "current/careamist_predicting.py:pred_write_type"
+--8<-- "current/careamist/careamist_predicting.py:pred_write_type"
 ```
 
 1. The write type can be changed. Currently, only `tiff` and `zarr` are supported.
@@ -202,7 +202,7 @@ The function must accept a path, an array and allow passing additional keyword
 arguments. Here is an example of writing to a custom type (`.npy`):
 
 ```python title="Custom write function"
---8<-- "current/careamist_predicting.py:pred_write_func"
+--8<-- "current/careamist/careamist_predicting.py:pred_write_func"
 ```
 
 1. First define your write function.
