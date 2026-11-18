@@ -7,7 +7,7 @@ description: Logging
 
 You can follow the progress of the training, or inspect it once training is over, using the logging capacities of PyTorch Lightning.
 
-CAREamics always writes a CSV log of training and validation metrics. In addition, it can forward those metrics to [Weights & Biases](https://wandb.ai/) or [TensorBoard](https://www.tensorflow.org/tensorboard) by passing `logger="wandb"` or `logger="tensorboard"` to the advanced configuration factory (see [Choosing a logger](../configuration.md#choosing-a-logger)). The CSV log is *always* written, regardless of which extra logger is enabled. Enabling and configuring those two backends is covered in the [WandB and TensorBoard tutorial](../../tutorials/logging_wandb_tensorboard.md).
+CAREamics always writes a CSV log of training and validation metrics. In addition, it can forward those metrics to [Weights & Biases](https://wandb.ai/) or [TensorBoard](https://www.tensorflow.org/tensorboard) by passing `logger="wandb"` or `logger="tensorboard"` to the advanced configuration factory (see [Choosing a logger](../configuration/configuration.md#choosing-a-logger)). The CSV log is *always* written, regardless of which extra logger is enabled. Enabling and configuring those two backends is covered in the [WandB and TensorBoard tutorial](../../tutorials/logging_wandb_tensorboard.md).
 
 All training artefacts are written under the `work_dir` passed to the `CAREamist` (the current working directory by default), with the following layout:
 

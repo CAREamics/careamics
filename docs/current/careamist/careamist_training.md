@@ -5,7 +5,7 @@ description: Quick start
 
 # Training CAREamics
 
-After having [created a configuration](../configuration.md) and 
+After having [created a configuration](../configuration/configuration.md) and 
 [assembled the training data](../data/data.md), you are ready to train CAREamics. The preferred
 way to train with CAREamics is to create a `CAREamist`.
 
@@ -14,8 +14,8 @@ way to train with CAREamics is to create a `CAREamist`.
 ```
 
 1. Here the configuration can either be passed as we have seen in the
-[configuration](../configuration.md) section, or as a path to configuration [saved to the
-disk](../configuration.md#saving-and-loading).
+[configuration](../configuration/configuration.md) section, or as a path to configuration [saved to the
+disk](../configuration/configuration.md#saving-and-loading).
 
 ### Working directory
 
@@ -43,11 +43,11 @@ The PyTorch Lightning progress bar is be verbose, and can be disabled by passing
 ### Split train and validation data
 
 Once you have a `CAREamist` object, you can train CAREamics with the `train` method. Data 
-is expected to be coherent with the [choice in the configuration](../configuration.md#simple-configuration)
+is expected to be coherent with the [choice in the configuration](../configuration/configuration.md#simple-configuration)
 and the [data section](../data/data.md).
 
 Without validation, CAREamics will split the data into training and validation internally.
-The amount of validation data can be set [in the configuration](../configuration.md#number-of-validation-patches).
+The amount of validation data can be set [in the configuration](../configuration/configuration.md#number-of-validation-patches).
 
 === "Noise2Void"
     

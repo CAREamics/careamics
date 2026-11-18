@@ -17,7 +17,7 @@ passed as is to the `CAREamist` (list or single array).
 ## TIFF
 
 As TIFF are widely used, they are the most common use case of CAREamics. TIFF loading
-is compatible with [in-memory training](../configuration.md#training-in-memory). If the
+is compatible with [in-memory training](../configuration/configuration.md#training-in-memory). If the
 data is too large to fit in memory, CAREamics will train by loading files from disk,
 one at a time and cycle through them to extract patches. While slower, this ensure that
 training is performed over the entire set of files.
@@ -56,7 +56,7 @@ explicitly.
 
     This example is valid for CARE and Noise2Noise, albeit with their respective
     function to create a configuration and the difference in number of channels
-    parameter naming. See the [configuration](../configuration.md#simple-configuration) section for
+    parameter naming. See the [configuration](../configuration/configuration.md#simple-configuration) section for
     more details.
 
 

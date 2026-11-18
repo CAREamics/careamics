@@ -17,8 +17,12 @@ to as the [Lightning API](./lightning_api/lightning_api.md).
 
 === "Noise2Void"
     
-    ```python
-    --8<-- "current/index.py:quick_start_n2v"
+    ```python title="Create a configuration"
+    --8<-- "current/index/index_n2v.py:quick_start_n2v_config"
+    ```
+
+    ```python title="Train and predict"
+    --8<-- "current/index/index_n2v.py:quick_start_n2v_train"
     ```
 
     1. We declare that we will train from arrays in memory. See configuration section for more options.
@@ -28,8 +32,12 @@ to as the [Lightning API](./lightning_api/lightning_api.md).
 
 === "CARE"
 
-    ```python
-    --8<-- "current/index.py:quick_start_care"
+    ```python title="Create a configuration"
+    --8<-- "current/index/index_care.py:quick_start_care_config"
+    ```
+
+    ```python title="Train and predict"
+    --8<-- "current/index/index_care.py:quick_start_care_train"
     ```
 
     1. We declare that we will train from arrays in memory. See configuration section for more options.
@@ -42,8 +50,12 @@ to as the [Lightning API](./lightning_api/lightning_api.md).
 
 === "HDN"
 
-    ```python
-    --8<-- "current/index.py:quick_start_hdn"
+    ```python title="Create a configuration"
+    --8<-- "current/index/index_hdn.py:quick_start_hdn_config"
+    ```
+
+    ```python title="Train and predict"
+    --8<-- "current/index/index_hdn.py:quick_start_hdn_train"
     ```
 
     1. We declare that we will train from arrays in memory. See configuration section for more options.
@@ -59,23 +71,69 @@ to as the [Lightning API](./lightning_api/lightning_api.md).
 
 === "MicroSplit"
 
-    ```python
-    --8<-- "current/index.py:quick_start_microsplit"
+    ```python title="Create a configuration"
+    --8<-- "current/index/index_microsplit.py:quick_start_microsplit_config"
     ```
+
+    ```python title="Train and predict"
+    --8<-- "current/index/index_microsplit.py:quick_start_microsplit_train"
+    ```
+
+    1. We declare that we will train from arrays in memory. See the configuration section for more options.
+
+    2. `output_channels` is the number of channels produced by the channel-splitting model.
+
+    3. `use_noise_model=True` enables the noise-model likelihood.
+
+    4. A separate noise model is passed for each output channel, so the list contains three models.
+
+    5. Data passed must be compatible with the configuration that was defined earlier.
 
 
 === "cryoCARE"
 
-    ```python
-    --8<-- "current/index.py:quick_start_cryocare"
+    ```python title="Create a configuration"
+    --8<-- "current/index/index_cryocare.py:quick_start_cryocare_config"
     ```
+
+    ```python title="Train and predict"
+    --8<-- "current/index/index_cryocare.py:quick_start_cryocare_train"
+    ```
+
+    1. `data_type="mrc"` selects cryoCARE's MRC input handling.
+
+    2. cryoCARE uses volumes with three spatial axes (`ZYX`) and a physical tilt axis.
+
+    3. `tilt_axis` identifies the physical tilt axis used to construct the split.
+
+    4. `even_reconstruction` is passed as the training input.
+
+    5. `odd_reconstruction` is passed as the training target.
+
+    6. Both reconstructions are passed during prediction, and predictions are written to disk with `predict_to_disk`.
+
+    7. Data passed must be compatible with the configuration that was defined earlier.
 
 
 === "Segmentation"
 
-    ```python
-    --8<-- "current/index.py:quick_start_segmentation"
+    ```python title="Create a configuration"
+    --8<-- "current/index/index_segmentation.py:quick_start_segmentation_config"
     ```
+
+    ```python title="Train and predict"
+    --8<-- "current/index/index_segmentation.py:quick_start_segmentation_train"
+    ```
+
+    1. We declare that we will train from arrays in memory. See the configuration section for more options.
+
+    2. Segmentation targets are integer label masks with one value per class.
+
+    3. `n_classes` is the number of foreground classes; CAREamics adds the background class automatically.
+
+    4. `prediction_output="probabilities"` returns one probability map per class instead of a class mask.
+
+    5. Data passed must be compatible with the configuration that was defined earlier.
 
 
 
@@ -98,7 +156,7 @@ to as the [Lightning API](./lightning_api/lightning_api.md).
 
     Configure your experiment.
 
-    [:octicons-arrow-right-24: Configuration](./configuration.md)
+    [:octicons-arrow-right-24: Configuration](./configuration/configuration.md)
 
 -   :lucide-database:{ .lg .middle } __Data preparation__
 
