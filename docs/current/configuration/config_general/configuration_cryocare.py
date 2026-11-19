@@ -14,9 +14,25 @@ config = create_cryocare_config(
     experiment_name="cryocare_training",
     data_type="mrc",
     axes="ZYX",
-    patch_size=[16, 64, 64],
+    patch_size=[64, 64, 64],  # (1)!
     batch_size=8,
-    tilt_axis="Y",
+    tilt_axis="Y",  # (2)!
     num_epochs=100,
 )
 # --8<-- [end:config_cryocare]
+
+# %%
+# --8<-- [start:config_cryocare_steps]
+from careamics.config import create_cryocare_config
+
+config = create_cryocare_config(
+    experiment_name="cryocare_training",
+    data_type="mrc",
+    axes="ZYX",
+    patch_size=[64, 64, 64],
+    batch_size=8,
+    tilt_axis="Y",
+    num_epochs=100,
+    num_steps=200,  # (1)!
+)
+# --8<-- [end:config_cryocare_steps]

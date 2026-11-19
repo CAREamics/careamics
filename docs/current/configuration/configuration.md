@@ -84,10 +84,6 @@ an experiment.
     with `axis` about dimensionality (2D or 3D).
 
 
-    - `use_noise_model`: Selects the noise-model likelihood when enabled; otherwise
-      HDN uses the Gaussian likelihood pathway.
-    - `supervised`: Enables supervised training when target data is available.
-
 === "MicroSplit"
 
     ```python title="Configure MicroSplit"
@@ -96,10 +92,7 @@ an experiment.
 
     1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
     with `axis` about dimensionality (2D or 3D).
-
-
-    - `output_channels`: Number of target channels to split into.
-    - `multiscale_count`: Number of lateral-context scales.
+    2. The number of channels to be unmixed.
 
 === "cryoCARE"
 
@@ -107,106 +100,120 @@ an experiment.
     --8<-- "current/configuration/config_general/configuration_cryocare.py:config_cryocare"
     ```
 
-    - `experiment_name`: The experiment name is used in logging and automatic model
-      saving. It should only contain letters, numbers, underscores, dashes, and spaces.
-    - `data_type`: The input format. cryoCARE supports `array`, `tiff`, `zarr`, `czi`,
-      `mrc`, and `custom` on the `dev/cryocare` branch.
-    - `axes`: The input axes. cryoCARE requires a three-dimensional permutation of
-      `ZYX`, including `Z` and without `C`.
-    - `patch_size`: A three-dimensional patch size in `ZYX` order.
-    - `batch_size`: The number of patches used in each training step.
-    - `num_epochs`: The number of epochs to train for. For large datasets, also
-      consider setting [`num_steps`](#reducing-the-number-of-steps).
-    - `num_steps`: Optional number of batches per epoch. If omitted, the full training
-      dataset is used; see [Reducing the number of steps](#reducing-the-number-of-steps).
-    - `tilt_axis`: The physical tilt axis used for the train/validation split and the
-      automatically generated compatible augmentation.
-    - `validation_fraction`: The fraction of the reconstructed stack reserved for
-      validation along `tilt_axis`.
-    - `n_val_patches`: The number of validation patches drawn from the validation
-      region. It must be positive.
-    - `augmentations`: CryoCARE generates input-target swapping and compatible
-      tilt-axis rotations automatically; this parameter is not user-configurable.
-
+    1. Patch size concerns only spatial axes, in order `ZYX`, and must be 3D.
+    2. Rotational axis around which the specimen was tilted inside the microscope.
+  
 === "Segmentation"
 
     ```python title="Configure segmentation"
     --8<-- "current/configuration/config_general/configuration_seg.py:config_seg"
     ```
 
-    1. The length of `patch_size` must match the spatial dimensions.
-    2. `n_classes` counts foreground classes; the background class is added
-       automatically.
-
-    - `experiment_name`: The experiment name is used in logging and automatic model
-      saving. It should only contain letters, numbers, underscores, dashes, and spaces.
-    - `data_type`: The data type impacts which features are available. CAREamics
-      supports `array` (when passing NumPy arrays directly), `tiff`, `zarr`, `czi`, and
-      `custom`.
-    - `axes`: The axes of the input data, in the order they have on disk or in memory.
-      This identifies the spatial and channel dimensions; see the [data
-      section](../data/data.md) for guidance.
-    - `patch_size`: The size of the patches extracted during training. It refers only
-      to spatial axes (`X`, `Y`, and optionally `Z`), and should be 2D without `Z` and
-      3D with `Z`.
-    - `batch_size`: The number of patches used in each training step.
-    - `n_classes`: The number of foreground classes in the label mask. The background
-      class is added automatically.
-    - `num_epochs`: The number of epochs to train for. For large datasets, also
-      consider setting [`num_steps`](#reducing-the-number-of-steps).
-    - `num_steps`: Optional number of batches per epoch. If omitted, the full training
-      dataset is used; see [Reducing the number of steps](#reducing-the-number-of-steps).
-    - `augmentations`: Optional list of `x_flip`, `y_flip`, and `rotate_90`. All three
-      are applied by default; use an empty list to disable augmentations.
-    - `n_val_patches`: Number of training patches reserved for validation when separate
-      validation data is not provided; see [Number of validation
-      patches](#number-of-validation-patches).
-    - `n_channels_in`: Number of input channels when `C` is present in `axes`.
-    - `prediction_output`: Whether prediction returns a `mask` or per-class
-      `probabilities`.
+    1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
+    with `axis` about dimensionality (2D or 3D).
+    2. Number of foreground classes to be segmented.
 
 
-
-- `experiment_name`: The experiment name is used in logging and automatic model
+- `experiment_name`: experiment name used in logging and automatic model
     saving. It should only contain letters, numbers, underscores, dashes, and spaces.
-- `data_type`: The data type impacts which features are available. CAREamics
-    supports `array` (when passing NumPy arrays directly), `tiff`, `zarr`, `czi`, and
-    `custom`.
-- `axes`: The axes of the input data, in the order they have on disk or in memory.
-    This identifies the spatial and channel dimensions; see the [data
-    section](../data/data.md) for guidance.
-- `patch_size`: The size of the patches extracted during training. It refers only
-    to spatial axes (`X`, `Y`, and optionally `Z`), and should be 2D without `Z` and
-    3D with `Z`.
-- `batch_size`: The number of patches used in each training step.
-- `num_epochs`: The number of epochs to train for. For large datasets, also
+- `data_type`: input data type. CAREamics
+    supports `array` (when passing NumPy arrays directly), `tiff`, `zarr`, `mrc`, `czi`,
+    and `custom` (see [data](../data/)).
+- `axes`: axes of the input data, in the order they have on disk or in memory. Accepted
+    axes are `(S)(T)(C)(Z)YX` in any order (with `YX` being contiguous).
+- `patch_size`: size of the spatial patches extracted during training, in `(Z)YX` order. 
+    It should be 3D when `Z` is in `axes` and 2D otherwise. See note below to use `T` as
+    a third dimension.
+- `batch_size`: number of patches used in each training step.
+- `num_epochs`: number of epochs to train for. For large datasets, also
     consider setting [`num_steps`](#reducing-the-number-of-steps).
-- `num_steps`: Optional number of batches per epoch. If omitted, the full training
+- `num_steps`: optional number of batches per epoch. If omitted, the full training
     dataset is used; see [Reducing the number of steps](#reducing-the-number-of-steps).
-- `augmentations`: Optional list of `x_flip`, `y_flip`, and `rotate_90`. If omitted,
-    all three are applied; use an empty list to disable them.
-- `n_val_patches`: Number of training patches reserved for validation when separate
-    validation data is not provided; see [Number of validation
+- `augmentations`: optional list of `x_flip`, `y_flip`, and `rotate_90`. If omitted,
+    all three are applied. Use an empty list to disable them.
+- `n_val_patches`: number of training patches reserved for validation when separate
+    validation data is not provided. See [Number of validation
     patches](#number-of-validation-patches).
-- `n_channels_in`: Number of input channels when `C` is present in `axes`.
-- `n_channels_out`: Number of output channels. It is inferred from `target_axes` or
-    defaults to one when the target has no channel axis.
-- `target_axes`: Optional axes of the target data. If omitted, it defaults to
-    `axes`. This can be used when input and target axes differ.
+- `seed`: fix a seed to make data ordering, augmentations, and patch sampling
+    reproducible.
 
+!!! info "Algorithm-specific parameters"
 
+    Each algorithm may have specific parameters that are not shared with the others. They
+    are described in the [corresponding section](#algorithm-specific-parameters).
 
-For more algorithm-specific parameters, see the [Advanced N2V](./config_algorithm_specific/configuration_specific_n2v.md),
-[Advanced CARE](./config_algorithm_specific/configuration_specific_care.md), [HDN](./config_algorithm_specific/configuration_specific_hdn.md),
-[MicroSplit](./config_algorithm_specific/configuration_specific_microsplit.md), [cryoCARE](./config_algorithm_specific/configuration_specific_cryocare.md),
-or [Segmentation](./config_algorithm_specific/configuration_seg.md) pages.
+!!! info "Noise2Noise"
+
+    Noise2Noise's implementation relies heavily on CARE and is omitted in this pages,
+    but all CARE-related descriptions hold for Noise2Noise and its configuration factory
+    functions `create_n2n_config` and `create_advanced_n2n_config`.
 
 
 !!! note "Training with `T` as depth axis"
 
     To use `T` as the depth axis, relabel it as `Z`. For `data_type="czi"`, `T` can
-    also be used directly as a depth axis, for example `axes="SCTYX"`; see the
+    also be used directly as a depth axis, for example `axes="SCTYX"`. See the
     [data section](../data/data.md) for details.
+
+
+!!! note "cryoCARE and augmentations"
+
+    cryoCARE augmentation are automatically set and cannot be specified by users.
+
+### Channels
+
+Channels are a particular type of axes, and they influence the way the deep-learning
+model is built. As a result, when `C` is present in the `axes`, additional parameters
+need to be set. These parameters vary from algorithm to algorithm.
+
+=== "Noise2Void"
+    
+    ```python title="Setting channels parameters"
+    --8<-- "current/configuration/config_general/configuration_n2v.py:config_n2v_channels"
+    ```
+
+    1. Channels are considered to be present as soon as `C` is in `axes`.
+    2. Number of input and output channels are the same, so we only
+    need to set `n_channels`.
+
+=== "CARE"
+
+    ```python title="Setting channels parameters"
+    --8<-- "current/configuration/config_general/configuration_care.py:config_care_channels"
+    ```
+
+    1. Channels are considered to be present as soon as `C` is in `axes`.
+    2. Number of input and output channels can be different, so we
+    need to set `n_channels_in` and optionnally `n_channels_out`.
+
+    !!! note
+
+        If `n_channels_out` is not set and `target_axes` has a "C" dimension, then it is
+        set to the same value as `n_channels_in`, otherwise it is set to 1.
+
+=== "Segmentation"
+
+    ```python title="Setting segmentation input channels"
+    --8<-- "current/configuration/config_general/configuration_seg.py:config_seg_channels"
+    ```
+
+    1. Channels are considered to be present as soon as `C` is in `axes`.
+    2. Number of input need to be set in `n_channels`.
+
+
+!!! info "Other algorithms and channels"
+
+    - **HDN** is currently not compatible with channels.
+    - **MicroSplit** works on a single input channel (overlapping structures) and unmixes
+    channels in output, therefore it is not compatible with `C` in `axes`.
+    - **cryoCARE** deals with cryoET tomograms which do not have channels.
+
+
+!!! note "Advanced channels parameters"
+
+    The advanced CAREamics configuration factories give access to more channel related
+    parameters, such as sub-setting or channel independence during training. Refer to the
+    [advanced configuration](#advanced-configuration) section for more details.
 
 
 ### Reducing the number of steps
@@ -228,22 +235,35 @@ limit the number of batches processed in an epoch.
     --8<-- "current/configuration/config_general/configuration_care.py:config_care_steps"
     ```
 
-    1. Use a number smaller than the total number of steps, based on the batch size.
+    1. Choose a value smaller than the total number of available batches when shorter
+       epochs are desired.
 
 === "HDN"
 
-    `num_steps` limits the number of batches in each HDN epoch. The parameter has the
-    same meaning as for N2V and CARE.
+    ```python title="Setting the number of steps"
+    --8<-- "current/configuration/config_general/configuration_hdn.py:config_hdn_steps"
+    ```
+
+    1. Choose a value smaller than the total number of available batches when shorter
+       epochs are desired.
 
 === "MicroSplit"
 
-    `num_steps` limits the number of batches in each MicroSplit epoch. The parameter
-    has the same meaning as for N2V and CARE.
+    ```python title="Setting the number of steps"
+    --8<-- "current/configuration/config_general/configuration_microsplit.py:config_msplit_steps"
+    ```
+
+    1. Choose a value smaller than the total number of available batches when shorter
+       epochs are desired.
 
 === "cryoCARE"
 
-    `num_steps` limits the number of batches in each cryoCARE epoch. The parameter has
-    the same meaning as for the other algorithms.
+    ```python title="Setting the number of steps"
+    --8<-- "current/configuration/config_general/configuration_cryocare.py:config_cryocare_steps"
+    ```
+
+    1. Choose a value smaller than the total number of available batches when shorter
+       epochs are desired.
 
 === "Segmentation"
 
@@ -254,9 +274,27 @@ limit the number of batches processed in an epoch.
     1. Choose a value smaller than the total number of available batches when shorter
        epochs are desired.
 
-The total number of steps is approximately `n_patches / batch_size`. The
-`num_epochs` and `num_steps` parameters correspond to `max_epochs` and
-`limit_train_batches` in the PyTorch Lightning `Trainer`.
+
+!!! note "How many steps per epoch?"
+
+    Each epoch consists of `n_patchs / batch_size` steps. The total number of steps is
+    shown in the console during training (here `300` steps):
+
+    ```sh
+    Epoch 1: 12%|█████████████                                     | 36/300
+    ```
+
+    While there is a programmaticaly way to know how many patches would CAREamics
+    extract from the data, it is easier to simply run a training for a single epoch and
+    check the console output.
+
+!!! note "Why very long epochs may be an issue?"
+
+    The longer, in terms of steps, an epoch lasts, the more the network has learned in between
+    two validation steps. Since one of the main reporting mechanism for deep learning
+    training is to look at the total training and validation losses over the epochs, that
+    means that long epochs lead to a larger sampling of the training performances.
+
 
 ### Augmentations
 
@@ -347,77 +385,14 @@ from the training data for validation.
 If separate validation data is supplied, `n_val_patches` is ignored and the validation
 data determines the number of validation patches.
 
-### Input channels
 
-When `C` is present in `axes`, segmentation requires `n_channels_in` to describe the
-image channels. This does not change `n_classes`, which describes the label mask.
+### Algorithm-specific parameters
 
-=== "Segmentation"
+!!! note "Assumptions parameters are not passed"
 
-    ```python title="Setting segmentation input channels"
-    --8<-- "current/configuration/config_general/configuration_seg.py:config_seg_channels"
-    ```
+    If `target_axes` is not set, it is assumed to be the same as `axes`.
 
-    1. `C` indicates that the input contains channels.
-    2. `n_channels_in` is the number of input channels.
 
-## Algorithm-specific parameters
-
-Additional parameters may be algorithm-specific. Click on the following pages for more
-details on them.
-
-<div class="grid cards" markdown>
-
--   :lucide-eye-off:{ .lg .middle } __Advanced N2V__
-
-    ---
-
-    Configure N2V, including N2V2, structN2V, and N2V-specific training options.
-
-    [:octicons-arrow-right-24: Advanced N2V parameters](./config_algorithm_specific/configuration_specific_n2v.md)
-
--   :lucide-sticky-notes:{ .lg .middle } __Advanced CARE__
-
-    ---
-
-    Configure CARE and Noise2Noise experiments, including target axes and output
-    channels.
-
-    [:octicons-arrow-right-24: Advanced CARE parameters](./config_algorithm_specific/configuration_specific_care.md)
-
--   :lucide-layers:{ .lg .middle } __HDN__
-
-    ---
-
-    Configure HDN denoising with Gaussian or noise-model likelihoods.
-
-    [:octicons-arrow-right-24: HDN parameters](./config_algorithm_specific/configuration_specific_hdn.md)
-
--   :lucide-grid-2x2-plus:{ .lg .middle } __MicroSplit__
-
-    ---
-
-    Configure MicroSplit multiscale denoising and likelihood terms.
-
-    [:octicons-arrow-right-24: MicroSplit parameters](./config_algorithm_specific/configuration_specific_microsplit.md)
-
--   :lucide-layers-arrow-up:{ .lg .middle } __cryoCARE__
-
-    ---
-
-    Configure cryoCARE experiments, including tilt-axis validation and MRC inputs.
-
-    [:octicons-arrow-right-24: cryoCARE parameters](./config_algorithm_specific/configuration_specific_cryocare.md)
-
--   :lucide-cookie:{ .lg .middle } __Segmentation__
-
-    ---
-
-    Configure semantic segmentation experiments.
-
-    [:octicons-arrow-right-24: Segmentation parameters](./config_algorithm_specific/configuration_seg.md)
-
-</div>
 
 ## Advanced configuration
 
@@ -765,41 +740,6 @@ the available CPUs.
     ```
 
     1. Set this according to the available CPU resources and storage performance.
-
-### Setting a seed
-
-Set `seed` to make data ordering, augmentations, and patch sampling reproducible.
-
-=== "Noise2Void"
-
-    ```python title="Setting a seed"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_n2v.py:adv_config_n2v_seed"
-    ```
-
-=== "CARE"
-
-    ```python title="Setting a seed"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_care.py:adv_config_care_seed"
-    ```
-
-=== "HDN"
-
-    Pass an integer through `seed` to make HDN sampling and augmentations reproducible.
-
-=== "MicroSplit"
-
-    Pass an integer through `seed` to make MicroSplit sampling and augmentations
-    reproducible.
-
-=== "cryoCARE"
-
-    Pass an integer through `seed` to make cryoCARE sampling reproducible.
-
-=== "Segmentation"
-
-    ```python title="Setting a seed"
-    --8<-- "current/configuration/config_general/configuration_seg.py:adv_config_seg_seed"
-    ```
 
 
 ## PyTorch and Lightning parameters

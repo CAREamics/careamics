@@ -12,8 +12,23 @@ config = create_hdn_config(
     experiment_name="hdn_training",
     data_type="array",
     axes="YX",
-    patch_size=[64, 64],
+    patch_size=[64, 64],  # (1)!
     batch_size=8,
     num_epochs=100,
 )
 # --8<-- [end:config_hdn]
+
+# %%
+# --8<-- [start:config_hdn_steps]
+from careamics.config import create_hdn_config
+
+config = create_hdn_config(
+    experiment_name="hdn_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    num_steps=500,  # (1)!
+)
+# --8<-- [end:config_hdn_steps]

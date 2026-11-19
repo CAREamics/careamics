@@ -12,9 +12,25 @@ config = create_microsplit_config(
     experiment_name="microsplit_training",
     data_type="array",
     axes="YX",
-    patch_size=[64, 64],
+    patch_size=[64, 64],  # (1)!
     batch_size=8,
-    output_channels=1,
+    n_channels_out=3,  # (2)!
     num_epochs=100,
 )
 # --8<-- [end:config_microsplit]
+
+# %%
+# --8<-- [start:config_msplit_steps]
+from careamics.config import create_microsplit_config
+
+config = create_microsplit_config(
+    experiment_name="microsplit_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    n_channels_out=3,
+    num_epochs=30,
+    num_steps=500,  # (1)!
+)
+# --8<-- [end:config_msplit_steps]

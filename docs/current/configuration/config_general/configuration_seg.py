@@ -13,8 +13,8 @@ from careamics.config import create_seg_config
 config = create_seg_config(
     experiment_name="segmentation_training",
     data_type="array",
-    axes="ZYX",
-    patch_size=[16, 64, 64],  # (1)!
+    axes="YX",
+    patch_size=[64, 64],  # (1)!
     batch_size=8,
     n_classes=2,  # (2)!
     num_epochs=30,
