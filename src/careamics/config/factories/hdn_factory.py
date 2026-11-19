@@ -61,8 +61,9 @@ def create_hdn_config(
     n_val_patches : int, default=8
         Number of patches to set aside for validation during training.
     use_noise_model : bool, default=False
-        If `True`, use the noise model likelihood (supply the trained noise model at
-        training time). If `False`, use the Gaussian (DivNoising) pathway.
+        Whether to use a noise model during training. If `True`, supply a noise model at
+        training time. If `False`, HDN will train without a noise model.
+        `use_noise_model=True` is not compatible with `supervised=True`.
     supervised : bool, default=False
         Whether to train against target data. If `True`, `train_data_target` must
         be provided at training time, and `use_noise_model` must be `False`.
@@ -86,7 +87,7 @@ def create_advanced_hdn_config(
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
-    use_noise_model: bool = False,
+    use_noise_model: bool | None = None,
     supervised: bool = False,
     # advanced data parameters
     channels: Sequence[int] | None = None,
@@ -97,9 +98,7 @@ def create_advanced_hdn_config(
     output_channels: int = 1,
     model_params: dict[str, Any] | None = None,
     # loss parameters
-    reconstruction_weight: float = 1.0,
-    kl_weight: float = 1.0,
-    logvar_lowerbound: float | None = -5.0,
+    loss: HDNLossConfig | None = None,
     # lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -136,9 +135,12 @@ def create_advanced_hdn_config(
         List of augmentations to apply. If `None`, all augmentations are applied.
     n_val_patches : int, default=8
         Number of patches to set aside for validation during training.
-    use_noise_model : bool, default=False
-        If `True`, use the noise model likelihood (supply the trained noise model at
-        training time). If `False`, use the Gaussian (DivNoising) pathway.
+    use_noise_model : bool | None, default=None
+        Whether to use a noise model during training. If left `None`, the default
+        `False` will be applied. If `True`, supply a noise model at training time. If
+        `False`, HDN will train without a noise model. `use_noise_model=True` is not
+        compatible with `supervised=True`. `use_noise_model` and `loss` cannot be
+        jointly specified.
     supervised : bool, default=False
         Whether to train against target data. If `True`, `train_data_target` must
         be provided at training time, and `use_noise_model` must be `False`.
@@ -161,12 +163,9 @@ def create_advanced_hdn_config(
         `predict_logvar`, `analytical_kl`, `enable_topdown_normalize_factor`,
         `encoder_first_conv_kernel`) are set by the algorithm and cannot be overridden
         here.
-    reconstruction_weight : float, default=1.0
-        Weight of the reconstruction term.
-    kl_weight : float, default=1.0
-        Weight of the KL term.
-    logvar_lowerbound : float or None, default=-5.0
-        Lower bound on the predicted log-variance (Gaussian pathway only).
+    loss : HDNLossConfig or None, default=None
+        HDN loss configuration. `loss` and `use_noise_model` cannot be jointly
+        specified.
     num_workers : int, default=-1
         Number of workers for data loading.
     trainer_params : dict or None, default=None
@@ -197,15 +196,25 @@ def create_advanced_hdn_config(
     HDNConfiguration
         Configuration for training HDN.
     """
-    predict_logvar = not use_noise_model
     conv_strides = [1, 2, 2] if len(patch_size) == 3 else [2, 2]
 
-    loss = HDNLossConfig(
-        reconstruction_weight=reconstruction_weight,
-        kl_weight=kl_weight,
-        predict_logvar=predict_logvar,
-        logvar_lowerbound=logvar_lowerbound,
-    )
+    if loss is None:
+        use_noise_model = bool(use_noise_model)  # defaults to False when None
+        predict_logvar = not use_noise_model
+        loss = HDNLossConfig(
+            reconstruction_weight=1.0,
+            kl_weight=1.0,
+            predict_logvar=predict_logvar,
+            logvar_lowerbound=-5.0,
+        )
+    else:
+        if use_noise_model is not None:
+            raise ValueError(
+                "Cannot jointly set `loss` and `use_noise_model` as they may be "
+                "incompatible. Only set `loss`."
+            )
+        use_noise_model = not loss.predict_logvar
+        predict_logvar = loss.predict_logvar
 
     # HDN-specific LVAE defaults; user-supplied `model_params` override these, while
     # structural parameters (set below) always take precedence.

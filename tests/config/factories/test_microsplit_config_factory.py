@@ -28,7 +28,9 @@ class TestMicroSplitConfig:
         assert isinstance(config, MicroSplitConfiguration)
         assert isinstance(config.algorithm_config, MicroSplitAlgorithm)
         assert isinstance(config.data_config, MicroSplitDataConfig)
-        assert config.algorithm_config.loss.gaussian_likelihood_weight == 0.1
+        assert config.algorithm_config.loss.gaussian_likelihood_weight == pytest.approx(
+            0.1
+        )
         assert config.algorithm_config.loss.noise_model_likelihood_weight == 0.9
 
     def test_use_noise_model_false_configures_gaussian_likelihood(self):
