@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
+from careamics.config.algorithms import SegLossConfig
 from careamics.config.seg_configuration import SegConfiguration
 from careamics.utils import get_logger
 
@@ -206,8 +207,7 @@ def create_advanced_seg_config(
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     # lightning parameters
     num_workers: int = -1,
-    loss: Literal["dice", "ce", "dice_ce"] = "dice_ce",
-    loss_parameters: dict[str, Any] | None = None,
+    loss: Literal["dice", "ce", "dice_ce"] | SegLossConfig = "dice_ce",
     trainer_params: dict | None = None,
     model_params: dict | None = None,
     optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
@@ -295,11 +295,8 @@ def create_advanced_seg_config(
         on the number of available CPUs. Unless explicitly overridden in
         `train_dataloader_params` and `val_dataloader_params`, this will be applied to
         all dataloaders.
-    loss : Literal["dice", "ce", "dice_ce"], default="dice_ce"
-        Loss function to use for training.
-    loss_parameters : dict[str, Any]
-        Parameters to the loss function. Note that `class_weights` must include
-        background weight and be of length `n_classes+1`.
+    loss : {"dice", "ce", "dice_ce"} | SegLossConfig, default="dice_ce"
+        Loss function used for training.
     trainer_params : dict | None, default=None
         Parameters for the trainer, see the relevant documentation.
     model_params : dict | None, default=None
@@ -368,7 +365,7 @@ def create_advanced_seg_config(
     algorithm_params = create_algorithm_configuration(
         dimensions=3 if data_config.is_3D() else 2,
         algorithm="seg",
-        loss={"name": loss, **(loss_parameters or {})},
+        loss={"name": loss} if isinstance(loss, str) else loss.model_dump_json(),
         independent_channels=False,
         n_channels_in=n_channels_in,
         n_channels_out=n_classes + 1,  # add background channel

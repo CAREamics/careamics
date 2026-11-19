@@ -100,7 +100,9 @@ class HDNAlgorithm(BaseModel):
         if self.supervised and not self.model.predict_logvar:
             raise ValueError(
                 "HDN with a noise model is not supported in supervised mode. Select "
-                "`use_noise_model=False` or set `supervised=False`."
+                "`supervised=False`, `use_noise_model=False`, or set "
+                "`loss.predict_logvar=True` (equivalent to `use_noise_model=False`) "
+                "when supplying `loss`."
             )
         return self
 

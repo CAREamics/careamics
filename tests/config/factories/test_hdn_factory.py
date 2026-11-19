@@ -6,6 +6,7 @@ from careamics.config.factories import (
     create_hdn_config,
 )
 from careamics.config.hdn_configuration import HDNConfiguration
+from careamics.config.losses import HDNLossConfig
 
 # TODO refactor similarly to PR #1005 once it is merged
 # https://github.com/CAREamics/careamics/pull/1005
@@ -38,6 +39,40 @@ class TestHDNConfig:
         )
         assert config.algorithm_config.model.predict_logvar is True
         assert config.algorithm_config.loss.predict_logvar is True
+
+    def test_explicit_loss_is_propagated(self):
+        """Test that an explicit HDN loss config controls the model settings."""
+        loss = HDNLossConfig(
+            reconstruction_weight=0.5,
+            kl_weight=0.25,
+            predict_logvar=False,
+            logvar_lowerbound=None,
+        )
+        config = create_advanced_hdn_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            loss=loss,
+        )
+        assert config.algorithm_config.loss == loss
+        assert config.algorithm_config.model.predict_logvar is False
+
+    def test_loss_and_use_noise_model_are_mutually_exclusive(self):
+        """Test that explicit loss settings cannot be combined with the switch."""
+        with pytest.raises(
+            ValueError, match="Cannot jointly set `loss` and `use_noise_model`"
+        ):
+            create_advanced_hdn_config(
+                experiment_name="test",
+                data_type="array",
+                axes="YX",
+                patch_size=[64, 64],
+                batch_size=8,
+                use_noise_model=True,
+                loss=HDNLossConfig(predict_logvar=False),
+            )
 
     def test_default_optimizer(self):
         """Test the default HDN optimizer."""

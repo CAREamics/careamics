@@ -39,7 +39,7 @@ def _microsplit_careamist(tmp_path: Path, output_channels: int = 2) -> CAREamist
         axes="YX",
         patch_size=[64, 64],
         batch_size=2,
-        output_channels=output_channels,
+        n_channels_out=output_channels,
         multiscale_count=1,
     )
     return CAREamist(config=config, work_dir=tmp_path)

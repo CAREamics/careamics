@@ -17,6 +17,7 @@ class MicroSplitDataConfig(DataConfig[DefaultAugs]):
     multiscale_count: int = Field(default=1, ge=1)
     """Number of lateral-context scales to construct for MicroSplit inputs."""
 
+    # TODO is this ever used? should it be kept but deprecated?
     padding_mode: Literal["reflect", "wrap"] = "reflect"
     """Padding mode used when lateral-context patches extend beyond image borders."""
 

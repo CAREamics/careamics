@@ -7,6 +7,7 @@ from careamics.config.factories.seg_factory import (
     _get_norm_dict_with_target_skipped,
     create_advanced_seg_config,
 )
+from careamics.config.losses import DiceCELossConfig
 from careamics.config.seg_configuration import SegConfiguration
 
 # --- Test utilities
@@ -71,16 +72,15 @@ def test_get_norm_dict_with_target_skipped(normalization, norm_params):
         assert cfg.skip_target
 
 
-def test_loss_parameters_are_configured():
-    """Test that segmentation loss parameters are passed to the algorithm config."""
+def test_loss_config_is_passed_to_algorithm_config():
+    """Test that the segmentation loss config is passed to the algorithm config."""
     cfg = create_configuration(
         n_classes=2,
-        loss="dice_ce",
-        loss_parameters={
-            "class_weights": [1.0, 2.0, 3.0],
-            "dice_weight": 0.25,
-            "ce_weight": 0.75,
-        },
+        loss=DiceCELossConfig(
+            class_weights=[1.0, 2.0, 3.0],
+            dice_weight=0.25,
+            ce_weight=0.75,
+        ),
     )
 
     assert cfg.algorithm_config.loss.name == "dice_ce"
@@ -94,7 +94,7 @@ def test_loss_class_weights_match_model_classes():
     with pytest.raises(ValueError, match="Class weights must have length 3"):
         create_configuration(
             n_classes=2,
-            loss_parameters={"class_weights": [1.0, 2.0]},
+            loss=DiceCELossConfig(class_weights=[1.0, 2.0]),
         )
 
 

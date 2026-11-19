@@ -15,6 +15,7 @@ from careamics.config.factories import (
     create_advanced_hdn_config,
     create_advanced_microsplit_config,
 )
+from careamics.config.losses import MicroSplitLossConfig
 from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.lightning.modules.hdn_module import HDNModule
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
@@ -57,8 +58,10 @@ def _microsplit_module(
         batch_size=2,
         output_channels=output_channels,
         multiscale_count=1,
-        gaussian_likelihood_weight=1.0 - noise_model_likelihood_weight,
-        noise_model_likelihood_weight=noise_model_likelihood_weight,
+        loss=MicroSplitLossConfig(
+            gaussian_likelihood_weight=1.0 - noise_model_likelihood_weight,
+            noise_model_likelihood_weight=noise_model_likelihood_weight,
+        ),
     )
     return MicroSplitModule(config.algorithm_config)
 
