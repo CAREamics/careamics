@@ -15,9 +15,20 @@ from careamics.cli.create_config_n2n import (
 from careamics.cli.create_config_n2v import add_args_config_n2v, create_config_n2v
 from careamics.cli.predict import add_args_predict, predict
 from careamics.cli.train import add_args_train, train
+from careamics.cli.train_noise_model import (
+    add_args_train_noise_model,
+    run_train_noise_model,
+)
 
 SubcommandFunc = Callable[[argparse.Namespace], None]
-Subcommand = Literal["train", "predict", "config-care", "config-n2v", "config-n2n"]
+Subcommand = Literal[
+    "train",
+    "predict",
+    "train-noise-model",
+    "config-care",
+    "config-n2v",
+    "config-n2n",
+]
 AddArgsFunc = Callable[[argparse.ArgumentParser], None]
 
 
@@ -49,6 +60,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         predict,
         add_args_predict,
         help="Run prediction.",
+    )
+    register_command(
+        "train-noise-model",
+        run_train_noise_model,
+        add_args_train_noise_model,
+        help="Train a noise model.",
     )
     register_command(
         "config-care",
