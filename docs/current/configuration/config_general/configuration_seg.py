@@ -95,7 +95,7 @@ config = create_seg_config(
     patch_size=[64, 64],
     batch_size=8,
     n_classes=2,
-    n_val_patches=15,  # (1)!
+    n_val_patches=15,
 )
 # --8<-- [end:config_seg_val]
 

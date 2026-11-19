@@ -125,10 +125,10 @@ an experiment.
     It should be 3D when `Z` is in `axes` and 2D otherwise. See note below to use `T` as
     a third dimension.
 - `batch_size`: number of patches used in each training step.
-- `num_epochs`: number of epochs to train for. For large datasets, also
+- `num_epochs`: optional number of epochs to train for. For large datasets, also
     consider setting [`num_steps`](#reducing-the-number-of-steps).
 - `num_steps`: optional number of batches per epoch. If omitted, the full training
-    dataset is used; see [Reducing the number of steps](#reducing-the-number-of-steps).
+    dataset is used. See [Reducing the number of steps](#reducing-the-number-of-steps).
 - `augmentations`: optional list of `x_flip`, `y_flip`, and `rotate_90`. If omitted,
     all three are applied. Use an empty list to disable them.
 - `n_val_patches`: number of training patches reserved for validation when separate
@@ -307,7 +307,7 @@ spatial transformation is applied consistently to the training data and targets.
     --8<-- "current/configuration/config_general/configuration_n2v.py:config_n2v_augs"
     ```
 
-    1. These are all the possible augmentation choices.
+    1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
 
 === "CARE"
 
@@ -315,22 +315,24 @@ spatial transformation is applied consistently to the training data and targets.
     --8<-- "current/configuration/config_general/configuration_care.py:config_care_augs"
     ```
 
-    1. These are all the possible augmentation choices.
+    1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
 
 === "HDN"
 
-    HDN accepts the shared `x_flip`, `y_flip`, and `rotate_90` augmentations. Pass an
-    empty list to disable them.
+    ```python title="Setting augmentations"
+    --8<-- "current/configuration/config_general/configuration_hdn.py:config_hdn_augs"
+    ```
+
+    1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
 
 === "MicroSplit"
 
-    MicroSplit accepts the shared `x_flip`, `y_flip`, and `rotate_90` augmentations.
-    Pass an empty list to disable them.
+    ```python title="Setting augmentations"
+    --8<-- "current/configuration/config_general/configuration_microsplit.py:config_microsplit_augs"
+    ```
 
-=== "cryoCARE"
+    1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
 
-    cryoCARE generates input-target swapping and compatible tilt-axis rotations
-    automatically; its augmentations are not user-configurable.
 
 === "Segmentation"
 
@@ -340,7 +342,20 @@ spatial transformation is applied consistently to the training data and targets.
 
     1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
 
-Use `augmentations=[]` to disable augmentations.
+By default, all the augmentations are used. Pass `augmentations=[]` to disable
+augmentations.
+
+!!! info "cryoCARE augmentations"
+
+    cryoCARE relies on specific augmentations (rotation perpendicular to the tilt-axis,
+    input/target swapping) that are automatically inferred from `tilt_axis` and
+    `patch_size`. These cannot be changed by users.
+
+!!! note "When to disable augmentations"
+
+    As soon as your data has a particular symmetry, because objects or features are
+    always oriented in a particular way (e.g. patterned illumination), then it may be
+    necessary to turn off the augmentations that break this symmetry.
 
 ### Number of validation patches
 
@@ -361,18 +376,15 @@ from the training data for validation.
 
 === "HDN"
 
-    `n_val_patches` reserves training patches for validation when separate validation
-    data is not supplied. Separate validation data takes precedence.
+    ```python title="Setting the number of validation patches"
+    --8<-- "current/configuration/config_general/configuration_hdn.py:config_hdn_val"
+    ```
 
 === "MicroSplit"
 
-    `n_val_patches` reserves training patches for validation when separate validation
-    data is not supplied. Separate validation data takes precedence.
-
-=== "cryoCARE"
-
-    `n_val_patches` is the number of validation patches drawn from the tilt-axis
-    validation region. It must be positive.
+    ```python title="Setting the number of validation patches"
+    --8<-- "current/configuration/config_general/configuration_microsplit.py:config_microsplit_val"
+    ```
 
 === "Segmentation"
 
@@ -380,10 +392,13 @@ from the training data for validation.
     --8<-- "current/configuration/config_general/configuration_seg.py:config_seg_val"
     ```
 
-    1. Choose a number appropriate for the size and diversity of the training data.
-
 If separate validation data is supplied, `n_val_patches` is ignored and the validation
-data determines the number of validation patches.
+data determines the number of validation patches automatically.
+
+!!! info "cryoCARE validation"
+
+    cryoCARE does not define a `n_val_patches`, but a `validation_fraction` corresponding
+    to the percentage of slices to be used as validation.
 
 
 ### Algorithm-specific parameters
