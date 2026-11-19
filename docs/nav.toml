@@ -6,7 +6,7 @@ nav = [
     "content/guides/current/index.md",
     {"Choosing an algorithm" = "content/guides/current/choosing_an_algorithm.md"},
     {"Configuration" = [
-        "content/guides/current/configuration/configuration.md",
+        {"Configuring CAREamics" = "content/guides/current/configuration/configuration.md"},
         {"Advanced N2V" = "content/guides/current/configuration/config_algorithm_specific/configuration_specific_n2v.md"},
         {"Advanced CARE" = "content/guides/current/configuration/config_algorithm_specific/configuration_specific_care.md"},
         {"HDN" = "content/guides/current/configuration/config_algorithm_specific/configuration_specific_hdn.md"},
