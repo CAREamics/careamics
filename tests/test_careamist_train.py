@@ -1,5 +1,6 @@
 """Tests for CAREamist."""
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -130,6 +131,12 @@ def test_v2_train_array(tmp_path: Path):
     careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
     assert len(careamist.get_checkpoints()) > 0
+    checkpoint_record_path = careamist._get_checkpoint_root() / "checkpoint_record.json"
+    assert checkpoint_record_path.is_file()
+    with open(checkpoint_record_path) as f:
+        data = json.load(f)
+    # For default N2V set up selected should be last
+    assert data["selected"] == data["last"]
 
 
 def test_v2_train_array_auto_val_split_small_data(tmp_path: Path):
