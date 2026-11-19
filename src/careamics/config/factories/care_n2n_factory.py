@@ -110,6 +110,7 @@ def create_care_config(
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
     target_axes: str | None = None,
+    seed: int | None = None,
 ) -> Configuration[CAREAlgorithm]:
     """
     Create a configuration for training CARE.
@@ -162,6 +163,8 @@ def create_care_config(
         Axes of target data. If not specified it will default to `axes`. Pay extra
         attention if you are training a task that has a different number of input and
         output channels.
+    seed : int or None, default=None
+        Random seed for reproducibility. If `None`, a random seed is generated.
 
     Returns
     -------
@@ -187,6 +190,7 @@ def create_n2n_config(
     n_channels_in: int | None = None,
     n_channels_out: int | None = None,
     target_axes: str | None = None,
+    seed: int | None = None,
 ) -> Configuration[N2NAlgorithm]:
     """
     Create a configuration for training Noise2Noise.
@@ -239,6 +243,8 @@ def create_n2n_config(
         Axes of target data. If not specified it will default to `axes`. Pay extra
         attention if you are training a task that has a different number of input and
         output channels.
+    seed : int or None, default=None
+        Random seed for reproducibility. If `None`, a random seed is generated.
 
     Returns
     -------
