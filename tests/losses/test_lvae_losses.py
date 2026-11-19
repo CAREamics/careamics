@@ -28,7 +28,7 @@ from careamics.losses.lvae.lvae_losses import (
     get_kl_divergence_loss,
     microsplit_loss,
 )
-from careamics.models.lvae.noise_models import multichannel_noise_model_factory
+from careamics.noise_model import multichannel_noise_model_factory
 
 if TYPE_CHECKING:
     pass
@@ -97,7 +97,10 @@ def test_lvae_loss_factory(loss_type, exp_loss_func, exp_error):
 @pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("target_ch", [1, 3])
 @pytest.mark.parametrize("predict_logvar", [False, True])
-def test_gaussian_log_likelihood(batch_size, target_ch, predict_logvar):
+@pytest.mark.parametrize("logvar_lowerbound", [None, -5.0, 0.1])
+def test_gaussian_log_likelihood(
+    batch_size, target_ch, predict_logvar, logvar_lowerbound
+):
     img_size = 32
     inp_ch = target_ch * (2 if predict_logvar else 1)
     reconstruction = torch.rand(batch_size, inp_ch, img_size, img_size)
@@ -106,7 +109,7 @@ def test_gaussian_log_likelihood(batch_size, target_ch, predict_logvar):
         reconstruction=reconstruction,
         target=target,
         predict_logvar=predict_logvar,
-        logvar_lowerbound=-5.0,
+        logvar_lowerbound=logvar_lowerbound,
     )
     assert isinstance(loss, torch.Tensor)
     assert loss.ndim == 0
@@ -114,9 +117,9 @@ def test_gaussian_log_likelihood(batch_size, target_ch, predict_logvar):
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
-@pytest.mark.parametrize("target_ch", [1, 3])
-def test_noise_model_log_likelihood(tmp_path, batch_size, target_ch):
-    img_size = 32
+@pytest.mark.parametrize("img_size", [32, 64, 128])
+@pytest.mark.parametrize("target_ch", [1, 3, 5])
+def test_noise_model_log_likelihood(tmp_path, batch_size, img_size, target_ch):
     reconstruction = torch.rand(batch_size, target_ch, img_size, img_size)
     target = torch.rand(batch_size, target_ch, img_size, img_size)
     nm = init_noise_model(tmp_path, target_ch)

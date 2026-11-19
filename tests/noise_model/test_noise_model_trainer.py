@@ -11,11 +11,12 @@ from scipy.stats import wasserstein_distance
 
 from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
-from careamics.models.lvae.noise_models import (
+from careamics.noise_model import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
+    NoiseModelTrainer,
+    train_noise_model,
 )
-from careamics.noise_model import NoiseModelTrainer, train_noise_model
 
 
 @pytest.fixture
@@ -490,7 +491,7 @@ def test_get_config_without_training_raises() -> None:
 def test_get_config_roundtrip_numerically_equivalent(tmp_path: Path) -> None:
     """get_config() weights == save-then-load-from-disk weights."""
     from careamics.config.noise_model import GaussianMixtureNMConfig as _C
-    from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel as _G
+    from careamics.noise_model import GaussianMixtureNoiseModel as _G
 
     gen = np.random.default_rng(3)
     signal = gen.uniform(0, 255, (4, 16, 16)).astype(np.float32)

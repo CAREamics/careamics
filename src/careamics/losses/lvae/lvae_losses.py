@@ -11,7 +11,7 @@ from careamics.losses.lvae.loss_utils import free_bits_kl
 
 if TYPE_CHECKING:
     from careamics.config import HDNLossConfig, MicroSplitLossConfig
-    from careamics.models.lvae.noise_models import MultiChannelNoiseModel
+    from careamics.noise_model import MultiChannelNoiseModel
 
 
 def _compute_gaussian_log_likelihood(

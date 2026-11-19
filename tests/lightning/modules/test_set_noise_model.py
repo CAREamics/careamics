@@ -18,7 +18,7 @@ from careamics.config.factories import (
 from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.lightning.modules.hdn_module import HDNModule
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
-from careamics.models.lvae.noise_models import (
+from careamics.noise_model import (
     MultiChannelNoiseModel,
     multichannel_noise_model_factory,
 )

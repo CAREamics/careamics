@@ -2,7 +2,7 @@
 
 import torch
 
-from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
+from careamics.noise_model import GaussianMixtureNoiseModel
 
 
 def n2v_loss(
