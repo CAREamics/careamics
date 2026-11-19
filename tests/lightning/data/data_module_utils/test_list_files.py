@@ -149,8 +149,18 @@ def test_validate_source_target_files(tmp_path: Path):
     validate_source_target_files(src_files, tar_files)
 
 
-def test_validate_source_target_files_wrong_names(tmp_path: Path):
-    """Test that an error is raised if filenames are different."""
+def test_validate_source_target_files_single_files_with_different_names(tmp_path: Path):
+    """Test that a single source-target pair may have different filenames."""
+    src = tmp_path / "src.tif"
+    tar = tmp_path / "tar.tif"
+    src.touch()
+    tar.touch()
+
+    validate_source_target_files([src], [tar])
+
+
+def test_validate_source_target_files_warns_for_different_names(tmp_path: Path):
+    """Test that multiple differently named files are paired in order with a warning."""
     # create two subfolders
     src = tmp_path / "src"
     src.mkdir()
@@ -174,7 +184,7 @@ def test_validate_source_target_files_wrong_names(tmp_path: Path):
     tar_files = list_files(tar, SupportedData.CUSTOM)
 
     # validate files
-    with pytest.raises(ValueError):
+    with pytest.warns(UserWarning, match="paired according to their order"):
         validate_source_target_files(src_files, tar_files)
 
 
