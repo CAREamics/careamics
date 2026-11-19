@@ -23,7 +23,7 @@ class TestMicroSplitConfig:
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            output_channels=2,
+            n_channels_out=2,
         )
         assert isinstance(config, MicroSplitConfiguration)
         assert isinstance(config.algorithm_config, MicroSplitAlgorithm)
@@ -41,7 +41,7 @@ class TestMicroSplitConfig:
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            output_channels=2,
+            n_channels_out=2,
             use_noise_model=False,
         )
         assert config.algorithm_config.loss.gaussian_likelihood_weight == 1.0
@@ -56,7 +56,7 @@ class TestMicroSplitConfig:
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            output_channels=2,
+            n_channels_out=2,
             multiscale_count=2,
         )
         assert config.algorithm_config.model.multiscale_count == 2
@@ -74,7 +74,7 @@ class TestMicroSplitConfig:
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            output_channels=2,
+            n_channels_out=2,
             loss=loss,
         )
         assert config.algorithm_config.loss.gaussian_likelihood_weight == 0.3
@@ -92,7 +92,7 @@ class TestMicroSplitConfig:
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            output_channels=2,
+            n_channels_out=2,
             loss=MicroSplitLossConfig(
                 gaussian_likelihood_weight=0.0,
                 noise_model_likelihood_weight=1.0,
@@ -111,7 +111,7 @@ class TestMicroSplitConfig:
                 axes="YX",
                 patch_size=[64, 64],
                 batch_size=8,
-                output_channels=2,
+                n_channels_out=2,
                 use_noise_model=True,
                 loss=MicroSplitLossConfig(),
             )
@@ -124,7 +124,7 @@ class TestMicroSplitConfig:
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            output_channels=2,
+            n_channels_out=2,
             num_epochs=25,
             num_steps=500,
         )
@@ -139,7 +139,7 @@ class TestMicroSplitConfig:
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            output_channels=2,
+            n_channels_out=2,
             model_params={
                 "n_filters": 64,
                 "analytical_kl": True,
@@ -162,7 +162,7 @@ def _base_config() -> MicroSplitConfiguration:
         axes="YX",
         patch_size=[64, 64],
         batch_size=8,
-        output_channels=2,
+        n_channels_out=2,
         multiscale_count=1,
     )
 
@@ -176,14 +176,14 @@ def test_normalization_none_rejected():
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            output_channels=2,
+            n_channels_out=2,
             multiscale_count=1,
             use_noise_model=False,
             normalization="none",
         )
 
 
-def test_alpha_ranges_must_match_output_channels():
+def test_alpha_ranges_must_match_n_channels_out():
     """Test that one alpha range per output channel is required."""
     with pytest.raises(ValueError, match="must match the number of"):
         create_advanced_microsplit_config(
@@ -192,7 +192,7 @@ def test_alpha_ranges_must_match_output_channels():
             axes="YX",
             patch_size=[64, 64],
             batch_size=8,
-            output_channels=2,
+            n_channels_out=2,
             multiscale_count=1,
             use_noise_model=False,
             alpha_ranges=[(0.0, 1.0)],

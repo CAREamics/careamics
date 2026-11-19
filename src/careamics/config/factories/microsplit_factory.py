@@ -25,7 +25,7 @@ def create_microsplit_config(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    output_channels: int,
+    n_channels_out: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
@@ -49,7 +49,7 @@ def create_microsplit_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    output_channels : int
+    n_channels_out : int
         Number of target channels to split into.
     num_epochs : int, default=100
         Number of epochs to train for.
@@ -91,7 +91,7 @@ def create_advanced_microsplit_config(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    output_channels: int,
+    n_channels_out: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
@@ -141,7 +141,7 @@ def create_advanced_microsplit_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    output_channels : int
+    n_channels_out : int
         Number of target channels to split into.
     num_epochs : int, default=100
         Number of epochs to train for.
@@ -271,7 +271,7 @@ def create_advanced_microsplit_config(
         **(model_params or {}),
         "architecture": "LVAE",
         "input_shape": tuple(patch_size),
-        "output_channels": output_channels,
+        "output_channels": n_channels_out,
         "multiscale_count": multiscale_count,
         "encoder_conv_strides": conv_strides,
         "decoder_conv_strides": conv_strides,

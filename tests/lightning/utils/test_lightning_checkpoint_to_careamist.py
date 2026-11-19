@@ -160,7 +160,7 @@ def test_microsplit_lightning_checkpoint_predicts_through_careamist(
         axes="SCYX",
         patch_size=[64, 64],
         batch_size=2,
-        output_channels=2,
+        n_channels_out=2,
         num_epochs=1,
         num_steps=1,
         multiscale_count=1,
