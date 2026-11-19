@@ -6,7 +6,7 @@ from careamics.config.utils.configuration_io import load_configuration
 def test_create_msplit_config(tmp_path):
     main(
         [
-            "config-msplit",
+            "config-microsplit",
             "--output_path",
             str(tmp_path),
             "--experiment_name",
