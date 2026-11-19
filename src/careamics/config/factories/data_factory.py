@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from careamics.config.augmentations import (
-    SPATIAL_TRANSFORMS_UNION,
+    DefaultAugs,
     XYFlipConfig,
     XYRandomRotate90Config,
 )
@@ -23,9 +23,9 @@ SupportedPatchFilterConfig = (
 
 
 def list_spatial_augmentations(
-    augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
+    augmentations: list[DefaultAugs] | None = None,
     seed: int | None = None,
-) -> list[SPATIAL_TRANSFORMS_UNION]:
+) -> list[DefaultAugs]:
     """
     List the augmentations to apply.
 
@@ -50,7 +50,7 @@ def list_spatial_augmentations(
         If there are duplicate augmentations.
     """
     if augmentations is None:
-        transform_list: list[SPATIAL_TRANSFORMS_UNION] = [
+        transform_list: list[DefaultAugs] = [
             XYFlipConfig(seed=seed),
             XYRandomRotate90Config(seed=seed),
         ]
@@ -81,7 +81,7 @@ def create_data_configuration(
     patch_size: Sequence[int],
     batch_size: int,
     target_axes: str | None = None,
-    augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
+    augmentations: list[DefaultAugs] | None = None,
     normalization: dict | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     channels: Sequence[int] | None = None,

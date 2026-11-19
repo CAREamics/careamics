@@ -4,7 +4,7 @@ from typing import Union, cast
 
 from numpy.typing import NDArray
 
-from careamics.config.augmentations import SPATIAL_TRANSFORMS_UNION
+from careamics.config.augmentations import AllAugs
 from careamics.dataset.augmentation import (
     SwapInputTarget,
     TiltAxisRandomRotate90,
@@ -26,7 +26,7 @@ class Compose:
 
     Parameters
     ----------
-    transform_list : list[SPATIAL_TRANSFORMS_UNION]
+    transform_list : list[AllAugs]
         A list of dictionaries where each dictionary contains the name of a
         transform and its parameters.
 
@@ -36,12 +36,12 @@ class Compose:
         A callable that applies the transforms to the input data.
     """
 
-    def __init__(self, transform_list: list[SPATIAL_TRANSFORMS_UNION]) -> None:
+    def __init__(self, transform_list: list[AllAugs]) -> None:
         """Instantiate a Compose object.
 
         Parameters
         ----------
-        transform_list : list[SPATIAL_TRANSFORMS_UNION]
+        transform_list : list[AllAugs]
             A list of dictionaries where each dictionary contains the name of a
             transform and its parameters.
         """
