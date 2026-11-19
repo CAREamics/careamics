@@ -15,25 +15,25 @@ simple factory for common experiments and an advanced factory for more control.
 === "Noise2Void"
 
     ```python title="Noise2Void configuration factories"
-    --8<-- "current/configuration/config_general/configuration_n2v.py:all_configs"
+    --8<-- "current/configuration/n2v/general_n2v.py:all_configs"
     ```
 
 === "CARE"
 
     ```python title="CARE and Noise2Noise configuration factories"
-    --8<-- "current/configuration/config_general/configuration_care.py:all_configs"
+    --8<-- "current/configuration/care/general_care.py:all_configs"
     ```
 
 === "HDN"
 
     ```python title="HDN configuration factories"
-    --8<-- "current/configuration/config_general/configuration_hdn.py:all_configs"
+    --8<-- "current/configuration/hdn/general_hdn.py:all_configs"
     ```
 
 === "MicroSplit"
 
     ```python title="MicroSplit configuration factories"
-    --8<-- "current/configuration/config_general/configuration_microsplit.py:all_configs"
+    --8<-- "current/configuration/microsplit/general_microsplit.py:all_configs"
     ```
 
 === "cryoCARE"
@@ -45,7 +45,7 @@ simple factory for common experiments and an advanced factory for more control.
 === "Segmentation"
 
     ```python title="Segmentation configuration factories"
-    --8<-- "current/configuration/config_general/configuration_seg.py:all_configs"
+    --8<-- "current/configuration/segmentation/general_seg.py:all_configs"
     ```
 
 
@@ -57,7 +57,7 @@ an experiment.
 === "Noise2Void"
 
     ```python title="Configure Noise2Void"
-    --8<-- "current/configuration/config_general/configuration_n2v.py:config_n2v"
+    --8<-- "current/configuration/n2v/general_n2v.py:config_n2v"
     ```
 
     1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
@@ -67,7 +67,7 @@ an experiment.
 === "CARE"
 
     ```python title="Configure CARE"
-    --8<-- "current/configuration/config_general/configuration_care.py:config_care"
+    --8<-- "current/configuration/care/general_care.py:config_care"
     ```
 
     1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
@@ -77,7 +77,7 @@ an experiment.
 === "HDN"
 
     ```python title="Configure HDN"
-    --8<-- "current/configuration/config_general/configuration_hdn.py:config_hdn"
+    --8<-- "current/configuration/hdn/general_hdn.py:config_hdn"
     ```
     
     1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
@@ -87,7 +87,7 @@ an experiment.
 === "MicroSplit"
 
     ```python title="Configure MicroSplit"
-    --8<-- "current/configuration/config_general/configuration_microsplit.py:config_microsplit"
+    --8<-- "current/configuration/microsplit/general_microsplit.py:config_microsplit"
     ```
 
     1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
@@ -106,7 +106,7 @@ an experiment.
 === "Segmentation"
 
     ```python title="Configure segmentation"
-    --8<-- "current/configuration/config_general/configuration_seg.py:config_seg"
+    --8<-- "current/configuration/segmentation/general_seg.py:config_seg"
     ```
 
     1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
@@ -148,6 +148,10 @@ an experiment.
     but all CARE-related descriptions hold for Noise2Noise and its configuration factory
     functions `create_n2n_config` and `create_advanced_n2n_config`.
 
+!!! info "structN2V"
+
+    We provide a convenience factory for structN2V: `create_structn2v_config`.
+
 
 !!! note "Training with `T` as depth axis"
 
@@ -169,7 +173,7 @@ need to be set. These parameters vary from algorithm to algorithm.
 === "Noise2Void"
     
     ```python title="Setting channels parameters"
-    --8<-- "current/configuration/config_general/configuration_n2v.py:config_n2v_channels"
+    --8<-- "current/configuration/n2v/general_n2v.py:config_n2v_channels"
     ```
 
     1. Channels are considered to be present as soon as `C` is in `axes`.
@@ -179,7 +183,7 @@ need to be set. These parameters vary from algorithm to algorithm.
 === "CARE"
 
     ```python title="Setting channels parameters"
-    --8<-- "current/configuration/config_general/configuration_care.py:config_care_channels"
+    --8<-- "current/configuration/care/general_care.py:config_care_channels"
     ```
 
     1. Channels are considered to be present as soon as `C` is in `axes`.
@@ -194,7 +198,7 @@ need to be set. These parameters vary from algorithm to algorithm.
 === "Segmentation"
 
     ```python title="Setting segmentation input channels"
-    --8<-- "current/configuration/config_general/configuration_seg.py:config_seg_channels"
+    --8<-- "current/configuration/segmentation/general_seg.py:config_seg_channels"
     ```
 
     1. Channels are considered to be present as soon as `C` is in `axes`.
@@ -224,7 +228,7 @@ limit the number of batches processed in an epoch.
 === "Noise2Void"
 
     ```python title="Setting the number of steps"
-    --8<-- "current/configuration/config_general/configuration_n2v.py:config_n2v_steps"
+    --8<-- "current/configuration/n2v/general_n2v.py:config_n2v_steps"
     ```
 
     1. Use a number smaller than the total number of steps, based on the batch size.
@@ -232,7 +236,7 @@ limit the number of batches processed in an epoch.
 === "CARE"
 
     ```python title="Setting the number of steps"
-    --8<-- "current/configuration/config_general/configuration_care.py:config_care_steps"
+    --8<-- "current/configuration/care/general_care.py:config_care_steps"
     ```
 
     1. Choose a value smaller than the total number of available batches when shorter
@@ -241,7 +245,7 @@ limit the number of batches processed in an epoch.
 === "HDN"
 
     ```python title="Setting the number of steps"
-    --8<-- "current/configuration/config_general/configuration_hdn.py:config_hdn_steps"
+    --8<-- "current/configuration/hdn/general_hdn.py:config_hdn_steps"
     ```
 
     1. Choose a value smaller than the total number of available batches when shorter
@@ -250,7 +254,7 @@ limit the number of batches processed in an epoch.
 === "MicroSplit"
 
     ```python title="Setting the number of steps"
-    --8<-- "current/configuration/config_general/configuration_microsplit.py:config_msplit_steps"
+    --8<-- "current/configuration/microsplit/general_microsplit.py:config_msplit_steps"
     ```
 
     1. Choose a value smaller than the total number of available batches when shorter
@@ -268,7 +272,7 @@ limit the number of batches processed in an epoch.
 === "Segmentation"
 
     ```python title="Setting the number of steps"
-    --8<-- "current/configuration/config_general/configuration_seg.py:config_seg_steps"
+    --8<-- "current/configuration/segmentation/general_seg.py:config_seg_steps"
     ```
 
     1. Choose a value smaller than the total number of available batches when shorter
@@ -304,7 +308,7 @@ spatial transformation is applied consistently to the training data and targets.
 === "Noise2Void"
 
     ```python title="Setting augmentations"
-    --8<-- "current/configuration/config_general/configuration_n2v.py:config_n2v_augs"
+    --8<-- "current/configuration/n2v/general_n2v.py:config_n2v_augs"
     ```
 
     1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
@@ -312,7 +316,7 @@ spatial transformation is applied consistently to the training data and targets.
 === "CARE"
 
     ```python title="Setting augmentations"
-    --8<-- "current/configuration/config_general/configuration_care.py:config_care_augs"
+    --8<-- "current/configuration/care/general_care.py:config_care_augs"
     ```
 
     1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
@@ -320,7 +324,7 @@ spatial transformation is applied consistently to the training data and targets.
 === "HDN"
 
     ```python title="Setting augmentations"
-    --8<-- "current/configuration/config_general/configuration_hdn.py:config_hdn_augs"
+    --8<-- "current/configuration/hdn/general_hdn.py:config_hdn_augs"
     ```
 
     1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
@@ -328,7 +332,7 @@ spatial transformation is applied consistently to the training data and targets.
 === "MicroSplit"
 
     ```python title="Setting augmentations"
-    --8<-- "current/configuration/config_general/configuration_microsplit.py:config_microsplit_augs"
+    --8<-- "current/configuration/microsplit/general_microsplit.py:config_microsplit_augs"
     ```
 
     1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
@@ -337,7 +341,7 @@ spatial transformation is applied consistently to the training data and targets.
 === "Segmentation"
 
     ```python title="Setting augmentations"
-    --8<-- "current/configuration/config_general/configuration_seg.py:config_seg_augs"
+    --8<-- "current/configuration/segmentation/general_seg.py:config_seg_augs"
     ```
 
     1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
@@ -365,31 +369,31 @@ from the training data for validation.
 === "Noise2Void"
 
     ```python title="Setting the number of validation patches"
-    --8<-- "current/configuration/config_general/configuration_n2v.py:config_n2v_val"
+    --8<-- "current/configuration/n2v/general_n2v.py:config_n2v_val"
     ```
 
 === "CARE"
 
     ```python title="Setting the number of validation patches"
-    --8<-- "current/configuration/config_general/configuration_care.py:config_care_val"
+    --8<-- "current/configuration/care/general_care.py:config_care_val"
     ```
 
 === "HDN"
 
     ```python title="Setting the number of validation patches"
-    --8<-- "current/configuration/config_general/configuration_hdn.py:config_hdn_val"
+    --8<-- "current/configuration/hdn/general_hdn.py:config_hdn_val"
     ```
 
 === "MicroSplit"
 
     ```python title="Setting the number of validation patches"
-    --8<-- "current/configuration/config_general/configuration_microsplit.py:config_microsplit_val"
+    --8<-- "current/configuration/microsplit/general_microsplit.py:config_microsplit_val"
     ```
 
 === "Segmentation"
 
     ```python title="Setting the number of validation patches"
-    --8<-- "current/configuration/config_general/configuration_seg.py:config_seg_val"
+    --8<-- "current/configuration/segmentation/general_seg.py:config_seg_val"
     ```
 
 If separate validation data is supplied, `n_val_patches` is ignored and the validation
@@ -401,13 +405,126 @@ data determines the number of validation patches automatically.
     to the percentage of slices to be used as validation.
 
 
-### Algorithm-specific parameters
+## Algorithm-specific parameters
+
+### Noise2Void
+#### N2V2
+
+Noise2Void has multiple flavours that were developed to overcome some of its limitations,
+such as checkerboard artefacts (N2V2) or correlated noise (structN2V). 
+
+To use N2V2, simply set `use_n2v2` to `True`.
+
+```python title="Using N2V2"
+--8<-- "current/configuration/n2v/general_n2v.py:config_n2v2"
+```
+
+#### structN2V
+
+structN2V has its own configuration factory function. It allows setting 
+
+```python title="Using structN2V"
+--8<-- "current/configuration/n2v/general_n2v.py:config_structn2v"
+```
+
+1. Orientation of the noise correlation, can be set to `"horizontal"`, `"vertical"`,
+`"cross"`, or `"square"`.
+2. Size of the mask in pixels.
+
+!!! note "Advanced structN2V"
+
+    In the [advanced configuration section](#advanced-configuration), the Noise2Void
+    factory also allow using structN2V using the same two parameters.
+
+
+### CARE
+
+The configuration factory also allows CARE targets to have different axes or axis order,
+provided that they are specified using `target_axes`.
+
+```python title="Setting augmentations"
+--8<-- "current/configuration/care/general_care.py:target_axes"
+```
 
 !!! note "Assumptions parameters are not passed"
 
     If `target_axes` is not set, it is assumed to be the same as `axes`.
 
 
+### HDN
+
+HDN simple configuration factory gives access to two additional parameters: 
+`use_noise_model` and `supervised`.
+
+#### Noise model
+
+A noise model guides training towards realistic output values and can be obtained from
+noisy images (see the [noise model](../noise_model/) section).
+
+```python title="Training with noise model"
+--8<-- "current/configuration/hdn/advanced_hdn.py:hdn_noise_model"
+```
+
+!!! warning "Using a noise model"
+
+    If `use_noise_model` is set to `True`, then a trained noise model must be supplied
+    at training time.
+
+
+#### Supervised HDN
+
+
+If you happen to have ground-truth data, you can also trained HDN with supervision by
+setting 
+
+```python title="Training with supervision"
+--8<-- "current/configuration/hdn/advanced_hdn.py:hdn_supervised"
+```
+
+!!! warning "Supervised HDN"
+
+    If `supervised` is set to `True`, then target images must be supplied at training
+    time.
+
+!!! info "Supervised with noise model"
+
+    The two parameters `supervised` and `use_noise_model` cannot be both set to `True`.
+
+
+### MicroSplit
+
+The MicroSplit simple configuration factory includes the `multiscale_count` parameter,
+which controls how many spatial scales MicroSplit uses as input. A value of 1 disables
+lateral context and uses only the original patch. Larger values provide progressively
+wider image context at the same patch size. Increasing it can help the model use
+surrounding structures, but also increases memory and computation.
+
+
+```python title="Setting the number of lateral-context scales"
+--8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_multiscale"
+```
+
+
+### cryoCARE
+
+In addition to the mandatory `tilt_axis` parameter (see [simple configuration](#simple-configuration)),
+cryCARE also expose a `validation_fraction` parameter. The validation fraction is the
+percentage of continuous slice in the input data that is reserved for validation.
+
+```python title="Validation fraction"
+--8<-- "current/configuration/config_algorithm/configuration_specific_cryocare.py:cryocare_validation"
+```
+
+### Segmentation
+
+The `prediction_output` parameter takes one of two values: `masks` or `probabilities`. It
+controls the type of output after prediction, either direclty the masks (class with the
+highest probability) or the `[0.1]` probability map.
+
+
+```python title="Prediction output type"
+--8<-- "current/configuration/config_algorithm/configuration_specific_seg.py:seg_prediction"
+```
 
 ## Advanced configuration
 
@@ -418,7 +535,7 @@ Loading data into memory can speed up patch extraction when the dataset fits in 
 === "Noise2Void"
 
     ```python title="Setting in-memory training"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_n2v.py:adv_config_n2v_in_memory"
+    --8<-- "current/configuration/n2v/advanced_n2v.py:adv_config_n2v_in_memory"
     ```
 
     1. Only `array`, `tiff`, and `custom` are compatible with in-memory training.
@@ -426,7 +543,7 @@ Loading data into memory can speed up patch extraction when the dataset fits in 
 === "CARE"
 
     ```python title="Setting in-memory training"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_care.py:adv_config_care_in_memory"
+    --8<-- "current/configuration/care/advanced_care.py:adv_config_care_in_memory"
     ```
 
     1. Only `array`, `tiff`, and `custom` are compatible with in-memory training.
@@ -449,7 +566,7 @@ Loading data into memory can speed up patch extraction when the dataset fits in 
 === "Segmentation"
 
     ```python title="Setting in-memory training"
-    --8<-- "current/configuration/config_general/configuration_seg.py:adv_config_seg_in_memory"
+    --8<-- "current/configuration/segmentation/advanced_seg.py:adv_config_seg_in_memory"
     ```
 
     1. In-memory training is supported for `array`, `tiff`, and `custom` data.
@@ -466,7 +583,7 @@ target is not subsetted.
 === "Noise2Void"
 
     ```python title="Selecting a subset of channels"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_n2v.py:adv_config_n2v_subchannels"
+    --8<-- "current/configuration/n2v/advanced_n2v.py:adv_config_n2v_subchannels"
     ```
 
     1. `C` must be present in `axes` for channels to be considered.
@@ -476,7 +593,7 @@ target is not subsetted.
 === "CARE"
 
     ```python title="Selecting a subset of channels"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_care.py:adv_config_care_subchannels"
+    --8<-- "current/configuration/care/advanced_care.py:adv_config_care_subchannels"
     ```
 
     1. `C` must be present in `axes` for channels to be considered.
@@ -501,7 +618,7 @@ target is not subsetted.
 === "Segmentation"
 
     ```python title="Selecting a subset of channels"
-    --8<-- "current/configuration/config_general/configuration_seg.py:adv_config_seg_subchannels"
+    --8<-- "current/configuration/segmentation/advanced_seg.py:adv_config_seg_subchannels"
     ```
 
     1. This example uses the first and third input channels. The label mask is not
@@ -517,7 +634,7 @@ allow information to flow between input channels.
 === "Noise2Void"
 
     ```python title="Training non-independent channels"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_n2v.py:adv_config_n2v_ind_channels"
+    --8<-- "current/configuration/n2v/advanced_n2v.py:adv_config_n2v_ind_channels"
     ```
 
     1. `C` must be present in `axes`.
@@ -527,7 +644,7 @@ allow information to flow between input channels.
 === "CARE"
 
     ```python title="Training non-independent channels"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_care.py:adv_config_care_ind_channels"
+    --8<-- "current/configuration/care/advanced_care.py:adv_config_care_ind_channels"
     ```
 
     1. `C` must be present in `axes`.
@@ -565,7 +682,7 @@ Normalization is applied during training and prediction. The available strategie
 === "Noise2Void"
 
     ```python title="Specifying the normalization method"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_n2v.py:adv_config_n2v_norm"
+    --8<-- "current/configuration/n2v/advanced_n2v.py:adv_config_n2v_norm"
     ```
 
     1. Select the normalization method with `normalization`.
@@ -574,7 +691,7 @@ Normalization is applied during training and prediction. The available strategie
 === "CARE"
 
     ```python title="Specifying the normalization method"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_care.py:adv_config_care_norm"
+    --8<-- "current/configuration/care/advanced_care.py:adv_config_care_norm"
     ```
 
     1. Select the normalization method with `normalization`.
@@ -598,7 +715,7 @@ Normalization is applied during training and prediction. The available strategie
 === "Segmentation"
 
     ```python title="Specifying the normalization method"
-    --8<-- "current/configuration/config_general/configuration_seg.py:adv_config_seg_norm"
+    --8<-- "current/configuration/segmentation/advanced_seg.py:adv_config_seg_norm"
     ```
 
     1. Select the normalization method with `normalization`.
@@ -611,7 +728,7 @@ can also be passed explicitly:
 === "Noise2Void"
 
     ```python title="Passing pre-computed normalization parameters"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_n2v.py:adv_config_n2v_norm_params"
+    --8<-- "current/configuration/n2v/advanced_n2v.py:adv_config_n2v_norm_params"
     ```
 
     1. This selects zero-mean, unit-variance normalization, which is the default.
@@ -620,7 +737,7 @@ can also be passed explicitly:
 === "CARE"
 
     ```python title="Passing pre-computed normalization parameters"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_care.py:adv_config_care_norm_params"
+    --8<-- "current/configuration/care/advanced_care.py:adv_config_care_norm_params"
     ```
 
     1. This selects zero-mean, unit-variance normalization, which is the default.
@@ -647,7 +764,7 @@ channel. Set `per_channel=False` when a shared value is intended.
 === "Noise2Void"
 
     ```python title="Normalizing multi-channel data"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_n2v.py:adv_config_n2v_norm_ch"
+    --8<-- "current/configuration/n2v/advanced_n2v.py:adv_config_n2v_norm_ch"
     ```
 
     1. The example uses multiple channels.
@@ -658,7 +775,7 @@ channel. Set `per_channel=False` when a shared value is intended.
 === "CARE"
 
     ```python title="Normalizing multi-channel data"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_care.py:adv_config_care_norm_ch"
+    --8<-- "current/configuration/care/advanced_care.py:adv_config_care_norm_ch"
     ```
 
     1. The example uses multiple channels.
@@ -689,7 +806,7 @@ be selected with `logger`.
 === "Noise2Void"
 
     ```python title="Choosing a logger"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_n2v.py:adv_config_n2v_logger"
+    --8<-- "current/configuration/n2v/advanced_n2v.py:adv_config_n2v_logger"
     ```
 
     1. This selects Weights & Biases in addition to the CSV logger.
@@ -697,7 +814,7 @@ be selected with `logger`.
 === "CARE"
 
     ```python title="Choosing a logger"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_care.py:adv_config_care_logger"
+    --8<-- "current/configuration/care/advanced_care.py:adv_config_care_logger"
     ```
 
     1. This selects Weights & Biases in addition to the CSV logger.
@@ -722,7 +839,7 @@ the available CPUs.
 === "Noise2Void"
 
     ```python title="Setting the number of workers"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_n2v.py:adv_config_n2v_num_workers"
+    --8<-- "current/configuration/n2v/advanced_n2v.py:adv_config_n2v_num_workers"
     ```
 
     1. This sets the number of workers used for data loading.
@@ -730,7 +847,7 @@ the available CPUs.
 === "CARE"
 
     ```python title="Setting the number of workers"
-    --8<-- "current/configuration/config_advanced/configuration_advanced_care.py:adv_config_care_num_workers"
+    --8<-- "current/configuration/care/advanced_care.py:adv_config_care_num_workers"
     ```
 
     1. This sets the number of workers used for data loading.
@@ -751,7 +868,7 @@ the available CPUs.
 === "Segmentation"
 
     ```python title="Setting the number of workers"
-    --8<-- "current/configuration/config_general/configuration_seg.py:adv_config_seg_num_workers"
+    --8<-- "current/configuration/segmentation/advanced_seg.py:adv_config_seg_num_workers"
     ```
 
     1. Set this according to the available CPU resources and storage performance.
@@ -768,13 +885,13 @@ The U-Net model parameters can be passed through `model_params`.
 === "Noise2Void"
 
     ```python title="Passing model parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_n2v_model"
+    --8<-- "current/configuration/n2v/lightning_n2v.py:adv_config_n2v_model"
     ```
 
 === "CARE"
 
     ```python title="Passing model parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_care_model"
+    --8<-- "current/configuration/care/lightning_care.py:adv_config_care_model"
     ```
 
 === "HDN"
@@ -796,7 +913,7 @@ The U-Net model parameters can be passed through `model_params`.
 === "Segmentation"
 
     ```python title="Setting U-Net parameters"
-    --8<-- "current/configuration/config_general/configuration_seg.py:adv_config_seg_model"
+    --8<-- "current/configuration/segmentation/advanced_seg.py:adv_config_seg_model"
     ```
 
     1. Increasing `depth` adds U-Net levels and generally increases model capacity and
@@ -812,7 +929,7 @@ Pass additional PyTorch Lightning `Trainer` options through `trainer_params`.
 === "Noise2Void"
 
     ```python title="Passing Trainer parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_n2v_trainer"
+    --8<-- "current/configuration/n2v/lightning_n2v.py:adv_config_n2v_trainer"
     ```
 
     1. Pass additional Trainer parameters as a dictionary through `trainer_params`.
@@ -820,7 +937,7 @@ Pass additional PyTorch Lightning `Trainer` options through `trainer_params`.
 === "CARE"
 
     ```python title="Passing Trainer parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_care_trainer"
+    --8<-- "current/configuration/care/lightning_care.py:adv_config_care_trainer"
     ```
 
     1. Pass additional Trainer parameters as a dictionary through `trainer_params`.
@@ -848,7 +965,7 @@ parameters through `optimizer_params`.
 === "Noise2Void"
 
     ```python title="Passing optimizer parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_n2v_opt"
+    --8<-- "current/configuration/n2v/lightning_n2v.py:adv_config_n2v_opt"
     ```
 
     1. Select the optimizer with `optimizer`.
@@ -857,7 +974,7 @@ parameters through `optimizer_params`.
 === "CARE"
 
     ```python title="Passing optimizer parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_care_opt"
+    --8<-- "current/configuration/care/lightning_care.py:adv_config_care_opt"
     ```
 
     1. Select the optimizer with `optimizer`.
@@ -888,7 +1005,7 @@ Configure the learning-rate scheduler with `lr_scheduler` and
 === "Noise2Void"
 
     ```python title="Passing learning-rate scheduler parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_n2v_lr"
+    --8<-- "current/configuration/n2v/lightning_n2v.py:adv_config_n2v_lr"
     ```
 
     1. Select the scheduler with `lr_scheduler`.
@@ -897,7 +1014,7 @@ Configure the learning-rate scheduler with `lr_scheduler` and
 === "CARE"
 
     ```python title="Passing learning-rate scheduler parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_care_lr"
+    --8<-- "current/configuration/care/lightning_care.py:adv_config_care_lr"
     ```
 
     1. Select the scheduler with `lr_scheduler`.
@@ -928,13 +1045,13 @@ dataloaders.
 === "Noise2Void"
 
     ```python title="Passing dataloader parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_n2v_train_dm"
+    --8<-- "current/configuration/n2v/lightning_n2v.py:adv_config_n2v_train_dm"
     ```
 
 === "CARE"
 
     ```python title="Passing dataloader parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_care_train_dm"
+    --8<-- "current/configuration/care/lightning_care.py:adv_config_care_train_dm"
     ```
 
 === "HDN"
@@ -961,13 +1078,13 @@ Override the default checkpoint behavior with `checkpoint_params`.
 === "Noise2Void"
 
     ```python title="Passing checkpoint parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_n2v_checkpoint"
+    --8<-- "current/configuration/n2v/lightning_n2v.py:adv_config_n2v_checkpoint"
     ```
 
 === "CARE"
 
     ```python title="Passing checkpoint parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_care_checkpoint"
+    --8<-- "current/configuration/care/lightning_care.py:adv_config_care_checkpoint"
     ```
 
 === "HDN"
@@ -1000,7 +1117,7 @@ Configure early stopping with `early_stopping_params`.
 === "CARE"
 
     ```python title="Passing early-stopping parameters"
-    --8<-- "current/configuration/config_advanced/configuration_lightning.py:adv_config_care_early_stop"
+    --8<-- "current/configuration/care/lightning_care.py:adv_config_care_early_stop"
     ```
 
 === "HDN"
@@ -1026,12 +1143,12 @@ default for Noise2Void.
 
 For algorithm-specific options, see:
 
-- [Advanced N2V](./config_algorithm_specific/configuration_specific_n2v.md)
-- [Advanced CARE](./config_algorithm_specific/configuration_specific_care.md)
-- [HDN](./config_algorithm_specific/configuration_specific_hdn.md)
-- [MicroSplit](./config_algorithm_specific/configuration_specific_microsplit.md)
-- [cryoCARE](./config_algorithm_specific/configuration_specific_cryocare.md)
-- [Segmentation](./config_algorithm_specific/configuration_seg.md)
+- [Advanced N2V](./n2v.md)
+- [Advanced CARE](./care.md)
+- [HDN](./hdn.md)
+- [MicroSplit](./microsplit.md)
+- [cryoCARE](./cryocare.md)
+- [Segmentation](./segmentation.md)
 
 ## Saving and loading
 

@@ -6,8 +6,8 @@ description: Train and use noise models with CAREamics
 # Noise models
 
 CAREamics can use a trained Gaussian-mixture noise model in the noise-model
-likelihoods of [HDN](../configuration/config_algorithm_specific/configuration_specific_hdn.md) and
-[MicroSplit](../configuration/config_algorithm_specific/configuration_specific_microsplit.md).
+likelihoods of [HDN](../configuration/hdn.md) and
+[MicroSplit](../configuration/microsplit.md).
 Noise models are not required for the default Gaussian-likelihood or self-supervised
 workflows.
 
