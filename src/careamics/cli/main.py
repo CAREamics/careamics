@@ -88,7 +88,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="Create an HDN configuration.",
     )
     register_command(
-        "config-msplit",
+        "config-microsplit",
         create_config_msplit,
         add_args_config_msplit,
         help="Create a MicroSplit configuration.",
