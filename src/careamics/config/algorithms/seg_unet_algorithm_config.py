@@ -22,7 +22,7 @@ from careamics.references.segmentation import (
     UNET_SEGMENTATION_DESCRIPTION,
 )
 
-SegmentationLoss = Annotated[
+SegLossConfig = Annotated[
     Union[DiceLossConfig, DiceCELossConfig, CELossConfig],
     Field(discriminator="name"),
 ]
@@ -90,7 +90,7 @@ class SegAlgorithm(UNetBasedAlgorithm):
     prediction_output: Literal["mask", "probabilities"] = "mask"
     """Default output returned during prediction."""
 
-    loss: SegmentationLoss = DiceCELossConfig()
+    loss: SegLossConfig = DiceCELossConfig()
     """Segmentation-compatible loss function."""
 
     model: Annotated[
