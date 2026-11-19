@@ -655,6 +655,8 @@ class NoiseModelTrainer:
         losses = noise_model.fit(
             signal=signal_flat,
             observation=obs_flat,
+            axes="SZYX" if signal_flat.ndim == 4 else "SYX",
+            data_type="array",
             learning_rate=learning_rate,
             batch_size=batch_size,
             n_epochs=n_epochs,

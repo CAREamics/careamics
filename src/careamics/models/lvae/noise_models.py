@@ -7,6 +7,7 @@ import math
 import os
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
@@ -14,6 +15,11 @@ import torch.nn as nn
 from numpy.typing import NDArray
 
 from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.support import SupportedData
+from careamics.dataset.factory import Loading
+from careamics.models.lvae.noise_model_data_loader import (
+    create_noise_model_data_loader,
+)
 from careamics.utils import get_device, get_logger
 
 logger = get_logger(__name__)
@@ -147,6 +153,7 @@ def train_gm_noise_model(
     model_config: GaussianMixtureNMConfig,
     signal: np.ndarray,
     observation: np.ndarray,
+    axes: str,
 ) -> GaussianMixtureNoiseModel:
     """Train a Gaussian mixture noise model.
 
@@ -158,6 +165,8 @@ def train_gm_noise_model(
         Clean signal data.
     observation : np.ndarray
         Noisy observation data.
+    axes : str
+        Axes describing the signal and observation arrays.
 
     Returns
     -------
@@ -168,7 +177,7 @@ def train_gm_noise_model(
     # TODO any training params ? Different channels ?
     noise_model = GaussianMixtureNoiseModel(model_config)
     # TODO revisit config unpacking
-    noise_model.fit(signal, observation)
+    noise_model.fit(signal, observation, axes=axes, data_type="array")
     return noise_model
 
 
@@ -878,22 +887,27 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     def fit(
         self,
-        signal: NDArray,
-        observation: NDArray,
+        signal: Any,
+        observation: Any,
         learning_rate: float = 1e-1,
         batch_size: int = 250000,
         n_epochs: int = 2000,
         lower_clip: float = 0.0,
         upper_clip: float = 100.0,
+        *,
+        axes: str,
+        data_type: SupportedData | str,
+        loading: Loading = None,
+        channel: int = 0,
     ) -> list[float]:
         """Train the noise model on signal-observation pairs.
 
         Parameters
         ----------
-        signal : NDArray
+        signal : array, path, or sequence of arrays or paths
             Clean signal data.
-        observation : NDArray
-            Noisy observation data.
+        observation : array, path, or sequence of arrays or paths
+            Noisy observation data corresponding to `signal`.
         learning_rate : float
             Learning rate. Default = 1e-1.
         batch_size : int
@@ -904,6 +918,14 @@ class GaussianMixtureNoiseModel(nn.Module):
             Lower percentile for clipping. Default is 0.
         upper_clip : float
             Upper percentile for clipping. Default is 100.
+        axes : str
+            Axes describing the signal and observation inputs.
+        data_type : SupportedData or str
+            CAREamics data type.
+        loading : Loading, default=None
+            Custom CAREamics loading strategy.
+        channel : int, default=0
+            Channel to train from canonical `SC(Z)YX` data.
 
         Returns
         -------
@@ -915,20 +937,22 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.to_device(device)
         optimizer = torch.optim.Adam([self.weight], lr=learning_rate)
 
-        sig_obs_pairs = self.get_signal_observation_pairs(
-            signal, observation, lower_clip, upper_clip
+        data_loader = create_noise_model_data_loader(
+            signal=signal,
+            observation=observation,
+            batch_size=batch_size,
+            n_epochs=n_epochs,
+            axes=axes,
+            data_type=data_type,
+            loading=loading,
+            channel=channel,
+            lower_clip=lower_clip,
+            upper_clip=upper_clip,
         )
 
         train_losses = []
-        counter = 0
-        for t in range(n_epochs):
-            if (counter + 1) * batch_size >= sig_obs_pairs.shape[0]:
-                counter = 0
-                sig_obs_pairs = self._fast_shuffle(sig_obs_pairs, 1)
-
-            batch_vectors = sig_obs_pairs[
-                counter * batch_size : (counter + 1) * batch_size, :
-            ]
+        for t, batch in enumerate(data_loader):
+            batch_vectors = torch.from_numpy(batch)
             observations = batch_vectors[:, 1].to(self.device)
             signals = batch_vectors[:, 0].to(self.device)
 
@@ -951,7 +975,6 @@ class GaussianMixtureNoiseModel(nn.Module):
             optimizer.zero_grad()
             joint_loss.backward()
             optimizer.step()
-            counter += 1
 
         self._set_model_mode(mode="prediction")
         self.to_device(torch.device("cpu"))

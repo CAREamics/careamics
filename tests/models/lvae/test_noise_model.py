@@ -169,7 +169,11 @@ def test_gm_noise_model_training(image_size, max_value, noise_scale):
     )
     noise_model = GaussianMixtureNoiseModel(nm_config)
     training_losses = noise_model.fit(
-        signal=signal, observation=observation, n_epochs=500
+        signal=signal,
+        observation=observation,
+        axes="SYX",
+        data_type="array",
+        n_epochs=500,
     )
     initial_loss = training_losses[0]
     last_loss = training_losses[-1]
@@ -209,7 +213,13 @@ def test_noise_model_sampling(image_size, max_value):
         max_signal=signal.max(),
     )
     noise_model = GaussianMixtureNoiseModel(nm_config)
-    noise_model.fit(signal=signal, observation=observation, n_epochs=200)
+    noise_model.fit(
+        signal=signal,
+        observation=observation,
+        axes="YX",
+        data_type="array",
+        n_epochs=200,
+    )
     sampled_noise_data = noise_model.sample_observation_from_signal(signal)
     assert sampled_noise_data.shape == signal.shape
 
