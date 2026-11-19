@@ -43,8 +43,7 @@ config = create_hdn_config(
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
-    num_epochs=30,
-    augmentations=["x_flip", "y_flip", "rotate_90"],  # (1)!
+    augmentations=["x_flip"],  # (1)!
 )
 # --8<-- [end:config_hdn_augs]
 
@@ -58,7 +57,6 @@ config = create_hdn_config(
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
-    num_epochs=30,
     n_val_patches=15,
 )
 # --8<-- [end:config_hdn_val]

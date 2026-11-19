@@ -23,19 +23,6 @@ config = create_care_config(
 )
 # --8<-- [end:config_care]
 
-# %%
-# --8<-- [start:config_n2n]
-from careamics.config import create_n2n_config
-
-config = create_n2n_config(
-    experiment_name="n2n_training",  # (1)!
-    data_type="array",  # (2)!
-    axes="ZYX",  # (3)!
-    patch_size=[16, 64, 64],  # (4)!
-    batch_size=8,  # (5)!
-    num_epochs=30,  # (6)!
-)
-# --8<-- [end:config_n2n]
 
 # %%
 # --8<-- [start:config_care_steps]
@@ -62,7 +49,6 @@ config = create_care_config(
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
-    num_epochs=30,
     augmentations=["x_flip", "y_flip", "rotate_90"],  # (1)!
 )
 # --8<-- [end:config_care_augs]
@@ -77,7 +63,6 @@ config = create_care_config(
     axes="CYX",  # (1)!
     patch_size=[64, 64],
     batch_size=8,
-    num_epochs=30,
     n_channels_in=3,  # (2)!
 )
 # --8<-- [end:config_care_channels]
@@ -93,7 +78,6 @@ config = create_care_config(
     target_axes="YXC",  # (1)!
     patch_size=[64, 64],
     batch_size=8,
-    num_epochs=30,
     n_channels_in=3,
     n_channels_out=2,  # (2)!
 )
@@ -109,7 +93,6 @@ config = create_care_config(
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
-    num_epochs=30,
     n_val_patches=15,
 )
 # --8<-- [end:config_care_val]
@@ -125,7 +108,6 @@ config = create_care_config(
     target_axes="YX",  # (1)!
     patch_size=[64, 64],
     batch_size=8,
-    num_epochs=30,
     n_channels_in=3,  # (2)!
 )
 # --8<-- [end:target_axes]
