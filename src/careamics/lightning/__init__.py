@@ -28,13 +28,13 @@ from .callbacks import (
     ProgressBarCallback,
     StopPredictionCallback,
 )
+from .checkpoint_record_logger import CheckpointRecordLogger
 from .data import CareamicsDataModule
 from .data.microsplit_data_module import (
     MicroSplitDataModule,
     create_microsplit_predict_datamodule,
     create_microsplit_train_datamodule,
 )
-from .loggers import CheckpointRecordLogger
 from .modules import CAREModule, N2VModule
 from .prediction import convert_prediction
 from .utils import load_config_from_checkpoint, load_module_from_checkpoint

@@ -131,7 +131,7 @@ def test_v2_train_array(tmp_path: Path):
     careamist = CAREamist(config=config, work_dir=tmp_path)
     careamist.train(train_data=train_array, val_data=val_array)
     assert len(careamist.get_checkpoints()) > 0
-    checkpoint_record_path = careamist._get_checkpoint_root() / "checkpoint_record.json"
+    checkpoint_record_path = careamist.get_checkpoint_root() / "checkpoint_record.json"
     assert checkpoint_record_path.is_file()
     with open(checkpoint_record_path) as f:
         data = json.load(f)

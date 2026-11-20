@@ -23,9 +23,10 @@ from .lightning.callbacks import (
     PredictionWriterCallback,
     ProgressBarCallback,
 )
-from .lightning.checkpoint_record_logger import CheckpointRecordLogger
 from .lightning.checkpoint_record_logger import (
-    get_checkpoints as get_checkpoint_paths,
+    CheckpointRecord,
+    CheckpointRecordLogger,
+    read_checkpoint_record,
 )
 from .lightning.data import CareamicsDataModule, InputVar
 from .lightning.logger import CoLogger
@@ -163,7 +164,7 @@ class CAREamist:
         # set default run version and update it based on existing folders
         self.run_version = 0  # default
         self.run_version = get_run_version(
-            self._get_checkpoint_root().parent, self.config.get_safe_experiment_name()
+            self.get_checkpoint_root().parent, self.config.get_safe_experiment_name()
         )
 
         # whether to enable the progress bar
@@ -173,7 +174,7 @@ class CAREamist:
 
         # set up trainer
         self.callbacks = self._define_callbacks(
-            callbacks, self.config, self._get_checkpoint_root()
+            callbacks, self.config, self.get_checkpoint_root()
         )
 
         self.prediction_writer = PredictionWriterCallback(
@@ -525,7 +526,7 @@ class CAREamist:
             finalize_after_fit=False,
         )
 
-    def _get_checkpoint_root(self) -> Path:
+    def get_checkpoint_root(self) -> Path:
         """Get the root directory for checkpoints.
 
         Returns
@@ -1121,7 +1122,8 @@ class CAREamist:
             Checkpoint to load before making predictions. Can be "best", "last", or a
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
-            Call `CAREamist.get_checkpoints` for a list of available checkpoints.
+            Call `CAREamist.get_checkpoints` to inspect the checkpoint record and its
+            available checkpoints.
         n_predictions : int, optional
             Number of stochastic predictions to draw per input and average into the
             returned prediction. When set, the per-pixel standard deviation across
@@ -1366,7 +1368,8 @@ class CAREamist:
             Checkpoint to load before making predictions. Can be "best", "last", or a
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
-            Call `CAREamist.get_checkpoints` for a list of available checkpoints.
+            Call `CAREamist.get_checkpoints` to inspect the checkpoint record and its
+            available checkpoints.
         write_type : DataOutputFormat, optional
             The data type to save as, includes custom. If None, defaults to "zarr"
             when the (effective) prediction `data_type` is "zarr", and "tiff"
@@ -1498,18 +1501,19 @@ class CAREamist:
         finally:
             self.prediction_writer.enable_writing(False)
 
-    def get_checkpoints(self) -> list[Path]:
-        """Return the paths of available checkpoints.
+    def get_checkpoints(self) -> CheckpointRecord | None:
+        """Return the checkpoint record for the current training run.
 
-        Preserves the checkpoint record order, removes missing checkpoints, and appends
-        newly discovered checkpoints. The last checkpoint is placed at the end.
+        `last` and `best` identify checkpoint files, `monitor` and `mode` describe
+        ranking, `best_k` contains ranked checkpoints, `checkpoints` contains all saved
+        checkpoints, and `selected` identifies the default checkpoint for inference.
 
         Returns
         -------
-        list of Path
-            Available checkpoint paths in checkpoint record order.
+        CheckpointRecord or None
+            Saved checkpoint record, or `None` if no record exists.
         """
-        return get_checkpoint_paths(self._get_checkpoint_root())
+        return read_checkpoint_record(self.get_checkpoint_root())
 
     def export_to_bmz(
         self,

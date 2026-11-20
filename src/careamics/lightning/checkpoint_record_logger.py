@@ -3,6 +3,7 @@
 import json
 import shutil
 from argparse import Namespace
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal
 
@@ -10,8 +11,14 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import Logger
 from lightning.pytorch.utilities import rank_zero_only
 
-CHECKPOINT_RECORD_FILENAME = "checkpoint_record.json"
-CHECKPOINT_RECORD_BACKUP_FILENAME = "checkpoint_record.json.bak"
+from careamics.utils.checkpoint_record_io import (
+    CHECKPOINT_RECORD_FILENAME,
+    CheckpointRecord,
+    TopKRecord,
+    read_checkpoint_record,
+)
+
+CHECKPOINT_RECORD_BACKUP_FILENAME = f"{CHECKPOINT_RECORD_FILENAME}.bak"
 
 
 class CheckpointRecordLogger(Logger):
@@ -136,16 +143,19 @@ def save_checkpoint_record(
     if record_path.exists():
         shutil.copy2(record_path, checkpoint_dir / CHECKPOINT_RECORD_BACKUP_FILENAME)
 
-    data = get_checkpoint_record_data(model_checkpoint, selected_checkpoint)
+    data = create_checkpoint_record_data(model_checkpoint, selected_checkpoint)
     with record_path.open("w") as file:
         json.dump(data, file, indent=2)
 
 
-def get_checkpoint_record_data(
+def create_checkpoint_record_data(
     model_checkpoint: ModelCheckpoint,
     selected_checkpoint: Literal["best", "last"],
-) -> dict[str, Any]:
-    """Get a record of checkpoints produced during training.
+) -> CheckpointRecord:
+    """Create a record of checkpoints produced during training.
+
+    If an existing checkpoint record exists it is read and then updated with any new
+    checkpoints saved or deleted.
 
     Parameters
     ----------
@@ -167,42 +177,52 @@ def get_checkpoint_record_data(
     if model_checkpoint.dirpath is None:
         raise ValueError("ModelCheckpoint.dirpath must be set.")
 
-    last = model_checkpoint.last_model_path
-    best = model_checkpoint.best_model_path
-    data: dict[str, Any] = {
-        "last": Path(last).name if last else None,
-        "best": Path(best).name if best else None,
-        "monitor": model_checkpoint.monitor,
-        "mode": model_checkpoint.mode,
-    }
+    last = (
+        Path(last_path).name
+        if (last_path := model_checkpoint.last_model_path) != ""
+        else None
+    )
+    best = (
+        Path(best_path).name
+        if (best_path := model_checkpoint.best_model_path) != ""
+        else None
+    )
+    mode = model_checkpoint.mode
 
-    best_k = [
-        {"name": Path(path).name, "score": _score_value(score)}
+    best_k: list[TopKRecord] = [
+        TopKRecord(name=Path(path).name, score=score.item())
         for path, score in model_checkpoint.best_k_models.items()
     ]
-    if data["mode"] == "min":
+    if mode == "min":
         best_k.sort(key=lambda checkpoint: checkpoint["score"])
-    elif data["mode"] == "max":
+    elif mode == "max":
         best_k.sort(key=lambda checkpoint: checkpoint["score"], reverse=True)
     else:
-        raise ValueError(f"Unrecognized checkpoint monitoring mode: {data['mode']}")
-    data["best_k"] = best_k
+        raise ValueError(f"Unrecognized checkpoint monitoring mode: {mode}")
 
     checkpoint_paths = get_checkpoints(Path(model_checkpoint.dirpath))
-    data["checkpoints"] = [path.name for path in checkpoint_paths]
+    checkpoints = [path.name for path in checkpoint_paths]
 
-    match (len(data["checkpoints"]), selected_checkpoint):
+    match (len(checkpoints), selected_checkpoint):
         case 0, _:
-            data["selected"] = None
+            selected: str | None = None
         case _, "last":
-            data["selected"] = data["checkpoints"][-1]
+            selected = checkpoints[-1]
         case _, "best":
-            data["selected"] = data[selected_checkpoint]
+            selected = best
         case _, _:
             # should not be reachable
             raise ValueError("Error selecting checkpoint.")
 
-    return data
+    return {
+        "last": last,
+        "best": best,
+        "monitor": model_checkpoint.monitor,
+        "mode": mode,
+        "best_k": best_k,
+        "checkpoints": checkpoints,
+        "selected": selected,
+    }
 
 
 def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
@@ -218,16 +238,13 @@ def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
     list of pathlib.Path
         Existing recorded checkpoints followed by new checkpoints.
     """
-    record_path = checkpoint_dir / CHECKPOINT_RECORD_FILENAME
     recorded_paths: list[Path] = []
     last_path: Path | None = None
-    if record_path.exists():
-        with record_path.open() as file:
-            record = json.load(file)
-
+    record = read_checkpoint_record(checkpoint_dir)
+    if record is not None:
         # extract recorded checkpoints; remove those that do not exist
         # (checkpoints bumped out of the top k may be deleted.)
-        recorded_names: list[str] = record.get("checkpoints", [])
+        recorded_names: Sequence[str] = record.get("checkpoints", [])
         recorded_paths = [
             checkpoint_path
             for name in recorded_names
@@ -259,19 +276,3 @@ def get_checkpoints(checkpoint_dir: Path) -> list[Path]:
         updated_paths.append(last_path)
 
     return updated_paths
-
-
-def _score_value(score: Any) -> Any:
-    """Return a JSON-serializable checkpoint score.
-
-    Parameters
-    ----------
-    score : Any
-        Checkpoint score, which may be a scalar tensor.
-
-    Returns
-    -------
-    Any
-        JSON-serializable score.
-    """
-    return score.item() if hasattr(score, "item") else score

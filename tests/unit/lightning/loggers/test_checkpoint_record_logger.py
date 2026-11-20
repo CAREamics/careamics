@@ -13,7 +13,7 @@ from careamics.lightning.checkpoint_record_logger import (
     CHECKPOINT_RECORD_BACKUP_FILENAME,
     CHECKPOINT_RECORD_FILENAME,
     CheckpointRecordLogger,
-    get_checkpoint_record_data,
+    create_checkpoint_record_data,
     get_checkpoints,
     save_checkpoint_record,
 )
@@ -153,7 +153,7 @@ def test_no_checkpoints_record(tmp_path: Path):
     model_checkpoint.best_k_models = {}
     model_checkpoint.best_model_path = ""
 
-    data = get_checkpoint_record_data(model_checkpoint, "best")
+    data = create_checkpoint_record_data(model_checkpoint, "best")
     assert data["selected"] is None
 
 
