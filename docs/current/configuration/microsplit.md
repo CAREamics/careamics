@@ -1,5 +1,5 @@
 ---
-icon: lucide/scan-line
+icon: lucide/image-plus
 description: Advanced MicroSplit configuration
 ---
 

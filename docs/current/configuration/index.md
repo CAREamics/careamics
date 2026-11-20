@@ -1,5 +1,5 @@
 ---
-icon: lucide/git-branch
+icon: lucide/sliders-horizontal
 description: Choose the CAREamics algorithm that matches your data and task
 ---
 

@@ -1,5 +1,5 @@
 ---
-icon: lucide/waves
+icon: lucide/sticky-note-off
 description: Advanced HDN configuration
 ---
 

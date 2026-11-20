@@ -39,7 +39,7 @@ simple factory for common experiments and an advanced factory for more control.
 === "cryoCARE"
 
     ```python title="cryoCARE configuration factories"
-    --8<-- "current/configuration/config_general/configuration_cryocare.py:all_configs"
+    --8<-- "current/configuration/cryocare/general_cryocare.py:all_configs"
     ```
 
 === "Segmentation"
@@ -97,7 +97,7 @@ an experiment.
 === "cryoCARE"
 
     ```python title="Configure cryoCARE"
-    --8<-- "current/configuration/config_general/configuration_cryocare.py:config_cryocare"
+    --8<-- "current/configuration/cryocare/general_cryocare.py:config_cryocare"
     ```
 
     1. Patch size concerns only spatial axes, in order `ZYX`, and must be 3D.
@@ -263,7 +263,7 @@ limit the number of batches processed in an epoch.
 === "cryoCARE"
 
     ```python title="Setting the number of steps"
-    --8<-- "current/configuration/config_general/configuration_cryocare.py:config_cryocare_steps"
+    --8<-- "current/configuration/cryocare/general_cryocare.py:config_cryocare_steps"
     ```
 
     1. Choose a value smaller than the total number of available batches when shorter
@@ -512,7 +512,7 @@ cryCARE also expose a `validation_fraction` parameter. The validation fraction i
 percentage of continuous slice in the input data that is reserved for validation.
 
 ```python title="Validation fraction"
---8<-- "current/configuration/config_algorithm/configuration_specific_cryocare.py:cryocare_validation"
+--8<-- "current/configuration/cryocare/advanced_cryocare.py:cryocare_validation"
 ```
 
 ### Segmentation
