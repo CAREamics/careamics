@@ -8,13 +8,11 @@ from unittest.mock import Mock
 import pytest
 from lightning.pytorch.callbacks import ModelCheckpoint
 
-from careamics.lightning.loggers import CheckpointRecordLogger
-from careamics.lightning.loggers import (
-    checkpoint_record_logger as checkpoint_record_logger_module,
-)
-from careamics.lightning.loggers.checkpoint_record_logger import (
+from careamics.lightning import checkpoint_record_logger
+from careamics.lightning.checkpoint_record_logger import (
     CHECKPOINT_RECORD_BACKUP_FILENAME,
     CHECKPOINT_RECORD_FILENAME,
+    CheckpointRecordLogger,
     get_checkpoint_record_data,
     get_checkpoints,
     save_checkpoint_record,
@@ -62,7 +60,7 @@ def test_after_save_checkpoint_creates_record(
     # using monkey patch to ensure the checkpoints are always returned in this order
     # creation time ordering is not reliable on all machines.
     monkeypatch.setattr(
-        checkpoint_record_logger_module,
+        checkpoint_record_logger,
         "get_checkpoints",
         lambda *_args, **_kwargs: checkpoint_paths,
     )

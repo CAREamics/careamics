@@ -23,12 +23,12 @@ from .lightning.callbacks import (
     PredictionWriterCallback,
     ProgressBarCallback,
 )
-from .lightning.data import CareamicsDataModule, InputVar
-from .lightning.logger import CoLogger
-from .lightning.loggers import CheckpointRecordLogger
-from .lightning.loggers.checkpoint_record_logger import (
+from .lightning.checkpoint_record_logger import CheckpointRecordLogger
+from .lightning.checkpoint_record_logger import (
     get_checkpoints as get_checkpoint_paths,
 )
+from .lightning.data import CareamicsDataModule, InputVar
+from .lightning.logger import CoLogger
 from .lightning.modules import (
     CAREamicsModule,
     SegModule,
