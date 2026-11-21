@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "CAREamics"
+abstract: "Toolbox for running N2V and friends. Deep-learning library for image restoration."
+version: 0.3.5
+license: BSD-3-Clause
+repository-code: "https://github.com/CAREamics/careamics"
+authors:
+  - name: "CAREamics team"
+    email: "rse@fht.org"
+  - family-names: "Ashesh"
+    given-names: "Ashesh"
+    email: "ashesh.ashesh@fht.org"
+  - family-names: "Carrara"
+    given-names: "Federico"
+    email: "federico.carrara@fht.org"
+  - family-names: "Croft"
+    given-names: "Melisande"
+    email: "melisande.croft@fht.org"
+  - family-names: "Deschamps"
+    given-names: "Joran"
+    email: "joran.deschamps@fht.org"
+  - family-names: "Galinova"
+    given-names: "Vera"
+    email: "vera.galinova@fht.org"
+  - family-names: "Zubarev"
+    given-names: "Igor"
+    email: "igor.zubarev@fht.org"
