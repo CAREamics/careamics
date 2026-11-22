@@ -6,6 +6,7 @@ The `CAREamist` workflows are tested in `tests/integration/test_pn2v_workflow.py
 import math
 from pathlib import Path
 
+import numpy as np
 import pytest
 import torch
 
@@ -13,6 +14,7 @@ from careamics.config.factories import (
     create_advanced_n2v_config,
     create_advanced_pn2v_config,
 )
+from careamics.config.noise_model import GaussianMixtureNMConfig
 from careamics.dataset.normalization import (
     MeanStdNormalization,
     NoNormalization,
@@ -20,7 +22,10 @@ from careamics.dataset.normalization import (
 )
 from careamics.lightning.modules import PN2VModule, create_module
 from careamics.lightning.modules.pn2v_module import pn2v_mmse
-from careamics.models.lvae.noise_models import MultiChannelNoiseModel
+from careamics.models.lvae.noise_models import (
+    GaussianMixtureNoiseModel,
+    MultiChannelNoiseModel,
+)
 from tests.utils import gaussian_noise_model_testing
 
 
@@ -288,3 +293,64 @@ def test_pn2v_mmse_known_values(pn2v_noise_model: MultiChannelNoiseModel):
     )
     torch.testing.assert_close(midpoint, torch.full((1, 1, 1, 1), 5.0))
     torch.testing.assert_close(constant, torch.full((1, 1, 1, 1), 7.0))
+
+
+def _gmm(seed: int, scale: float) -> GaussianMixtureNoiseModel:
+    """Return a 3-Gaussian noise model with fixed weights and a noise scale."""
+    rng = np.random.default_rng(seed)
+    weight = rng.normal(0, 0.1, (9, 2)).astype(np.float32)
+    weight[3:6, 0] = np.log(scale)
+    return GaussianMixtureNoiseModel(
+        GaussianMixtureNMConfig(
+            weight=weight,
+            n_gaussian=3,
+            n_coeff=2,
+            min_signal=0.0,
+            max_signal=100.0,
+            min_sigma=1.0,
+        )
+    )
+
+
+def test_pn2v_mmse_multichannel_uses_channel_noise_models():
+    """Channel `c` of the MMSE estimate uses the noise model of channel `c`."""
+    generator = torch.Generator().manual_seed(1)
+    n_samples = 6
+    samples = torch.rand(2, 2 * n_samples, 4, 4, generator=generator) * 100
+    observations = torch.rand(2, 2, 4, 4, generator=generator) * 100
+    gmms = [_gmm(0, scale=4.0), _gmm(1, scale=400.0)]
+
+    estimate = pn2v_mmse(samples, observations, MultiChannelNoiseModel(gmms))
+
+    for c in range(2):
+        channel_samples = samples[:, c * n_samples : (c + 1) * n_samples]
+        channel_observations = observations[:, c : c + 1]
+        expected = pn2v_mmse(channel_samples, channel_observations, gmms[c])
+        swapped = pn2v_mmse(channel_samples, channel_observations, gmms[1 - c])
+        assert torch.equal(estimate[:, c : c + 1], expected)
+        assert not torch.allclose(estimate[:, c : c + 1], swapped)
+
+
+def test_independent_channels_outputs_depend_on_own_channel():
+    """With independent channels, the samples of channel `c` (outputs
+    `[c * K, (c + 1) * K)`) only depend on input channel `c`."""
+    n_samples = 3
+    config = _pn2v_config(
+        axes="SCYX", n_channels=2, n_prior_samples=n_samples, independent_channels=True
+    )
+    module = PN2VModule(config.algorithm_config).eval()
+    generator = torch.Generator().manual_seed(0)
+    x = torch.randn(1, 2, 16, 16, generator=generator)
+
+    for changed in range(2):
+        x_changed = x.clone()
+        x_changed[:, changed] += torch.randn(1, 16, 16, generator=generator)
+        with torch.no_grad():
+            reference, perturbed = module.model(x), module.model(x_changed)
+
+        for c in range(2):
+            outputs = slice(c * n_samples, (c + 1) * n_samples)
+            if c == changed:
+                assert not torch.allclose(reference[:, outputs], perturbed[:, outputs])
+            else:
+                assert torch.equal(reference[:, outputs], perturbed[:, outputs])

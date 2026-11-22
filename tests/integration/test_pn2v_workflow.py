@@ -187,3 +187,48 @@ def test_pn2v_tiled_predict(
 
     assert predicted[0].shape == (2, 32, 32)
     assert np.isfinite(predicted[0]).all()
+
+
+def _multichannel_engine(
+    tmp_path: Path, name: str, noise_model: MultiChannelNoiseModel
+) -> tuple[CAREamist, np.ndarray]:
+    """Train a 2-channel PN2V engine for one step, return it and its data."""
+    data = _data((2, 2, 32, 32))
+    data[:, 1] += 1000
+    config = _pn2v_config(name, axes="SCYX", n_channels=2, n_prior_samples=4)
+    engine = CAREamist(config, work_dir=tmp_path)
+    engine.train(train_data=data, noise_model=noise_model)
+    return engine, data
+
+
+def test_pn2v_multichannel_checkpoint_round_trip(tmp_path: Path) -> None:
+    """A 2-channel noise model is saved with the weights and restored on load."""
+    noise_model = gaussian_noise_model_testing(n_channels=2)
+    engine, data = _multichannel_engine(tmp_path, "pn2v_mc_ckpt", noise_model)
+    last = engine.get_checkpoints()[-1]
+
+    loaded = PN2VModule.load_from_checkpoint(last, map_location="cpu")
+
+    assert len(loaded._raw_noise_model) == 2
+    for c in range(2):
+        torch.testing.assert_close(
+            getattr(loaded._raw_noise_model, f"nmodel_{c}").weight.cpu(),
+            getattr(noise_model, f"nmodel_{c}").weight.cpu(),
+        )
+    expected, _ = engine.predict(data, checkpoint=last)
+    reloaded, _ = CAREamist(checkpoint_path=last, work_dir=tmp_path).predict(data)
+    np.testing.assert_allclose(reloaded[0], expected[0], rtol=1e-5, atol=1e-4)
+
+
+def test_pn2v_multichannel_tiled_predict(tmp_path: Path) -> None:
+    """Tiled prediction returns one MMSE image per input channel."""
+    noise_model = gaussian_noise_model_testing(n_channels=2)
+    engine, data = _multichannel_engine(tmp_path, "pn2v_mc_tiled", noise_model)
+
+    tiled, _ = engine.predict(data, tile_size=(16, 16), tile_overlap=(4, 4))
+    whole, _ = engine.predict(data)
+
+    assert tiled[0].shape == data.shape
+    assert np.isfinite(tiled[0]).all()
+    assert tiled[0][:, 1].mean() > tiled[0][:, 0].mean() + 500
+    np.testing.assert_allclose(tiled[0].mean(), whole[0].mean(), rtol=0.05)
