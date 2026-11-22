@@ -11,6 +11,7 @@ from numpy.typing import NDArray
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
 from .config.configuration import Configuration
 from .config.cosdd_configuration import COSDDConfiguration
+from .config.data import DataInputFormat
 from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
 from .config.support import SupportedAlgorithm, SupportedLogger
