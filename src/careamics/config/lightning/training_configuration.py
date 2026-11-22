@@ -62,7 +62,9 @@ class SelfSupervisedCheckpointing:
 
 
 def default_training_dict(
-    algorithm: Literal["care", "n2n", "n2v", "hdn", "microsplit", "cosdd", "cryocare", "seg"],
+    algorithm: Literal[
+        "care", "n2n", "n2v", "hdn", "microsplit", "cosdd", "cryocare", "seg"
+    ],
     trainer_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     checkpoint_params: dict[str, Any] | None = None,
