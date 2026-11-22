@@ -5,6 +5,7 @@ __all__ = [
     "COSDDAlgorithm",
     "COSDDConfig",
     "COSDDConfiguration",
+    "CryoCAREDataConfig",
     "DataConfig",
     "GaussianMixtureNMConfig",
     "HDNAlgorithm",
@@ -55,6 +56,7 @@ from .algorithms import (
 from .architectures import COSDDConfig, LVAEConfig, UNetConfig
 from .cosdd_configuration import COSDDConfiguration
 from .data import (
+    CryoCAREDataConfig,
     DataConfig,
     MaxPatchFilterConfig,
     MeanStdPatchFilterConfig,
