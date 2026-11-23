@@ -2,6 +2,7 @@
 
 __all__ = [
     "CAREAlgorithm",
+    "CryoCAREDataConfig",
     "DataConfig",
     "GaussianMixtureNMConfig",
     "HDNAlgorithm",
@@ -48,6 +49,7 @@ from .algorithms import (
 )
 from .architectures import LVAEConfig, UNetConfig
 from .data import (
+    CryoCAREDataConfig,
     DataConfig,
     MaxPatchFilterConfig,
     MeanStdPatchFilterConfig,

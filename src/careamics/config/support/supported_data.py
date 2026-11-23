@@ -28,6 +28,7 @@ class SupportedData(StrEnum):
     CZI = "czi"
     CUSTOM = "custom"
     ZARR = "zarr"
+    MRC = "mrc"
 
     # TODO remove?
     @classmethod

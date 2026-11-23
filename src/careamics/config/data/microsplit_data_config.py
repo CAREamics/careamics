@@ -5,12 +5,13 @@ from typing import Annotated, Any, Literal, Self
 
 from pydantic import AfterValidator, Field, model_validator
 
+from careamics.config.augmentations import DefaultAugs
 from careamics.config.validators import alpha_ranges_wellformed
 
-from .data_config import DataConfig
+from .data_config import DataConfig, DataInputFormat
 
 
-class MicroSplitDataConfig(DataConfig):
+class MicroSplitDataConfig(DataConfig[DefaultAugs]):
     """Dataset configuration for MicroSplit."""
 
     multiscale_count: int = Field(default=1, ge=1)
@@ -38,7 +39,7 @@ class MicroSplitDataConfig(DataConfig):
         new_patch_size: Sequence[int] | None = None,
         overlap_size: Sequence[int] | None = None,
         new_batch_size: int | None = None,
-        new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        new_data_type: DataInputFormat | None = None,
         new_axes: str | None = None,
         new_target_axes: str | None = None,
         new_channels: Sequence[int] | Literal["all"] | None = None,
@@ -58,7 +59,7 @@ class MicroSplitDataConfig(DataConfig):
             `new_patch_size`.
         new_batch_size : int or None, default=None
             New batch size. If `None`, keeps the current batch size.
-        new_data_type : {"array", "tiff", "zarr", "czi", "custom"} or None, default=None
+        new_data_type : DataInputFormat or None, default=None
             New data type. If `None`, keeps the current data type.
         new_axes : str or None, default=None
             New axes. If `None`, keeps the current axes.
@@ -77,7 +78,7 @@ class MicroSplitDataConfig(DataConfig):
         MicroSplitDataConfig
             Converted configuration with relevant MicroSplit-specific fields preserved.
         """
-        converted = super().convert_mode(
+        model_dict = self._get_converted_model_dict(
             new_mode=new_mode,
             new_patch_size=new_patch_size,
             overlap_size=overlap_size,
@@ -89,7 +90,6 @@ class MicroSplitDataConfig(DataConfig):
             new_in_memory=new_in_memory,
             new_dataloader_params=new_dataloader_params,
         )
-        model_dict = converted.model_dump()
         model_dict.update(
             {
                 "multiscale_count": self.multiscale_count,
