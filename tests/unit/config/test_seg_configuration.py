@@ -12,7 +12,7 @@ from careamics.config.factories import create_advanced_seg_config
     [(0, 1), (1, 0)],
 )
 def test_checkpointing_warning(
-    checkpointing_warning: Mock,
+    checkpointing_warning_mock: Mock,
     save_top_k,
     expected_warning_count,
 ):
@@ -27,4 +27,4 @@ def test_checkpointing_warning(
         checkpoint_params={"save_top_k": save_top_k, "save_last": True},
     )
 
-    assert checkpointing_warning.call_count == expected_warning_count
+    assert checkpointing_warning_mock.call_count == expected_warning_count
