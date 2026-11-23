@@ -25,32 +25,49 @@ an experiment.
 --8<-- "current/configuration/hdn/general_hdn.py:config_hdn"
 ```
 
+<!-- break down the block to allow the list to be generated -->
+
 The simple factory supports Gaussian-likelihood denoising by default. Set
 `use_noise_model=True` to use a trained noise model, or `supervised=True` to train
 against target data.
 
-- `experiment_name`: experiment name used in logging and automatic model saving.
-- `data_type`: input data type. CAREamics supports `array`, `tiff`, `zarr`, `czi`, and
-  `custom` (see [data](../data/)).
+- `experiment_name`: used during logging and automatic model saving. It
+  should only contain letters, numbers, underscores, dashes, and spaces.
+- `data_type`: input data type. CAREamics supports `array` (when passing NumPy arrays
+  directly), `tiff`, `zarr`, `mrc`, `czi`, and `custom` (see [data](../data/)).
 - `axes`: axes of the input data, in the order they have on disk or in memory. Accepted
   axes are `(S)(T)(C)(Z)YX` in any order, with `YX` being contiguous.
 - `patch_size`: size of the spatial patches extracted during training, in `(Z)YX`
-  order.
+  order. It should be 3D when `Z` is in `axes` and 2D otherwise. See the note below
+  to use `T` as a third dimension.
 - `batch_size`: number of patches used in each training step.
-- `num_epochs`: optional number of epochs to train for.
-- `num_steps`: optional number of batches per epoch.
+- `num_epochs`: optional number of epochs. For large datasets, also
+  consider setting `num_steps`, see [Reducing the number of steps](#reducing-the-number-of-steps).
 - `augmentations`: optional list of `x_flip`, `y_flip`, and `rotate_90`. If omitted,
-  all three are applied. Use an empty list to disable them.
-- `n_val_patches`: number of training patches reserved for validation.
-- `use_noise_model`: use a supplied noise model for the likelihood term.
-- `supervised`: train against target images. This cannot be combined with
+  all three are applied. Use an empty list to disable them, see [Augmentations](#augmentations).
+- `use_noise_model`: optional, use a supplied noise model for training. See [Noise model](#noise-model).
+- `supervised`: optional, train against target images. This cannot be combined with
   `use_noise_model=True`.
+- `n_val_patches`: number of training patches reserved for validation when separate
+  validation data is not provided. See [Number of validation patches](#number-of-validation-patches).
+- `seed`: optional, fix a seed to make data ordering, augmentations, and patch sampling
+  reproducible.
 
 !!! note "Training with `T` as depth axis"
 
     To use `T` as the depth axis, relabel it as `Z`. For `data_type="czi"`, `T` can
     also be used directly as a depth axis, for example `axes="SCTYX"`. See the
     [data section](../data/data.md) for details.
+
+### Channels
+
+Channels are a particular type of axis and influence the way the deep-learning model
+is built.
+
+!!! warning "HDN and multi-channel data"
+
+    Currently, HDN is not compatible with multi-channel data.
+
 
 ### Reducing the number of steps
 
@@ -63,13 +80,22 @@ limit the number of batches processed in an epoch.
 
 ### Augmentations
 
-CAREamics applies random X/Y flips and 90-degree rotations by default.
+CAREamics applies random X/Y flips and 90-degree rotations by default. The same
+spatial transformation is applied to a training patch and its corresponding target.
 
 ```python title="Setting augmentations"
 --8<-- "current/configuration/hdn/general_hdn.py:config_hdn_augs"
 ```
 
 1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
+
+
+!!! note "When to disable augmentations"
+
+    If your data has a particular symmetry, because objects or features are always
+    oriented in a particular way, it may be necessary to turn off augmentations that
+    break this symmetry.
+
 
 ### Number of validation patches
 
@@ -80,14 +106,12 @@ from the training data for validation.
 --8<-- "current/configuration/hdn/general_hdn.py:config_hdn_val"
 ```
 
-## Algorithm-specific parameters
 
 ### Noise model
 
-A noise model guides training toward realistic output values and can be obtained from
+A noise model guides training towards realistic output values and can be obtained from
 noisy images (see the [noise model](../noise_model/) section). If `use_noise_model` is
-`True`, supply the trained model at training time through
-`CAREamist.train(noise_model=...)` or `HDNModule.set_noise_model`.
+`True`, you need to supply the trained model at [training time](../careamist/careamist_training.md#noise-model).
 
 ```python title="Training with a noise model"
 --8<-- "current/configuration/hdn/advanced_hdn.py:hdn_noise_model"
@@ -95,8 +119,8 @@ noisy images (see the [noise model](../noise_model/) section). If `use_noise_mod
 
 ### Supervised HDN
 
-If ground-truth data is available, train HDN with supervision by setting `supervised`
-to `True`. Target images must then be supplied at training time.
+If ground-truth data is available, you can train HDN with supervision by setting `supervised`
+to `True`. Target images must then be supplied at [training time](../careamist/careamist_training.md#targets).
 
 ```python title="Training with supervision"
 --8<-- "current/configuration/hdn/advanced_hdn.py:hdn_supervised"
@@ -106,14 +130,6 @@ to `True`. Target images must then be supplied at training time.
 
     `supervised=True` and `use_noise_model=True` cannot be used together.
 
-### Loss parameters
-
-The advanced factory exposes the reconstruction and KL weights, as well as the lower
-bound for the predicted log-variance.
-
-```python title="Setting HDN loss parameters"
---8<-- "current/configuration/hdn/advanced_hdn.py:adv_config_hdn_loss"
-```
 
 ## Advanced configuration
 
@@ -126,10 +142,8 @@ Loading data into memory can speed up patch extraction when the dataset fits in 
 ```
 
 Only `array`, `tiff`, and `custom` data types support in-memory training. Array data is
-kept in memory automatically; `zarr` and `czi` use random access from disk.
-
-HDN is not compatible with channel axes in the current implementation and therefore
-does not expose channel subsetting.
+kept in memory automatically. Other formats, such as `zarr`, `czi` or `mrc` use random
+access from disk.
 
 ### Normalization
 
@@ -163,6 +177,16 @@ the available CPUs.
 ```python title="Setting the number of workers"
 --8<-- "current/configuration/hdn/advanced_hdn.py:adv_config_hdn_num_workers"
 ```
+
+### Loss parameters
+
+The advanced factory exposes the reconstruction and KL weights, as well as the lower
+bound for the predicted log-variance.
+
+```python title="Setting HDN loss parameters"
+--8<-- "current/configuration/hdn/advanced_hdn.py:adv_config_hdn_loss"
+```
+
 
 ## PyTorch and Lightning parameters
 

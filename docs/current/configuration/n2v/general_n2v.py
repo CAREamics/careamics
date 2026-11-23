@@ -14,7 +14,7 @@ config = create_n2v_config(
     experiment_name="n2v_training",
     data_type="array",
     axes="YX",
-    patch_size=[64, 64],  # (1)!
+    patch_size=[64, 64],
     batch_size=8,
     num_epochs=30,
 )

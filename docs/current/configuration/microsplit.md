@@ -25,28 +25,29 @@ an experiment.
 --8<-- "current/configuration/microsplit/general_microsplit.py:config_microsplit"
 ```
 
-1. Patch size concerns only spatial axes and must be in `(Z)YX` order.
-2. `output_channels` is the number of channels to reconstruct.
+1. Number of channels to reconstruct.
 
-- `experiment_name`: experiment name used in logging and automatic model saving. It
+<!-- break down the block to allow the list to be generated -->
+
+- `experiment_name`: used during logging and automatic model saving. It
   should only contain letters, numbers, underscores, dashes, and spaces.
-- `data_type`: input data type. CAREamics supports `array`, `tiff`, `zarr`, `czi`, and
-  `custom` (see [data](../data/)).
+- `data_type`: input data type. CAREamics supports `array` (when passing NumPy arrays
+  directly), `tiff`, `zarr`, `mrc`, `czi`, and `custom` (see [data](../data/)).
 - `axes`: axes of the input data, in the order they have on disk or in memory. Accepted
   axes are `(S)(T)(C)(Z)YX` in any order, with `YX` being contiguous.
 - `patch_size`: size of the spatial patches extracted during training, in `(Z)YX`
-  order.
+  order. It should be 3D when `Z` is in `axes` and 2D otherwise. See the note below
+  to use `T` as a third dimension.
+- `n_channels_out`: number of channels to unmix.
 - `batch_size`: number of patches used in each training step.
-- `output_channels`: number of target channels to split the input into.
-- `num_epochs`: optional number of epochs to train for.
-- `num_steps`: optional number of batches per epoch. If omitted, the full training
-  dataset is used. See [Reducing the number of steps](#reducing-the-number-of-steps).
+- `num_epochs`: optional number of epochs. For large datasets, also
+  consider setting `num_steps`, see [Reducing the number of steps](#reducing-the-number-of-steps).
 - `augmentations`: optional list of `x_flip`, `y_flip`, and `rotate_90`. If omitted,
-  all three are applied. Use an empty list to disable them.
+  all three are applied. Use an empty list to disable them, see [Augmentations](#augmentations).
 - `n_val_patches`: number of training patches reserved for validation when separate
-  validation data is not provided.
+  validation data is not provided. See [Number of validation patches](#number-of-validation-patches).
 - `multiscale_count`: number of lateral-context scales used by MicroSplit.
-- `seed`: fix a seed to make data ordering, augmentations, and patch sampling
+- `seed`: optional, fix a seed to make data ordering, augmentations, and patch sampling
   reproducible.
 
 !!! note "Training with `T` as depth axis"
@@ -70,7 +71,7 @@ limit the number of batches processed in an epoch.
 ### Augmentations
 
 CAREamics applies random X/Y flips and 90-degree rotations by default. The same
-spatial transformation is applied consistently to the training data and targets.
+spatial transformation is applied to a training patch and its corresponding target.
 
 ```python title="Setting augmentations"
 --8<-- "current/configuration/microsplit/general_microsplit.py:config_microsplit_augs"
@@ -79,6 +80,12 @@ spatial transformation is applied consistently to the training data and targets.
 1. The available choices are `x_flip`, `y_flip`, and `rotate_90`.
 
 Pass `augmentations=[]` to disable all augmentations.
+
+!!! note "When to disable augmentations"
+
+    If your data has a particular symmetry, because objects or features are always
+    oriented in a particular way, it may be necessary to turn off augmentations that
+    break this symmetry.
 
 ### Number of validation patches
 
@@ -92,57 +99,20 @@ from the training data for validation.
 If separate validation data is supplied, `n_val_patches` is ignored and the validation
 data determines the number of validation patches automatically.
 
-## Algorithm-specific parameters
-
-### Lateral context
+### Multiscale count
 
 `multiscale_count` controls how many spatial scales MicroSplit uses as input. A value
-of 1 disables lateral context and uses only the original patch. Larger values provide
+of `1` disables lateral context and uses only the original patch. Larger values provide
 progressively wider image context at the same patch size.
 
 ```python title="Setting lateral-context scales"
 --8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_multiscale"
 ```
 
-### Padding mode
-
-When lateral-context patches extend beyond image borders, `padding_mode` controls how
-they are padded. Supported modes are `reflect` and `wrap`.
-
-```python title="Setting the padding mode"
---8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_padding"
-```
-
-### Synthetic-input parameters
-
-MicroSplit creates synthetic mixtures of channels during training. `alpha_ranges`
-controls the ranges used to sample channel-mixing weights, while
-`uncorrelated_channel_prob` controls how often uncorrelated channels are sampled.
-
-```python title="Setting channel-mixing ranges"
---8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_alpha"
-```
-
-```python title="Sampling uncorrelated channels"
---8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_uncorrelated"
-```
-
-### Noise model training
-
-For denoiSplit, set `noise_model_likelihood_weight` above zero and provide a trained
-noise model at training time through `CAREamist.train(noise_model=...)` or
-`MicroSplitModule.set_noise_model`.
-
-### Loss parameters
-
-The advanced factory exposes the reconstruction, KL, Gaussian-likelihood, and
-noise-model-likelihood weights. It can also configure the predicted log-variance.
-
-```python title="Setting MicroSplit loss parameters"
---8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_loss"
-```
 
 ## Advanced configuration
+
+<?-- TODO Channels -->
 
 ### Training in memory
 
@@ -153,16 +123,8 @@ Loading data into memory can speed up patch extraction when the dataset fits in 
 ```
 
 Only `array`, `tiff`, and `custom` data types support in-memory training. Array data is
-kept in memory automatically; `zarr` and `czi` use random access from disk.
-
-### Subsetting channels
-
-Pass zero-based input channel indices through `channels` to train on only a subset of
-the available channels.
-
-```python title="Selecting input channels"
---8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_channels"
-```
+kept in memory automatically. Other formats, such as `zarr`, `czi` or `mrc` use random
+access from disk.
 
 ### Normalization
 
@@ -198,6 +160,31 @@ the available CPUs.
 
 ```python title="Setting the number of workers"
 --8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_num_workers"
+```
+
+### Loss parameters
+<!-- TODO -->
+
+The advanced factory exposes the reconstruction, KL, Gaussian-likelihood, and
+noise-model-likelihood weights. It can also configure the predicted log-variance.
+
+```python title="Setting MicroSplit loss parameters"
+--8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_loss"
+```
+
+### Synthetic-input parameters
+<!-- TODO -->
+
+MicroSplit can create synthetic mixtures of channels during training. `alpha_ranges`
+controls the ranges used to sample channel-mixing weights, while
+`uncorrelated_channel_prob` controls how often uncorrelated channels are sampled.
+
+```python title="Setting channel-mixing ranges"
+--8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_alpha"
+```
+
+```python title="Sampling uncorrelated channels"
+--8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_uncorrelated"
 ```
 
 ## PyTorch and Lightning parameters

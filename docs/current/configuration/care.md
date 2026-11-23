@@ -28,12 +28,9 @@ an experiment.
 --8<-- "current/configuration/care/general_care.py:config_care"
 ```
 
-1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
-with `axis` about dimensionality (2D or 3D).
-
 <!-- break down the block to allow the list to be generated -->
 
-- `experiment_name`: experiment name used in logging and automatic model saving. It
+- `experiment_name`: used during logging and automatic model saving. It
   should only contain letters, numbers, underscores, dashes, and spaces.
 - `data_type`: input data type. CAREamics supports `array` (when passing NumPy arrays
   directly), `tiff`, `zarr`, `mrc`, `czi`, and `custom` (see [data](../data/)).
@@ -43,16 +40,15 @@ with `axis` about dimensionality (2D or 3D).
   order. It should be 3D when `Z` is in `axes` and 2D otherwise. See the note below
   to use `T` as a third dimension.
 - `batch_size`: number of patches used in each training step.
-- `num_epochs`: optional number of epochs to train for. For large datasets, also
-  consider setting [`num_steps`](#reducing-the-number-of-steps).
-- `num_steps`: optional number of batches per epoch. If omitted, the full training
-  dataset is used. See [Reducing the number of steps](#reducing-the-number-of-steps).
+- `num_epochs`: optional number of epochs. For large datasets, also
+  consider setting `num_steps`, see [Reducing the number of steps](#reducing-the-number-of-steps).
 - `augmentations`: optional list of `x_flip`, `y_flip`, and `rotate_90`. If omitted,
-  all three are applied. Use an empty list to disable them.
+  all three are applied. Use an empty list to disable them, see [Augmentations](#augmentations).
 - `n_val_patches`: number of training patches reserved for validation when separate
   validation data is not provided. See [Number of validation patches](#number-of-validation-patches).
-- `seed`: fix a seed to make data ordering, augmentations, and patch sampling
+- `seed`: optional, fix a seed to make data ordering, augmentations, and patch sampling
   reproducible.
+
 
 !!! info "Noise2Noise"
 
@@ -80,10 +76,10 @@ is built. When `C` is present in `axes`, set the input and output channel counts
 2. The number of input and output channels can be different, so set `n_channels_in`
    and, optionally, `n_channels_out`.
 
-!!! note
+!!! note "Target axes"
 
     If `n_channels_out` is not set and `target_axes` has a `C` dimension, it is set to
-    the same value as `n_channels_in`; otherwise it is set to 1.
+    the same value as `n_channels_in`, otherwise it is set to 1.
 
 !!! warning "CARE and Noise2Noise defaults"
 
@@ -115,7 +111,7 @@ limit the number of batches processed in an epoch.
 ### Augmentations
 
 CAREamics applies random X/Y flips and 90-degree rotations by default. The same
-spatial transformation is applied consistently to the training data and targets.
+spatial transformation is applied to a training patch and its corresponding target.
 
 ```python title="Setting augmentations"
 --8<-- "current/configuration/care/general_care.py:config_care_augs"
@@ -143,8 +139,6 @@ from the training data for validation.
 If separate validation data is supplied, `n_val_patches` is ignored and the validation
 data determines the number of validation patches automatically.
 
-## Algorithm-specific parameters
-
 ### Target axes
 
 The configuration factory allows CARE targets to have different axes or axis order,
@@ -171,25 +165,36 @@ Loading data into memory can speed up patch extraction when the dataset fits in 
 1. Only `array`, `tiff`, and `custom` are compatible with in-memory training.
 
 Only `array`, `tiff`, and `custom` data types support in-memory training. Array data is
-kept in memory automatically; `zarr` and `czi` use random access from disk.
+kept in memory automatically. Other formats, such as `zarr`, `czi` or `mrc` use random
+access from disk.
 
 ### Subsetting channels
 
 To train on only some input channels, pass their zero-based indices through `channels`.
-When `channels` is set, the number of input channels is inferred automatically. The
-target is not subsetted.
+When `channels` is set, the number of input channels is inferred automatically.
 
 ```python title="Selecting a subset of channels"
 --8<-- "current/configuration/care/advanced_care.py:adv_config_care_subchannels"
 ```
 
 1. `C` must be present in `axes` for channels to be considered.
-2. This trains using the first and third channels, because channel indices start at
-   zero.
+2. Train using the first and third channels.
+
+!!! info "`n_channels_in` and `channels`"
+
+    If `C` is in `axes`, one of `n_channels` and `channels` must be specified. If
+    only `channels` is specified, then `n_channels_in` will be set to `len(channels)`.
+
+    If `n_channels_in` and `channels` are incompatible (`n_channels_in!=len(channels)`),
+    an error will be raised.
+
+!!! warning "Targets"
+
+    `channels` is not applied to target images.
 
 ### Channel independence
 
-By default, channels are trained independently. Set `independent_channels=False` to
+By default, channels are trained together. Set `independent_channels=True` to
 allow information to flow between input channels.
 
 ```python title="Training non-independent channels"
@@ -198,7 +203,13 @@ allow information to flow between input channels.
 
 1. `C` must be present in `axes`.
 2. The number of input channels must be specified.
-3. Setting `independent_channels=False` allows channels to inform each other.
+3. Allow channels to inform each other.
+
+!!! warning "CARE and Noise2Noise defaults"
+
+    By default CARE and Noise2Noise use channels differently: in Noise2Noise they are
+    independent and are trained separately, while they are mixed by CARE.
+
 
 ### Normalization
 

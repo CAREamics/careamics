@@ -25,23 +25,34 @@ an experiment.
 --8<-- "current/configuration/cryocare/general_cryocare.py:config_cryocare"
 ```
 
-1. `patch_size` is a three-dimensional size in `ZYX` order.
-2. `tilt_axis` is the rotational axis around which the specimen was tilted.
+1. cryoCARE requires a 3D stack.
+2. And 3D patches.
+3. `tilt_axis` is the rotational axis around which the specimen was tilted.
 
 <!-- break down the block to allow the list to be generated -->
 
-
-- `experiment_name`: experiment name used in logging and automatic model saving.
-- `data_type`: input data type. cryoCARE uses tomographic data such as `mrc`.
-- `axes`: input axes. cryoCARE requires `Z` and does not support channel axes.
-- `patch_size`: size of the three-dimensional patches extracted during training, in
-  `ZYX` order.
+- `experiment_name`: used during logging and automatic model saving. It
+  should only contain letters, numbers, underscores, dashes, and spaces.
+- `data_type`: input data type. CAREamics supports `array` (when passing NumPy arrays
+  directly), `tiff`, `zarr`, `mrc`, `czi`, and `custom` (see [data](../data/)).
+- `axes`: axes of the input data, in the order they have on disk or in memory. Accepted
+  axes are `ZYX` in any order, with `YX` being contiguous.
+- `patch_size`: size of the spatial patches extracted during training, must be 3D
 - `batch_size`: number of patches used in each training step.
 - `tilt_axis`: tilt axis, one of `X`, `Y`, or `Z`.
-- `num_epochs`: optional number of epochs to train for.
-- `num_steps`: optional number of batches per epoch.
-- `validation_fraction`: fraction of continuous slices reserved for validation.
-- `n_val_patches`: number of validation patches sampled from the validation split.
+- `num_epochs`: optional number of epochs. For large datasets, also
+  consider setting `num_steps`, see [Reducing the number of steps](#reducing-the-number-of-steps).
+- `validation_fraction`: optional, fraction of continuous slices along `tilt_axis` reserved for validation.
+- `n_val_patches`: optional, number of training patches reserved for validation when separate
+  validation data is not provided. See [Number of validation patches](#number-of-validation-patches).
+- `seed`: optional, fix a seed to make data ordering, augmentations, and patch sampling
+  reproducible.
+
+
+### Channels
+
+cryoCARE is not compatible with a channel dimension.
+
 
 ### Reducing the number of steps
 
@@ -57,32 +68,22 @@ Each training epoch cycles through the available patches. For large datasets, se
 cryoCARE derives its augmentations from `tilt_axis` and `patch_size`. These
 transformations cannot be configured independently by users.
 
-## Algorithm-specific parameters
-
-### Tilt-axis splitting
-
-The tilt axis determines how the tomogram is split into training and validation data.
-The validation fraction refers to continuous slices along the reconstruction.
-
-```python title="Setting the tilt axis and validation split"
---8<-- "current/configuration/cryocare/advanced_cryocare.py:cryocare_tilt_split"
-```
 
 ### Validation fraction
 
 Use `validation_fraction` to control the percentage of continuous slices reserved for
-validation. This is distinct from `n_val_patches`, which controls patch sampling.
+validation.
 
 ```python title="Setting the validation fraction"
---8<-- "current/configuration/cryocare/advanced_cryocare.py:cryocare_validation"
+--8<-- "current/configuration/cryocare/general_cryocare.py:cryocare_validation"
 ```
 
+!!! info "Number of patches"
+
+    `validation_fraction` is distinct from `n_val_patches`, which controls how many
+    patches are extracted from the reserved continuous slices.
+
 ## Advanced configuration
-
-### In-memory training and channels
-
-cryoCARE does not expose an `in_memory` parameter and does not support channel axes.
-Its data configuration controls loading for the supported tomographic formats.
 
 ### Normalization
 

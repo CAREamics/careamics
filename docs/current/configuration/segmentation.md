@@ -25,32 +25,29 @@ an experiment.
 --8<-- "current/configuration/segmentation/general_seg.py:config_seg"
 ```
 
-1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
-   with `axis` about dimensionality (2D or 3D).
-2. Set the number of foreground classes to be segmented.
+1. Number of foreground classes to segment.
 
 <!-- break down the block to allow the list to be generated -->
 
-
-- `experiment_name`: experiment name used in logging and automatic model saving. It
+- `experiment_name`: used during logging and automatic model saving. It
   should only contain letters, numbers, underscores, dashes, and spaces.
 - `data_type`: input data type. CAREamics supports `array` (when passing NumPy arrays
-  directly), `tiff`, `zarr`, `mrc`, `czi`, and `custom` (see [data](../data/)).
+  directly), `tiff`, `zarr`, `mrc`, `czi`, and `custom` (see [data](../data/data.md)).
 - `axes`: axes of the input data, in the order they have on disk or in memory. Accepted
   axes are `(S)(T)(C)(Z)YX` in any order, with `YX` being contiguous.
 - `patch_size`: size of the spatial patches extracted during training, in `(Z)YX`
   order. It should be 3D when `Z` is in `axes` and 2D otherwise. See the note below
   to use `T` as a third dimension.
+- `n_classes`: number of foreground classes to segment.
 - `batch_size`: number of patches used in each training step.
-- `num_epochs`: optional number of epochs to train for. For large datasets, also
-  consider setting [`num_steps`](#reducing-the-number-of-steps).
-- `num_steps`: optional number of batches per epoch. If omitted, the full training
-  dataset is used. See [Reducing the number of steps](#reducing-the-number-of-steps).
+- `num_epochs`: optional number of epochs. For large datasets, also
+  consider setting `num_steps`, see [Reducing the number of steps](#reducing-the-number-of-steps).
 - `augmentations`: optional list of `x_flip`, `y_flip`, and `rotate_90`. If omitted,
-  all three are applied. Use an empty list to disable them.
+  all three are applied. Use an empty list to disable them, see [Augmentations](#augmentations).
+- `prediction_output`: optional, prediction output returned by `CAREamist`, see [Prediction output](#prediction-output).
 - `n_val_patches`: number of training patches reserved for validation when separate
   validation data is not provided. See [Number of validation patches](#number-of-validation-patches).
-- `seed`: fix a seed to make data ordering, augmentations, and patch sampling
+- `seed`: optional, fix a seed to make data ordering, augmentations, and patch sampling
   reproducible.
 
 !!! note "Training with `T` as depth axis"
@@ -98,7 +95,7 @@ limit the number of batches processed in an epoch.
 ### Augmentations
 
 CAREamics applies random X/Y flips and 90-degree rotations by default. The same
-spatial transformation is applied consistently to the training data and targets.
+spatial transformation is applied to a training patch and its corresponding target.
 
 ```python title="Setting augmentations"
 --8<-- "current/configuration/segmentation/general_seg.py:config_seg_augs"
@@ -126,7 +123,6 @@ from the training data for validation.
 If separate validation data is supplied, `n_val_patches` is ignored and the validation
 data determines the number of validation patches automatically.
 
-## Algorithm-specific parameters
 
 ### Prediction output
 
@@ -151,7 +147,8 @@ Loading data into memory can speed up patch extraction when the dataset fits in 
 1. In-memory training is supported for `array`, `tiff`, and `custom` data.
 
 Only `array`, `tiff`, and `custom` data types support in-memory training. Array data is
-kept in memory automatically; `zarr` and `czi` use random access from disk.
+kept in memory automatically. Other formats, such as `zarr`, `czi` or `mrc` use random
+access from disk.
 
 ### Subsetting channels
 
@@ -163,10 +160,16 @@ label mask is not channel-subsetted.
 --8<-- "current/configuration/segmentation/advanced_seg.py:adv_config_seg_subchannels"
 ```
 
-1. This example uses the first and third input channels, because channel indices start
-   at zero.
+1. `C` must be present in `axes` for channels to be considered.
+2. Train using the first and third channels.
 
-`C` must be present in `axes` for channels to be considered.
+!!! info "`n_channels` and `channels`"
+
+    If `C` is in `axes`, one of `n_channels` and `channels` must be specified. If
+    only `channels` is specified, then `n_channels` will be set to `len(channels)`.
+
+    If `n_channels` and `channels` are incompatible (`n_channels!=len(channels)`),
+    an error will be raised.
 
 ### Normalization
 

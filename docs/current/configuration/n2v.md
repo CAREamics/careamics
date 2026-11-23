@@ -26,34 +26,30 @@ an experiment.
 --8<-- "current/configuration/n2v/general_n2v.py:config_n2v"
 ```
 
-1. Optional
-
 <!-- break down the block to allow the list to be generated -->
 
-- `experiment_name`: experiment name used in logging and automatic model saving. It
+- `experiment_name`: used during logging and automatic model saving. It
   should only contain letters, numbers, underscores, dashes, and spaces.
 - `data_type`: input data type. CAREamics supports `array` (when passing NumPy arrays
-  directly), `tiff`, `zarr`, `mrc`, `czi`, and `custom` (see [data](../data/)).
+  directly), `tiff`, `zarr`, `mrc`, `czi`, and `custom` (see [data](../data/data.md)).
 - `axes`: axes of the input data, in the order they have on disk or in memory. Accepted
   axes are `(S)(T)(C)(Z)YX` in any order, with `YX` being contiguous.
 - `patch_size`: size of the spatial patches extracted during training, in `(Z)YX`
   order. It should be 3D when `Z` is in `axes` and 2D otherwise. See the note below
   to use `T` as a third dimension.
 - `batch_size`: number of patches used in each training step.
-- `num_epochs`: optional number of epochs to train for. For large datasets, also
-  consider setting [`num_steps`](#reducing-the-number-of-steps).
-- `num_steps`: optional number of batches per epoch. If omitted, the full training
-  dataset is used. See [Reducing the number of steps](#reducing-the-number-of-steps).
+- `num_epochs`: optional number of epochs. For large datasets, also
+  consider setting `num_steps`, see [Reducing the number of steps](#reducing-the-number-of-steps).
 - `augmentations`: optional list of `x_flip`, `y_flip`, and `rotate_90`. If omitted,
-  all three are applied. Use an empty list to disable them.
+  all three are applied. Use an empty list to disable them, see [Augmentations](#augmentations).
 - `n_val_patches`: number of training patches reserved for validation when separate
   validation data is not provided. See [Number of validation patches](#number-of-validation-patches).
-- `seed`: fix a seed to make data ordering, augmentations, and patch sampling
+- `seed`: optional, fix a seed to make data ordering, augmentations, and patch sampling
   reproducible.
 
 !!! info "structN2V"
 
-    CAREamics provides a convenience factory for structN2V:
+    We provide a convenience factory for structN2V:
     `create_structn2v_config`. See the [structN2V](#structn2v) section for more details.
 
 !!! note "Training with `T` as depth axis"
@@ -72,8 +68,12 @@ is built. When `C` is present in `axes`, set `n_channels`.
 ```
 
 1. Channels are considered to be present as soon as `C` is in `axes`.
-2. The number of input and output channels is the same, so only `n_channels` is
-   needed.
+2. Number of input and output channels.
+
+!!! info "Independent channels"
+
+    By defaults, channels are trained independently from each other. See the
+    [channel independence parameter](#channel-independence) to change the behaviour.
 
 ### Reducing the number of steps
 
@@ -97,8 +97,7 @@ limit the number of batches processed in an epoch.
 
 ### Augmentations
 
-CAREamics applies random X/Y flips and 90-degree rotations by default. The same
-spatial transformation is applied consistently to the training data and targets.
+CAREamics applies random X/Y flips and 90-degree rotations by default.
 
 ```python title="Setting augmentations"
 --8<-- "current/configuration/n2v/general_n2v.py:config_n2v_augs"
@@ -170,20 +169,29 @@ Loading data into memory can speed up patch extraction when the dataset fits in 
 1. Only `array`, `tiff`, and `custom` are compatible with in-memory training.
 
 Only `array`, `tiff`, and `custom` data types support in-memory training. Array data is
-kept in memory automatically; `zarr` and `czi` use random access from disk.
+kept in memory automatically. Other formats, such as `zarr`, `czi` or `mrc` use random
+access from disk.
 
 ### Subsetting channels
 
 To train on only some input channels, pass their zero-based indices through `channels`.
-When `channels` is set, the number of input channels is inferred automatically.
 
 ```python title="Selecting a subset of channels"
 --8<-- "current/configuration/n2v/advanced_n2v.py:adv_config_n2v_subchannels"
 ```
 
 1. `C` must be present in `axes` for channels to be considered.
-2. This trains using the first and third channels, because channel indices start at
-   zero.
+2. Train using the first and third channels.
+
+
+!!! info "`n_channels` and `channels`"
+
+    If `C` is in `axes`, one of `n_channels` and `channels` must be specified. If
+    only `channels` is specified, then `n_channels` will be set to `len(channels)`.
+
+    If `n_channels` and `channels` are incompatible (`n_channels!=len(channels)`),
+    an error will be raised.
+
 
 ### Channel independence
 

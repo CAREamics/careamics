@@ -39,11 +39,11 @@ from careamics.config import create_advanced_seg_config
 config = create_advanced_seg_config(
     experiment_name="segmentation_training",
     data_type="array",
-    axes="CYX",
+    axes="CYX", # (1)!
     patch_size=[64, 64],
     batch_size=8,
     n_classes=2,
-    channels=[0, 2],  # (1)!
+    channels=[0, 2],  # (2)!
 )
 # --8<-- [end:adv_config_seg_subchannels]
 

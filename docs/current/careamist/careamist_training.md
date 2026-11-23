@@ -31,7 +31,7 @@ root directory from which it is called. However, you can pass `work_dir` to the
 
 ### Disabling progress bar
 
-The PyTorch Lightning progress bar is be verbose, and can be disabled by passing
+The PyTorch Lightning progress bar is verbose, and can be disabled by passing
 `enable_progress_bar=False` to the `CAREamist`.
 
 ```python
@@ -39,6 +39,9 @@ The PyTorch Lightning progress bar is be verbose, and can be disabled by passing
 ```
 
 ## Training basics
+
+### Targets
+
 
 ### Split train and validation data
 
@@ -127,6 +130,9 @@ defined and instantiated, they can be passed to the `CAREamist` to train on cust
 
 
 ## Advanced training
+
+
+### Noise model
 
 ### Masking
 

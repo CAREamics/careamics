@@ -12,9 +12,9 @@ config = create_microsplit_config(
     experiment_name="microsplit_training",
     data_type="array",
     axes="YX",
-    patch_size=[64, 64],  # (1)!
+    patch_size=[64, 64],
     batch_size=8,
-    output_channels=3,  # (2)!
+    output_channels=3,  # (1)!
     num_epochs=100,
 )
 # --8<-- [end:config_microsplit]

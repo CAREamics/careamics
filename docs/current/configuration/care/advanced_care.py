@@ -48,7 +48,7 @@ config = create_advanced_care_config(
     batch_size=8,
     num_epochs=30,
     n_channels_in=3,  # (2)!
-    independent_channels=False,  # (3)!
+    independent_channels=True,  # (3)!
 )
 # --8<-- [end:adv_config_care_ind_channels]
 

@@ -14,9 +14,9 @@ config = create_seg_config(
     experiment_name="segmentation_training",
     data_type="array",
     axes="YX",
-    patch_size=[64, 64],  # (1)!
+    patch_size=[64, 64],
     batch_size=8,
-    n_classes=2,  # (2)!
+    n_classes=2,  # (1)!
     num_epochs=30,
 )
 # --8<-- [end:config_seg]

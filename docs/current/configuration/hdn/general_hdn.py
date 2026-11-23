@@ -12,7 +12,7 @@ config = create_hdn_config(
     experiment_name="hdn_training",
     data_type="array",
     axes="YX",
-    patch_size=[64, 64],  # (1)!
+    patch_size=[64, 64],
     batch_size=8,
     num_epochs=100,
 )
