@@ -1,9 +1,9 @@
 """Module for utilities related to reading the checkpoint record."""
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 from torch.types import Number
 
@@ -85,3 +85,23 @@ def read_checkpoint_record(checkpoint_dir: Path) -> CheckpointRecord | None:
         return record
     else:
         return None
+
+
+def get_default_checkpoint_type(
+    checkpoint_params: Mapping[str, Any],
+) -> Literal["best", "last"]:
+    """Return the default checkpoint type for ModelCheckpoint parameters.
+
+    Parameters
+    ----------
+    checkpoint_params : Mapping[str, Any]
+        Parameters used to instantiate a Lightning ModelCheckpoint.
+
+    Returns
+    -------
+    {"best", "last"}
+        `"best"` when `save_top_k` is positive, otherwise `"last"`.
+    """
+    save_top_k_lightning_default = 1
+    saves_best = checkpoint_params.get("save_top_k", save_top_k_lightning_default) > 0
+    return "best" if saves_best else "last"

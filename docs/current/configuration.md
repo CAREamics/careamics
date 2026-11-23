@@ -726,6 +726,8 @@ If you want to override the CAREamics defaults, set `checkpoint_params`.
     original noisy values. As a consequence, a lower validation loss
     does not ensure a better model.
 
+    The best checkpoint will be selected for prediction when it is present.
+
 ### Early stopping callback
 
 The early stopping callback allows stopping the training when a certain metric has not improved for a certain number of epochs. To set the early stopping parameters, use the `early_stopping_params` parameter in the configuration. Refer to the [Lightning early stopping callback](https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.EarlyStopping.html) page for a list of parameters and their meaning.

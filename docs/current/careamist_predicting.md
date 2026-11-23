@@ -39,13 +39,9 @@ list:
 
 !!! note "Checkpoint"
 
-    By default, CAREamics uses a checkpoint callback that saves multiple checkpoints
-    during training. Depending on the algorithm, the prediction method will either
-    use the best checkpoint (the one with the lowest validation loss) or the last
-    checkpoint (the one from the last epoch).
-
-    Noise2Void and Noise2Noise will use the last checkpoint, while the other algorithms
-    will use the best checkpoint.
+    By default, CAREamics saves multiple checkpoints during training.
+    If saving the best checkpoint (the one with the lowest validation loss) has been enabled then it will be loaded for prediction. Otherwise, it will use the last checkpoint saved.
+    By default all supervised algorithms will save the best checkpoint; but for self-supervised algorithms (N2N and N2V) saving the best checkpoint is by default disabled because the validation loss may not accurately reflect the model's performance.
 
 ### Tiling
 
@@ -142,8 +138,8 @@ PyTorch Lightning (typically `"best"` or `"last"`, see [documentation](https://l
 !!! warning "Noise2Void and Noise2Noise"
 
     Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
-    based on validation loss. Specify an explicit path if you want to use a
-    specific checkpoint.
+    based on validation loss. CAREamics emits a warning if a positive `save_top_k`
+    enables best checkpointing for these algorithms.
 
 
 ## Predicting to disk
@@ -210,4 +206,3 @@ arguments. Here is an example of writing to a custom type (`.npy`):
 3. And specify the extension of the file to write.
 4. Pass the custom write function to the `write_func` argument.
 5. Optional, to pass additional parameters to underlying functions.
-

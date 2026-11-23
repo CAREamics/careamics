@@ -11,7 +11,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import Logger
 from lightning.pytorch.utilities import rank_zero_only
 
-from careamics.utils.checkpoint_record_io import (
+from careamics.utils.checkpointing import (
     CHECKPOINT_RECORD_FILENAME,
     CheckpointRecord,
     TopKRecord,

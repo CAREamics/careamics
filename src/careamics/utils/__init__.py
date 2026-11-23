@@ -14,7 +14,7 @@ __all__ = [
 
 
 from .autocorrelation import autocorrelation, autocorrelation_stack
-from .checkpoint_record_io import read_checkpoint_record
+from .checkpointing import read_checkpoint_record
 from .context import cwd, get_careamics_home
 from .folder_versioning import get_run_version
 from .get_device import get_device

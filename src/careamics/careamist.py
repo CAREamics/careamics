@@ -13,7 +13,7 @@ from .config.configuration import Configuration
 from .config.data import DataInputFormat
 from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
-from .config.support import SupportedAlgorithm, SupportedLogger
+from .config.support import SupportedLogger
 from .config.utils.configuration_io import load_configuration
 from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
 from .dataset.image_region_data import ImageRegionData
@@ -23,11 +23,7 @@ from .lightning.callbacks import (
     PredictionWriterCallback,
     ProgressBarCallback,
 )
-from .lightning.checkpoint_record_logger import (
-    CheckpointRecord,
-    CheckpointRecordLogger,
-    read_checkpoint_record,
-)
+from .lightning.checkpoint_record_logger import CheckpointRecord, CheckpointRecordLogger
 from .lightning.data import CareamicsDataModule, InputVar
 from .lightning.logger import CoLogger
 from .lightning.modules import (
@@ -47,6 +43,7 @@ from .models import get_model_constraints
 from .models.lvae.noise_models import MultiChannelNoiseModel
 from .noise_model import train_noise_model
 from .utils import get_logger, get_run_version
+from .utils.checkpointing import get_default_checkpoint_type, read_checkpoint_record
 from .utils.reshape_array import reshape_array
 
 logger = get_logger(__name__)
@@ -189,10 +186,7 @@ class CAREamist:
             self.run_version,
         )
         checkpoint_record_logger = CheckpointRecordLogger(
-            "last"
-            if self.config.algorithm_config.algorithm
-            in (SupportedAlgorithm.N2V, SupportedAlgorithm.N2N)
-            else "best"
+            get_default_checkpoint_type(self.config.training_config.checkpoint_params)
         )
 
         self.trainer = Trainer(
@@ -540,12 +534,12 @@ class CAREamist:
             / (self.config.get_safe_experiment_name() + "_" + str(self.run_version))
         )
 
-    def _get_default_ckpt(self, checkpoint: str | Path | None) -> str | Path:
-        """Get default checkpoint to use for prediction based on the algorithm.
+    def _select_default_ckpt(self, checkpoint: str | Path | None) -> str | Path | None:
+        """Select the checkpoint to use for prediction.
 
-        Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
-        based on validation loss, therefore this method returns "last" for these
-        algorithms and "best" for others.
+        An explicitly requested checkpoint takes precedence, followed by the checkpoint
+        used to instantiate CAREamist and the checkpoint selected in the current run's
+        checkpoint record.
 
         Parameters
         ----------
@@ -555,31 +549,24 @@ class CAREamist:
 
         Returns
         -------
-        str | Path
-            The checkpoint to use for prediction, either the specified checkpoint or the
-            default based on the algorithm.
+        str | Path | None
+            Checkpoint to use for prediction, or `None` if no checkpoint is available.
         """
-        if self.config.algorithm_config.algorithm in [
-            SupportedAlgorithm.N2V,
-            SupportedAlgorithm.N2N,
-        ]:
-            if checkpoint == "best":
-                raise ValueError(
-                    f"{self.config.algorithm_config.get_algorithm_friendly_name()} does"
-                    f" not have a well-defined best checkpoint based on validation "
-                    f"loss. Please specify an explicit checkpoint path."
-                )
-            elif checkpoint is None:
-                return "last"
-
         if checkpoint is not None:
             return checkpoint
 
+        # if instantiated with a checkpoint do not override
+        # TODO: what about fine-tuning? it does not update the path for prediction?
         if self.checkpoint_path is not None:
             return self.checkpoint_path
 
-        # for all other algorithms, if checkpoint is None, choose "best"
-        return "best"
+        checkpoint_record = read_checkpoint_record(self.get_checkpoint_root())
+        if (
+            checkpoint_record is not None
+            and (selected := checkpoint_record["selected"]) is not None
+        ):
+            return self.get_checkpoint_root() / selected
+        return None
 
     # Two overloads:
     # - 1st for supported data types & using ReadFuncLoading
@@ -587,7 +574,7 @@ class CAREamist:
     # Why:
     #   ImageStackLoading supports any type as input, but we want to tell most users
     #   that they are only allowed Path, str, ndarray or a sequence of these.
-    #   The first overload will be displaced first by most code editors, this is what
+    #   The first overload will be displayed first by most code editors, this is what
     #   most users will see.
     @overload
     def train(  # numpydoc ignore=GL08
@@ -1120,8 +1107,9 @@ class CAREamist:
             configuration.
         checkpoint : str or Path, optional
             Checkpoint to load before making predictions. Can be "best", "last", or a
-            path to a specific checkpoint. If None, uses the last checkpoint from
-            training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
+            path to a specific checkpoint. If None, reuses the checkpoint supplied when
+            constructing CAREamist, then the checkpoint selected in the current run's
+            checkpoint record. If neither is available, uses the in-memory model.
             Call `CAREamist.get_checkpoints` to inspect the checkpoint record and its
             available checkpoints.
         n_predictions : int, optional
@@ -1169,7 +1157,7 @@ class CAREamist:
             loading=loading,
         )
 
-        checkpoint = self._get_default_ckpt(checkpoint)
+        checkpoint = self._select_default_ckpt(checkpoint)
 
         self._update_model_parameters(segmentation_output=segmentation_output)
 
@@ -1366,8 +1354,9 @@ class CAREamist:
             configuration.
         checkpoint : str or Path, default=None
             Checkpoint to load before making predictions. Can be "best", "last", or a
-            path to a specific checkpoint. If None, uses the last checkpoint from
-            training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
+            path to a specific checkpoint. If None, reuses the checkpoint supplied when
+            constructing CAREamist, then the checkpoint selected in the current run's
+            checkpoint record. If neither is available, uses the in-memory model.
             Call `CAREamist.get_checkpoints` to inspect the checkpoint record and its
             available checkpoints.
         write_type : DataOutputFormat, optional
@@ -1440,7 +1429,7 @@ class CAREamist:
         self.prediction_writer.enable_writing(True)
         self._configure_sampling(n_predictions)
 
-        checkpoint = self._get_default_ckpt(checkpoint)
+        checkpoint = self._select_default_ckpt(checkpoint)
 
         datamodule = self._build_predict_datamodule(
             pred_data,

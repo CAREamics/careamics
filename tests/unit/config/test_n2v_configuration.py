@@ -2,9 +2,11 @@
 
 import itertools
 from contextlib import nullcontext
+from unittest.mock import Mock
 
 import pytest
 
+from careamics.config.factories import create_advanced_n2v_config
 from careamics.config.factories.config_discriminators import instantiate_config
 from careamics.config.n2v_configuration import N2VConfiguration
 from tests.utils import unet_config_dict_testing
@@ -42,6 +44,28 @@ def test_n2v_dict_testing():
     unet_config_dict = n2v_dict_testing()
     cfg = instantiate_config(unet_config_dict)
     assert isinstance(cfg, N2VConfiguration)
+
+
+@pytest.mark.parametrize(
+    "save_top_k, expected_warning_count",
+    [(1, 1), (-1, 0)],
+)
+def test_checkpointing_warning(
+    checkpointing_warning_mock: Mock,
+    save_top_k,
+    expected_warning_count,
+):
+    """Test checkpointing guidance for N2V."""
+    create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=[32, 32],
+        batch_size=8,
+        checkpoint_params={"save_top_k": save_top_k, "save_last": True},
+    )
+
+    assert checkpointing_warning_mock.call_count == expected_warning_count
 
 
 # -------------------------- Unit tests ----------------------------

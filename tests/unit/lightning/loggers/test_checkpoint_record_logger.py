@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics.lightning import checkpoint_record_logger
@@ -30,8 +31,12 @@ def create_model_checkpoint(root_save_dir: Path, mode: str) -> Mock:
     callback.mode = mode
     callback.save_top_k = 2
     callback.best_k_models = {
-        str(checkpoint_dir / "experiment_epoch_01.ckpt"): 0.4,
-        str(checkpoint_dir / "experiment_epoch_02.ckpt"): 0.2,
+        str(checkpoint_dir / "experiment_epoch_01.ckpt"): torch.tensor(
+            0.4, dtype=torch.float64
+        ),
+        str(checkpoint_dir / "experiment_epoch_02.ckpt"): torch.tensor(
+            0.2, dtype=torch.float64
+        ),
     }
 
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
