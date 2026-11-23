@@ -9,8 +9,8 @@ To start with CAREamics, create a configuration object containing the parameters
 your experiment. The configuration validates individual parameters and their
 coherence, avoiding combinations that could trigger errors later in the workflow.
 
-CAREamics provides a simple factory for common segmentation experiments and an
-advanced factory for more control.
+CAREamics provides a simple factory for common segmentation experiments and an advanced factory
+for more complex parameters.
 
 ```python title="Segmentation configuration factories"
 --8<-- "current/configuration/segmentation/general_seg.py:all_configs"
@@ -28,6 +28,9 @@ an experiment.
 1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
    with `axis` about dimensionality (2D or 3D).
 2. Set the number of foreground classes to be segmented.
+
+<!-- break down the block to allow the list to be generated -->
+
 
 - `experiment_name`: experiment name used in logging and automatic model saving. It
   should only contain letters, numbers, underscores, dashes, and spaces.

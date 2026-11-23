@@ -9,8 +9,8 @@ To start with cryoCARE, create a configuration object containing the parameters 
 your experiment. The configuration validates individual parameters and their
 coherence, avoiding combinations that could trigger errors later in the workflow.
 
-cryoCARE provides a simple factory for common cryo-electron tomography experiments and
-an advanced factory for more control.
+cryoCARE provides a simple factory for common tomogram denoising and an advanced factory
+for more complex parameters.
 
 ```python title="cryoCARE configuration factories"
 --8<-- "current/configuration/cryocare/general_cryocare.py:all_configs"
@@ -27,6 +27,9 @@ an experiment.
 
 1. `patch_size` is a three-dimensional size in `ZYX` order.
 2. `tilt_axis` is the rotational axis around which the specimen was tilted.
+
+<!-- break down the block to allow the list to be generated -->
+
 
 - `experiment_name`: experiment name used in logging and automatic model saving.
 - `data_type`: input data type. cryoCARE uses tomographic data such as `mrc`.

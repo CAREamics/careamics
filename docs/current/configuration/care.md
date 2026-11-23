@@ -9,12 +9,15 @@ To start with CAREamics, create a configuration object containing the parameters
 your experiment. The configuration validates individual parameters and their
 coherence, avoiding combinations that could trigger errors later in the workflow.
 
-CAREamics provides a simple factory for common CARE and Noise2Noise experiments and
-an advanced factory for more control.
+CAREamics provides a simple factory for common CARE and Noise2Noise denoising experiments and
+an advanced factory for more complex parameters.
 
 ```python title="CARE and Noise2Noise configuration factories"
 --8<-- "current/configuration/care/general_care.py:all_configs"
 ```
+
+1. Parameters in CARE and Noise2Noise are equivalent and we omit Noise2Noise in these
+pages.
 
 ## Simple configuration
 
@@ -26,7 +29,9 @@ an experiment.
 ```
 
 1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
-   with `axis` about dimensionality (2D or 3D).
+with `axis` about dimensionality (2D or 3D).
+
+<!-- break down the block to allow the list to be generated -->
 
 - `experiment_name`: experiment name used in logging and automatic model saving. It
   should only contain letters, numbers, underscores, dashes, and spaces.
@@ -61,6 +66,7 @@ an experiment.
     also be used directly as a depth axis, for example `axes="SCTYX"`. See the
     [data section](../data/data.md) for details.
 
+
 ### Channels
 
 Channels are a particular type of axis and influence the way the deep-learning model
@@ -78,6 +84,12 @@ is built. When `C` is present in `axes`, set the input and output channel counts
 
     If `n_channels_out` is not set and `target_axes` has a `C` dimension, it is set to
     the same value as `n_channels_in`; otherwise it is set to 1.
+
+!!! warning "CARE and Noise2Noise defaults"
+
+    By default CARE and Noise2Noise use channels differently: in Noise2Noise they are
+    independent and are trained separately, while they are mixed by CARE. See the [channel independence parameter](#channel-independence)
+    to change that behaviour.
 
 ### Reducing the number of steps
 

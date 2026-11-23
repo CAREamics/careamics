@@ -9,8 +9,8 @@ To start with CAREamics, create a configuration object containing the parameters
 your experiment. The configuration validates individual parameters and their
 coherence, avoiding combinations that could trigger errors later in the workflow.
 
-HDN provides a simple factory for common experiments and an advanced factory for more
-control.
+HDN provides a simple factory for common denoising experiments and an advanced factory
+for more complex parameters.
 
 ```python title="HDN configuration factories"
 --8<-- "current/configuration/hdn/general_hdn.py:all_configs"

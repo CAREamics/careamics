@@ -10,7 +10,8 @@ your experiment. The configuration validates individual parameters and their
 coherence, avoiding combinations that could trigger errors later in the workflow.
 
 CAREamics provides algorithm-specific convenience functions. Noise2Void has a simple
-factory for common experiments and an advanced factory for more control.
+factory for common denoising experiments and an advanced factory for more complex
+parameters.
 
 ```python title="Noise2Void configuration factories"
 --8<-- "current/configuration/n2v/general_n2v.py:all_configs"
@@ -25,8 +26,9 @@ an experiment.
 --8<-- "current/configuration/n2v/general_n2v.py:config_n2v"
 ```
 
-1. Patch size concerns only spatial axes, must be in order `(Z)YX`, and must agree
-   with `axis` about dimensionality (2D or 3D).
+1. Optional
+
+<!-- break down the block to allow the list to be generated -->
 
 - `experiment_name`: experiment name used in logging and automatic model saving. It
   should only contain letters, numbers, underscores, dashes, and spaces.
@@ -52,7 +54,7 @@ an experiment.
 !!! info "structN2V"
 
     CAREamics provides a convenience factory for structN2V:
-    `create_structn2v_config`.
+    `create_structn2v_config`. See the [structN2V](#structn2v) section for more details.
 
 !!! note "Training with `T` as depth axis"
 
@@ -126,10 +128,10 @@ data determines the number of validation patches automatically.
 
 ## Algorithm-specific parameters
 
-### N2V2
-
 Noise2Void has multiple flavours developed to overcome some of its limitations, such
 as checkerboard artefacts (N2V2) or correlated noise (structN2V).
+
+### N2V2
 
 To use N2V2, set `use_n2v2` to `True`.
 

@@ -4,7 +4,9 @@
 # --8<-- [start:all_configs]
 from careamics.config import (
     create_advanced_care_config,
+    create_advanced_n2n_config,
     create_care_config,
+    create_n2n_config,  # (1)!
 )
 
 # --8<-- [end:all_configs]

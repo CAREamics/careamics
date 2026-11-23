@@ -9,8 +9,8 @@ To start with CAREamics, create a configuration object containing the parameters
 your experiment. The configuration validates individual parameters and their
 coherence, avoiding combinations that could trigger errors later in the workflow.
 
-MicroSplit provides a simple factory for common channel-unmixing experiments and an
-advanced factory for more control.
+MicroSplit provides a simple factory for common channel-unmixing experiments and an advanced factory
+for more complex parameters.
 
 ```python title="MicroSplit configuration factories"
 --8<-- "current/configuration/microsplit/general_microsplit.py:all_configs"
