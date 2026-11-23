@@ -19,8 +19,10 @@ noise_model = [noise_model_path]
 
 
 # --8<-- [start:quick_start_hdn_config]
+from careamics import CAREamist
 from careamics.config import create_hdn_config
 
+# Create a configuration
 config = create_hdn_config(
     experiment_name="hdn_training",
     data_type="array",  # (1)!
@@ -28,18 +30,23 @@ config = create_hdn_config(
     patch_size=[64, 64],
     batch_size=8,
     use_noise_model=True,  # (2)!
-    num_epochs=2,
-    num_steps=5,
+    num_epochs=50,
 )
 # --8<-- [end:quick_start_hdn_config]
 
-# --8<-- [start:quick_start_hdn_train]
-from careamics.careamist import CAREamist
+config.training_config.trainer_params["max_epochs"] = 2
+config.training_config.trainer_params["limit_train_batches"] = 3
 
+# --8<-- [start:quick_start_hdn_train]
+# Instantiate a CAREamist from the config
 careamist = CAREamist(config)
+
+# Train the model using a noise model
 careamist.train(
     train_data=train_data,  # (3)!
     noise_model=noise_model,  # (4)!
 )
+
+# Predict on the data of choice
 predictions, sources = careamist.predict(pred_data=pred_data)
 # --8<-- [end:quick_start_hdn_train]

@@ -10,130 +10,112 @@ process in which users first define a configuration and then use a `CAREamist` i
 to run their training and prediction.
 
 More advanced users wishing to have more control over the training and prediction
-process can re-use CAREamics module in a [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable) script, which we refer
+processes can re-use CAREamics modules in a [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable) script, which we refer
 to as the [Lightning API](./lightning_api/lightning_api.md).
 
 ## Quick start
 
+Check out the [configuration](./configuration) section for more details and parameters.
+
 === "Noise2Void"
     
-    ```python title="Create a configuration"
+    ```python title="Train Noise2Void"
     --8<-- "current/index/index_n2v.py:quick_start_n2v_config"
-    ```
-
-    ```python title="Train and predict"
     --8<-- "current/index/index_n2v.py:quick_start_n2v_train"
     ```
 
-    1. We declare that we will train from arrays in memory. See configuration section for more options.
+    1. We will train from arrays, but this could be `"tiff"` or `"zarr"` (see [data](./data/)).
 
-    2. Data passed must be compatible with the configuration that was defined earlier.
+    2. `train_data` must be compatible with `data_type`.
 
 
 === "CARE"
 
-    ```python title="Create a configuration"
+    ```python title="Train CARE"
     --8<-- "current/index/index_care.py:quick_start_care_config"
-    ```
-
-    ```python title="Train and predict"
     --8<-- "current/index/index_care.py:quick_start_care_train"
     ```
 
-    1. We declare that we will train from arrays in memory. See configuration section for more options.
+    1. We will train from arrays, but this could be `"tiff"` or `"zarr"` (see [data](./data/)).
 
-    2. Data passed must be compatible with the configuration that was defined earlier.
+    2. `train_data` must be compatible with `data_type`.
 
-    3. CARE requires a target.
+    3. Training CARE requires a target.
 
 
 
 === "HDN"
 
-    ```python title="Create a configuration"
+    ```python title="Train HDN"
     --8<-- "current/index/index_hdn.py:quick_start_hdn_config"
-    ```
-
-    ```python title="Train and predict"
     --8<-- "current/index/index_hdn.py:quick_start_hdn_train"
     ```
 
-    1. We declare that we will train from arrays in memory. See configuration section for more options.
+    1. We will train from arrays, but this could be `"tiff"` or `"zarr"` (see [data](./data/)).
 
     2. HDN may be trained using a [noise model](./noise_model).
     
-    3. Data passed must be compatible with the configuration that was defined earlier.
+    2. `train_data` must be compatible with `data_type`.
 
-    4. If a noise model was declared in the configuration, then it needs to supplied here.
+    4. Required if `use_noise_model=True`.
 
 
 
 
 === "MicroSplit"
 
-    ```python title="Create a configuration"
+    ```python title="Train MicroSplit"
     --8<-- "current/index/index_microsplit.py:quick_start_microsplit_config"
-    ```
-
-    ```python title="Train and predict"
     --8<-- "current/index/index_microsplit.py:quick_start_microsplit_train"
     ```
 
-    1. We declare that we will train from arrays in memory. See the configuration section for more options.
+    1. We will train from arrays, but this could be `"tiff"` or `"zarr"` (see [data](./data/)).
 
-    2. `output_channels` is the number of channels produced by the channel-splitting model.
+    2. Number of channels produced by the channel-splitting model.
 
-    3. `use_noise_model=True` enables the noise-model likelihood.
+    3. Training MicroSplit requires a target.
 
-    4. A separate noise model is passed for each output channel, so the list contains three models.
-
-    5. Data passed must be compatible with the configuration that was defined earlier.
+    4. MicroSplit may require a [noise model](./noise_model).
 
 
 === "cryoCARE"
 
-    ```python title="Create a configuration"
+    ```python title="Train cryoCARE"
     --8<-- "current/index/index_cryocare.py:quick_start_cryocare_config"
-    ```
-
-    ```python title="Train and predict"
     --8<-- "current/index/index_cryocare.py:quick_start_cryocare_train"
     ```
 
-    1. `data_type="mrc"` selects cryoCARE's MRC input handling.
+    1. We will train from `mrc` files, but this could be `"tiff"` or `"zarr"` (see [data](./data/)).
 
-    2. cryoCARE uses volumes with three spatial axes (`ZYX`) and a physical tilt axis.
+    2. cryoCARE requires 3D stacks.
 
-    3. `tilt_axis` identifies the physical tilt axis used to construct the split.
+    3. Physical tilt axis used for reconstruction.
 
-    4. `even_reconstruction` is passed as the training input.
+    4. Reconstruction from **even** angles is used as training input.
 
-    5. `odd_reconstruction` is passed as the training target.
+    5. Reconstruction from **odd** angles is used as training input.
 
-    6. Both reconstructions are passed during prediction, and predictions are written to disk with `predict_to_disk`.
+    6. Reconstruction from **even** angles is used as prediction input.
 
-    7. Data passed must be compatible with the configuration that was defined earlier.
+    7. Reconstruction from **odd** angles is also used during prediction.
 
 
 === "Segmentation"
 
-    ```python title="Create a configuration"
+    ```python title="Train segmentation"
     --8<-- "current/index/index_segmentation.py:quick_start_segmentation_config"
-    ```
-
-    ```python title="Train and predict"
     --8<-- "current/index/index_segmentation.py:quick_start_segmentation_train"
     ```
 
-    1. We declare that we will train from arrays in memory. See the configuration section for more options.
+    1. We will train from arrays, but this could be `"tiff"` or `"zarr"` (see [data](./data/)).
 
-    2. Segmentation targets are integer label masks with one value per class.
+    2. Number of foreground classes.
 
-    3. `n_classes` is the number of foreground classes; CAREamics adds the background class automatically.
+    3. Return probability map per class instead of a class mask.
 
-    4. `prediction_output="probabilities"` returns one probability map per class instead of a class mask.
+    2. `train_data` must be compatible with `data_type`.
 
-    5. Data passed must be compatible with the configuration that was defined earlier.
+    5. Segmentation targets are integer label masks.
 
 
 
@@ -142,13 +124,6 @@ to as the [Lightning API](./lightning_api/lightning_api.md).
 
 <div class="grid cards" markdown>
 
--   :lucide-git-branch:{ .lg .middle } __Choosing an algorithm__
-
-    ---
-
-    Select an algorithm based on your data, targets, and task.
-
-    [:octicons-arrow-right-24: Choosing an algorithm](./choosing_an_algorithm.md)
 
 -   :lucide-sliders-horizontal:{ .lg .middle } __Configuration__
 
@@ -156,7 +131,7 @@ to as the [Lightning API](./lightning_api/lightning_api.md).
 
     Configure your experiment.
 
-    [:octicons-arrow-right-24: Configuration](./configuration/configuration.md)
+    [:octicons-arrow-right-24: Configuration](./configuration/index.md)
 
 -   :lucide-database:{ .lg .middle } __Data preparation__
 
@@ -175,6 +150,14 @@ to as the [Lightning API](./lightning_api/lightning_api.md).
 
     [:octicons-arrow-right-24: Training CAREamics](./careamist/careamist_training.md)
 
+
+-   :lucide-chart-bell-curve:{ .lg .middle } __Noise model__
+
+    ---
+
+    Train a noise model for specific algorithms.
+
+    [:octicons-arrow-right-24: Noise model](./noise_model/noise_model.md)
 
 -   :lucide-chart-scatter:{ .lg .middle } __Logging__
 

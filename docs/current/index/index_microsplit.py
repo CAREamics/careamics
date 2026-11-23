@@ -21,8 +21,10 @@ for channel in range(3):
 
 
 # --8<-- [start:quick_start_microsplit_config]
+from careamics import CAREamist
 from careamics.config import create_microsplit_config
 
+# Create a configuration
 config = create_microsplit_config(
     experiment_name="microsplit_training",
     data_type="array",  # (1)!
@@ -30,19 +32,23 @@ config = create_microsplit_config(
     patch_size=[64, 64],
     batch_size=8,
     output_channels=3,  # (2)!
-    use_noise_model=True,  # (3)!
-    num_epochs=2,
-    num_steps=5,
+    num_epochs=50,
 )
 # --8<-- [end:quick_start_microsplit_config]
 
-# --8<-- [start:quick_start_microsplit_train]
-from careamics.careamist import CAREamist
+config.training_config.trainer_params["max_epochs"] = 2
+config.training_config.trainer_params["limit_train_batches"] = 3
 
+# --8<-- [start:quick_start_microsplit_train]
+# Instantiate a CAREamist from the config
 careamist = CAREamist(config)
+
+# Train  using a noise model
 careamist.train(
     train_data=train_data,  # (4)!
     noise_model=noise_model,  # (5)!
 )
+
+# Predict on the data of choice
 predictions, sources = careamist.predict(pred_data=pred_data)
 # --8<-- [end:quick_start_microsplit_train]

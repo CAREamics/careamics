@@ -6,7 +6,6 @@ nav = [
     "content/guides/current/index.md",
     {"Configuration" = [
         "content/guides/current/configuration/index.md",
-        {"Configuring CAREamics" = "content/guides/current/configuration/configuration_general.md"},
         {"Noise2Void" = "content/guides/current/configuration/n2v.md"},
         {"CARE" = "content/guides/current/configuration/care.md"},
         {"HDN" = "content/guides/current/configuration/hdn.md"},
