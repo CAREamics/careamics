@@ -8,7 +8,7 @@ from typing import Any, Protocol
 
 import torch
 
-from careamics.models.lvae import LadderVAE as LVAE
+from careamics.models.lvae import LVAE
 
 
 # TODO: Remove this after refactoring prediction code to not use likelihood objects
