@@ -55,6 +55,46 @@ pred_arrays, _ = careamist.predict(
 )
 # --8<-- [end:pred_empty_source]
 
+
+# --8<-- [start:pred_sampling_hdn]
+def predict_hdn_with_sampling(careamist: CAREamist, data: np.ndarray):
+    predictions, uncertainty, sources = careamist.predict(
+        pred_data=data,
+        n_predictions=10,
+    )
+    return predictions, uncertainty, sources
+
+
+# --8<-- [end:pred_sampling_hdn]
+
+
+# --8<-- [start:pred_sampling_microsplit]
+def predict_microsplit_with_sampling(careamist: CAREamist, data: np.ndarray):
+    predictions, uncertainty, sources = careamist.predict(
+        pred_data=data,
+        n_predictions=10,
+    )
+    return predictions, uncertainty, sources
+
+
+# --8<-- [end:pred_sampling_microsplit]
+
+
+# --8<-- [start:pred_cryocare]
+def predict_cryocare(
+    careamist: CAREamist,
+    odd_reconstruction: np.ndarray,
+    even_reconstruction: np.ndarray,
+):
+    predictions, sources = careamist.predict(
+        pred_data=odd_reconstruction,
+        pred_data_target=even_reconstruction,
+    )
+    return predictions, sources
+
+
+# --8<-- [end:pred_cryocare]
+
 # %%
 # --8<-- [start:pred_checkpoint]
 pred_arrays, sources = careamist.predict(

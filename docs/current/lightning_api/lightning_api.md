@@ -12,12 +12,51 @@ more control over the training and prediction process.
 
 ## Quick start
 
-Here is an example of training Noise2Void using the Lightning API. For the configuration
-parameters, refer to the [CAREamist API documentation]().
+The Lightning API follows the same pattern for every algorithm: create a configuration,
+instantiate the algorithm-specific Lightning module, create a `CareamicsDataModule`, and
+pass both to a Lightning `Trainer`.
 
-```python
---8<-- "current/lightning_api/lightning_api.py:lightning_api"
-```
+=== "Noise2Void"
+
+    ```python
+    --8<-- "current/lightning_api/lightning_api.py:lightning_api_n2v"
+    ```
+
+=== "CARE"
+
+    ```python
+    --8<-- "current/lightning_api/lightning_api.py:lightning_api_care"
+    ```
+
+=== "Noise2Noise"
+
+    ```python
+    --8<-- "current/lightning_api/lightning_api.py:lightning_api_n2n"
+    ```
+
+=== "HDN"
+
+    ```python
+    --8<-- "current/lightning_api/lightning_api.py:lightning_api_hdn"
+    ```
+
+=== "MicroSplit"
+
+    ```python
+    --8<-- "current/lightning_api/lightning_api.py:lightning_api_microsplit"
+    ```
+
+=== "cryoCARE"
+
+    ```python
+    --8<-- "current/lightning_api/lightning_api.py:lightning_api_cryocare"
+    ```
+
+=== "Segmentation"
+
+    ```python
+    --8<-- "current/lightning_api/lightning_api.py:lightning_api_segmentation"
+    ```
 
 1. Creating a CAREamics configuration ensures that the parameters passed
 to the various PyTorch modules are coherent.

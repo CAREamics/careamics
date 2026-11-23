@@ -64,3 +64,18 @@ config = create_microsplit_config(
     n_val_patches=15,
 )
 # --8<-- [end:config_microsplit_val]
+
+# %%
+# --8<-- [start:adv_config_microsplit_multiscale]
+from careamics.config import create_advanced_microsplit_config
+
+config = create_advanced_microsplit_config(
+    experiment_name="microsplit_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    output_channels=3,
+    multiscale_count=3,  # (1)!
+)
+# --8<-- [end:adv_config_microsplit_multiscale]

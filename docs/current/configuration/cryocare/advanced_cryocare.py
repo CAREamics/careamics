@@ -30,9 +30,9 @@ config = create_advanced_cryocare_config(
     axes="ZYX",
     patch_size=[16, 64, 64],
     batch_size=8,
-    normalization="quantile",
+    normalization="quantile", # (1)!
     normalization_params={
-        "lower_quantiles": [0.01], "upper_quantiles": [0.99]
+        "lower_quantiles": [0.01], "upper_quantiles": [0.99] # (2)!
     },
 )
 # --8<-- [end:cryocare_normalization]

@@ -3,18 +3,41 @@ icon: lucide/database
 description: Data preparation
 ---
 
-# Data preparation
+# Data
+
+## Algorithms
+
+Depending on the algorithm, different data must be supplied. Here is a summary:
+
+| Algorithm | Input | Target | Additional data |
+|---|---|---|---|
+| Noise2Void | Noisy images |  :lucide-circle-off: |  :lucide-circle-off: |
+| HDN | Noisy images | Optional clean images | Optional noise model |
+| Noise2Noise | Noisy images | Independently noisy images |  :lucide-circle-off: |
+| CARE | Noisy images | Clean or reference images |  :lucide-circle-off: |
+| MicroSplit | Mixed-channel images |  :lucide-circle-off: | Optional noise model |
+| cryoCARE | Even reconstruction | Odd reconstruction |  :lucide-circle-off: |
+| Segmentation | Raw images | Label masks |  :lucide-circle-off: |
+
+
+!!! info "Masks"
+
+    In addition to the input and target, a mask to exclude particular regions from
+    training and validation can be supplied. See [Masking](../careamist/careamist_training.md#masking).
+
+
+## Formats
 
 CAREamics supports by default data stored in memory as numpy arrays, but also data
 stored on disk in the form of TIFF, CZI and Zarr files. Each format comes with
 particular constraints.
 
-## Arrays
+### Arrays
 
 Arrays are the simplest and fastest way to train and predict with CAREamics, they can be
 passed as is to the `CAREamist` (list or single array).
 
-## TIFF
+### TIFF
 
 As TIFF are widely used, they are the most common use case of CAREamics. TIFF loading
 is compatible with [in-memory training](../configuration/configuration.md#training-in-memory). If the
@@ -26,7 +49,7 @@ To train on TIFF files, you can either pass a single path to a TIFF, a list of p
 TIFF files, or a path to a directory containing TIFF files. In the latter case, all
 TIFF files in the directory will be used for training.
 
-## CZI
+### CZI
 
 The CZI format is used by Zeiss microscopes, and has constraints on the axes that should
 be specified:
@@ -60,7 +83,7 @@ explicitly.
     more details.
 
 
-## Zarr
+### Zarr
 
 Zarr is a chunked format allowing to train on very large data without having to load
 it in memory. Because a Zarr file can hold multiple arrays, and can have arbitrary

@@ -106,13 +106,12 @@ of `1` disables lateral context and uses only the original patch. Larger values 
 progressively wider image context at the same patch size.
 
 ```python title="Setting lateral-context scales"
---8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_multiscale"
+--8<-- "current/configuration/microsplit/general_microsplit.py:adv_config_microsplit_multiscale"
 ```
 
 
 ## Advanced configuration
 
-<?-- TODO Channels -->
 
 ### Training in memory
 

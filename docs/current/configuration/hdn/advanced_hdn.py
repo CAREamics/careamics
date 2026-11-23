@@ -79,7 +79,9 @@ config = create_advanced_hdn_config(
     batch_size=8,
     output_channels=1,
     normalization="quantile",  # (1)!
-    normalization_params={"lower_quantiles": [0.01], "upper_quantiles": [0.99]},  # (2)!
+    normalization_params={
+        "lower_quantiles": [0.01], "upper_quantiles": [0.99]  # (2)!
+    },
 )
 # --8<-- [end:adv_config_hdn_norm]
 

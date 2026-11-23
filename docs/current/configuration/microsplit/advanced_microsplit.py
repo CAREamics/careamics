@@ -51,35 +51,6 @@ config = create_advanced_microsplit_config(
 )
 # --8<-- [end:adv_config_microsplit_channels]
 
-# %%
-# --8<-- [start:adv_config_microsplit_multiscale]
-from careamics.config import create_advanced_microsplit_config
-
-config = create_advanced_microsplit_config(
-    experiment_name="microsplit_training",
-    data_type="array",
-    axes="YX",
-    patch_size=[64, 64],
-    batch_size=8,
-    output_channels=3,
-    multiscale_count=3,  # (1)!
-)
-# --8<-- [end:adv_config_microsplit_multiscale]
-
-# %%
-# --8<-- [start:adv_config_microsplit_padding]
-from careamics.config import create_advanced_microsplit_config
-
-config = create_advanced_microsplit_config(
-    experiment_name="microsplit_training",
-    data_type="array",
-    axes="YX",
-    patch_size=[64, 64],
-    batch_size=8,
-    output_channels=3,
-    padding_mode="reflect",  # (1)!
-)
-# --8<-- [end:adv_config_microsplit_padding]
 
 # %%
 # --8<-- [start:adv_config_microsplit_norm]
@@ -93,25 +64,11 @@ config = create_advanced_microsplit_config(
     batch_size=8,
     output_channels=3,
     normalization="quantile",  # (1)!
-    normalization_params={"lower_quantiles": [0.01], "upper_quantiles": [0.99]},  # (2)!
+    normalization_params={
+        "lower_quantiles": [0.01], "upper_quantiles": [0.99]  # (2)!
+    }
 )
 # --8<-- [end:adv_config_microsplit_norm]
-
-# %%
-# --8<-- [start:adv_config_microsplit_norm_params]
-from careamics.config import create_advanced_microsplit_config
-
-config = create_advanced_microsplit_config(
-    experiment_name="microsplit_training",
-    data_type="array",
-    axes="YX",
-    patch_size=[64, 64],
-    batch_size=8,
-    output_channels=3,
-    normalization="mean_std",
-    normalization_params={"input_means": [158.95], "input_stds": [10.21]},  # (1)!
-)
-# --8<-- [end:adv_config_microsplit_norm_params]
 
 # %%
 # --8<-- [start:adv_config_microsplit_logger]

@@ -31,6 +31,47 @@ list:
 --8<-- "current/careamist/careamist_predicting.py:pred_empty_source"
 ```
 
+!!! note "Prediction output"
+
+    By default, `predict` returns `(predictions, sources)`. For HDN and MicroSplit,
+    passing `n_predictions` returns `(predictions, uncertainty, sources)`, where
+    `uncertainty` is the per-pixel standard deviation across the sampled predictions.
+    For segmentation models, use `segmentation_output="mask"` or
+    `segmentation_output="probabilities"` to choose the output representation.
+
+### Sampling-based prediction
+
+HDN and MicroSplit are generative models and can draw multiple predictions for the same
+input. Pass `n_predictions` to average the sampled predictions and obtain a per-pixel
+standard-deviation estimate. It must be at least `2`.
+
+=== "HDN"
+
+    ```python title="HDN prediction with sampling"
+    --8<-- "current/careamist/careamist_predicting.py:pred_sampling_hdn"
+    ```
+
+=== "MicroSplit"
+
+    ```python title="MicroSplit prediction with sampling"
+    --8<-- "current/careamist/careamist_predicting.py:pred_sampling_microsplit"
+    ```
+
+The return values are `(predictions, uncertainty, sources)`. The uncertainty is the
+standard deviation across the sampled predictions; it does not include the likelihood
+variance.
+
+### cryoCARE prediction
+
+cryoCARE requires both reconstructions at prediction time. Pass one reconstruction as
+`pred_data` and its paired odd/even reconstruction as `pred_data_target`. cryoCARE runs
+the model on both and averages the two predictions; the target is therefore part of the
+prediction procedure, not a ground-truth output used only for metrics.
+
+```python title="cryoCARE prediction"
+--8<-- "current/careamist/careamist_predicting.py:pred_cryocare"
+```
+
 !!! note "Dimensions of the prediction"
     
     The returned predictions will have the same dimension order as the input data. The
@@ -210,4 +251,3 @@ arguments. Here is an example of writing to a custom type (`.npy`):
 3. And specify the extension of the file to write.
 4. Pass the custom write function to the `write_func` argument.
 5. Optional, to pass additional parameters to underlying functions.
-
