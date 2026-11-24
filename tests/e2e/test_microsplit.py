@@ -7,6 +7,7 @@ from careamics.config import (
     create_advanced_microsplit_config,
     create_advanced_n2v_config,
 )
+from careamics.config.losses import MicroSplitLossConfig
 from careamics.noise_model import train_noise_model
 
 
@@ -65,14 +66,16 @@ def test_n2v_noise_model_microsplit_workflow(tmp_path):
         axes="SCYX",
         patch_size=(64, 64),
         batch_size=2,
-        output_channels=2,
+        n_channels_out=2,
         num_epochs=1,
         num_steps=1,
         augmentations=[],
         num_workers=0,
         multiscale_count=1,
-        gaussian_likelihood_weight=0.0,
-        noise_model_likelihood_weight=1.0,
+        loss=MicroSplitLossConfig(
+            gaussian_likelihood_weight=0.0,
+            noise_model_likelihood_weight=1.0,
+        ),
         model_params={"z_dims": [8, 8], "n_filters": 8},
         seed=42,
     )

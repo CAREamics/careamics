@@ -56,7 +56,7 @@ def _microsplit_module(
         axes="YX",
         patch_size=[64, 64],
         batch_size=2,
-        output_channels=output_channels,
+        n_channels_out=output_channels,
         multiscale_count=1,
         loss=MicroSplitLossConfig(
             gaussian_likelihood_weight=1.0 - noise_model_likelihood_weight,

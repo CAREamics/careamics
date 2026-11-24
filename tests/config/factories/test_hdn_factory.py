@@ -87,16 +87,16 @@ class TestHDNConfig:
         assert config.algorithm_config.optimizer.parameters == {"lr": 3e-4}
 
     def test_output_channels_must_be_one(self):
-        """Test that HDN rejects more than one output channel."""
-        with pytest.raises(ValueError):
-            create_advanced_hdn_config(
-                experiment_name="test",
-                data_type="array",
-                axes="YX",
-                patch_size=[64, 64],
-                batch_size=8,
-                output_channels=2,
-            )
+        """Test that HDN has a single output channel."""
+        config = create_advanced_hdn_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            model_params={"output_channels": 2},
+        )
+        assert config.algorithm_config.model.output_channels == 1
 
     def test_no_aug(self):
         """Test no augmentation."""

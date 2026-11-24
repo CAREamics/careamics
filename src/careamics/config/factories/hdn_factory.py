@@ -98,7 +98,6 @@ def create_advanced_hdn_config(
     normalization_params: dict[str, Any] | None = None,
     in_memory: bool | None = None,
     # model parameters
-    output_channels: int = 1,
     model_params: dict[str, Any] | None = None,
     # loss parameters
     loss: HDNLossConfig | None = None,
@@ -155,8 +154,6 @@ def create_advanced_hdn_config(
         Additional normalization parameters.
     in_memory : bool or None, default=None
         Whether to load all data into memory.
-    output_channels : int, default=1
-        Number of target channels (HDN uses 1).
     model_params : dict or None, default=None
         LVAE model parameters overriding the HDN defaults (`z_dims=[128, 128]`,
         `n_filters=32`, `encoder_dropout=0.0`,
@@ -230,7 +227,7 @@ def create_advanced_hdn_config(
         **(model_params or {}),
         "architecture": "LVAE",
         "input_shape": tuple(patch_size),
-        "output_channels": output_channels,
+        "output_channels": 1,
         "multiscale_count": 1,
         "encoder_conv_strides": conv_strides,
         "decoder_conv_strides": conv_strides,

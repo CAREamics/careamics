@@ -365,7 +365,7 @@ def create_advanced_seg_config(
     algorithm_params = create_algorithm_configuration(
         dimensions=3 if data_config.is_3D() else 2,
         algorithm="seg",
-        loss={"name": loss} if isinstance(loss, str) else loss.model_dump_json(),
+        loss={"name": loss} if isinstance(loss, str) else loss.model_dump(),
         independent_channels=False,
         n_channels_in=n_channels_in,
         n_channels_out=n_classes + 1,  # add background channel
