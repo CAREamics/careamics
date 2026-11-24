@@ -538,14 +538,13 @@ class CAREamist:
         """Select the checkpoint to use for prediction.
 
         An explicitly requested checkpoint takes precedence, followed by the checkpoint
-        used to instantiate CAREamist and the checkpoint selected in the current run's
-        checkpoint record.
+        selected in the current run's checkpoint record (best or last) and finally the
+        checkpoint used to instantiate CAREamist.
 
         Parameters
         ----------
         checkpoint : str | Path | None
-            The checkpoint specified for prediction. If not None, this method will
-            return the specified checkpoint instead of the default.
+            The checkpoint specified for prediction.
 
         Returns
         -------
@@ -555,18 +554,18 @@ class CAREamist:
         if checkpoint is not None:
             return checkpoint
 
-        # if instantiated with a checkpoint do not override
-        # TODO: what about fine-tuning? it does not update the path for prediction?
-        if self.checkpoint_path is not None:
-            return self.checkpoint_path
-
         checkpoint_record = read_checkpoint_record(self.get_checkpoint_root())
         if (
             checkpoint_record is not None
             and (selected := checkpoint_record["selected"]) is not None
         ):
             return self.get_checkpoint_root() / selected
-        return None
+        else:
+            # can still be None
+            # but covers initialization from a checkpoint without further fine-tuning
+            # passing self.checkpoint_path to trainer.predict will restore all states
+            # including: optimizer, lr_scheduler etc.
+            return self.checkpoint_path
 
     # Two overloads:
     # - 1st for supported data types & using ReadFuncLoading

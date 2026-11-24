@@ -1,6 +1,10 @@
 """Unit tests for CAREamist."""
 
 import json
+from pathlib import Path
+from typing import Literal
+
+import pytest
 
 from careamics import CAREamist
 from careamics.config.factories import create_advanced_n2v_config
@@ -29,8 +33,23 @@ def test_checkpoint_record_logger_is_configured(tmp_path):
     assert record_loggers[0].selected_checkpoint == "last"
 
 
-def test_select_default_checkpoint(tmp_path):
-    """Test explicit, loaded, and recorded checkpoint selection precedence."""
+@pytest.mark.parametrize("init_from", ["config", "pretrained"])
+@pytest.mark.parametrize("train", [True, False])
+@pytest.mark.parametrize("choose_checkpoint", [True, False])
+def test_select_default_checkpoint(
+    tmp_path: Path,
+    pre_trained: Path,
+    init_from: Literal["config", "pretrained"],
+    train: bool,
+    choose_checkpoint: bool,
+):
+    """
+    Test default checkpoint loading for prediction.
+
+    Covers cases for initializing from a config loading a pre-trained checkpoint,
+    with or without having a training run that produced saved checkpoints, and whether
+    a specific checkpoint is chosen.
+    """
     config = create_advanced_n2v_config(
         experiment_name="test",
         data_type="array",
@@ -38,12 +57,39 @@ def test_select_default_checkpoint(tmp_path):
         patch_size=[32, 32],
         batch_size=8,
     )
-    careamist = CAREamist(config=config, work_dir=tmp_path)
+    if init_from == "config":
+        careamist = CAREamist(config=config, work_dir=tmp_path)
+    else:
+        careamist = CAREamist(checkpoint_path=pre_trained, work_dir=tmp_path)
 
-    assert careamist._select_default_ckpt(None) is None
+    selected_checkpoint: Path | None = None
+    if train:
+        selected_checkpoint = _simulate_saved_checkpoints(
+            careamist.get_checkpoint_root()
+        )
 
-    checkpoint_root = careamist.get_checkpoint_root()
-    checkpoint_root.mkdir(parents=True)
+    if choose_checkpoint:
+        chosen_checkpoint = tmp_path / "selected.ckpt"
+        chosen_checkpoint.touch()
+    else:
+        chosen_checkpoint = None
+
+    result = careamist._select_default_ckpt(chosen_checkpoint)
+    match (init_from, train, chosen_checkpoint):
+        case (_, _, chosen_checkpoint) if chosen_checkpoint is not None:
+            assert result == chosen_checkpoint
+        case ("config", False, None):
+            assert result is None
+        case ("pretrained", False, None):
+            assert result == pre_trained
+        case (_, True, None):
+            assert result == selected_checkpoint
+        case _:
+            raise ValueError("Uncovered case in test.")
+
+
+def _simulate_saved_checkpoints(checkpoint_root: Path) -> Path:
+    checkpoint_root.mkdir(parents=True, exist_ok=True)
     selected_checkpoint = checkpoint_root / "selected.ckpt"
     selected_checkpoint.touch()
     record = {
@@ -56,10 +102,4 @@ def test_select_default_checkpoint(tmp_path):
         "selected": selected_checkpoint.name,
     }
     (checkpoint_root / CHECKPOINT_RECORD_FILENAME).write_text(json.dumps(record))
-
-    assert careamist._select_default_ckpt(None) == selected_checkpoint
-
-    loaded_checkpoint = tmp_path / "loaded.ckpt"
-    careamist.checkpoint_path = loaded_checkpoint
-    assert careamist._select_default_ckpt(None) == loaded_checkpoint
-    assert careamist._select_default_ckpt("last") == "last"
+    return selected_checkpoint
