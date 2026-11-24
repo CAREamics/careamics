@@ -15,6 +15,12 @@ class SupportedLoss(StrEnum):
         Mean Absolute Error loss.
     N2V : str
         Noise2Void loss.
+    PN2V : str
+        Probabilistic Noise2Void loss.
+    HDN : str
+        Hierarchical DivNoising loss.
+    MICROSPLIT : str
+        MicroSplit loss.
     """
 
     MSE = "mse"
@@ -22,11 +28,4 @@ class SupportedLoss(StrEnum):
     N2V = "n2v"
     PN2V = "pn2v"
     HDN = "hdn"
-    MUSPLIT = "musplit"
     MICROSPLIT = "microsplit"
-    DENOISPLIT = "denoisplit"
-    DENOISPLIT_MUSPLIT = (
-        "denoisplit_musplit"  # TODO refac losses, leave only microsplit
-    )
-    # CE = "ce"
-    # DICE = "dice"

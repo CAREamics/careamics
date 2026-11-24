@@ -42,7 +42,7 @@ def _compatible_input_types(data_type: SD) -> str:
             return (
                 "the expected input is a numpy.ndarray or a sequence of numpy.ndarray"
             )
-        case SD.TIFF | SD.CZI | SD.ZARR:
+        case SD.TIFF | SD.CZI | SD.ZARR | SD.MRC:
             return (
                 "the expected input is a str, a pathlib.Path, or a sequence of either"
             )
@@ -586,7 +586,7 @@ def initialize_data_pair(
     match (data_type, loading):
         case (SD.ARRAY, None) if _is_array_data(data):
             input_data, target_data = validate_array_input(data[0], data[1])
-        case (SD.TIFF | SD.CZI, None) if _is_path_data(data):
+        case (SD.TIFF | SD.CZI | SD.MRC, None) if _is_path_data(data):
             input_data, target_data = validate_path_input(data_type, data[0], data[1])
         case (SD.ZARR, None) if _is_path_data(data):
             input_data, target_data = validate_zarr_input(data[0], data[1])

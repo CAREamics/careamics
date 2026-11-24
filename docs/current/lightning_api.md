@@ -33,7 +33,9 @@ callback (and `EarlyStopping`). You can either use those or set up your own.
 checkpoints. It is optional in the Lightning API, add it if you want to load the
 checkpoint with the CAREamist API and recover the training data and training configs.
 Without it, the checkpoint can still be loaded, but the training configuration falls back
-to its defaults.
+to its defaults. It is also required for checkpoints saved after `trainer.predict`:
+prediction replaces the trainer's datamodule, and only the callback keeps the training
+data configuration and its normalization statistics.
 7. Similarly, the configuration create training parameters configuration. You can set your
 own rather than reusing those.
 8. As in any Lightning script, pass the model and datamodule to the trainer and call `fit` to start training.
