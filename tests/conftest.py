@@ -24,6 +24,7 @@ from careamics.lightning.data.data_module import CareamicsDataModule
 from careamics.lightning.logger import CoLogger
 from careamics.lightning.modules import CAREModule, N2VModule, SegModule
 from careamics.lightning.utils.load_checkpoint import _create_loaded_exp_name
+from careamics.noise_model import train_noise_model
 
 pytest.register_assert_rewrite("functional.dataset.utils")
 
@@ -380,12 +381,12 @@ def lvae_pre_trained(tmp_path):
     careamist = CAREamist(config=config, work_dir=tmp_path)
 
     # train noise model
-    noise_model = careamist.train_noise_model(
+    noise_model = train_noise_model(
         signal=signal_data,
         observation=noisy_data,
         axes="YX",
         n_epochs=100,
-        save=True,
+        save_dir=tmp_path / "noise_models",
     )
 
     # check that the noise model was trained
@@ -399,6 +400,7 @@ def lvae_pre_trained(tmp_path):
         train_data_target=[signal_data],
         val_data=[noisy_data],
         val_data_target=[signal_data],
+        noise_model=noise_model,
     )
 
     # check that the checkpoint exists
