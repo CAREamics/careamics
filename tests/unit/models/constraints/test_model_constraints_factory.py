@@ -46,15 +46,7 @@ def test_get_model_constraints_seg_unet():
 
 def test_get_model_constraints_cryocare_unet():
     """cryoCARE configs are dispatched to `CryoCAREUNetConstraints`."""
-    constraints = get_model_constraints(
-        CryoCAREAlgorithm(
-            model=UNetConfig(
-                architecture="UNet",
-                num_classes=1,
-                independent_channels=False,
-            )
-        )
-    )
+    constraints = get_model_constraints(CryoCAREAlgorithm())
     assert isinstance(constraints, CryoCAREUNetConstraints)
 
 
