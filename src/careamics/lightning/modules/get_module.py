@@ -28,7 +28,7 @@ CAREamicsModuleCls = (
     | type[SegModule]
 )
 CAREamicsModule = (
-  N2VModule | CAREModule | CryoCAREModule | HDNModule | MicroSplitModule | SegModule
+    N2VModule | CAREModule | CryoCAREModule | HDNModule | MicroSplitModule | SegModule
 )
 CAREamicsAlgorithm = (
     UNetBasedAlgorithm
