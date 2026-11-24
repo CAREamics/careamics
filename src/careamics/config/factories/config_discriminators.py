@@ -14,6 +14,7 @@ from careamics.config.algorithms import (
     SegAlgorithm,
 )
 from careamics.config.configuration import Configuration
+from careamics.config.cryocare_configuration import CryoCAREConfiguration
 from careamics.config.data.cryocare_data_config import CryoCAREDataConfig
 from careamics.config.data.data_config import DataConfig
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
