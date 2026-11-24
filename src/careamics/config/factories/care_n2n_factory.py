@@ -5,9 +5,14 @@ from typing import Any, Literal
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm
 from careamics.config.configuration import Configuration
+from careamics.config.data.normalization_config import (
+    NormalizationConfig,
+    NormalizationStr,
+)
 from careamics.utils import get_logger
 
 from .algorithm_factory import create_algorithm_configuration
+from .config_discriminators import instantiate_norm_config
 from .data_factory import (
     SupportedPatchFilterConfig,
     create_data_configuration,
@@ -274,8 +279,7 @@ def create_advanced_care_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = False,
-    normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
-    normalization_params: dict[str, Any] | None = None,
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr",
     ome_scale: str = "0",
@@ -366,16 +370,8 @@ def create_advanced_care_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=False
         Whether to train all channels independently.
-    normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
-        Normalization strategy to use.
-    normalization_params : dict[str, Any] | None, default=None
-        Strategy-specific normalization parameters. If None, default values are used.
-
-        - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
-        - For "none": No parameters needed.
-
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
+        Normalization strategy to use, or a normalization configuration.
     patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
@@ -448,8 +444,7 @@ def create_advanced_n2n_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = True,
-    normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
-    normalization_params: dict[str, Any] | None = None,
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr",
     ome_scale: str = "0",
@@ -539,16 +534,8 @@ def create_advanced_n2n_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=True
         Whether to train all channels independently.
-    normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
-        Normalization strategy to use.
-    normalization_params : dict[str, Any] | None, default=None
-        Strategy-specific normalization parameters. If None, default values are used.
-
-        - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
-        - For "none": No parameters needed.
-
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
+        Normalization strategy to use, or a normalization configuration.
     patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
@@ -620,8 +607,7 @@ def _create_advanced_supervised_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = False,
-    normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
-    normalization_params: dict[str, Any] | None = None,
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr",
     ome_scale: str = "0",
@@ -711,16 +697,8 @@ def _create_advanced_supervised_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=False
         Whether to train all channels independently.
-    normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
-        Normalization strategy to use.
-    normalization_params : dict[str, Any] | None, default=None
-        Strategy-specific normalization parameters. If None, default values are used.
-
-        - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
-        - For "none": No parameters needed.
-
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
+        Normalization strategy to use, or a normalization configuration.
     patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
@@ -775,9 +753,11 @@ def _create_advanced_supervised_config(
     )
 
     # normalization
-    norm_config = {"name": normalization}
-    if normalization_params is not None:
-        norm_config.update(normalization_params)
+    norm_config = (
+        instantiate_norm_config({"name": normalization})
+        if isinstance(normalization, str)
+        else normalization
+    )
 
     # data
     data_config = create_data_configuration(

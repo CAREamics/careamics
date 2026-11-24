@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -479,7 +479,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.21,<=2.4.6" },
     { name = "pillow", specifier = "<=12.3.0" },
     { name = "psutil", specifier = "<=7.2.2" },
-    { name = "pydantic", specifier = ">=2.11,<=2.14.3" },
+    { name = "pydantic", specifier = ">=2.11,<=2.14.4" },
     { name = "pydantic-tensorstore" },
     { name = "pylibczirw", marker = "extra == 'czi'", specifier = ">=4.1.2,<7.0.0" },
     { name = "pyyaml", specifier = "!=6.0.0,<=6.0.3" },
