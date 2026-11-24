@@ -1,15 +1,18 @@
-"""Shared tests between CARE, N2N and N2V factories."""
+"""Shared tests between CARE, N2N, N2V and Seg factories."""
 
 import itertools
+from collections.abc import Callable
 
 import pytest
 
 from careamics.config.configuration import Configuration
+from careamics.config.data.normalization_config import QuantileConfig
 from careamics.config.data.patch_filter import MeanStdPatchFilterConfig
 from careamics.config.factories import (
     create_advanced_care_config,
     create_advanced_n2n_config,
     create_advanced_n2v_config,
+    create_advanced_seg_config,
 )
 from careamics.config.support import (
     SupportedData,
@@ -45,6 +48,7 @@ FACTORIES = [
     create_advanced_care_config,
     create_advanced_n2n_config,
     create_advanced_n2v_config,
+    create_advanced_seg_config,
 ]
 
 DATA_TYPE = [d.value for d in SupportedData if d.value != "czi"]  # separate czi tests
@@ -60,6 +64,14 @@ another set of values."""
 PATCH_SIZE_2D = [(32, 32)]
 
 PATCH_SIZE_3D = [(16, 32, 32)]
+
+
+def required_parameters(factory: Callable) -> dict:
+    """Additional required parameters."""
+    if factory is create_advanced_seg_config:
+        return {"n_classes": 2}
+    else:
+        return {}
 
 
 # --- Unit tests
@@ -119,6 +131,9 @@ def test_orthogonal_params(
     logger = SupportedLogger.WANDB.value
     seed = 42
 
+    # additional required parameters that is factory dependent
+    extra_required_params = required_parameters(factory)
+
     config: Configuration = factory(
         experiment_name=exp_name,
         data_type=data_type,
@@ -130,8 +145,7 @@ def test_orthogonal_params(
         n_val_patches=n_val,
         in_memory=in_memory,
         patch_filter_config=patch_filter,
-        normalization=norm,
-        normalization_params=norm_params,
+        normalization=QuantileConfig(**norm_params),
         trainer_params=trainer_params,
         model_params=model_params,
         optimizer=optimizer,
@@ -144,6 +158,7 @@ def test_orthogonal_params(
         checkpoint_params=checkpoint_params,
         logger=logger,
         seed=seed,
+        **extra_required_params,
     )
 
     assert config.experiment_name == exp_name
@@ -184,6 +199,9 @@ def test_orthogonal_params(
 @pytest.mark.parametrize("factory", FACTORIES)
 def test_no_augmentation(factory):
     """Test that no augmentation is correctly passed to the configuration."""
+    # additional required parameters that is factory dependent
+    extra_required_params = required_parameters(factory)
+
     config: Configuration = factory(
         experiment_name="test_no_aug",
         data_type="tiff",
@@ -191,5 +209,6 @@ def test_no_augmentation(factory):
         patch_size=[32, 32],
         batch_size=8,
         augmentations=[],
+        **extra_required_params,
     )
     assert len(config.data_config.augmentations) == 0

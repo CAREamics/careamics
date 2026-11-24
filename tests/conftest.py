@@ -7,9 +7,11 @@ from lightning.pytorch import Callback, Trainer
 
 from careamics.config.configuration import Configuration
 from careamics.config.data.data_config import DataConfig
+from careamics.config.data.normalization_config import MeanStdConfig
 from careamics.config.factories import (
     create_advanced_care_config,
     create_advanced_n2v_config,
+    create_advanced_seg_config,
 )
 from careamics.config.lightning.training_configuration import (
     TrainingConfig,
@@ -21,12 +23,12 @@ from careamics.lightning.callbacks.config_saver_callback import (
 )
 from careamics.lightning.data.data_module import CareamicsDataModule
 from careamics.lightning.logger import CoLogger
-from careamics.lightning.modules import CAREModule, N2VModule
+from careamics.lightning.modules import CAREModule, N2VModule, SegModule
 from careamics.lightning.utils.load_checkpoint import _create_loaded_exp_name
+from careamics.noise_model import train_noise_model
 
 pytest.register_assert_rewrite("functional.dataset.utils")
 
-# TODO move to compat/conftest.py
 
 ############################################################
 # Old fixtures below, kept for backwards compatibility, need
@@ -348,6 +350,68 @@ def pre_trained(tmp_path):
 
 
 @pytest.fixture
+def lvae_pre_trained(tmp_path):
+    """Fixture to create a pre-trained CAREamist MicroSplit(LVAE) model."""
+    from careamics.careamist import CAREamist
+    from careamics.config.factories import create_advanced_microsplit_config
+
+    # data
+    signal_data = np.arange(64 * 64).reshape((64, 64)).astype(np.float32)
+    noisy_data = signal_data + 0.1
+
+    # create configuration
+    patch_size = [64, 64]
+    config = create_advanced_microsplit_config(
+        experiment_name="msplit_test",
+        data_type="array",
+        in_memory=True,
+        axes="YX",
+        output_channels=1,
+        patch_size=patch_size,
+        batch_size=2,
+        num_epochs=2,
+        multiscale_count=1,
+        predict_logvar=True,
+        gaussian_likelihood_weight=0.0,
+        seed=13,
+    )
+
+    # instantiate CAREamist
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+
+    # train noise model
+    noise_model = train_noise_model(
+        signal=signal_data,
+        observation=noisy_data,
+        axes="YX",
+        n_epochs=100,
+        save_dir=tmp_path / "noise_models",
+    )
+
+    # check that the noise model was trained
+    assert noise_model is not None
+    noise_model_path: Path = tmp_path / "noise_models" / "noise_model_ch0.npz"
+    assert noise_model_path.exists()
+
+    # train CAREamist
+    careamist.train(
+        train_data=[noisy_data],
+        train_data_target=[signal_data],
+        val_data=[noisy_data],
+        val_data_target=[signal_data],
+        noise_model=noise_model,
+    )
+
+    # check that the checkpoint exists
+    pre_trained_path: Path = (
+        tmp_path / "checkpoints" / "msplit_test_0" / "msplit_test_last.ckpt"
+    )
+    assert pre_trained_path.exists()
+
+    return pre_trained_path
+
+
+@pytest.fixture
 def create_dummy_noise_model(
     n_gaussians: int = 3,
     n_coeffs: int = 3,
@@ -409,7 +473,7 @@ def _checkpoint_trainer(request):
     return _get_trainer_and_info
 
 
-@pytest.fixture(params=["n2v", "care"])
+@pytest.fixture(params=["n2v", "care", "seg"])
 def checkpoint(
     request,
     _checkpoint_trainer: tuple[Trainer, ConfigSaverCallback | None],
@@ -442,8 +506,7 @@ def checkpoint(
             patch_size=[16, 16],
             batch_size=2,
             masked_pixel_percentage=0.4,
-            normalization="mean_std",
-            normalization_params={"input_means": [0.5], "input_stds": [0.3]},
+            normalization=MeanStdConfig(input_means=[0.5], input_stds=[0.3]),
             num_workers=0,
             num_steps=1,
         )
@@ -457,13 +520,31 @@ def checkpoint(
             axes="YX",
             patch_size=[16, 16],
             batch_size=2,
-            normalization="mean_std",
-            normalization_params={
-                "input_means": [0.5],
-                "input_stds": [0.3],
-                "target_means": [0.5],
-                "target_stds": [0.3],
-            },
+            normalization=MeanStdConfig(
+                input_means=[0.5],
+                input_stds=[0.3],
+                target_means=[0.5],
+                target_stds=[0.3],
+            ),
+        )
+        data = {
+            "train_data": train_data,
+            "val_data": val_data,
+            "train_data_target": train_data_target,
+            "val_data_target": val_data_target,
+        }
+    elif request.param == "seg":
+        module_cls = SegModule
+        config = create_advanced_seg_config(
+            experiment_name="checkpoint_fixture_seg",
+            data_type="array",
+            axes="YX",
+            patch_size=[16, 16],
+            batch_size=2,
+            n_classes=3,
+            normalization=MeanStdConfig(
+                input_means=[0.5], input_stds=[0.3], target_mode="none"
+            ),
         )
         data = {
             "train_data": train_data,

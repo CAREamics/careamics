@@ -5,6 +5,10 @@ from typing import Any, Literal
 
 from careamics.config.algorithms import N2VAlgorithm
 from careamics.config.algorithms.n2v_manipulation import N2VManipulateConfig
+from careamics.config.data.normalization_config import (
+    NormalizationConfig,
+    NormalizationStr,
+)
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import (
     SupportedPixelManipulation,
@@ -13,6 +17,7 @@ from careamics.config.support import (
 from careamics.config.utils.random import generate_random_seed
 
 from .algorithm_factory import create_algorithm_configuration
+from .config_discriminators import instantiate_norm_config
 from .data_factory import (
     SupportedPatchFilterConfig,
     create_data_configuration,
@@ -124,6 +129,7 @@ def create_n2v_config(
     n_val_patches: int = 8,
     use_n2v2: bool = False,
     n_channels: int | None = None,
+    seed: int | None = None,
 ) -> N2VConfiguration:
     """
     Create a configuration for training N2V.
@@ -171,6 +177,8 @@ def create_n2v_config(
         Whether to use N2V2.
     n_channels : int or None, default=None
         Number of channels (in and out).
+    seed : int or None, default=None
+        Random seed for reproducibility. If `None`, a random seed is generated.
 
     Returns
     -------
@@ -189,6 +197,7 @@ def create_n2v_config(
         n_val_patches=n_val_patches,
         use_n2v2=use_n2v2,
         n_channels=n_channels,
+        seed=seed,
     )
 
 
@@ -301,8 +310,7 @@ def create_advanced_n2v_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = True,
-    normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
-    normalization_params: dict[str, Any] | None = None,
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     # n2v specific
     use_n2v2: bool = False,
@@ -409,16 +417,8 @@ def create_advanced_n2v_config(
         List of channels to use. If `None`, all channels are used.
     independent_channels : bool, default=True
         Whether to train all channels independently.
-    normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
-        Normalization strategy to use.
-    normalization_params : dict[str, Any] | None, default=None
-        Strategy-specific normalization parameters. If None, default values are used.
-
-        - For "mean_std": {"input_means": [...], "input_stds": [...]} (optional)
-        - For "min_max": {"input_mins": [...], "input_maxes": [...]} (optional)
-        - For "quantile": {"lower_quantiles": 0.01, "upper_quantiles": 0.99} (optional)
-        - For "none": No parameters needed.
-
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
+        Normalization strategy to use, or a normalization configuration.
     patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
@@ -478,9 +478,11 @@ def create_advanced_n2v_config(
     n_channels = _validate_n2v_channel_dim(axes, channels, n_channels)
 
     # normalization
-    norm_config = {"name": normalization}
-    if normalization_params is not None:
-        norm_config.update(normalization_params)
+    norm_config = (
+        instantiate_norm_config({"name": normalization})
+        if isinstance(normalization, str)
+        else normalization
+    )
 
     # data
     data_config = create_data_configuration(

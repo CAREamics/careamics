@@ -6,13 +6,18 @@ from typing import Any, Literal
 from careamics.config.algorithms import HDNAlgorithm
 from careamics.config.architectures import LVAEConfig
 from careamics.config.augmentations import XYFlipConfig, XYRandomRotate90Config
+from careamics.config.data.normalization_config import (
+    NormalizationConfig,
+    NormalizationStr,
+)
 from careamics.config.hdn_configuration import HDNConfiguration
 from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
-from careamics.config.losses.loss_config import HDNLossConfig
+from careamics.config.losses import HDNLossConfig
 
+from .config_discriminators import instantiate_norm_config
 from .data_factory import create_data_configuration, list_spatial_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
 
@@ -30,6 +35,7 @@ def create_hdn_config(
     n_val_patches: int = 8,
     use_noise_model: bool = False,
     supervised: bool = False,
+    seed: int | None = None,
 ) -> HDNConfiguration:
     """Create a configuration for training HDN.
 
@@ -66,6 +72,8 @@ def create_hdn_config(
     supervised : bool, default=False
         Whether to train against target data. If `True`, `train_data_target` must
         be provided at training time, and `use_noise_model` must be `False`.
+    seed : int or None, default=None
+        Random seed for reproducibility.
 
     Returns
     -------
@@ -90,8 +98,7 @@ def create_advanced_hdn_config(
     supervised: bool = False,
     # advanced data parameters
     channels: Sequence[int] | None = None,
-    normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
-    normalization_params: dict[str, Any] | None = None,
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     in_memory: bool | None = None,
     # model parameters
     output_channels: int = 1,
@@ -144,10 +151,8 @@ def create_advanced_hdn_config(
         be provided at training time, and `use_noise_model` must be `False`.
     channels : sequence of int or None, default=None
         List of channels to use. If `None`, all channels are used.
-    normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
-        Normalization strategy.
-    normalization_params : dict or None, default=None
-        Additional normalization parameters.
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
+        Normalization strategy or complete normalization configuration.
     in_memory : bool or None, default=None
         Whether to load all data into memory.
     output_channels : int, default=1
@@ -244,9 +249,11 @@ def create_advanced_hdn_config(
         ),
     )
 
-    norm_config = {"name": normalization}
-    if normalization_params is not None:
-        norm_config.update(normalization_params)
+    norm_config = (
+        instantiate_norm_config({"name": normalization})
+        if isinstance(normalization, str)
+        else normalization
+    )
 
     # TODO refactor when #1005 will be merged
     augs: list[XYFlipConfig | XYRandomRotate90Config] | None = None

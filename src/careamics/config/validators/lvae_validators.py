@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from careamics.config.architectures import LVAEConfig
-from careamics.config.losses.loss_config import LVAELossConfig
+from careamics.config.losses import LVAELossConfig
 from careamics.config.noise_model.noise_model_config import MultiChannelNMConfig
 
 

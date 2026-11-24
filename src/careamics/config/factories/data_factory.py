@@ -4,11 +4,12 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from careamics.config.augmentations import (
-    SPATIAL_TRANSFORMS_UNION,
+    DefaultAugs,
     XYFlipConfig,
     XYRandomRotate90Config,
 )
 from careamics.config.data import DataConfig
+from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.data.patch_filter import (
     MaxPatchFilterConfig,
     MeanStdPatchFilterConfig,
@@ -23,9 +24,9 @@ SupportedPatchFilterConfig = (
 
 
 def list_spatial_augmentations(
-    augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
+    augmentations: list[DefaultAugs] | None = None,
     seed: int | None = None,
-) -> list[SPATIAL_TRANSFORMS_UNION]:
+) -> list[DefaultAugs]:
     """
     List the augmentations to apply.
 
@@ -50,7 +51,7 @@ def list_spatial_augmentations(
         If there are duplicate augmentations.
     """
     if augmentations is None:
-        transform_list: list[SPATIAL_TRANSFORMS_UNION] = [
+        transform_list: list[DefaultAugs] = [
             XYFlipConfig(seed=seed),
             XYRandomRotate90Config(seed=seed),
         ]
@@ -81,8 +82,8 @@ def create_data_configuration(
     patch_size: Sequence[int],
     batch_size: int,
     target_axes: str | None = None,
-    augmentations: list[SPATIAL_TRANSFORMS_UNION] | None = None,
-    normalization: dict | None = None,
+    augmentations: list[DefaultAugs] | None = None,
+    normalization: NormalizationConfig | None = None,
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     channels: Sequence[int] | None = None,
     in_memory: bool | None = None,
@@ -114,9 +115,9 @@ def create_data_configuration(
     augmentations : list of augmentations or None, default=None
         List of augmentations to apply. If `None`, default augmentations are applied
         (flip in X and Y, rotations by 90 degrees in the XY plane).
-    normalization : dict, default=None
-        Normalization configuration dictionary. If None, defaults to mean_std
-        normalization with automatically computed statistics.
+    normalization : NormalizationConfig, default=None
+        Normalization configuration. If None, defaults to mean_std normalization with
+        automatically computed statistics.
     patch_filter_config : SupportedPatchFilterConfig | None, default=None
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
