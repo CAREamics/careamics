@@ -31,6 +31,7 @@ def create_microsplit_config(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     multiscale_count: int = 3,
+    seed: int | None = None,
 ) -> MicroSplitConfiguration:
     """Create a configuration for training MicroSplit.
 
@@ -60,6 +61,8 @@ def create_microsplit_config(
         Number of patches to set aside for validation during training.
     multiscale_count : int, default=3
         Number of lateral-context scales.
+    seed : int or None, default=None
+        Random seed for reproducibility.
 
     Returns
     -------

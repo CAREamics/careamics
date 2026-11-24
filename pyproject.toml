@@ -43,7 +43,7 @@ classifiers = [
 dependencies = [
     # --- Core dependencies ---
     "numpy>=1.21,<=2.4.6",
-    'pydantic>=2.11,<=2.14.3',
+    'pydantic>=2.11,<=2.14.4',
     "lightning>=2.2,!=2.6.2,!=2.6.3,<=2.6.6",
     # lightning caps torch and torchmetrics dependency
     # see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
@@ -182,6 +182,7 @@ markers = [
     "lvae: marks tests as testing lvae",
     "e2e: marks longer running end-to-end tests",
     "czi: marks tests using czi files",
+    "cli: marks tests for the command-line interface",
 ]
 
 # https://coverage.readthedocs.io/en/6.4/config.html
