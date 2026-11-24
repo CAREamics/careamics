@@ -5,8 +5,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from careamics.config.data.normalization_config 
-from careamics.config.algorithms import SegLossConfigimport (
+from careamics.config.algorithms import SegLossConfig
+from careamics.config.data.normalization_config import (
     NormalizationConfig,
     NormalizationStr,
 )
