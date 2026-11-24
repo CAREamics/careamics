@@ -49,6 +49,9 @@ def test_unet_configs(algorithm, config_class):
     assert isinstance(cfg, config_class)
 
 
+# -------------------------- Unit tests ----------------------------
+
+
 @pytest.mark.parametrize(
     "factory, save_top_k, warning_match",
     [
@@ -96,9 +99,6 @@ def test_shared_configuration_warns_for_other_algorithms(
 
     warning.assert_called_once()
     assert "Could not validate checkpointing parameters" in warning.call_args.args[0]
-
-
-# -------------------------- Unit tests ----------------------------
 
 
 @pytest.mark.parametrize(

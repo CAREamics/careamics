@@ -46,6 +46,9 @@ def test_n2v_dict_testing():
     assert isinstance(cfg, N2VConfiguration)
 
 
+# -------------------------- Unit tests ----------------------------
+
+
 @pytest.mark.parametrize(
     "save_top_k, expected_warning_count",
     [(1, 1), (-1, 0)],
@@ -66,9 +69,6 @@ def test_checkpointing_warning(
     )
 
     assert checkpointing_warning_mock.call_count == expected_warning_count
-
-
-# -------------------------- Unit tests ----------------------------
 
 
 @pytest.mark.parametrize(
