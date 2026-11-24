@@ -9,7 +9,7 @@ import warnings
 from collections.abc import Sequence
 from enum import StrEnum
 from pprint import pformat
-from typing import Annotated, Any, Literal, Self, Union
+from typing import Annotated, Any, Generic, Literal, Self, Union
 
 import numpy as np
 from pydantic import (
@@ -21,8 +21,13 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from typing_extensions import TypeVar
 
-from careamics.config.augmentations import XYFlipConfig, XYRandomRotate90Config
+from careamics.config.augmentations import (
+    DefaultAugs,
+    XYFlipConfig,
+    XYRandomRotate90Config,
+)
 from careamics.config.support import SupportedData
 from careamics.config.utils.random import generate_random_seed
 from careamics.config.validators import check_axes_validity, check_czi_axes_validity
@@ -56,6 +61,12 @@ from .patching_strategies import (
 #       leverage Pydantic to add validation directly to the declaration of each field?
 
 logger = get_logger("DataConfig")
+
+
+DataInputFormat = Literal["array", "tiff", "zarr", "czi", "mrc", "custom"]
+
+
+AugmentationT = TypeVar("AugmentationT", default=DefaultAugs)
 
 
 def _is_3D(axes: str, data_type: SupportedData) -> bool:
@@ -225,6 +236,54 @@ def _validate_channel_conversion(
         # new_channels is None
 
 
+def _get_default_patching(
+    new_mode: Literal["validating", "predicting"],
+    new_patch_size: Sequence[int] | None = None,
+    overlap_size: Sequence[int] | None = None,
+    current_patch_size: Sequence[int] | None = None,
+) -> PatchingConfig:
+    """Create the default patching strategy for a converted configuration.
+
+    Parameters
+    ----------
+    new_mode : Literal["validating", "predicting"]
+        The mode of the converted configuration.
+    new_patch_size : Sequence[int] or None, default=None
+        New patch size. For prediction, this selects tiled patching when provided.
+    overlap_size : Sequence[int] or None, default=None
+        Tile overlap, required when ``new_patch_size`` is provided for prediction.
+    current_patch_size : Sequence[int] or None, default=None
+        Current patch size, used for validation when no new size is provided.
+
+    Returns
+    -------
+    PatchingConfig
+        The patching strategy for the converted configuration.
+
+    Raises
+    ------
+    ValueError
+        If tiled prediction is requested without overlap, or if validation has no
+        patch size available.
+    """
+    if new_mode == Mode.PREDICTING:
+        if new_patch_size is None:
+            return WholePatchingConfig()
+        if overlap_size is None:
+            raise ValueError(
+                "`overlap_size` parameter must be specified when switching to "
+                "'predicting' mode with a `new_patch_size`."
+            )
+        return TiledPatchingConfig(
+            patch_size=list(new_patch_size), overlaps=list(overlap_size)
+        )
+
+    patch_size = new_patch_size if new_patch_size is not None else current_patch_size
+    if patch_size is None:
+        raise ValueError("A patch size is required when switching to validating mode.")
+    return FixedRandomPatchingConfig(patch_size=list(patch_size))
+
+
 def np_float_to_scientific_str(x: float) -> str:
     """Return a string scientific representation of a float.
 
@@ -370,7 +429,7 @@ def _default_filter_coverage(is_3d: bool) -> float:
     return 1 / (2**ndims)
 
 
-class DataConfig(BaseModel):
+class DataConfig(BaseModel, Generic[AugmentationT]):
     """Next-Generation Dataset configuration.
 
     DataConfig are used for both training and prediction, with the patching strategy
@@ -390,7 +449,7 @@ class DataConfig(BaseModel):
     mode: Mode
     """Dataset mode, either training, validating or predicting."""
 
-    data_type: Literal["array", "tiff", "zarr", "czi", "custom"]
+    data_type: DataInputFormat
     """Type of input data."""
 
     axes: str
@@ -436,7 +495,7 @@ class DataConfig(BaseModel):
     Coverage is automatically set to 1/(2**ndims) based on data dimensionality
     where ndims is determined from axes. Only available in `training` mode."""
 
-    augmentations: Sequence[Union[XYFlipConfig, XYRandomRotate90Config]] = Field(
+    augmentations: Sequence[AugmentationT] = Field(
         default=(
             XYFlipConfig(),
             XYRandomRotate90Config(),
@@ -1037,45 +1096,20 @@ class DataConfig(BaseModel):
     # an error will be raised. Should that automatically be set to False instead?
     # TODO this method could be private and we could have public `to_validation_config`
     #   and `to_prediction_config` methods with appropriate parameters
-    def convert_mode(
+    def _get_converted_model_dict(
         self,
         new_mode: Literal["validating", "predicting"],
         new_patch_size: Sequence[int] | None = None,
         overlap_size: Sequence[int] | None = None,
         new_batch_size: int | None = None,
-        new_data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        new_data_type: DataInputFormat | None = None,
         new_axes: str | None = None,
         new_target_axes: str | None = None,
         new_channels: Sequence[int] | Literal["all"] | None = None,
         new_in_memory: bool | None = None,
         new_dataloader_params: dict[str, Any] | None = None,
-    ) -> DataConfig:
-        """
-        Convert a training dataset configuration to a different mode.
-
-        This method is intended to facilitate creating validation or prediction
-        configurations from a training configuration.
-
-        To perform tile prediction when switching to `predicting` mode, please provide
-        both `new_patch_size` and `overlap_size`. Switching mode to `predicting` without
-        specifying `new_patch_size` and `overlap_size` will apply the default patching
-        strategy, namely `whole` image strategy. `new_patch_size` and `overlap_size` are
-        only used when switching to `predicting`.
-
-        `channels=None` will retain the same channels as in the current configuration.
-        To select all channels, please specify all channels explicitly or pass
-        `channels='all'`.
-
-        New dataloader parameters will be placed in the appropriate dataloader params
-        field depending on the new mode.
-
-        To create a new training configuration, please use
-        `careamics.config.create_data_configuration`.
-
-        This method compares the new parameters with the current ones and raises
-        errors if incompatible changes are requested, such as switching between 2D and
-        3D axes, or changing the number of channels. Incompatibility across parameters
-        may be delegated to Pydantic validation.
+    ) -> dict[str, Any]:
+        """Prepare parameters for a converted data configuration.
 
         Parameters
         ----------
@@ -1088,7 +1122,7 @@ class DataConfig(BaseModel):
             patching.
         new_batch_size : int, default=None
             New batch size.
-        new_data_type : Literal['array', 'tiff', 'zarr', 'czi', 'custom'], default=None
+        new_data_type : DataInputFormat, default=None
             New data type.
         new_axes : str, default=None
             New axes.
@@ -1104,8 +1138,8 @@ class DataConfig(BaseModel):
 
         Returns
         -------
-        DataConfig
-            New DataConfig with the updated mode and parameters.
+        dict of {str: Any}
+            Parameters for the converted data configuration.
 
         Raises
         ------
@@ -1161,33 +1195,19 @@ class DataConfig(BaseModel):
         )
 
         # apply default values
-        patching_strategy: PatchingConfig
-        if new_mode == Mode.PREDICTING:
-            if new_patch_size is None:
-                patching_strategy = WholePatchingConfig()
-            else:
-                if overlap_size is None:
-                    raise ValueError(
-                        "`overlap_size` parameter must be specified when switching to "
-                        "'predicting' mode with a `new_patch_size`."
-                    )
-                patching_strategy = TiledPatchingConfig(
-                    patch_size=list(new_patch_size), overlaps=list(overlap_size)
-                )
-        else:  # validating
-            # to satisfy mypy, since self.mode=="training", patching has patch_size
-            assert not isinstance(self.patching, WholePatchingConfig)
-
-            patching_strategy = FixedRandomPatchingConfig(
-                patch_size=(
-                    list(new_patch_size)
-                    if new_patch_size is not None
-                    else self.patching.patch_size
-                ),
-            )
+        patching_strategy = _get_default_patching(
+            new_mode=new_mode,
+            new_patch_size=new_patch_size,
+            overlap_size=overlap_size,
+            current_patch_size=(
+                None
+                if isinstance(self.patching, WholePatchingConfig)
+                else self.patching.patch_size
+            ),
+        )
 
         # create new config
-        model_dict = self.model_dump()
+        model_dict = self.model_dump(include=set(DataConfig.model_fields))
         model_dict.update(
             {
                 "mode": new_mode,
@@ -1222,4 +1242,85 @@ class DataConfig(BaseModel):
         if new_dataloader_params is not None and "num_workers" in new_dataloader_params:
             model_dict["num_workers"] = new_dataloader_params["num_workers"]
 
+        return model_dict
+
+    def convert_mode(
+        self,
+        new_mode: Literal["validating", "predicting"],
+        new_patch_size: Sequence[int] | None = None,
+        overlap_size: Sequence[int] | None = None,
+        new_batch_size: int | None = None,
+        new_data_type: DataInputFormat | None = None,
+        new_axes: str | None = None,
+        new_target_axes: str | None = None,
+        new_channels: Sequence[int] | Literal["all"] | None = None,
+        new_in_memory: bool | None = None,
+        new_dataloader_params: dict[str, Any] | None = None,
+    ) -> DataConfig[AugmentationT]:
+        """Convert a training configuration to validation or prediction mode.
+
+        This method is intended to facilitate creating validation or prediction
+        configurations from a training configuration.
+
+        To perform tile prediction when switching to `predicting` mode, please provide
+        both `new_patch_size` and `overlap_size`. Switching mode to `predicting` without
+        specifying `new_patch_size` and `overlap_size` will apply the default patching
+        strategy, namely `whole` image strategy. `new_patch_size` and `overlap_size` are
+        only used when switching to `predicting`.
+
+        `channels=None` will retain the same channels as in the current configuration.
+        To select all channels, please specify all channels explicitly or pass
+        `channels='all'`.
+
+        New dataloader parameters will be placed in the appropriate dataloader params
+        field depending on the new mode.
+
+        To create a new training configuration, please use
+        `careamics.config.create_data_configuration`.
+
+        This method compares the new parameters with the current ones and raises
+        errors if incompatible changes are requested, such as switching between 2D and
+        3D axes, or changing the number of channels. Incompatibility across parameters
+        may be delegated to Pydantic validation.
+
+        Parameters
+        ----------
+        new_mode : Literal["validating", "predicting"]
+            The new dataset mode.
+        new_patch_size : Sequence[int] or None, default=None
+            New patch size for validation or tiled prediction.
+        overlap_size : Sequence[int] or None, default=None
+            Tile overlap, required for tiled prediction.
+        new_batch_size : int or None, default=None
+            New batch size.
+        new_data_type : DataInputFormat or None, default=None
+            New data type.
+        new_axes : str or None, default=None
+            New axes.
+        new_target_axes : str or None, default=None
+            New target axes.
+        new_channels : Sequence[int], "all" or None, default=None
+            New channels.
+        new_in_memory : bool or None, default=None
+            New in-memory loading setting.
+        new_dataloader_params : dict of {str: Any} or None, default=None
+            New dataloader parameters.
+
+        Returns
+        -------
+        DataConfig
+            Converted data configuration.
+        """
+        model_dict = self._get_converted_model_dict(
+            new_mode=new_mode,
+            new_patch_size=new_patch_size,
+            overlap_size=overlap_size,
+            new_batch_size=new_batch_size,
+            new_data_type=new_data_type,
+            new_axes=new_axes,
+            new_target_axes=new_target_axes,
+            new_channels=new_channels,
+            new_in_memory=new_in_memory,
+            new_dataloader_params=new_dataloader_params,
+        )
         return DataConfig(**model_dict)
