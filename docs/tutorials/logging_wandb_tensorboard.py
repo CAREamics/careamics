@@ -29,6 +29,7 @@ from careamics.config.factories import create_advanced_n2v_config
 
 config = create_advanced_n2v_config(
     experiment_name="n2v_wandb",
+    project_name="careamics-experiments",  # (2)!
     data_type="array",
     axes="YX",
     patch_size=[64, 64],

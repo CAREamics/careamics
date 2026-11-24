@@ -29,6 +29,9 @@ val_target = train_data
 pred_data = train_data[:256, :256]
 mask_data = train_data > 50
 
+odd_reconstruction = pred_data
+even_reconstruction = pred_data
+
 read_func = None  # fake it
 
 careamist = CAREamist(config, work_dir=root)
@@ -56,50 +59,26 @@ pred_arrays, _ = careamist.predict(
 # --8<-- [end:pred_empty_source]
 
 
-# --8<-- [start:pred_sampling_hdn]
-def predict_hdn_with_sampling(careamist: CAREamist, data: np.ndarray):
-    predictions, uncertainty, sources = careamist.predict(
-        pred_data=data,
-        n_predictions=10,
-    )
-    return predictions, uncertainty, sources
-
-
-# --8<-- [end:pred_sampling_hdn]
-
-
-# --8<-- [start:pred_sampling_microsplit]
-def predict_microsplit_with_sampling(careamist: CAREamist, data: np.ndarray):
-    predictions, uncertainty, sources = careamist.predict(
-        pred_data=data,
-        n_predictions=10,
-    )
-    return predictions, uncertainty, sources
-
-
-# --8<-- [end:pred_sampling_microsplit]
+# --8<-- [start:pred_sampling]
+predictions, uncertainty, sources = careamist.predict(
+    pred_data=pred_data,
+    n_predictions=10,
+)
+# --8<-- [end:pred_sampling]
 
 
 # --8<-- [start:pred_cryocare]
-def predict_cryocare(
-    careamist: CAREamist,
-    odd_reconstruction: np.ndarray,
-    even_reconstruction: np.ndarray,
-):
-    predictions, sources = careamist.predict(
-        pred_data=odd_reconstruction,
-        pred_data_target=even_reconstruction,
-    )
-    return predictions, sources
-
-
+predictions, sources = careamist.predict(
+    pred_data=odd_reconstruction,
+    pred_data_target=even_reconstruction,
+)
 # --8<-- [end:pred_cryocare]
 
 # %%
 # --8<-- [start:pred_checkpoint]
 pred_arrays, sources = careamist.predict(
     pred_data=pred_data,
-    checkpoint="last",  # or "best"
+    checkpoint="last",  # (1)!
 )
 # --8<-- [end:pred_checkpoint]
 

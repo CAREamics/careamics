@@ -149,8 +149,6 @@ careamist = CAREamist(
 )
 # --8<-- [end:callbacks]
 
-############################################
-################ Noise2Void ################
 careamist = CAREamist(config_n2v)
 # %%
 # --8<-- [start:train_n2v_no_val]
@@ -158,21 +156,21 @@ careamist.train(train_data=train_data)  # (1)!
 
 # --8<-- [end:train_n2v_no_val]
 
-# --8<-- [start:train_hdn_no_val]
 careamist = CAREamist(config_hdn)
+# --8<-- [start:train_hdn_no_val]
 careamist.train(train_data=train_data)
 # --8<-- [end:train_hdn_no_val]
 
-# --8<-- [start:train_cryocare_no_val]
 careamist = CAREamist(config_cryocare)
+# --8<-- [start:train_cryocare_no_val]
 careamist.train(
     train_data=even_reconstruction,
     train_data_target=odd_reconstruction,
 )
 # --8<-- [end:train_cryocare_no_val]
 
-# --8<-- [start:train_segmentation_no_val]
 careamist = CAREamist(config_segmentation)
+# --8<-- [start:train_segmentation_no_val]
 careamist.train(
     train_data=train_data,
     train_data_target=train_labels,
@@ -203,9 +201,6 @@ careamist.train(
 
 # --8<-- [end:train_n2v_custom]
 
-############################################
-################ CARE ######################
-
 careamist = CAREamist(config_care)
 # %%
 # --8<-- [start:train_care_no_val]
@@ -230,8 +225,8 @@ careamist.train(
 # --8<-- [end:train_care_val]
 
 
-# --8<-- [start:train_hdn_val]
 careamist = CAREamist(config_hdn)
+# --8<-- [start:train_hdn_val]
 careamist.train(
     train_data=train_data,
     val_data=val_data,  # (1)!
@@ -239,33 +234,34 @@ careamist.train(
 # --8<-- [end:train_hdn_val]
 
 
-# --8<-- [start:train_microsplit_val]
 careamist = CAREamist(config_microsplit)
+# --8<-- [start:train_microsplit_val]
 careamist.train(
     train_data=train_data,
     train_data_target=train_data,
     val_data=val_data,  # (1)!
-    val_data_target=val_data,  # (2)!
+    val_data_target=val_data,
 )
 # --8<-- [end:train_microsplit_val]
 
 
-# --8<-- [start:train_cryocare_val]
 careamist = CAREamist(config_cryocare)
+# --8<-- [start:train_cryocare_val]
 careamist.train(
     train_data=even_reconstruction,
     train_data_target=odd_reconstruction,  # (1)!
+    # no validation # (2)!
 )
 # --8<-- [end:train_cryocare_val]
 
 
-# --8<-- [start:train_segmentation_val]
 careamist = CAREamist(config_segmentation)
+# --8<-- [start:train_segmentation_val]
 careamist.train(
     train_data=train_data,
     train_data_target=train_labels,
     val_data=val_data,  # (1)!
-    val_data_target=val_target,  # (2)!
+    val_data_target=val_target,
 )
 # --8<-- [end:train_segmentation_val]
 # %%
@@ -287,13 +283,13 @@ careamist.train(
 
 # --8<-- [end:train_care_custom]
 
-# --8<-- [start:train_hdn_custom]
 careamist = CAREamist(config_hdn)
+# --8<-- [start:train_hdn_custom]
 careamist.train(train_data=train_data, loading=read_func)
 # --8<-- [end:train_hdn_custom]
 
-# --8<-- [start:train_cryocare_custom]
 careamist = CAREamist(config_cryocare)
+# --8<-- [start:train_cryocare_custom]
 careamist.train(
     train_data=even_reconstruction,
     train_data_target=odd_reconstruction,
@@ -301,8 +297,8 @@ careamist.train(
 )
 # --8<-- [end:train_cryocare_custom]
 
-# --8<-- [start:train_segmentation_custom]
 careamist = CAREamist(config_segmentation)
+# --8<-- [start:train_segmentation_custom]
 careamist.train(
     train_data=train_data,
     train_data_target=train_labels,
@@ -310,13 +306,13 @@ careamist.train(
 )
 # --8<-- [end:train_segmentation_custom]
 
-# --8<-- [start:train_hdn_mask]
 careamist = CAREamist(config_hdn)
+# --8<-- [start:train_hdn_mask]
 careamist.train(train_data=train_data, filtering_mask=mask_data)
 # --8<-- [end:train_hdn_mask]
 
-# --8<-- [start:train_cryocare_mask]
 careamist = CAREamist(config_cryocare)
+# --8<-- [start:train_cryocare_mask]
 careamist.train(
     train_data=even_reconstruction,
     train_data_target=odd_reconstruction,
@@ -324,8 +320,8 @@ careamist.train(
 )
 # --8<-- [end:train_cryocare_mask]
 
-# --8<-- [start:train_segmentation_mask]
 careamist = CAREamist(config_segmentation)
+# --8<-- [start:train_segmentation_mask]
 careamist.train(
     train_data=train_data,
     train_data_target=train_labels,
@@ -333,16 +329,16 @@ careamist.train(
 )
 # --8<-- [end:train_segmentation_mask]
 
-# --8<-- [start:train_hdn_noise_model]
 careamist = CAREamist(config_hdn)
+# --8<-- [start:train_hdn_noise_model]
 careamist.train(
     train_data=train_data,
     noise_model=noise_model,
 )
 # --8<-- [end:train_hdn_noise_model]
 
-# --8<-- [start:train_microsplit_noise_model]
 careamist = CAREamist(config_microsplit)
+# --8<-- [start:train_microsplit_noise_model]
 careamist.train(
     train_data=train_data,
     noise_model=noise_model,

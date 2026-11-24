@@ -110,7 +110,7 @@ class HDF5ImageStack:
 
 # helper function
 def _walk_hdf5(group: h5py.Group):
-    """Iterate through every dataset contained in a HDF5 group"""
+    """Iterate through every dataset contained in an HDF5 group"""
     keys = group.keys()
     for key in keys:
         node = group.get(key)
@@ -122,12 +122,12 @@ def _walk_hdf5(group: h5py.Group):
 
 
 # --- Define the loading function, adhering to the ImageStackLoader protocol
-# NOTE: this is just one way to define a HDF5 loader, it could be adapted to:
+# NOTE: this is just one way to define an HDF5 loader; it could be adapted to:
 # - Load from a list of HDF5 files, or
-# - Load from a subset HDF5 groups within the file.
+# - Load from a subset of HDF5 groups within the file.
 def load_hdf5s(source: h5py.File, axes: str) -> list[HDF5ImageStack]:  # (2)!
     """
-    Load all the images in a HDF5 file.
+    Load all the images in an HDF5 file.
 
     source : Path
         The HDF5 file.

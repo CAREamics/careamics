@@ -44,6 +44,10 @@ Build the configuration with the advanced factory and pass `logger="wandb"`:
 
 1. WandB is added on top of the CSV logger, not in place of it. The same pattern applies to CARE and N2N through `create_advanced_care_config` and `create_advanced_n2n_config`.
 
+Use the configuration's optional `project_name` to group related runs. If it is not
+provided, CAREamics falls back to `experiment_name`; the `WANDB_PROJECT` environment
+variable can also be used for the WandB project setting.
+
 ## TensorBoard
 
 [TensorBoard](https://pytorch.org/tutorials/recipes/recipes/tensorboard_with_pytorch.html) writes events locally, making it well suited to offline and HPC workflows.

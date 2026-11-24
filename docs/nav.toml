@@ -20,6 +20,7 @@ nav = [
     {"Predicting" = "content/guides/current/careamist/careamist_predicting.md"},
     {"Saving and exporting models" = "content/guides/current/saving_models/saving_models.md"},
     {"Lightning API" = "content/guides/current/lightning_api/lightning_api.md"},
+    {"Command-line interface" = "content/guides/current/cli.md"},
 ]},
 {"Tutorials" = [
     "content/guides/tutorials/index.md",

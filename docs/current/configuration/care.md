@@ -33,7 +33,7 @@ an experiment.
 - `experiment_name`: used during logging and automatic model saving. It
   should only contain letters, numbers, underscores, dashes, and spaces.
 - `data_type`: input data type. CAREamics supports `array` (when passing NumPy arrays
-  directly), `tiff`, `zarr`, `mrc`, `czi`, and `custom` (see [data](../data/)).
+  directly), `tiff`, `zarr`, `czi`, and `custom` (see [data](../data/)).
 - `axes`: axes of the input data, in the order they have on disk or in memory. Accepted
   axes are `(S)(T)(C)(Z)YX` in any order, with `YX` being contiguous.
 - `patch_size`: size of the spatial patches extracted during training, in `(Z)YX`
@@ -165,7 +165,7 @@ Loading data into memory can speed up patch extraction when the dataset fits in 
 1. Only `array`, `tiff`, and `custom` are compatible with in-memory training.
 
 Only `array`, `tiff`, and `custom` data types support in-memory training. Array data is
-kept in memory automatically. Other formats, such as `zarr`, `czi` or `mrc` use random
+kept in memory automatically. Other formats, such as `zarr` or `czi`, use random
 access from disk.
 
 ### Subsetting channels
@@ -195,9 +195,10 @@ When `channels` is set, the number of input channels is inferred automatically.
 ### Channel independence
 
 By default, channels are trained together. Set `independent_channels=True` to
-allow information to flow between input channels.
+train each channel independently. Set it to `False` to allow information flow between
+input channels.
 
-```python title="Training non-independent channels"
+```python title="Training independent channels"
 --8<-- "current/configuration/care/advanced_care.py:adv_config_care_ind_channels"
 ```
 
@@ -356,5 +357,5 @@ Configurations are automatically saved with checkpoints, but they can also be sa
 and loaded manually.
 
 ```python title="Save and load configurations"
---8<-- "current/configuration/config_general/configuration_io.py:save_load"
+--8<-- "current/configuration/configuration_io.py:save_load"
 ```

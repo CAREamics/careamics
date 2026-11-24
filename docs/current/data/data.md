@@ -15,7 +15,7 @@ Depending on the algorithm, different data must be supplied. Here is a summary:
 | HDN | Noisy images | Optional clean images | Optional noise model |
 | Noise2Noise | Noisy images | Independently noisy images |  :lucide-circle-off: |
 | CARE | Noisy images | Clean or reference images |  :lucide-circle-off: |
-| MicroSplit | Mixed-channel images |  :lucide-circle-off: | Optional noise model |
+| MicroSplit | See [input modes](#microsplit-input-modes) |  :lucide-circle-off: | Optional noise model |
 | cryoCARE | Even reconstruction | Odd reconstruction |  :lucide-circle-off: |
 | Segmentation | Raw images | Label masks |  :lucide-circle-off: |
 
@@ -24,6 +24,24 @@ Depending on the algorithm, different data must be supplied. Here is a summary:
 
     In addition to the input and target, a mask to exclude particular regions from
     training and validation can be supplied. See [Masking](../careamist/careamist_training.md#masking).
+
+## Axes and shapes
+
+CAREamics accepts axes in the order used by the input data and internally converts
+arrays to the canonical `SC(Z)YX` order. The axis letters mean:
+
+- `S`: sample or image index;
+- `T`: time point;
+- `C`: channel;
+- `Z`: depth;
+- `Y`, `X`: spatial dimensions.
+
+`axes` describes the input data. `target_axes` describes the target/output layout
+stored in the configuration, while `predict(output_axes=...)` can override that layout
+for one prediction call. For example, `YXC` is a single sample with channels last,
+`SYX` is a stack of single-channel 2D images, and `SCZYX` is a stack of multi-channel
+3D images. Paired inputs and targets must agree on their sample and spatial axes, while
+their channel counts may differ for algorithms such as CARE.
 
 
 ## Formats
@@ -39,8 +57,8 @@ passed as is to the `CAREamist` (list or single array).
 
 ### TIFF
 
-As TIFF are widely used, they are the most common use case of CAREamics. TIFF loading
-is compatible with [in-memory training](../configuration/configuration.md#training-in-memory). If the
+As TIFF files are widely used, they are the most common use case of CAREamics. TIFF loading
+is compatible with [in-memory training](../configuration/care.md#training-in-memory). If the
 data is too large to fit in memory, CAREamics will train by loading files from disk,
 one at a time and cycle through them to extract patches. While slower, this ensure that
 training is performed over the entire set of files.
@@ -60,7 +78,7 @@ channels, the `C` axis should be present.
 as depth axis (as `Z`).
 - `T` and `Z` are mutually exclusive.
 
-```python title="Using CZI""
+```python title="Using CZI"
 --8<-- "current/data/data.py:czi"
 ```
 
@@ -71,7 +89,7 @@ as depth axis (as `Z`).
 channel.
 
 Only paths to CZI files can be used as input to CAREamics. Passing a directory containing
-multiple CZI files is not accepted as input, the list of files should be passed
+multiple CZI files are not accepted as input; the list of files should be passed
 explicitly.
 
 
@@ -79,7 +97,7 @@ explicitly.
 
     This example is valid for CARE and Noise2Noise, albeit with their respective
     function to create a configuration and the difference in number of channels
-    parameter naming. See the [configuration](../configuration/configuration.md#simple-configuration) section for
+    parameter naming. See the [configuration](../configuration/index.md) section for
     more details.
 
 
@@ -96,15 +114,16 @@ prediction:
 - Pointing to a single Zarr group using a URI (`file://path/to/file.zarr/group_name`)
 - Pointing to a single Zarr array using a URI (`file://path/to/file.zarr/group_name/array_name`)
 
-All these options are valid, and multiple can be bundled together in a list. The only constraints 
-is that the list must contain only URIs or only paths to Zarr files, but not a mix of both. Zarr 
-URIs can be constructed by getting a reference to a group or array, and calling
+All these options are valid, and multiple can be bundled together in a list. Do not mix
+filesystem paths and Zarr URIs in one list: the current validator determines the mode
+from the first entry and may silently discard entries of the other kind. Zarr URIs can
+be constructed by getting a reference to a group or array, and calling
 `group.store_path` or `array.store_path`.
 
 In the following example, we construct a Zarr file with arrays in different hierarchy
 levels, and showcase various ways to specify which array should be used for training.
 
-```python title="Using Zarr""
+```python title="Using Zarr"
 --8<-- "current/data/data.py:zarr"
 ```
 
@@ -127,7 +146,7 @@ levels, and showcase various ways to specify which array should be used for trai
 
 !!! warning "Multiscales OME-Zarr and Noise2Void"
 
-    Noise2Void is very sensitive to the noise distribution in the data, if a an image
+    Noise2Void is very sensitive to the noise distribution in the data; if an image
     has been downscaled, correlations may have been introduced in the noise, causing
     Noise2Void to perform poorly. We advise training on the raw unprocessed data if
     available.
@@ -137,7 +156,7 @@ levels, and showcase various ways to specify which array should be used for trai
 
 CAREamics allows reading formats not natively supported using two mechanisms:
 
-- Simple loading using a python function. All files with the expected file extension will be loaded in memory. 
+- Simple loading using a Python function. All files with the expected file extension will be loaded in memory.
 - Advanced loading using a custom `ImageStack` implementation, useful for chunked or memory-mapped file formats.
 
 ### Custom Read Function
@@ -152,6 +171,6 @@ See the [Custom Read Function Tutorial](../../tutorials/custom_data.md#custom-re
 
 ### Custom Image Stack Loader
 
-Training and predicting on a custom memory-mapped or chunked file format is more complex, but it enables training without loading an entire image file into memory at once. In involves implementing an [`ImageStack`][careamics.dataset.image_stack.ImageStack] class and an [`ImageStackLoader`][careamics.dataset.image_stack_loader] function to load the image stacks. The custom loading function can be implemented to accept any input type which will allow the same input type to be passed to training and prediction.
+Training and predicting on a custom memory-mapped or chunked file format is more complex, but it enables training without loading an entire image file into memory at once. It involves implementing an [`ImageStack`][careamics.dataset.image_stack.ImageStack] class and an [`ImageStackLoader`][careamics.dataset.image_stack_loader] function to load the image stacks. The custom loading function can be implemented to accept any input type, which will allow the same input type to be passed to training and prediction.
 
-See the [Custom Image Stack & Loader Tutorial](../../tutorials/custom_data.md#custom-image-stack-loader) for an example on using a custom read function.
+See the [Custom Image Stack & Loader Tutorial](../../tutorials/custom_data.md#custom-image-stack-loader) for an example on using a custom image stack loader.

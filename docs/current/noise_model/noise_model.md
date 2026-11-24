@@ -47,6 +47,27 @@ training epochs.
 polynomial used to describe how the noise parameters vary with signal intensity.
 `min_sigma` can be used to impose a lower bound on the fitted standard deviation.
 
+The high-level API also provides `CAREamist.train_noise_model()`. It trains the model,
+attaches it to the current HDN or MicroSplit module, and returns it for inspection:
+
+```python
+from careamics import CAREamist
+
+careamist = CAREamist(config)
+noise_model = careamist.train_noise_model(
+    signal,
+    observation,
+    axes="SCYX",
+    save=True,
+)
+careamist.train(train_data=data)
+```
+
+With `save=True` (the default), the per-channel models are written under
+`work_dir/noise_models`. Set `save=False` to keep the model in memory only. This
+convenience method is available for HDN and MicroSplit; other algorithms should use
+the standalone training function only for inspection or external workflows.
+
 ## Use a noise model with HDN
 
 Set `use_noise_model=True` in the HDN configuration and pass the generated `.npz`

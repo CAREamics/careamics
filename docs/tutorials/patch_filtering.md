@@ -4,7 +4,7 @@ Patch filtering is useful if your data contains large areas with no signal. Thes
 
 ### How does it work?
 
-CAREamics will perform a first pass through all the data before training starts to determine regions of background and regions of signal. Background regions will not be completely be excluded from training, instead their probability of being selected during an epoch will be reduced.
+CAREamics will perform a first pass through all the data before training starts to determine regions of background and regions of signal. Background regions will not be completely excluded from training; instead, their probability of being selected during an epoch will be reduced.
 
 There are two options for the filtering function, either:
 
@@ -43,7 +43,7 @@ CAREamics has 3 built-in filtering functions, which work by filtering out patche
 
 - [`MaxPatchFilter`][careamics.dataset.patch_filter.MaxPatchFilter]: that filters the data based on the max value of each region.
 - [`MeanStdPatchFilter`][careamics.dataset.patch_filter.MeanStdPatchFilter]: that filters the data based on the mean and optionally the standard deviation of regions of the data.
-- [`ShannonPatchFilter`][careamics.dataset.patch_filter.ShannonPatchFilter]: that filters the data based on the shannon entropy of regions of the data.
+- [`ShannonPatchFilter`][careamics.dataset.patch_filter.ShannonPatchFilter]: that filters the data based on the Shannon entropy of regions of the data.
 
 !!! note "Multi-channel data"
 
@@ -81,7 +81,7 @@ Now we inspect the filter maps to decide on a patch filtering function and thres
 
 ---
 
-We will choose the shannon patch filter, with a threshold of 7.5, and to confirm that this is a good choice we will look at the resulting mask, by using the `ShannonPatchFilter.apply_filter` method.
+We will choose the Shannon patch filter with a threshold of 7.5 and inspect the resulting mask with the `ShannonPatchFilter.apply_filter` method to confirm that it is a good choice.
 
 ```python title="Plot Filter Maps"
 --8<-- "tutorials/patch_filtering.py:mask"
@@ -106,7 +106,7 @@ We will create the configuration using `create_advanced_n2v_config` and passing 
 --8<-- "tutorials/patch_filtering.py:config"
 ```
 
-1. Using shannon filtering with a threshold of 7.5
+1. Using Shannon filtering with a threshold of 7.5
 
 !!! info "Multi-channel data"
 

@@ -64,9 +64,9 @@ to the various PyTorch modules are coherent.
 Windows or macOS). Feel free to play with it!
 3. Each class of algorithm in CAREamics has its own Lightning module (the model), here we
 are setting up Noise2Void, but the same can be done for CARE and N2N using the `CAREModule`.
-4. The Lightning Datamodule take `str`, `Path`, `numpy.ndarray` or list of those as input.
-For more details, refer to the [data documentation]().
-5. Careamics configuration has its own default set of parameters for the `ModelCheckpoint`
+4. The Lightning DataModule takes `str`, `Path`, `numpy.ndarray`, or a list of those as input.
+For more details, refer to the [data documentation](../data/data.md).
+5. The CAREamics configuration has its own default set of parameters for the `ModelCheckpoint`
 callback (and `EarlyStopping`). You can either use those or set up your own.
 6. The `ConfigSaverCallback` callback stores the CAREamics configuration in the
 checkpoints. It is optional in the Lightning API, add it if you want to load the
@@ -75,7 +75,7 @@ Without it, the checkpoint can still be loaded, but the training configuration f
 to its defaults. It is also required for checkpoints saved after `trainer.predict`:
 prediction replaces the trainer's datamodule, and only the callback keeps the training
 data configuration and its normalization statistics.
-7. Similarly, the configuration create training parameters configuration. You can set your
+7. Similarly, the configuration creates the training-parameter configuration. You can set your
 own rather than reusing those.
 8. As in any Lightning script, pass the model and datamodule to the trainer and call `fit` to start training.
 9. Our data modules require a data configuration, we reuse part of the training data 
@@ -99,6 +99,6 @@ predictions directly to disk. This is achieved by adding a `PredictionWriterCall
 perform some prediction in memory first.
 2. Add the prediction writer callback to the list of callbacks.
 3. Once we are ready to predict to disk, we set a `writing_strategy` (`tiff`, `zarr`, or
-`custom`), amd whether it is tiled.
+`custom`), and whether it is tiled.
 4. We also need to turn back writing on.
 5. Finally, we disable returning the predictions.

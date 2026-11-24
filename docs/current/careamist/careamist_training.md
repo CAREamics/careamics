@@ -29,6 +29,18 @@ root directory from which it is called. However, you can pass `work_dir` to the
 
 1. Pass a relative or absolute path.
 
+### Resume training
+
+To resume training from a checkpoint, pass its path when constructing `CAREamist` and
+call `train` again. The checkpoint restores the model and trainer state, including the
+optimizer state when it is present.
+
+```python
+careamist = CAREamist(checkpoint_path="path/to/experiment_last.ckpt")
+careamist.train(train_data=train_data)
+```
+
+
 ### Disabling progress bar
 
 The PyTorch Lightning progress bar is verbose, and can be disabled by passing
@@ -40,16 +52,17 @@ The PyTorch Lightning progress bar is verbose, and can be disabled by passing
 
 ## Training basics
 
-Once you have a `CAREamist` object, you can train CAREamics with the `train` method. Data 
-is expected to be coherent with the [choice in the configuration](../configuration/configuration.md#simple-configuration)
-and the [data section](../data/data.md#formats).
+Once you have a `CAREamist` object, you can train CAREamics with the `train` method. The
+data (input and/or targets) needs to be coherent with the [configuration](../configuration/index.md).
 
 Depending on the algorithm, you may have to pass [targets and additional data](../data/data.md#algorithms) (e.g. 
-noise model).
+noise model). Refer to the [data section](../data/data.md#algorithms) for more details on
+each algorithm. 
 
 When passing validation, the only constraint is that the validation data is of the same
 type as the training data. The amount of validation data is determined by the size of
-the validation data itself.
+the validation data itself. Note that not all algorithms are compatible with passing
+validation data.
 
 
 === "Noise2Void"
@@ -76,7 +89,6 @@ the validation data itself.
     ```
 
     1. Validation is passed to `val_data`.
-    2. Target validation should be provided as well.
 
 === "MicroSplit"
 
@@ -92,7 +104,8 @@ the validation data itself.
     --8<-- "current/careamist/careamist_training.py:train_cryocare_val"
     ```
 
-    1. Input and targets are reconstructions from splitted odd and even angles.
+    1. Input and targets are reconstructions from split odd and even angles.
+    2. cryoCARE is not compatible with passing explicit validation data.
 
 === "Segmentation"
 
@@ -106,23 +119,28 @@ the validation data itself.
 !!! note "Data format"
 
     Data should be an array, a path to a file, a path to a folder, or a list
-    of array/paths. See [formats section](../data/data.md#formats).
+    of array/paths. See [data formats section](../data/data.md#formats).
 
 !!! note "Passing a directory"
 
-    If you are passing a path to a directory and the data type if `tiff` (or a custom
+    If you are passing a path to a directory and the data type is `tiff` (or a custom
     type with the required reading utilities, see [custom data](#custom-data)), then
     all the files with the expected file extension in that directory (including sub-directories) will be used for
     training.
     
     Passing a directory is not compatible with CZI data.
 
+!! info "cryoCARE validation"
+
+    cryoCARE validation is automatically split from the training data along the `tilt_axis`
+    and validation cannot be passed to the `CAREamist`.
+
 
 ### Split train and validation data
 
 
 Without validation, CAREamics will split the data into training and validation internally.
-The amount of validation data can be set [in the configuration](../configuration/configuration.md#number-of-validation-patches).
+The amount of validation data can be set [in the configuration](../configuration/index.md).
 
 === "Noise2Void"
     
@@ -130,11 +148,16 @@ The amount of validation data can be set [in the configuration](../configuration
     --8<-- "current/careamist/careamist_training.py:train_n2v_no_val"
     ```
 
-=== "CARE/N2N"
+    1. Simply pass the training data.
+
+=== "CARE"
 
     ```python title="Training CARE"
     --8<-- "current/careamist/careamist_training.py:train_care_no_val"
     ```
+
+    1. Simply pass the training data.
+    2. And its target.
 
 === "HDN"
 
@@ -244,15 +267,13 @@ files used below.
     ```
 
 
-
-
 ### Masking
 
 Masking can be used to exclude certain regions from training, for example areas with no signal or with zero values.
 
 CAREamics supports two methods of masking data during training:
 
-- providing a mask of the training data to define from which region should the training patches be sampled, or
+- providing a mask of the training data to define which regions the training patches should be sampled from, or
 - built-in filtering functions. See the full [tutorial](../../tutorials/patch_filtering.md#filtering-functions).
 
 === "Noise2Void"
@@ -263,6 +284,12 @@ CAREamics supports two methods of masking data during training:
  
     1. The mask is passed alongside the data.
 
+=== "CARE"
+
+    ```python title="Specifying a mask for CARE training"
+    --8<-- "current/careamist/careamist_training.py:train_care_mask"
+    ```
+    
 === "HDN"
 
     ```python title="Specifying a mask for HDN training"
@@ -285,12 +312,6 @@ CAREamics supports two methods of masking data during training:
     --8<-- "current/careamist/careamist_training.py:train_segmentation_mask"
     ```
 
-=== "CARE/N2N"
-
-    ```python title="Specifying a mask for CARE training"
-    --8<-- "current/careamist/careamist_training.py:train_care_mask"
-    ```
-    
     1. The mask is passed alongside the data.
 
 !!! note "What is masked?"
@@ -309,7 +330,7 @@ configuration ([ModelCheckpoint](https://lightning.ai/docs/pytorch/stable/api/li
 and [EarlyStopping](https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.EarlyStopping.html)),
 but you can also pass additional callbacks.
 
-```python title="Passiong callbacks"
+```python title="Passing callbacks"
 --8<-- "current/careamist/careamist_training.py:callbacks"
 ```
 

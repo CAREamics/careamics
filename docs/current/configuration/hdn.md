@@ -34,7 +34,7 @@ against target data.
 - `experiment_name`: used during logging and automatic model saving. It
   should only contain letters, numbers, underscores, dashes, and spaces.
 - `data_type`: input data type. CAREamics supports `array` (when passing NumPy arrays
-  directly), `tiff`, `zarr`, `mrc`, `czi`, and `custom` (see [data](../data/)).
+  directly), `tiff`, `zarr`, `czi`, and `custom` (see [data](../data/)).
 - `axes`: axes of the input data, in the order they have on disk or in memory. Accepted
   axes are `(S)(T)(C)(Z)YX` in any order, with `YX` being contiguous.
 - `patch_size`: size of the spatial patches extracted during training, in `(Z)YX`
@@ -142,7 +142,7 @@ Loading data into memory can speed up patch extraction when the dataset fits in 
 ```
 
 Only `array`, `tiff`, and `custom` data types support in-memory training. Array data is
-kept in memory automatically. Other formats, such as `zarr`, `czi` or `mrc` use random
+kept in memory automatically. Other formats, such as `zarr` or `czi`, use random
 access from disk.
 
 ### Normalization
@@ -260,5 +260,5 @@ Configurations are automatically saved with checkpoints, but they can also be sa
 and loaded manually.
 
 ```python title="Save and load configurations"
---8<-- "current/configuration/config_general/configuration_io.py:save_load"
+--8<-- "current/configuration/configuration_io.py:save_load"
 ```

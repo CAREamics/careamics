@@ -176,5 +176,5 @@ Configurations are automatically saved with checkpoints, but they can also be sa
 and loaded manually.
 
 ```python title="Save and load configurations"
---8<-- "current/configuration/config_general/configuration_io.py:save_load"
+--8<-- "current/configuration/configuration_io.py:save_load"
 ```

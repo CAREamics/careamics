@@ -31,52 +31,22 @@ list:
 --8<-- "current/careamist/careamist_predicting.py:pred_empty_source"
 ```
 
-!!! note "Prediction output"
+!!! info "Prediction output"
 
-    By default, `predict` returns `(predictions, sources)`. For HDN and MicroSplit,
+    By default, `predict` returns `(predictions, sources)`.
+    
+    For HDN and MicroSplit, which are variational-autoencoder-based algorithms,
     passing `n_predictions` returns `(predictions, uncertainty, sources)`, where
     `uncertainty` is the per-pixel standard deviation across the sampled predictions.
+
     For segmentation models, use `segmentation_output="mask"` or
     `segmentation_output="probabilities"` to choose the output representation.
 
-### Sampling-based prediction
-
-HDN and MicroSplit are generative models and can draw multiple predictions for the same
-input. Pass `n_predictions` to average the sampled predictions and obtain a per-pixel
-standard-deviation estimate. It must be at least `2`.
-
-=== "HDN"
-
-    ```python title="HDN prediction with sampling"
-    --8<-- "current/careamist/careamist_predicting.py:pred_sampling_hdn"
-    ```
-
-=== "MicroSplit"
-
-    ```python title="MicroSplit prediction with sampling"
-    --8<-- "current/careamist/careamist_predicting.py:pred_sampling_microsplit"
-    ```
-
-The return values are `(predictions, uncertainty, sources)`. The uncertainty is the
-standard deviation across the sampled predictions; it does not include the likelihood
-variance.
-
-### cryoCARE prediction
-
-cryoCARE requires both reconstructions at prediction time. Pass one reconstruction as
-`pred_data` and its paired odd/even reconstruction as `pred_data_target`. cryoCARE runs
-the model on both and averages the two predictions; the target is therefore part of the
-prediction procedure, not a ground-truth output used only for metrics.
-
-```python title="cryoCARE prediction"
---8<-- "current/careamist/careamist_predicting.py:pred_cryocare"
-```
-
 !!! note "Dimensions of the prediction"
     
-    The returned predictions will have the same dimension order as the input data. The
-    only difference may be the channels dimension, which will depend on the algorithm
-    used (e.g. CARE can have different channel dimensions in input and output).
+    Predictions are restored to the configured target/original output shape and axis
+    order. The output axes can differ from the input axes when `target_axes` or
+    `output_axes` specifies a different order or channel layout.
 
 !!! note "Checkpoint"
 
@@ -85,8 +55,43 @@ prediction procedure, not a ground-truth output used only for metrics.
     use the best checkpoint (the one with the lowest validation loss) or the last
     checkpoint (the one from the last epoch).
 
-    Noise2Void and Noise2Noise will use the last checkpoint, while the other algorithms
-    will use the best checkpoint.
+    Noise2Void, Noise2Noise and cryoCARE will use the last checkpoint, while the other
+    algorithms will use the best checkpoint.
+
+### Prediction return values and output shapes
+
+| Model/workflow | Return values | Prediction content |
+|---|---|---|
+| Deterministic model (UNet)| `(predictions, sources)` | One prediction per input image, restored to the requested output axes |
+| HDN or MicroSplit with `n_predictions` | `(predictions, uncertainty, sources)` | Mean prediction and per-pixel standard deviation across stochastic samples |
+| Segmentation with `segmentation_output="mask"` | `(predictions, sources)` | Class mask selected from the highest-probability class |
+| Segmentation with `segmentation_output="probabilities"` | `(predictions, sources)` | Per-class probability map |
+| Tiled prediction | Same return structure as above | Tiles are stitched back into the requested output shape |
+
+
+### Sampling-based prediction
+
+HDN and MicroSplit are generative models and can draw multiple predictions for the same
+input. Pass `n_predictions` to average the sampled predictions and obtain a per-pixel
+standard-deviation estimate. It must be at least `2`.
+
+```python title="HDN/MicroSplit Sampling"
+--8<-- "current/careamist/careamist_predicting.py:pred_sampling_hdn"
+```
+
+
+The return values are `(predictions, uncertainty, sources)`. The uncertainty is the
+standard deviation across the sampled predictions.
+
+### cryoCARE prediction
+
+cryoCARE requires both odd and even reconstructions at prediction time. Pass one reconstruction as
+`pred_data` and its paired odd/even reconstruction as `pred_data_target`. cryoCARE runs
+the model on both and averages the two predictions.
+
+```python title="cryoCARE prediction"
+--8<-- "current/careamist/careamist_predicting.py:pred_cryocare"
+```
 
 ### Tiling
 
@@ -97,7 +102,7 @@ a `tile_size` to the prediction method.
 --8<-- "current/careamist/careamist_predicting.py:pred_tiled"
 ```
 
-1. The `tile_size` need not be equal to the training patch size.
+1. `tile_size` needs to be specified and may not be equal to the patch size (see notes).
 2. Overlaps are optional, and default to `(48, 48)`
 
 
@@ -115,19 +120,31 @@ a `tile_size` to the prediction method.
     The tiling size should be chosen based on the size of the images and the available
     memory. A good starting point is to use a patch size that is a multiple of
     `2**model_depth`. You can then play with `batch_size` to find the optimal memory
-    usage.
+    usage. For large receptive fields (UNet with depth `>2` or LVAE), it is better to
+    use the training patch as tile since otherwise the tiles will be out of distribution.
 
     Note that the overlaps must be larger than the receptive field of the network.
 
+
 !!! warning "Dimensions"
 
-    Obviously, the tiling and overlaps must respect the dimensions of the images (2D
+    Tile sizes and overlaps must respect the dimensions of the images (2D
     or 3D).
 
 ### Changing dataloading parameters
 
 During prediction, you can change the dataloading parameters by passing them to the
 `predict` method. The parameters `batch_size` and `num_workers` can be set through the `predict` function arguments, while any other parameters have to be changed through the configuration.
+
+For example, set other PyTorch `DataLoader` options through
+`config.data_config.pred_dataloader_params`:
+
+```python
+config.data_config.pred_dataloader_params = {
+    "pin_memory": True,
+    "persistent_workers": True,
+}
+```
 
 ```python title="Prediction"
 --8<-- "current/careamist/careamist_predicting.py:pred_dataloader"
@@ -141,8 +158,8 @@ axes or format. The `predict` method allows changing these parameters (`axes`,
 
 Here, let's say we trained from arrays of axes `YX`, and now want to predict with the
 trained model on a TIFF file (we have a path `pred_data_path`) that has multiple
-time-points. We need to set `new_axes` to `SYX` to specify the new axes order. We also
-need to specify the new axes and `data_type`. Finally, we do not want to train in-memory.
+time-points. We set `axes="SYX"` to specify the input axes and `data_type="tiff"`.
+Finally, we do not want to load the data in memory.
 
 ```python title="Prediction"
 --8<-- "current/careamist/careamist_predicting.py:pred_data_params"
@@ -152,7 +169,7 @@ need to specify the new axes and `data_type`. Finally, we do not want to train i
 
 !!! warning "Coherence of the data parameters"
 
-    Prediction data must have the same type content as the training data (we talk about
+    Prediction data must have the same type of content as the training data (we talk about
     the data being "in distribution"). That means that it cannot have different spatial
     axes or suddenly have more channels.
 
@@ -166,19 +183,22 @@ need to specify the new axes and `data_type`. Finally, we do not want to train i
 
 !!! note "New target axes"
 
-    `target_axes` are used to determine the axes order of the prediction. If you used
-    targets during training (e.g. CARE), and are changing the axes during prediction,
-    you may need to adjust the `target_axes` as well.
+    `target_axes` is the configuration-level default for the prediction output axes.
+    The `predict(output_axes=...)` argument overrides it. For example,
+    `predict(..., axes="SYX", output_axes="CYX")` requests channel-first output.
 
 ### Choosing the checkpoint
 
 Checkpoints can be specified by passing a `checkpoint` argument to the `predict` method.
 It can be either a path to a checkpoint file or one of the keywords specified by
-PyTorch Lightning (typically `"best"` or `"last"`, see [documentation](https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict)).
+PyTorch Lightning (`"best"` or `"last"`).
 
 ```python title="Prediction with checkpoint"
 --8<-- "current/careamist/careamist_predicting.py:pred_checkpoint"
 ```
+
+1. `careamist.get_checkpoints()` returns a dictionary of all available checkpoints.
+
 
 !!! warning "Noise2Void and Noise2Noise"
 
@@ -190,7 +210,7 @@ PyTorch Lightning (typically `"best"` or `"last"`, see [documentation](https://l
 ## Predicting to disk
 
 Prediction can also be saved directly to disk. This is particularly useful for large
-number of files that may not fit in memory.
+numbers of files that may not fit in memory.
 
 ```python title="Predict directly to the disk"
 --8<-- "current/careamist/careamist_predicting.py:pred_to_disk"
@@ -205,34 +225,30 @@ number of files that may not fit in memory.
     dataloader parameters or checkpoints. Refer to the previous sections for more
     details.
 
+    It also accepts `n_predictions` for stochastic HDN/MicroSplit prediction and
+    `segmentation_output="mask"` or `"probabilities"` for segmentation models.
+
 !!! note "Default format"
 
-    Predictions are currently by default written as TIFF files.
+    Predictions are currently by default written as the input format for TIFF, Zarr or
+    MRC files, otherwise as TIFF files.
 
 !!! note "CZI format"
 
     Prediction directly to disk is not available for CZI data. 
 
-!!! note "Zarr format"
-
-    Prediction directly to disk is with Zarr requires tiling to be enabled, and the
-    original axes need to be in canonical order (S)(T)(C)(Z)YX.
-
 
 ### Change the write type
 
-You can also select a different write type that the default or from the source data.
+You can also select a different write type from the default or from the source data.
 
 ```python title="Predict with a different type"
 --8<-- "current/careamist/careamist_predicting.py:pred_write_type"
 ```
 
-1. The write type can be changed. Currently, only `tiff` and `zarr` are supported.
+1. The supported write types are `tiff`, `zarr`, and `custom`. Custom output requires
+   `write_extension` and `write_func`.
 
-
-!!! important "Zarr as write type"
-
-    Zarr can be selected as write type only if tiling is enabled.
 
 ### Use a custom write function
 
