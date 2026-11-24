@@ -312,6 +312,8 @@ def create_advanced_n2v_config(
     independent_channels: bool = True,
     normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
+    zarr_backend: Literal["zarr", "zarrs", "tensorstore"] = "zarr",
+    ome_scale: str = "0",
     # n2v specific
     use_n2v2: bool = False,
     roi_size: int = 11,
@@ -423,6 +425,11 @@ def create_advanced_n2v_config(
         Specify the configuration for patch filtering. Patch filtering reduces the
         probability of background patches being selected during training. If `None`,
         no patch filter is applied.
+    zarr_backend : {"zarr", "zarrs", "tensorstore"}, default="zarr"
+        Backend used to read and write Zarr arrays, only effective if `data_type` is set
+        to `zarr`.
+    ome_scale : str or None, default=None
+        OME scale to use when loading OME-Zarr files.
     use_n2v2 : bool, default=False
         Whether to use N2V2.
     roi_size : int, default=11
@@ -499,6 +506,8 @@ def create_advanced_n2v_config(
         num_workers=num_workers,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
+        zarr_backend=zarr_backend,
+        ome_scale=ome_scale,
         seed=seed,
     )
 
