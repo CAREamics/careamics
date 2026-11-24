@@ -1,5 +1,6 @@
 import pytest
 
+from careamics.config.data.normalization_config import MeanStdConfig
 from careamics.config.factories.config_discriminators import instantiate_norm_config
 from careamics.config.factories.seg_factory import (
     _get_expected_target_axes,
@@ -56,19 +57,26 @@ def test_get_input_size(axes, channels, n_channels_in, exp_n_channels):
     assert result == exp_n_channels
 
 
-@pytest.mark.parametrize("normalization", ["quantile", "mean_std", "min_max", "none"])
 @pytest.mark.parametrize(
-    "norm_params", [None, {}, {"skip_target": False}, {"skip_target": True}]
+    "normalization",
+    [
+        "quantile",
+        "mean_std",
+        "min_max",
+        "none",
+        MeanStdConfig(),
+        MeanStdConfig(target_mode="same_as_input"),
+    ],
 )
-def test_get_norm_dict_with_target_skipped(normalization, norm_params):
+def test_get_norm_dict_with_target_skipped(normalization):
     """Test that the returned dictionary always has target skipped."""
-    norm_dict = _get_norm_dict_with_target_skipped(normalization, norm_params)
+    norm_dict = _get_norm_dict_with_target_skipped(normalization)
 
     # check that one can instantiate a configuration
     cfg = instantiate_norm_config(norm_dict)
 
     if normalization != "none":
-        assert cfg.skip_target
+        assert cfg.target_mode == "none"
 
 
 def test_loss_parameters_are_configured():
