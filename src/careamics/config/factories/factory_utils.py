@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import Literal
 
 from careamics.config.augmentations import (
-    SPATIAL_TRANSFORMS_UNION,
+    DefaultAugs,
     XYFlipConfig,
     XYRandomRotate90Config,
 )
@@ -69,7 +69,7 @@ def validate_input_channels(
 def assemble_augmentations(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None,
     seed: int | None = None,
-) -> list[SPATIAL_TRANSFORMS_UNION]:
+) -> list[DefaultAugs]:
     """Assemble a list of augmentations.
 
     Parameters

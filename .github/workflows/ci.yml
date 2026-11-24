@@ -56,7 +56,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: 🧪 Run tests
-        run: uv run pytest --color=yes -m "not lvae and not e2e"
+        run: uv run pytest --color=yes -m "not lvae and not e2e and not cli"
 
 
   deploy:

@@ -8,12 +8,9 @@ from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from numpy.typing import NDArray
 
-from .config.algorithms import (
-    CAREAlgorithm,
-    N2NAlgorithm,
-    N2VAlgorithm,
-)
+from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
 from .config.configuration import Configuration
+from .config.data import DataInputFormat
 from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
 from .config.support import SupportedAlgorithm, SupportedLogger
@@ -30,6 +27,7 @@ from .lightning.data import CareamicsDataModule, InputVar
 from .lightning.logger import CoLogger
 from .lightning.modules import (
     CAREamicsModule,
+    SegModule,
     create_module,
 )
 from .lightning.prediction import convert_predict_outputs
@@ -42,7 +40,6 @@ from .lightning.utils import (
 from .model_io.bmz_io import load_from_bmz
 from .models import get_model_constraints
 from .models.lvae.noise_models import MultiChannelNoiseModel
-from .noise_model import train_noise_model
 from .utils import get_logger, get_run_version
 from .utils.reshape_array import reshape_array
 
@@ -52,6 +49,7 @@ logger = get_logger(__name__)
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
 InputType = ArrayInput | PathInput
+SegPredictionOutput = Literal["mask", "probabilities"]
 NoiseModelInput: TypeAlias = MultiChannelNoiseModel | list[str | Path]
 OutputType = tuple[list[NDArray], list[str]]
 OutputTypeWithUncertainty = tuple[list[NDArray], list[NDArray], list[str]]
@@ -61,9 +59,12 @@ ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | Configuration[SegAlgorithm]
     | HDNConfiguration
     | MicroSplitConfiguration
 )
+
+DataOutputFormat = Literal["tiff", "zarr", "custom"]
 
 
 class CAREamist:
@@ -73,7 +74,7 @@ class CAREamist:
     ----------
     config : Configuration | Path | str, default=None
         CAREamics configuration, or a path to a configuration file. See
-        `careamics.config.ng_factories` for method to build configurations.
+        `careamics.config.factories` for method to build configurations.
     checkpoint_path : Path | str, default=None
         Path to a checkpoint file from which to load the model and configuration.
     bmz_path : Path | str, default=None
@@ -128,7 +129,7 @@ class CAREamist:
         ----------
         config : Configuration | Path | str, default=None
             CAREamics configuration, or a path to a configuration file. See
-            `careamics.config.ng_factories` for method to build configurations. `config`
+            `careamics.config.factories` for method to build configurations. `config`
             is mutually exclusive with `checkpoint_path` and `bmz_path`.
         checkpoint_path : Path | str, default=None
             Path to a checkpoint file from which to load the model and configuration.
@@ -240,21 +241,21 @@ class CAREamist:
 
     @staticmethod
     def _default_write_type(
-        write_type: Literal["tiff", "zarr", "custom"] | None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
-    ) -> Literal["tiff", "zarr", "custom"]:
+        write_type: DataOutputFormat | None,
+        data_type: DataInputFormat,
+    ) -> DataOutputFormat:
         """Default the write type from the prediction data type.
 
         Parameters
         ----------
-        write_type : {"tiff", "zarr", "custom"} or None
+        write_type : DataOutputFormat or None
             The write type requested by the user, or None to infer it.
-        data_type : {"array", "tiff", "zarr", "czi", "custom"}
+        data_type : DataInputFormat
             The (effective) prediction data type.
 
         Returns
         -------
-        {"tiff", "zarr", "custom"}
+        DataOutputFormat
             The resolved write type.
         """
         if write_type is not None:
@@ -267,7 +268,7 @@ class CAREamist:
     @staticmethod
     def _predict_in_memory(
         in_memory: bool | None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"],
+        data_type: DataInputFormat,
     ) -> bool | None:
         """Resolve the `in_memory` setting for prediction.
 
@@ -279,7 +280,7 @@ class CAREamist:
         ----------
         in_memory : bool or None
             The `in_memory` value requested by the user, or None to infer it.
-        data_type : {"array", "tiff", "zarr", "czi", "custom"}
+        data_type : DataInputFormat
             The (effective) prediction data type.
 
         Returns
@@ -688,7 +689,7 @@ class CAREamist:
             train_data_target=train_data_target,
             val_data_target=val_data_target,
             train_data_mask=filtering_mask,
-            model_constraints=get_model_constraints(self.config.algorithm_config.model),
+            model_constraints=get_model_constraints(self.config.algorithm_config),
             loading=loading,  # type: ignore
         )
 
@@ -715,79 +716,6 @@ class CAREamist:
         # disable auto-logging hparams
         self.trainer.enable_autolog_hparams = False
 
-    def train_noise_model(
-        self,
-        signal: NDArray,
-        observation: NDArray,
-        axes: str,
-        *,
-        n_gaussian: int = 3,
-        n_coeff: int = 3,
-        min_sigma: float = 125.0,
-        n_epochs: int = 2000,
-        save: bool = True,
-    ) -> MultiChannelNoiseModel:
-        """Train a noise model and attach it for the noise model likelihood.
-
-        This is a thin convenience wrapper over
-        `careamics.noise_model.train_noise_model`: it fits one Gaussian-mixture noise
-        model per channel from `(signal, observation)` pairs, optionally saves the
-        trained models under `work_dir/noise_models`, attaches the result to the
-        underlying module (so a subsequent `train()` needs nothing else), and returns
-        it for inspection.
-
-        The `signal` is a clean/denoised estimate (typically an N2V prediction) and the
-        `observation` is the matching raw noisy data. Only MicroSplit and HDN use noise
-        models.
-
-        Parameters
-        ----------
-        signal : numpy.ndarray
-            Clean/denoised signal, shape `(S, C, [Z], Y, X)` or `(S, [Z], Y, X)`.
-        observation : numpy.ndarray
-            Noisy observation matching `signal`.
-        axes : str
-            Axes of `signal` and `observation` (e.g. "SCYX"); both are reshaped to
-            the canonical `SC(Z)YX` order before fitting.
-        n_gaussian : int, default=3
-            Number of Gaussian components per channel.
-        n_coeff : int, default=3
-            Number of polynomial coefficients for signal-dependent parameters.
-        min_sigma : float, default=125.0
-            Minimum standard deviation for the Gaussian components.
-        n_epochs : int, default=2000
-            Number of training epochs.
-        save : bool, default=True
-            Whether to save the trained noise models under `work_dir/noise_models`.
-
-        Returns
-        -------
-        MultiChannelNoiseModel
-            The trained multi-channel noise model, also attached to the module.
-
-        Raises
-        ------
-        ValueError
-            If the current algorithm does not support a noise model.
-        """
-        if not hasattr(self.model, "set_noise_model"):
-            raise ValueError(
-                f"The {self.config.get_algorithm_friendly_name()} algorithm does not "
-                "support a noise model (only MicroSplit and HDN do)."
-            )
-        noise_model = train_noise_model(
-            signal,
-            observation,
-            axes,
-            n_gaussian=n_gaussian,
-            n_coeff=n_coeff,
-            min_sigma=min_sigma,
-            n_epochs=n_epochs,
-            save_dir=self.work_dir / "noise_models" if save else None,
-        )
-        self.model.set_noise_model(noise_model)
-        return noise_model
-
     def _build_predict_datamodule(
         self,
         pred_data: Any,
@@ -798,7 +726,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
@@ -825,8 +753,9 @@ class CAREamist:
         output_axes : str | None, default=None
             Output axes used for reshaping prediction. If None, uses `target_axes` from
             the training configuration.
-        data_type : {"array", "tiff", "zarr", "czi", "custom"} | None, default=None
+        data_type : DataInputFormat | None
             Data type for prediction. If None, uses training configuration data type.
+            Default is `None`.
         num_workers : int | None, default=None
             Number of workers for data loading during prediction.
         channels : Sequence[int] | Literal["all"] | None, default=None
@@ -873,9 +802,31 @@ class CAREamist:
             data_config=pred_data_config,
             pred_data=pred_data,
             pred_data_target=pred_data_target,
-            model_constraints=get_model_constraints(self.config.algorithm_config.model),
+            model_constraints=get_model_constraints(self.config.algorithm_config),
             loading=loading,
         )
+
+    # TODO: merge _configure_sampling in? We may need a general model update
+    # mechanism, see #1148
+    def _update_model_parameters(
+        self,
+        segmentation_output: SegPredictionOutput | None = None,
+    ) -> None:
+        """Update model parameters.
+
+        Parameters
+        ----------
+        segmentation_output : {"mask", "probabilities"} or None, default=None
+            Prediction output for segmentation models. If None, the value from
+            the algorithm configuration is used.
+        """
+        # for segmentation, update the algorithm parameter in the module
+        if (
+            self.config.algorithm_config.algorithm == "seg"
+            and segmentation_output is not None
+        ):
+            assert isinstance(self.model, SegModule)
+            self.model.config.prediction_output = segmentation_output
 
     def _configure_sampling(self, n_predictions: int | None) -> None:
         """Set how many stochastic predictions the model draws per input.
@@ -924,19 +875,22 @@ class CAREamist:
         # BASIC PARAMS
         pred_data: InputVar,
         *,
+        pred_data_target: InputVar | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> OutputType: ...
 
     @overload  # any data input is allowed for ImageStackLoading, single prediction
@@ -945,19 +899,22 @@ class CAREamist:
         # BASIC PARAMS
         pred_data: Any,
         *,
+        pred_data_target: Any | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> OutputType: ...
 
     @overload  # constrained input data type, averaged predictions with uncertainty
@@ -966,17 +923,19 @@ class CAREamist:
         # BASIC PARAMS
         pred_data: InputVar,
         *,
+        pred_data_target: InputVar | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int,
     ) -> OutputTypeWithUncertainty: ...
 
@@ -986,17 +945,19 @@ class CAREamist:
         # BASIC PARAMS
         pred_data: Any,
         *,
+        pred_data_target: Any | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int,
     ) -> OutputTypeWithUncertainty: ...
 
@@ -1005,19 +966,22 @@ class CAREamist:
         # BASIC PARAMS
         pred_data: InputVar,
         *,
+        pred_data_target: InputVar | None = None,
         batch_size: int | None = None,
         tile_size: tuple[int, ...] | None = None,
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
         in_memory: bool | None = None,
         loading: Loading = None,
         checkpoint: str | Path | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> OutputType | OutputTypeWithUncertainty:
         """
         Predict on data and return the predictions.
@@ -1039,6 +1003,8 @@ class CAREamist:
         ----------
         pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
             Data to predict on. Can be a single item or a sequence of paths/arrays.
+        pred_data_target : Any, optional
+            Optional target paired with `pred_data`.
         batch_size : int, optional
             Batch size for prediction. If not provided, uses the training configuration
             batch size.
@@ -1080,6 +1046,9 @@ class CAREamist:
             the sampling-based algorithms (HDN and MicroSplit). Note that the
             estimate is the spread of the drawn predictions alone: it excludes the
             likelihood variance and so under-estimates the total uncertainty.
+        segmentation_output : {"mask", "probabilities"} or None, default=None
+            Prediction output for segmentation models. If None, the value from
+            the algorithm configuration is used.
 
         Returns
         -------
@@ -1101,6 +1070,7 @@ class CAREamist:
 
         datamodule = self._build_predict_datamodule(
             pred_data,
+            pred_data_target=pred_data_target,
             batch_size=batch_size,
             tile_size=tile_size,
             tile_overlap=tile_overlap,
@@ -1114,6 +1084,8 @@ class CAREamist:
         )
 
         checkpoint = self._get_default_ckpt(checkpoint)
+
+        self._update_model_parameters(segmentation_output=segmentation_output)
 
         try:
             predictions: list[PredictStepOutput] = self.trainer.predict(
@@ -1171,7 +1143,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -1179,11 +1151,13 @@ class CAREamist:
         loading: ReadFuncLoading | None = None,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] | None = None,
+        write_type: DataOutputFormat | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -1199,7 +1173,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -1207,11 +1181,13 @@ class CAREamist:
         loading: ImageStackLoading = ...,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] | None = None,
+        write_type: DataOutputFormat | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> None: ...
 
     def predict_to_disk(
@@ -1226,7 +1202,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] | None = (48, 48),
         axes: str | None = None,
         output_axes: str | None = None,
-        data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | None = None,
+        data_type: DataInputFormat | None = None,
         # ADVANCED PARAMS
         num_workers: int | None = None,
         channels: Sequence[int] | Literal["all"] | None = None,
@@ -1234,11 +1210,13 @@ class CAREamist:
         loading: Loading = None,
         checkpoint: str | Path | None = None,
         # WRITE OPTIONS
-        write_type: Literal["tiff", "zarr", "custom"] | None = None,
+        write_type: DataOutputFormat | None = None,
         write_extension: str | None = None,
         write_func: WriteFunc | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
+        segmentation_output: SegPredictionOutput | None = None,
     ) -> None:
         """
         Make predictions on the provided data and save outputs to files.
@@ -1266,7 +1244,7 @@ class CAREamist:
         pred_data : pathlib.Path, str, numpy.ndarray, or sequence of these
             Data to predict on. Can be a single item or a sequence of paths/arrays.
         pred_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these
-            Prediction data target, by default None.
+            Optional target paired with `pred_data`.
         prediction_dir : Path | str, default="predictions"
             The path to save the prediction results to. If `prediction_dir` is an
             absolute path, it will be used as-is. If it is a relative path, it will
@@ -1305,7 +1283,7 @@ class CAREamist:
             path to a specific checkpoint. If None, uses the last checkpoint from
             training Noise2Void or Noise2Noise models, otherwise the best checkpoint.
             Call `CAREamist.get_checkpoints` for a list of available checkpoints.
-        write_type : {"tiff", "zarr", "custom"}, optional
+        write_type : DataOutputFormat, optional
             The data type to save as, includes custom. If None, defaults to "zarr"
             when the (effective) prediction `data_type` is "zarr", and "tiff"
             otherwise.
@@ -1322,6 +1300,9 @@ class CAREamist:
             written prediction. Must be at least 2, and is only supported by the
             sampling-based algorithms (HDN and MicroSplit). The uncertainty across
             those predictions is not currently written.
+        segmentation_output : {"mask", "probabilities"} or None, default=None
+            Prediction output for segmentation models. If None, the value from
+            the algorithm configuration is used.
 
         Raises
         ------
@@ -1388,6 +1369,8 @@ class CAREamist:
             in_memory=in_memory,
             loading=loading,
         )
+
+        self._update_model_parameters(segmentation_output=segmentation_output)
 
         try:
             self.trainer.predict(

@@ -5,7 +5,6 @@ from pathlib import Path
 import torch
 
 from careamics.config.configuration import Configuration
-from careamics.config.support import SupportedArchitecture
 from careamics.lightning.modules import CAREamicsModule, create_module
 from careamics.model_io.bmz_io import load_from_bmz
 
@@ -86,13 +85,12 @@ def _load_checkpoint(
     config = Configuration(**cfg_dict)
 
     # create careamics lightning module
-    if config.algorithm_config.model.architecture == SupportedArchitecture.UNET:
+    try:
         model = create_module(config.algorithm_config)
-
-    else:
+    except ValueError as e:
         raise ValueError(
             f"Unsupported architecture {config.algorithm_config.model.architecture}"
-        )
+        ) from e
 
     # loading model state_dict
     model.model.load_state_dict(checkpoint)

@@ -14,7 +14,9 @@ from careamics.config.algorithms import (
     CAREAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    SegAlgorithm,
 )
+from careamics.config.augmentations import DefaultAugs
 from careamics.config.data import DataConfig
 from careamics.config.lightning.training_configuration import (
     TrainingConfig,
@@ -24,7 +26,9 @@ from careamics.models import (
     get_model_constraints,
 )
 
-AlgorithmConfig = TypeVar("AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm)
+AlgorithmConfig = TypeVar(
+    "AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
+)
 
 
 class Configuration(BaseModel, Generic[AlgorithmConfig]):
@@ -88,7 +92,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: DataConfig
+    data_config: DataConfig[DefaultAugs]
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
@@ -172,7 +176,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
         if not hasattr(self.data_config.patching, "patch_size"):
             return self
 
-        model_constraints = get_model_constraints(self.algorithm_config.model)
+        model_constraints = get_model_constraints(self.algorithm_config)
         model_constraints.validate_spatial_shape(self.data_config.patching.patch_size)
 
         return self
@@ -188,7 +192,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
             Validated configuration.
         """
         if self.data_config.channels is not None:
-            model_constraints = get_model_constraints(self.algorithm_config.model)
+            model_constraints = get_model_constraints(self.algorithm_config)
             model_constraints.validate_input_channels(len(self.data_config.channels))
 
         return self
@@ -321,7 +325,7 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
 
     def is_supervised(self) -> bool:
         """
-        Return whether the algorithm is supervised.
+        Whether the algorithm is supervised.
 
         This is true for CARE and N2N, and false for N2V. This is used to determine
         whether a target is required for training.

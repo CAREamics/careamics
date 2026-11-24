@@ -11,19 +11,26 @@ from careamics.config.algorithms import (
     MicroSplitAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    SegAlgorithm,
 )
 from careamics.config.configuration import Configuration
+from careamics.config.data.cryocare_data_config import CryoCAREDataConfig
 from careamics.config.data.data_config import DataConfig
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
 from careamics.config.data.normalization_config import NormalizationConfig
 from careamics.config.hdn_configuration import HDNConfiguration
 from careamics.config.microsplit_configuration import MicroSplitConfiguration
 from careamics.config.n2v_configuration import N2VConfiguration
+from careamics.config.seg_configuration import SegConfiguration
 from careamics.config.support import SupportedAlgorithm
 
 OTHERS = "others"
 
 _MICROSPLIT_DATA_FIELDS = frozenset(MicroSplitDataConfig.model_fields) - frozenset(
+    DataConfig.model_fields
+)
+
+_CRYOCARE_DATA_FIELDS = frozenset(CryoCAREDataConfig.model_fields) - frozenset(
     DataConfig.model_fields
 )
 
@@ -88,6 +95,8 @@ def _data_discriminator(data: Any) -> str | None:
         return None
     if _MICROSPLIT_DATA_FIELDS.intersection(data):
         return SupportedAlgorithm.MICROSPLIT
+    if _CRYOCARE_DATA_FIELDS.intersection(data):
+        return SupportedAlgorithm.CRYOCARE
     return OTHERS
 
 
@@ -96,6 +105,7 @@ def _data_discriminator(data: Any) -> str | None:
 Config = Annotated[
     Union[
         Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V)],
+        Annotated[SegConfiguration, Tag(SupportedAlgorithm.SEG)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
         Annotated[Configuration, Tag(SupportedAlgorithm.N2N)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CRYOCARE)],
@@ -111,6 +121,7 @@ AlgorithmConfig = Annotated[
         Annotated[CAREAlgorithm, Tag(SupportedAlgorithm.CARE)],
         Annotated[N2NAlgorithm, Tag(SupportedAlgorithm.N2N)],
         Annotated[CryoCAREAlgorithm, Tag(SupportedAlgorithm.CRYOCARE)],
+        Annotated[SegAlgorithm, Tag(SupportedAlgorithm.SEG)],
         Annotated[HDNAlgorithm, Tag(SupportedAlgorithm.HDN)],
         Annotated[MicroSplitAlgorithm, Tag(SupportedAlgorithm.MICROSPLIT)],
     ],
@@ -120,6 +131,7 @@ AlgorithmConfig = Annotated[
 DataCfg = Annotated[
     Union[
         Annotated[MicroSplitDataConfig, Tag(SupportedAlgorithm.MICROSPLIT)],
+        Annotated[CryoCAREDataConfig, Tag(SupportedAlgorithm.CRYOCARE)],
         Annotated[DataConfig, Tag(OTHERS)],
     ],
     Discriminator(_data_discriminator),
