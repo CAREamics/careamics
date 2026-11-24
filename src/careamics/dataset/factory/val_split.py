@@ -2,11 +2,116 @@
 
 import numpy as np
 
-from ..patching import (
+from careamics.dataset.patching import (
     FixedPatching,
     PatchSpecs,
     StratifiedPatching,
 )
+
+
+def create_tilt_axis_split(
+    stratified_patching: StratifiedPatching,
+    tilt_axis: str,
+    validation_fraction: float,
+) -> tuple[StratifiedPatching, FixedPatching]:
+    """Create train and validation patching strategies split along a spatial axis.
+
+    Grid cells that could produce a patch crossing the boundary between train and val
+    are excluded from training and validation.
+
+    Parameters
+    ----------
+    stratified_patching : StratifiedPatching
+        Patching strategy to split.
+    tilt_axis : str
+        Axis along which to split the volume. Must be `"Z"`, `"Y"`, or `"X"`.
+    validation_fraction : float
+        Fraction of the selected spatial axis reserved for validation. The validation
+        slab is placed at the high-coordinate end of the axis.
+
+    Returns
+    -------
+    StratifiedPatching
+        Modified training strategy.
+    FixedPatching
+        Fixed validation strategy.
+
+    Raises
+    ------
+    ValueError
+        If the axis, fraction, patch dimensionality, or available split regions are
+        invalid.
+    """
+    patch_size = tuple(stratified_patching.patch_size)
+    if len(patch_size) != 3:
+        raise ValueError(
+            "Tilt-axis validation splitting is only supported for 3D patches."
+        )
+
+    axis_idx = "ZYX".index(tilt_axis)  # splitting happens in canonical space
+
+    all_grid_coords = stratified_patching.get_all_grid_coords()
+    validation_specs: list[PatchSpecs] = []
+    count_train_regions = 0
+    count_val_regions = 0
+
+    # loop over files
+    for data_idx, data_shape in enumerate(stratified_patching.data_shapes):
+        spatial_shape = tuple(data_shape[-3:])
+        cutoff = int(spatial_shape[axis_idx] * (1 - validation_fraction))
+
+        # loop over sample
+        for sample_idx in range(data_shape[0]):
+            sample_id = (data_idx, sample_idx)
+            train_excluded_coords: list[tuple[int, ...]] = []
+
+            for grid_coord in all_grid_coords[sample_id]:
+                coord = tuple(
+                    int(grid * size)
+                    for grid, size in zip(grid_coord, patch_size, strict=True)
+                )
+                patch_end = coord[axis_idx] + patch_size[axis_idx]
+
+                # exclude cross boundary
+                in_train = patch_end <= cutoff
+                in_validation = coord[axis_idx] >= cutoff and patch_end <= (
+                    spatial_shape[axis_idx]
+                )
+
+                # exclude grid cell from training
+                if in_train:
+                    count_train_regions += 1
+                else:
+                    train_excluded_coords.append(grid_coord)
+
+                # add to validation
+                if in_validation:
+                    count_val_regions += 1
+                    validation_specs.append(
+                        {
+                            "data_idx": data_idx,
+                            "sample_idx": sample_idx,
+                            "coords": coord,
+                            "patch_size": patch_size,
+                        }
+                    )
+
+            stratified_patching.exclude_patches(
+                data_idx, sample_idx, train_excluded_coords
+            )
+
+    if count_train_regions == 0 or stratified_patching.n_patches == 0:
+        raise ValueError(
+            "The tilt-axis split leaves no training patches. Reduce the validation "
+            "fraction or patch size."
+        )
+    if count_val_regions == 0:
+        raise ValueError(
+            "The tilt-axis split leaves no validation patches. Increase the volume "
+            "size or validation fraction, or reduce the patch size."
+        )
+
+    return stratified_patching, FixedPatching(validation_specs)
 
 
 def create_val_split(
