@@ -138,8 +138,8 @@ PyTorch Lightning (typically `"best"` or `"last"`, see [documentation](https://l
 !!! warning "Noise2Void and Noise2Noise"
 
     Noise2Void and Noise2Noise models do not have a well-defined "best" checkpoint
-    based on validation loss. CAREamics emits a warning if a positive `save_top_k`
-    enables best checkpointing for these algorithms.
+    based on validation loss. Specify an explicit path if you want to use a
+    specific checkpoint.
 
 
 ## Predicting to disk
