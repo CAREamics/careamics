@@ -1,12 +1,10 @@
 """Noise-model examples for the documentation."""
 
-# --8<-- [start:noise_model_data]
 import numpy as np
 
 rng = np.random.default_rng(42)
 signal = rng.uniform(0, 255, size=(10, 64, 64)).astype(np.float32)
 observation = signal + rng.normal(0, 10, size=signal.shape).astype(np.float32)
-# --8<-- [end:noise_model_data]
 
 # --8<-- [start:noise_model_train]
 from careamics.noise_model import train_noise_model

@@ -5,11 +5,8 @@ description: Train and use noise models with CAREamics
 
 # Noise models
 
-CAREamics can use a trained Gaussian-mixture noise model in the noise-model
-likelihoods of [HDN](../configuration/hdn.md) and
+CAREamics can use a trained Gaussian-mixture noise model in the loss of [HDN](../configuration/hdn.md) and
 [MicroSplit](../configuration/microsplit.md).
-Noise models are not required for the default Gaussian-likelihood or self-supervised
-workflows.
 
 ## What a noise model represents
 
@@ -24,49 +21,22 @@ The arrays must have identical shapes. Their axes are passed explicitly, for exa
 
 ## Create signal and observation pairs
 
-The following example creates a small synthetic dataset with additive Gaussian noise.
-In a real workflow, `signal` would generally be a denoised estimate and `observation`
-would be the original noisy acquisition.
-
-```python title="Preparing noise-model training data"
---8<-- "current/noise_model/noise_model.py:noise_model_data"
-```
+The easiest way to create pairs of signal and observation is to train Noise2Void, use it
+to predict denoised images. Together, the raw images and the denoised predictions can
+be used to train a noise model.
 
 ## Train and save a noise model
 
-`train_noise_model` fits one Gaussian-mixture model per channel. The saved directory
-contains one `.npz` file per channel. For a quick example, use a small number of
-Gaussian components and epochs; realistic experiments generally need more data and
-training epochs.
+Once you have pairs of signal and observation images, you can train the noise model using
+`train_noise_model`.
 
 ```python title="Training a noise model"
 --8<-- "current/noise_model/noise_model.py:noise_model_train"
 ```
 
-`n_gaussian` controls the number of mixture components, while `n_coeff` controls the
-polynomial used to describe how the noise parameters vary with signal intensity.
-`min_sigma` can be used to impose a lower bound on the fitted standard deviation.
-
-The high-level API also provides `CAREamist.train_noise_model()`. It trains the model,
-attaches it to the current HDN or MicroSplit module, and returns it for inspection:
-
-```python
-from careamics import CAREamist
-
-careamist = CAREamist(config)
-noise_model = careamist.train_noise_model(
-    signal,
-    observation,
-    axes="SCYX",
-    save=True,
-)
-careamist.train(train_data=data)
-```
-
-With `save=True` (the default), the per-channel models are written under
-`work_dir/noise_models`. Set `save=False` to keep the model in memory only. This
-convenience method is available for HDN and MicroSplit; other algorithms should use
-the standalone training function only for inspection or external workflows.
+- `n_gaussian` controls the number of mixture components (Gaussians)
+- `n_coeff` controls the polynomial used to describe how the noise parameters vary with signal intensity.
+- `min_sigma` can be used to impose a lower bound on the fitted standard deviation.
 
 ## Use a noise model with HDN
 
@@ -83,7 +53,7 @@ likelihood when training HDN against explicit target images.
 
 ## Use a noise model with MicroSplit
 
-For MicroSplit, set `noise_model_likelihood_weight` to a non-zero value and pass the
+For MicroSplit, set `use_noise_model` to `True` and pass the
 per-channel model files to `CAREamist.train`.
 
 ```python title="Using a noise model with MicroSplit"
@@ -91,14 +61,9 @@ per-channel model files to `CAREamist.train`.
 ```
 
 MicroSplit's noise-model likelihood requires mean-standard-deviation normalization.
-Keep the noise model and the training data in the same raw intensity space; CAREamics
-normalizes the model internally when required.
 
 ## Practical considerations
 
 - Use signal/observation pairs with matching spatial content and axes.
 - Train the model on data representative of the images that will be denoised.
 - Keep intensity ranges consistent between noise-model training and denoising.
-- Train one model per channel when channels have different noise characteristics.
-- A noise model is an input to the likelihood; it does not replace the algorithm's
-  denoising model or configuration.

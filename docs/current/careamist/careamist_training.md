@@ -104,8 +104,8 @@ validation data.
     --8<-- "current/careamist/careamist_training.py:train_cryocare_val"
     ```
 
-    1. Input and targets are reconstructions from split odd and even angles.
-    2. cryoCARE is not compatible with passing explicit validation data.
+    1. Input and targets are reconstructions from split odd and even angles. cryoCARE is
+    not compatible with passing explicit validation data.
 
 === "Segmentation"
 
@@ -130,7 +130,7 @@ validation data.
     
     Passing a directory is not compatible with CZI data.
 
-!! info "cryoCARE validation"
+!!! info "cryoCARE validation"
 
     cryoCARE validation is automatically split from the training data along the `tilt_axis`
     and validation cannot be passed to the `CAREamist`.
@@ -140,7 +140,7 @@ validation data.
 
 
 Without validation, CAREamics will split the data into training and validation internally.
-The amount of validation data can be set [in the configuration](../configuration/index.md).
+The number of validation patches can be set [in the configuration](../configuration/index.md).
 
 === "Noise2Void"
     
@@ -177,8 +177,6 @@ The amount of validation data can be set [in the configuration](../configuration
     ```python title="Training cryoCARE"
     --8<-- "current/careamist/careamist_training.py:train_cryocare_no_val"
     ```
-
-    1. cryoCARE requires paired even and odd reconstructions.
 
 === "Segmentation"
 
@@ -223,8 +221,8 @@ defined and instantiated, they can be passed to the `CAREamist` to train on cust
 
 === "MicroSplit"
 
-    ```python title="Training HDN on custom data"
-    --8<-- "current/careamist/careamist_training.py:train_hdn_custom"
+    ```python title="Training MicroSplit on custom data"
+    --8<-- "current/careamist/careamist_training.py:train_microsplit_custom"
     ```
 
     1. Both `ReadFuncLoading` and `ImageStackLoading` can be passed to `loading`.
@@ -250,7 +248,7 @@ defined and instantiated, they can be passed to the `CAREamist` to train on cust
 
 ### Noise model
 
-HDN and MicroSplit can use a trained noise model during training. See the
+HDN and MicroSplit can use a noise model during training. See the
 [noise-model guide](../noise_model/noise_model.md) for how to train and save the model
 files used below.
 
