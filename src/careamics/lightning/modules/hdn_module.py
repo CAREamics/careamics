@@ -17,7 +17,7 @@ from careamics.dataset.normalization.mean_std_normalization import MeanStdNormal
 from careamics.dataset.normalization.normalization import Normalization
 from careamics.losses.lvae import hdn_loss
 from careamics.metrics import SIPSNR
-from careamics.models.lvae import LadderVAE
+from careamics.models.lvae import LVAE
 from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 from careamics.models.model_factory import model_factory
 from careamics.utils.logging import get_logger
@@ -86,7 +86,7 @@ class HDNModule(L.LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config: HDNAlgorithm = config
 
-        self.model: LadderVAE = cast("LadderVAE", model_factory(self.config.model))
+        self.model: LVAE = cast("LVAE", model_factory(self.config.model))
         self.loss_func = hdn_loss
 
         # These attributes should be kept our of the `state_dict` and nn.Module

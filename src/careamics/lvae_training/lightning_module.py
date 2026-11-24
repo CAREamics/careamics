@@ -14,7 +14,7 @@ import numpy as np
 import torch
 import torchvision.transforms.functional as F
 
-from careamics.models.lvae.lvae import LadderVAE
+from careamics.models.lvae.lvae import LVAE
 from careamics.models.lvae.utils import (
     LossType,
     compute_batch_mean,
@@ -27,7 +27,6 @@ from .train_utils import MetricMonitor
 
 
 class LadderVAELight(L.LightningModule):
-
     def __init__(
         self,
         config: ml_collections.ConfigDict,
@@ -55,8 +54,11 @@ class LadderVAELight(L.LightningModule):
         self.target_ch = target_ch
 
         # Initialize LVAE model
-        self.model = LadderVAE(
-            data_mean=data_mean, data_std=data_std, config=config, target_ch=target_ch
+        self.model = LVAE(
+            data_mean=data_mean,
+            data_std=data_std,
+            config=config,
+            target_ch=target_ch,
         )
 
         ##### Define attributes from config #####
@@ -297,7 +299,7 @@ class LadderVAELight(L.LightningModule):
             )
             channels_rinvpsnr.append(psnr)
             psnr = torch_nanmean(psnr).item()
-            self.log(f"val_psnr_l{i+1}", psnr, on_epoch=True)
+            self.log(f"val_psnr_l{i + 1}", psnr, on_epoch=True)
 
         recons_loss = recons_loss_dict["loss"]
         if torch.isnan(recons_loss).any():

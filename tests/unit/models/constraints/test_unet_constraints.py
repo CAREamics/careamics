@@ -72,7 +72,7 @@ def _incompatible_shapes(depth: int):
         )
     ),
 )
-def test_validate_input_shape(x_shape, z_shape, depth, expected_error):
+def test_validate_spatial_shape(x_shape, z_shape, depth, expected_error):
     cfg = UNetConfig(
         architecture="UNet",
         depth=depth,
@@ -86,7 +86,7 @@ def test_validate_input_shape(x_shape, z_shape, depth, expected_error):
 
 
 @pytest.mark.parametrize("length", [1, 4])
-def test_validate_input_shape_wrong_length(length):
+def test_validate_spatial_shape_wrong_length(length):
     depth = 2
     shape = (_compatible_shapes(depth=depth)[0],) * length
 
