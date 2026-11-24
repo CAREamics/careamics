@@ -1207,9 +1207,6 @@ class DataConfig(BaseModel, Generic[AugmentationT]):
         )
 
         # create new config
-        # The base conversion historically reconstructed a plain DataConfig, which
-        # dropped algorithm-specific fields. Child configurations add back the fields
-        # that are valid in the converted mode after calling this helper.
         model_dict = self.model_dump(include=set(DataConfig.model_fields))
         model_dict.update(
             {

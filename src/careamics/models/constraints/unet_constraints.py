@@ -6,7 +6,7 @@ from careamics.config.architectures import UNetConfig
 
 
 class UNetConstraints:
-    """UNet model constraints on input tensors spatial shape.
+    """UNet model constraints on input and output tensors.
 
     Parameters
     ----------
