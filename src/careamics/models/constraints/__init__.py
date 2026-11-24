@@ -1,6 +1,7 @@
 """Model constraints."""
 
 __all__ = [
+    "CryoCAREUNetConstraints",
     "LVAEConstraints",
     "ModelConstraints",
     "SegUNetConstraints",
@@ -8,6 +9,7 @@ __all__ = [
     "get_model_constraints",
 ]
 
+from .cryocare_unet_constraints import CryoCAREUNetConstraints
 from .lvae_constraints import LVAEConstraints
 from .model_constraints import ModelConstraints
 from .model_constraints_factory import get_model_constraints

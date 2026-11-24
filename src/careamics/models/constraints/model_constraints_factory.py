@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from careamics.config.factories.config_discriminators import AlgorithmConfig
 
 
+from .cryocare_unet_constraints import CryoCAREUNetConstraints
 from .lvae_constraints import LVAEConstraints
 from .model_constraints import ModelConstraints
 from .seg_unet_constraints import SegUNetConstraints
@@ -45,8 +46,11 @@ def get_model_constraints(algorithm_config: AlgorithmConfig) -> ModelConstraints
         case SupportedAlgorithm.MICROSPLIT | SupportedAlgorithm.HDN:
             assert isinstance(algorithm_config.model, LVAEConfig)
             return LVAEConstraints(algorithm_config.model)
+        case SupportedAlgorithm.CRYOCARE:
+            assert isinstance(algorithm_config.model, UNetConfig)
+            return CryoCAREUNetConstraints(algorithm_config.model)
         case _:
             raise ValueError(
-                f"Algorithm {algorithm_config.algorithm} has no corresponding model"
+                f"Algorithm {algorithm_config.algorithm} has no corresponding model "
                 f"constraints."
             )
