@@ -43,7 +43,7 @@ classifiers = [
 dependencies = [
     # --- Core dependencies ---
     "numpy>=1.21,<=2.4.6",
-    'pydantic>=2.11,<=2.14.2',
+    'pydantic>=2.11,<=2.14.4',
     "lightning>=2.2,!=2.6.2,!=2.6.3,<=2.6.6",
     # lightning caps torch and torchmetrics dependency
     # see https://github.com/Lightning-AI/pytorch-lightning/blob/master/requirements/pytorch/base.txt
@@ -51,7 +51,7 @@ dependencies = [
     'torchmetrics >0.7.0, <1.9.0',
 
     # --- Data, image processing and visualization ---
-    'pyyaml!=6.0.0,<=6.0.3',
+    'pyyaml!=6.0.0,<=6.0.4',
     'scikit-image<=0.26.0',
     'zarr>=3.0.0,<4.0.0',
     'tifffile<=2026.3.3',
@@ -69,6 +69,9 @@ dependencies = [
     # --- Others ---
     'psutil<=7.2.2', # used for virtual memory estimation
 ]
+
+[project.scripts]
+careamics = "careamics.cli.main:main"
 
 [project.optional-dependencies]
 
@@ -180,6 +183,7 @@ markers = [
     "lvae: marks tests as testing lvae",
     "e2e: marks longer running end-to-end tests",
     "czi: marks tests using czi files",
+    "cli: marks tests for the command-line interface",
 ]
 
 # https://coverage.readthedocs.io/en/6.4/config.html

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Union
 import torch
 
 from careamics.config.support import SupportedArchitecture
-from careamics.models.lvae import LadderVAE as LVAE
+from careamics.models.lvae import LVAE
 from careamics.models.unet import UNet
 from careamics.utils import get_logger
 
@@ -31,7 +31,7 @@ def model_factory(
 
     Parameters
     ----------
-    model_configuration : Union[UNetModel, VAEModel]
+    model_configuration : Union[UNetConfig, LVAEConfig]
         Model configuration.
 
     Returns
