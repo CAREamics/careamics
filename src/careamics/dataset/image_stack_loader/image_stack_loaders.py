@@ -14,6 +14,7 @@ from careamics.image_io import ReadFunc
 from ..image_stack import (
     FileImageStack,
     InMemoryImageStack,
+    MrcImageStack,
     ZarrImageStack,
 )
 from ..image_stack.czi_image_stack import CziImageStack
@@ -62,7 +63,7 @@ def load_tiffs(source: Sequence[Path], axes: str) -> list[InMemoryImageStack]:
     return [InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source]
 
 
-# TODO: better name
+# TODO: find a better name?
 # iter Tiff
 def load_iter_tiff(source: Sequence[Path], axes: str) -> list[FileImageStack]:
     # TODO: better docs
@@ -82,6 +83,24 @@ def load_iter_tiff(source: Sequence[Path], axes: str) -> list[FileImageStack]:
         Lazily loaded ImageStacks backed by the source files.
     """
     return [FileImageStack.from_tiff(path=path, axes=axes) for path in source]
+
+
+def load_mrcs(source: Sequence[Path], axes: str) -> list[MrcImageStack]:
+    """Create memory-mapped image stacks from MRC files.
+
+    Parameters
+    ----------
+    source : sequence of Path
+        MRC source files.
+    axes : str
+        Axis order of the MRC data.
+
+    Returns
+    -------
+    list of MrcImageStack
+        Lazily memory-mapped image stacks.
+    """
+    return [MrcImageStack(source=path, axes=axes) for path in source]
 
 
 # Custom file type case (loaded into memory)

@@ -6,6 +6,7 @@ __all__ = [
     "load_custom_file",
     "load_czis",
     "load_iter_tiff",
+    "load_mrcs",
     "load_tiffs",
     "load_zarrs",
 ]
@@ -16,6 +17,7 @@ from .image_stack_loaders import (
     load_custom_file,
     load_czis,
     load_iter_tiff,
+    load_mrcs,
     load_tiffs,
     load_zarrs,
 )
