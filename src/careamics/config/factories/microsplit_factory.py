@@ -32,6 +32,7 @@ def create_microsplit_config(
     n_val_patches: int = 8,
     multiscale_count: int = 3,
     use_noise_model: bool = True,
+    seed: int | None = None,
 ) -> MicroSplitConfiguration:
     """Create a configuration for training MicroSplit.
 
@@ -64,6 +65,8 @@ def create_microsplit_config(
     use_noise_model : bool, default=True
         Whether to use a noise model during training. If `True`, a noise model must be
         supplied at train time.
+    seed : int or None, default=None
+        Random seed for reproducibility.
 
     Returns
     -------
