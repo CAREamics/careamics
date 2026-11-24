@@ -6,6 +6,8 @@ from careamics.config.support import SupportedData
 from careamics.image_io import SupportedWriteType, WriteFunc, get_write_func
 
 from .image_write_strategy import ImageWriteStrategy
+from .mrc_image_write_strategy import MrcImageWriteStrategy
+from .mrc_tile_write_strategy import MrcTileWriteStrategy
 from .tile_write_strategy import TileWriteStrategy
 from .write_strategy import WriteStrategy
 from .zarr_tile_write_strategy import ZarrTileWriteStrategy
@@ -58,17 +60,19 @@ def create_write_strategy(
 
     write_strategy: WriteStrategy
     if not tiled:
-        write_func = select_write_func(write_type=write_type, write_func=write_func)
-        write_extension = select_write_extension(
-            write_type=write_type, write_extension=write_extension
-        )
-        write_strategy = ImageWriteStrategy(
-            write_func=write_func,
-            write_extension=write_extension,
-            write_func_kwargs=write_func_kwargs,
-        )
+        if write_type == "mrc":
+            write_strategy = MrcImageWriteStrategy()
+        else:
+            write_func = select_write_func(write_type=write_type, write_func=write_func)
+            write_extension = select_write_extension(
+                write_type=write_type, write_extension=write_extension
+            )
+            write_strategy = ImageWriteStrategy(
+                write_func=write_func,
+                write_extension=write_extension,
+                write_func_kwargs=write_func_kwargs,
+            )
     else:
-        # select CacheTiles or ZarrTiles
         write_strategy = _create_tiled_write_strategy(
             write_type=write_type,
             write_func=write_func,
@@ -93,7 +97,7 @@ def _create_tiled_write_strategy(
 
     Parameters
     ----------
-    write_type : {"tiff", "zarr", "custom"}
+    write_type : {"tiff", "zarr", "mrc", "custom"}
         The data type to save as, includes custom.
     write_func : WriteFunc, optional
         If a known `write_type` is selected this argument is ignored. For a custom
@@ -116,6 +120,8 @@ def _create_tiled_write_strategy(
     """
     if write_type == "zarr":
         return ZarrTileWriteStrategy()
+    elif write_type == "mrc":
+        return MrcTileWriteStrategy()
     else:
         write_func = select_write_func(write_type=write_type, write_func=write_func)
         write_extension = select_write_extension(

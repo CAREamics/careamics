@@ -30,6 +30,28 @@ def common_source_base(sources: Sequence[Path | str]) -> Path | None:
         return None
 
 
+def remove_even_odd_suffix(file_path: Path) -> Path:
+    """Remove a trailing `_even` or `_odd` suffix from a file name.
+
+    Parameters
+    ----------
+    file_path : pathlib.Path
+        Source file path.
+
+    Returns
+    -------
+    pathlib.Path
+        File path with a trailing even/odd suffix removed, if present.
+    """
+    file_path = Path(file_path)
+    for suffix in ("_even", "_odd"):
+        if file_path.stem.endswith(suffix):
+            return file_path.with_name(
+                file_path.stem[: -len(suffix)] + file_path.suffix
+            )
+    return file_path
+
+
 def create_write_file_path(
     dirpath: Path,
     file_path: Path,
