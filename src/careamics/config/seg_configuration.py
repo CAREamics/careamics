@@ -34,12 +34,12 @@ class SegConfiguration(Configuration):
         Raises
         ------
         ValueError
-            If `data_config.normalization.skip_target` is not `True`.
+            If `data_config.normalization.target_mode` is not `"none"`.
         """
         norm = self.data_config.normalization
-        if norm.name != "none" and not norm.skip_target:
+        if norm.name != "none" and norm.target_mode != "none":
             raise ValueError(
-                f"Normalization {norm} must have parameter `skip_target` set to `False`"
+                f"Normalization {norm} must have parameter `target_mode` set to `none`"
                 f" for segmentation tasks."
             )
         return self
