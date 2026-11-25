@@ -6,11 +6,16 @@ from typing import Any, Literal
 from careamics.config.algorithms import COSDDAlgorithm
 from careamics.config.architectures import COSDDConfig
 from careamics.config.cosdd_configuration import COSDDConfiguration
+from careamics.config.data.normalization_config import (
+    NormalizationConfig,
+    NormalizationStr,
+)
 from careamics.config.lightning.optimizer_configs import (
     LrSchedulerConfig,
     OptimizerConfig,
 )
 
+from .config_discriminators import instantiate_norm_config
 from .data_factory import SupportedPatchFilterConfig, create_data_configuration
 from .factory_utils import assemble_augmentations, validate_input_channels
 from .training_factory import create_training_configuration, update_trainer_params
@@ -96,8 +101,7 @@ def create_advanced_cosdd_config(
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] = (),
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
-    normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
-    normalization_params: dict[str, Any] | None = None,
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     # model parameters
     model_params: dict[str, Any] | None = None,
@@ -163,10 +167,8 @@ def create_advanced_cosdd_config(
         Whether to load all data into memory.
     channels : Sequence of int or None, default=None
         List of channels to use. If `None`, all channels are used.
-    normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
-        Normalization strategy.
-    normalization_params : dict or None, default=None
-        Strategy-specific normalization parameters.
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
+        Normalization strategy to use, or a normalization configuration.
     patch_filter_config : SupportedPatchFilterConfig or None, default=None
         Patch filter configuration, reducing the probability of selecting
         background patches during training.
@@ -248,9 +250,11 @@ def create_advanced_cosdd_config(
         **scheduler,
     )
 
-    norm_config = {"name": normalization}
-    if normalization_params is not None:
-        norm_config.update(normalization_params)
+    norm_config = (
+        instantiate_norm_config({"name": normalization})
+        if isinstance(normalization, str)
+        else normalization
+    )
 
     data_config = create_data_configuration(
         data_type=data_type,

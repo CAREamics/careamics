@@ -502,7 +502,9 @@ def test_predict_cosdd_from_checkpoint(tmp_path: Path):
     predicted, _ = careamist.predict(train_array, checkpoint="last")
 
     reloaded = CAREamist(
-        checkpoint_path=careamist.get_checkpoints()[-1], work_dir=tmp_path
+        checkpoint_path=careamist.get_checkpoint_root()
+        / careamist.get_checkpoints()["last"],
+        work_dir=tmp_path,
     )
     predicted_reloaded, _ = reloaded.predict(train_array)
 

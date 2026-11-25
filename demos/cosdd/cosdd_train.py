@@ -157,7 +157,7 @@ def main() -> None:
             else None
         ),
         "last_model_path": str(ckpt_cb.last_model_path),
-        "checkpoints": [str(p) for p in careamist.get_checkpoints()],
+        "checkpoint_record": careamist.get_checkpoints(),
     }
     losses = careamist.get_losses()
     info["final_val_loss"] = float(np.asarray(losses.val_loss.value)[-1])

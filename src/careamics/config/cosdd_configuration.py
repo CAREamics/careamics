@@ -3,11 +3,15 @@
 import warnings
 from typing import Self
 
-from pydantic import model_validator
+from pydantic import ValidationInfo, field_validator, model_validator
 
 from careamics.config.algorithms import COSDDAlgorithm
 from careamics.config.augmentations import XYRandomRotate90Config
 from careamics.config.data.data_config import Mode
+from careamics.config.lightning.training_configuration import TrainingConfig
+from careamics.config.validators.training_validators import (
+    warn_supervised_checkpointing_params,
+)
 
 from .configuration import Configuration
 
@@ -145,6 +149,30 @@ class COSDDConfiguration(Configuration):
             Validated configuration.
         """
         return self
+
+    @field_validator("training_config", mode="after")
+    @classmethod
+    def warn_checkpointing_params(
+        cls, training_config: TrainingConfig, info: ValidationInfo
+    ) -> TrainingConfig:
+        """Warn about checkpointing parameters unsuitable for COSDD.
+
+        COSDD ranks its checkpoints by the validation loss.
+
+        Parameters
+        ----------
+        training_config : TrainingConfig
+            Training configuration to validate.
+        info : pydantic.ValidationInfo
+            Validation context for the field.
+
+        Returns
+        -------
+        TrainingConfig
+            Validated training configuration.
+        """
+        warn_supervised_checkpointing_params(training_config)
+        return training_config
 
     def set_3D(self, is_3D: bool, axes: str, patch_size: list[int]) -> None:
         """

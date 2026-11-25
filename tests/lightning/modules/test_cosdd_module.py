@@ -8,6 +8,7 @@ import torch
 from lightning.pytorch import Trainer
 
 from careamics.config import COSDDConfiguration, create_advanced_cosdd_config
+from careamics.config.data.normalization_config import MeanStdConfig
 from careamics.lightning.data import CareamicsDataModule
 from careamics.lightning.modules import COSDDModule, create_module
 from careamics.lightning.utils.load_checkpoint import (
@@ -27,7 +28,7 @@ def _config(**kwargs) -> COSDDConfiguration:
         "n_val_patches": 2,
         "n_grad_batches": 1,
         "num_workers": 0,
-        "normalization_params": {"input_means": [0.0], "input_stds": [1.0]},
+        "normalization": MeanStdConfig(input_means=[0.0], input_stds=[1.0]),
         "model_params": {"s_code_channels": 8, "n_layers": 2, "checkpointed": False},
     }
     params.update(kwargs)
