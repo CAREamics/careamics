@@ -24,22 +24,36 @@ model weights to disk. Checkpoints are stored under the `work_dir` passed to the
 The intermediate checkpoints correspond to the epochs with the lowest validation loss,
 while `<experiment_name>_last.ckpt` is the checkpoint from the final epoch.
 
-### Listing checkpoints
+### Checkpoint record
 
-The `get_checkpoints` method returns the available checkpoint paths, sorted by epoch
-number, with the last checkpoint (if present) appended at the end.
+The `CAREamist` will automatically create a `checkpoints_record.json` file to record the checkpoints that were created during training.
 
-```python title="Listing checkpoints"
+The `get_checkpoints` method reads the `checkpoints_record.json` and returns the structured record as a dictionary.
+This record contains: the best; last; top-k; suggested checkpoint for inference; a list of all the checkpoints, including those saved periodically; along with the metric monitored and mode (whether a greater or smaller metric is considered better).
+It returns `None` when no checkpoint record exists.
+
+For example you can access the top-k checkpoints saved, according to the monitored metric, by accessing the `"best_k"` key.
+
+```python title="Read the list of all the checkpoints"
 --8<-- "current/saving_models.py:get_checkpoints"
 ```
 
 ### Reloading a checkpoint
 
-A `CAREamist` can be recreated from any checkpoint path, for instance to run prediction
-in a new session.
+A `CAREamist` can be recreated from any checkpoint path, for instance to run prediction in a new session. 
+Note that, if predicting directly after training the CAREamist will automatically load the selected checkpoint for inference.
+To predict with a different checkpoint, a new CAREamist instance must be created.
 
 ```python title="Reloading from a checkpoint"
 --8<-- "current/saving_models.py:reload"
+```
+
+The checkpoint record can also be read using the utility function `read_checkpoint_record`. 
+It takes the checkpoint directory, which contains the checkpoints and the `checkpoint_record.json` file, as input.
+It will return `None` if no `checkpoint_record.json` file is found.
+
+```python
+--8<-- "current/saving_models.py:util-load"
 ```
 
 See [Predicting with CAREamics](./careamist_predicting.md) for how to select the best or

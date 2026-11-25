@@ -3,6 +3,7 @@
 __all__ = [
     "CAREModule",
     "CareamicsDataModule",
+    "CheckpointRecordLogger",
     "ConfigSaverCallback",
     "ImageStackLoading",
     "MicroSplitDataModule",
@@ -27,6 +28,7 @@ from .callbacks import (
     ProgressBarCallback,
     StopPredictionCallback,
 )
+from .checkpoint_record_logger import CheckpointRecordLogger
 from .data import CareamicsDataModule
 from .data.microsplit_data_module import (
     MicroSplitDataModule,
