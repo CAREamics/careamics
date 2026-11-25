@@ -9,10 +9,12 @@ __all__ = [
     "get_logger",
     "get_ram_size",
     "get_run_version",
+    "read_checkpoint_record",
 ]
 
 
 from .autocorrelation import autocorrelation, autocorrelation_stack
+from .checkpointing import read_checkpoint_record
 from .context import cwd, get_careamics_home
 from .folder_versioning import get_run_version
 from .get_device import get_device

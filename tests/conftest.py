@@ -334,6 +334,8 @@ def pre_trained(tmp_path):
         patch_size=patch_size,
         batch_size=2,
         masked_pixel_percentage=masked_pixel_percentage,
+        num_steps=1,
+        num_epochs=2,
     )
 
     # instantiate CAREamist
