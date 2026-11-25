@@ -1,44 +1,9 @@
 """Convenience function to create algorithm configurations."""
 
-from typing import Annotated, Any, Literal, Union
+from typing import Any, Literal
 
-from pydantic import Field, TypeAdapter
-
-from careamics.config.algorithms import (
-    CAREAlgorithm,
-    N2NAlgorithm,
-    N2VAlgorithm,
-    SegAlgorithm,
-    # PN2VAlgorithm,  # TODO not yet compatible with NG Dataset
-)
 from careamics.config.architectures import UNetConfig
 from careamics.config.support.supported_architectures import SupportedArchitecture
-
-
-# TODO replace by config_discriminator.instantiate_algorithm_config ?
-def algorithm_factory(
-    algorithm: dict[str, Any],
-) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, SegAlgorithm]:
-    """
-    Create an algorithm model for training CAREamics.
-
-    Parameters
-    ----------
-    algorithm : dict
-        Algorithm dictionary.
-
-    Returns
-    -------
-    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm or SegAlgorithm
-        Algorithm model for training CAREamics.
-    """
-    adapter: TypeAdapter = TypeAdapter(
-        Annotated[
-            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, SegAlgorithm],
-            Field(discriminator="algorithm"),
-        ]
-    )
-    return adapter.validate_python(algorithm)
 
 
 def create_algorithm_configuration(

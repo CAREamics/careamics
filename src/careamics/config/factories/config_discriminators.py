@@ -6,6 +6,7 @@ from pydantic import Discriminator, Tag, TypeAdapter
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
+    CryoCAREAlgorithm,
     HDNAlgorithm,
     MicroSplitAlgorithm,
     N2NAlgorithm,
@@ -13,6 +14,7 @@ from careamics.config.algorithms import (
     SegAlgorithm,
 )
 from careamics.config.configuration import Configuration
+from careamics.config.cryocare_configuration import CryoCAREConfiguration
 from careamics.config.data.cryocare_data_config import CryoCAREDataConfig
 from careamics.config.data.data_config import DataConfig
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
@@ -107,6 +109,7 @@ Config = Annotated[
         Annotated[SegConfiguration, Tag(SupportedAlgorithm.SEG)],
         Annotated[Configuration, Tag(SupportedAlgorithm.CARE)],
         Annotated[Configuration, Tag(SupportedAlgorithm.N2N)],
+        Annotated[CryoCAREConfiguration, Tag(SupportedAlgorithm.CRYOCARE)],
         Annotated[HDNConfiguration, Tag(SupportedAlgorithm.HDN)],
         Annotated[MicroSplitConfiguration, Tag(SupportedAlgorithm.MICROSPLIT)],
     ],
@@ -118,6 +121,7 @@ AlgorithmConfig = Annotated[
         Annotated[N2VAlgorithm, Tag(SupportedAlgorithm.N2V)],
         Annotated[CAREAlgorithm, Tag(SupportedAlgorithm.CARE)],
         Annotated[N2NAlgorithm, Tag(SupportedAlgorithm.N2N)],
+        Annotated[CryoCAREAlgorithm, Tag(SupportedAlgorithm.CRYOCARE)],
         Annotated[SegAlgorithm, Tag(SupportedAlgorithm.SEG)],
         Annotated[HDNAlgorithm, Tag(SupportedAlgorithm.HDN)],
         Annotated[MicroSplitAlgorithm, Tag(SupportedAlgorithm.MICROSPLIT)],

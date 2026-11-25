@@ -4,6 +4,7 @@ import pytest
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
+    CryoCAREAlgorithm,
     HDNAlgorithm,
     MicroSplitAlgorithm,
     N2NAlgorithm,
@@ -12,6 +13,7 @@ from careamics.config.algorithms import (
 )
 from careamics.config.architectures import LVAEConfig, UNetConfig
 from careamics.models.constraints import (
+    CryoCAREUNetConstraints,
     LVAEConstraints,
     SegUNetConstraints,
     UNetConstraints,
@@ -29,7 +31,7 @@ def test_get_model_constraints_unet(algorithm):
 
 
 def test_get_model_constraints_seg_unet():
-    """UNet configs are dispatched to `UNetConstraints`."""
+    """Seg configs are dispatched to `SegUNetConstraints`."""
     constraints = get_model_constraints(
         SegAlgorithm(
             model=UNetConfig(
@@ -40,6 +42,12 @@ def test_get_model_constraints_seg_unet():
         )
     )
     assert isinstance(constraints, SegUNetConstraints)
+
+
+def test_get_model_constraints_cryocare_unet():
+    """cryoCARE configs are dispatched to `CryoCAREUNetConstraints`."""
+    constraints = get_model_constraints(CryoCAREAlgorithm())
+    assert isinstance(constraints, CryoCAREUNetConstraints)
 
 
 @pytest.mark.parametrize("algorithm", [HDNAlgorithm, MicroSplitAlgorithm])

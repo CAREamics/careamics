@@ -53,7 +53,7 @@ class ConfigSaverCallback(Callback):
         careamics_version: str,
         experiment_name: str,
         training_config: TrainingConfig,
-        data_config: DataConfig | None = None,
+        data_config: DataConfig[Any] | None = None,
         project_name: str | None = None,
     ):
         """
