@@ -172,10 +172,34 @@ number of files that may not fit in memory.
 
     Prediction directly to disk is not available for CZI data. 
 
-!!! note "Zarr format"
+### Writing Zarr / OME-NGFF predictions
 
-    Prediction directly to disk is with Zarr requires tiling to be enabled, and the
-    original axes need to be in canonical order (S)(T)(C)(Z)YX.
+Zarr predictions are written as OME-NGFF stores. CAREamics uses the configured Zarr
+backend (`zarr`, `zarrs`, or `tensorstore`) for array creation and I/O, and uses
+`yaozarrs` to construct and validate the OME-NGFF metadata.
+
+Zarr output can be written either as a complete image or one tile at a time.
+
+```python title="Predict to OME-NGFF"
+--8<-- "current/careamist_predicting.py:pred_write_zarr"
+```
+
+1. Tiling writes each restored prediction tile directly to its destination array.
+
+Zarr output requires the input axes to be in canonical order:
+`(S)(T)(C)(Z)YX`. An individual OME-NGFF image can contain at most five axes
+(`TCZYX`). When both `S` and `T` are present, CAREamics writes an OME-NGFF image
+collection with one image group per sample.
+
+Output store names depend on the input:
+
+- Array input: `array_<index>.ome.zarr`.
+- Zarr input: the source name with `_output` inserted before `.zarr` or `.ome.zarr`.
+  The source image-group path and selected scale are retained where applicable.
+- Other file input: `<source_stem>.ome.zarr`.
+
+When the input is OME-NGFF, compatible axes and coordinate transformations are carried
+into the prediction output.
 
 
 ### Change the write type
@@ -188,10 +212,6 @@ You can also select a different write type that the default or from the source d
 
 1. The write type can be changed. Currently, only `tiff` and `zarr` are supported.
 
-
-!!! important "Zarr as write type"
-
-    Zarr can be selected as write type only if tiling is enabled.
 
 ### Use a custom write function
 
@@ -210,4 +230,3 @@ arguments. Here is an example of writing to a custom type (`.npy`):
 3. And specify the extension of the file to write.
 4. Pass the custom write function to the `write_func` argument.
 5. Optional, to pass additional parameters to underlying functions.
-

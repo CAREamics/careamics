@@ -117,6 +117,16 @@ careamist.predict_to_disk(
 # --8<-- [end:pred_write_type]
 
 # %%
+# --8<-- [start:pred_write_zarr]
+careamist.predict_to_disk(
+    pred_data=pred_data,
+    prediction_dir=root / "my_zarr_predictions",
+    write_type="zarr",
+    tile_size=(128, 128),  # (1)!
+)
+# --8<-- [end:pred_write_zarr]
+
+# %%
 # --8<-- [start:pred_write_func]
 
 
