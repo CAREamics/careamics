@@ -2,6 +2,7 @@
 
 __all__ = [
     "CAREAlgorithm",
+    "CryoCAREAlgorithm",
     "HDNAlgorithm",
     "MicroSplitAlgorithm",
     "N2NAlgorithm",
@@ -13,6 +14,7 @@ __all__ = [
 
 # --- unet based
 from .care_algorithm_config import CAREAlgorithm
+from .cryocare_algorithm_config import CryoCAREAlgorithm
 
 # --- vae based
 from .hdn_algorithm_config import HDNAlgorithm
