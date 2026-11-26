@@ -1,6 +1,7 @@
 """Tests for CAREamist."""
 
 import json
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -281,3 +282,57 @@ def test_init_from_checkpoint(tmp_path: Path, checkpoint):
     # careamist by default enables progress bar during initialization
     expected_config.training_config.trainer_params["enable_progress_bar"] = True
     assert careamist.config == expected_config
+
+
+def test_train_log_every_n_steps_capped_to_n_batches(tmp_path: Path):
+    """Test that the default log interval is capped and does not warn."""
+    train_array = random_array((16, 16), seed=42)
+    val_array = random_array((16, 16), seed=43)
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(16, 16),
+        batch_size=1024,
+        num_epochs=1,
+        n_val_patches=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+    )
+
+    careamist = CAREamist(config=config, work_dir=tmp_path, enable_progress_bar=False)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        careamist.train(train_data=train_array, val_data=val_array)
+
+    assert careamist.trainer.log_every_n_steps == 1
+    assert not any(
+        "smaller than the logging interval" in str(warning.message)
+        for warning in caught
+    )
+
+
+def test_train_log_every_n_steps_user_value_kept(tmp_path: Path):
+    """Test that a user log interval is kept and the epoch training loss is logged."""
+    train_array = random_array((16, 16), seed=42)
+    val_array = random_array((16, 16), seed=43)
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(16, 16),
+        batch_size=1024,
+        num_epochs=1,
+        n_val_patches=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+        trainer_params={"log_every_n_steps": 50},
+    )
+
+    careamist = CAREamist(config=config, work_dir=tmp_path, enable_progress_bar=False)
+    careamist.train(train_data=train_array, val_data=val_array)
+
+    assert careamist.trainer.log_every_n_steps == 50
+    assert len(careamist.get_losses().train_loss.epoch) == 1

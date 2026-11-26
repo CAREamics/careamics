@@ -1,5 +1,6 @@
 """Main interface for training and predicting with CAREamics."""
 
+import math
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, TypeAlias, overload
@@ -47,6 +48,7 @@ from .utils.reshape_array import reshape_array
 
 logger = get_logger(__name__)
 
+_LIGHTNING_DEFAULT_LOG_EVERY_N_STEPS = 50
 
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
 PathInput = str | Path | Sequence[str | Path]
@@ -700,6 +702,22 @@ class CAREamist:
         self.trainer.enable_autolog_hparams = True
 
         _ = seed_everything(self.config.data_config.seed, workers=True)
+
+        if "log_every_n_steps" not in self.config.training_config.trainer_params:
+            datamodule.setup("fit")
+            # dataloader length is global until Lightning wraps a distributed sampler
+            n_batches = math.ceil(
+                len(datamodule.train_dataloader()) / self.trainer.world_size
+            )
+            limit = self.trainer.limit_train_batches
+            if isinstance(limit, int):
+                n_batches = min(n_batches, limit)
+            else:
+                n_batches = int(n_batches * limit)
+            self.trainer.log_every_n_steps = max(
+                1, min(_LIGHTNING_DEFAULT_LOG_EVERY_N_STEPS, n_batches)
+            )
+
         self.trainer.fit(
             self.model, datamodule=datamodule, ckpt_path=self.checkpoint_path
         )
