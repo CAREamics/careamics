@@ -2,6 +2,9 @@
 
 __all__ = [
     "CAREAlgorithm",
+    "COSDDAlgorithm",
+    "COSDDConfig",
+    "COSDDConfiguration",
     "CryoCAREDataConfig",
     "DataConfig",
     "GaussianMixtureNMConfig",
@@ -27,12 +30,14 @@ __all__ = [
     "UNetBasedAlgorithm",
     "UNetConfig",
     "create_advanced_care_config",
+    "create_advanced_cosdd_config",
     "create_advanced_hdn_config",
     "create_advanced_microsplit_config",
     "create_advanced_n2n_config",
     "create_advanced_n2v_config",
     "create_advanced_seg_config",
     "create_care_config",
+    "create_cosdd_config",
     "create_data_configuration",
     "create_hdn_config",
     "create_microsplit_config",
@@ -44,6 +49,7 @@ __all__ = [
 
 from .algorithms import (
     CAREAlgorithm,
+    COSDDAlgorithm,
     HDNAlgorithm,
     MicroSplitAlgorithm,
     N2NAlgorithm,
@@ -52,7 +58,8 @@ from .algorithms import (
     SegAlgorithm,
     UNetBasedAlgorithm,
 )
-from .architectures import LVAEConfig, UNetConfig
+from .architectures import COSDDConfig, LVAEConfig, UNetConfig
+from .cosdd_configuration import COSDDConfiguration
 from .data import (
     CryoCAREDataConfig,
     DataConfig,
@@ -68,12 +75,14 @@ from .data import (
 )
 from .factories import (
     create_advanced_care_config,
+    create_advanced_cosdd_config,
     create_advanced_hdn_config,
     create_advanced_microsplit_config,
     create_advanced_n2n_config,
     create_advanced_n2v_config,
     create_advanced_seg_config,
     create_care_config,
+    create_cosdd_config,
     create_hdn_config,
     create_microsplit_config,
     create_n2n_config,

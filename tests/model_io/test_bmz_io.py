@@ -6,6 +6,8 @@ from tests.utils import set_seed
 from torch import Tensor
 
 from careamics import CAREamist
+from careamics.config.factories import create_advanced_cosdd_config
+from careamics.lightning.modules import COSDDModule
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.model_io.bmz_io import _export_state_dict, _load_state_dict
 from careamics.utils.version import get_careamics_version
@@ -101,3 +103,56 @@ def test_bmz_io(request, tmp_path, ordered_array, model_path_fixture):
     predicted = predicted.numpy().squeeze()
     predicted_loaded = predicted_loaded.numpy().squeeze()
     np.testing.assert_almost_equal(predicted_loaded, predicted, decimal=3)
+
+
+def test_bmz_export_cosdd_not_implemented(tmp_path):
+    """Test that exporting a COSDD model to the BMZ raises an error."""
+    config = create_advanced_cosdd_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(16, 16),
+        model_params={"s_code_channels": 8, "n_layers": 2, "checkpointed": False},
+    )
+    model = COSDDModule(config.algorithm_config)
+    array = np.zeros((1, 1, 16, 16), dtype=np.float32)
+
+    with pytest.raises(NotImplementedError, match="COSDD"):
+        export_to_bmz(
+            model=model,
+            config=config,
+            path_to_archive=tmp_path / "model.zip",
+            model_name="COSDD",
+            general_description="A COSDD model.",
+            data_description="My data.",
+            authors=[{"name": "Amod", "affiliation": "El"}],
+            input_array=array,
+            output_array=array,
+        )
+
+
+def test_careamist_bmz_export_cosdd_not_implemented(tmp_path, monkeypatch):
+    """Test that `CAREamist` refuses to export COSDD before predicting."""
+    config = create_advanced_cosdd_config(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=(16, 16),
+        model_params={"s_code_channels": 8, "n_layers": 2, "checkpointed": False},
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+
+    def _predict(*args, **kwargs):
+        pytest.fail("`export_to_bmz` predicted before checking the algorithm.")
+
+    monkeypatch.setattr(careamist, "predict", _predict)
+
+    with pytest.raises(NotImplementedError, match="COSDD"):
+        careamist.export_to_bmz(
+            path_to_archive=tmp_path / "model.zip",
+            friendly_model_name="COSDD",
+            input_array=np.zeros((16, 16), dtype=np.float32),
+            authors=[{"name": "Amod", "affiliation": "El"}],
+            general_description="A COSDD model.",
+            data_description="My data.",
+        )

@@ -11,6 +11,7 @@ from pydantic import HttpUrl
 from torch import load, save
 
 from careamics.config.configuration import Configuration
+from careamics.config.support import SupportedArchitecture
 from careamics.config.utils.configuration_io import (
     load_configuration,
     save_configuration,
@@ -119,7 +120,19 @@ def export_to_bmz(
         Paths to the cover images.
     channel_names : Optional[list[str]], optional
         Channel names, by default None.
+
+    Raises
+    ------
+    NotImplementedError
+        If the model is a COSDD model.
+    ValueError
+        If `path_to_archive` does not point to a zip file.
     """
+    if config.algorithm_config.model.architecture == SupportedArchitecture.COSDD:
+        raise NotImplementedError(
+            "Export to the BioImage Model Zoo is not implemented for COSDD."
+        )
+
     path_to_archive = Path(path_to_archive)
 
     if path_to_archive.suffix != ".zip":

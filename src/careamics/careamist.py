@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 
 from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
 from .config.configuration import Configuration
+from .config.cosdd_configuration import COSDDConfiguration
 from .config.data import DataInputFormat
 from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
@@ -64,6 +65,7 @@ ConfigurationType = (
     | Configuration[SegAlgorithm]
     | HDNConfiguration
     | MicroSplitConfiguration
+    | COSDDConfiguration
 )
 
 DataOutputFormat = Literal["tiff", "zarr", "custom"]
@@ -1042,9 +1044,12 @@ class CAREamist:
             returned prediction. When set, the per-pixel standard deviation across
             those predictions is also returned, as an uncertainty estimate in the
             units of the prediction. Must be at least 2, and is only supported by
-            the sampling-based algorithms (HDN and MicroSplit). Note that the
+            the sampling-based algorithms (HDN, MicroSplit and COSDD). Note that the
             estimate is the spread of the drawn predictions alone: it excludes the
-            likelihood variance and so under-estimates the total uncertainty.
+            likelihood variance and so under-estimates the total uncertainty. For
+            COSDD, omitting `n_predictions` uses the direct denoiser if one was
+            trained, instead of sampling. Set `direct_prediction` in the algorithm
+            configuration of the model (`CAREamist.model.config`) to change this.
         segmentation_output : {"mask", "probabilities"} or None, default=None
             Prediction output for segmentation models. If None, the value from
             the algorithm configuration is used.
@@ -1299,8 +1304,8 @@ class CAREamist:
         n_predictions : int, optional
             Number of stochastic predictions to draw per input and average into the
             written prediction. Must be at least 2, and is only supported by the
-            sampling-based algorithms (HDN and MicroSplit). The uncertainty across
-            those predictions is not currently written.
+            sampling-based algorithms (HDN, MicroSplit and COSDD). The uncertainty
+            across those predictions is not currently written.
         segmentation_output : {"mask", "probabilities"} or None, default=None
             Prediction output for segmentation models. If None, the value from
             the algorithm configuration is used.
@@ -1475,7 +1480,18 @@ class CAREamist:
             Paths to the cover images.
         channel_names : list of str, default=None
             Channel names.
+
+        Raises
+        ------
+        NotImplementedError
+            If the model is a COSDD model.
         """
+        # fail before running a prediction
+        if isinstance(self.config, COSDDConfiguration):
+            raise NotImplementedError(
+                "Export to the BioImage Model Zoo is not implemented for COSDD."
+            )
+
         import numpy as np
 
         from .model_io import export_to_bmz

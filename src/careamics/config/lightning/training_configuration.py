@@ -62,7 +62,9 @@ class SelfSupervisedCheckpointing:
 
 
 def default_training_dict(
-    algorithm: Literal["care", "n2n", "n2v", "hdn", "microsplit", "cryocare", "seg"],
+    algorithm: Literal[
+        "care", "n2n", "n2v", "hdn", "microsplit", "cosdd", "cryocare", "seg"
+    ],
     trainer_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     checkpoint_params: dict[str, Any] | None = None,
@@ -77,7 +79,7 @@ def default_training_dict(
 
     Parameters
     ----------
-    algorithm : {"care", "n2n", "n2v", "hdn", "microsplit", "cryocare", "seg"}
+    algorithm : {"care", "n2n", "n2v", "hdn", "microsplit", "cosdd", "cryocare", "seg"}
         Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict, optional
         Parameters for Lightning Trainer class, by default None.
@@ -102,7 +104,7 @@ def default_training_dict(
     # parameters, we keep either user defined or the defaults
     # supervised algorithms monitor a meaningful validation loss, self-supervised ones
     # compare noisy pixels to noisy pixels and cannot be monitored by a metric
-    ranks_by_val_loss = algorithm in ("care", "microsplit", "hdn", "seg")
+    ranks_by_val_loss = algorithm in ("care", "microsplit", "hdn", "seg", "cosdd")
     supervised = algorithm in ("care", "microsplit", "seg")
     # algorithms considered self-supervised: n2v, n2n, hdn, cryocare
 
