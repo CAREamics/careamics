@@ -12,6 +12,7 @@ from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.lightning.logger import CoLogger
+from careamics.lightning.prediction.tta import TTAVariant, predict_with_tta
 from careamics.losses import n2v_loss
 from careamics.metrics import SIPSNR
 from careamics.models.unet import UNet
@@ -65,6 +66,7 @@ class N2VModule(L.LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
+        self.tta_variants: list[TTAVariant] | None = None
         self.n2v_manipulate = N2VManipulate(self.config.n2v_config)
         self.loss_func = n2v_loss
 
@@ -190,8 +192,10 @@ class N2VModule(L.LightningModule):
         """
         x = batch[0]
         x_data = cast(torch.Tensor, x.data)
-        # TODO: add TTA
-        prediction = self.model(x_data)
+        if self.tta_variants is not None:
+            prediction = predict_with_tta(self.model, x_data, self.tta_variants)
+        else:
+            prediction = self.model(x_data)
 
         normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
         denormalized_output = normalization.denormalize(prediction).cpu().numpy()

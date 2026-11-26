@@ -376,6 +376,58 @@ def test_predict_rejects_sampling_for_deterministic_algorithms(tmp_path: Path):
         careamist.predict(random_array((1, 32, 32)), n_predictions=5)
 
 
+def test_predict_tta_n2v(tmp_path: Path):
+    """Test that TTA matches the mean prediction over rotations of the input."""
+    train_array = random_array((1, 32, 32), seed=42)
+    val_array = random_array((1, 32, 32), seed=43)
+
+    config = create_advanced_n2v_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SYX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=1,
+        roi_size=5,
+        masked_pixel_percentage=5,
+        augmentations=["rotate_90"],
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array, val_data=val_array)
+
+    predicted_tta, _ = careamist.predict(train_array, tta=True)
+
+    rotated_predictions = []
+    for k in range(4):
+        rotated, _ = careamist.predict(np.rot90(train_array, k, axes=(-2, -1)))
+        rotated_predictions.append(np.rot90(rotated[0], -k, axes=(-2, -1)))
+    np.testing.assert_allclose(
+        predicted_tta[0],
+        np.mean(rotated_predictions, axis=0),
+        rtol=1e-5,
+        atol=1e-5,
+    )
+
+
+def test_predict_tta_unsupported_algorithm(tmp_path: Path):
+    """Test that TTA raises an error for HDN and leaves writing disabled."""
+    config = create_hdn_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SYX",
+        patch_size=(64, 64),
+        batch_size=1,
+        num_epochs=1,
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+
+    with pytest.raises(ValueError, match="tta"):
+        careamist.predict(random_array((1, 64, 64)), tta=True)
+    with pytest.raises(ValueError, match="tta"):
+        careamist.predict_to_disk(random_array((1, 64, 64)), tta=True)
+    assert not careamist.prediction_writer.is_enabled
+
+
 @pytest.mark.mps_gh_fail
 def test_predict_hdn_returns_uncertainty(tmp_path: Path):
     """HDN averages several predictions and returns their spread."""

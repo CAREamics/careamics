@@ -32,6 +32,7 @@ from .lightning.modules import (
     create_module,
 )
 from .lightning.prediction import convert_predict_outputs
+from .lightning.prediction.tta import get_tta_variants
 from .lightning.utils import (
     TrainingReport,
     load_config_from_checkpoint,
@@ -67,6 +68,8 @@ ConfigurationType = (
 )
 
 DataOutputFormat = Literal["tiff", "zarr", "custom"]
+
+_TTA_ALGORITHMS = frozenset({"care", "n2n", "n2v", "seg"})
 
 
 class CAREamist:
@@ -865,6 +868,38 @@ class CAREamist:
 
         model.n_samples = n_predictions
 
+    def _configure_tta(self, tta: bool) -> None:
+        """Attach TTA variants to the Lightning module for the next prediction run.
+
+        Parameters
+        ----------
+        tta : bool
+            Whether to enable test-time augmentation during prediction.
+
+        Raises
+        ------
+        ValueError
+            If TTA is requested for an unsupported algorithm.
+        """
+        model: Any = self.model
+        model.tta_variants = None
+        if not tta:
+            return
+
+        algorithm = self.config.algorithm_config.algorithm
+        if algorithm not in _TTA_ALGORITHMS:
+            raise ValueError(f"`tta` is not supported for algorithm {algorithm!r}.")
+
+        variants = get_tta_variants(self.config.data_config.augmentations)
+        if len(variants) == 1:
+            logger.warning(
+                "No flip or rotation augmentation was used in training, predicting "
+                "without TTA."
+            )
+            return
+
+        model.tta_variants = variants
+
     # see comment on train func for a description of why we have these two overloads
     @overload  # constrained input data type, single prediction
     def predict(  # numpydoc ignore=GL08
@@ -888,6 +923,7 @@ class CAREamist:
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: None = None,
         segmentation_output: SegPredictionOutput | None = None,
+        tta: bool = False,
     ) -> OutputType: ...
 
     @overload  # any data input is allowed for ImageStackLoading, single prediction
@@ -912,6 +948,7 @@ class CAREamist:
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: None = None,
         segmentation_output: SegPredictionOutput | None = None,
+        tta: bool = False,
     ) -> OutputType: ...
 
     @overload  # constrained input data type, averaged predictions with uncertainty
@@ -934,6 +971,7 @@ class CAREamist:
         checkpoint: str | Path | None = None,
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int,
+        tta: bool = False,
     ) -> OutputTypeWithUncertainty: ...
 
     @overload  # any data input, averaged predictions with uncertainty
@@ -956,6 +994,7 @@ class CAREamist:
         checkpoint: str | Path | None = None,
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int,
+        tta: bool = False,
     ) -> OutputTypeWithUncertainty: ...
 
     def predict(
@@ -979,6 +1018,7 @@ class CAREamist:
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
         segmentation_output: SegPredictionOutput | None = None,
+        tta: bool = False,
     ) -> OutputType | OutputTypeWithUncertainty:
         """
         Predict on data and return the predictions.
@@ -1048,6 +1088,9 @@ class CAREamist:
         segmentation_output : {"mask", "probabilities"} or None, default=None
             Prediction output for segmentation models. If None, the value from
             the algorithm configuration is used.
+        tta : bool, default=False
+            Whether to average the predictions over the flips and 90 degree rotations
+            used as training augmentations. Only for CARE, N2N, N2V and segmentation.
 
         Returns
         -------
@@ -1066,6 +1109,7 @@ class CAREamist:
             If `n_predictions` is 1, or the algorithm is deterministic.
         """
         self._configure_sampling(n_predictions)
+        self._configure_tta(tta)
 
         datamodule = self._build_predict_datamodule(
             pred_data,
@@ -1118,6 +1162,8 @@ class CAREamist:
                     "\nOut of GPU memory during prediction.\n" + hint
                 ) from e
             raise
+        finally:
+            self.model.tta_variants = None
 
         predictions_output, uncertainty_output, sources = convert_predict_outputs(
             predictions, tiled=tile_size is not None
@@ -1157,6 +1203,7 @@ class CAREamist:
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
         segmentation_output: SegPredictionOutput | None = None,
+        tta: bool = False,
     ) -> None: ...
 
     @overload  # any data input is allowed for ImageStackLoading
@@ -1187,6 +1234,7 @@ class CAREamist:
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
         segmentation_output: SegPredictionOutput | None = None,
+        tta: bool = False,
     ) -> None: ...
 
     def predict_to_disk(
@@ -1216,6 +1264,7 @@ class CAREamist:
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
         segmentation_output: SegPredictionOutput | None = None,
+        tta: bool = False,
     ) -> None:
         """
         Make predictions on the provided data and save outputs to files.
@@ -1304,6 +1353,9 @@ class CAREamist:
         segmentation_output : {"mask", "probabilities"} or None, default=None
             Prediction output for segmentation models. If None, the value from
             the algorithm configuration is used.
+        tta : bool, default=False
+            Whether to average the predictions over the flips and 90 degree rotations
+            used as training augmentations. Only for CARE, N2N, N2V and segmentation.
 
         Raises
         ------
@@ -1351,8 +1403,9 @@ class CAREamist:
             write_func_kwargs=write_func_kwargs,
         )
 
-        self.prediction_writer.enable_writing(True)
         self._configure_sampling(n_predictions)
+        self._configure_tta(tta)
+        self.prediction_writer.enable_writing(True)
 
         checkpoint = self._select_default_ckpt(checkpoint)
 
@@ -1413,6 +1466,7 @@ class CAREamist:
                 ) from e
             raise
         finally:
+            self.model.tta_variants = None
             self.prediction_writer.enable_writing(False)
 
     def get_checkpoints(self) -> CheckpointRecord | None:
