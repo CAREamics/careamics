@@ -31,7 +31,9 @@ from careamics.dataset.factory import (
 )
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack import ImageStack
+from careamics.dataset.patch_constructor import BasicPatchConstr
 from careamics.dataset.patching import (
+    FixedPatching,
     PatchSpecs,
     TileSpecs,
 )
@@ -258,6 +260,34 @@ class CareamicsDataModule(L.LightningDataModule):
         self.train_dataset: CareamicsDataset[ImageStack] | None = None
         self.val_dataset: CareamicsDataset[ImageStack] | None = None
         self.predict_dataset: CareamicsDataset[ImageStack] | None = None
+        self._val_patch_specs: list[dict[str, Any]] | None = None
+
+    @property
+    def val_patch_specs(self) -> list[dict[str, Any]] | None:
+        """Return a copy of the validation patch locations.
+
+        The list is present after an automatic validation split. Lightning
+        stores it in the checkpoint under the key `CareamicsDataModule`,
+        field `val_patch_specs`.
+
+        Each dict has these keys:
+
+        - `data_idx`: index of the image stack.
+        - `sample_idx`: sample index after non-spatial axes such as `S`
+          and `T` merge into `S`.
+        - `coords`: pixel coordinates of the patch corner on spatial axes
+          `(Z)YX`.
+        - `patch_size`: patch size on spatial axes `(Z)YX`.
+        - `source`: source of the image stack.
+
+        Returns
+        -------
+        list of dict or None
+            Copy of the specs, or None when validation data is given.
+        """
+        if self._val_patch_specs is None:
+            return None
+        return copy.deepcopy(self._val_patch_specs)
 
     def setup(self, stage: str) -> None:
         """
@@ -295,6 +325,7 @@ class CareamicsDataModule(L.LightningDataModule):
                     self.rng,
                     self.model_constraints,
                 )
+                self._val_patch_specs = self._record_val_patch_specs()
             elif isinstance(self._data, TrainValData):
                 if isinstance(self.config, MicroSplitDataConfig):
                     (
@@ -332,6 +363,37 @@ class CareamicsDataModule(L.LightningDataModule):
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
+    def state_dict(self) -> dict[str, Any]:
+        """Return validation patch specs for the checkpoint.
+
+        Returns
+        -------
+        dict
+            `val_patch_specs` when specs exist, otherwise an empty dict.
+        """
+        if self._val_patch_specs is None:
+            return {}
+        return {"val_patch_specs": self._val_patch_specs}
+
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
+        """Warn if checkpoint validation patches differ from the current split.
+
+        Parameters
+        ----------
+        state_dict : dict
+            Datamodule state from the checkpoint.
+        """
+        checkpoint_specs = state_dict.get("val_patch_specs")
+        if (
+            checkpoint_specs is not None
+            and self._val_patch_specs is not None
+            and checkpoint_specs != self._val_patch_specs
+        ):
+            logger.warning(
+                "Validation patches differ from the checkpoint. "
+                "The current split is used."
+            )
+
     def _sampler(
         self, dataset: Literal["train", "val", "predict"]
     ) -> Sampler[int] | None:
@@ -367,6 +429,34 @@ class CareamicsDataModule(L.LightningDataModule):
         else:
             sampler = None
         return sampler
+
+    def _record_val_patch_specs(self) -> list[dict[str, Any]]:
+        """Serialize validation patch locations after automatic splitting.
+
+        Returns
+        -------
+        list of dict
+            JSON-safe patch specs with source identifiers per data index.
+        """
+        assert self.train_dataset is not None
+        assert self.val_dataset is not None
+        val_patch_constructor = self.val_dataset.patch_constructor
+        assert isinstance(val_patch_constructor, BasicPatchConstr)
+        val_patching = val_patch_constructor.patching_strategy
+        assert isinstance(val_patching, FixedPatching)
+        train_patch_constructor = self.train_dataset.patch_constructor
+        assert isinstance(train_patch_constructor, BasicPatchConstr)
+        image_stacks = train_patch_constructor.input_extractor.image_stacks
+        return [
+            {
+                "data_idx": spec["data_idx"],
+                "sample_idx": spec["sample_idx"],
+                "coords": [int(c) for c in spec["coords"]],
+                "patch_size": [int(p) for p in spec["patch_size"]],
+                "source": str(image_stacks[spec["data_idx"]].source),
+            }
+            for spec in val_patching.fixed_patch_specs
+        ]
 
     def _save_hparams(self) -> None:
         """Save configuration in hyperparameters."""

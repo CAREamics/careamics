@@ -1,7 +1,9 @@
+import logging
 from collections.abc import Sequence
 
 import numpy as np
 import pytest
+import torch
 from lightning.pytorch import Callback, Trainer
 
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
@@ -134,3 +136,109 @@ def test_smoke_val_split(
     ):
         # there should never be any pixels ever selected in both the train and val
         assert not np.logical_and(train_array != 0, val_array != 0).all()
+
+
+def _train_array() -> np.ndarray:
+    rng = np.random.default_rng(42)
+    return rng.integers(0, 255, (2, 1, 64, 64)).astype(np.float32)
+
+
+def _n2v_datamodule(train_data, val_data, seed: int):
+    config = create_advanced_n2v_config(
+        "test",
+        data_type="array",
+        axes="SCYX",
+        patch_size=(8, 8),
+        batch_size=2,
+        num_epochs=1,
+        n_channels=1,
+        n_val_patches=4,
+        masked_pixel_percentage=3,
+        seed=seed,
+    )
+    datamodule = CareamicsDataModule(
+        data_config=config.data_config, train_data=train_data, val_data=val_data
+    )
+    return config, datamodule
+
+
+def _fit_n2v(tmp_path, val_data, seed: int = 42):
+    train_data = _train_array()
+    config, datamodule = _n2v_datamodule(train_data, val_data, seed)
+    trainer = Trainer(
+        max_epochs=1,
+        default_root_dir=tmp_path,
+        logger=False,
+        enable_progress_bar=False,
+    )
+    trainer.fit(N2VModule(config.algorithm_config), datamodule=datamodule)
+    ckpt_path = tmp_path / "last.ckpt"
+    trainer.save_checkpoint(ckpt_path)
+    checkpoint = torch.load(ckpt_path, weights_only=False)
+    return datamodule, checkpoint, train_data, ckpt_path
+
+
+def _resume(tmp_path, train_data, seed: int, ckpt_path):
+    config, datamodule = _n2v_datamodule(train_data, None, seed)
+    trainer = Trainer(
+        max_epochs=2,
+        default_root_dir=tmp_path,
+        logger=False,
+        enable_progress_bar=False,
+    )
+    trainer.fit(
+        N2VModule(config.algorithm_config),
+        datamodule=datamodule,
+        ckpt_path=ckpt_path,
+    )
+    return datamodule
+
+
+def test_val_patch_specs_recorded(tmp_path):
+    """Test that automatically split validation patches are saved in the checkpoint."""
+    datamodule, checkpoint, _, _ = _fit_n2v(tmp_path, val_data=None)
+    state = checkpoint[CareamicsDataModule.__qualname__]
+
+    assert datamodule.val_patch_specs is not None
+    assert len(datamodule.val_patch_specs) == 4
+    assert set(datamodule.val_patch_specs[0]) == {
+        "data_idx",
+        "sample_idx",
+        "coords",
+        "patch_size",
+        "source",
+    }
+    assert state["val_patch_specs"] == datamodule.val_patch_specs
+
+
+def test_val_patch_specs_not_recorded_with_val_data(tmp_path):
+    """Test that no validation patches are recorded when validation data is given."""
+    val_data = np.zeros((1, 1, 64, 64), dtype=np.float32)
+    datamodule, checkpoint, _, _ = _fit_n2v(tmp_path, val_data=val_data)
+
+    assert datamodule.val_patch_specs is None
+    assert CareamicsDataModule.__qualname__ not in checkpoint
+
+
+def test_val_patch_specs_resume_warns_on_seed_mismatch(tmp_path, caplog):
+    """Test that a different resume seed logs a warning and the same seed does not."""
+    datamodule, _, train_data, ckpt_path = _fit_n2v(tmp_path, val_data=None)
+    original = datamodule.val_patch_specs
+    module_logger = logging.getLogger("careamics.lightning.data.data_module")
+    module_logger.addHandler(caplog.handler)
+    try:
+        caplog.clear()
+        resumed = _resume(
+            tmp_path / "mismatch", train_data, seed=99, ckpt_path=ckpt_path
+        )
+        assert "Validation patches differ" in caplog.text
+        assert resumed.val_patch_specs != original
+
+        caplog.clear()
+        resumed_same = _resume(
+            tmp_path / "same", train_data, seed=42, ckpt_path=ckpt_path
+        )
+        assert "Validation patches differ" not in caplog.text
+        assert resumed_same.val_patch_specs == original
+    finally:
+        module_logger.removeHandler(caplog.handler)
