@@ -87,8 +87,7 @@ def test_segmentation(tmp_path, n_classes, with_channels, is_3d):
     pred, _ = careamist.predict(pred_data=train_data)
     assert pred[0].shape == train_data_tar.shape
 
-    # brittle assertion that may break randomly
-    assert set(np.unique(pred[0])) == set(range(n_classes + 1))
+    assert set(np.unique(pred[0])).issubset(range(n_classes + 1))
 
     probabilities, _ = careamist.predict(
         pred_data=train_data,

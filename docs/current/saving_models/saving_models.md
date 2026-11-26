@@ -24,10 +24,18 @@ model weights to disk. Checkpoints are stored under the `work_dir` passed to the
 The intermediate checkpoints correspond to the epochs with the lowest validation loss,
 while `<experiment_name>_last.ckpt` is the checkpoint from the final epoch.
 
-### Listing checkpoints
+### Checkpoint record
 
-The `get_checkpoints` method returns the available checkpoint paths, sorted by epoch
-number, with the last checkpoint (if present) appended at the end.
+The `CAREamist` will automatically create a `checkpoint_record.json` file to record the checkpoints that were created during training.
+
+The `get_checkpoints` method reads `checkpoint_record.json` and returns the structured
+record as a dictionary. The record contains the best, last, top-k, and suggested
+checkpoints for inference, as well as all checkpoints saved periodically, the monitored
+metric, and whether greater or smaller values are considered better. It returns `None`
+when no checkpoint record exists.
+
+For example, access the top-k checkpoints saved according to the monitored metric with
+the `"best_k"` key:
 
 ```python title="Listing checkpoints"
 --8<-- "current/saving_models/saving_models.py:get_checkpoints"
@@ -35,11 +43,21 @@ number, with the last checkpoint (if present) appended at the end.
 
 ### Reloading a checkpoint
 
-A `CAREamist` can be recreated from any checkpoint path, for instance to run prediction
-in a new session.
+A `CAREamist` can be recreated from any checkpoint path, for instance to run prediction in a new session. 
+Note that, if predicting directly after training the CAREamist will automatically load the selected checkpoint for inference.
+To predict with a different checkpoint, a new CAREamist instance must be created.
 
 ```python title="Reloading from a checkpoint"
 --8<-- "current/saving_models/saving_models.py:reload"
+```
+
+The checkpoint record can also be read using the utility function
+`read_checkpoint_record`. It takes the checkpoint directory, which contains the
+checkpoints and `checkpoint_record.json`, as input. It returns `None` if no record is
+found.
+
+```python
+--8<-- "current/saving_models/saving_models.py:util-load"
 ```
 
 See [Predicting with CAREamics](../careamist/careamist_predicting.md) for how to select the best or

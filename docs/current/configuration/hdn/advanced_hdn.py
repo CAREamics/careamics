@@ -2,7 +2,7 @@
 
 # %%
 # --8<-- [start:adv_config_hdn]
-from careamics.config import create_advanced_hdn_config
+from careamics.config import QuantileConfig, create_advanced_hdn_config
 
 config = create_advanced_hdn_config(
     experiment_name="hdn_training",
@@ -78,16 +78,16 @@ config = create_advanced_hdn_config(
     patch_size=[64, 64],
     batch_size=8,
     output_channels=1,
-    normalization="quantile",  # (1)!
-    normalization_params={
-        "lower_quantiles": [0.01], "upper_quantiles": [0.99]  # (2)!
-    },
+    normalization=QuantileConfig(
+        lower_quantiles=[0.01],  # (2)!
+        upper_quantiles=[0.99],
+    ),
 )
 # --8<-- [end:adv_config_hdn_norm]
 
 # %%
 # --8<-- [start:adv_config_hdn_norm_params]
-from careamics.config import create_advanced_hdn_config
+from careamics.config import MeanStdConfig, create_advanced_hdn_config
 
 config = create_advanced_hdn_config(
     experiment_name="hdn_training",
@@ -96,8 +96,10 @@ config = create_advanced_hdn_config(
     patch_size=[64, 64],
     batch_size=8,
     output_channels=1,
-    normalization="mean_std",
-    normalization_params={"input_means": [158.95], "input_stds": [10.21]},  # (1)!
+    normalization=MeanStdConfig(
+        input_means=[158.95],
+        input_stds=[10.21],  # (1)!
+    ),
 )
 # --8<-- [end:adv_config_hdn_norm_params]
 

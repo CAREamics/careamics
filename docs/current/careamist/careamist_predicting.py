@@ -36,7 +36,11 @@ read_func = None  # fake it
 
 careamist = CAREamist(config, work_dir=root)
 careamist.train(train_data=train_data)
-path_to_checkpoint = careamist.get_checkpoints()[0]
+checkpoint_record = careamist.get_checkpoints()
+assert checkpoint_record is not None
+selected_checkpoint = checkpoint_record["selected"]
+assert selected_checkpoint is not None
+path_to_checkpoint = careamist.get_checkpoint_root() / selected_checkpoint
 
 
 # %%

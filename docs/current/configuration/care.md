@@ -221,8 +221,9 @@ Normalization is applied during training and prediction. The available strategie
 --8<-- "current/configuration/care/advanced_care.py:adv_config_care_norm"
 ```
 
-1. Select the normalization method with `normalization`.
-2. `normalization_params` changes the method's default parameters.
+1. Select the normalization method with a string or a Pydantic normalization
+   configuration such as `QuantileConfig`.
+2. The Pydantic configuration customizes the method's parameters.
 
 If statistics are not provided, CAREamics computes them from the training data. They
 can also be passed explicitly:
@@ -232,7 +233,7 @@ can also be passed explicitly:
 ```
 
 1. This selects zero-mean, unit-variance normalization, which is the default.
-2. The input normalization parameters are pre-computed and passed explicitly.
+2. The pre-computed statistics are passed through `MeanStdConfig`.
 3. CARE and Noise2Noise can also receive pre-computed target statistics.
 
 When channels are present, normalization parameters normally contain one value per

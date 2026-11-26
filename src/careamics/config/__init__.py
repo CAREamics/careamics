@@ -2,20 +2,26 @@
 
 __all__ = [
     "CAREAlgorithm",
+    "CryoCAREDataConfig",
     "DataConfig",
     "GaussianMixtureNMConfig",
     "HDNAlgorithm",
     "HDNLossConfig",
     "LVAEConfig",
     "MaxPatchFilterConfig",
+    "MeanStdConfig",
     "MeanStdPatchFilterConfig",
     "MicroSplitAlgorithm",
     "MicroSplitDataConfig",
     "MicroSplitLossConfig",
+    "MinMaxConfig",
     "MultiChannelNMConfig",
     "N2NAlgorithm",
     "N2VAlgorithm",
+    "NoNormConfig",
+    "NormalizationConfig",
     "PN2VAlgorithm",
+    "QuantileConfig",
     "SegAlgorithm",
     "ShannonPatchFilterConfig",
     "UNetBasedAlgorithm",
@@ -48,10 +54,16 @@ from .algorithms import (
 )
 from .architectures import LVAEConfig, UNetConfig
 from .data import (
+    CryoCAREDataConfig,
     DataConfig,
     MaxPatchFilterConfig,
+    MeanStdConfig,
     MeanStdPatchFilterConfig,
     MicroSplitDataConfig,
+    MinMaxConfig,
+    NoNormConfig,
+    NormalizationConfig,
+    QuantileConfig,
     ShannonPatchFilterConfig,
 )
 from .factories import (

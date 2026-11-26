@@ -185,12 +185,14 @@ Normalization is applied during training and prediction. The available strategie
 --8<-- "current/configuration/segmentation/advanced_seg.py:adv_config_seg_norm"
 ```
 
-1. Select the normalization method with `normalization`.
-2. `normalization_params` customizes the quantile bounds; target normalization is
-   skipped automatically.
+1. Select the normalization method with a string or a Pydantic normalization
+   configuration such as `QuantileConfig`.
+2. The Pydantic configuration customizes the quantile bounds; target normalization
+   is skipped automatically.
 
 If statistics are not provided, CAREamics computes them from the training data. When
-channels are present, normalization parameters normally contain one value per channel.
+channels are present, per-channel normalization values normally contain one value per
+channel.
 Set `per_channel=False` when a shared value is intended.
 
 ### Loss

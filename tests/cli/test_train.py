@@ -39,4 +39,6 @@ def test_train(tmp_path):
     )
 
     records = list(output_path.glob("checkpoints/*/checkpoint_record.json"))
+    saved_checkpoints = list(output_path.glob("checkpoints/*/*.ckpt"))
     assert len(records) == 1
+    assert len(saved_checkpoints) == 1

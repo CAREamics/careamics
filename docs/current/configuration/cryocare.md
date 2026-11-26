@@ -94,8 +94,8 @@ The available strategies are `mean_std`, `quantile`, `min_max`, and `none`.
 --8<-- "current/configuration/cryocare/advanced_cryocare.py:cryocare_normalization"
 ```
 
-Pre-computed statistics can be passed through `normalization_params` in the advanced
-factory.
+Pre-computed statistics can be passed through a Pydantic normalization configuration
+in the advanced factory.
 
 ### Choosing a logger
 

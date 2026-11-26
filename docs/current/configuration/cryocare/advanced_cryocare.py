@@ -1,7 +1,7 @@
 """Advanced CryoCARE configuration examples from the dev/cryocare branch."""
 
 # --8<-- [start:adv_config_cryocare]
-from careamics.config import create_advanced_cryocare_config
+from careamics.config import QuantileConfig, create_advanced_cryocare_config
 
 config = create_advanced_cryocare_config(
     experiment_name="cryocare_training",
@@ -30,10 +30,10 @@ config = create_advanced_cryocare_config(
     axes="ZYX",
     patch_size=[16, 64, 64],
     batch_size=8,
-    normalization="quantile", # (1)!
-    normalization_params={
-        "lower_quantiles": [0.01], "upper_quantiles": [0.99] # (2)!
-    },
+    normalization=QuantileConfig(
+        lower_quantiles=[0.01],  # (1)!
+        upper_quantiles=[0.99],  # (2)!
+    ),
 )
 # --8<-- [end:cryocare_normalization]
 

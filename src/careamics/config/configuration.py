@@ -8,7 +8,14 @@ from pprint import pformat
 from typing import Annotated, Any, Generic, Literal, Self, TypeVar
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
@@ -16,14 +23,22 @@ from careamics.config.algorithms import (
     N2VAlgorithm,
     SegAlgorithm,
 )
+from careamics.config.augmentations import DefaultAugs
 from careamics.config.data import DataConfig
 from careamics.config.lightning.training_configuration import (
     TrainingConfig,
     default_training_factory,
 )
+from careamics.config.validators.training_validators import (
+    warn_self_supervised_checkpointing_params,
+    warn_supervised_checkpointing_params,
+)
 from careamics.models import (
     get_model_constraints,
 )
+from careamics.utils import get_logger
+
+logger = get_logger(__name__)
 
 AlgorithmConfig = TypeVar(
     "AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
@@ -91,11 +106,14 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: DataConfig
+    data_config: DataConfig[DefaultAugs]
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
-    training_config: TrainingConfig = Field(default_factory=default_training_factory)
+    training_config: TrainingConfig = Field(
+        default_factory=default_training_factory,
+        validate_default=True,
+    )
     """Training configuration, holding all parameters required to configure the
     training process."""
 
@@ -235,6 +253,43 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
             )
 
         return self
+
+    @field_validator("training_config", mode="after")
+    @classmethod
+    def warn_checkpointing_params(
+        cls, training_config: TrainingConfig, info: ValidationInfo
+    ) -> TrainingConfig:
+        """Warn about checkpointing parameters unsuitable for CARE or N2N.
+
+        Parameters
+        ----------
+        training_config : TrainingConfig
+            Training configuration to validate.
+        info : pydantic.ValidationInfo
+            Validation context containing the algorithm configuration.
+
+        Returns
+        -------
+        TrainingConfig
+            Validated training configuration.
+        """
+        alg_config = info.data.get("algorithm_config")
+        if alg_config is None:
+            raise ValueError(
+                "Could not access `algorithm_config`, there was likely a "
+                "configuration error during its validation."
+            )
+        if isinstance(alg_config, N2NAlgorithm):
+            warn_self_supervised_checkpointing_params(training_config)
+        elif isinstance(alg_config, CAREAlgorithm):
+            warn_supervised_checkpointing_params(training_config)
+        else:
+            logger.warning(
+                "Could not validate checkpointing parameters for algorithm config "
+                f"{alg_config.__class__}. DEVELOPER HINT: To prevent this warning "
+                f"override the `{cls.__name__}.warn_checkpointing_params` validator."
+            )
+        return training_config
 
     def __str__(self) -> str:
         """

@@ -154,7 +154,8 @@ Normalization is applied during training and prediction. The available strategie
 --8<-- "current/configuration/hdn/advanced_hdn.py:adv_config_hdn_norm"
 ```
 
-Pre-computed normalization parameters can also be supplied explicitly:
+Pre-computed normalization statistics can also be supplied explicitly through a
+Pydantic normalization configuration:
 
 ```python title="Passing pre-computed normalization parameters"
 --8<-- "current/configuration/hdn/advanced_hdn.py:adv_config_hdn_norm_params"

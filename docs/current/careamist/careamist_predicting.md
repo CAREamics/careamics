@@ -50,13 +50,13 @@ list:
 
 !!! note "Checkpoint"
 
-    By default, CAREamics uses a checkpoint callback that saves multiple checkpoints
-    during training. Depending on the algorithm, the prediction method will either
-    use the best checkpoint (the one with the lowest validation loss) or the last
-    checkpoint (the one from the last epoch).
-
-    Noise2Void, Noise2Noise and cryoCARE will use the last checkpoint, while the other
-    algorithms will use the best checkpoint.
+    By default, CAREamics saves multiple checkpoints during training. If saving the
+    best checkpoint (the one with the lowest validation loss) is enabled, it will be
+    loaded for prediction. Otherwise, prediction uses the last checkpoint saved.
+    Supervised algorithms save the best checkpoint by default. For self-supervised
+    algorithms such as Noise2Void and Noise2Noise, saving the best checkpoint is
+    disabled by default because the validation loss may not accurately reflect model
+    performance.
 
 ### Prediction return values and output shapes
 
@@ -197,7 +197,8 @@ PyTorch Lightning (`"best"` or `"last"`).
 --8<-- "current/careamist/careamist_predicting.py:pred_checkpoint"
 ```
 
-1. `careamist.get_checkpoints()` returns a dictionary of all available checkpoints.
+1. `careamist.get_checkpoints()` returns a checkpoint record containing the available
+   checkpoints and the checkpoint selected by default for inference.
 
 
 !!! warning "Noise2Void and Noise2Noise"

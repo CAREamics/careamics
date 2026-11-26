@@ -134,7 +134,8 @@ Normalization is applied during training and prediction. The available strategie
 --8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_norm"
 ```
 
-Pre-computed normalization parameters can also be supplied explicitly:
+Pre-computed normalization statistics can also be supplied explicitly through a
+Pydantic normalization configuration:
 
 ```python title="Passing pre-computed normalization parameters"
 --8<-- "current/configuration/microsplit/advanced_microsplit.py:adv_config_microsplit_norm_params"

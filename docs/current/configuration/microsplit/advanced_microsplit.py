@@ -2,7 +2,7 @@
 
 # %%
 # --8<-- [start:adv_config_microsplit]
-from careamics.config import create_advanced_microsplit_config
+from careamics.config import MeanStdConfig, create_advanced_microsplit_config
 
 config = create_advanced_microsplit_config(
     experiment_name="microsplit_training",
@@ -14,7 +14,7 @@ config = create_advanced_microsplit_config(
     channels=[0, 2],
     multiscale_count=3,
     padding_mode="reflect",
-    normalization="mean_std",
+    normalization=MeanStdConfig(),
     optimizer="Adamax",
     optimizer_params={"lr": 1e-3},
     num_epochs=100,
@@ -23,7 +23,7 @@ config = create_advanced_microsplit_config(
 
 # %%
 # --8<-- [start:adv_config_microsplit_in_memory]
-from careamics.config import create_advanced_microsplit_config
+from careamics.config import QuantileConfig, create_advanced_microsplit_config
 
 config = create_advanced_microsplit_config(
     experiment_name="microsplit_training",
@@ -63,10 +63,11 @@ config = create_advanced_microsplit_config(
     patch_size=[64, 64],
     batch_size=8,
     output_channels=3,
-    normalization="quantile",  # (1)!
-    normalization_params={
-        "lower_quantiles": [0.01], "upper_quantiles": [0.99]  # (2)!
-    }
+    normalization=QuantileConfig(
+        lower_quantiles=[0.01],  # (2)!
+        upper_quantiles=[0.99],
+        target_mode="none",
+    )
 )
 # --8<-- [end:adv_config_microsplit_norm]
 
@@ -111,7 +112,7 @@ config = create_advanced_microsplit_config(
     patch_size=[64, 64],
     batch_size=8,
     output_channels=3,
-    alpha_ranges=[(0.1, 0.9), (0.2, 0.8)],  # (1)!
+    alpha_ranges=[(0.1, 0.9), (0.2, 0.8), (0.3, 0.7)],  # (1)!
 )
 # --8<-- [end:adv_config_microsplit_alpha]
 
