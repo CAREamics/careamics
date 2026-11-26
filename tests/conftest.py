@@ -17,6 +17,7 @@ from careamics.config.lightning.training_configuration import (
     TrainingConfig,
     default_training_dict,
 )
+from careamics.config.losses import MicroSplitLossConfig
 from careamics.config.support import SupportedData
 from careamics.lightning.callbacks.config_saver_callback import (
     ConfigSaverCallback,
@@ -368,13 +369,15 @@ def lvae_pre_trained(tmp_path):
         data_type="array",
         in_memory=True,
         axes="YX",
-        output_channels=1,
+        n_channels_out=1,
         patch_size=patch_size,
         batch_size=2,
         num_epochs=2,
         multiscale_count=1,
-        predict_logvar=True,
-        gaussian_likelihood_weight=0.0,
+        loss=MicroSplitLossConfig(
+            predict_logvar=True,
+            gaussian_likelihood_weight=0.0,
+        ),
         seed=13,
     )
 

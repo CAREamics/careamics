@@ -8,6 +8,7 @@ __all__ = [
     "N2VAlgorithm",
     "PN2VAlgorithm",
     "SegAlgorithm",
+    "SegLossConfig",
     "UNetBasedAlgorithm",
 ]
 
@@ -20,5 +21,5 @@ from .microsplit_algorithm_config import MicroSplitAlgorithm
 from .n2n_algorithm_config import N2NAlgorithm
 from .n2v_algorithm_config import N2VAlgorithm
 from .pn2v_algorithm_config import PN2VAlgorithm
-from .seg_unet_algorithm_config import SegAlgorithm
+from .seg_unet_algorithm_config import SegAlgorithm, SegLossConfig
 from .unet_algorithm_config import UNetBasedAlgorithm

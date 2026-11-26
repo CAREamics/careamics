@@ -20,7 +20,7 @@ def test_create_msplit_config(tmp_path):
             "64",
             "--batch_size",
             "8",
-            "--output_channels",
+            "--n_channels_out",
             "3",
         ]
     )

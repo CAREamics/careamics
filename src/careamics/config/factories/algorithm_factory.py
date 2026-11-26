@@ -111,9 +111,6 @@ def create_algorithm_configuration(
         **model_params,
     )
 
-    if algorithm == "seg" and isinstance(loss, str):
-        loss = {"name": loss}
-
     algorithm_config = {
         "algorithm": algorithm,
         "loss": loss,

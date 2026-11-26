@@ -51,9 +51,8 @@ def add_args_config_msplit(parser: argparse.ArgumentParser) -> None:
         default=None,
     )
     parser.add_argument("--n_val_patches", type=int, default=None)
-    parser.add_argument("--n_channels", type=int, default=None)
     parser.add_argument(
-        "--output_channels",
+        "--n_channels_out",
         type=int,
         required=True,
         help="Number of output channels",
@@ -81,14 +80,13 @@ def create_config_msplit(args: argparse.Namespace) -> None:
         axes=args.axes,
         patch_size=args.patch_size,
         batch_size=args.batch_size,
-        output_channels=args.output_channels,
+        n_channels_out=args.n_channels_out,
         **without_none(
             {
                 "num_epochs": args.num_epochs,
                 "num_steps": args.num_steps,
                 "augmentations": args.augmentations,
                 "n_val_patches": args.n_val_patches,
-                "n_channels": args.n_channels,
                 "multiscale_count": args.multiscale_count,
                 "seed": args.seed,
             }

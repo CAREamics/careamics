@@ -18,6 +18,7 @@ from careamics.config.factories import (
     create_advanced_microsplit_config,
     create_advanced_n2v_config,
 )
+from careamics.config.losses import MicroSplitLossConfig
 from careamics.lightning import CareamicsDataModule, ConfigSaverCallback, N2VModule
 from careamics.lightning.modules.microsplit_module import MicroSplitModule
 
@@ -159,13 +160,15 @@ def test_microsplit_lightning_checkpoint_predicts_through_careamist(
         axes="SCYX",
         patch_size=[64, 64],
         batch_size=2,
-        output_channels=2,
+        n_channels_out=2,
         num_epochs=1,
         num_steps=1,
         multiscale_count=1,
         augmentations=[],
-        gaussian_likelihood_weight=1.0,
-        noise_model_likelihood_weight=0.0,
+        loss=MicroSplitLossConfig(
+            gaussian_likelihood_weight=1.0,
+            noise_model_likelihood_weight=0.0,
+        ),
         model_params={"z_dims": [32, 32], "n_filters": 8},
         num_workers=0,
         seed=1,

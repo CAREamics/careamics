@@ -27,12 +27,13 @@ def create_microsplit_config(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    output_channels: int,
+    n_channels_out: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
     n_val_patches: int = 8,
     multiscale_count: int = 3,
+    use_noise_model: bool = True,
     seed: int | None = None,
 ) -> MicroSplitConfiguration:
     """Create a configuration for training MicroSplit.
@@ -51,7 +52,7 @@ def create_microsplit_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    output_channels : int
+    n_channels_out : int
         Number of target channels to split into.
     num_epochs : int, default=100
         Number of epochs to train for.
@@ -63,6 +64,9 @@ def create_microsplit_config(
         Number of patches to set aside for validation during training.
     multiscale_count : int, default=3
         Number of lateral-context scales.
+    use_noise_model : bool, default=True
+        Whether to use a noise model during training. If `True`, a noise model must be
+        supplied at train time.
     seed : int or None, default=None
         Random seed for reproducibility.
 
@@ -73,9 +77,14 @@ def create_microsplit_config(
 
     Notes
     -----
-    For denoiSplit (`noise_model_likelihood_weight > 0`), train a noise model with
-    `NoiseModelTrainer` and pass it to `CAREamist.train(noise_model=...)` (or
-    `MicroSplitModule.set_noise_model`).
+    Setting `use_noise_model=True` configures MicroSplit to use two reconstruction terms
+    in the loss, Gaussian (weight 0.1) and noise model likelihoods (0.9), while
+    `use_noise_model=False` leads to only the Gaussian likelihood term.
+
+    If `use_noise_model` is set to `True`, then a noise model must be trained using
+    `train_noise_model` and the resulting model be passed at MicroSplit training time
+    to `CAREamist.train(noise_model=...)` or directly set into the MicroSplit Lightning
+    module if using the Lightning API.
     """
     return create_advanced_microsplit_config(**locals())
 
@@ -87,7 +96,7 @@ def create_advanced_microsplit_config(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    output_channels: int,
+    n_channels_out: int,
     num_epochs: int = 100,
     num_steps: int | None = None,
     augmentations: Sequence[Literal["x_flip", "y_flip", "rotate_90"]] | None = None,
@@ -99,18 +108,12 @@ def create_advanced_microsplit_config(
     ) = "mean_std",
     in_memory: bool | None = None,
     multiscale_count: int = 3,
-    padding_mode: Literal["reflect", "wrap"] = "reflect",
     alpha_ranges: Sequence[tuple[float, float]] | None = None,
     uncorrelated_channel_prob: float = 0.0,
-    # model parameters
+    # advanced algorithm parameters
+    use_noise_model: bool | None = None,
     model_params: dict[str, Any] | None = None,
-    predict_logvar: bool = True,
-    logvar_lowerbound: float | None = -5.0,
-    # loss parameters
-    reconstruction_weight: float = 1.0,
-    kl_weight: float = 1.0,
-    gaussian_likelihood_weight: float = 0.1,
-    noise_model_likelihood_weight: float = 0.9,
+    loss: MicroSplitLossConfig | None = None,
     # lightning parameters
     num_workers: int = -1,
     trainer_params: dict | None = None,
@@ -127,6 +130,11 @@ def create_advanced_microsplit_config(
 ) -> MicroSplitConfiguration:
     """Create an advanced configuration for training MicroSplit.
 
+    `use_noise_model` controls default weights of the MicroSplit loss. If set to `True`,
+    then a noise model must be provided at training time. `use_noise_model` is not
+    compatible with explicitly setting `loss`, which may or may not set up a loss that
+    requires a noise model.
+
     Parameters
     ----------
     experiment_name : str
@@ -139,7 +147,7 @@ def create_advanced_microsplit_config(
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
-    output_channels : int
+    n_channels_out : int
         Number of target channels to split into.
     num_epochs : int, default=100
         Number of epochs to train for.
@@ -158,12 +166,14 @@ def create_advanced_microsplit_config(
         Whether to load all data into memory.
     multiscale_count : int, default=3
         Number of lateral-context scales.
-    padding_mode : {"reflect", "wrap"}, default="reflect"
-        Padding mode for lateral-context patches extending beyond image borders.
     alpha_ranges : sequence of tuple of float or None, default=None
         Ranges used to sample channel mixing weights for synthetic inputs.
     uncorrelated_channel_prob : float, default=0.0
         Probability of sampling uncorrelated channels for synthetic inputs.
+    use_noise_model : bool | None, default=None
+        Whether to use a noise model during training. Cannot be passed together with
+        `loss` as the latter may define a noise model-dependent loss. If neither
+        `use_noise_model` nor `loss` are passed, then defaults to `True`.
     model_params : dict or None, default=None
         LVAE model parameters overriding the MicroSplit defaults (`z_dims=[128, 128]`,
         `n_filters=32`, `encoder_dropout=0.1`,
@@ -173,20 +183,10 @@ def create_advanced_microsplit_config(
         `analytical_kl`, `enable_topdown_normalize_factor`,
         `encoder_first_conv_kernel`) are set by the algorithm and cannot be overridden
         here.
-    predict_logvar : bool, default=True
-        Whether to predict the pixelwise log-variance.
-    logvar_lowerbound : float or None, default=-5.0
-        Lower bound on the predicted log-variance.
-    reconstruction_weight : float, default=1.0
-        Weight of the reconstruction term.
-    kl_weight : float, default=1.0
-        Weight of the KL term.
-    gaussian_likelihood_weight : float, default=0.1
-        Weight of the Gaussian likelihood term (muSplit).
-    noise_model_likelihood_weight : float, default=0.9
-        Weight of the noise model likelihood term (denoiSplit). The noise model itself
-        is supplied at training time via `CAREamist.train(noise_model=...)` /
-        `MicroSplitModule.set_noise_model`.
+    loss : MicroSplitLossConfig | None, default=None
+        MicroSplit loss configuration, allowing fine control over the weight of
+        the loss terms. Cannot be passed together with `use_noise_model` as `loss` may
+        define a noise model-dependent loss.
     num_workers : int, default=-1
         Number of workers for data loading.
     trainer_params : dict or None, default=None
@@ -217,19 +217,54 @@ def create_advanced_microsplit_config(
     -------
     MicroSplitConfiguration
         Configuration for training MicroSplit.
+
+    Raises
+    ------
+    ValueError
+        If both `use_noise_model` and `loss` are supplied.
+
+    Notes
+    -----
+    Setting `use_noise_model=True` configures MicroSplit to use two reconstruction terms
+    in the loss, Gaussian (weight 0.1) and noise model likelihoods (0.9), while
+    `use_noise_model=False` leads to only the Gaussian likelihood term.
+
+    If `use_noise_model` is set to `True`, then a noise model must be trained using
+    `train_noise_model` and the resulting model be passed at MicroSplit training time
+    to `CAREamist.train(noise_model=...)` or directly set into the MicroSplit Lightning
+    module if using the Lightning API.
+
+    `loss` allows setting all loss weights, including the reconstruction terms and
+    whether a noise model is required.
     """
     conv_strides = [2] * len(patch_size)
 
-    # TODO consider accepting a MicroSplitLossConfig directly instead of individual
-    # weights (see PR #1007 discussion); to be addressed in a follow-up PR.
-    loss = MicroSplitLossConfig(
-        reconstruction_weight=reconstruction_weight,
-        kl_weight=kl_weight,
-        gaussian_likelihood_weight=gaussian_likelihood_weight,
-        noise_model_likelihood_weight=noise_model_likelihood_weight,
-        predict_logvar=predict_logvar,
-        logvar_lowerbound=logvar_lowerbound,
-    )
+    predict_logvar = True  # default
+    if loss is None:
+        if use_noise_model is None:
+            denoising_weight = 0.9
+        else:
+            denoising_weight = 0.9 if use_noise_model else 0
+
+        loss = MicroSplitLossConfig(
+            reconstruction_weight=1.0,
+            kl_weight=1.0,
+            gaussian_likelihood_weight=1.0 - denoising_weight,
+            noise_model_likelihood_weight=denoising_weight,
+            predict_logvar=predict_logvar,
+            logvar_lowerbound=-5.0,
+        )
+    else:
+        if use_noise_model is not None:
+            raise ValueError(
+                "Parameters `use_noise_model` and `loss` cannot be passed conjointly. "
+                "Use `use_noise_model` for simple switch between using a noise model "
+                "or not. Use `loss` for fine setting of the loss terms, including "
+                "whether to use a noise model loss term."
+            )
+
+        # read `predict_logvar` from the supplied loss
+        predict_logvar = loss.predict_logvar
 
     # MicroSplit-specific LVAE defaults; user-supplied `model_params` override these,
     # while structural parameters (set below) always take precedence.
@@ -241,7 +276,7 @@ def create_advanced_microsplit_config(
         **(model_params or {}),
         "architecture": "LVAE",
         "input_shape": tuple(patch_size),
-        "output_channels": output_channels,
+        "output_channels": n_channels_out,
         "multiscale_count": multiscale_count,
         "encoder_conv_strides": conv_strides,
         "decoder_conv_strides": conv_strides,
@@ -291,7 +326,7 @@ def create_advanced_microsplit_config(
     data_config = MicroSplitDataConfig(
         **base_data_config.model_dump(),
         multiscale_count=multiscale_count,
-        padding_mode=padding_mode,
+        padding_mode="reflect",  # TODO is it ever changed in our experiments?
         alpha_ranges=alpha_ranges,
         uncorrelated_channel_prob=uncorrelated_channel_prob,
     )
