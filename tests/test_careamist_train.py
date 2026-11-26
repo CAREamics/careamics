@@ -63,7 +63,6 @@ def test_train_error_no_target_data(tmp_path: Path):
         )
 
 
-@pytest.mark.mps_gh_fail
 def test_train_hdn_supervised(tmp_path: Path):
     """Test that a supervised HDN trains against target data."""
     train_array = random_array((2, 64, 64), seed=0)

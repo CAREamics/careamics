@@ -376,7 +376,6 @@ def test_predict_rejects_sampling_for_deterministic_algorithms(tmp_path: Path):
         careamist.predict(random_array((1, 32, 32)), n_predictions=5)
 
 
-@pytest.mark.mps_gh_fail
 def test_predict_hdn_returns_uncertainty(tmp_path: Path):
     """HDN averages several predictions and returns their spread."""
     train_array = random_array((2, 64, 64), seed=42)
@@ -402,7 +401,6 @@ def test_predict_hdn_returns_uncertainty(tmp_path: Path):
     assert np.all(uncertainty[0] > 0)
 
 
-@pytest.mark.mps_gh_fail
 def test_predict_hdn_returns_uncertainty_tiled(tmp_path: Path):
     """Tiled prediction stitches the uncertainty alongside the prediction."""
     train_array = random_array((1, 128, 128), seed=42)

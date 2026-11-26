@@ -21,7 +21,6 @@ from careamics.lightning.prediction import convert_prediction
 # TODO add untiled zarr writing when it will be implemented
 
 
-@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize(
     "shape, axes, channels, tiled",
     [
@@ -155,7 +154,6 @@ def test_smoke_n2v_tiff(tmp_path, shape, axes, channels, tiled):
     np.testing.assert_array_equal(save_data, predicted_images[0], verbose=True)
 
 
-@pytest.mark.mps_gh_fail
 @pytest.mark.parametrize(
     "shape, axes, channels",
     [
