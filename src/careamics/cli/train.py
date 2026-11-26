@@ -3,99 +3,11 @@
 """Script for the CLI. Runs training."""
 
 import argparse
-import json
 from pathlib import Path
-from typing import Any
-
-from lightning.pytorch.callbacks import ModelCheckpoint
 
 from careamics import CAREamist
 from careamics.cli.cli_utils import without_none
 from careamics.config.utils.configuration_io import load_configuration
-
-
-def get_checkpoint_record_data(careamist: CAREamist) -> dict[str, Any]:
-    """Get a record of the checkpoints produced during training.
-
-    Parameters
-    ----------
-    careamist : CAREamist
-        A CAREamist instance that has been used for training.
-
-    Returns
-    -------
-    dict[str, Any]
-        Contains a record of the checkpoints produced during training.
-
-    Raises
-    ------
-    ValueError
-        If no checkpoints were found.
-    ValueError
-        If the monitoring mode in `ModelCheckpoint` is not `"min"` or `"max"`.
-    """
-    model_ckpt_callback = careamist.trainer.checkpoint_callback
-    assert isinstance(model_ckpt_callback, ModelCheckpoint)
-
-    data: dict[str, Any] = {}
-
-    last = model_ckpt_callback.last_model_path
-    data["last"] = Path(last).name if last else None
-
-    best = model_ckpt_callback.best_model_path
-    data["best"] = Path(best).name if best else None
-
-    data["monitor"] = model_ckpt_callback.monitor
-    data["mode"] = model_ckpt_callback.mode
-
-    # add best k, put in a list with best at the first element
-    best_k = [
-        {"name": Path(ckpt_path).name, "score": score.item()}
-        for ckpt_path, score in model_ckpt_callback.best_k_models.items()
-    ]
-    if data["mode"] == "min":
-        best_k = sorted(best_k, key=lambda x: x["score"])
-    elif data["mode"] == "max":
-        best_k = sorted(best_k, key=lambda x: x["score"], reverse=True)
-    else:
-        raise ValueError(f"Unrecognized checkpoint monitoring mode: {data['mode']}")
-    data["best_k"] = best_k
-
-    # all checkpoints
-    data["checkpoints"] = [ckpt_path.name for ckpt_path in careamist.get_checkpoints()]
-    if len(data["checkpoints"]) == 0:
-        raise ValueError(
-            "No checkpoints found. Ensure that model checkpointing has been configured "
-            "correctly."
-        )
-
-    # select checkpoint that should be used
-    select = careamist._get_default_ckpt(None)  # will only return "best" or "last"
-    if select == "last":
-        selected = data["checkpoints"][-1]  # last saved
-    else:
-        selected = data[str(select)]
-    data["selected"] = selected
-
-    return data
-
-
-def save_checkpoint_record(careamist: CAREamist) -> None:
-    """Save a `checkpoint_record.json` file.
-
-    Parameters
-    ----------
-    careamist : CAREamist
-        A CAREamist instance that has been used for training.
-    """
-    model_ckpt_callback = careamist.trainer.checkpoint_callback
-    assert isinstance(model_ckpt_callback, ModelCheckpoint)
-    assert model_ckpt_callback.dirpath is not None  # CAREamist always sets this
-    dirpath = Path(model_ckpt_callback.dirpath)
-
-    data = get_checkpoint_record_data(careamist)
-    with open(dirpath / "checkpoint_record.json", "w") as f:
-        json.dump(data, f, indent=2)
 
 
 def add_args_train(parser: argparse.ArgumentParser) -> None:
@@ -155,4 +67,3 @@ def train(args: argparse.Namespace) -> None:
             }
         ),
     )
-    save_checkpoint_record(careamist)
