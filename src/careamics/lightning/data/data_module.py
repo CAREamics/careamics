@@ -40,7 +40,7 @@ from careamics.models.constraints import (
 )
 from careamics.utils import get_logger
 
-from .data_module_utils import initialize_data_pair
+from .data_module_utils import initialize_data_pair, initialize_target_only
 from .grouped_index_sampler import GroupedIndexSampler
 
 logger = get_logger(__name__)
@@ -252,6 +252,12 @@ class CareamicsDataModule(L.LightningDataModule):
             pred_data_target=pred_data_target,
             loading=loading,
         )
+        if (
+            isinstance(self._data, TrainValData)
+            and self._data.train_data is None
+            and not isinstance(self.config, MicroSplitDataConfig)
+        ):
+            raise ValueError("Training data must be provided.")
 
         self.loading: Loading = loading
 
@@ -535,6 +541,18 @@ def _validate_data(
         In the case of incompatible combinations of arguments.
     """
     match train_data, val_data, n_val_patches, pred_data:
+        case None, None, _, None if (
+            train_data_target is not None and val_data_target is not None
+        ):
+            return TrainValData(
+                train_data_target=initialize_target_only(
+                    data_type, train_data_target, loading
+                ),
+                val_data_target=initialize_target_only(
+                    data_type, val_data_target, loading
+                ),
+                train_data_mask=train_data_mask,
+            )
         case train_data, val_data, _, None if (
             train_data is not None and val_data is not None
         ):

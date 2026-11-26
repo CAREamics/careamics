@@ -70,18 +70,26 @@ def test_alpha_ranges_wellformed_accepted() -> None:
     assert config.alpha_ranges == [(0.0, 1.0), (0.2, 0.8)]
 
 
-def test_patch_filter_is_not_supported() -> None:
-    """Test MicroSplit data config rejects patch filtering."""
-    with pytest.raises(
-        NotImplementedError,
-        match="Patch filtering is currently not implemented for MicroSplit",
-    ):
+def test_patch_filter_removed_on_convert_mode() -> None:
+    """Test MicroSplit patch filtering is accepted and dropped by `convert_mode`."""
+    config = MicroSplitDataConfig(
+        **_microsplit_config_dict(
+            patch_filter={"name": "max", "threshold": 0.5, "filtered_patch_prob": 0.1}
+        )
+    )
+    assert config.patch_filter is not None
+    assert config.convert_mode("validating").patch_filter is None
+
+
+def test_patch_filter_ref_channel_must_be_zero() -> None:
+    """Test that a MicroSplit patch filter must use channel 0."""
+    with pytest.raises(ValueError, match="ref_channel"):
         MicroSplitDataConfig(
             **_microsplit_config_dict(
                 patch_filter={
                     "name": "max",
                     "threshold": 0.5,
-                    "filtered_patch_prob": 0.1,
+                    "ref_channel": 1,
                 }
             )
         )

@@ -369,9 +369,14 @@ class IndependentTargetsMsPatchConstr(PatchConstr):
         Returns
         -------
         Sequence[Sequence[int]]
-            Target image shapes for the principal target source.
+            Target image shapes for the principal target source, with one channel per
+            target source.
         """
-        return self.target_extractors[self.principal_channel].shapes
+        n_channels = len(self.target_extractors)
+        return [
+            (shape[0], n_channels, *shape[2:])
+            for shape in self.target_extractors[self.principal_channel].shapes
+        ]
 
     def construct_patch(
         self, index: int

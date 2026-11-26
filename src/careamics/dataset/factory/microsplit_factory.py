@@ -3,11 +3,12 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Generic, TypeVar, overload
+from typing import Any, Generic, TypeVar, cast, overload
 
 import numpy as np
 from numpy.typing import NDArray
 
+from careamics.config.data.data_config import WholePatchingConfig
 from careamics.config.data.microsplit_data_config import MicroSplitDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset import CareamicsDataset
@@ -19,7 +20,8 @@ from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
     PairedInputTargetMsPatchConstr,
     PredMsPatchConstr,
 )
-from careamics.dataset.patching import create_patching
+from careamics.dataset.patch_extractor import PatchExtractor
+from careamics.dataset.patching import StratifiedPatching, create_patching
 from careamics.models.constraints import ModelConstraints
 from careamics.utils import get_logger
 
@@ -33,6 +35,7 @@ from .factory import (
     select_image_stack_loader,
     select_patch_extractor_type,
 )
+from .filter_bg import filter_background
 
 T = TypeVar("T")
 logger = get_logger("MicroSplitFactory")
@@ -163,15 +166,36 @@ def create_microsplit_dataset(
     rng = rng if rng is not None else np.random.default_rng(config.seed)
     target_axes = config.target_axes or config.axes
 
+    if config.patch_filter is not None and config.patching.name != "stratified":
+        raise TypeError(
+            "Background patch filtering is only compatible with stratified "
+            f"patching. Found {config.patching.name} patching in the configuration."
+        )
+
     patch_constructor: PatchConstr
     match data:
         case MultiChannelTarget(target_data):
+            if config.patch_filter is not None and config.uncorrelated_channel_prob > 0:
+                raise ValueError(
+                    "Patch filtering cannot be used together with "
+                    "`uncorrelated_channel_prob` > 0 in multiplexed-target mode."
+                )
             target_extractor = init_patch_extractor(
                 patch_extractor_type, image_stack_loader, target_data, target_axes
             )
             patching_strategy = create_patching(
                 target_extractor.shapes, config.patching
             )
+            if config.patch_filter is not None:
+                assert isinstance(patching_strategy, StratifiedPatching)
+                filter_background(
+                    config.patch_filter,
+                    patching_strategy,
+                    cast(
+                        PatchExtractor[Any],
+                        _ChannelMeanExtractor(target_extractor, config.channels),
+                    ),
+                )
             patch_constructor = MultiChannelTargetMsPatchConstr(
                 patching_strategy=patching_strategy,
                 target_extractor=target_extractor,
@@ -198,10 +222,17 @@ def create_microsplit_dataset(
                 )
                 for source in target_channel_data
             ]
+            _validate_independent_target_extractors(target_extractors, config)
             patching_strategies = [
                 create_patching(extractor.shapes, config.patching)
                 for extractor in target_extractors
             ]
+            if config.patch_filter is not None:
+                for patching_strategy, extractor in zip(
+                    patching_strategies, target_extractors, strict=True
+                ):
+                    assert isinstance(patching_strategy, StratifiedPatching)
+                    filter_background(config.patch_filter, patching_strategy, extractor)
             patch_constructor = IndependentTargetsMsPatchConstr(
                 patching_strategies=patching_strategies,
                 target_extractors=target_extractors,
@@ -233,6 +264,11 @@ def create_microsplit_dataset(
                 patch_extractor_type, image_stack_loader, target_data, target_axes
             )
             patching_strategy = create_patching(input_extractor.shapes, config.patching)
+            if config.patch_filter is not None:
+                assert isinstance(patching_strategy, StratifiedPatching)
+                filter_background(
+                    config.patch_filter, patching_strategy, input_extractor
+                )
             patch_constructor = PairedInputTargetMsPatchConstr(
                 patching_strategy=patching_strategy,
                 input_extractor=input_extractor,
@@ -342,11 +378,11 @@ def create_microsplit_train_val_datasets(
     rng: np.random.Generator | None = None,
     model_constraints: ModelConstraints | None = None,
 ) -> tuple[CareamicsDataset[ImageStack], CareamicsDataset[ImageStack]]:
-    """Create MicroSplit train and validation datasets from paired input/target data.
+    """Create MicroSplit train and validation datasets.
 
-    Only the paired input/target MicroSplit mode is supported here. Synthetic input
-    modes must be built directly with `create_microsplit_dataset`, passing either
-    `MultiChannelTarget` or `IndependentTargets`.
+    Paired input/target data, multiplexed targets, and independent per-channel target
+    sources are supported. For the latter two modes, only targets are provided and the
+    input is synthesized from them.
 
     Parameters
     ----------
@@ -382,12 +418,7 @@ def create_microsplit_train_val_datasets(
         )
     if data.train_data_target is None:
         raise ValueError(
-            "MicroSplit is supervised: `train_data_target` must be provided. Only the "
-            "paired input/target MicroSplit mode is supported through "
-            "`CareamicsDataModule`. To train from multiplexed or independent target "
-            "channels, for which the input is synthesized, build the dataset directly "
-            "with `careamics.dataset.factory.create_microsplit_dataset` and a "
-            "`MultiChannelTarget` or `IndependentTargets` input."
+            "MicroSplit is supervised: `train_data_target` must be provided."
         )
     if data.val_data_target is None:
         raise ValueError(
@@ -398,6 +429,34 @@ def create_microsplit_train_val_datasets(
             "Mask-based patch filtering is not implemented for MicroSplit."
         )
 
+    train_microsplit_data: MicroSplitTrainingData
+    val_microsplit_data: MicroSplitTrainingData
+    if data.train_data is None and data.val_data is None:
+        train_independent = isinstance(data.train_data_target, IndependentTargets)
+        if train_independent != isinstance(data.val_data_target, IndependentTargets):
+            raise ValueError(
+                "Either both or none of `train_data_target` and `val_data_target` must "
+                "be `IndependentTargets`."
+            )
+        if train_independent:
+            train_microsplit_data = data.train_data_target
+            val_microsplit_data = data.val_data_target
+        else:
+            train_microsplit_data = MultiChannelTarget(data.train_data_target)
+            val_microsplit_data = MultiChannelTarget(data.val_data_target)
+    elif data.train_data is not None and data.val_data is not None:
+        train_microsplit_data = PairedInputTarget(
+            input_data=data.train_data, target_data=data.train_data_target
+        )
+        val_microsplit_data = PairedInputTarget(
+            input_data=data.val_data, target_data=data.val_data_target
+        )
+    else:
+        raise ValueError(
+            "Provide either both `train_data` and `val_data` (paired input and target) "
+            "or neither (input synthesized from the targets)."
+        )
+
     # NOTE: the training dataset MUST be created before `convert_mode`. Constructing a
     # `CareamicsDataset` resolves the normalization statistics and mutates
     # `config.normalization` in place (see `resolve_normalization_config`);
@@ -406,18 +465,14 @@ def create_microsplit_train_val_datasets(
     # on the validation data instead. This mirrors `create_train_val_datasets`.
     train_dataset = create_microsplit_dataset(
         config=config,
-        data=PairedInputTarget(
-            input_data=data.train_data, target_data=data.train_data_target
-        ),
+        data=train_microsplit_data,
         loading=loading,
         model_constraints=model_constraints,
         rng=rng,
     )
     val_dataset = create_microsplit_dataset(
         config=config.convert_mode("validating"),
-        data=PairedInputTarget(
-            input_data=data.val_data, target_data=data.val_data_target
-        ),
+        data=val_microsplit_data,
         loading=loading,
         model_constraints=model_constraints,
         rng=rng,
@@ -474,3 +529,100 @@ def create_microsplit_pred_dataset_from_data(
         loading=loading,
         model_constraints=model_constraints,
     )
+
+
+def _validate_independent_target_extractors(
+    target_extractors: Sequence[PatchExtractor[Any]],
+    config: MicroSplitDataConfig,
+) -> None:
+    """Validate independent target sources against the training patch size.
+
+    Parameters
+    ----------
+    target_extractors : Sequence of PatchExtractor
+        One extractor per target source.
+    config : MicroSplitDataConfig
+        MicroSplit data configuration.
+
+    Raises
+    ------
+    ValueError
+        If a source has more than one channel, or a spatial dimension smaller than
+        the patch size.
+    """
+    multi_channel_shapes = [
+        tuple(shape)
+        for extractor in target_extractors
+        for shape in extractor.shapes
+        if shape[1] != 1
+    ]
+    if multi_channel_shapes:
+        raise ValueError(
+            "MicroSplit independent-target mode requires single-channel sources, "
+            f"got shapes {multi_channel_shapes}."
+        )
+
+    if isinstance(config.patching, WholePatchingConfig):
+        return
+    patch_size = np.asarray(config.patching.patch_size)
+    faulty_shapes = [
+        shape
+        for extractor in target_extractors
+        for shape in extractor.shapes
+        if (patch_size > np.asarray(shape[2:])).any()
+    ]
+    if faulty_shapes:
+        raise ValueError(
+            "Not all images sizes are greater or equal than the patch size for "
+            "training and validation. Got the following shapes for images that are "
+            f"too small: {faulty_shapes}."
+        )
+
+
+@dataclass
+class _ChannelMeanExtractor:
+    """Patch extractor returning the mean of the target channels.
+
+    Attributes
+    ----------
+    extractor : PatchExtractor
+        Target patch extractor.
+    channels : Sequence[int] or None
+        Target channels to average, all channels if None.
+    """
+
+    extractor: PatchExtractor[Any]
+    channels: Sequence[int] | None
+
+    def extract_channel_patch(
+        self,
+        data_idx: int,
+        sample_idx: int,
+        channels: Sequence[int] | None,
+        coords: Sequence[int],
+        patch_size: Sequence[int],
+    ) -> NDArray[Any]:
+        """Extract the mean of the target channels, `channels` is ignored.
+
+        Parameters
+        ----------
+        data_idx : int
+            Image stack index.
+        sample_idx : int
+            Sample index.
+        channels : Sequence[int] or None
+            Ignored.
+        coords : Sequence[int]
+            Patch coordinates.
+        patch_size : Sequence[int]
+            Patch size.
+
+        Returns
+        -------
+        numpy.ndarray
+            Mean patch with a singleton channel dimension.
+        """
+        patch = self.extractor.extract_channel_patch(
+            data_idx, sample_idx, self.channels, coords, patch_size
+        )
+        return patch.mean(axis=0, keepdims=True)

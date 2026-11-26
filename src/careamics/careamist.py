@@ -15,7 +15,12 @@ from .config.hdn_configuration import HDNConfiguration
 from .config.microsplit_configuration import MicroSplitConfiguration
 from .config.support import SupportedLogger
 from .config.utils.configuration_io import load_configuration
-from .dataset.factory import ImageStackLoading, Loading, ReadFuncLoading
+from .dataset.factory import (
+    ImageStackLoading,
+    IndependentTargets,
+    Loading,
+    ReadFuncLoading,
+)
 from .dataset.image_region_data import ImageRegionData
 from .image_io import WriteFunc
 from .lightning.callbacks import (
@@ -580,9 +585,9 @@ class CAREamist:
         *,
         # BASIC PARAMS
         train_data: InputVar | None = None,
-        train_data_target: InputVar | None = None,
+        train_data_target: InputVar | IndependentTargets[InputVar] | None = None,
         val_data: InputVar | None = None,
-        val_data_target: InputVar | None = None,
+        val_data_target: InputVar | IndependentTargets[InputVar] | None = None,
         # ADVANCED PARAMS
         filtering_mask: InputVar | None = None,
         loading: ReadFuncLoading | None = None,
@@ -624,14 +629,19 @@ class CAREamist:
         Parameters
         ----------
         train_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
-            Training data, by default None.
+            Training data, by default None. For MicroSplit, if None, the input is
+            synthesized from `train_data_target`.
         train_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these
-            Training target data, by default None.
+            Training target data, by default None. For MicroSplit without
+            `train_data`, either multiplexed target channels or `IndependentTargets`
+            holding one source per target channel.
         val_data : pathlib.Path, str, numpy.ndarray, or sequence of these, optional
             Validation data. If not provided, `data_config.n_val_patches` patches will
             selected from the training data for validation.
         val_data_target : pathlib.Path, str, numpy.ndarray, or sequence of these
-            Validation target data, by default None.
+            Validation target data, by default None. For MicroSplit without
+            `val_data`, either multiplexed target channels or `IndependentTargets`
+            holding one source per target channel.
         filtering_mask : pathlib.Path, str, numpy.ndarray, or sequence of these
             Filtering mask for coordinate-based patch filtering, by default None.
         loading : Loading, default=None
@@ -648,7 +658,7 @@ class CAREamist:
         ValueError
             If train_data is not provided.
         """
-        if train_data is None:
+        if train_data is None and not isinstance(self.config, MicroSplitConfiguration):
             raise ValueError("Training data must be provided. Provide `train_data`.")
 
         if noise_model is not None:
