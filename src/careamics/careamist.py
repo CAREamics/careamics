@@ -8,7 +8,13 @@ from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from numpy.typing import NDArray
 
-from .config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
+from .config.algorithms import (
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    PN2VAlgorithm,
+    SegAlgorithm,
+)
 from .config.configuration import Configuration
 from .config.data import DataInputFormat
 from .config.hdn_configuration import HDNConfiguration
@@ -61,6 +67,7 @@ ConfigurationType = (
     Configuration[CAREAlgorithm]
     | Configuration[N2NAlgorithm]
     | Configuration[N2VAlgorithm]
+    | Configuration[PN2VAlgorithm]
     | Configuration[SegAlgorithm]
     | HDNConfiguration
     | MicroSplitConfiguration
@@ -639,7 +646,7 @@ class CAREamist:
             ImageStackLoading. If None, uses the loading strategy from the training
             configuration.
         noise_model : MultiChannelNoiseModel or list of str or Path, default=None
-            Trained noise model for MicroSplit or HDN. Can be passed as a
+            Trained noise model for PN2V, HDN or MicroSplit. Can be passed as a
             `MultiChannelNoiseModel` or the per-channel
             `.npz` paths to load it from.
 
@@ -658,7 +665,8 @@ class CAREamist:
                 logger.warning(
                     "A noise model was provided but the "
                     f"{self.config.get_algorithm_friendly_name()} algorithm does not "
-                    "use one (only MicroSplit and HDN do), so it will not be used."
+                    "use one (only PN2V, HDN and MicroSplit do), so it will not be "
+                    "used."
                 )
 
         if self.config.is_supervised() and train_data_target is None:
@@ -1475,10 +1483,19 @@ class CAREamist:
             Paths to the cover images.
         channel_names : list of str, default=None
             Channel names.
+
+        Raises
+        ------
+        NotImplementedError
+            If the algorithm is PN2V.
         """
         import numpy as np
 
         from .model_io import export_to_bmz
+        from .model_io.bmz_io import check_bmz_export_supported
+
+        # fail before the prediction
+        check_bmz_export_supported(self.config)
 
         output_patch, _ = self.predict(
             pred_data=input_array,

@@ -24,6 +24,9 @@ class SupportedAlgorithm(StrEnum):
     """Noise2Noise algorithm, a self-supervised denoising scheme based on comparing
     noisy images of the same sample."""
 
+    PN2V = "pn2v"
+    """Probabilistic Noise2Void. A extension of Noise2Void using noise models."""
+
     CRYOCARE = "cryocare"
     """CryoCARE denoising algorithm for cryo-electron tomography."""
 

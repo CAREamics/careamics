@@ -1,4 +1,4 @@
-"""Noise model trainer for MicroSplit."""
+"""Trainer for the Gaussian mixture noise models of PN2V, HDN and MicroSplit."""
 
 from __future__ import annotations
 
@@ -110,12 +110,20 @@ class NoiseModelTrainer:
         n_epochs: int = 2000,
         learning_rate: float = 1e-1,
         batch_size: int = 250000,
+        lower_clip: float = 0.0,
+        upper_clip: float = 100.0,
     ) -> list[GaussianMixtureNoiseModel]:
         """Train noise models from pre-computed signal-observation pairs.
 
         Fits one GMM noise model per channel.  ``signal`` is the clean /
         denoised data — typically the output of a Noise2Void prediction on
         ``observation``.
+
+        ``lower_clip`` and ``upper_clip`` are percentiles of the signal. They set
+        the signal range of each GMM and drop the pairs whose signal is outside of
+        it. The defaults use the full range. A pseudo-clean signal, such as an N2V
+        prediction, can have outliers that stretch the range; the PN2V bootstrap
+        protocol uses ``0.5`` and ``99.5``.
 
         Parameters
         ----------
@@ -133,6 +141,10 @@ class NoiseModelTrainer:
             Learning rate for optimization.
         batch_size : int, default=250000
             Batch size for training.
+        lower_clip : float, default=0.0
+            Lower percentile of the signal range, in `[0, 100)`.
+        upper_clip : float, default=100.0
+            Upper percentile of the signal range, in `(lower_clip, 100]`.
 
         Returns
         -------
@@ -143,8 +155,15 @@ class NoiseModelTrainer:
         ------
         ValueError
             If signal and observation shapes do not match after axes
-            normalization.
+            normalization, or if the percentiles are not in
+            `0 <= lower_clip < upper_clip <= 100`.
         """
+        if not 0.0 <= lower_clip < upper_clip <= 100.0:
+            raise ValueError(
+                f"The signal percentiles must satisfy 0 <= lower_clip < upper_clip "
+                f"<= 100, got lower_clip={lower_clip} and upper_clip={upper_clip}."
+            )
+
         signal = reshape_array(signal, axes)
         observation = reshape_array(observation, axes)
 
@@ -160,8 +179,8 @@ class NoiseModelTrainer:
         global_min: float | None = None
         global_max: float | None = None
         if self.global_signal_range:
-            global_min = float(signal.min())
-            global_max = float(signal.max())
+            global_min = float(np.percentile(signal, lower_clip))
+            global_max = float(np.percentile(signal, upper_clip))
 
         self.noise_models = []
         self.histograms = []
@@ -184,6 +203,8 @@ class NoiseModelTrainer:
                 batch_size=batch_size,
                 min_signal=global_min,
                 max_signal=global_max,
+                lower_clip=lower_clip,
+                upper_clip=upper_clip,
             )
 
             histogram = create_histogram(
@@ -611,6 +632,8 @@ class NoiseModelTrainer:
         batch_size: int,
         min_signal: float | None = None,
         max_signal: float | None = None,
+        lower_clip: float = 0.0,
+        upper_clip: float = 100.0,
     ) -> tuple[GaussianMixtureNoiseModel, list[float]]:
         """Train one channel-specific Gaussian-mixture noise model.
 
@@ -628,20 +651,28 @@ class NoiseModelTrainer:
             Number of samples per optimization step.
         min_signal : float | None, default=None
             Lower initialization bound for the signal range. If ``None``, use
-            ``signal.min()``.
+            the ``lower_clip`` percentile of ``signal``.
         max_signal : float | None, default=None
             Upper initialization bound for the signal range. If ``None``, use
-            ``signal.max()``.
+            the ``upper_clip`` percentile of ``signal``.
+        lower_clip : float, default=0.0
+            Lower signal percentile. Pairs with a signal below it are not used.
+        upper_clip : float, default=100.0
+            Upper signal percentile. Pairs with a signal above it are not used.
 
         Returns
         -------
         tuple[GaussianMixtureNoiseModel, list[float]]
             The trained model and its per-epoch training losses.
         """
+        if min_signal is None:
+            min_signal = float(np.percentile(signal, lower_clip))
+        if max_signal is None:
+            max_signal = float(np.percentile(signal, upper_clip))
         config = GaussianMixtureNMConfig(
             model_type="GaussianMixtureNoiseModel",
-            min_signal=min_signal if min_signal is not None else float(signal.min()),
-            max_signal=max_signal if max_signal is not None else float(signal.max()),
+            min_signal=min_signal,
+            max_signal=max_signal,
             n_gaussian=self.n_gaussian,
             n_coeff=self.n_coeff,
             min_sigma=self.min_sigma,
@@ -658,6 +689,8 @@ class NoiseModelTrainer:
             learning_rate=learning_rate,
             batch_size=batch_size,
             n_epochs=n_epochs,
+            lower_clip=lower_clip,
+            upper_clip=upper_clip,
         )
 
         return noise_model, losses
@@ -673,6 +706,8 @@ def train_noise_model(
     min_sigma: float = 125.0,
     n_epochs: int = 2000,
     save_dir: Path | str | None = None,
+    lower_clip: float = 0.0,
+    upper_clip: float = 100.0,
 ) -> MultiChannelNoiseModel:
     """Train a multi-channel noise model from signal-observation pairs.
 
@@ -703,6 +738,10 @@ def train_noise_model(
     save_dir : pathlib.Path or str or None, default=None
         Directory in which to save the per-channel `.npz` noise models. If `None`,
         the noise models are not saved.
+    lower_clip : float, default=0.0
+        Lower signal percentile, see `NoiseModelTrainer.train_from_pairs`.
+    upper_clip : float, default=100.0
+        Upper signal percentile, see `NoiseModelTrainer.train_from_pairs`.
 
     Returns
     -------
@@ -713,7 +752,12 @@ def train_noise_model(
         n_gaussian=n_gaussian, n_coeff=n_coeff, min_sigma=min_sigma
     )
     trainer.train_from_pairs(
-        signal=signal, observation=observation, axes=axes, n_epochs=n_epochs
+        signal=signal,
+        observation=observation,
+        axes=axes,
+        n_epochs=n_epochs,
+        lower_clip=lower_clip,
+        upper_clip=upper_clip,
     )
     if save_dir is not None:
         trainer.save(save_dir)

@@ -11,6 +11,7 @@ from torchmetrics import MetricCollection
 
 from careamics.config.noise_model import MultiChannelNMConfig
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
+from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
     multichannel_noise_model_factory,
@@ -110,6 +111,26 @@ def load_noise_model_from_checkpoint(
     return multichannel_noise_model_factory(MultiChannelNMConfig(**payload))
 
 
+def warn_ignored_target(module: L.LightningModule, algorithm_name: str) -> None:
+    """Warn that a self-supervised algorithm ignores the training targets.
+
+    Parameters
+    ----------
+    module : L.LightningModule
+        The Lightning module being fitted, attached to a trainer with a
+        `CareamicsDataModule`.
+    algorithm_name : str
+        Algorithm name used in the warning.
+    """
+    datamodule = module.trainer.datamodule  # type: ignore[attr-defined]
+    assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
+    if datamodule._data.train_data_target is not None:
+        logger.warning(
+            f"{algorithm_name} is a self-supervised algorithm, arguments passed to "
+            "`train_data_target` will be ignored.",
+        )
+
+
 def log_training_stats(module: L.LightningModule, loss: Any, batch_size: int) -> None:
     """Log training loss and learning rate.
 
@@ -184,6 +205,7 @@ def log_images(
     input_or_target: torch.Tensor,
     prediction: torch.Tensor,
     is_supervised: bool,
+    denormalize: Callable[[torch.Tensor], torch.Tensor] | None = None,
 ) -> None:
     """Log input/target, and prediction images to the logger.
 
@@ -197,20 +219,25 @@ def log_images(
         The predicted images.
     is_supervised : bool
         Whether the task is supervised (i.e., target images are available).
+    denormalize : callable or None, default=None
+        Function that denormalizes the images. If `None`, the `denormalize` method of
+        the training dataset normalization is used.
     """
     # denormalize images before logging
-    normalization = module.trainer.datamodule.train_dataset.normalization  # type: ignore[union-attr]
+    if denormalize is None:
+        normalization = module.trainer.datamodule.train_dataset.normalization  # type: ignore[union-attr]
+        denormalize = normalization.denormalize
     # log images to the logger
     tag_key = "Target(val)" if is_supervised else "Input(val)"
     module.logger.log_images(  # type: ignore
         key=tag_key,
-        images=normalization.denormalize(input_or_target).cpu().numpy(),
+        images=denormalize(input_or_target).cpu().numpy(),
         step=module.global_step,
         captions=[tag_key] * len(input_or_target),
     )
     module.logger.log_images(  # type: ignore
         key="Prediction(val)",
-        images=normalization.denormalize(prediction).cpu().numpy(),
+        images=denormalize(prediction).cpu().numpy(),
         step=module.global_step,
         captions=["Prediction(val)"] * len(prediction),
     )

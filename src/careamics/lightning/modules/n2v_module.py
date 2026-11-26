@@ -1,6 +1,6 @@
 """Noise2Void Lightning Module."""
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 import lightning as L
 import torch
@@ -10,7 +10,6 @@ from torchmetrics import MetricCollection
 from careamics.config import N2VAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.dataset import ImageRegionData
-from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.lightning.logger import CoLogger
 from careamics.losses import n2v_loss
 from careamics.metrics import SIPSNR
@@ -22,13 +21,11 @@ from .module_utils import (
     log_images,
     log_training_stats,
     log_validation_stats,
+    warn_ignored_target,
 )
 from .n2v_utils import N2VManipulate
 
 logger = get_logger(__name__)
-
-if TYPE_CHECKING:
-    from careamics.lightning.data.data_module import CareamicsDataModule
 
 
 class N2VModule(L.LightningModule):
@@ -81,14 +78,7 @@ class N2VModule(L.LightningModule):
 
     def on_fit_start(self) -> None:
         """On fit start hook for N2V module."""
-        assert self._trainer is not None
-        datamodule: CareamicsDataModule = self._trainer.datamodule  # type: ignore[union-attr]
-        assert isinstance(datamodule._data, (TrainValData, TrainValSplitData))
-        if datamodule._data.train_data_target is not None:
-            logger.warning(
-                "N2V is a self-supervised algorithm, arguments passed to "
-                "`train_data_target` will be ignored.",
-            )
+        warn_ignored_target(self, "N2V")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """

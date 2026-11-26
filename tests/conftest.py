@@ -429,6 +429,17 @@ def create_dummy_noise_model(
 
 
 @pytest.fixture
+def pn2v_noise_model():
+    """Deterministic single-channel noise model, `N(observation; signal, 100)`.
+
+    See `tests.utils.gaussian_noise_model_testing`.
+    """
+    from tests.utils import gaussian_noise_model_testing
+
+    return gaussian_noise_model_testing(n_channels=1)
+
+
+@pytest.fixture
 def minimum_lvae_params():
     return {
         "input_shape": (64, 64),

@@ -11,6 +11,7 @@ from pydantic import HttpUrl
 from torch import load, save
 
 from careamics.config.configuration import Configuration
+from careamics.config.support import SupportedAlgorithm
 from careamics.config.utils.configuration_io import (
     load_configuration,
     save_configuration,
@@ -23,6 +24,27 @@ from .bioimage import (
     get_env_file,
 )
 from .bioimage.cover_factory import create_cover
+
+
+def check_bmz_export_supported(config: Configuration) -> None:
+    """Check that the algorithm of the configuration can be exported to the BMZ.
+
+    Parameters
+    ----------
+    config : Configuration
+        Model configuration.
+
+    Raises
+    ------
+    NotImplementedError
+        If the algorithm is PN2V.
+    """
+    if config.algorithm_config.algorithm == SupportedAlgorithm.PN2V:
+        raise NotImplementedError(
+            "Export to the BioImage Model Zoo is not implemented for PN2V: the "
+            "exported UNet would output the prior samples, while PN2V predictions are "
+            "the MMSE estimates computed with the noise model."
+        )
 
 
 def _export_state_dict(model: CAREamicsModule, path: Union[Path, str]) -> Path:
@@ -119,7 +141,16 @@ def export_to_bmz(
         Paths to the cover images.
     channel_names : Optional[list[str]], optional
         Channel names, by default None.
+
+    Raises
+    ------
+    NotImplementedError
+        If the algorithm is PN2V.
+    ValueError
+        If `path_to_archive` does not point to a zip file.
     """
+    check_bmz_export_supported(config)
+
     path_to_archive = Path(path_to_archive)
 
     if path_to_archive.suffix != ".zip":

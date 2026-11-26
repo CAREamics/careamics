@@ -21,6 +21,7 @@ from careamics.config.algorithms import (
     CAREAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    PN2VAlgorithm,
     SegAlgorithm,
 )
 from careamics.config.augmentations import DefaultAugs
@@ -41,7 +42,12 @@ from careamics.utils import get_logger
 logger = get_logger(__name__)
 
 AlgorithmConfig = TypeVar(
-    "AlgorithmConfig", CAREAlgorithm, N2NAlgorithm, N2VAlgorithm, SegAlgorithm
+    "AlgorithmConfig",
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    PN2VAlgorithm,
+    SegAlgorithm,
 )
 
 

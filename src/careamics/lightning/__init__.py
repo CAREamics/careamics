@@ -8,6 +8,7 @@ __all__ = [
     "ImageStackLoading",
     "MicroSplitDataModule",
     "N2VModule",
+    "PN2VModule",
     "PredictionStoppedException",
     "ProgressBarCallback",
     "ReadFuncLoading",
@@ -35,6 +36,6 @@ from .data.microsplit_data_module import (
     create_microsplit_predict_datamodule,
     create_microsplit_train_datamodule,
 )
-from .modules import CAREModule, N2VModule
+from .modules import CAREModule, N2VModule, PN2VModule
 from .prediction import convert_prediction
 from .utils import load_config_from_checkpoint, load_module_from_checkpoint

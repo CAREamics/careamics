@@ -62,7 +62,9 @@ class SelfSupervisedCheckpointing:
 
 
 def default_training_dict(
-    algorithm: Literal["care", "n2n", "n2v", "hdn", "microsplit", "cryocare", "seg"],
+    algorithm: Literal[
+        "care", "n2n", "n2v", "pn2v", "hdn", "microsplit", "cryocare", "seg"
+    ],
     trainer_params: dict[str, Any] | None = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     checkpoint_params: dict[str, Any] | None = None,
@@ -77,7 +79,7 @@ def default_training_dict(
 
     Parameters
     ----------
-    algorithm : {"care", "n2n", "n2v", "hdn", "microsplit", "cryocare", "seg"}
+    algorithm : {"care", "n2n", "n2v", "pn2v", "hdn", "microsplit", "cryocare", "seg"}
         Algorithm type, used to select the default checkpointing preset.
     trainer_params : dict, optional
         Parameters for Lightning Trainer class, by default None.
@@ -100,9 +102,11 @@ def default_training_dict(
     # user parameters take precedence over defaults
     # since resulting checkpointing behaviour depends on complex interactions between
     # parameters, we keep either user defined or the defaults
-    # supervised algorithms monitor a meaningful validation loss, self-supervised ones
-    # compare noisy pixels to noisy pixels and cannot be monitored by a metric
-    ranks_by_val_loss = algorithm in ("care", "microsplit", "hdn", "seg")
+    # supervised algorithms monitor a meaningful validation loss, N2V and N2N compare
+    # noisy pixels to noisy pixels and cannot be monitored by a metric. The PN2V
+    # validation loss is the negative log-likelihood of held-out masked pixels under
+    # the noise model, so it ranks checkpoints (as in the original PN2V).
+    ranks_by_val_loss = algorithm in ("care", "microsplit", "hdn", "seg", "pn2v")
     supervised = algorithm in ("care", "microsplit", "seg")
     # algorithms considered self-supervised: n2v, n2n, hdn, cryocare
 
@@ -183,7 +187,8 @@ class TrainingConfig(BaseModel):
     Noise2Noise). In the case of CARE, the top 3 checkpoints are saved based on
     `val_loss`. For the self-supervised algorithms, checkpoints are saved every 10
     epochs. In both cases, the last checkpoint is saved. Early stopping is disabled
-    for self-supervised algorithms.
+    for self-supervised algorithms. HDN and PN2V rank their checkpoints by `val_loss`
+    like CARE, without early stopping.
 
     Attributes
     ----------

@@ -39,7 +39,12 @@ def get_model_constraints(algorithm_config: AlgorithmConfig) -> ModelConstraints
         case SupportedAlgorithm.SEG:
             assert isinstance(algorithm_config.model, UNetConfig)
             return SegUNetConstraints(algorithm_config.model)
-        case SupportedAlgorithm.CARE | SupportedAlgorithm.N2N | SupportedAlgorithm.N2V:
+        case (
+            SupportedAlgorithm.CARE
+            | SupportedAlgorithm.N2N
+            | SupportedAlgorithm.N2V
+            | SupportedAlgorithm.PN2V
+        ):
             assert isinstance(algorithm_config.model, UNetConfig)
             return UNetConstraints(algorithm_config.model)
         case SupportedAlgorithm.MICROSPLIT | SupportedAlgorithm.HDN:
