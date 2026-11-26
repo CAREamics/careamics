@@ -1,48 +1,22 @@
-"""
-Utility functions needed by dataloader & co.
-"""
-
-from typing import List
+"""Legacy train/val/test splitting used in the MicroSplit paper."""
 
 import numpy as np
-from skimage.io import imread, imsave
 
 
-def load_tiff(path):
-    """
-    Returns a 4d numpy array: num_imgs*h*w*num_channels
-    """
-    data = imread(path, plugin="tifffile")
-    return data
-
-
-def save_tiff(path, data):
-    imsave(path, data, plugin="tifffile")
-
-
-def load_tiffs(paths):
-    data = [load_tiff(path) for path in paths]
-    return np.concatenate(data, axis=0)
-
-
-def split_in_half(s, e):
+def _split_in_half(s, e) -> tuple[list[int], list[int]]:
     n = e - s
     s1 = list(np.arange(n // 2))
     s2 = list(np.arange(n // 2, n))
     return [x + s for x in s1], [x + s for x in s2]
 
 
-def adjust_for_imbalance_in_fraction_value(
-    val: List[int],
-    test: List[int],
+def _adjust_for_imbalance_in_fraction_value(
+    val: list[int],
+    test: list[int],
     val_fraction: float,
     test_fraction: float,
     total_size: int,
-):
-    """
-    here, val and test are divided almost equally. Here, we need to take into account their respective fractions
-    and pick elements rendomly from one array and put in the other array.
-    """
+) -> tuple[list[int], list[int]]:
     if val_fraction == 0:
         test += val
         val = []
@@ -69,7 +43,29 @@ def get_datasplit_tuples(
     test_fraction: float,
     total_size: int,
     starting_test: bool = False,
-):
+) -> tuple[list[int], list[int], list[int]]:
+    """MicroSplit paper train/val/test sets.
+
+    Parameters
+    ----------
+    val_fraction : float
+        Fraction of validation images.
+    test_fraction : float
+        Fraction of test images.
+    total_size : int
+        Total dataset size.
+    starting_test : bool, default=False
+        Whether to use the first indices for testing, otherwise interleave val and test.
+
+    Returns
+    -------
+    list[int]
+        Train indices.
+    list[int]
+        Val indices.
+    list[int]
+        Test indices.
+    """
     if starting_test:
         # test => val => train
         test = list(range(0, int(total_size * test_fraction)))
@@ -103,11 +99,11 @@ def get_datasplit_tuples(
         if i % 2 == 0:
             test += list(np.arange(s, test_val_size))
         else:
-            p1, p2 = split_in_half(s, test_val_size)
+            p1, p2 = _split_in_half(s, test_val_size)
             test += p1
             val += p2
 
-    val, test = adjust_for_imbalance_in_fraction_value(
+    val, test = _adjust_for_imbalance_in_fraction_value(
         val, test, val_fraction, test_fraction, total_size
     )
 

@@ -1,4 +1,4 @@
-"""Metrics utilities for LVAE training and evaluation."""
+"""Legacy MicroSplit paper metrics."""
 
 from __future__ import annotations
 

@@ -11,7 +11,7 @@ from torchmetrics import MetricCollection
 
 from careamics.config.noise_model import MultiChannelNMConfig
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
-from careamics.models.lvae.noise_models import (
+from careamics.noise_model import (
     MultiChannelNoiseModel,
     multichannel_noise_model_factory,
 )

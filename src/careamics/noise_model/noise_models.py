@@ -1,4 +1,4 @@
-"""Noise models for LVAE-based algorithms."""
+"""Noise-model implementations used by CAREamics algorithms."""
 
 from __future__ import annotations
 
@@ -17,159 +17,6 @@ from careamics.config.noise_model import GaussianMixtureNMConfig, MultiChannelNM
 from careamics.utils import get_device, get_logger
 
 logger = get_logger(__name__)
-
-# TODO this module shouldn't be in lvae folder
-
-
-def create_histogram(
-    bins: int, min_val: float, max_val: float, observation: NDArray, signal: NDArray
-) -> NDArray:
-    """
-    Create a 2D histogram from 'observation' and 'signal'.
-
-    Parameters
-    ----------
-    bins : int
-        Number of bins in x and y.
-    min_val : float
-        Lower bound of the lowest bin in x and y.
-    max_val : float
-        Upper bound of the highest bin in x and y.
-    observation : np.ndarray
-        3D numpy array (stack of 2D images).
-        Observation.shape[0] must be divisible by signal.shape[0].
-        Assumes that n subsequent images in observation belong to one image in 'signal'.
-    signal : np.ndarray
-        3D numpy array (stack of 2D images).
-
-    Returns
-    -------
-    np.ndarray
-        A 3D array:
-        - histogram[0]: Normalized 2D counts.
-        - histogram[1]: Lower boundaries of bins along y.
-        - histogram[2]: Upper boundaries of bins along y.
-        The values for x can be obtained by transposing 'histogram[1]' and
-        'histogram[2]'.
-    """
-    histogram = np.zeros((3, bins, bins))
-
-    value_range = [min_val, max_val]
-
-    # Compute mapping factor between observation and signal samples
-    obs_to_signal_shape_factor = int(observation.shape[0] / signal.shape[0])
-
-    # Flatten arrays and align signal values
-    signal_indices = np.arange(observation.shape[0]) // obs_to_signal_shape_factor
-    signal_values = signal[signal_indices].ravel()
-    observation_values = observation.ravel()
-
-    count_histogram, signal_edges, _ = np.histogram2d(
-        signal_values, observation_values, bins=bins, range=[value_range, value_range]
-    )
-
-    # Normalize rows to obtain probabilities
-    row_sums = count_histogram.sum(axis=1, keepdims=True)
-    count_histogram /= np.clip(row_sums, a_min=1e-20, a_max=None)
-
-    histogram[0] = count_histogram
-    histogram[1] = signal_edges[:-1][..., np.newaxis]
-    histogram[2] = signal_edges[1:][..., np.newaxis]
-
-    return histogram
-
-
-def noise_model_factory(
-    model_config: GaussianMixtureNMConfig | None,
-) -> GaussianMixtureNoiseModel | None:
-    """Noise model factory for single-channel noise models.
-
-    Parameters
-    ----------
-    model_config : GaussianMixtureNMConfig | None
-        Noise model configuration for a single Gaussian mixture noise model.
-
-    Returns
-    -------
-    GaussianMixtureNoiseModel | None
-        A single noise model instance, or None if no config is provided.
-
-    Raises
-    ------
-    NotImplementedError
-        If the chosen noise model `model_type` is not implemented.
-        Currently only `GaussianMixtureNoiseModel` is implemented.
-    """
-    if model_config:
-        if model_config.model_type == "GaussianMixtureNoiseModel":
-            return GaussianMixtureNoiseModel(model_config)
-        else:
-            raise NotImplementedError(
-                f"Model {model_config.model_type} is not implemented"
-            )
-    return None
-
-
-def multichannel_noise_model_factory(
-    model_config: MultiChannelNMConfig | None,
-) -> MultiChannelNoiseModel | None:
-    """Multi-channel noise model factory.
-
-    Parameters
-    ----------
-    model_config : MultiChannelNMConfig | None
-        Noise model configuration, a `MultiChannelNMConfig` config that defines
-        noise models for the different output channels.
-
-    Returns
-    -------
-    MultiChannelNoiseModel | None
-        A noise model instance, or None if no config is provided.
-
-    Raises
-    ------
-    NotImplementedError
-        If the chosen noise model `model_type` is not implemented.
-        Currently only `GaussianMixtureNoiseModel` is implemented.
-    """
-    if model_config:
-        noise_models = []
-        for nm in model_config.noise_models:
-            if nm.model_type == "GaussianMixtureNoiseModel":
-                noise_models.append(GaussianMixtureNoiseModel(nm))
-            else:
-                raise NotImplementedError(f"Model {nm.model_type} is not implemented")
-        return MultiChannelNoiseModel(noise_models)
-    return None
-
-
-def train_gm_noise_model(
-    model_config: GaussianMixtureNMConfig,
-    signal: np.ndarray,
-    observation: np.ndarray,
-) -> GaussianMixtureNoiseModel:
-    """Train a Gaussian mixture noise model.
-
-    Parameters
-    ----------
-    model_config : GaussianMixtureNMConfig
-        Configuration of the Gaussian mixture noise model to train.
-    signal : np.ndarray
-        Clean signal data.
-    observation : np.ndarray
-        Noisy observation data.
-
-    Returns
-    -------
-    GaussianMixtureNoiseModel
-        The trained noise model.
-    """
-    # TODO where to put train params?
-    # TODO any training params ? Different channels ?
-    noise_model = GaussianMixtureNoiseModel(model_config)
-    # TODO revisit config unpacking
-    noise_model.fit(signal, observation)
-    return noise_model
 
 
 class MultiChannelNoiseModel(nn.Module):
@@ -251,13 +98,14 @@ class MultiChannelNoiseModel(nn.Module):
         configs = [GaussianMixtureNMConfig.from_npz(Path(p)) for p in paths]
         # MultiChannelNMConfig validates channel-index ordering / count consistency
         config = MultiChannelNMConfig(noise_models=configs)
+        from .factory import multichannel_noise_model_factory
+
         model = multichannel_noise_model_factory(config)
         assert model is not None
         return model
 
     def to_config(self) -> MultiChannelNMConfig:
         """Serialize the (raw-space) noise model into a ``MultiChannelNMConfig``.
-
 
         Returns
         -------

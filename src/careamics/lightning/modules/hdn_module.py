@@ -18,8 +18,8 @@ from careamics.dataset.normalization.normalization import Normalization
 from careamics.losses.lvae import hdn_loss
 from careamics.metrics import SIPSNR
 from careamics.models.lvae import LVAE
-from careamics.models.lvae.noise_models import MultiChannelNoiseModel
 from careamics.models.model_factory import model_factory
+from careamics.noise_model import MultiChannelNoiseModel
 from careamics.utils.logging import get_logger
 
 from .module_utils import (
