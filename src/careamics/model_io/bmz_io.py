@@ -11,7 +11,7 @@ from pydantic import HttpUrl
 from torch import load, save
 
 from careamics.config.configuration import Configuration
-from careamics.config.support import SupportedAlgorithm, SupportedArchitecture
+from careamics.config.support import SupportedAlgorithm
 from careamics.config.utils.configuration_io import (
     load_configuration,
     save_configuration,
@@ -254,13 +254,12 @@ def load_from_bmz(
     config = load_configuration(config_path)
 
     # create careamics lightning module
-    if config.algorithm_config.model.architecture == SupportedArchitecture.UNET:
+    try:
         model = create_module(config.algorithm_config)
-
-    else:
+    except ValueError as e:
         raise ValueError(
             f"Unsupported architecture {config.algorithm_config.model.architecture}"
-        )
+        ) from e
 
     # load model state dictionary
     _load_state_dict(model, weights_path)

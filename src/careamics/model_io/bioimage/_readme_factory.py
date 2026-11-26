@@ -72,6 +72,15 @@ def readme_factory(
     description.append("## Algorithm description:\n\n")
     description.append(config.get_algorithm_description())
     description.append("\n\n")
+    # if it's LVAE-based mention this:
+    if config.algorithm_config.model.architecture == "LVAE":
+        description.append(
+            "This model is based on the LVAE architecture, "
+            "and the full model prediction capacity is not available "
+            "with the BMZ core library. "
+            "Users need to load it into CAREamics for a complete prediction including "
+            "prediction's uncertainty and auxiliary top-down layers quantities.\n\n"
+        )
 
     # configuration description
     description.append("## Configuration\n\n")

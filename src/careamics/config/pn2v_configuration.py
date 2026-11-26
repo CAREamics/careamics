@@ -2,13 +2,17 @@
 
 from typing import Self
 
-from pydantic import model_validator
+from pydantic import ValidationInfo, field_validator, model_validator
 
 from careamics.config.algorithms import PN2VAlgorithm
+from careamics.config.lightning.training_configuration import TrainingConfig
 from careamics.config.validators import (
     check_masked_pixel_probability,
     check_monitor_without_validation,
     check_no_target_axes,
+)
+from careamics.config.validators.training_validators import (
+    warn_supervised_checkpointing_params,
 )
 
 from .configuration import Configuration
@@ -83,3 +87,27 @@ class PN2VConfiguration(Configuration):
             self.data_config, self.algorithm_config.monitor_metric
         )
         return self
+
+    @field_validator("training_config", mode="after")
+    @classmethod
+    def warn_checkpointing_params(
+        cls, training_config: TrainingConfig, info: ValidationInfo
+    ) -> TrainingConfig:
+        """Warn about checkpointing parameters unsuitable for PN2V.
+
+        PN2V ranks its checkpoints by the validation loss.
+
+        Parameters
+        ----------
+        training_config : TrainingConfig
+            Training configuration to validate.
+        info : pydantic.ValidationInfo
+            Validation context for the field.
+
+        Returns
+        -------
+        TrainingConfig
+            Validated training configuration.
+        """
+        warn_supervised_checkpointing_params(training_config)
+        return training_config

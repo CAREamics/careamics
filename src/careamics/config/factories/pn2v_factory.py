@@ -4,10 +4,15 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from careamics.config.algorithms import PN2VAlgorithm
+from careamics.config.data.normalization_config import (
+    NormalizationConfig,
+    NormalizationStr,
+)
 from careamics.config.pn2v_configuration import PN2VConfiguration
 from careamics.config.utils.random import generate_random_seed
 
 from .algorithm_factory import create_algorithm_configuration
+from .config_discriminators import instantiate_norm_config
 from .data_factory import (
     SupportedPatchFilterConfig,
     create_data_configuration,
@@ -107,8 +112,7 @@ def create_advanced_pn2v_config(
     in_memory: bool | None = None,
     channels: Sequence[int] | None = None,
     independent_channels: bool = True,
-    normalization: Literal["mean_std", "min_max", "quantile", "none"] = "mean_std",
-    normalization_params: dict[str, Any] | None = None,
+    normalization: NormalizationStr | NormalizationConfig = "mean_std",
     patch_filter_config: SupportedPatchFilterConfig | None = None,
     use_n2v2: bool = False,
     roi_size: int = 11,
@@ -184,10 +188,8 @@ def create_advanced_pn2v_config(
     independent_channels : bool, default=True
         Whether to process input channels with independent networks. With one input
         channel this does not change the UNet.
-    normalization : {"mean_std", "min_max", "quantile", "none"}, default="mean_std"
-        Normalization strategy.
-    normalization_params : dict or None, default=None
-        Strategy-specific normalization parameters.
+    normalization : NormalizationStr or NormalizationConfig, default="mean_std"
+        Normalization strategy to use, or a normalization configuration.
     patch_filter_config : SupportedPatchFilterConfig or None, default=None
         Patch filtering configuration.
     use_n2v2 : bool, default=False
@@ -245,9 +247,11 @@ def create_advanced_pn2v_config(
     # overflow and the loss becomes NaN. The copy also keeps the caller's dict as is.
     model_params = {"use_batch_norm": False, **(model_params or {})}
 
-    norm_config = {"name": normalization}
-    if normalization_params is not None:
-        norm_config.update(normalization_params)
+    norm_config = (
+        instantiate_norm_config({"name": normalization})
+        if isinstance(normalization, str)
+        else normalization
+    )
 
     data_config = create_data_configuration(
         data_type=data_type,

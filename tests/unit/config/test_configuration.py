@@ -2,10 +2,16 @@
 
 import itertools
 from contextlib import nullcontext
+from unittest.mock import Mock
 
 import pytest
 
+from careamics.config import configuration as configuration_module
 from careamics.config.configuration import Configuration
+from careamics.config.factories import (
+    create_advanced_care_config,
+    create_advanced_n2n_config,
+)
 from careamics.config.factories.config_discriminators import instantiate_config
 from careamics.config.n2v_configuration import N2VConfiguration
 from tests.unit.config.data.test_normalization_config import (
@@ -44,6 +50,55 @@ def test_unet_configs(algorithm, config_class):
 
 
 # -------------------------- Unit tests ----------------------------
+
+
+@pytest.mark.parametrize(
+    "factory, save_top_k, warning_match",
+    [
+        (
+            create_advanced_n2n_config,
+            1,
+            "Best checkpointing is enabled for a self-supervised algorithm",
+        ),
+        (
+            create_advanced_care_config,
+            0,
+            "Best checkpointing is disabled for a supervised algorithm",
+        ),
+    ],
+)
+def test_checkpoint_selection_warning(
+    factory,
+    save_top_k,
+    warning_match,
+    checkpointing_warning_mock: Mock,
+):
+    """Test warnings for checkpoint selection unsuited to the algorithm."""
+    factory(
+        experiment_name="test",
+        data_type="array",
+        axes="YX",
+        patch_size=[32, 32],
+        batch_size=8,
+        checkpoint_params={"save_top_k": save_top_k, "save_last": True},
+    )
+
+    checkpointing_warning_mock.assert_called_once()
+    assert warning_match in checkpointing_warning_mock.call_args.args[0]
+
+
+def test_shared_configuration_warns_for_other_algorithms(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that the shared configuration warns about other algorithms."""
+    config_dict = unet_config_dict_testing(algorithm="n2v")
+    warning = Mock()
+    monkeypatch.setattr(configuration_module.logger, "warning", warning)
+
+    Configuration(**config_dict)
+
+    warning.assert_called_once()
+    assert "Could not validate checkpointing parameters" in warning.call_args.args[0]
 
 
 @pytest.mark.parametrize(

@@ -108,7 +108,7 @@ def default_training_dict(
     # the noise model, so it ranks checkpoints (as in the original PN2V).
     ranks_by_val_loss = algorithm in ("care", "microsplit", "hdn", "seg", "pn2v")
     supervised = algorithm in ("care", "microsplit", "seg")
-    # algorithms considered self-supervised: n2v, n2n, cryocare
+    # algorithms considered self-supervised: n2v, n2n, hdn, cryocare
 
     if checkpoint_params is None:
         # select default checkpointing preset based on algorithm

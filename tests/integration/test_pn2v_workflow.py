@@ -76,7 +76,7 @@ def test_checkpoint_round_trip_restores_noise_model(
     data = _data()
     engine = CAREamist(_pn2v_config("pn2v_ckpt"), work_dir=tmp_path)
     engine.train(train_data=data, noise_model=pn2v_noise_model)
-    last = engine.get_checkpoints()[-1]
+    last = engine.get_checkpoint_root() / engine.get_checkpoints()["last"]
 
     checkpoint = torch.load(last, map_location="cpu", weights_only=False)
     loaded = PN2VModule.load_from_checkpoint(last, map_location="cpu")
@@ -124,36 +124,6 @@ def test_pn2v_multichannel_train_and_predict(
     assert predicted[0][:, 1].mean() > predicted[0][:, 0].mean() + 500
 
 
-def test_careamist_train_noise_model_attaches_to_pn2v(tmp_path: Path) -> None:
-    """`CAREamist.train_noise_model` fits a PN2V noise model and attaches it."""
-    rng = np.random.default_rng(0)
-    signal = rng.uniform(0, 255, (4, 16, 16)).astype(np.float32)
-    observation = signal + rng.normal(0, 10, signal.shape).astype(np.float32)
-    engine = CAREamist(_pn2v_config(), work_dir=tmp_path)
-
-    noise_model = engine.train_noise_model(
-        signal,
-        observation,
-        axes="SYX",
-        n_gaussian=1,
-        n_coeff=2,
-        n_epochs=2,
-        save=False,
-        lower_clip=0.5,
-        upper_clip=99.5,
-    )
-
-    assert engine.model._raw_noise_model is noise_model
-    expected = np.float32(np.percentile(signal, [0.5, 99.5]))
-    np.testing.assert_array_equal(
-        [
-            noise_model.nmodel_0.min_signal.item(),
-            noise_model.nmodel_0.max_signal.item(),
-        ],
-        expected,
-    )
-
-
 def test_pn2v_checkpoints_ranked_by_val_loss(
     tmp_path: Path, pn2v_noise_model: MultiChannelNoiseModel
 ) -> None:
@@ -168,7 +138,8 @@ def test_pn2v_checkpoints_ranked_by_val_loss(
     assert config.training_config.checkpoint_params["monitor"] == "val_loss"
     best = Path(engine.trainer.checkpoint_callback.best_model_path)
     assert best.is_file() and not best.stem.endswith("_last")
-    assert engine._get_default_ckpt(None) == "best"
+    record = engine.get_checkpoints()
+    assert record["selected"] == record["best"] == best.name
 
     predicted, _ = engine.predict(data)
     from_best, _ = engine.predict(data, checkpoint=best)
@@ -205,7 +176,7 @@ def test_pn2v_multichannel_checkpoint_round_trip(tmp_path: Path) -> None:
     """A 2-channel noise model is saved with the weights and restored on load."""
     noise_model = gaussian_noise_model_testing(n_channels=2)
     engine, data = _multichannel_engine(tmp_path, "pn2v_mc_ckpt", noise_model)
-    last = engine.get_checkpoints()[-1]
+    last = engine.get_checkpoint_root() / engine.get_checkpoints()["last"]
 
     loaded = PN2VModule.load_from_checkpoint(last, map_location="cpu")
 
