@@ -14,6 +14,7 @@ from careamics.image_io.write.get_func import SupportedWriteType, WriteFunc
 from careamics.lightning.prediction import (
     decollate_image_region_data,
     prediction_region,
+    uncertainty_region,
 )
 from careamics.utils import get_logger
 
@@ -46,6 +47,9 @@ class PredictionWriterCallback(BasePredictionWriter):
         A strategy for writing predictions.
     enable_writing : bool, default=True
         If writing predictions should be enabled by default.
+    uncertainty_write_strategy : WriteStrategy or None, default=None
+        A strategy for writing uncertainty estimates. If None, uncertainty is not
+        written.
 
     Attributes
     ----------
@@ -57,6 +61,8 @@ class PredictionWriterCallback(BasePredictionWriter):
         directory.
     write_strategy : WriteStrategy or None
             A strategy for writing predictions.
+    uncertainty_write_strategy : WriteStrategy or None
+        A strategy for writing uncertainty estimates.
     """
 
     def __init__(
@@ -64,6 +70,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         dirpath: Path | str = "",
         write_strategy: WriteStrategy | None = None,
         enable_writing: bool = True,
+        uncertainty_write_strategy: WriteStrategy | None = None,
     ):
         """
         Constructor.
@@ -81,11 +88,15 @@ class PredictionWriterCallback(BasePredictionWriter):
             A strategy for writing predictions.
         enable_writing : bool, default=True
             If writing predictions should be enabled by default.
+        uncertainty_write_strategy : WriteStrategy or None, default=None
+            A strategy for writing uncertainty estimates. If None, uncertainty is not
+            written.
         """
         super().__init__(write_interval="batch")
 
         self.is_enabled = enable_writing
         self.write_strategy = write_strategy
+        self.uncertainty_write_strategy = uncertainty_write_strategy
 
         self.dirpath: Path
 
@@ -148,7 +159,10 @@ class PredictionWriterCallback(BasePredictionWriter):
             # identically named files in different directories do not collide
             if self.is_enabled and self.write_strategy is not None:
                 source_paths = getattr(trainer.datamodule, "predict_source_paths", [])
-                self.write_strategy.set_source_base(common_source_base(source_paths))
+                source_base = common_source_base(source_paths)
+                self.write_strategy.set_source_base(source_base)
+                if self.uncertainty_write_strategy is not None:
+                    self.uncertainty_write_strategy.set_source_base(source_base)
 
     def set_writing_strategy(
         self,
@@ -157,6 +171,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         write_func: WriteFunc | None = None,
         write_extension: str | None = None,
         write_func_kwargs: dict[str, Any] | None = None,
+        write_uncertainty: bool = False,
     ) -> None:
         """
         Set the writing strategy.
@@ -175,7 +190,19 @@ class PredictionWriterCallback(BasePredictionWriter):
             The file extension to use when writing files.
         write_func_kwargs : dict of str to Any, default=None
             Additional keyword arguments to pass to `write_func`.
+        write_uncertainty : bool, default=False
+            If True, also create a strategy that writes uncertainty estimates.
+
+        Raises
+        ------
+        NotImplementedError
+            If `write_uncertainty` is True and `write_type` is `"zarr"`.
         """
+        if write_uncertainty and write_type == "zarr":
+            raise NotImplementedError(
+                'Writing uncertainty to Zarr is not supported. Use write_type="tiff".'
+            )
+
         self.write_strategy = create_write_strategy(
             write_type=write_type,
             tiled=tiled,
@@ -183,6 +210,17 @@ class PredictionWriterCallback(BasePredictionWriter):
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
         )
+        if write_uncertainty:
+            self.uncertainty_write_strategy = create_write_strategy(
+                write_type=write_type,
+                tiled=tiled,
+                write_func=write_func,
+                write_extension=write_extension,
+                write_func_kwargs=write_func_kwargs,
+                filename_postfix="_uncertainty",
+            )
+        else:
+            self.uncertainty_write_strategy = None
 
     def write_on_batch_end(
         self,
@@ -197,9 +235,9 @@ class PredictionWriterCallback(BasePredictionWriter):
         """
         Write predictions at the end of a batch.
 
-        Writing method is determined by the attribute `write_strategy`. Only the
-        prediction is written; the uncertainty estimate of the sampling-based
-        algorithms is discarded.
+        Writing method is determined by the attribute `write_strategy`. If
+        `uncertainty_write_strategy` is set and the prediction has an uncertainty
+        estimate, that estimate is written to a separate file.
 
         Parameters
         ----------
@@ -230,6 +268,15 @@ class PredictionWriterCallback(BasePredictionWriter):
                 dirpath=self.dirpath,
                 predictions=predictions,
             )
+
+            if self.uncertainty_write_strategy is not None:
+                uncertainty = uncertainty_region(prediction)
+                if uncertainty is not None:
+                    uncertainties = decollate_image_region_data(uncertainty)
+                    self.uncertainty_write_strategy.write_batch(
+                        dirpath=self.dirpath,
+                        predictions=uncertainties,
+                    )
         else:
             raise RuntimeError(
                 "No write strategy defined for `PredictionWriterCallback`, cannot write"

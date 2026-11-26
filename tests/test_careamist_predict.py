@@ -425,3 +425,38 @@ def test_predict_hdn_returns_uncertainty_tiled(tmp_path: Path):
     assert predicted[0].shape == (1, 128, 128)
     assert uncertainty[0].shape == predicted[0].shape
     assert np.all(uncertainty[0] > 0)
+
+
+@pytest.mark.mps_gh_fail
+def test_predict_to_disk_writes_uncertainty(tmp_path: Path):
+    """Test that predict_to_disk writes uncertainty files."""
+    train_array = random_array((2, 64, 64), seed=42)
+
+    config = create_hdn_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SYX",
+        patch_size=(64, 64),
+        batch_size=2,
+        num_epochs=1,
+    )
+    careamist = CAREamist(config=config, work_dir=tmp_path)
+    careamist.train(train_data=train_array, val_data=train_array)
+
+    pred_dir = tmp_path / "predictions"
+    careamist.predict_to_disk(
+        pred_data=train_array,
+        prediction_dir=pred_dir,
+        n_predictions=3,
+        write_uncertainty=True,
+        write_type="tiff",
+    )
+
+    pred_path = pred_dir / "array_0.tiff"
+    unc_path = pred_dir / "array_0_uncertainty.tiff"
+    assert pred_path.is_file()
+    assert unc_path.is_file()
+    uncertainty = tifffile.imread(unc_path)
+    assert tifffile.imread(pred_path).shape == uncertainty.shape
+    assert np.isfinite(uncertainty).all()
+    assert np.all(uncertainty > 0)

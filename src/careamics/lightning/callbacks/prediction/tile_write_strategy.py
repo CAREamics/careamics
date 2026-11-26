@@ -29,6 +29,8 @@ class TileWriteStrategy(WriteStrategy):
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
         Extra kwargs to pass to `write_func`.
+    filename_postfix : str, default=""
+        Suffix inserted before the file extension.
 
     Attributes
     ----------
@@ -38,6 +40,8 @@ class TileWriteStrategy(WriteStrategy):
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
         Extra kwargs to pass to `write_func`.
+    filename_postfix : str
+        Suffix inserted before the file extension.
     tile_cache : dict of {int: list of ImageRegionData}
         Tiles cached for stitching prediction.
     tile_info_cache : list of TileInformation
@@ -52,6 +56,7 @@ class TileWriteStrategy(WriteStrategy):
         write_func: WriteFunc,
         write_extension: str,
         write_func_kwargs: dict[str, Any],
+        filename_postfix: str = "",
     ) -> None:
         """
         A write strategy that will cache tiles.
@@ -67,12 +72,15 @@ class TileWriteStrategy(WriteStrategy):
             Extension added to prediction file paths.
         write_func_kwargs : dict of {str: Any}
             Extra kwargs to pass to `write_func`.
+        filename_postfix : str, default=""
+            Suffix inserted before the file extension.
         """
         super().__init__()
 
         self.write_func: WriteFunc = write_func
         self.write_extension: str = write_extension
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
+        self.filename_postfix: str = filename_postfix
 
         # where tiles will be cached until a whole image has been predicted
         self.tile_cache: dict[int, list[ImageRegionData]] = defaultdict(list)
@@ -162,10 +170,10 @@ class TileWriteStrategy(WriteStrategy):
         source: Path = Path(tiles[0].source)
 
         # Handle array sources with postfix
-        postfix = ""
+        postfix = self.filename_postfix
         if source.stem == "array":
             data_idx = tiles[0].region_spec["data_idx"]
-            postfix = f"_{data_idx}"
+            postfix = f"_{data_idx}{self.filename_postfix}"
 
         file_path = create_write_file_path(
             dirpath=dirpath,
