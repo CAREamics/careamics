@@ -2,6 +2,7 @@ import pytest
 
 from careamics.config.algorithms import MicroSplitAlgorithm
 from careamics.config.data import MicroSplitDataConfig
+from careamics.config.data.patch_filter import MaxPatchFilterConfig
 from careamics.config.factories import (
     create_advanced_microsplit_config,
     create_microsplit_config,
@@ -113,6 +114,20 @@ class TestMicroSplitConfig:
         assert model.analytical_kl is False
         assert model.encoder_first_conv_kernel == 3
         assert model.output_channels == 2
+
+    def test_patch_filter_config_propagated(self):
+        """Test that the created config has the patch filter."""
+        patch_filter = MaxPatchFilterConfig(threshold=0.5)
+        config = create_advanced_microsplit_config(
+            experiment_name="test",
+            data_type="array",
+            axes="YX",
+            patch_size=[64, 64],
+            batch_size=8,
+            output_channels=2,
+            patch_filter_config=patch_filter,
+        )
+        assert config.data_config.patch_filter == patch_filter
 
 
 def _base_config() -> MicroSplitConfiguration:

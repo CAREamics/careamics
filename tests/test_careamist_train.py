@@ -10,13 +10,52 @@ import tifffile
 from careamics.careamist import CAREamist
 from careamics.config.factories.care_n2n_factory import create_advanced_care_config
 from careamics.config.factories.hdn_factory import create_hdn_config
+from careamics.config.factories.microsplit_factory import (
+    create_advanced_microsplit_config,
+)
 from careamics.config.factories.n2v_factory import create_advanced_n2v_config
+from careamics.dataset.factory import IndependentTargets
 
 
 def random_array(shape: tuple[int, ...], seed: int = 42):
     """Return a random array with values between 0 and 255."""
     rng = np.random.default_rng(seed)
     return (rng.integers(0, 255, shape)).astype(np.float32)
+
+
+def _microsplit_config():
+    return create_advanced_microsplit_config(
+        experiment_name="test",
+        data_type="array",
+        axes="SCYX",
+        output_channels=2,
+        patch_size=(64, 64),
+        batch_size=2,
+        num_epochs=1,
+        multiscale_count=1,
+        gaussian_likelihood_weight=1.0,
+        noise_model_likelihood_weight=0.0,
+    )
+
+
+@pytest.mark.mps_gh_fail
+def test_train_microsplit_multichannel_target_mode(tmp_path: Path) -> None:
+    """Test MicroSplit training from multiplexed targets only."""
+    target = random_array((2, 2, 80, 80))
+    careamist = CAREamist(config=_microsplit_config(), work_dir=tmp_path)
+
+    careamist.train(train_data_target=target, val_data_target=target)
+
+
+@pytest.mark.mps_gh_fail
+def test_train_microsplit_independent_targets_mode(tmp_path: Path) -> None:
+    """Test MicroSplit training from independent target channel sources."""
+    targets = IndependentTargets(
+        [random_array((2, 1, 80, 80)), random_array((2, 1, 72, 88))]
+    )
+    careamist = CAREamist(config=_microsplit_config(), work_dir=tmp_path)
+
+    careamist.train(train_data_target=targets, val_data_target=targets)
 
 
 def test_train_error_no_data(tmp_path: Path):

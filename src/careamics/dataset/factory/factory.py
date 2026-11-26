@@ -77,8 +77,8 @@ If the data type is not custom `loading` should be `None`.
 class TrainValData(Generic[T]):
     """Data for training with validation data provided."""
 
-    train_data: T
-    val_data: T
+    train_data: T | None = None
+    val_data: T | None = None
     train_data_target: T | None = None
     val_data_target: T | None = None
     train_data_mask: T | None = None

@@ -118,17 +118,17 @@ class MicroSplitDataConfig(DataConfig[DefaultAugs]):
         return self
 
     @model_validator(mode="after")
-    def raise_unsupported_features(self):
-        """Raise error for features not supported by MicroSplit.
+    def validate_patch_filter_reference_channel(self) -> Self:
+        """Reject a patch filter that does not use the single filter channel.
 
         Returns
         -------
         Self
             Validated config.
         """
-        if self.patch_filter is not None:
-            raise NotImplementedError(
-                # temporary
-                "Patch filtering is currently not implemented for MicroSplit."
+        if self.patch_filter is not None and self.patch_filter.ref_channel != 0:
+            raise ValueError(
+                "MicroSplit patch filtering uses a single-channel image, so "
+                "`patch_filter.ref_channel` must be 0."
             )
         return self

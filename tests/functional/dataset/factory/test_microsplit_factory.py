@@ -21,6 +21,8 @@ from careamics.dataset.factory import (
     create_microsplit_train_val_datasets,
 )
 from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
+    IndependentTargetsMsPatchConstr,
+    MultiChannelTargetMsPatchConstr,
     PairedInputTargetMsPatchConstr,
     PredMsPatchConstr,
 )
@@ -281,6 +283,25 @@ def test_less_than_two_separate_channels_error(
 
     with pytest.raises((TypeError, ValueError), match="two target channel sources"):
         create_microsplit_dataset(config=config, data=data)
+
+
+def test_separate_mode_rejects_multichannel_source() -> None:
+    """Test that separate-target mode rejects a source with more than one channel."""
+    source = np.ones((1, 2, 32, 32), dtype=np.float32)
+    data = IndependentTargets([[source], [source[:, :1]]])
+
+    with pytest.raises(ValueError, match="single-channel"):
+        create_microsplit_dataset(config=_training_config(), data=data)
+
+
+def test_separate_mode_rejects_source_smaller_than_patch() -> None:
+    """Test that separate-target mode rejects a source smaller than the patch size."""
+    large = np.ones((1, 1, 32, 32), dtype=np.float32)
+    small = np.ones((1, 1, 8, 32), dtype=np.float32)
+    data = IndependentTargets([[large], [small]])
+
+    with pytest.raises(ValueError, match="too small"):
+        create_microsplit_dataset(config=_training_config(), data=data)
 
 
 def test_pred_factory_rejects_non_sequence() -> None:
@@ -573,3 +594,112 @@ def test_factory_does_not_warn_for_default_values(
     create_microsplit_dataset(config=config, data=data)
 
     assert warnings == []
+
+
+def _filtering_config(**kwargs: Any) -> MicroSplitDataConfig:
+    return _training_config(
+        patch_filter={"name": "max", "threshold": 0.5, "filtered_patch_prob": 0.0},
+        **kwargs,
+    )
+
+
+def _half_image(
+    left: float, right: float, n_channels: int, patch: int = 8
+) -> NDArray[Any]:
+    """Return an image whose halves are at least four patch sizes wide."""
+    half = 4 * patch
+    image = np.full((1, n_channels, half, 2 * half), right, dtype=np.float32)
+    image[:, :, :, :half] = left
+    return image
+
+
+def _patching(patch: int = 8) -> dict[str, Any]:
+    """Return stratified patching large enough for filter regions of 2x the patch."""
+    return {"name": "stratified", "patch_size": (patch, patch), "seed": 42}
+
+
+def test_separate_patch_filter_reduces_background_patches() -> None:
+    """Test that separate-target filtering removes patches from a zero half."""
+    target = _half_image(0.0, 1.0, n_channels=2)
+    data = IndependentTargets([[target[:, :1]], [target[:, 1:]]])
+
+    unfiltered = create_microsplit_dataset(
+        _training_config(patching=_patching()), data=data
+    )
+    filtered = create_microsplit_dataset(
+        _filtering_config(patching=_patching()), data=data
+    )
+
+    assert filtered.patch_constructor.n_patches < unfiltered.patch_constructor.n_patches
+
+
+def test_paired_patch_filter_uses_input() -> None:
+    """Test that paired mode filters on the input and keeps the same patches."""
+    target = _half_image(0.0, 1.0, n_channels=2)
+    data = PairedInputTarget(
+        input_data=[np.ones_like(target[:, :1])],
+        target_data=[target],
+    )
+
+    unfiltered = create_microsplit_dataset(
+        _training_config(patching=_patching()), data=data
+    )
+    filtered = create_microsplit_dataset(
+        _filtering_config(patching=_patching()), data=data
+    )
+
+    assert (
+        filtered.patch_constructor.n_patches == unfiltered.patch_constructor.n_patches
+    )
+
+
+def test_multichannel_patch_filter_uses_channel_mean() -> None:
+    """Test that multiplexed filtering removes patches below the channel mean."""
+    target = _half_image(0.6, 1.0, n_channels=2)
+    data = MultiChannelTarget([target])
+    filtering = _training_config(
+        patching=_patching(),
+        patch_filter={"name": "max", "threshold": 0.8, "filtered_patch_prob": 0.0},
+    )
+
+    unfiltered = create_microsplit_dataset(
+        _training_config(patching=_patching()), data=data
+    )
+    filtered = create_microsplit_dataset(filtering, data=data)
+
+    assert filtered.patch_constructor.n_patches < unfiltered.patch_constructor.n_patches
+
+
+def test_multichannel_patch_filter_rejects_uncorrelated_channels() -> None:
+    """Test patch filtering cannot be combined with uncorrelated channel sampling."""
+    data = MultiChannelTarget([np.ones((1, 2, 32, 64), dtype=np.float32)])
+
+    with pytest.raises(ValueError, match="uncorrelated_channel_prob"):
+        create_microsplit_dataset(
+            _filtering_config(uncorrelated_channel_prob=0.5), data=data
+        )
+
+
+@pytest.mark.parametrize(
+    "independent, expected",
+    [
+        (False, MultiChannelTargetMsPatchConstr),
+        (True, IndependentTargetsMsPatchConstr),
+    ],
+)
+def test_train_val_datasets_from_targets_only(independent: bool, expected) -> None:
+    """Test target-only train/val data builds the synthetic-input constructors."""
+    target = np.ones((1, 2, 32, 64), dtype=np.float32)
+    target_data: Any = (
+        IndependentTargets([[target[:, :1]], [target[:, 1:]]])
+        if independent
+        else [target]
+    )
+    data = TrainValData(train_data_target=target_data, val_data_target=target_data)
+
+    train_dataset, val_dataset = create_microsplit_train_val_datasets(
+        _training_config(), data
+    )
+
+    assert isinstance(train_dataset.patch_constructor, expected)
+    assert isinstance(val_dataset.patch_constructor, expected)

@@ -11,7 +11,11 @@ from numpy.typing import NDArray
 from typing_extensions import TypeIs
 
 from careamics.config.support import SupportedData as SD
-from careamics.dataset.factory import ImageStackLoading, ReadFuncLoading
+from careamics.dataset.factory import (
+    ImageStackLoading,
+    IndependentTargets,
+    ReadFuncLoading,
+)
 from careamics.dataset.image_stack_loader.zarr_utils import is_valid_uri
 
 ArrayInput = NDArray[Any] | Sequence[NDArray[Any]]
@@ -621,3 +625,35 @@ def initialize_data_pair(
 
     validate_input_target_type_consistency(input_data, target_data)
     return input_data, target_data
+
+
+def initialize_target_only(
+    data_type: Literal["array", "tiff", "zarr", "czi", "custom"] | SD,
+    target_data: Any,
+    loading: ReadFuncLoading | ImageStackLoading | None = None,
+) -> Any:
+    """Initialize target data provided without input data.
+
+    Parameters
+    ----------
+    data_type : SupportedData
+        The type of the data to validate.
+    target_data : Any
+        Target data, or `IndependentTargets` holding one source per channel.
+    loading : ReadFuncLoading | ImageStackLoading | None, default=None
+        Loading strategy for custom data.
+
+    Returns
+    -------
+    Any
+        Initialized target data.
+    """
+    if isinstance(target_data, IndependentTargets):
+        return IndependentTargets(
+            [
+                initialize_target_only(data_type, source, loading)
+                for source in target_data.target_channel_data
+            ]
+        )
+    target_data, _ = initialize_data_pair(data_type, target_data, None, loading)
+    return target_data

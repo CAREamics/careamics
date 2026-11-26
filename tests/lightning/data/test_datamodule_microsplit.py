@@ -18,8 +18,11 @@ import pytest
 import tifffile
 
 from careamics.config.data import DataConfig, MicroSplitDataConfig
+from careamics.dataset.factory import IndependentTargets
 from careamics.dataset.patch_constructor import BasicPatchConstr
 from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
+    IndependentTargetsMsPatchConstr,
+    MultiChannelTargetMsPatchConstr,
     PairedInputTargetMsPatchConstr,
     PredMsPatchConstr,
 )
@@ -68,6 +71,42 @@ def _datamodule(config: DataConfig, **kwargs: Any) -> CareamicsDataModule:
     return CareamicsDataModule(config, **data)
 
 
+def test_fit_builds_target_only_multichannel_datasets() -> None:
+    """Test target-only arrays set up a MultiChannelTarget MicroSplit datamodule."""
+    target = np.ones((2, 2, 32, 32), dtype=np.float32)
+    datamodule = CareamicsDataModule(
+        _config(), train_data_target=target, val_data_target=target
+    )
+
+    datamodule.setup("fit")
+
+    assert isinstance(
+        datamodule.train_dataset.patch_constructor, MultiChannelTargetMsPatchConstr
+    )
+    assert isinstance(
+        datamodule.val_dataset.patch_constructor, MultiChannelTargetMsPatchConstr
+    )
+
+
+def test_fit_builds_independent_targets_datamodule() -> None:
+    """Test IndependentTargets sources set up a separate-channel datamodule."""
+    ch0 = np.full((2, 1, 32, 32), 1.0, dtype=np.float32)
+    ch1 = np.full((2, 1, 28, 36), 2.0, dtype=np.float32)
+    targets = IndependentTargets([ch0, ch1])
+    datamodule = CareamicsDataModule(
+        _config(), train_data_target=targets, val_data_target=targets
+    )
+
+    datamodule.setup("fit")
+
+    assert isinstance(
+        datamodule.train_dataset.patch_constructor, IndependentTargetsMsPatchConstr
+    )
+    assert isinstance(
+        datamodule.val_dataset.patch_constructor, IndependentTargetsMsPatchConstr
+    )
+
+
 def test_fit_builds_microsplit_datasets() -> None:
     """Test a MicroSplit configuration builds datasets with lateral context.
 
@@ -99,6 +138,17 @@ def test_fit_builds_basic_datasets_for_generic_config() -> None:
 
     assert isinstance(datamodule.train_dataset.patch_constructor, BasicPatchConstr)
     assert isinstance(datamodule.val_dataset.patch_constructor, BasicPatchConstr)
+
+
+def test_target_only_rejected_for_n2v_care_config() -> None:
+    """Test that an N2V or CARE data config with only targets raises ValueError."""
+    target = np.ones((2, 1, 32, 32), dtype=np.float32)
+    with pytest.raises(ValueError, match="Training data must be provided"):
+        CareamicsDataModule(
+            _config(microsplit=False),
+            train_data_target=target,
+            val_data_target=target,
+        )
 
 
 def test_fit_saves_resolved_statistics_to_hparams() -> None:

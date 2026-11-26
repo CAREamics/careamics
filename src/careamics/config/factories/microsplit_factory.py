@@ -15,7 +15,7 @@ from careamics.config.losses import MicroSplitLossConfig
 from careamics.config.microsplit_configuration import MicroSplitConfiguration
 
 from .config_discriminators import instantiate_norm_config
-from .data_factory import create_data_configuration
+from .data_factory import SupportedPatchFilterConfig, create_data_configuration
 from .factory_utils import assemble_augmentations
 from .training_factory import create_training_configuration, update_trainer_params
 
@@ -97,6 +97,7 @@ def create_advanced_microsplit_config(
     normalization: (
         Literal["mean_std", "min_max", "quantile", "none"] | NormalizationConfig
     ) = "mean_std",
+    patch_filter_config: SupportedPatchFilterConfig | None = None,
     in_memory: bool | None = None,
     multiscale_count: int = 3,
     padding_mode: Literal["reflect", "wrap"] = "reflect",
@@ -154,6 +155,10 @@ def create_advanced_microsplit_config(
     normalization : {"mean_std", "min_max", "quantile", "none"} or NormalizationConfig
         Normalization strategy or complete normalization configuration. Default is
         `"mean_std"`.
+    patch_filter_config : SupportedPatchFilterConfig or None, default=None
+        Configuration for patch filtering. Patch filtering reduces the probability of
+        background patches being selected during training. If `None`, no patch filter
+        is applied.
     in_memory : bool or None, default=None
         Whether to load all data into memory.
     multiscale_count : int, default=3
@@ -280,6 +285,7 @@ def create_advanced_microsplit_config(
         batch_size=batch_size,
         augmentations=assemble_augmentations(augmentations, seed),
         normalization=norm_config,
+        patch_filter_config=patch_filter_config,
         channels=channels,
         in_memory=in_memory,
         n_val_patches=n_val_patches,
