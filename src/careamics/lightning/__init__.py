@@ -3,6 +3,7 @@
 __all__ = [
     "CAREModule",
     "CareamicsDataModule",
+    "CheckpointRecordLogger",
     "ConfigSaverCallback",
     "ImageStackLoading",
     "N2VModule",
@@ -24,6 +25,7 @@ from .callbacks import (
     ProgressBarCallback,
     StopPredictionCallback,
 )
+from .checkpoint_record_logger import CheckpointRecordLogger
 from .data import CareamicsDataModule
 
 # exporting for lightning-API user's convenience

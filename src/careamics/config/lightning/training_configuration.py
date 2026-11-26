@@ -104,7 +104,7 @@ def default_training_dict(
     # compare noisy pixels to noisy pixels and cannot be monitored by a metric
     ranks_by_val_loss = algorithm in ("care", "microsplit", "hdn", "seg")
     supervised = algorithm in ("care", "microsplit", "seg")
-    # algorithms considered self-supervised: n2v, n2n, cryocare
+    # algorithms considered self-supervised: n2v, n2n, hdn, cryocare
 
     if checkpoint_params is None:
         # select default checkpointing preset based on algorithm
