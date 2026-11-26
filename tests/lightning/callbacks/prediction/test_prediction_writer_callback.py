@@ -2,10 +2,14 @@
 
 from pathlib import Path
 
+import numpy as np
 import pytest
 from lightning.pytorch import LightningModule, Trainer
+from torch.utils.data.dataloader import default_collate
 
+from careamics.dataset.image_region_data import ImageRegionData
 from careamics.lightning.callbacks.prediction import (
+    ImageWriteStrategy,
     PredictionWriterCallback,
     WriteStrategy,
 )
@@ -86,3 +90,81 @@ def test_write_on_batch_end_writing_predictions_off(mocker, prediction_writer_ca
         None, None, [], None, None, None, None
     )
     write_strategy.write_batch.assert_not_called()
+
+
+def _uncertainty_batch() -> tuple[ImageRegionData, ImageRegionData]:
+    prediction = ImageRegionData(
+        data=np.ones((1, 8, 8), dtype=np.float32),
+        source="x.tiff",
+        data_shape=(1, 8, 8),
+        dtype=str(np.float32),
+        axes="CYX",
+        target_axes="CYX",
+        original_data_shape=(8, 8),
+        region_spec={
+            "data_idx": 0,
+            "sample_idx": 0,
+            "coords": (0, 0),
+            "patch_size": (8, 8),
+        },
+        additional_metadata={},
+    )
+    uncertainty = prediction._replace(data=np.full((1, 8, 8), 0.5, dtype=np.float32))
+    return default_collate([prediction]), default_collate([uncertainty])
+
+
+def test_write_on_batch_end_skips_uncertainty_by_default(
+    mocker,
+    dirpath: Path,
+):
+    """Test that uncertainty is not written by default."""
+    callback = PredictionWriterCallback(dirpath=dirpath)
+    callback.set_writing_strategy(write_type="tiff", tiled=False)
+    assert callback.uncertainty_write_strategy is None
+    write_strategy = mocker.Mock(spec=WriteStrategy)
+    callback.write_strategy = write_strategy
+
+    pred, unc = _uncertainty_batch()
+    callback.write_on_batch_end(None, None, (pred, unc), None, pred, 0, 0)
+
+    write_strategy.write_batch.assert_called_once()
+
+
+def test_write_on_batch_end_writes_uncertainty_when_enabled(mocker, dirpath: Path):
+    """Test that uncertainty is written by its own write strategy."""
+    pred_strategy = mocker.Mock(spec=WriteStrategy)
+    unc_strategy = mocker.Mock(spec=WriteStrategy)
+    callback = PredictionWriterCallback(
+        dirpath=dirpath,
+        write_strategy=pred_strategy,
+        uncertainty_write_strategy=unc_strategy,
+    )
+
+    pred, unc = _uncertainty_batch()
+    callback.write_on_batch_end(None, None, (pred, unc), None, pred, 0, 0)
+
+    pred_strategy.write_batch.assert_called_once()
+    unc_strategy.write_batch.assert_called_once()
+
+
+def test_set_writing_strategy_builds_uncertainty_strategy(dirpath: Path):
+    """Test that set_writing_strategy builds an uncertainty write strategy."""
+    callback = PredictionWriterCallback(dirpath=dirpath)
+    callback.set_writing_strategy(
+        write_type="tiff", tiled=False, write_uncertainty=True
+    )
+
+    assert isinstance(callback.write_strategy, ImageWriteStrategy)
+    assert callback.write_strategy.filename_postfix == ""
+    uncertainty_strategy = callback.uncertainty_write_strategy
+    assert isinstance(uncertainty_strategy, ImageWriteStrategy)
+    assert uncertainty_strategy.filename_postfix == "_uncertainty"
+
+
+def test_set_writing_strategy_zarr_uncertainty_not_implemented(dirpath: Path):
+    """Test that writing uncertainty to zarr raises an error."""
+    callback = PredictionWriterCallback(dirpath=dirpath)
+    with pytest.raises(NotImplementedError, match="tiff"):
+        callback.set_writing_strategy(
+            write_type="zarr", tiled=True, write_uncertainty=True
+        )

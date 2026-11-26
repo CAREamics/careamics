@@ -17,6 +17,7 @@ def create_write_strategy(
     write_func: WriteFunc | None = None,
     write_extension: str | None = None,
     write_func_kwargs: dict[str, Any] | None = None,
+    filename_postfix: str = "",
 ) -> WriteStrategy:
     """
     Create a write strategy from convenient parameters.
@@ -35,6 +36,8 @@ def create_write_strategy(
         `write_type` an extension to save the data with must be passed.
     write_func_kwargs : dict of {str: any}, optional
         Additional keyword arguments to be passed to the save function.
+    filename_postfix : str, default=""
+        Suffix inserted before the file extension of image and tile outputs.
 
     Returns
     -------
@@ -66,6 +69,7 @@ def create_write_strategy(
             write_func=write_func,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            filename_postfix=filename_postfix,
         )
     else:
         # select CacheTiles or ZarrTiles
@@ -74,6 +78,7 @@ def create_write_strategy(
             write_func=write_func,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            filename_postfix=filename_postfix,
         )
 
     return write_strategy
@@ -84,6 +89,7 @@ def _create_tiled_write_strategy(
     write_func: WriteFunc | None,
     write_extension: str | None,
     write_func_kwargs: dict[str, Any],
+    filename_postfix: str = "",
 ) -> WriteStrategy:
     """
     Create a tiled write strategy.
@@ -103,6 +109,8 @@ def _create_tiled_write_strategy(
         `write_type` an extension to save the data with must be passed.
     write_func_kwargs : dict of {str: any}
         Additional keyword arguments to be passed to the save function.
+    filename_postfix : str, default=""
+        Suffix inserted before the file extension of tile outputs.
 
     Returns
     -------
@@ -125,6 +133,7 @@ def _create_tiled_write_strategy(
             write_func=write_func,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            filename_postfix=filename_postfix,
         )
 
 

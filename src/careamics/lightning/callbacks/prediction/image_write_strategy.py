@@ -29,6 +29,8 @@ class ImageWriteStrategy(WriteStrategy):
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
         Extra kwargs to pass to `write_func`.
+    filename_postfix : str, default=""
+        Suffix inserted before the file extension.
 
     Attributes
     ----------
@@ -38,6 +40,8 @@ class ImageWriteStrategy(WriteStrategy):
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
         Extra kwargs to pass to `write_func`.
+    filename_postfix : str
+        Suffix inserted before the file extension.
     image_cache : dict of {int: list of ImageRegionData}
         Cache for predictions across batches, keyed by data_idx.
     source_base : pathlib.Path or None
@@ -50,6 +54,7 @@ class ImageWriteStrategy(WriteStrategy):
         write_func: WriteFunc,
         write_extension: str,
         write_func_kwargs: dict[str, Any],
+        filename_postfix: str = "",
     ) -> None:
         """
         A strategy for writing image predictions (i.e. un-tiled predictions).
@@ -62,12 +67,15 @@ class ImageWriteStrategy(WriteStrategy):
             Extension added to prediction file paths.
         write_func_kwargs : dict of {str: Any}
             Extra kwargs to pass to `write_func`.
+        filename_postfix : str, default=""
+            Suffix inserted before the file extension.
         """
         super().__init__()
 
         self.write_func: WriteFunc = write_func
         self.write_extension: str = write_extension
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
+        self.filename_postfix: str = filename_postfix
 
         self.image_cache: dict[int, list[ImageRegionData]] = defaultdict(list)
 
@@ -178,9 +186,9 @@ class ImageWriteStrategy(WriteStrategy):
             for i, image in enumerate(image_lst):
                 source_path = Path(sources[i])
 
-                postfix = ""
+                postfix = self.filename_postfix
                 if source_path.stem == "array":
-                    postfix = f"_{data_idx}"
+                    postfix = f"_{data_idx}{self.filename_postfix}"
 
                 file_path = create_write_file_path(
                     dirpath=dirpath,

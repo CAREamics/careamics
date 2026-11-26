@@ -1156,6 +1156,7 @@ class CAREamist:
         write_func_kwargs: dict[str, Any] | None = None,
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
+        write_uncertainty: bool = False,
         segmentation_output: SegPredictionOutput | None = None,
     ) -> None: ...
 
@@ -1186,6 +1187,7 @@ class CAREamist:
         write_func_kwargs: dict[str, Any] | None = None,
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
+        write_uncertainty: bool = False,
         segmentation_output: SegPredictionOutput | None = None,
     ) -> None: ...
 
@@ -1215,6 +1217,7 @@ class CAREamist:
         write_func_kwargs: dict[str, Any] | None = None,
         # ALGORITHM-SPECIFIC PARAMS
         n_predictions: int | None = None,
+        write_uncertainty: bool = False,
         segmentation_output: SegPredictionOutput | None = None,
     ) -> None:
         """
@@ -1299,8 +1302,11 @@ class CAREamist:
         n_predictions : int, optional
             Number of stochastic predictions to draw per input and average into the
             written prediction. Must be at least 2, and is only supported by the
-            sampling-based algorithms (HDN and MicroSplit). The uncertainty across
-            those predictions is not currently written.
+            sampling-based algorithms (HDN and MicroSplit).
+        write_uncertainty : bool, default=False
+            If True, write the uncertainty estimate alongside each prediction file.
+            Requires `n_predictions` of at least 2; if uncertainty is not produced, only
+            predictions are written.
         segmentation_output : {"mask", "probabilities"} or None, default=None
             Prediction output for segmentation models. If None, the value from
             the algorithm configuration is used.
@@ -1327,6 +1333,12 @@ class CAREamist:
             write_dir = self.work_dir / prediction_dir
         self.prediction_writer.dirpath = write_dir
 
+        if write_uncertainty and n_predictions is None:
+            logger.warning(
+                "`write_uncertainty` requires `n_predictions`, only predictions will "
+                "be written."
+            )
+
         if write_type == "custom":
             if write_extension is None:
                 raise ValueError(
@@ -1349,6 +1361,7 @@ class CAREamist:
             write_func=write_func,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            write_uncertainty=write_uncertainty,
         )
 
         self.prediction_writer.enable_writing(True)

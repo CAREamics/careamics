@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import tifffile
 
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack_loader import load_arrays
@@ -210,3 +211,60 @@ def test_get_full_images_too_many(
 
     with pytest.raises(ValueError):
         _ = cache_tiles_strategy._get_full_images()
+
+
+@pytest.mark.parametrize("n_data, shape, axes", [(1, (28, 28), "YX")])
+def test_write_batch_prediction_and_uncertainty_files(
+    tiles: list[ImageRegionData],
+    tmp_path: Path,
+    shape: tuple[int, ...],
+):
+    """Test that prediction and uncertainty tiles are written to separate files."""
+    write_extension = ".tiff"
+    pred_strategy = TileWriteStrategy(
+        write_func=write_tiff,
+        write_extension=write_extension,
+        write_func_kwargs={},
+    )
+    unc_strategy = TileWriteStrategy(
+        write_func=write_tiff,
+        write_extension=write_extension,
+        write_func_kwargs={},
+        filename_postfix="_uncertainty",
+    )
+
+    source = "x.tiff"
+    pred_tiles = [
+        tile._replace(source=source, data=tile.data.astype(np.float32))
+        for tile in tiles
+    ]
+    unc_tiles = [
+        tile._replace(
+            source=source, data=np.full_like(tile.data, 0.5, dtype=np.float32)
+        )
+        for tile in tiles
+    ]
+
+    dirpath = tmp_path / "predictions"
+    pred_strategy.write_batch(dirpath=dirpath, predictions=pred_tiles)
+    unc_strategy.write_batch(dirpath=dirpath, predictions=unc_tiles)
+
+    pred_path = create_write_file_path(
+        dirpath=dirpath,
+        file_path=Path(source),
+        write_extension=write_extension,
+    )
+    unc_path = create_write_file_path(
+        dirpath=dirpath,
+        file_path=Path(source),
+        write_extension=write_extension,
+        postfix="_uncertainty",
+    )
+    assert pred_path.is_file()
+    assert unc_path.is_file()
+
+    expected = np.arange(np.prod(shape), dtype=np.float32).reshape(shape)
+    pred_image = tifffile.imread(pred_path)
+    unc_image = tifffile.imread(unc_path)
+    np.testing.assert_array_equal(pred_image, expected)
+    np.testing.assert_array_equal(unc_image, np.full(shape, 0.5, dtype=np.float32))
