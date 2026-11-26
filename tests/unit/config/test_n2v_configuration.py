@@ -104,7 +104,8 @@ def test_number_of_masked_pixels(size, dims, percentage, exp_error):
     list(itertools.product(METRICS_TRAIN, [nullcontext(0)]))
     + list(
         itertools.product(
-            METRCIS_VAL, [pytest.raises(ValueError, match="No validation data")]
+            METRCIS_VAL,
+            [pytest.raises(ValueError, match=r"algorithm_config\.monitor_metric")],
         )
     ),
 )
