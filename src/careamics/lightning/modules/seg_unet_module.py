@@ -13,6 +13,7 @@ from careamics.config import SegAlgorithm
 from careamics.config.factories.algorithm_factory import algorithm_factory
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
+from careamics.lightning.prediction.tta import TTAVariant, predict_with_tta
 from careamics.losses import get_seg_loss
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
@@ -83,6 +84,7 @@ class SegModule(LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
+        self.tta_variants: list[TTAVariant] | None = None
         self.loss_func = get_seg_loss(self.config.loss)
 
         self.metrics: MetricCollection = MetricCollection(
@@ -221,14 +223,19 @@ class SegModule(LightningModule):
             The output batch containing the predictions.
         """
         x = batch[0]
-        # TODO: add TTA
-        prediction = self.model(x.data)
+        x_data = cast(torch.Tensor, x.data)
+        if self.tta_variants is not None:
+            prediction = predict_with_tta(
+                lambda t: self.model(t).softmax(dim=1), x_data, self.tta_variants
+            )
+        else:
+            prediction = self.model(x_data).softmax(dim=1)
 
         prediction_output = self.config.prediction_output
         if prediction_output == "probabilities":
             # The class dimension must be kept in the output metadata because
             # segmentation targets do not have a channel dimension.
-            prediction = prediction.softmax(dim=1).cpu().numpy()
+            prediction = prediction.cpu().numpy()
 
             # x.data_shape may be a collated batch of data shapes.
             probability_data_shape = list(x.data_shape)

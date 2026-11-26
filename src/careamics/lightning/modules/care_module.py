@@ -1,7 +1,7 @@
 """CARE Lightning Module."""
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import lightning as L
 import torch
@@ -15,6 +15,7 @@ from careamics.config.support import SupportedLoss
 from careamics.dataset import ImageRegionData
 from careamics.dataset.factory import TrainValData, TrainValSplitData
 from careamics.lightning.logger import CoLogger
+from careamics.lightning.prediction.tta import TTAVariant, predict_with_tta
 from careamics.metrics import SIPSNR
 from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
@@ -67,6 +68,7 @@ class CAREModule(L.LightningModule):
         self.save_hyperparameters({"algorithm_config": config.model_dump(mode="json")})
         self.config = config
         self.model: nn.Module = UNet(**self.config.model.model_dump())
+        self.tta_variants: list[TTAVariant] | None = None
         self.loss_func: Callable = (
             MSELoss() if self.config.loss == SupportedLoss.MSE else L1Loss()
         )
@@ -203,8 +205,11 @@ class CAREModule(L.LightningModule):
             The output batch containing the predictions.
         """
         x = batch[0]
-        # TODO: add TTA
-        prediction = self.model(x.data)
+        x_data = cast(torch.Tensor, x.data)
+        if self.tta_variants is not None:
+            prediction = predict_with_tta(self.model, x_data, self.tta_variants)
+        else:
+            prediction = self.model(x_data)
 
         normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
         denormalized_output = normalization.denormalize(prediction).cpu().numpy()
