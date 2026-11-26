@@ -150,6 +150,9 @@ class UnetDecoder(nn.Module):
     groups : int, optional
         Number of blocked connections from input channels to output
         channels, by default 1.
+    decoder_channel_multiplier : int, optional
+        Multiplier for the number of channels between the two convolutions of each
+        decoder block, except the last one, by default 2.
     """
 
     def __init__(
@@ -161,6 +164,7 @@ class UnetDecoder(nn.Module):
         dropout: float = 0.0,
         n2v2: bool = False,
         groups: int = 1,
+        decoder_channel_multiplier: int = 2,
     ) -> None:
         """
         Constructor.
@@ -182,6 +186,9 @@ class UnetDecoder(nn.Module):
         groups : int, optional
             Number of blocked connections from input channels to output
             channels, by default 1.
+        decoder_channel_multiplier : int, optional
+            Multiplier for the number of channels between the two convolutions of
+            each decoder block, except the last one, by default 2.
         """
         super().__init__()
 
@@ -218,11 +225,10 @@ class UnetDecoder(nn.Module):
                     conv_dim,
                     in_channels=in_channels,
                     out_channels=out_channels,
-                    # TODO: Tensorflow n2v implementation has intermediate channel
-                    #   multiplication for skip_skipone=True but not skip_skipone=False
-                    #   this needs to be benchmarked.
                     # final decoder block doesn't multiply the intermediate features
-                    intermediate_channel_multiplier=2 if n != depth - 1 else 1,
+                    intermediate_channel_multiplier=(
+                        decoder_channel_multiplier if n != depth - 1 else 1
+                    ),
                     dropout_perc=dropout,
                     activation="ReLU",
                     use_batch_norm=use_batch_norm,
@@ -348,6 +354,9 @@ class UNet(nn.Module):
         Whether to use N2V2 architecture, by default False.
     independent_channels : bool
         Whether to train the channels independently, by default True.
+    decoder_channel_multiplier : int, optional
+        Multiplier for the number of channels between the two convolutions of each
+        decoder block, except the last one, by default 2.
     **kwargs : Any
         Additional keyword arguments, unused.
     """
@@ -366,6 +375,7 @@ class UNet(nn.Module):
         final_activation: Union[SupportedActivation, str] = SupportedActivation.NONE,
         n2v2: bool = False,
         independent_channels: bool = True,
+        decoder_channel_multiplier: int = 2,
         **kwargs: Any,
     ) -> None:
         """
@@ -398,6 +408,9 @@ class UNet(nn.Module):
         independent_channels : bool
             Whether to train parallel independent networks for each channel, by
             default True.
+        decoder_channel_multiplier : int, optional
+            Multiplier for the number of channels between the two convolutions of
+            each decoder block, except the last one, by default 2.
         **kwargs : Any
             Additional keyword arguments, unused.
         """
@@ -425,6 +438,7 @@ class UNet(nn.Module):
             dropout=dropout,
             n2v2=n2v2,
             groups=groups,
+            decoder_channel_multiplier=decoder_channel_multiplier,
         )
         self.final_conv = getattr(nn, f"Conv{conv_dims}d")(
             in_channels=num_channels_init * groups,

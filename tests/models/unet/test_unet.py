@@ -108,3 +108,25 @@ def test_independent_channels(independent_channels):
         # when not independent
         # channel 2 different between inputs => all channels different between outputs
         assert (y1[:, 0] != y2[:, 0]).any()
+
+
+@pytest.mark.parametrize(
+    "decoder_channel_multiplier, n_parameters",
+    [
+        # CSBDeep CARE
+        (2, 333_729),
+        # TF n2v
+        (1, 287_553),
+    ],
+)
+def test_decoder_channel_multiplier(decoder_channel_multiplier, n_parameters):
+    """Test that the decoder width matches the reference implementations."""
+    model = UNet(
+        conv_dims=2,
+        depth=2,
+        num_channels_init=32,
+        decoder_channel_multiplier=decoder_channel_multiplier,
+    )
+
+    assert sum(p.numel() for p in model.parameters()) == n_parameters
+    assert model(torch.randn(1, 1, 16, 16)).shape == (1, 1, 16, 16)
