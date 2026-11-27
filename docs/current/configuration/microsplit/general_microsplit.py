@@ -45,7 +45,7 @@ config = create_microsplit_config(
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
-    n_channels_out=3,
+    output_channels=3,
     augmentations=["x_flip"],  # (1)!
 )
 # --8<-- [end:config_microsplit_augs]
@@ -60,7 +60,7 @@ config = create_microsplit_config(
     axes="YX",
     patch_size=[64, 64],
     batch_size=8,
-    n_channels_out=3,
+    output_channels=3,
     n_val_patches=15,
 )
 # --8<-- [end:config_microsplit_val]

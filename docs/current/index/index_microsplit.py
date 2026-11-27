@@ -4,7 +4,10 @@ from pathlib import Path
 
 import numpy as np
 
-train_data = np.random.randint(0, 255, (64 * 4, 64 * 8)).astype(np.float32)
+train_data = np.random.randint(0, 255, (4, 1, 64 * 4, 64 * 8)).astype(np.float32)
+train_data_target = np.repeat(train_data, 3, axis=1)
+val_data = train_data
+val_data_target = train_data_target
 pred_data = train_data
 
 noise_model = []
@@ -28,7 +31,7 @@ from careamics.config import create_microsplit_config
 config = create_microsplit_config(
     experiment_name="microsplit_training",
     data_type="array",  # (1)!
-    axes="YX",
+    axes="SCYX",
     patch_size=[64, 64],
     batch_size=8,
     output_channels=3,  # (2)!
@@ -46,6 +49,9 @@ careamist = CAREamist(config)
 # Train  using a noise model
 careamist.train(
     train_data=train_data,  # (4)!
+    train_data_target=train_data_target,
+    val_data=train_data,
+    val_data_target=train_data_target,
     noise_model=noise_model,  # (5)!
 )
 

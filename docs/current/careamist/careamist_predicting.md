@@ -79,7 +79,6 @@ standard-deviation estimate. It must be at least `2`.
 --8<-- "current/careamist/careamist_predicting.py:pred_sampling_hdn"
 ```
 
-
 The return values are `(predictions, uncertainty, sources)`. The uncertainty is the
 standard deviation across the sampled predictions.
 

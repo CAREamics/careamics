@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 from pathlib import Path
 import numpy as np
-from careamics.config import create_n2v_config
+from careamics.config import create_hdn_config, create_n2v_config
 from careamics.careamist import CAREamist
 import tifffile
 import shutil
 
 root = Path(__file__).parent / "temp_data"
-root.mkdir(exist_ok=True)
+shutil.rmtree(root, ignore_errors=True)
+root.mkdir(parents=True)
 
 # create a configuration
 config_n2v = create_n2v_config(
@@ -42,7 +43,6 @@ selected_checkpoint = checkpoint_record["selected"]
 assert selected_checkpoint is not None
 path_to_checkpoint = careamist.get_checkpoint_root() / selected_checkpoint
 
-
 # %%
 # --8<-- [start:pred_start]
 careamist = CAREamist(checkpoint_path=path_to_checkpoint)
@@ -61,15 +61,6 @@ pred_arrays, _ = careamist.predict(
     pred_data=pred_data,
 )
 # --8<-- [end:pred_empty_source]
-
-
-# --8<-- [start:pred_sampling]
-predictions, uncertainty, sources = careamist.predict(
-    pred_data=pred_data,
-    n_predictions=10,
-)
-# --8<-- [end:pred_sampling]
-
 
 # --8<-- [start:pred_cryocare]
 predictions, sources = careamist.predict(
@@ -135,6 +126,7 @@ careamist.predict_to_disk(
 # --8<-- [start:pred_write_type]
 careamist.predict_to_disk(
     pred_data=pred_data,
+    prediction_dir=root / "predictions",
     write_type="tiff",  # (1)!
 )
 # --8<-- [end:pred_write_type]
@@ -156,6 +148,31 @@ careamist.predict_to_disk(
     write_func_kwargs={"allow_pickle": False},  # (5)!
 )
 # --8<-- [end:pred_write_func]
+
+
+########################################
+## generative prediction
+
+config = create_hdn_config(
+    experiment_name="hdn_sampling",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=1,
+    num_steps=1,
+    n_val_patches=2,
+)
+careamist = CAREamist(config, work_dir=root)
+careamist.train(train_data=train_data)
+
+# --8<-- [start:pred_sampling]
+predictions, uncertainty, sources = careamist.predict(
+    pred_data=pred_data,
+    n_predictions=10,
+)
+# --8<-- [end:pred_sampling]
+
 
 # delete root
 shutil.rmtree(root)

@@ -44,8 +44,9 @@ an experiment.
   consider setting `num_steps`, see [Reducing the number of steps](#reducing-the-number-of-steps).
 - `augmentations`: optional list of `x_flip`, `y_flip`, and `rotate_90`. If omitted,
   all three are applied. Use an empty list to disable them, see [Augmentations](#augmentations).
-- `n_val_patches`: number of training patches reserved for validation when separate
-  validation data is not provided. See [Number of validation patches](#number-of-validation-patches).
+- `n_val_patches`: number of validation patches when supported by the data pipeline.
+  MicroSplit requires explicit validation data; it cannot automatically split the
+  training data.
 - `multiscale_count`: number of lateral-context scales used by MicroSplit.
 - `seed`: optional, fix a seed to make data ordering, augmentations, and patch sampling
   reproducible.
@@ -87,17 +88,12 @@ Pass `augmentations=[]` to disable all augmentations.
     oriented in a particular way, it may be necessary to turn off augmentations that
     break this symmetry.
 
-### Number of validation patches
+### Validation data
 
-When no validation data is provided, CAREamics can reserve `n_val_patches` patches
-from the training data for validation.
-
-```python title="Setting the number of validation patches"
---8<-- "current/configuration/microsplit/general_microsplit.py:config_microsplit_val"
-```
-
-If separate validation data is supplied, `n_val_patches` is ignored and the validation
-data determines the number of validation patches automatically.
+MicroSplit does not support automatic validation splitting. Always pass both
+`val_data` and `val_data_target` to `CAREamist.train`, in addition to the matching
+`train_data` and `train_data_target` arrays. The validation inputs must have the same
+input/target channel structure as the training data.
 
 ### Multiscale count
 
