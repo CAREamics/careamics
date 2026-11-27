@@ -145,8 +145,8 @@ def multichannel_noise_model_factory(
 
 def train_gm_noise_model(
     model_config: GaussianMixtureNMConfig,
-    signal: np.ndarray,
-    observation: np.ndarray,
+    signal: NDArray | Sequence[NDArray],
+    observation: NDArray | Sequence[NDArray],
 ) -> GaussianMixtureNoiseModel:
     """Train a Gaussian mixture noise model.
 
@@ -154,10 +154,10 @@ def train_gm_noise_model(
     ----------
     model_config : GaussianMixtureNMConfig
         Configuration of the Gaussian mixture noise model to train.
-    signal : np.ndarray
+    signal : NDArray or Sequence[NDArray]
         Clean signal data.
-    observation : np.ndarray
-        Noisy observation data.
+    observation : NDArray or Sequence[NDArray]
+        Noisy observation data, paired element-wise with `signal`.
 
     Returns
     -------
@@ -835,40 +835,67 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     def get_signal_observation_pairs(
         self,
-        signal: NDArray,
-        observation: NDArray,
+        signal: NDArray | Sequence[NDArray],
+        observation: NDArray | Sequence[NDArray],
         lower_clip: float,
         upper_clip: float,
     ) -> torch.Tensor:
         """Return the signal-observation pixel intensities as a two-column tensor.
 
+        Each array is treated as a stack of images along its first axis. Arrays
+        are paired element-wise, and within a pair the number of observation
+        images must be a multiple of the number of signal images, with
+        consecutive observations sharing the same signal image. Arrays in
+        different pairs may have different shapes.
+
         Parameters
         ----------
-        signal : NDArray
+        signal : NDArray or Sequence[NDArray]
             Clean signal data.
-        observation : NDArray
-            Noisy observation data.
+        observation : NDArray or Sequence[NDArray]
+            Noisy observation data, paired element-wise with `signal`.
         lower_clip : float
-            Lower percentile bound for clipping.
+            Lower percentile bound for clipping, computed over all signal pixels.
         upper_clip : float
-            Upper percentile bound for clipping.
+            Upper percentile bound for clipping, computed over all signal pixels.
 
         Returns
         -------
         torch.Tensor
             Shuffled two-column tensor of (signal, observation) pixel intensities.
-        """
-        lb = np.percentile(signal, lower_clip)
-        ub = np.percentile(signal, upper_clip)
-        stepsize = observation[0].size
-        n_observations = observation.shape[0]
-        n_signals = signal.shape[0]
-        sig_obs_pairs = np.zeros((n_observations * stepsize, 2))
 
-        for i in range(n_observations):
-            j = i // (n_observations // n_signals)
-            sig_obs_pairs[stepsize * i : stepsize * (i + 1), 0] = signal[j].ravel()
-            sig_obs_pairs[stepsize * i : stepsize * (i + 1), 1] = observation[i].ravel()
+        Raises
+        ------
+        ValueError
+            If `signal` and `observation` contain a different number of arrays.
+        """
+        signals = [signal] if isinstance(signal, np.ndarray) else list(signal)
+        observations = (
+            [observation] if isinstance(observation, np.ndarray) else list(observation)
+        )
+        if len(signals) != len(observations):
+            raise ValueError(
+                f"Signal and observation must contain the same number of arrays. "
+                f"Got {len(signals)} signal and {len(observations)} observation "
+                f"arrays."
+            )
+
+        n_pairs = sum(obs.size for obs in observations)
+        sig_obs_pairs = np.zeros((n_pairs, 2))
+
+        offset = 0
+        for sig, obs in zip(signals, observations, strict=True):
+            stepsize = obs[0].size
+            n_observations = obs.shape[0]
+            n_signals = sig.shape[0]
+            for i in range(n_observations):
+                j = i // (n_observations // n_signals)
+                sig_obs_pairs[offset : offset + stepsize, 0] = sig[j].ravel()
+                sig_obs_pairs[offset : offset + stepsize, 1] = obs[i].ravel()
+                offset += stepsize
+
+        lb = np.percentile(sig_obs_pairs[:, 0], lower_clip)
+        ub = np.percentile(sig_obs_pairs[:, 0], upper_clip)
         sig_obs_pairs = sig_obs_pairs[
             (sig_obs_pairs[:, 0] > lb) & (sig_obs_pairs[:, 0] < ub)
         ]
@@ -878,8 +905,8 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     def fit(
         self,
-        signal: NDArray,
-        observation: NDArray,
+        signal: NDArray | Sequence[NDArray],
+        observation: NDArray | Sequence[NDArray],
         learning_rate: float = 1e-1,
         batch_size: int = 250000,
         n_epochs: int = 2000,
@@ -888,12 +915,16 @@ class GaussianMixtureNoiseModel(nn.Module):
     ) -> list[float]:
         """Train the noise model on signal-observation pairs.
 
+        `signal` and `observation` may be single arrays or sequences of arrays
+        paired element-wise. Arrays in different pairs may have different shapes.
+        See `get_signal_observation_pairs` for how arrays are paired.
+
         Parameters
         ----------
-        signal : NDArray
+        signal : NDArray or Sequence[NDArray]
             Clean signal data.
-        observation : NDArray
-            Noisy observation data.
+        observation : NDArray or Sequence[NDArray]
+            Noisy observation data, paired element-wise with `signal`.
         learning_rate : float
             Learning rate. Default = 1e-1.
         batch_size : int
