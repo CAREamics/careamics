@@ -784,3 +784,63 @@ def test_train_noise_model_fits_and_saves(tmp_path: Path) -> None:
     assert isinstance(noise_model, MultiChannelNoiseModel)
     assert len(noise_model) == 2
     assert len(list(tmp_path.glob("*.npz"))) == 2
+
+
+def _sequence_with_different_shapes(
+    noise_sigma: float, seed: int = 42
+) -> tuple[list[np.ndarray], list[np.ndarray]]:
+    gen = np.random.default_rng(seed)
+    shapes = [(3, 2, 64, 64), (2, 2, 48, 80), (1, 2, 32, 32)]
+    signals = [gen.uniform(0, 255, shape) for shape in shapes]
+    observations = [sig + gen.normal(0, noise_sigma, sig.shape) for sig in signals]
+    return signals, observations
+
+
+def test_train_from_pairs_sequence_with_different_shapes() -> None:
+    """Training on differently shaped arrays learns each channel's noise."""
+    noise_sigma = 15.0
+    signals, observations = _sequence_with_different_shapes(noise_sigma)
+
+    trainer = NoiseModelTrainer(n_gaussian=1, n_coeff=2, min_sigma=100.0)
+    noise_models = trainer.train_from_pairs(
+        signal=signals, observation=observations, axes="SCYX", n_epochs=500
+    )
+
+    assert len(noise_models) == 2
+    assert trainer.histograms is not None
+    assert len(trainer.histograms) == 2
+    for ch, nm in enumerate(noise_models):
+        assert nm.min_signal == min(sig[:, ch].min() for sig in signals)
+        assert nm.max_signal == max(sig[:, ch].max() for sig in signals)
+
+        ch_signal = np.concatenate([sig[:, ch].ravel() for sig in signals])
+        _, learned, _ = nm.get_gaussian_parameters(torch.from_numpy(ch_signal).float())
+        assert np.isclose(learned.mean().item(), noise_sigma, rtol=0.2)
+
+
+@pytest.mark.parametrize(
+    "corrupt, match",
+    [
+        (lambda sigs, obs: (sigs, obs[:-1]), "same number of arrays"),
+        (
+            lambda sigs, obs: (sigs, [obs[0], obs[1][..., :40], obs[2]]),
+            "for pair at index 1",
+        ),
+        (
+            lambda sigs, obs: (
+                [sigs[0], sigs[1], sigs[2][:, :1]],
+                [obs[0], obs[1], obs[2][:, :1]],
+            ),
+            "same number of channels",
+        ),
+    ],
+    ids=["length_mismatch", "pair_shape_mismatch", "channel_mismatch"],
+)
+def test_train_from_pairs_sequence_invalid_inputs_raise(
+    corrupt: Callable, match: str
+) -> None:
+    signals, observations = corrupt(*_sequence_with_different_shapes(10.0))
+
+    trainer = NoiseModelTrainer()
+    with pytest.raises(ValueError, match=match):
+        trainer.train_from_pairs(signal=signals, observation=observations, axes="SCYX")
