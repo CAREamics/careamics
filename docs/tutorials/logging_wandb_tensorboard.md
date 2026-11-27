@@ -1,7 +1,7 @@
 # Logging with WandB and TensorBoard
 
 CAREamics writes a CSV log of the training and validation metrics (see the
-[Logging guide](../current/careamist_train_logging.md)). You can also save
+[Logging guide](../current/careamist/careamist_train_logging.md)). You can also save
 these metrics to [Weights & Biases](https://wandb.ai/) or
 [TensorBoard](https://www.tensorflow.org/tensorboard) by passing `logger="wandb"` or
 `logger="tensorboard"` to the advanced configuration factory. 
@@ -43,6 +43,10 @@ Build the configuration with the advanced factory and pass `logger="wandb"`:
 ```
 
 1. WandB is added on top of the CSV logger, not in place of it. The same pattern applies to CARE and N2N through `create_advanced_care_config` and `create_advanced_n2n_config`.
+
+Use the configuration's optional `project_name` to group related runs. If it is not
+provided, CAREamics falls back to `experiment_name`; the `WANDB_PROJECT` environment
+variable can also be used for the WandB project setting.
 
 ## TensorBoard
 

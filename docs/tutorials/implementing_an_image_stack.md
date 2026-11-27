@@ -1,4 +1,4 @@
-This is an advanced tutorial for creating a custom image stack. A custom image stack useful for extending CAREamics to train on not natively supported chunked or memory-mapped formats, when all the data cannot fit into memory.  See the [Image Stack & Loader Tutorial](custom_data.md#custom-image-stack-loader) for a full example on how to train on custom memory-mapped data.
+This is an advanced tutorial for creating a custom image stack. A custom image stack is useful for extending CAREamics to train on chunked or memory-mapped formats that are not natively supported, when all the data cannot fit into memory. See the [Image Stack & Loader Tutorial](custom_data.md#custom-image-stack-loader) for a full example of how to train on custom memory-mapped data.
 
 If the data can fit into memory, see the [Custom Read Function Tutorial](custom_data.md#custom-read-function) for a description of an alternative simpler mechanism for training on custom data that can be loaded into memory.
 
@@ -14,7 +14,7 @@ The source is a string that will be passed through the prediction pipeline to id
 
 ### `data_shape`: `Sequence[int]`
 
-This is the the shape of the data after it has been transformed to the `SC(Z)YX` axes order. The `AxesTransform` class provides a convenient way to calculate this.
+This is the shape of the data after it has been transformed to the `SC(Z)YX` axes order. The `AxesTransform` class provides a convenient way to calculate this.
 
 ```python title="Data Shape Transformation"
 --8<-- "tutorials/implementing_an_image_stack.py:transform-data-shape"
@@ -25,7 +25,7 @@ This is the the shape of the data after it has been transformed to the `SC(Z)YX`
 
 ### `data_dtype`: `numpy.typing.DTypeLike`
 
-This is the data type of the data as it's equivalent NumPy representation.
+This is the data type of the data as represented by NumPy.
 
 ### `original_data_shape`: `Sequence[int]`
 
@@ -41,9 +41,9 @@ This is the original axes order of the data, before the transformation. The imag
 
 The full signature can be seen in the API reference [`extract_patch`][careamics.dataset.image_stack.ImageStack.extract_patch].
 
-The extract patch method needs to return a patch that is specified by the input parameters. The patch needs to be transformed to have `C(Z)YX` axes.
+The patch-extraction method needs to return a patch specified by the input parameters. The patch needs to be transformed to have `C(Z)YX` axes.
 
-If the patch is out of bounds of the image, it should be padded with zeros, for the feature of predicting with a tile size that is larger than the image. This feature is not used during training.
+If the patch is out of bounds of the image, it should be padded with zeros to support prediction with a tile size larger than the image. This feature is not used during training.
 
 Some useful utility functions are:
 

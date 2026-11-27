@@ -1,0 +1,115 @@
+#!/usr/bin/env python
+
+# %%
+# --8<-- [start:all_configs]
+from careamics.config import (
+    create_advanced_care_config,
+    create_advanced_n2n_config,
+    create_care_config,
+    create_n2n_config,  # (1)!
+)
+
+# --8<-- [end:all_configs]
+
+# %%
+# --8<-- [start:config_care]
+from careamics.config import create_care_config
+
+config = create_care_config(
+    experiment_name="care_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+)
+# --8<-- [end:config_care]
+
+
+# %%
+# --8<-- [start:config_care_steps]
+from careamics.config import create_care_config
+
+config = create_care_config(
+    experiment_name="care_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    num_epochs=30,
+    num_steps=500,  # (1)!
+)
+# --8<-- [end:config_care_steps]
+
+# %%
+# --8<-- [start:config_care_augs]
+from careamics.config import create_care_config
+
+config = create_care_config(
+    experiment_name="care_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    augmentations=["x_flip", "y_flip", "rotate_90"],  # (1)!
+)
+# --8<-- [end:config_care_augs]
+
+# %%
+# --8<-- [start:config_care_channels]
+from careamics.config import create_care_config
+
+config = create_care_config(
+    experiment_name="care_training",
+    data_type="array",
+    axes="CYX",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    n_channels_in=3,  # (2)!
+)
+# --8<-- [end:config_care_channels]
+
+# %%
+# --8<-- [start:config_care_out_channels]
+from careamics.config import create_care_config
+
+config = create_care_config(
+    experiment_name="care_training",
+    data_type="array",
+    axes="CYX",
+    target_axes="YXC",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    n_channels_in=3,
+    n_channels_out=2,  # (2)!
+)
+# --8<-- [end:config_care_out_channels]
+
+# %%
+# --8<-- [start:config_care_val]
+from careamics.config import create_care_config
+
+config = create_care_config(
+    experiment_name="care_training",
+    data_type="array",
+    axes="YX",
+    patch_size=[64, 64],
+    batch_size=8,
+    n_val_patches=15,
+)
+# --8<-- [end:config_care_val]
+
+# %%
+# --8<-- [start:target_axes]
+from careamics.config import create_care_config
+
+config = create_care_config(
+    experiment_name="care_training",
+    data_type="array",
+    axes="CYX",
+    target_axes="YX",  # (1)!
+    patch_size=[64, 64],
+    batch_size=8,
+    n_channels_in=3,  # (2)!
+)
+# --8<-- [end:target_axes]

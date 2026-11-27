@@ -6,7 +6,7 @@ The structure of the docs on the website is defined in `nav.toml`.
 
 ## How to use the snippets
 
-Snippets are stored in python files and automatically aggregated by `test_guides.py` as pytest test cases. A snippet consist of a python code in the following block:
+Snippets are stored in Python files and automatically aggregated by `test_guides.py` as pytest test cases. A snippet consists of Python code in the following block:
 
 ```python
 # %%
@@ -32,4 +32,4 @@ The `snippet_id` is used to identify the snippet and can be used in the markdown
 The guides are uploaded automatically to the website at build time and organized according to the `nav.toml` file. To add a new page to the guides, simply create a new markdown file in the `docs` folder and add it to the `nav.toml` file.
 
 > [!IMPORTANT]
-> Only existing keys are accepted by the website: Using CAREamics, Tutorials, and Legacy (v0.1). For additional sections, the website's `zensical.toml` file has to be updated.
+> Only existing keys are accepted by the website. For additional sections, the website's `zensical.toml` file has to be updated, see caremics.github.io repo.

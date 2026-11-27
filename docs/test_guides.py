@@ -26,7 +26,7 @@ script_enum = enum.Enum("Scripts", dict_scripts)
 
 @pytest.mark.parametrize("script", script_enum)
 def test_script_execution(script):
-    """Test each the execution of each script."""
+    """Test the execution of each script."""
     print(f"Script: {script!s}")
 
     runpy.run_path(str(script.value))
