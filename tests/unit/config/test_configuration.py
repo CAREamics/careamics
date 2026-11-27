@@ -248,6 +248,19 @@ def test_validate_channels_against_inputs(channels, n_input, exp_error):
         instantiate_config(unet_config_dict)
 
 
+@pytest.mark.parametrize("algorithm", ["care", "n2n"])
+def test_validate_monitor_metric_with_no_validation(algorithm):
+    """Test that disabling validation raises an error for algorithms monitoring
+    `val_loss`."""
+    unet_config_dict = unet_config_dict_testing(
+        algorithm=algorithm,
+        data_kwargs={"n_val_patches": 0},
+    )
+
+    with pytest.raises(ValueError, match="No validation data"):
+        instantiate_config(unet_config_dict)
+
+
 @pytest.mark.parametrize(
     "norm, length, n_input, exp_error",
     # matching channels and norm stats length

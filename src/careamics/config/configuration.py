@@ -254,6 +254,52 @@ class Configuration(BaseModel, Generic[AlgorithmConfig]):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_monitor_metric_with_no_validation(self: Self) -> Self:
+        """
+        Validate that a training metric is monitored when no validation data is used.
+
+        Algorithms without a `monitor_metric` parameter monitor `val_loss` during
+        training, which is unavailable when validation is disabled
+        (`n_val_patches=0`).
+
+        Returns
+        -------
+        Self
+            Validated configuration.
+
+        Raises
+        ------
+        ValueError
+            If no validation data is used and the monitored metric is not a training
+            metric.
+        """
+        if self.data_config.mode == "training" and self.data_config.n_val_patches == 0:
+            monitored_metric = getattr(
+                self.algorithm_config, "monitor_metric", "val_loss"
+            )
+
+            if monitored_metric not in ("train_loss", "train_loss_epoch"):
+                if hasattr(self.algorithm_config, "monitor_metric"):
+                    alternative = (
+                        "set `algorithm_config.monitor_metric` to `train_loss` or "
+                        "`train_loss_epoch` to monitor the training loss, or "
+                    )
+                else:
+                    alternative = ""
+
+                raise ValueError(
+                    f"No validation data is used (`n_val_patches=0`), but "
+                    f"{self.get_algorithm_friendly_name()} monitors the validation "
+                    f"metric `{monitored_metric}` during training. Please "
+                    f"{alternative}set `n_val_patches` to a value greater than 0 to "
+                    f"split validation patches from the training data. Note that "
+                    f"`n_val_patches` is ignored if passing validation data, in which "
+                    f"case keep the default value."
+                )
+
+        return self
+
     @field_validator("training_config", mode="after")
     @classmethod
     def warn_checkpointing_params(
