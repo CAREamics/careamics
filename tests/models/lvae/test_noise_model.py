@@ -275,3 +275,80 @@ def test_single_noise_model_factory_instantiate(
     assert noise_model.min_signal == 0
     assert noise_model.max_signal == 2**16 - 1
     assert noise_model.min_sigma == 0.125
+
+
+def _sorted_rows(pairs: torch.Tensor) -> np.ndarray:
+    array = pairs.numpy()
+    return array[np.lexsort((array[:, 1], array[:, 0]))]
+
+
+def test_signal_observation_pairs_multiple_observations_per_signal():
+    """Within a pair, consecutive observations share the same signal image."""
+    gen = np.random.default_rng(42)
+    signals = [gen.uniform(0, 255, (2, 8, 8)), gen.uniform(0, 255, (1, 4, 4))]
+    # 3 observations per signal image in the first pair, 2 in the second
+    observations = [
+        np.repeat(signals[0], 3, axis=0) + gen.normal(0, 10, (6, 8, 8)),
+        np.repeat(signals[1], 2, axis=0) + gen.normal(0, 10, (2, 4, 4)),
+    ]
+
+    config = GaussianMixtureNMConfig(
+        model_type="GaussianMixtureNoiseModel",
+        n_gaussian=1,
+        min_signal=0,
+        max_signal=255,
+    )
+    pairs = GaussianMixtureNoiseModel(config).get_signal_observation_pairs(
+        signals, observations, lower_clip=0.0, upper_clip=100.0
+    )
+
+    expected = np.concatenate(
+        [
+            np.stack(
+                [np.repeat(sig, len(obs) // len(sig), axis=0).ravel(), obs.ravel()],
+                axis=1,
+            )
+            for sig, obs in zip(signals, observations, strict=True)
+        ]
+    ).astype(np.float32)
+    signal_values = expected[:, 0]
+    expected = expected[
+        (signal_values > signal_values.min()) & (signal_values < signal_values.max())
+    ]
+    np.testing.assert_array_equal(
+        _sorted_rows(pairs), _sorted_rows(torch.from_numpy(expected))
+    )
+
+
+def test_gm_noise_model_training_on_arrays_with_different_shapes():
+    """Fitting on a sequence of differently shaped arrays learns the noise."""
+    gen = np.random.default_rng(42)
+    max_value = 255
+    noise_scale = 0.1
+    signals_normalized = [
+        gen.uniform(0, 1, (3, 128, 128)),
+        gen.uniform(0, 1, (2, 96, 160)),
+        gen.uniform(0, 1, (1, 64, 64)),
+    ]
+    signals = [sig * max_value for sig in signals_normalized]
+    observations = [
+        (sig + gen.normal(0, noise_scale, sig.shape)) * max_value
+        for sig in signals_normalized
+    ]
+
+    nm_config = GaussianMixtureNMConfig(
+        model_type="GaussianMixtureNoiseModel",
+        n_gaussian=1,
+        min_signal=min(sig.min() for sig in signals),
+        max_signal=max(sig.max() for sig in signals),
+    )
+    noise_model = GaussianMixtureNoiseModel(nm_config)
+    training_losses = noise_model.fit(
+        signal=signals, observation=observations, n_epochs=500
+    )
+    assert training_losses[0] > training_losses[-1]
+
+    signal_tensor = torch.from_numpy(np.concatenate([s.ravel() for s in signals]))
+    _, sigmas, _ = noise_model.get_gaussian_parameters(signal_tensor.float())
+    learned_sigma = sigmas.mean() / max_value
+    assert np.allclose(learned_sigma, noise_scale, atol=1e-2)

@@ -104,8 +104,8 @@ class NoiseModelTrainer:
 
     def train_from_pairs(
         self,
-        signal: NDArray,
-        observation: NDArray,
+        signal: NDArray | Sequence[NDArray],
+        observation: NDArray | Sequence[NDArray],
         axes: str,
         n_epochs: int = 2000,
         learning_rate: float = 1e-1,
@@ -117,15 +117,21 @@ class NoiseModelTrainer:
         denoised data — typically the output of a Noise2Void prediction on
         ``observation``.
 
+        ``signal`` and ``observation`` may be single arrays or sequences of
+        arrays paired element-wise. Arrays in different pairs may have
+        different shapes, but must share the same ``axes`` and number of
+        channels.
+
         Parameters
         ----------
-        signal : NDArray
+        signal : NDArray or Sequence[NDArray]
             Clean/denoised signal data, in the order given by ``axes``.
-        observation : NDArray
-            Noisy observation data, in the order given by ``axes``.
+        observation : NDArray or Sequence[NDArray]
+            Noisy observation data, in the order given by ``axes``, paired
+            element-wise with ``signal``.
         axes : str
-            Axes describing both arrays, for example ``"SCYX"`` or ``"YXC"``.
-            Both arrays are reshaped to the canonical ``SC(Z)YX`` order before
+            Axes describing all arrays, for example ``"SCYX"`` or ``"YXC"``.
+            Arrays are reshaped to the canonical ``SC(Z)YX`` order before
             training.
         n_epochs : int, default=2000
             Number of training epochs.
@@ -142,26 +148,20 @@ class NoiseModelTrainer:
         Raises
         ------
         ValueError
-            If signal and observation shapes do not match after axes
-            normalization.
+            If ``signal`` and ``observation`` contain a different number of
+            arrays, if the shapes of a signal-observation pair do not match
+            after axes normalization, or if arrays have different numbers of
+            channels.
         """
-        signal = reshape_array(signal, axes)
-        observation = reshape_array(observation, axes)
+        signals, observations = _reshape_pairs(signal, observation, axes)
 
-        if signal.shape != observation.shape:
-            raise ValueError(
-                f"Signal and observation shapes must match after axes "
-                f"normalization. "
-                f"Got signal: {signal.shape}, observation: {observation.shape}"
-            )
-
-        n_channels = signal.shape[1]
+        n_channels = signals[0].shape[1]
 
         global_min: float | None = None
         global_max: float | None = None
         if self.global_signal_range:
-            global_min = float(signal.min())
-            global_max = float(signal.max())
+            global_min = min(float(sig.min()) for sig in signals)
+            global_max = max(float(sig.max()) for sig in signals)
 
         self.noise_models = []
         self.histograms = []
@@ -173,12 +173,12 @@ class NoiseModelTrainer:
                 f"Training noise model for channel {channel_idx + 1}/{n_channels}"
             )
 
-            channel_signal = signal[:, channel_idx]
-            channel_obs = observation[:, channel_idx]
+            channel_signals = [sig[:, channel_idx] for sig in signals]
+            channel_obs = [obs[:, channel_idx] for obs in observations]
 
             noise_model, losses = self._train_single_channel(
-                signal=channel_signal,
-                observation=channel_obs,
+                signals=channel_signals,
+                observations=channel_obs,
                 n_epochs=n_epochs,
                 learning_rate=learning_rate,
                 batch_size=batch_size,
@@ -186,12 +186,16 @@ class NoiseModelTrainer:
                 max_signal=global_max,
             )
 
+            # create_histogram flattens its inputs, so pixel values from all
+            # arrays can be passed as 1D vectors
+            signal_values = np.concatenate([sig.ravel() for sig in channel_signals])
+            obs_values = np.concatenate([obs.ravel() for obs in channel_obs])
             histogram = create_histogram(
                 bins=100,
-                min_val=float(channel_signal.min()),
-                max_val=float(channel_signal.max()),
-                signal=channel_signal.reshape(-1, *channel_signal.shape[-2:]),
-                observation=channel_obs.reshape(-1, *channel_obs.shape[-2:]),
+                min_val=float(signal_values.min()),
+                max_val=float(signal_values.max()),
+                signal=signal_values,
+                observation=obs_values,
             )
 
             self.noise_models.append(noise_model)
@@ -367,8 +371,8 @@ class NoiseModelTrainer:
 
     def diagnose(
         self,
-        signal: NDArray,
-        observation: NDArray,
+        signal: NDArray | Sequence[NDArray],
+        observation: NDArray | Sequence[NDArray],
         axes: str,
         wasserstein: bool = True,
     ) -> list[dict]:
@@ -380,14 +384,14 @@ class NoiseModelTrainer:
 
         Parameters
         ----------
-        signal : NDArray
+        signal : NDArray or Sequence[NDArray]
             Clean/denoised signal used during training, in the order given by
             ``axes``.
-        observation : NDArray
+        observation : NDArray or Sequence[NDArray]
             Noisy observation used during training, in the order given by
-            ``axes``.
+            ``axes``, paired element-wise with ``signal``.
         axes : str
-            Axes describing both arrays, for example ``"SCYX"`` or ``"YXC"``.
+            Axes describing all arrays, for example ``"SCYX"`` or ``"YXC"``.
         wasserstein : bool, default=True
             Whether to compute the Wasserstein distance between real residuals
             and sampled residuals (slower but informative).
@@ -409,16 +413,18 @@ class NoiseModelTrainer:
                 "No noise models available. Call train_from_pairs() first."
             )
 
-        signal = reshape_array(signal, axes)
-        observation = reshape_array(observation, axes)
+        signals, observations = _reshape_pairs(signal, observation, axes)
 
         results = []
         for idx, nm in enumerate(self.noise_models):
             channel_idx = (
                 self.channel_indices[idx] if self.channel_indices is not None else idx
             )
-            ch_signal = signal[:, channel_idx]
-            ch_obs = observation[:, channel_idx]
+            # all diagnostics are per pixel, so pixels from all arrays are pooled
+            ch_signal = np.concatenate([sig[:, channel_idx].ravel() for sig in signals])
+            ch_obs = np.concatenate(
+                [obs[:, channel_idx].ravel() for obs in observations]
+            )
 
             weight_arr = nm.weight.detach().cpu()
             has_nan = bool(weight_arr.isnan().any().item())
@@ -462,9 +468,10 @@ class NoiseModelTrainer:
             }
 
             if wasserstein:
-                sampled = nm.sample_observation_from_signal(ch_signal)
-                real_noise = (ch_obs - ch_signal).ravel()
-                synth_noise = (sampled - ch_signal).ravel()
+                # sampling requires at least 2D input
+                sampled = nm.sample_observation_from_signal(ch_signal[np.newaxis])[0]
+                real_noise = ch_obs - ch_signal
+                synth_noise = sampled - ch_signal
                 scale = sig_max - sig_min if sig_max > sig_min else 1.0
                 wd = _wd(real_noise / scale, synth_noise / scale)
                 diag["wasserstein_distance"] = float(wd)
@@ -604,8 +611,8 @@ class NoiseModelTrainer:
     # TODO why pass learning rate?
     def _train_single_channel(
         self,
-        signal: NDArray,
-        observation: NDArray,
+        signals: Sequence[NDArray],
+        observations: Sequence[NDArray],
         n_epochs: int,
         learning_rate: float,
         batch_size: int,
@@ -616,10 +623,10 @@ class NoiseModelTrainer:
 
         Parameters
         ----------
-        signal : NDArray
-            Denoised/clean signal samples for one channel.
-        observation : NDArray
-            Noisy observations paired with ``signal``.
+        signals : Sequence[NDArray]
+            Denoised/clean signal arrays for one channel.
+        observations : Sequence[NDArray]
+            Noisy observation arrays, paired element-wise with ``signals``.
         n_epochs : int
             Number of optimization epochs.
         learning_rate : float
@@ -628,20 +635,25 @@ class NoiseModelTrainer:
             Number of samples per optimization step.
         min_signal : float | None, default=None
             Lower initialization bound for the signal range. If ``None``, use
-            ``signal.min()``.
+            the minimum over all ``signals``.
         max_signal : float | None, default=None
             Upper initialization bound for the signal range. If ``None``, use
-            ``signal.max()``.
+            the maximum over all ``signals``.
 
         Returns
         -------
         tuple[GaussianMixtureNoiseModel, list[float]]
             The trained model and its per-epoch training losses.
         """
+        if min_signal is None:
+            min_signal = min(float(sig.min()) for sig in signals)
+        if max_signal is None:
+            max_signal = max(float(sig.max()) for sig in signals)
+
         config = GaussianMixtureNMConfig(
             model_type="GaussianMixtureNoiseModel",
-            min_signal=min_signal if min_signal is not None else float(signal.min()),
-            max_signal=max_signal if max_signal is not None else float(signal.max()),
+            min_signal=min_signal,
+            max_signal=max_signal,
             n_gaussian=self.n_gaussian,
             n_coeff=self.n_coeff,
             min_sigma=self.min_sigma,
@@ -649,11 +661,11 @@ class NoiseModelTrainer:
 
         noise_model = GaussianMixtureNoiseModel(config)
 
-        signal_flat = signal.reshape(-1, *signal.shape[-2:])
-        obs_flat = observation.reshape(-1, *observation.shape[-2:])
+        signals_flat = [sig.reshape(-1, *sig.shape[-2:]) for sig in signals]
+        obs_flat = [obs.reshape(-1, *obs.shape[-2:]) for obs in observations]
 
         losses = noise_model.fit(
-            signal=signal_flat,
+            signal=signals_flat,
             observation=obs_flat,
             learning_rate=learning_rate,
             batch_size=batch_size,
@@ -663,9 +675,68 @@ class NoiseModelTrainer:
         return noise_model, losses
 
 
+def _reshape_pairs(
+    signal: NDArray | Sequence[NDArray],
+    observation: NDArray | Sequence[NDArray],
+    axes: str,
+) -> tuple[list[NDArray], list[NDArray]]:
+    """Reshape signal-observation pairs to ``SC(Z)YX`` and validate them.
+
+    Parameters
+    ----------
+    signal : NDArray or Sequence[NDArray]
+        Signal array or arrays, in the order given by ``axes``.
+    observation : NDArray or Sequence[NDArray]
+        Observation array or arrays, paired element-wise with ``signal``.
+    axes : str
+        Axes describing all arrays.
+
+    Returns
+    -------
+    tuple[list[NDArray], list[NDArray]]
+        Reshaped signal and observation arrays.
+
+    Raises
+    ------
+    ValueError
+        If ``signal`` and ``observation`` contain a different number of
+        arrays, if the shapes of a signal-observation pair do not match after
+        axes normalization, or if arrays have different numbers of channels.
+    """
+    signals = [signal] if isinstance(signal, np.ndarray) else list(signal)
+    observations = (
+        [observation] if isinstance(observation, np.ndarray) else list(observation)
+    )
+    if len(signals) != len(observations):
+        raise ValueError(
+            f"Signal and observation must contain the same number of arrays. "
+            f"Got {len(signals)} signal and {len(observations)} observation arrays."
+        )
+
+    signals = [reshape_array(sig, axes) for sig in signals]
+    observations = [reshape_array(obs, axes) for obs in observations]
+
+    for idx, (sig, obs) in enumerate(zip(signals, observations, strict=True)):
+        if sig.shape != obs.shape:
+            raise ValueError(
+                f"Signal and observation shapes must match after axes "
+                f"normalization. Got signal: {sig.shape}, observation: "
+                f"{obs.shape} for pair at index {idx}."
+            )
+
+    n_channels = {sig.shape[1] for sig in signals}
+    if len(n_channels) > 1:
+        raise ValueError(
+            f"All arrays must have the same number of channels. Got "
+            f"{sorted(n_channels)}."
+        )
+
+    return signals, observations
+
+
 def train_noise_model(
-    signal: NDArray,
-    observation: NDArray,
+    signal: NDArray | Sequence[NDArray],
+    observation: NDArray | Sequence[NDArray],
     axes: str,
     *,
     n_gaussian: int = 3,
@@ -684,14 +755,18 @@ def train_noise_model(
     The `signal` is a clean/denoised estimate (typically an N2V prediction) and the
     `observation` is the matching raw noisy data.
 
+    `signal` and `observation` may be single arrays or sequences of arrays paired
+    element-wise. Arrays in different pairs may have different shapes, but must
+    share the same `axes` and number of channels.
+
     Parameters
     ----------
-    signal : numpy.ndarray
+    signal : numpy.ndarray or Sequence[numpy.ndarray]
         Clean/denoised signal, shape `(S, C, [Z], Y, X)` or `(S, [Z], Y, X)`.
-    observation : numpy.ndarray
+    observation : numpy.ndarray or Sequence[numpy.ndarray]
         Noisy observation matching `signal`.
     axes : str
-        Axes of `signal` and `observation` (e.g. "SCYX").
+        Axes of all `signal` and `observation` arrays (e.g. "SCYX").
     n_gaussian : int, default=3
         Number of Gaussian components per channel.
     n_coeff : int, default=3
