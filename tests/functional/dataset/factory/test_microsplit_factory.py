@@ -243,9 +243,9 @@ def test_pred_dataset_all_indices(
         input_data=data,
     )
     for index in range(len(dataset)):
-        (input_region,) = dataset[index]
+        input_patch, _ = dataset[index]
 
-        assert input_region.data.shape == (multiscale_count, *patch_size)
+        assert input_patch.shape == (multiscale_count, *patch_size)
 
 
 def test_train_factory_rejects_predict_config() -> None:

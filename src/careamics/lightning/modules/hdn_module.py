@@ -25,6 +25,7 @@ from careamics.utils.logging import get_logger
 from .module_utils import (
     check_noise_model_channels,
     configure_optimizers,
+    create_prediction_regions,
     load_noise_model_from_checkpoint,
     log_training_stats,
     log_validation_stats,
@@ -433,60 +434,48 @@ class HDNModule(L.LightningModule):
 
     def predict_step(
         self,
-        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
-    ) -> tuple[ImageRegionData, ImageRegionData | None]:
+    ) -> tuple[list[ImageRegionData], list[ImageRegionData] | None]:
         """Prediction step for HDN.
 
         Parameters
         ----------
-        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and, optionally, the target data.
+        batch : tuple of torch.Tensor
+            `(input, packed_spec)` or `(input, target, packed_spec)`; only the input
+            and the packed spec are used.
         batch_idx : int
             The index of the current batch in the prediction loop.
 
         Returns
         -------
-        tuple of (ImageRegionData, ImageRegionData or None)
-            The output batch containing the reconstruction and the
-            uncertainty estimate if several samples were drawn.
+        tuple of (list of ImageRegionData, list of ImageRegionData or None)
+            One reconstruction region per sample, and one uncertainty region per
+            sample if several samples were drawn.
         """
-        x = batch[0]
-        x_data = x.data
-        # batch data has been collated into a tensor by the DataLoader
-        assert isinstance(x_data, torch.Tensor)
+        x_data = batch[0]
+        packed_specs = batch[-1]
 
         # reconfigure the model for the current input spatial size
         n_spatial_dims = x_data.dim() - 2
         self.model.reset_for_inference(tuple(x_data.shape[-n_spatial_dims:]))
 
-        normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
+        dataset = self._trainer.datamodule.predict_dataset  # type: ignore[union-attr]
         mean, std = mmse_and_sample_std(
-            partial(self.predict_sample, normalization=normalization),
+            partial(self.predict_sample, normalization=dataset.normalization),
             x_data,
             self.n_samples,
         )
 
-        output_channels = self.config.model.output_channels
-        output_data_shape: list[Any] = list(x.data_shape)
-        output_data_shape[1] = torch.full_like(
-            cast(torch.Tensor, output_data_shape[1]), output_channels
-        )
-
-        prediction = ImageRegionData(
-            data=mean.cpu().numpy(),
-            source=x.source,
-            data_shape=output_data_shape,
-            dtype=x.dtype,
-            axes=x.axes,
-            target_axes=x.target_axes,
-            region_spec=x.region_spec,
-            additional_metadata=x.additional_metadata,
-            original_data_shape=x.original_data_shape,
+        prediction = create_prediction_regions(
+            mean.cpu().numpy(), packed_specs, dataset
         )
         if std is None:
             return prediction, None
-        uncertainty = prediction._replace(data=std.cpu().numpy())
+        uncertainty = [
+            region._replace(data=data)
+            for region, data in zip(prediction, std.cpu().numpy(), strict=True)
+        ]
         return prediction, uncertainty
 
     def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]

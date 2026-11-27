@@ -23,10 +23,10 @@ def test_with_known_range():
     dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
-    assert sample.data.min() >= 0.0
-    assert sample.data.max() <= 1.0
+    assert sample.min() >= 0.0
+    assert sample.max() <= 1.0
 
-    normalized_tensor = torch.from_numpy(sample.data).unsqueeze(0)
+    normalized_tensor = torch.from_numpy(sample).unsqueeze(0)
     denormalized = dataset.normalization.denormalize(normalized_tensor)
     assert np.allclose(denormalized[0, 0], data, atol=1e-4)
 
@@ -50,8 +50,8 @@ def test_auto_computes_range():
     assert config.normalization.input_maxes[0] == data.max()
 
     sample, *_ = dataset[0]
-    assert np.isclose(sample.data.min(), 0.0, atol=0.01)
-    assert np.isclose(sample.data.max(), 1.0, atol=0.01)
+    assert np.isclose(sample.min(), 0.0, atol=0.01)
+    assert np.isclose(sample.max(), 1.0, atol=0.01)
 
 
 def test_per_channel_different_ranges():
@@ -75,8 +75,8 @@ def test_per_channel_different_ranges():
     sample, *_ = dataset[0]
 
     for ch in range(2):
-        assert sample.data[ch].min() >= 0.0
-        assert sample.data[ch].max() <= 1.0
+        assert sample[ch].min() >= 0.0
+        assert sample[ch].max() <= 1.0
 
 
 def test_per_channel_auto_computes_range():
@@ -101,8 +101,8 @@ def test_per_channel_auto_computes_range():
 
     sample, *_ = dataset[0]
     for ch in range(2):
-        assert np.isclose(sample.data[ch].min(), 0.0, atol=0.01)
-        assert np.isclose(sample.data[ch].max(), 1.0, atol=0.01)
+        assert np.isclose(sample[ch].min(), 0.0, atol=0.01)
+        assert np.isclose(sample[ch].max(), 1.0, atol=0.01)
 
 
 def test_global_auto_computes_range():
@@ -126,7 +126,7 @@ def test_global_auto_computes_range():
     assert config.normalization.input_maxes[0] == data.max()
 
     sample, *_ = dataset[0]
-    assert sample.data.shape[0] == 2
+    assert sample.shape[0] == 2
 
 
 def test_scalar_config_values():
@@ -150,8 +150,8 @@ def test_scalar_config_values():
     dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
-    assert sample.data.min() >= 0.0
-    assert sample.data.max() <= 1.0
+    assert sample.min() >= 0.0
+    assert sample.max() <= 1.0
 
 
 def test_single_value_broadcast_to_multichannel():
@@ -175,8 +175,8 @@ def test_single_value_broadcast_to_multichannel():
     sample, *_ = dataset[0]
 
     for ch in range(2):
-        assert sample.data[ch].min() >= 0.0
-        assert sample.data[ch].max() <= 1.0
+        assert sample[ch].min() >= 0.0
+        assert sample[ch].max() <= 1.0
 
 
 def test_global_stats_denormalization_round_trip():
@@ -195,7 +195,7 @@ def test_global_stats_denormalization_round_trip():
     dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
-    normalized_tensor = torch.from_numpy(sample.data).unsqueeze(0)
+    normalized_tensor = torch.from_numpy(sample).unsqueeze(0)
     denormalized = dataset.normalization.denormalize(normalized_tensor)
     assert np.allclose(denormalized[0].numpy(), data, atol=1e-3)
 
@@ -219,8 +219,8 @@ def test_global_stats_pools_across_channels():
     assert config.normalization.input_maxes[0] == 990.0
 
     sample, *_ = dataset[0]
-    assert np.isclose(sample.data[0].mean(), 0.0, atol=0.01)
-    assert np.isclose(sample.data[1].mean(), 1.0, atol=0.01)
+    assert np.isclose(sample[0].mean(), 0.0, atol=0.01)
+    assert np.isclose(sample[1].mean(), 1.0, atol=0.01)
 
 
 def test_denormalize_with_target_range():

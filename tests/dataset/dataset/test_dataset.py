@@ -242,10 +242,8 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
     )
 
     assert len(prediction_dataset) > 0
-    output = prediction_dataset[0]
-    assert len(output) == 1
-    (sample,) = output
-    assert sample.data.shape == (1, *tile_size)
+    sample, _ = prediction_dataset[0]
+    assert sample.shape == (1, *tile_size)
 
 
 @pytest.mark.parametrize(

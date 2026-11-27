@@ -27,8 +27,8 @@ def test_clips_outliers():
     assert config.normalization.input_upper_quantile_values is not None
 
     sample, *_ = dataset[0]
-    central_values = sample.data[(sample.data > 0.01) & (sample.data < 0.99)]
-    assert len(central_values) > 0.9 * sample.data.size
+    central_values = sample[(sample > 0.01) & (sample < 0.99)]
+    assert len(central_values) > 0.9 * sample.size
 
 
 def test_per_channel_auto_computes_quantiles_multiple():
@@ -60,7 +60,7 @@ def test_per_channel_auto_computes_quantiles_multiple():
     )
 
     sample, *_ = dataset[0]
-    assert sample.data.shape[0] == 2
+    assert sample.shape[0] == 2
 
 
 def test_per_channel_auto_computes_quantiles():
@@ -92,7 +92,7 @@ def test_per_channel_auto_computes_quantiles():
     )
 
     sample, *_ = dataset[0]
-    assert sample.data.shape[0] == 2
+    assert sample.shape[0] == 2
 
 
 def test_global_auto_computes_quantiles():
@@ -119,7 +119,7 @@ def test_global_auto_computes_quantiles():
     assert len(config.normalization.input_upper_quantile_values) == 1
 
     sample, *_ = dataset[0]
-    assert sample.data.shape[0] == 2
+    assert sample.shape[0] == 2
 
 
 def test_scalar_config_values():
@@ -175,7 +175,7 @@ def test_global_stats_pools_across_channels():
     assert upper > 990.0
 
     sample, *_ = dataset[0]
-    assert sample.data.shape[0] == 2
+    assert sample.shape[0] == 2
 
 
 def test_per_channel_quantile_levels():
@@ -204,4 +204,4 @@ def test_per_channel_quantile_levels():
     assert uv[0] > uv[1]
 
     sample, *_ = dataset[0]
-    assert sample.data.shape[0] == 2
+    assert sample.shape[0] == 2

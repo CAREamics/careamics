@@ -55,7 +55,9 @@ SegPredictionOutput = Literal["mask", "probabilities"]
 NoiseModelInput: TypeAlias = MultiChannelNoiseModel | list[str | Path]
 OutputType = tuple[list[NDArray], list[str]]
 OutputTypeWithUncertainty = tuple[list[NDArray], list[NDArray], list[str]]
-PredictStepOutput = ImageRegionData | tuple[ImageRegionData, ImageRegionData | None]
+PredictStepOutput = (
+    list[ImageRegionData] | tuple[list[ImageRegionData], list[ImageRegionData] | None]
+)
 
 ConfigurationType = (
     Configuration[CAREAlgorithm]

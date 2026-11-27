@@ -13,12 +13,11 @@ __all__ = [
     "select_write_func",
 ]
 
+from careamics.lightning.prediction import decollate_image_region_data
+
 from .file_path_utils import create_write_file_path
 from .image_write_strategy import ImageWriteStrategy
-from .prediction_writer_callback import (
-    PredictionWriterCallback,
-    decollate_image_region_data,
-)
+from .prediction_writer_callback import PredictionWriterCallback
 from .tile_write_strategy import TileWriteStrategy
 from .write_strategy import WriteStrategy
 from .write_strategy_factory import (

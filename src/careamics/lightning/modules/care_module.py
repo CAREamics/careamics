@@ -21,6 +21,7 @@ from careamics.utils.logging import get_logger
 
 from .module_utils import (
     configure_optimizers,
+    create_prediction_regions,
     log_images,
     log_training_stats,
     log_validation_stats,
@@ -185,31 +186,35 @@ class CAREModule(L.LightningModule):
 
     def predict_step(
         self,
-        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
-    ) -> ImageRegionData:
+    ) -> list[ImageRegionData]:
         """Prediction step for CARE module.
 
         Parameters
         ----------
-        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and optionally the target data.
+        batch : tuple of torch.Tensor
+            `(input, packed_spec)` or `(input, target, packed_spec)`; only the input
+            and the packed spec are used.
         batch_idx : int
             The index of the current batch in the prediction loop.
 
         Returns
         -------
-        ImageRegionData
-            The output batch containing the predictions.
+        list of ImageRegionData
+            One prediction region per sample.
         """
-        x = batch[0]
+        x_data = batch[0]
+        packed_specs = batch[-1]
         # TODO: add TTA
-        prediction = self.model(x.data)
+        prediction = self.model(x_data)
 
-        normalization = self._trainer.datamodule.predict_dataset.normalization  # type: ignore[union-attr]
-        denormalized_output = normalization.denormalize(prediction).cpu().numpy()
+        dataset = self._trainer.datamodule.predict_dataset  # type: ignore[union-attr]
+        denormalized_output = (
+            dataset.normalization.denormalize(prediction).cpu().numpy()
+        )
 
-        return ImageRegionData.from_model_output(x, denormalized_output)
+        return create_prediction_regions(denormalized_output, packed_specs, dataset)
 
     def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]
         """Configure optimizer and learning rate scheduler.

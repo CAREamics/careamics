@@ -1,5 +1,6 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
@@ -14,12 +15,14 @@ if TYPE_CHECKING:
     from torch import Tensor
 
 
-PredictStepOutput = ImageRegionData | tuple[ImageRegionData, ImageRegionData | None]
+PredictStepOutput = (
+    list[ImageRegionData] | tuple[list[ImageRegionData], list[ImageRegionData] | None]
+)
 
 
 def prediction_region(
     output: PredictStepOutput,
-) -> ImageRegionData:
+) -> list[ImageRegionData]:
     """
     Select the prediction from a `predict_step` output.
 
@@ -30,17 +33,17 @@ def prediction_region(
 
     Returns
     -------
-    ImageRegionData
-        The predicted batch.
+    list of ImageRegionData
+        The prediction regions of the batch, one per sample.
     """
-    if isinstance(output, ImageRegionData):
+    if isinstance(output, list):
         return output
     return output[0]
 
 
 def uncertainty_region(
     output: PredictStepOutput,
-) -> ImageRegionData | None:
+) -> list[ImageRegionData] | None:
     """
     Select the uncertainty estimate from a `predict_step` output.
 
@@ -51,11 +54,11 @@ def uncertainty_region(
 
     Returns
     -------
-    ImageRegionData or None
-        The uncertainty estimate, or None if the algorithm does not estimate one or
-        drew a single prediction.
+    list of ImageRegionData or None
+        The uncertainty regions of the batch, one per sample, or None if the
+        algorithm does not estimate one or drew a single prediction.
     """
-    if isinstance(output, ImageRegionData):
+    if isinstance(output, list):
         return None
     return output[1]
 
@@ -216,23 +219,22 @@ def combine_samples(
 
 
 def convert_prediction(
-    predictions: list[ImageRegionData],
+    predictions: Sequence[Sequence[ImageRegionData]],
     tiled: bool,
     restore_shape: bool = False,
 ) -> tuple[list[NDArray], list[str]]:
     """
     Convert the Lightning trainer outputs to the desired form.
 
-    This method allows decollating batches and stitching back together tiled
-    predictions.
+    This method allows stitching back together tiled predictions.
 
     If the `source` of all predictions is "array" (see `InMemoryImageStack`), then the
     returned sources list will be empty.
 
     Parameters
     ----------
-    predictions : list[ImageRegionData]
-        Output from `Trainer.predict`, list of batches.
+    predictions : sequence of sequence of ImageRegionData
+        Output from `Trainer.predict`, a list of batches with one region per sample.
     tiled : bool
         Whether the predictions are tiled.
     restore_shape : bool, default=False
@@ -245,11 +247,7 @@ def convert_prediction(
     list of str
         List of sources, one per output or empty if all equal to `array`.
     """
-    # decollate batches
-    decollated_predictions: list[ImageRegionData] = []
-    for batch in predictions:
-        decollated_batch = decollate_image_region_data(batch)
-        decollated_predictions.extend(decollated_batch)
+    decollated_predictions = [region for batch in predictions for region in batch]
 
     if not tiled and "total_tiles" in decollated_predictions[0].region_spec:
         raise ValueError("Predictions seemed to be tiled, but `tiled` is set to False.")
@@ -274,7 +272,7 @@ def convert_prediction(
 
 
 def convert_predict_outputs(
-    outputs: list[PredictStepOutput],
+    outputs: Sequence[PredictStepOutput],
     tiled: bool,
 ) -> tuple[list[NDArray], list[NDArray] | None, list[str]]:
     """
@@ -282,7 +280,7 @@ def convert_predict_outputs(
 
     Parameters
     ----------
-    outputs : list of PredictStepOutput
+    outputs : sequence of PredictStepOutput
         Output from `Trainer.predict`, list of batches.
     tiled : bool
         Whether the predictions are tiled.
@@ -307,7 +305,7 @@ def convert_predict_outputs(
         return predictions, None, sources
 
     uncertainties, _ = convert_prediction(
-        cast("list[ImageRegionData]", uncertainty_regions),
+        cast("list[list[ImageRegionData]]", uncertainty_regions),
         tiled=tiled,
         restore_shape=True,
     )

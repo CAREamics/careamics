@@ -19,8 +19,8 @@ def test_preserves_values():
     dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
-    assert np.allclose(sample.data[0], data)
+    assert np.allclose(sample[0], data)
 
-    normalized_tensor = torch.from_numpy(sample.data).unsqueeze(0)
+    normalized_tensor = torch.from_numpy(sample).unsqueeze(0)
     denormalized = dataset.normalization.denormalize(normalized_tensor)
     assert np.allclose(denormalized[0, 0], data)

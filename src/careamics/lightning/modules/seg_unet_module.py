@@ -1,7 +1,6 @@
 """UNet-based segmentation Lightning Module."""
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import torch
 from lightning.pytorch import LightningModule
@@ -19,6 +18,7 @@ from careamics.utils.logging import get_logger
 
 from .module_utils import (
     configure_optimizers,
+    create_prediction_regions,
     log_training_stats,
     log_validation_stats,
 )
@@ -27,25 +27,6 @@ if TYPE_CHECKING:
     from careamics.lightning.data.data_module import CareamicsDataModule
 
 logger = get_logger(__name__)
-
-
-def _add_channel_axis(target_axes: str | list[str]) -> str | list[str]:
-    """Add the channel axis to target axes when it is not already present.
-
-    Parameters
-    ----------
-    target_axes : str or list of str
-        Target axes for an uncollated or collated image region.
-
-    Returns
-    -------
-    str or list of str
-        Target axes containing a channel axis.
-    """
-    if isinstance(target_axes, str):
-        return target_axes if "C" in target_axes else target_axes + "C"
-
-    return [axes if "C" in axes else axes + "C" for axes in target_axes]
 
 
 class SegModule(LightningModule):
@@ -202,57 +183,36 @@ class SegModule(LightningModule):
 
     def predict_step(
         self,
-        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
-    ) -> ImageRegionData:
+    ) -> list[ImageRegionData]:
         """Prediction step for segmentation module.
 
         Parameters
         ----------
-        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and optionally the target data.
+        batch : tuple of torch.Tensor
+            `(input, packed_spec)` or `(input, target, packed_spec)`; only the input
+            and the packed spec are used.
         batch_idx : int
             The index of the current batch in the prediction loop.
 
         Returns
         -------
-        ImageRegionData
-            The output batch containing the predictions.
+        list of ImageRegionData
+            One prediction region per sample.
         """
-        x = batch[0]
+        x_data = batch[0]
+        packed_specs = batch[-1]
         # TODO: add TTA
-        prediction = self.model(x.data)
+        prediction = self.model(x_data)
 
-        prediction_output = self.config.prediction_output
-        if prediction_output == "probabilities":
-            # The class dimension must be kept in the output metadata because
-            # segmentation targets do not have a channel dimension.
-            prediction = prediction.softmax(dim=1).cpu().numpy()
-
-            # x.data_shape may be a collated batch of data shapes.
-            probability_data_shape = list(x.data_shape)
-            probability_data_shape[1] = torch.full_like(
-                cast(torch.Tensor, probability_data_shape[1]), prediction.shape[1]
-            )
-            output_data_shape: Sequence[int] = probability_data_shape
-            output_target_axes = _add_channel_axis(cast(str | list[str], x.target_axes))
+        if self.config.prediction_output == "probabilities":
+            output = prediction.softmax(dim=1).cpu().numpy()
         else:
-            prediction = prediction.argmax(dim=1, keepdim=True).cpu().numpy()
-            output_data_shape = x.data_shape
-            output_target_axes = x.target_axes
+            output = prediction.argmax(dim=1, keepdim=True).cpu().numpy()
 
-        output_batch = ImageRegionData(
-            data=prediction,
-            source=x.source,
-            data_shape=output_data_shape,
-            dtype=x.dtype,
-            axes=x.axes,
-            target_axes=cast(str, output_target_axes),  # for mypy
-            original_data_shape=x.original_data_shape,
-            region_spec=x.region_spec,
-            additional_metadata=x.additional_metadata,
-        )
-        return output_batch
+        dataset = self._trainer.datamodule.predict_dataset  # type: ignore[union-attr]
+        return create_prediction_regions(output, packed_specs, dataset)
 
     def configure_optimizers(self) -> dict[str, Any]:  # type: ignore[override]
         """Configure optimizer and learning rate scheduler.

@@ -23,10 +23,10 @@ def test_with_known_stats():
     dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
-    assert np.abs(sample.data.mean()) < 0.5
-    assert np.abs(sample.data.std() - 1.0) < 0.2
+    assert np.abs(sample.mean()) < 0.5
+    assert np.abs(sample.std() - 1.0) < 0.2
 
-    normalized_tensor = torch.from_numpy(sample.data).unsqueeze(0)
+    normalized_tensor = torch.from_numpy(sample).unsqueeze(0)
     denormalized = dataset.normalization.denormalize(normalized_tensor)
     assert np.allclose(denormalized[0, 0], data, atol=1e-4)
 
@@ -50,8 +50,8 @@ def test_auto_computes_stats():
     assert np.isclose(config.normalization.input_stds[0], data.std(), atol=0.1)
 
     sample, *_ = dataset[0]
-    assert np.abs(sample.data.mean()) < 0.1
-    assert np.abs(sample.data.std() - 1.0) < 0.1
+    assert np.abs(sample.mean()) < 0.1
+    assert np.abs(sample.std() - 1.0) < 0.1
 
 
 def test_input_and_target_have_independent_stats():
@@ -105,8 +105,8 @@ def test_per_channel_auto_computes_stats():
 
     sample, *_ = dataset[0]
     for ch in range(2):
-        assert np.abs(sample.data[ch].mean()) < 0.5
-        assert np.abs(sample.data[ch].std() - 1.0) < 0.2
+        assert np.abs(sample[ch].mean()) < 0.5
+        assert np.abs(sample[ch].std() - 1.0) < 0.2
 
 
 def test_global_auto_computes_stats():
@@ -131,7 +131,7 @@ def test_global_auto_computes_stats():
     assert np.isclose(config.normalization.input_means[0], global_mean, atol=1.0)
 
     sample, *_ = dataset[0]
-    assert sample.data.shape[0] == 2
+    assert sample.shape[0] == 2
 
 
 def test_scalar_config_values():
@@ -155,8 +155,8 @@ def test_scalar_config_values():
     dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
-    assert np.abs(sample.data.mean()) < 0.5
-    assert np.abs(sample.data.std() - 1.0) < 0.2
+    assert np.abs(sample.mean()) < 0.5
+    assert np.abs(sample.std() - 1.0) < 0.2
 
 
 def test_single_value_broadcast_to_multichannel():
@@ -181,8 +181,8 @@ def test_single_value_broadcast_to_multichannel():
     sample, *_ = dataset[0]
 
     for ch in range(3):
-        assert np.abs(sample.data[ch].mean()) < 0.5
-        assert np.abs(sample.data[ch].std() - 1.0) < 0.2
+        assert np.abs(sample[ch].mean()) < 0.5
+        assert np.abs(sample[ch].std() - 1.0) < 0.2
 
 
 def test_global_stats_denormalization_round_trip():
@@ -201,7 +201,7 @@ def test_global_stats_denormalization_round_trip():
     dataset = create_dataset(config=config, inputs=[data], targets=None)
     sample, *_ = dataset[0]
 
-    normalized_tensor = torch.from_numpy(sample.data).unsqueeze(0)
+    normalized_tensor = torch.from_numpy(sample).unsqueeze(0)
     denormalized = dataset.normalization.denormalize(normalized_tensor)
     assert np.allclose(denormalized[0].numpy(), data, atol=1e-4)
 
@@ -224,8 +224,8 @@ def test_global_stats_pools_across_channels():
     assert np.isclose(config.normalization.input_means[0], 500.0, atol=1.0)
 
     sample, *_ = dataset[0]
-    assert sample.data[0].mean() < 0.0
-    assert sample.data[1].mean() > 0.0
+    assert sample[0].mean() < 0.0
+    assert sample[1].mean() > 0.0
 
 
 def test_denormalize_with_target_stats():

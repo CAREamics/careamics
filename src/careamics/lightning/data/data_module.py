@@ -29,11 +29,7 @@ from careamics.dataset.factory import (
     create_train_val_datasets,
     create_val_split_datasets,
 )
-from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack import ImageStack
-from careamics.dataset.patching import (
-    TileSpecs,
-)
 from careamics.models.constraints import (
     ModelConstraints,
 )
@@ -418,7 +414,7 @@ class CareamicsDataModule(L.LightningDataModule):
             **dataloader_params,
         )
 
-    def predict_dataloader(self) -> DataLoader[ImageRegionData[TileSpecs]]:
+    def predict_dataloader(self) -> DataLoader[tuple[NDArray[Any], ...]]:
         """
         Create a dataloader for prediction.
 
@@ -428,7 +424,7 @@ class CareamicsDataModule(L.LightningDataModule):
             Prediction dataloader.
         """
         assert self.predict_dataset is not None
-        return DataLoader[ImageRegionData[TileSpecs]](
+        return DataLoader[tuple[NDArray[Any], ...]](
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,

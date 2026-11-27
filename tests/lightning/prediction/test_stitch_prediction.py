@@ -9,7 +9,7 @@ from tifffile import imwrite
 from careamics.config.data import DataConfig
 from careamics.dataset.factory import create_dataset
 from careamics.dataset.image_region_data import ImageRegionData
-from careamics.dataset.patching import TiledPatching
+from careamics.dataset.patching import TiledPatching, unpack_patch_spec
 from careamics.lightning.prediction.stitch_prediction import (
     group_tiles_by_key,
     stitch_prediction,
@@ -117,7 +117,11 @@ def tiles(
     # extract tiles
     tiles: list[ImageRegionData] = []
     for i in range(n_tiles):
-        tiles.append(dataset[i][0])
+        input_patch, packed_spec = dataset[i]
+        tile, _ = dataset.create_image_regions(
+            input_patch, None, unpack_patch_spec(packed_spec)
+        )
+        tiles.append(tile)
 
     # reshape array for testing
     arrays = [reshape_array(array[i], data_config.axes) for i in range(array.shape[0])]

@@ -16,6 +16,7 @@ from careamics.dataset.patching import (
     PatchSpecs,
     TiledPatching,
     TileSpecs,
+    unpack_patch_spec,
 )
 from careamics.utils.reshape_array import AxesTransform, reshape_array
 
@@ -176,7 +177,11 @@ def tiles(
     # extract tiles
     tiles: list[ImageRegionData] = []
     for i in range(n_tiles):
-        tiles.append(dataset[i][0])
+        input_patch, packed_spec = dataset[i]
+        tile, _ = dataset.create_image_regions(
+            input_patch, None, unpack_patch_spec(packed_spec)
+        )
+        tiles.append(tile)
 
     # reshape array for testing
     arrays = [reshape_array(array[i], data_config.axes) for i in range(array.shape[0])]

@@ -2,20 +2,27 @@
 
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import lightning.pytorch as L
 import torch
+from numpy.typing import NDArray
 from torch import nn
 from torchmetrics import MetricCollection
 
 from careamics.config.noise_model import MultiChannelNMConfig
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
+from careamics.dataset.image_region_data import ImageRegionData
+from careamics.dataset.patching import unpack_patch_spec
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
     multichannel_noise_model_factory,
 )
 from careamics.utils.logging import get_logger
+from careamics.utils.reshape_array import adjust_shape_for_channels
+
+if TYPE_CHECKING:
+    from careamics.dataset.dataset import CareamicsDataset
 
 logger = get_logger(__name__)
 
@@ -351,3 +358,49 @@ def mmse_and_sample_std(
     std = (sum_squared_deviations / (n_samples - 1)).sqrt()
 
     return mean, std
+
+
+def create_prediction_regions(
+    prediction: NDArray[Any],
+    packed_specs: torch.Tensor,
+    dataset: "CareamicsDataset",
+) -> list[ImageRegionData]:
+    """Create one `ImageRegionData` for each sample of a prediction batch.
+
+    The metadata comes from the input image of each sample. The channel size of
+    `data_shape` is set to the number of predicted channels, and a `C` axis is added
+    to `target_axes` if the prediction has more than one channel and no `C` axis.
+
+    Parameters
+    ----------
+    prediction : NDArray
+        Prediction batch, with axes BC(Z)YX.
+    packed_specs : torch.Tensor
+        Patch specifications packed by `pack_patch_spec`, one row per sample.
+    dataset : CareamicsDataset
+        Dataset that produced the batch.
+
+    Returns
+    -------
+    list of ImageRegionData
+        One region per sample, with the prediction as data.
+    """
+    n_channels = prediction.shape[1]
+    regions: list[ImageRegionData] = []
+    for data, packed_spec in zip(prediction, packed_specs.cpu(), strict=True):
+        region, _ = dataset.create_image_regions(
+            data, None, unpack_patch_spec(packed_spec)
+        )
+        canonical_axes = "SCZYX" if len(region.data_shape) == 5 else "SCYX"
+        target_axes = region.target_axes
+        if n_channels > 1 and "C" not in target_axes:
+            target_axes = target_axes + "C"
+        regions.append(
+            region._replace(
+                data_shape=adjust_shape_for_channels(
+                    region.data_shape, canonical_axes, n_channels
+                ),
+                target_axes=target_axes,
+            )
+        )
+    return regions

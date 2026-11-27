@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from lightning.pytorch import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter
@@ -12,7 +12,6 @@ from lightning.pytorch.callbacks import BasePredictionWriter
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.image_io.write.get_func import SupportedWriteType, WriteFunc
 from careamics.lightning.prediction import (
-    decollate_image_region_data,
     prediction_region,
 )
 from careamics.utils import get_logger
@@ -20,6 +19,9 @@ from careamics.utils import get_logger
 from .file_path_utils import common_source_base
 from .write_strategy import WriteStrategy
 from .write_strategy_factory import create_write_strategy
+
+if TYPE_CHECKING:
+    from torch import Tensor
 
 logger = get_logger(__name__)
 
@@ -188,9 +190,12 @@ class PredictionWriterCallback(BasePredictionWriter):
         self,
         trainer: Trainer,
         pl_module: LightningModule,
-        prediction: ImageRegionData | tuple[ImageRegionData, ImageRegionData | None],
+        prediction: (
+            list[ImageRegionData]
+            | tuple[list[ImageRegionData], list[ImageRegionData] | None]
+        ),
         batch_indices: Sequence[int] | None,
-        batch: ImageRegionData,
+        batch: tuple[Tensor, ...],
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
@@ -207,11 +212,12 @@ class PredictionWriterCallback(BasePredictionWriter):
             PyTorch Lightning trainer.
         pl_module : LightningModule
             PyTorch Lightning module.
-        prediction : ImageRegionData or tuple of ImageRegionData
-            Prediction outputs of `batch`, optionally paired with the uncertainty.
+        prediction : list of ImageRegionData or tuple of list of ImageRegionData
+            Prediction regions of `batch`, optionally paired with the uncertainty
+            regions.
         batch_indices : sequence of Any, optional
             Batch indices.
-        batch : ImageRegionData
+        batch : tuple of torch.Tensor
             Input batch.
         batch_idx : int
             Batch index.
@@ -224,7 +230,7 @@ class PredictionWriterCallback(BasePredictionWriter):
 
         if self.write_strategy is not None:
             assert prediction is not None
-            predictions = decollate_image_region_data(prediction_region(prediction))
+            predictions = prediction_region(prediction)
 
             self.write_strategy.write_batch(
                 dirpath=self.dirpath,

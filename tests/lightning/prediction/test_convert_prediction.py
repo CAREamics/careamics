@@ -16,14 +16,14 @@ from careamics.lightning.prediction import (
 
 
 @pytest.fixture
-def batches(source_name: str) -> list[ImageRegionData]:
+def batches(source_name: str) -> list[list[ImageRegionData]]:
     """
-    Fixture providing batches of `ImageRegionData` to test decollate.
+    Fixture providing batches of `ImageRegionData`, as returned by `predict_step`.
 
     Returns
     -------
-    list of ImageRegionData
-        List of batches of `ImageRegionData`.
+    list of list of ImageRegionData
+        List of batches, each a list of `ImageRegionData`.
     """
     batches = []
     for b in range(5):  # data idx spread over multiple batches
@@ -34,9 +34,7 @@ def batches(source_name: str) -> list[ImageRegionData]:
             batch.append(
                 ImageRegionData(
                     source=f"{data_idx}.tiff" if source_name == "file" else "array",
-                    data=(
-                        data_idx * np.ones((32, 32)).astype(np.float32)
-                    ),  # individual sample, B dim added by collate
+                    data=data_idx * np.ones((32, 32)).astype(np.float32),
                     data_shape=(10, 32, 32),
                     dtype="float32",
                     # axes describes the full dataset shape
@@ -57,21 +55,17 @@ def batches(source_name: str) -> list[ImageRegionData]:
                 )
             )
 
-        batch_collated = default_collate(batch)
-        batches.append(batch_collated)
+        batches.append(batch)
     return batches
 
 
 class TestCombineSamples:
     @pytest.mark.parametrize("source_name", ["file"])  # injected in fixture
     def test_combine_prediction_by_data_idx(
-        self, batches: list[ImageRegionData]
+        self, batches: list[list[ImageRegionData]]
     ) -> None:
         """Test `combine_prediction_by_data_idx` function."""
-        all_decollated: list[ImageRegionData] = []
-        for batch in batches:
-            decollated = decollate_image_region_data(batch)
-            all_decollated.extend(decollated)
+        all_decollated = [region for batch in batches for region in batch]
 
         combined_predictions, _ = combine_samples(all_decollated)
         assert len(combined_predictions) == 2
@@ -81,13 +75,10 @@ class TestCombineSamples:
         assert np.all(combined_predictions[1] == 1)
 
     @pytest.mark.parametrize("source_name", ["file"])  # injected in fixture
-    def test_data_idx_order(self, batches: list[ImageRegionData]) -> None:
+    def test_data_idx_order(self, batches: list[list[ImageRegionData]]) -> None:
         """Test that `combine_prediction_by_data_idx` returns data in the correct
         order."""
-        all_decollated: list[ImageRegionData] = []
-        for batch in batches:
-            decollated = decollate_image_region_data(batch)
-            all_decollated.extend(decollated)
+        all_decollated = [region for batch in batches for region in batch]
 
         data_indices = np.unique([b.region_spec["data_idx"] for b in all_decollated])
         assert len(data_indices) == 2
@@ -198,7 +189,7 @@ def test_decollate_image_region_data(n_batch) -> None:
 
 class TestConvertPrediction:
     @pytest.mark.parametrize("source_name", ["file"])  # injected in fixture
-    def test_convert_arrays(self, batches: list[ImageRegionData]) -> None:
+    def test_convert_arrays(self, batches: list[list[ImageRegionData]]) -> None:
         """Test `convert_arrays` function."""
         predictions, sources = convert_prediction(batches, tiled=False)
         assert len(predictions) == 2  # 2 data idx in fixture
@@ -207,7 +198,9 @@ class TestConvertPrediction:
         assert sources == ["0.tiff", "1.tiff"]
 
     @pytest.mark.parametrize("source_name", ["array"])  # injected in fixture
-    def test_convert_arrays_empty_list(self, batches: list[ImageRegionData]) -> None:
+    def test_convert_arrays_empty_list(
+        self, batches: list[list[ImageRegionData]]
+    ) -> None:
         """Test `convert_arrays` with "array" sources returns an empty list."""
         _, sources = convert_prediction(batches, tiled=False)
         assert sources == []
@@ -215,13 +208,13 @@ class TestConvertPrediction:
 
 class TestConvertPredictOutputs:
     @pytest.fixture
-    def batches(self) -> list[ImageRegionData]:
+    def batches(self) -> list[list[ImageRegionData]]:
         """Batches of `ImageRegionData` with a channel dimension.
 
         Returns
         -------
-        list of ImageRegionData
-            List of collated batches, two samples per batch.
+        list of list of ImageRegionData
+            List of batches, four samples per batch.
         """
         batches = []
         for b in range(5):
@@ -246,10 +239,10 @@ class TestConvertPredictOutputs:
                         original_data_shape=(10, 1, 32, 32),
                     )
                 )
-            batches.append(default_collate(batch))
+            batches.append(batch)
         return batches
 
-    def test_without_uncertainty(self, batches: list[ImageRegionData]) -> None:
+    def test_without_uncertainty(self, batches: list[list[ImageRegionData]]) -> None:
         """Test that outputs without uncertainty return None uncertainties."""
         predictions, uncertainties, sources = convert_predict_outputs(
             batches, tiled=False
@@ -259,9 +252,12 @@ class TestConvertPredictOutputs:
         assert predictions[0].shape == (10, 1, 32, 32)
         assert sources == ["0.tiff", "1.tiff"]
 
-    def test_with_uncertainty(self, batches: list[ImageRegionData]) -> None:
+    def test_with_uncertainty(self, batches: list[list[ImageRegionData]]) -> None:
         """Test that outputs with uncertainty return converted uncertainties."""
-        outputs = [(batch, batch._replace(data=batch.data + 1)) for batch in batches]
+        outputs = [
+            (batch, [region._replace(data=region.data + 1) for region in batch])
+            for batch in batches
+        ]
         predictions, uncertainties, sources = convert_predict_outputs(
             outputs, tiled=False
         )

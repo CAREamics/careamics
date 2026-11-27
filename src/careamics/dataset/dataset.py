@@ -22,7 +22,7 @@ from .image_stack import GenericImageStack
 from .normalization import create_normalization
 from .normalization.statistics import resolve_normalization_config
 from .patch_constructor import PatchConstr
-from .patching import PatchSpecs, RegionSpecs, pack_patch_spec
+from .patching import RegionSpecs, pack_patch_spec
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
@@ -363,8 +363,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     ) -> (
         tuple[NDArray[Any], NDArray[np.int64]]
         | tuple[NDArray[Any], NDArray[Any], NDArray[np.int64]]
-        | tuple[ImageRegionData[PatchSpecs]]
-        | tuple[ImageRegionData[PatchSpecs], ImageRegionData[PatchSpecs]]
     ):
         """Return the patch and its specification for the given index.
 
@@ -376,10 +374,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         Returns
         -------
         tuple
-            In training and validation mode, `(input, packed_spec)` or
-            `(input, target, packed_spec)`, where `packed_spec` is the output of
-            `pack_patch_spec`. In prediction mode, `(input_data,)` or
-            `(input_data, target_data)` as `ImageRegionData`.
+            `(input, packed_spec)` or `(input, target, packed_spec)`, where
+            `packed_spec` is the output of `pack_patch_spec`.
         """
         input_patch, target_patch, patch_spec = self.patch_constructor.construct_patch(
             index
@@ -398,16 +394,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 (input_patch,) = self.transforms(input_patch, target_patch)
                 target_patch = None
 
-        if self.config.mode != Mode.PREDICTING:
-            packed_spec = pack_patch_spec(patch_spec)
-            if target_patch is None:
-                return input_patch, packed_spec
-            return input_patch, target_patch, packed_spec
-
-        input_data, target_data = self.create_image_regions(
-            input_patch, target_patch, patch_spec
-        )
-        if target_data is None:
-            return (input_data,)
-        else:
-            return input_data, target_data
+        packed_spec = pack_patch_spec(patch_spec)
+        if target_patch is None:
+            return input_patch, packed_spec
+        return input_patch, target_patch, packed_spec
