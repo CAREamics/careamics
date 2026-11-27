@@ -16,6 +16,8 @@ __all__ = [
     "create_patching",
     "is_per_channel_specs",
     "is_tile_specs",
+    "pack_patch_spec",
+    "unpack_patch_spec",
 ]
 
 from .fixed_patching import FixedPatching
@@ -25,6 +27,8 @@ from .patch_specs import (
     TileSpecs,
     is_per_channel_specs,
     is_tile_specs,
+    pack_patch_spec,
+    unpack_patch_spec,
 )
 from .patching import Patching, PatchSpecs
 from .patching_factory import create_patching
