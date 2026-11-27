@@ -12,8 +12,8 @@ from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import (
     Patching,
     PatchSpecs,
-    UncorrelatedPatchSpecs,
-    is_uncorrelated_specs,
+    PerChannelPatchSpecs,
+    is_per_channel_specs,
 )
 
 from .metadata_utils import ImageMetadata, get_image_metadata
@@ -128,7 +128,7 @@ class MultiChannelTargetMsPatchConstr(PatchConstr):
 
     def construct_patch(
         self, index: int
-    ) -> tuple[NDArray[Any], NDArray[Any], PatchSpecs | UncorrelatedPatchSpecs]:
+    ) -> tuple[NDArray[Any], NDArray[Any], PerChannelPatchSpecs]:
         """Construct the synthetic input and target patch for an index.
 
         Parameters
@@ -143,24 +143,24 @@ class MultiChannelTargetMsPatchConstr(PatchConstr):
             input axis ordered from the native patch scale to larger context scales.
         target_patch : NDArray[Any]
             Target patch with axes C(Z)YX.
-        patch_spec : PatchSpecs or UncorrelatedPatchSpecs
-            Standard patch specification for correlated channels, or uncorrelated
-            patch specification when channels are sampled from different locations.
+        patch_spec : PerChannelPatchSpecs
+            Patch specification with the location of each channel. All channels
+            have the same location unless they are sampled from different locations.
         """
+        n_channels = (
+            self.target_extractor.n_channels
+            if self.channels is None
+            else len(self.channels)
+        )
         p = self.rng.random()
-        patch_spec: PatchSpecs | UncorrelatedPatchSpecs
+        patch_spec: PerChannelPatchSpecs
         if p < self.uncorrelated_channel_prob:
-            n_channels = (
-                self.target_extractor.n_channels
-                if self.channels is None
-                else len(self.channels)
-            )
             # TODO: randomly sampling indices will not work well with iterable files
             indices: list[int] = [index] + self.rng.integers(
                 0, self.n_patches, n_channels - 1
             ).tolist()
             patch_specs = [self.patching_strategy.get_patch_spec(i) for i in indices]
-            patch, patch_spec = _construct_uncorrelated_patch(
+            patch, patch_spec = _construct_per_channel_patch(
                 self.target_extractor,
                 patch_specs,
                 channels=self.channels,
@@ -169,10 +169,17 @@ class MultiChannelTargetMsPatchConstr(PatchConstr):
                 padding_mode=self.padding_mode,
             )
         else:
-            patch_spec = self.patching_strategy.get_patch_spec(index)
+            principal_spec = self.patching_strategy.get_patch_spec(index)
+            patch_spec = PerChannelPatchSpecs(
+                **principal_spec,
+                principal_channel=0,
+                all_data_idx=[principal_spec["data_idx"]] * n_channels,
+                all_sample_idx=[principal_spec["sample_idx"]] * n_channels,
+                all_coords=[principal_spec["coords"]] * n_channels,
+            )
             patch = _extract_lc_patch(
                 self.target_extractor,
-                **patch_spec,
+                **principal_spec,
                 channels=self.channels,
                 multiscale_count=self.multiscale_count,
                 padding_mode=self.padding_mode,
@@ -208,16 +215,16 @@ class MultiChannelTargetMsPatchConstr(PatchConstr):
         Parameters
         ----------
         patch_spec : PatchSpecs
-            Patch specification identifying the input image. Uncorrelated patch specs
+            Patch specification identifying the input image. Per-channel patch specs
             include metadata for each channel location.
 
         Returns
         -------
         ImageMetadata
-            Metadata for the input image or principal uncorrelated input image.
+            Metadata for the input image or principal per-channel input image.
         """
-        if is_uncorrelated_specs(patch_spec):
-            metadata = _get_uncorrelated_metadata(self.target_extractor, patch_spec)
+        if is_per_channel_specs(patch_spec):
+            metadata = _get_per_channel_metadata(self.target_extractor, patch_spec)
             return metadata
         else:
             data_idx = patch_spec["data_idx"]
@@ -230,16 +237,16 @@ class MultiChannelTargetMsPatchConstr(PatchConstr):
         Parameters
         ----------
         patch_spec : PatchSpecs
-            Patch specification identifying the target image. Uncorrelated patch specs
+            Patch specification identifying the target image. Per-channel patch specs
             include metadata for each channel location.
 
         Returns
         -------
         ImageMetadata
-            Metadata for the target image or principal uncorrelated target image.
+            Metadata for the target image or principal per-channel target image.
         """
-        if is_uncorrelated_specs(patch_spec):
-            metadata = _get_uncorrelated_metadata(self.target_extractor, patch_spec)
+        if is_per_channel_specs(patch_spec):
+            metadata = _get_per_channel_metadata(self.target_extractor, patch_spec)
             return metadata
         else:
             data_idx = patch_spec["data_idx"]
@@ -375,7 +382,7 @@ class IndependentTargetsMsPatchConstr(PatchConstr):
 
     def construct_patch(
         self, index: int
-    ) -> tuple[NDArray[Any], NDArray[Any], UncorrelatedPatchSpecs]:
+    ) -> tuple[NDArray[Any], NDArray[Any], PerChannelPatchSpecs]:
         """Construct the synthetic input and target patch for an index.
 
         Parameters
@@ -390,7 +397,7 @@ class IndependentTargetsMsPatchConstr(PatchConstr):
             input axis ordered from the native patch scale to larger context scales.
         target_patch : NDArray[Any]
             Target patch with axes C(Z)YX.
-        patch_spec : UncorrelatedPatchSpecs
+        patch_spec : PerChannelPatchSpecs
             Patch specification containing one location per target channel source.
         """
         n_channels = len(self.patching_strategies)
@@ -405,7 +412,7 @@ class IndependentTargetsMsPatchConstr(PatchConstr):
             for strategy, i in zip(self.patching_strategies, indices, strict=True)
         ]
 
-        patch, uncorr_patch_specs = _construct_uncorrelated_patch(
+        patch, per_channel_spec = _construct_per_channel_patch(
             self.target_extractors,
             patch_specs,
             channels=None,
@@ -416,7 +423,7 @@ class IndependentTargetsMsPatchConstr(PatchConstr):
         input_patch, target_patch = _create_input_target(
             patch, self.alpha_ranges, self.rng
         )
-        return input_patch, target_patch, uncorr_patch_specs
+        return input_patch, target_patch, per_channel_spec
 
     def get_principal_input(self, input_patch: NDArray[Any]) -> NDArray[Any]:
         """Return the principal input without lateral context.
@@ -439,7 +446,7 @@ class IndependentTargetsMsPatchConstr(PatchConstr):
         Parameters
         ----------
         patch_spec : PatchSpecs
-            Uncorrelated patch specification identifying all channel source images.
+            Per-channel patch specification identifying all channel source images.
 
         Returns
         -------
@@ -447,13 +454,13 @@ class IndependentTargetsMsPatchConstr(PatchConstr):
             Metadata for the principal input image with additional per-channel source
             metadata.
         """
-        if not is_uncorrelated_specs(patch_spec):
+        if not is_per_channel_specs(patch_spec):
             raise TypeError(
                 # TODO: improve msg
-                "Only uncorrelated patches are supported for this mode of MicroSplit "
-                "training."
+                "Only per-channel patch specs are supported for this MicroSplit mode "
+                "of training."
             )
-        metadata = _get_uncorrelated_metadata(self.target_extractors, patch_spec)
+        metadata = _get_per_channel_metadata(self.target_extractors, patch_spec)
         return metadata
 
     def get_target_image_metadata(self, patch_spec: PatchSpecs) -> ImageMetadata | None:
@@ -462,7 +469,7 @@ class IndependentTargetsMsPatchConstr(PatchConstr):
         Parameters
         ----------
         patch_spec : PatchSpecs
-            Uncorrelated patch specification identifying all channel source images.
+            Per-channel patch specification identifying all channel source images.
 
         Returns
         -------
@@ -470,13 +477,13 @@ class IndependentTargetsMsPatchConstr(PatchConstr):
             Metadata for the principal target image with additional per-channel source
             metadata.
         """
-        if not is_uncorrelated_specs(patch_spec):
+        if not is_per_channel_specs(patch_spec):
             raise TypeError(
                 # TODO: improve msg
-                "Only uncorrelated patches are supported for this mode of MicroSplit "
-                "training."
+                "Only per-channel patch specs are supported for this MicroSplit mode "
+                "of training."
             )
-        metadata = _get_uncorrelated_metadata(self.target_extractors, patch_spec)
+        metadata = _get_per_channel_metadata(self.target_extractors, patch_spec)
         return metadata
 
     # Note: this is used by the FileIterSampler
@@ -930,14 +937,14 @@ def _create_input_target(
     return input_patch, target_patch
 
 
-def _construct_uncorrelated_patch(
+def _construct_per_channel_patch(
     extractor: PatchExtractor[Any] | Sequence[PatchExtractor[Any]],
     patch_specs: Sequence[PatchSpecs],
     channels: Sequence[int] | None,
     principal_channel: int,
     multiscale_count: int,
     padding_mode: Literal["reflect", "wrap"] = "reflect",
-) -> tuple[NDArray[Any], UncorrelatedPatchSpecs]:
+) -> tuple[NDArray[Any], PerChannelPatchSpecs]:
     """Construct a patch from channel patches sampled at different locations.
 
     Parameters
@@ -963,7 +970,7 @@ def _construct_uncorrelated_patch(
         Uncorrelated lateral context patch with axes CL(Z)YX, where L is the lateral
         context input axis ordered from the native patch scale to larger context
         scales.
-    patch_spec : UncorrelatedPatchSpecs
+    patch_spec : PerChannelPatchSpecs
         Patch specification containing all sampled channel locations.
     """
     # TODO: cannot use channels with sequence of extractors
@@ -990,14 +997,14 @@ def _construct_uncorrelated_patch(
                 multiscale_count=multiscale_count,
                 padding_mode=padding_mode,
             )
-    uncorr_patch_specs = UncorrelatedPatchSpecs(
+    per_channel_spec = PerChannelPatchSpecs(
         **patch_specs[principal_channel],
         principal_channel=principal_channel,
         all_data_idx=[ps["data_idx"] for ps in patch_specs],
         all_sample_idx=[ps["sample_idx"] for ps in patch_specs],
         all_coords=[ps["coords"] for ps in patch_specs],
     )
-    return patch, uncorr_patch_specs
+    return patch, per_channel_spec
 
 
 def _extract_lc_patch(
@@ -1086,18 +1093,18 @@ def _extract_lc_patch(
     return patch
 
 
-def _get_uncorrelated_metadata(
+def _get_per_channel_metadata(
     target_extractor: PatchExtractor[ImageStack] | Sequence[PatchExtractor[ImageStack]],
-    patch_spec: UncorrelatedPatchSpecs,
+    patch_spec: PerChannelPatchSpecs,
 ) -> ImageMetadata:
-    """Return metadata for an uncorrelated MicroSplit patch.
+    """Return metadata for a per-channel MicroSplit patch.
 
     Parameters
     ----------
     target_extractor : PatchExtractor or Sequence[PatchExtractor]
         Extractor containing all channel sources when a single extractor is provided,
         or one extractor per channel when a sequence is provided.
-    patch_spec : UncorrelatedPatchSpecs
+    patch_spec : PerChannelPatchSpecs
         Patch specification containing all sampled channel locations.
 
     Returns

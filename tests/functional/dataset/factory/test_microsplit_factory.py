@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import tifffile
 from numpy.typing import NDArray
+from torch.utils.data import default_collate
 
 from careamics.config.data import MicroSplitDataConfig
 from careamics.dataset.factory import (
@@ -24,7 +25,7 @@ from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
     PairedInputTargetMsPatchConstr,
     PredMsPatchConstr,
 )
-from careamics.dataset.patching import is_uncorrelated_specs
+from careamics.dataset.patching import is_per_channel_specs
 
 MicroSplitSource = list[NDArray[Any]] | list[Path]
 
@@ -178,16 +179,40 @@ def test_train_dataset_all_indices(
     for index in range(len(dataset)):
         input_region, target_region = dataset[index]
         if mode == "multiplexed":
-            expected_uncorrelated = bool(uncorrelated_channel_prob)
+            expected_per_channel = True
         elif mode == "separate":
-            expected_uncorrelated = True
+            expected_per_channel = True
         elif mode == "paired":
-            expected_uncorrelated = False
+            expected_per_channel = False
 
         assert input_region.data.shape == (multiscale_count, *patch_size)
         assert target_region.data.shape == (n_channels, *patch_size)
-        assert is_uncorrelated_specs(input_region.region_spec) is expected_uncorrelated
-        assert is_uncorrelated_specs(target_region.region_spec) is expected_uncorrelated
+        assert is_per_channel_specs(input_region.region_spec) is expected_per_channel
+        assert is_per_channel_specs(target_region.region_spec) is expected_per_channel
+
+
+def test_train_batch_mixed_channel_locations(tmp_path: Path) -> None:
+    """Test that patches with same and different channel locations collate."""
+    data, n_channels = _dummy_multiplexed_data(tmp_path, "array")
+    config = MicroSplitDataConfig(
+        mode="training",
+        data_type="array",
+        axes="SCYX",
+        patching={"name": "stratified", "patch_size": (16, 16), "seed": 42},
+        normalization={"name": "none"},
+        seed=42,
+        uncorrelated_channel_prob=0.5,
+    )
+    dataset = create_microsplit_dataset(
+        config=config,
+        data=data,
+        loading=None,
+        rng=np.random.default_rng(23),
+    )
+
+    input_batch, _ = default_collate([dataset[i] for i in range(len(dataset))])
+
+    assert len(input_batch.region_spec["all_coords"]) == n_channels
 
 
 @pytest.mark.parametrize("data_type", ["array", "tiff"])

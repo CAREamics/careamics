@@ -64,11 +64,11 @@ class TileSpecs(PatchSpecs):
     total_tiles: int
 
 
-# not the most elegant solution but the patch specs are not used during training
-class UncorrelatedPatchSpecs(PatchSpecs):
-    """Each channel comes from a different location in the dataset.
+class PerChannelPatchSpecs(PatchSpecs):
+    """A patch whose channels each have their own location in the dataset.
 
-    This kind of patch can be used in the MicroSplit training pipeline.
+    The channel locations can be the same or different. This kind of patch is used
+    in the MicroSplit training pipeline.
 
     Attributes
     ----------
@@ -110,8 +110,8 @@ def is_tile_specs(specs: PatchSpecs) -> TypeGuard[TileSpecs]:
     )
 
 
-def is_uncorrelated_specs(specs: PatchSpecs) -> TypeGuard[UncorrelatedPatchSpecs]:
-    """Determine whether a given PatchSpecs is an UncorrelatedPatchSpecs.
+def is_per_channel_specs(specs: PatchSpecs) -> TypeGuard[PerChannelPatchSpecs]:
+    """Determine whether a given PatchSpecs is a PerChannelPatchSpecs.
 
     Parameters
     ----------
@@ -121,7 +121,7 @@ def is_uncorrelated_specs(specs: PatchSpecs) -> TypeGuard[UncorrelatedPatchSpecs
     Returns
     -------
     bool
-        Whether the patch specification contains uncorrelated patch metadata.
+        Whether the patch specification contains a location for each channel.
     """
     return (
         ("all_data_idx" in specs)

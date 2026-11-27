@@ -5,26 +5,26 @@ __all__ = [
     "FixedRandomPatching",
     "PatchSpecs",
     "Patching",
+    "PerChannelPatchSpecs",
     "RandomPatching",
     "RegionSpecs",
     "SequentialPatching",
     "StratifiedPatching",
     "TileSpecs",
     "TiledPatching",
-    "UncorrelatedPatchSpecs",
     "WholeSamplePatching",
     "create_patching",
+    "is_per_channel_specs",
     "is_tile_specs",
-    "is_uncorrelated_specs",
 ]
 
 from .fixed_patching import FixedPatching
 from .patch_specs import (
+    PerChannelPatchSpecs,
     RegionSpecs,
     TileSpecs,
-    UncorrelatedPatchSpecs,
+    is_per_channel_specs,
     is_tile_specs,
-    is_uncorrelated_specs,
 )
 from .patching import Patching, PatchSpecs
 from .patching_factory import create_patching

@@ -2,7 +2,7 @@
 
 import pytest
 
-from careamics.dataset.patching import is_tile_specs, is_uncorrelated_specs
+from careamics.dataset.patching import is_per_channel_specs, is_tile_specs
 
 
 @pytest.mark.parametrize(
@@ -55,4 +55,4 @@ def test_patch_spec_type_guards(
 ) -> None:
     """Test patch spec helpers identify tile and uncorrelated patch specs."""
     assert is_tile_specs(specs) is expected_tile
-    assert is_uncorrelated_specs(specs) is expected_uncorrelated
+    assert is_per_channel_specs(specs) is expected_uncorrelated

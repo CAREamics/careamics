@@ -13,13 +13,13 @@ from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
     MultiChannelTargetMsPatchConstr,
     PairedInputTargetMsPatchConstr,
     PredMsPatchConstr,
-    _get_uncorrelated_metadata,
+    _get_per_channel_metadata,
 )
 from careamics.dataset.patch_extractor import PatchExtractor
 from careamics.dataset.patching import (
+    PerChannelPatchSpecs,
     StratifiedPatching,
-    UncorrelatedPatchSpecs,
-    is_uncorrelated_specs,
+    is_per_channel_specs,
 )
 
 MULTIPLEXED_TARGET_SHAPES = [(2, 3, 512, 512), (1, 3, 620, 256)]
@@ -176,6 +176,7 @@ def test_t1_construct_patch(
         max_input_value = sum(value / n_channels for value in channel_values)
 
     # test each index
+    any_different_locations = False
     for index in range(patch_constructor.n_patches):
         input_patch, target_patch, patch_specs = patch_constructor.construct_patch(
             index
@@ -187,11 +188,22 @@ def test_t1_construct_patch(
         # channel subset
         assert target_patch.shape[0] == n_channels
 
-        # uncorrelated patch
-        if uncorrelated_channel_prob == 0:
-            assert not is_uncorrelated_specs(patch_specs)
-        if uncorrelated_channel_prob == 1:
-            assert is_uncorrelated_specs(patch_specs)
+        assert is_per_channel_specs(patch_specs)
+        locations = list(
+            zip(
+                patch_specs["all_data_idx"],
+                patch_specs["all_sample_idx"],
+                [tuple(coords) for coords in patch_specs["all_coords"]],
+                strict=True,
+            )
+        )
+        assert len(locations) == n_channels
+        assert locations[0] == (
+            patch_specs["data_idx"],
+            patch_specs["sample_idx"],
+            tuple(patch_specs["coords"]),
+        )
+        any_different_locations |= len(set(locations)) > 1
 
         # alpha weighting
         assert (input_patch <= max_input_value).all()
@@ -200,6 +212,11 @@ def test_t1_construct_patch(
         assert (
             target_patch == np.array(channel_values).reshape(1, n_channels, 1, 1)
         ).all()
+
+    if uncorrelated_channel_prob == 0:
+        assert not any_different_locations
+    elif uncorrelated_channel_prob == 1:
+        assert any_different_locations
 
 
 @pytest.mark.parametrize("multiscale_count", [1, 2, 3])
@@ -253,7 +270,7 @@ def test_t2_construct_patch(
         assert target_patch.shape[0] == n_channels
 
         # uncorrelated patch
-        assert is_uncorrelated_specs(patch_specs)
+        assert is_per_channel_specs(patch_specs)
 
         # alpha weighting
         assert (input_patch <= max_input_value).all()
@@ -297,7 +314,7 @@ def test_t3_construct_patch(
         assert target_patch.shape[0] == n_channels
 
         # uncorrelated patch
-        assert not is_uncorrelated_specs(patch_specs)
+        assert not is_per_channel_specs(patch_specs)
 
         # input_value
         assert (input_patch == REAL_INPUT_VALUE).all()
@@ -335,7 +352,7 @@ def test_pred_construct_patch(
         assert target_patch is None
 
         # uncorrelated patch
-        assert not is_uncorrelated_specs(patch_specs)
+        assert not is_per_channel_specs(patch_specs)
 
         # input_value
         assert (input_patch == REAL_INPUT_VALUE).all()
@@ -352,7 +369,7 @@ def test_pred_construct_patch(
         [1, 0],
     ],
 )
-def test_get_uncorrelated_metadata_t1(
+def test_get_per_channel_metadata_t1(
     multiplexed_target_extractor: PatchExtractor,
     data_indices: Sequence[int],
     principal_channel: int,
@@ -362,7 +379,7 @@ def test_get_uncorrelated_metadata_t1(
 
     Code path for training mode 1.
     """
-    patch_spec = UncorrelatedPatchSpecs(
+    patch_spec = PerChannelPatchSpecs(
         data_idx=1,
         sample_idx=0,
         coords=(0, 0),
@@ -373,7 +390,7 @@ def test_get_uncorrelated_metadata_t1(
         all_coords=[(0, 0), (0, 0)],
     )
 
-    metadata = _get_uncorrelated_metadata(multiplexed_target_extractor, patch_spec)
+    metadata = _get_per_channel_metadata(multiplexed_target_extractor, patch_spec)
 
     expected_sources = [
         MULTIPLEXED_TARGET_SOURCE.format(idx=data_idx) for data_idx in data_indices
@@ -386,7 +403,7 @@ def test_get_uncorrelated_metadata_t1(
 
 @pytest.mark.parametrize("principal_channel", [0, 1, 2])
 @pytest.mark.parametrize("data_indices", [[0, 0, 0], [1, 2, 0], [0, 1, 0]])
-def test_get_uncorrelated_metadata_t2(
+def test_get_per_channel_metadata_t2(
     separate_target_extractors: Sequence[PatchExtractor[Any]],
     data_indices: Sequence[int],
     principal_channel: int,
@@ -395,7 +412,7 @@ def test_get_uncorrelated_metadata_t2(
 
     Code path for training mode 2.
     """
-    patch_spec = UncorrelatedPatchSpecs(
+    patch_spec = PerChannelPatchSpecs(
         data_idx=0,
         sample_idx=0,
         coords=(0, 0),
@@ -406,7 +423,7 @@ def test_get_uncorrelated_metadata_t2(
         all_coords=[(0, 0), (0, 0), (0, 0)],
     )
 
-    metadata = _get_uncorrelated_metadata(separate_target_extractors, patch_spec)
+    metadata = _get_per_channel_metadata(separate_target_extractors, patch_spec)
 
     expected_sources = [
         SEPARATE_CHANNEL_SOURCE.format(channel_idx=c_idx, data_idx=data_idx)
