@@ -86,9 +86,9 @@ def test_fit_builds_microsplit_datasets() -> None:
         datamodule.val_dataset.patch_constructor, PairedInputTargetMsPatchConstr
     )
 
-    input_region, target_region = datamodule.train_dataset[0]
-    assert input_region.data.shape == (multiscale_count, *PATCH_SIZE)
-    assert target_region.data.shape == (2, *PATCH_SIZE)
+    input_patch, target_patch, _ = datamodule.train_dataset[0]
+    assert input_patch.shape == (multiscale_count, *PATCH_SIZE)
+    assert target_patch.shape == (2, *PATCH_SIZE)
 
 
 def test_fit_builds_basic_datasets_for_generic_config() -> None:

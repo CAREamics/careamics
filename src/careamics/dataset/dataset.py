@@ -22,7 +22,7 @@ from .image_stack import GenericImageStack
 from .normalization import create_normalization
 from .normalization.statistics import resolve_normalization_config
 from .patch_constructor import PatchConstr
-from .patching import PatchSpecs, RegionSpecs
+from .patching import PatchSpecs, RegionSpecs, pack_patch_spec
 
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
@@ -294,7 +294,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         # TODO: add TTA
         return Compose([])
 
-    def _create_image_regions(
+    def create_image_regions(
         self,
         input_patch: NDArray[Any],
         target_patch: NDArray[Any] | None,
@@ -309,7 +309,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         target_patch : NDArray or None
             Optional target patch data.
         patch_spec : RegionSpecs
-            Patch specification.
+            Patch specification. For a training or validation item, use
+            `unpack_patch_spec` on the packed spec returned by `__getitem__`.
 
         Returns
         -------
@@ -360,10 +361,12 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __getitem__(
         self, index: int
     ) -> (
-        tuple[ImageRegionData[PatchSpecs]]
+        tuple[NDArray[Any], NDArray[np.int64]]
+        | tuple[NDArray[Any], NDArray[Any], NDArray[np.int64]]
+        | tuple[ImageRegionData[PatchSpecs]]
         | tuple[ImageRegionData[PatchSpecs], ImageRegionData[PatchSpecs]]
     ):
-        """Return a tuple of ImageRegionData for the given index.
+        """Return the patch and its specification for the given index.
 
         Parameters
         ----------
@@ -372,8 +375,11 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
         Returns
         -------
-        tuple of ImageRegionData
-            (input_data,) or (input_data, target_data).
+        tuple
+            In training and validation mode, `(input, packed_spec)` or
+            `(input, target, packed_spec)`, where `packed_spec` is the output of
+            `pack_patch_spec`. In prediction mode, `(input_data,)` or
+            `(input_data, target_data)` as `ImageRegionData`.
         """
         input_patch, target_patch, patch_spec = self.patch_constructor.construct_patch(
             index
@@ -392,7 +398,13 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 (input_patch,) = self.transforms(input_patch, target_patch)
                 target_patch = None
 
-        input_data, target_data = self._create_image_regions(
+        if self.config.mode != Mode.PREDICTING:
+            packed_spec = pack_patch_spec(patch_spec)
+            if target_patch is None:
+                return input_patch, packed_spec
+            return input_patch, target_patch, packed_spec
+
+        input_data, target_data = self.create_image_regions(
             input_patch, target_patch, patch_spec
         )
         if target_data is None:

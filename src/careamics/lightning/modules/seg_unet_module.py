@@ -131,15 +131,15 @@ class SegModule(LightningModule):
 
     def training_step(
         self,
-        batch: tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
     ) -> torch.Tensor:
         """Training step for segmentation module.
 
         Parameters
         ----------
-        batch : (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and the target data.
+        batch : tuple of torch.Tensor
+            `(input, target, packed_spec)`.
         batch_idx : int
             The index of the current batch in the training loop.
 
@@ -150,44 +150,43 @@ class SegModule(LightningModule):
         """
         x, target = batch[0], batch[1]
 
-        prediction = self.model(x.data)
-        loss = self.loss_func(prediction, target.data)
+        prediction = self.model(x)
+        loss = self.loss_func(prediction, target)
 
-        log_training_stats(self, loss, batch_size=x.data.shape[0])
+        log_training_stats(self, loss, batch_size=x.shape[0])
 
         return loss
 
     def validation_step(
         self,
-        batch: tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
     ) -> None:
         """Validation step for segmentation module.
 
         Parameters
         ----------
-        batch : (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and the target data.
+        batch : tuple of torch.Tensor
+            `(input, target, packed_spec)`.
         batch_idx : int
             The index of the current batch in the validation loop.
         """
         x, target = batch[0], batch[1]
 
-        prediction = self.model(x.data)
-        val_loss = self.loss_func(prediction, target.data)
+        prediction = self.model(x)
+        val_loss = self.loss_func(prediction, target)
 
         # compute metrics on validation
         # get index class, without C dimension
         pred_classes = prediction.argmax(dim=1)  # (B, [Z], Y, X)
 
-        assert isinstance(target.data, torch.Tensor)
-        target_long = target.data.long().squeeze(1)  # (B, [Z], Y, X)
+        target_long = target.long().squeeze(1)  # (B, [Z], Y, X)
         self.metrics(pred_classes, target_long)
 
         # not passing metrics because GenerelizedDiceScore is a tensor of length
         # num_classes, which cannot be reduced to a scalar if num_classes > 1
         # so we log the metrics ourselves in on_validation_epoch_end
-        log_validation_stats(self, val_loss, batch_size=x.data.shape[0])
+        log_validation_stats(self, val_loss, batch_size=x.shape[0])
 
     def on_validation_epoch_end(self) -> None:
         """Log per-class Dice scores at the end of each validation epoch."""

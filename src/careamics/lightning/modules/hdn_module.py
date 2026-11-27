@@ -261,7 +261,7 @@ class HDNModule(L.LightningModule):
 
     def _get_target(
         self,
-        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         x_data: torch.Tensor,
     ) -> torch.Tensor:
         """Return the training target.
@@ -271,8 +271,8 @@ class HDNModule(L.LightningModule):
 
         Parameters
         ----------
-        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
-            The input batch.
+        batch : tuple of torch.Tensor
+            `(input, packed_spec)` or `(input, target, packed_spec)`.
         x_data : torch.Tensor
             The input tensor (used as target in the self-supervised case).
 
@@ -283,11 +283,7 @@ class HDNModule(L.LightningModule):
         """
         if not self.config.is_supervised():
             return x_data
-        supervised_batch = cast("tuple[ImageRegionData, ImageRegionData]", batch)
-        target_data = supervised_batch[1].data
-        # batch data has been collated into a tensor by the DataLoader
-        assert isinstance(target_data, torch.Tensor)
-        return target_data
+        return batch[1]
 
     def _compute_loss(
         self, model_outputs: tuple[torch.Tensor, dict[str, Any]], target: torch.Tensor
@@ -373,15 +369,15 @@ class HDNModule(L.LightningModule):
 
     def training_step(
         self,
-        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
     ) -> torch.Tensor | None:
         """Training step for HDN.
 
         Parameters
         ----------
-        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and, optionally, the target data.
+        batch : tuple of torch.Tensor
+            `(input, packed_spec)` or `(input, target, packed_spec)`.
         batch_idx : int
             The index of the current batch in the training loop.
 
@@ -391,9 +387,7 @@ class HDNModule(L.LightningModule):
             The loss value for the current training step, or `None` to skip the
             batch when the loss is NaN.
         """
-        x_data = batch[0].data
-        # batch data has been collated into a tensor by the DataLoader
-        assert isinstance(x_data, torch.Tensor)
+        x_data = batch[0]
         target = self._get_target(batch, x_data)
 
         model_outputs = self.model(x_data)
@@ -412,21 +406,19 @@ class HDNModule(L.LightningModule):
 
     def validation_step(
         self,
-        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
     ) -> None:
         """Validation step for HDN.
 
         Parameters
         ----------
-        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and, optionally, the target data.
+        batch : tuple of torch.Tensor
+            `(input, packed_spec)` or `(input, target, packed_spec)`.
         batch_idx : int
             The index of the current batch in the validation loop.
         """
-        x_data = batch[0].data
-        # batch data has been collated into a tensor by the DataLoader
-        assert isinstance(x_data, torch.Tensor)
+        x_data = batch[0]
         target = self._get_target(batch, x_data)
 
         model_outputs = self.model(x_data)

@@ -25,7 +25,7 @@ from careamics.dataset.patch_constructor.microsplit_patch_constructors import (
     PairedInputTargetMsPatchConstr,
     PredMsPatchConstr,
 )
-from careamics.dataset.patching import is_per_channel_specs
+from careamics.dataset.patching import is_per_channel_specs, unpack_patch_spec
 
 MicroSplitSource = list[NDArray[Any]] | list[Path]
 
@@ -177,7 +177,7 @@ def test_train_dataset_all_indices(
         rng=np.random.default_rng(23),
     )
     for index in range(len(dataset)):
-        input_region, target_region = dataset[index]
+        input_patch, target_patch, packed_spec = dataset[index]
         if mode == "multiplexed":
             expected_per_channel = True
         elif mode == "separate":
@@ -185,10 +185,11 @@ def test_train_dataset_all_indices(
         elif mode == "paired":
             expected_per_channel = False
 
-        assert input_region.data.shape == (multiscale_count, *patch_size)
-        assert target_region.data.shape == (n_channels, *patch_size)
-        assert is_per_channel_specs(input_region.region_spec) is expected_per_channel
-        assert is_per_channel_specs(target_region.region_spec) is expected_per_channel
+        assert input_patch.shape == (multiscale_count, *patch_size)
+        assert target_patch.shape == (n_channels, *patch_size)
+        assert is_per_channel_specs(unpack_patch_spec(packed_spec)) is (
+            expected_per_channel
+        )
 
 
 def test_train_batch_mixed_channel_locations(tmp_path: Path) -> None:
@@ -210,9 +211,12 @@ def test_train_batch_mixed_channel_locations(tmp_path: Path) -> None:
         rng=np.random.default_rng(23),
     )
 
-    input_batch, _ = default_collate([dataset[i] for i in range(len(dataset))])
+    _, _, packed_specs = default_collate([dataset[i] for i in range(len(dataset))])
 
-    assert len(input_batch.region_spec["all_coords"]) == n_channels
+    for packed_spec in packed_specs:
+        spec = unpack_patch_spec(packed_spec)
+        assert is_per_channel_specs(spec)
+        assert len(spec["all_coords"]) == n_channels
 
 
 @pytest.mark.parametrize("data_type", ["array", "tiff"])
@@ -423,9 +427,9 @@ def test_train_val_datasets_build_paired_constructors(
     assert isinstance(train_dataset.patch_constructor, PairedInputTargetMsPatchConstr)
     assert isinstance(val_dataset.patch_constructor, PairedInputTargetMsPatchConstr)
 
-    input_region, target_region = train_dataset[0]
-    assert input_region.data.shape == (multiscale_count, *patch_size)
-    assert target_region.data.shape == (n_channels, *patch_size)
+    input_patch, target_patch, _ = train_dataset[0]
+    assert input_patch.shape == (multiscale_count, *patch_size)
+    assert target_patch.shape == (n_channels, *patch_size)
 
 
 def test_train_val_datasets_convert_validation_config(tmp_path: Path) -> None:

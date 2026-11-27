@@ -108,15 +108,15 @@ class N2VModule(L.LightningModule):
 
     def training_step(
         self,
-        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
     ) -> torch.Tensor:
         """Training step for N2V model.
 
         Parameters
         ----------
-        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and the target data.
+        batch : tuple of torch.Tensor
+            `(input, packed_spec)` or `(input, target, packed_spec)`.
         batch_idx : int
             The index of the current batch in the training loop.
 
@@ -125,8 +125,7 @@ class N2VModule(L.LightningModule):
         torch.Tensor
             The loss value for the current training step.
         """
-        x = batch[0]
-        x_data = cast(torch.Tensor, x.data)
+        x_data = batch[0]
         x_masked, x_original, mask = self.n2v_manipulate(x_data)
         prediction = self.model(x_masked)
         loss = self.loss_func(prediction, x_original, mask)
@@ -137,20 +136,19 @@ class N2VModule(L.LightningModule):
 
     def validation_step(
         self,
-        batch: tuple[ImageRegionData] | tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
     ) -> None:
         """Validation step for N2V model.
 
         Parameters
         ----------
-        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and the target data.
+        batch : tuple of torch.Tensor
+            `(input, packed_spec)` or `(input, target, packed_spec)`.
         batch_idx : int
             The index of the current batch in the validation loop.
         """
-        x = batch[0]
-        x_data = cast(torch.Tensor, x.data)
+        x_data = batch[0]
         x_masked, x_original, mask = self.n2v_manipulate(x_data)
         prediction = self.model(x_masked)
         val_loss = self.loss_func(prediction, x_original, mask)

@@ -56,7 +56,7 @@ def test_zarr_data_module(zarr_with_target_and_mask):
     train_dataset = datamodule.train_dataset
     assert len(train_dataset) > 0
     for i in range(len(train_dataset)):
-        sample, target = train_dataset[i]
+        sample, target, _ = train_dataset[i]
 
         # assess that the two image regions are equal (by design of the test zarr)
-        assert array_equal(sample.data, target.data)
+        assert array_equal(sample, target)

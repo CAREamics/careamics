@@ -124,15 +124,15 @@ class CAREModule(L.LightningModule):
 
     def training_step(
         self,
-        batch: tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
     ) -> torch.Tensor:
         """Training step for CARE module.
 
         Parameters
         ----------
-        batch : (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and the target data.
+        batch : tuple of torch.Tensor
+            `(input, target, packed_spec)`.
         batch_idx : int
             The index of the current batch in the training loop.
 
@@ -143,42 +143,42 @@ class CAREModule(L.LightningModule):
         """
         x, target = batch[0], batch[1]
 
-        prediction = self.model(x.data)
-        loss = self.loss_func(prediction, target.data)
+        prediction = self.model(x)
+        loss = self.loss_func(prediction, target)
 
-        log_training_stats(self, loss, batch_size=x.data.shape[0])
+        log_training_stats(self, loss, batch_size=x.shape[0])
 
         return loss
 
     def validation_step(
         self,
-        batch: tuple[ImageRegionData, ImageRegionData],
+        batch: tuple[torch.Tensor, ...],
         batch_idx: int,
     ) -> None:
         """Validation step for CARE module.
 
         Parameters
         ----------
-        batch : (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and the target data.
+        batch : tuple of torch.Tensor
+            `(input, target, packed_spec)`.
         batch_idx : int
             The index of the current batch in the validation loop.
         """
         x, target = batch[0], batch[1]
 
-        prediction = self.model(x.data)
-        val_loss = self.loss_func(prediction, target.data)
-        self.metrics(prediction, target.data)
+        prediction = self.model(x)
+        val_loss = self.loss_func(prediction, target)
+        self.metrics(prediction, target)
         log_validation_stats(
-            self, val_loss, batch_size=x.data.shape[0], metrics=self.metrics
+            self, val_loss, batch_size=x.shape[0], metrics=self.metrics
         )
         # log images
         not_sanity_checking = not self.trainer.sanity_checking
         if batch_idx == 0 and isinstance(self.logger, CoLogger) and not_sanity_checking:
-            n_samples = min(5, x.data.shape[0])
+            n_samples = min(5, x.shape[0])
             log_images(
                 module=self,
-                input_or_target=target.data[:n_samples],  # type: ignore
+                input_or_target=target[:n_samples],
                 prediction=prediction[:n_samples],
                 is_supervised=True,
             )

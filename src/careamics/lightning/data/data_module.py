@@ -32,7 +32,6 @@ from careamics.dataset.factory import (
 from careamics.dataset.image_region_data import ImageRegionData
 from careamics.dataset.image_stack import ImageStack
 from careamics.dataset.patching import (
-    PatchSpecs,
     TileSpecs,
 )
 from careamics.models.constraints import (
@@ -372,7 +371,7 @@ class CareamicsDataModule(L.LightningDataModule):
         """Save configuration in hyperparameters."""
         self.hparams.update(data_config=self.config.model_dump(mode="json"))
 
-    def train_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
+    def train_dataloader(self) -> DataLoader[tuple[NDArray[Any], ...]]:
         """
         Create a dataloader for training.
 
@@ -389,7 +388,7 @@ class CareamicsDataModule(L.LightningDataModule):
         if (sampler is not None) and ("shuffle" in dataloader_params):
             del dataloader_params["shuffle"]
         assert self.train_dataset is not None
-        return DataLoader[ImageRegionData[PatchSpecs]](
+        return DataLoader[tuple[NDArray[Any], ...]](
             self.train_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
@@ -397,7 +396,7 @@ class CareamicsDataModule(L.LightningDataModule):
             **dataloader_params,
         )
 
-    def val_dataloader(self) -> DataLoader[ImageRegionData[PatchSpecs]]:
+    def val_dataloader(self) -> DataLoader[tuple[NDArray[Any], ...]]:
         """
         Create a dataloader for validation.
 
@@ -411,7 +410,7 @@ class CareamicsDataModule(L.LightningDataModule):
         if (sampler is not None) and ("shuffle" in dataloader_params):
             del dataloader_params["shuffle"]
         assert self.val_dataset is not None
-        return DataLoader[ImageRegionData[PatchSpecs]](
+        return DataLoader[tuple[NDArray[Any], ...]](
             self.val_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,

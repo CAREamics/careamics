@@ -10,6 +10,7 @@ from careamics.config.factories.data_factory import (
     list_spatial_augmentations,
 )
 from careamics.dataset.factory import ReadFuncLoading, create_dataset
+from careamics.dataset.patching import unpack_patch_spec
 
 
 @pytest.mark.parametrize(
@@ -51,11 +52,9 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
     )
 
     assert len(train_dataset) == expected_dataset_len
-    output = train_dataset[0]
-    assert len(output) == 2
-    sample, target = output
-    assert sample.data.shape == (1, *patch_size)
-    assert target.data.shape == (1, *patch_size)
+    sample, target, _ = train_dataset[0]
+    assert sample.shape == (1, *patch_size)
+    assert target.shape == (1, *patch_size)
 
 
 def test_from_array_with_target_axes():
@@ -82,7 +81,10 @@ def test_from_array_with_target_axes():
         targets=[example_target],
     )
 
-    sample, target = train_dataset[0]
+    sample_patch, target_patch, packed_spec = train_dataset[0]
+    sample, target = train_dataset.create_image_regions(
+        sample_patch, target_patch, unpack_patch_spec(packed_spec)
+    )
     assert sample.axes == "YX"
     assert target.axes == "CYX"
     assert sample.data.shape == (1, *patch_size)
@@ -133,12 +135,15 @@ def test_from_array_with_channels(data_shape, patch_size, channels):
         targets=[data],
     )
 
-    sample, target = train_dataset[0]
-    assert sample.data.shape[0] == data_shape[0] if channels is None else len(channels)
-    assert target.data.shape[0] == data_shape[0]  # `channels` does not apply to targets
+    sample, target, _ = train_dataset[0]
+    assert sample.shape[0] == data_shape[0] if channels is None else len(channels)
+    assert target.shape[0] == data_shape[0]  # `channels` does not apply to targets
 
     if channels is not None:
-        for sample, _ in train_dataset:
+        for sample_patch, target_patch, packed_spec in train_dataset:
+            sample, _ = train_dataset.create_image_regions(
+                sample_patch, target_patch, unpack_patch_spec(packed_spec)
+            )
             for i, ch in enumerate(channels):
                 # ensure channels match by checking data ranges
                 assert np.all(ch * 1000 <= sample.data[i])
@@ -193,11 +198,9 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
     )
 
     assert len(train_dataset) == expected_dataset_len
-    output = train_dataset[0]
-    assert len(output) == 2
-    sample, target = output
-    assert sample.data.shape == (1, *patch_size)
-    assert target.data.shape == (1, *patch_size)
+    sample, target, _ = train_dataset[0]
+    assert sample.shape == (1, *patch_size)
+    assert target.shape == (1, *patch_size)
 
 
 @pytest.mark.parametrize(
@@ -291,11 +294,9 @@ def test_from_custom_data_type(patch_size, data_shape):
     )
 
     assert len(train_dataset) > 0
-    output = train_dataset[0]
-    assert len(output) == 2
-    sample, target = output
-    assert sample.data.shape == (1, *patch_size)
-    assert target.data.shape == (1, *patch_size)
+    sample, target, _ = train_dataset[0]
+    assert sample.shape == (1, *patch_size)
+    assert target.shape == (1, *patch_size)
 
 
 @pytest.mark.skip(
@@ -339,8 +340,8 @@ def test_array_patch_filtering():
     stds = train_dataset.normalization.input_stds
     normed_thresh = (threshold - means[0]) / stds[0]
     for i in range(len(train_dataset)):
-        (sample,) = train_dataset[i]
-        assert sample.data.mean() >= normed_thresh
+        sample, _ = train_dataset[i]
+        assert sample.mean() >= normed_thresh
 
 
 def test_error_data_smaller_than_patch():

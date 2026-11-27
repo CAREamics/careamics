@@ -22,7 +22,7 @@ class ImageRegionData(NamedTuple, Generic[RegionSpecs]):
     be smaller than that of the original data and only correspond to the requested
     number of channels.
 
-    ImageRegionData may be collated in batches during training by the DataLoader. In
+    ImageRegionData may be collated in batches during prediction by the DataLoader. In
     that case:
     - data: arrays are collated into NDArray of shape (B,C,Z,Y,X)
     - source: list of str, length B

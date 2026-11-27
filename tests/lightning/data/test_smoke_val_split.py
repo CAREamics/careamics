@@ -6,6 +6,7 @@ from lightning.pytorch import Callback, Trainer
 
 from careamics.config.data.patching_strategies import StratifiedPatchingConfig
 from careamics.config.factories import create_advanced_n2v_config
+from careamics.dataset.patching import unpack_patch_spec
 from careamics.lightning.data import CareamicsDataModule
 from careamics.lightning.modules import N2VModule
 
@@ -26,7 +27,7 @@ class _PatchTrackerCallback(Callback):
         self,
         trainer,
         pl_module,
-        batch,  #: ImageRegionData[PatchSpecs],
+        batch,
         batch_idx: int,
     ) -> None:
         for data_idx, patch_slice in self.batch_patch_slices(batch):
@@ -36,7 +37,7 @@ class _PatchTrackerCallback(Callback):
         self,
         trainer,
         pl_module,
-        batch,  #: ImageRegionData[PatchSpecs],
+        batch,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
@@ -45,21 +46,17 @@ class _PatchTrackerCallback(Callback):
 
     @staticmethod
     def batch_patch_slices(batch):
-        batch = batch[0]  # why is this a list of one
-        n = batch.data.shape[0]
-        region_specs = batch.region_spec
-        for i in range(n):
-            data_idx = region_specs["data_idx"][i]
-            sample_idx = region_specs["sample_idx"][i]
-            coords = tuple(c for c in region_specs["coords"][i])
-            patch_shape = tuple(ps for ps in region_specs["patch_size"][i])
-
+        for packed_spec in batch[-1].cpu():
+            spec = unpack_patch_spec(packed_spec)
             patch_slice = (
-                sample_idx,
+                spec["sample_idx"],
                 ...,
-                *(slice(c, c + ps) for c, ps in zip(coords, patch_shape, strict=True)),
+                *(
+                    slice(c, c + ps)
+                    for c, ps in zip(spec["coords"], spec["patch_size"], strict=True)
+                ),
             )
-            yield data_idx, patch_slice
+            yield spec["data_idx"], patch_slice
 
 
 @pytest.mark.parametrize(

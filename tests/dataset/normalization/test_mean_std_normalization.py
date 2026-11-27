@@ -77,10 +77,10 @@ def test_input_and_target_have_independent_stats():
         inputs=[input_data],
         targets=[target_data],
     )
-    input_sample, target_sample = dataset[0]
+    input_sample, target_sample, _ = dataset[0]
 
-    assert np.abs(input_sample.data.mean()) < 1.0
-    assert np.abs(target_sample.data.mean()) < 1.0
+    assert np.abs(input_sample.mean()) < 1.0
+    assert np.abs(target_sample.mean()) < 1.0
 
 
 def test_per_channel_auto_computes_stats():

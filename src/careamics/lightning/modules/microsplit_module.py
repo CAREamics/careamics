@@ -310,14 +310,14 @@ class MicroSplitModule(L.LightningModule):
         return normalization.denormalize(reconstruction)
 
     def training_step(
-        self, batch: tuple[ImageRegionData, ImageRegionData], batch_idx: int
+        self, batch: tuple[torch.Tensor, ...], batch_idx: int
     ) -> torch.Tensor | None:
         """Training step for MicroSplit.
 
         Parameters
         ----------
-        batch : (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and the target data.
+        batch : tuple of torch.Tensor
+            `(input, target, packed_spec)`.
         batch_idx : int
             The index of the current batch in the training loop.
 
@@ -326,11 +326,7 @@ class MicroSplitModule(L.LightningModule):
         torch.Tensor or None
             The loss value, or `None` to skip the batch when the loss is NaN.
         """
-        x_data = batch[0].data
-        target = batch[1].data
-        # batch data has been collated into tensors by the DataLoader
-        assert isinstance(x_data, torch.Tensor)
-        assert isinstance(target, torch.Tensor)
+        x_data, target = batch[0], batch[1]
 
         model_outputs = self.model(x_data)
         loss = self._compute_loss(model_outputs, target)
@@ -347,23 +343,17 @@ class MicroSplitModule(L.LightningModule):
         )
         return loss["loss"]
 
-    def validation_step(
-        self, batch: tuple[ImageRegionData, ImageRegionData], batch_idx: int
-    ) -> None:
+    def validation_step(self, batch: tuple[torch.Tensor, ...], batch_idx: int) -> None:
         """Validation step for MicroSplit.
 
         Parameters
         ----------
-        batch : (ImageRegionData, ImageRegionData)
-            A tuple containing the input data and the target data.
+        batch : tuple of torch.Tensor
+            `(input, target, packed_spec)`.
         batch_idx : int
             The index of the current batch in the validation loop.
         """
-        x_data = batch[0].data
-        target = batch[1].data
-        # batch data has been collated into tensors by the DataLoader
-        assert isinstance(x_data, torch.Tensor)
-        assert isinstance(target, torch.Tensor)
+        x_data, target = batch[0], batch[1]
 
         model_outputs = self.model(x_data)
         val_loss = self._compute_loss(model_outputs, target)
